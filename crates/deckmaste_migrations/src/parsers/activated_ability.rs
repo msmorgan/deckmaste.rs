@@ -175,7 +175,7 @@ mod tests {
             act("Sacrifice a creature: ~ deals 1 damage to any target.").as_deref(),
             Some(
                 "Activated(cost: [With(binder: ChooseOne(filter: Creature), \
-                 body: [Do(Sacrifice(That))])], \
+                 body: [Do(Sacrifice(That(Permanent)))])], \
                  effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
             )
         );
@@ -189,7 +189,7 @@ mod tests {
             Some(
                 "Activated(cost: [With(binder: ChooseOne(filter: \
                  AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), \
-                 body: [Do(Sacrifice(That))])], effect: Draw(1))"
+                 body: [Do(Sacrifice(That(Permanent)))])], effect: Draw(1))"
             )
         );
     }
@@ -201,7 +201,7 @@ mod tests {
             act("Sacrifice two creatures: Draw a card.").as_deref(),
             Some(
                 "Activated(cost: [With(binder: Choose(quantity: Exactly(2), filter: Creature), \
-                 body: [Do(Sacrifice(That))])], \
+                 body: [Do(Sacrifice(That(Permanent)))])], \
                  effect: Draw(1))"
             )
         );

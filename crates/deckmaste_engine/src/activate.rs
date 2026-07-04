@@ -68,7 +68,7 @@ pub(crate) struct CostSummary {
     pub tap_totals: Vec<TapTotalReq>,
     /// Cost-side choose-then-pay steps ([CR#601.2b], `CostComponent::With`):
     /// "sacrifice a creature" = `With(ChooseOne(Creature),
-    /// [Do(Sacrifice(That))])`. The binder makes a choice (bound as
+    /// [Do(Sacrifice(That(Permanent)))])`. The binder makes a choice (bound as
     /// `That`/`Those`) the body's verbs pay against — choosing kept OUT of
     /// the verb. Collected verbatim because the choice can only be surfaced
     /// against a live frame: the gate ([`GameState::can_activate`]) checks

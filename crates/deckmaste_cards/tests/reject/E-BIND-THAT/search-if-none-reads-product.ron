@@ -1,14 +1,14 @@
 // A search's `if_none` branch runs when NOTHING was found ([CR#701.23b]) — it
 // elaborates in the pre-binding context, so reading the search's product
-// (`That`) inside it is refused with E-BIND-THAT. The body still reads `That`
+// (`That(Card)`) inside it is refused with E-BIND-THAT. The body still reads it
 // legally (the found card).
 Normal(
   name: "Reject If None Reads Product",
   types: [Sorcery],
   abilities: [
     Spell(effect: With(
-      binder: SearchOne(filter: Type(Creature), if_none: Sacrifice(That)),
-      body: Move(That, Battlefield),
+      binder: SearchOne(filter: Type(Creature), if_none: Sacrifice(That(Card))),
+      body: Move(That(Card), Battlefield),
     )),
   ],
 )

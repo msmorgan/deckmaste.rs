@@ -949,6 +949,7 @@ fn eval_count(
         // need a resolution `Frame` (`resolve.rs::eval_count`), so a continuous
         // effect built on one defaults to `0` here (a documented seam).
         Count::X
+        | Count::ThatMany
         | Count::ThatMuch
         | Count::Allotment
         | Count::EventCount(..)

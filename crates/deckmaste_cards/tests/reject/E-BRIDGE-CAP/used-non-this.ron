@@ -8,7 +8,7 @@ Normal(
     Spell(effect: With(
       binder: ChooseOne(filter: Creature, by: You),
       body: Delayed(
-        event: Used(of: That),
+        event: Used(of: That(Permanent)),
         effect: GainLife(1),
       ),
     )),

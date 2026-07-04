@@ -295,7 +295,7 @@ mod tests {
         use crate::action::Destination;
         use crate::action::PlayerAction;
 
-        // "sacrifice a creature": choose one creature, then Sacrifice(That).
+        // "sacrifice a creature": choose one creature, then Sacrifice(That(Creature)).
         let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
         let with = CostComponent::With {
             binder: Box::new(Binder::ChooseOne {
@@ -303,7 +303,7 @@ mod tests {
                 by: Reference::You,
             }),
             body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                Reference::That,
+                Reference::That(crate::Sort::OfType(Type::Creature)),
             ))]),
         };
         assert_eq!(read(&to_string(&with)), with, "With cost round-trips");

@@ -62,16 +62,28 @@ header what =
 -- event caps ([CR#603.2e,608.2k]): what each event pattern supplies its body
 -- --------------------------------------------------------------------------
 
+-- Where an event form's OBJECT antecedent takes its SORT from (the
+-- anaphor-surface intro machinery): a named participant slot of the form
+-- ("source"/"what"/"by"/"of"/"on"), the destination zone's `zone_sort`
+-- ("to_zone"), a fixed sort ("spell"/"stack_object"/"token"), or nothing
+-- ("none" — the form supplies no object, or its object has no useful noun).
+-- Hand data like the lane/bridge rows until the Idris v2 stack model lands
+-- ([[idris-tables-fixtures-v2]]).
+ObjectSort : Type
+ObjectSort = String
+
 -- One row: the Rust-side event KEY (the `Event` node shape, or
--- `Performed:<verb>`), the caps VALUE computed via `eventKindCaps`, the cite.
-capsRow : (key : String) -> EventCaps -> (cite : String) -> String
-capsRow key (MkEventCaps o a m p d) cite =
+-- `Performed:<verb>`), the caps VALUE computed via `eventKindCaps`, the
+-- object-sort tag, the cite.
+capsRow : (key : String) -> EventCaps -> ObjectSort -> (cite : String) -> String
+capsRow key (MkEventCaps o a m p d) objectSort cite =
   "        (key: " ++ quoted key
   ++ ", object: " ++ bool o
   ++ ", actor: " ++ bool a
   ++ ", amount: " ++ bool m
   ++ ", patient: " ++ optKind p
   ++ ", defender: " ++ bool d
+  ++ ", object_sort: " ++ quoted objectSort
   ++ ", cite: " ++ quoted cite ++ "),\n"
 
 -- The key mapping: each Rust `EventFilter` MASTER FORM → the Idris
@@ -82,40 +94,41 @@ capsRow key (MkEventCaps o a m p d) cite =
 -- spine doesn't carry yet, given deliberate explicit values.
 eventCapsRows : List String
 eventCapsRows =
-  [ -- object/zone forms
-    capsRow "ZoneChange" (eventKindCaps (ZoneChanged Nothing Nothing)) "[CR#603.6]"
+  [ -- object/zone forms. The moved object's noun follows its NEW zone
+    -- ([CR#400.7] — the new object in the zone it moved to).
+    capsRow "ZoneChange" (eventKindCaps (ZoneChanged Nothing Nothing)) "to_zone" "[CR#603.6]"
     -- the recipient is a kind-poly patient ([CR#120.3] "a player or permanent")
-  , capsRow "Damage" (eventKindCaps (DealDamage Nothing {toKind = Just Anything})) "[CR#120.1]"
-  , capsRow "LifeGained" (eventKindCaps GainLife) "[CR#119.3]"
-  , capsRow "LifeLost" (eventKindCaps LoseLife) "[CR#119.3]"
-  , capsRow "Drawn" (eventKindCaps Draw) "[CR#121.1]"
-  , capsRow "CounterPlaced" (eventKindCaps PutCounters) "[CR#122.1]"
-  , capsRow "CounterRemoved" (eventKindCaps RemoveCounters) "[CR#122.1]"
+  , capsRow "Damage" (eventKindCaps (DealDamage Nothing {toKind = Just Anything})) "source" "[CR#120.1]"
+  , capsRow "LifeGained" (eventKindCaps GainLife) "none" "[CR#119.3]"
+  , capsRow "LifeLost" (eventKindCaps LoseLife) "none" "[CR#119.3]"
+  , capsRow "Drawn" (eventKindCaps Draw) "none" "[CR#121.1]"
+  , capsRow "CounterPlaced" (eventKindCaps PutCounters) "on" "[CR#122.1]"
+  , capsRow "CounterRemoved" (eventKindCaps RemoveCounters) "on" "[CR#122.1]"
     -- the onset family ([CR#603.2]) — the relation spine's inchoative aspect
-  , capsRow "Cast" (eventKindCaps (Begins Cast)) "[CR#601.2i]"
-  , capsRow "Played" (eventKindCaps (Begins Play)) "[CR#701.18a]"
-  , capsRow "ActivatedAb" (eventKindCaps (Begins Activate)) "[CR#602.2a]"
-  , capsRow "AttackDeclared" (eventKindCaps (Begins Attack)) "[CR#508.1k]"
-  , capsRow "BlockDeclared" (eventKindCaps (Begins Block)) "[CR#509.3a,509.3c]"
-  , capsRow "Attached" (eventKindCaps (Begins Attach)) "[CR#701.3a]"
-  , capsRow "BecomesTarget" (eventKindCaps (Begins Target)) "[CR#601.2c]"
+  , capsRow "Cast" (eventKindCaps (Begins Cast)) "spell" "[CR#601.2i]"
+  , capsRow "Played" (eventKindCaps (Begins Play)) "what" "[CR#701.18a]"
+  , capsRow "ActivatedAb" (eventKindCaps (Begins Activate)) "stack_object" "[CR#602.2a]"
+  , capsRow "AttackDeclared" (eventKindCaps (Begins Attack)) "by" "[CR#508.1k]"
+  , capsRow "BlockDeclared" (eventKindCaps (Begins Block)) "by" "[CR#509.3a,509.3c]"
+  , capsRow "Attached" (eventKindCaps (Begins Attach)) "what" "[CR#701.3a]"
+  , capsRow "BecomesTarget" (eventKindCaps (Begins Target)) "what" "[CR#601.2c]"
     -- residual status transitions ([CR#603.2e])
-  , capsRow "StateBecame:Tapped" (eventKindCaps (Becomes Tapped)) "[CR#603.2e]"
-  , capsRow "StateBecame:Untapped" (eventKindCaps (Becomes Untapped)) "[CR#603.2e]"
-  , capsRow "StateBecame:Phased" (eventKindCaps (Becomes PhasedOut)) "[CR#702.26b]"
-  , capsRow "StateBecame:TurnedFace" (eventKindCaps (Becomes FaceDown)) "[CR#708]"
+  , capsRow "StateBecame:Tapped" (eventKindCaps (Becomes Tapped)) "of" "[CR#603.2e]"
+  , capsRow "StateBecame:Untapped" (eventKindCaps (Becomes Untapped)) "of" "[CR#603.2e]"
+  , capsRow "StateBecame:Phased" (eventKindCaps (Becomes PhasedOut)) "of" "[CR#702.26b]"
+  , capsRow "StateBecame:TurnedFace" (eventKindCaps (Becomes FaceDown)) "of" "[CR#708]"
     -- turn structure / control / designations
-  , capsRow "StepBegins" (eventKindCaps (BeginStep (BeginningPhase UpkeepStep))) "[CR#603.2b]"
-  , capsRow "ControlChanged" (eventKindCaps GainControl) "[CR#613.1b]"
-  , capsRow "DesignationChanged" NoCaps "[CR#109.3]"
-  , capsRow "TokenCreated" (eventKindCaps CreateToken) "[CR#701.7]"
-  , capsRow "Used" NoCaps "[CR#608.2i]"
+  , capsRow "StepBegins" (eventKindCaps (BeginStep (BeginningPhase UpkeepStep))) "none" "[CR#603.2b]"
+  , capsRow "ControlChanged" (eventKindCaps GainControl) "of" "[CR#613.1b]"
+  , capsRow "DesignationChanged" NoCaps "none" "[CR#109.3]"
+  , capsRow "TokenCreated" (eventKindCaps CreateToken) "token" "[CR#701.7]"
+  , capsRow "Used" NoCaps "none" "[CR#608.2i]"
     -- literal rows (no EventKind yet): the flipping/rolling player is the
     -- actor; day/night is a game-scope expletive with no participants.
-  , capsRow "CoinFlipped" (MkEventCaps False True False Nothing False) "[CR#705.1]"
-  , capsRow "DiceRolled" (MkEventCaps False True False Nothing False) "[CR#706.1]"
-  , capsRow "BecameDay" NoCaps "[CR#731.1]"
-  , capsRow "BecameNight" NoCaps "[CR#731.1]"
+  , capsRow "CoinFlipped" (MkEventCaps False True False Nothing False) "none" "[CR#705.1]"
+  , capsRow "DiceRolled" (MkEventCaps False True False Nothing False) "none" "[CR#706.1]"
+  , capsRow "BecameDay" NoCaps "none" "[CR#731.1]"
+  , capsRow "BecameNight" NoCaps "none" "[CR#731.1]"
   ]
 
 eventCapsTable : String
@@ -601,6 +614,9 @@ bindRows =
   , bindRow "Replacement.Instead" (bindEvent NoCaps) "Query" (Just False) "[CR#614.1a]"
   , bindRow "Replacement.Also" (bindEvent NoCaps) "Query" (Just False) "[CR#614.1c]"
   , bindRow "AdditionalCost" (bindEvent NoCaps) "Cost" Nothing "[CR#601.2f]"
+    -- MayPay's "if they do" branch reads the payment like an
+    -- AdditionalCost body ([CR#608.2d] resolution-time choices).
+  , bindRow "MayPay" (bindEvent NoCaps) "Cost" Nothing "[CR#608.2d]"
     -- Filter::Where / Selection::Pick bind the candidate as `It`.
   , bindRow "Where" (bindIt AnObject) "Keep" Nothing "[CR#603.4]"
   , bindRow "Pick" (bindIt AnObject) "Keep" Nothing "[CR#107.1]"
@@ -612,6 +628,189 @@ bindTable : String
 bindTable =
   header "Binding-context transitions per construct (the Endophora bind-family, applied to a probe)."
   ++ "(\n    rows: [\n" ++ concat bindRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- sort compatibility (the anaphor surface's R1 compat table + the R2 gate's
+-- one pre-approved loosening flag)
+-- --------------------------------------------------------------------------
+
+-- One row: an anaphor's WANTED sort key reaching an antecedent's HAVE sort
+-- key. `widened: false` = an exact match (same noun; `OfType`/`OfType`
+-- additionally requires the same card type, applied by the consumer);
+-- `widened: true` = a widening row (compatible, but not exact — the R2
+-- gate's exact-vs-widened distinction). A pair with NO row is incompatible.
+-- Hand data until the Idris v2 stack model lands
+-- ([[idris-tables-fixtures-v2]]); each row cites its noun's CR home.
+compatRow : (want : String) -> (have : String) -> (widened : Bool)
+         -> (cite : String) -> String
+compatRow want have widened cite =
+  "        (want: " ++ quoted want
+  ++ ", have: " ++ quoted have
+  ++ ", widened: " ++ bool widened
+  ++ ", cite: " ++ quoted cite ++ "),\n"
+
+compatRows : List String
+compatRows =
+  [ compatRow "Player" "Player" False "[CR#102.1]"
+    -- tokens aren't cards ([CR#108.2b]) — "that card" never reaches a token
+  , compatRow "Card" "Card" False "[CR#108.2]"
+  , compatRow "Token" "Token" False "[CR#111.1]"
+  , compatRow "Spell" "Spell" False "[CR#112.1]"
+    -- "spell or ability" reaches both stack-object nouns ([CR#405.1])
+  , compatRow "StackObject" "Spell" True "[CR#405.1]"
+  , compatRow "StackObject" "StackObject" False "[CR#405.1]"
+    -- "that permanent" reaches a typed battlefield antecedent ([CR#110.1])
+  , compatRow "Permanent" "Permanent" False "[CR#110.1]"
+  , compatRow "Permanent" "OfType" True "[CR#110.1]"
+  , compatRow "Permanent" "Token" True "[CR#110.1]"
+    -- "that creature" reaches exactly a creature antecedent ([CR#205.2a])
+  , compatRow "OfType" "OfType" False "[CR#205.2a]"
+  , compatRow "Amount" "Amount" False "[CR#608.2i]"
+  , compatRow "Pile" "Pile" False "[CR#700.3]"
+  ]
+
+compatTable : String
+compatTable =
+  header "Sort compatibility (R1): which antecedent sorts each anaphor sort reaches; `exact_sort_precedence` is the R2 gate's one pre-approved loosening (OFF until the corpus dry-run calibrates it, [[cards-corpus-dry-run]])."
+  ++ "(\n    exact_sort_precedence: false,\n    rows: [\n"
+  ++ concat compatRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- zone sorts: what noun an object answers to once it sits in this zone
+-- --------------------------------------------------------------------------
+
+zoneSortRow : Zone -> (sort : String) -> (cite : String) -> String
+zoneSortRow z sort cite =
+  "        (zone: " ++ zoneName z
+  ++ ", sort: " ++ quoted sort
+  ++ ", cite: " ++ quoted cite ++ "),\n"
+
+-- Battlefield objects are permanents ([CR#110.1]), stack objects spells
+-- ([CR#112.1]), anything else is a card ([CR#108.2]) — this is why "exile
+-- target creature … return that card" resolves: the exile clause's product
+-- answers to "card".
+zoneSortRows : List String
+zoneSortRows =
+  [ zoneSortRow Battlefield "Permanent" "[CR#110.1]"
+  , zoneSortRow Stack "Spell" "[CR#112.1]"
+  , zoneSortRow Graveyard "Card" "[CR#108.2]"
+  , zoneSortRow Hand "Card" "[CR#108.2]"
+  , zoneSortRow Library "Card" "[CR#108.2]"
+  , zoneSortRow Exile "Card" "[CR#108.2]"
+  , zoneSortRow Command "Card" "[CR#108.2]"
+  ]
+
+zoneSortTable : String
+zoneSortTable =
+  header "Zone sorts: the noun an object answers to in each zone ([CR#110.1,112.1,108.2])."
+  ++ "(\n    rows: [\n" ++ concat zoneSortRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- intro: which clauses push antecedents (site, cardinality, sort, zone)
+-- --------------------------------------------------------------------------
+
+-- One row: a producing CLAUSE key; whether it pushes an OBJECT antecedent
+-- (site/card/sort/zone rules apply) and/or an AMOUNT antecedent ("that
+-- many/much"). Sort rules: a fixed sort name ("Card"/"Token"/"Pile"), or a
+-- derivation the walker applies ("from_filter" — the clause's filter,
+-- "from_destination" — zone_sort of the destination, "from_binder" — the
+-- binder's own content). Zone rules: "none", a fixed zone, or
+-- "from_destination" (the [CR#603.7c] expected_zone stamp). Hand data until
+-- the Idris v2 stack model lands ([[idris-tables-fixtures-v2]]).
+introRow : (clause : String) -> (object : Bool) -> (site : String)
+        -> (card : String) -> (sort : String) -> (zone : String)
+        -> (amount : Bool) -> (cite : String) -> String
+introRow clause object site card sort zone amount cite =
+  "        (clause: " ++ quoted clause
+  ++ ", object: " ++ bool object
+  ++ ", site: " ++ site
+  ++ ", card: " ++ card
+  ++ ", sort: " ++ quoted sort
+  ++ ", zone: " ++ quoted zone
+  ++ ", amount: " ++ bool amount
+  ++ ", cite: " ++ quoted cite ++ "),\n"
+
+introRows : List String
+introRows =
+  [ -- announced target slots ([CR#115.3,601.2c])
+    introRow "Targeted.slot" True "TargetSlot" "FromQuantity" "from_filter" "none" False "[CR#115.3,601.2c]"
+    -- moved objects: the effect finds what it moved ([CR#400.7j]); the
+    -- destination fixes the noun and the [CR#603.7c] expected zone
+  , introRow "Move" True "Product" "One" "from_destination" "from_destination" False "[CR#400.7j]"
+  , introRow "MoveGroup" True "Product" "Many" "from_destination" "from_destination" False "[CR#400.7j]"
+    -- created tokens enter the battlefield ([CR#111.2]); arity derived from
+    -- the count (the fact-signature product-arity column)
+  , introRow "Create" True "Product" "FromCount" "Token" "Battlefield" False "[CR#111.2]"
+    -- card-flow verbs push the moved cards AND an amount antecedent
+  , introRow "Draw" True "Product" "FromCount" "Card" "Hand" True "[CR#121.1]"
+  , introRow "Discard" True "Product" "FromCount" "Card" "Graveyard" True "[CR#701.9a]"
+  , introRow "Mill" True "Product" "FromCount" "Card" "Graveyard" True "[CR#701.17a]"
+    -- amount-bearing verbs push "that much" ([CR#608.2i] look-back)
+  , introRow "DealDamage" False "Product" "One" "Amount" "none" True "[CR#120.1]"
+  , introRow "GainLife" False "Product" "One" "Amount" "none" True "[CR#119.3]"
+  , introRow "LoseLife" False "Product" "One" "Amount" "none" True "[CR#119.3]"
+    -- resolution-time choices push Chosen antecedents ([CR#608.2d])
+  , introRow "A" True "Chosen" "One" "from_filter" "none" False "[CR#608.2d]"
+  , introRow "With.ChooseOne" True "Chosen" "One" "from_filter" "none" False "[CR#608.2d]"
+  , introRow "With.Choose" True "Chosen" "Many" "from_filter" "none" False "[CR#608.2d]"
+  , introRow "With.TheRef" True "Chosen" "One" "from_binder" "none" False "[CR#608.2d]"
+  , introRow "With.Existing" True "Chosen" "Many" "from_binder" "none" False "[CR#608.2d]"
+  , introRow "With.Produce" True "Product" "One" "from_binder" "none" False "[CR#608.2d]"
+    -- searches produce WHIFFABLE products ([CR#701.23,701.23b])
+  , introRow "With.SearchOne" True "Product" "One" "Card" "none" False "[CR#701.23]"
+  , introRow "With.Search" True "Product" "Many" "Card" "none" False "[CR#701.23]"
+    -- loop elements ([CR#608.2]); DivideAmong additionally binds Allotment
+    -- via its bind-rules row ([CR#601.2d])
+  , introRow "Each" True "Loop" "One" "from_binder" "none" False "[CR#608.2]"
+  , introRow "DivideAmong" True "Loop" "One" "from_binder" "none" False "[CR#601.2d]"
+    -- piles: one labeled Many antecedent per label ([CR#700.3]); the chosen
+    -- pile binds for the `then` body ([CR#700.3,608.2d])
+  , introRow "SeparatePiles.pile" True "Product" "Many" "Pile" "none" False "[CR#700.3]"
+  , introRow "ChoosePile" True "Chosen" "Many" "Pile" "none" False "[CR#700.3]"
+  ]
+
+introTable : String
+introTable =
+  header "Intro: which clauses push antecedents onto the stack (site, cardinality, sort, expected zone, amount companion)."
+  ++ "(\n    rows: [\n" ++ concat introRows ++ "    ],\n)\n"
+
+-- --------------------------------------------------------------------------
+-- static-part classes ([CR#611.2c]): fixed vs live affected sets under Until
+-- --------------------------------------------------------------------------
+
+classRow : (kind : String) -> (gatherOnce : Bool) -> String
+classRow kind gatherOnce =
+  "        (kind: " ++ quoted kind
+  ++ ", class: " ++ (if gatherOnce then "GatherOnce" else "GatherLive")
+  ++ ", cite: " ++ quoted "[CR#611.2c]" ++ "),\n"
+
+-- [CR#611.2c] verbatim: characteristic-/controller-modifying parts fix
+-- their set when the effect begins; rules-modifying parts stay live; a
+-- mixed effect determines each part independently. (`Static` ability
+-- position is always live re-gathering, [CR#611.3a].)
+classRows : List String
+classRows =
+  [ classRow "Modify" True          -- characteristics/controller ([CR#613])
+  , classRow "ModifyPlayer" True
+  , classRow "Deontic" False
+  , classRow "CostModifier" False
+  , classRow "CostOption" False
+  , classRow "TriggerMultiplier" False
+  , classRow "Replacement" False
+  , classRow "Prevention" False
+  , classRow "CantPrevent" False
+  , classRow "SpendAsThough" False
+  , classRow "Sba" False
+  , classRow "OutcomeGate" False
+  , classRow "CantHappen" False
+  , classRow "PayPips" False
+  , classRow "AsThough" False
+  ]
+
+classTable : String
+classTable =
+  header "Static-part classes under Until ([CR#611.2c]): characteristic-/controller-modifying parts gather once at start; rules-modifying parts stay live."
+  ++ "(\n    rows: [\n" ++ concat classRows ++ "    ],\n)\n"
 
 -- --------------------------------------------------------------------------
 -- checker-rule manifest: every error code the elaborator may emit
@@ -628,12 +827,14 @@ ruleRow code cite summary =
 ruleRows : List String
 ruleRows =
   [ ruleRow "E-BIND-TARGET" "[CR#115.3,601.2c]" "target slot referenced but not announced in scope"
-  , ruleRow "E-BIND-THAT" "[CR#608.2d]" "singular That read outside a one-binder With"
-  , ruleRow "E-BIND-THAT-GROUP" "[CR#608.2d]" "group That read outside a many-binder With"
-  , ruleRow "E-BIND-IT" "[CR#608.2]" "It read outside an Each/DivideAmong/Where/Pick binder"
+  , ruleRow "E-BIND-THAT" "[CR#608.2d]" "sorted singular anaphor That(Sort) with no compatible antecedent in scope"
+  , ruleRow "E-BIND-THAT-GROUP" "[CR#608.2d]" "plural anaphor They/Them(Sort) with no compatible Many antecedent in scope"
+  , ruleRow "E-BIND-IT" "[CR#608.2]" "It with no antecedent: outside every loop binder and with an empty antecedent stack"
   , ruleRow "E-BIND-ALLOTMENT" "[CR#601.2d]" "Allotment read outside a DivideAmong body"
   , ruleRow "E-BIND-EVENT" "[CR#603.2e,608.2k]" "event-role reference outside any event body"
   , ruleRow "E-BIND-NOTE" "[CR#607.2]" "noted key read but never noted in scope"
+  , ruleRow "E-BIND-AMBIGUOUS" "[CR#608.2d]" "ambiguous reference - a second same-kind compatible antecedent exists; add Label/The, or use Target(n)"
+  , ruleRow "E-BIND-LABEL" "[CR#608.2d]" "labeled reference (The/TheGroup/pile label) naming no label in scope"
   , ruleRow "E-CAPS-OBJECT" "[CR#603.2e,608.2k]" "EventObject read where the event caps supply no object"
   , ruleRow "E-CAPS-ACTOR" "[CR#603.2e,608.2k]" "EventActor read where the event caps supply no actor"
   , ruleRow "E-CAPS-PATIENT" "[CR#120.3,608.2k]" "EventPatient read where the event fixes no patient kind"
@@ -667,6 +868,7 @@ ruleRows =
   , ruleRow "E-FLOOR-MODAL-COUNT" "[CR#700.2d]" "modal choose-count exceeds the number of modes"
   , ruleRow "E-FLOOR-MODAL-EMPTY" "[CR#700.2]" "modal effect with no modes"
   , ruleRow "E-FLOOR-DIVIDE" "[CR#601.2d]" "divided amount statically smaller than the minimum group size"
+  , ruleRow "E-FLOOR-PILES" "[CR#700.3]" "pile shape floor: no pile labels, or duplicate pile labels"
   , ruleRow "E-FLOOR-NTH" "[CR#603.2g]" "Nth occurrence index below one - a 0th occurrence never occurs"
   , ruleRow "E-FLOOR-DESTINATION" "[CR#401.4,405.1]" "bare Library/Stack zone as a Move destination (ordered positions only via Library(Anchor); the stack is never a destination)"
   , ruleRow "E-FLOOR-DEED-AGENT" "[CR#702.11d,702.16b]" "DeedAgent with neither arm present (the two-armed agent constrains through at least one arm)"
@@ -705,6 +907,10 @@ emitTables = do
   emit "scopes.ron" scopesTable
   emit "kind-lattice.ron" latticeTable
   emit "bind-rules.ron" bindTable
+  emit "sort-compat.ron" compatTable
+  emit "zone-sorts.ron" zoneSortTable
+  emit "intro.ron" introTable
+  emit "static-classes.ron" classTable
   emit "checker-rules.ron" rulesTable
 
 -- `--exec main` convenience: the same entry.

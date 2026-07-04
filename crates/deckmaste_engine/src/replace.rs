@@ -157,7 +157,7 @@ impl GameState {
 }
 
 /// The host-quality `Filter` of an enters-attached self-replacement —
-/// `With(ChooseOne(quality), Attach(This, That))` ([CR#303.4f]: as it enters,
+/// `With(ChooseOne(quality), Attach(This, It))` ([CR#303.4f]: as it enters,
 /// the controller chooses a legal host matching the Aura's enchant quality),
 /// looked through `Expanded`. `None` for any other shape.
 fn enters_attached_quality(effect: &Effect) -> Option<&Filter> {
@@ -166,7 +166,7 @@ fn enters_attached_quality(effect: &Effect) -> Option<&Filter> {
             let body_is_self_attach = matches!(
                 &*with.body,
                 Effect::Act(Action::Attach { what, to })
-                    if is_self_reference(what) && matches!(to, Reference::That)
+                    if is_self_reference(what) && matches!(to, Reference::It)
             );
             if body_is_self_attach { host_quality(&with.binder) } else { None }
         }
@@ -303,7 +303,7 @@ mod tests {
                         },
                         body: Box::new(Effect::Act(Action::Attach {
                             what: Reference::This,
-                            to: Reference::That,
+                            to: Reference::It,
                         })),
                     }),
                 }))],

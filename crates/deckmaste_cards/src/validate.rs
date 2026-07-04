@@ -58,6 +58,10 @@ pub struct Validation {
     /// Elaboration errors (`deckmaste_cards::elaborate`): per-card `E-*`
     /// findings from the load-time binding-context walk.
     pub elab_failures: Vec<(PathBuf, crate::elaborate::ElabError)>,
+    /// Deprecated explicit-slot reads (`Target(n)`/`GetTargets(n)`) — legal,
+    /// warned: the anaphor surface supersedes them (sunset:
+    /// cards-fidelity-target-sunset).
+    pub deprecations: usize,
 }
 
 /// Reads every non-todo `cards/**/*.ron` and `tokens/**/*.ron` in the plugin
@@ -76,6 +80,7 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         failures: Vec::new(),
         lint_failures: Vec::new(),
         elab_failures: Vec::new(),
+        deprecations: 0,
     };
     let registries = plugin.registries();
 
@@ -95,11 +100,19 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
                     &plugin.macros,
                     &mut validation.lint_failures,
                 );
-                if let Err(errors) = crate::elaborate::elaborate(&card, &registries) {
+                // The traced walk doubles as the deprecation counter:
+                // `Target(n)`/`GetTargets(n)` still load, warned only.
+                let (result, resolutions) =
+                    crate::elaborate::elaborate_with_resolutions(&card, &registries);
+                if let Err(errors) = result {
                     validation
                         .elab_failures
                         .extend(errors.into_iter().map(|e| (path.clone(), e)));
                 }
+                validation.deprecations += resolutions
+                    .iter()
+                    .filter(|r| r.description.contains("deprecated"))
+                    .count();
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),

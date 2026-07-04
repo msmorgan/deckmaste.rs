@@ -1,9 +1,9 @@
-// Twin of Spec.idr `tBadThatOutsideWith`: the group `That` selection with no
-// enclosing many-binder `With` [CR#608.2d].
+// Twin of Spec.idr `tBadThatOutsideWith`: the plural anaphor `They` with no
+// compatible Many antecedent in scope [CR#608.2d].
 Normal(
   name: "Reject Group That Unbound",
   types: [Sorcery],
   abilities: [
-    Spell(effect: Each(binder: Existing(That), effect: Destroy(It))),
+    Spell(effect: Each(binder: Existing(They), effect: Destroy(It))),
   ],
 )

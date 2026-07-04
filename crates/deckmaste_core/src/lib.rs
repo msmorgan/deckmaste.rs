@@ -99,16 +99,20 @@ pub use temporal::TurnMarker;
 
 mod effect;
 pub use effect::AdditionalCost;
+pub use effect::ChoosePile;
 pub use effect::Continuously;
 pub use effect::DivideAmong;
 pub use effect::Each;
 pub use effect::Effect;
 pub use effect::If;
+pub use effect::Label;
 pub use effect::May;
 pub use effect::MayPay;
 pub use effect::Modal;
 pub use effect::MustPay;
 pub use effect::Noting;
+pub use effect::PileSource;
+pub use effect::SeparatePiles;
 pub use effect::Targeted;
 pub use effect::Unless;
 pub use effect::With;
@@ -178,6 +182,9 @@ pub use status::FaceDownCharacteristics;
 pub use status::FaceDownSpec;
 pub use status::Phasing;
 pub use status::Status;
+
+mod sort;
+pub use sort::Sort;
 
 mod symbol;
 pub use symbol::Symbol;

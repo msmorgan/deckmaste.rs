@@ -58,4 +58,8 @@ pub enum NotedKind {
     CardName,
     Number,
     Objects,
+    /// Labeled pile groups persisted by a
+    /// `SeparatePiles { note, .. }`, keyed by (note, label, divider) —
+    /// read back via `Selection::PilesOf` ([CR#700.3a]).
+    Piles,
 }

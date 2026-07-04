@@ -855,7 +855,9 @@ mod tests {
                         by: Reference::You,
                     }),
                     body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                        Reference::That,
+                        Reference::That(deckmaste_core::Sort::OfType(
+                            deckmaste_core::Type::Creature,
+                        )),
                     ))]),
                 }]),
                 body: Box::new(deckmaste_core::Effect::act_by_you(PlayerAction::Draw(
@@ -887,7 +889,9 @@ mod tests {
                 filter: Filter::creature(),
                 by: Reference::You,
             },
-            body: Box::new(Effect::act_by_you(PlayerAction::Sacrifice(Reference::That))),
+            body: Box::new(Effect::act_by_you(PlayerAction::Sacrifice(
+                Reference::That(deckmaste_core::Sort::OfType(deckmaste_core::Type::Creature)),
+            ))),
         });
         assert_eq!(effect(&with, &ctx), "Sacrifice a creature.");
     }
@@ -912,7 +916,7 @@ mod tests {
             },
             body: Box::new(Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(2),
-                what: Some(Reference::That),
+                what: Some(Reference::That(deckmaste_core::Sort::Card)),
                 random: false,
             })),
         });

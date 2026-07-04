@@ -31,6 +31,10 @@ pub(super) struct ParsedEffect {
 pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     parse_if(line, ctx)
         .or_else(|| parse_may(line, ctx))
+        .or_else(|| parse_sequence(line, ctx))
+        .or_else(|| parse_delayed_next_end_step(line, ctx))
+        .or_else(|| parse_exile_target(line))
+        .or_else(|| parse_return_that_card(line))
         .or_else(|| parse_deal_damage(line))
         .or_else(|| parse_draw(line))
         .or_else(|| parse_lose_life(line))
@@ -308,6 +312,125 @@ const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " hav
 /// ("destroy all/each …") are a later production. Declines when the subject
 /// isn't filter-parseable. Case-insensitive lead, since the clause opens a
 /// spell ("Destroy …") or follows a trigger comma ("…, destroy …").
+/// Sentence-order `Sequence` ([CR#608.2c]): a multi-sentence effect line
+/// splits into its sentences and parses each as a clause, in ORACLE ORDER —
+/// the telescope surface (each clause elaborates in the context extended by
+/// its left siblings' introductions; no binder inversion). Targets may be
+/// declared only by the FIRST sentence (later `Target(n)` indices would
+/// collide with the first's); later sentences read the announced slot or the
+/// products through the anaphors (`That(Card)`, …). Declines unless every
+/// sentence parses.
+fn parse_sequence(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+    let sentences: Vec<&str> = split_sentences(line)?;
+    let parts: Vec<ParsedEffect> = sentences
+        .iter()
+        .map(|sentence| parse_clause(sentence, ctx))
+        .collect::<Option<_>>()?;
+    if parts[1..].iter().any(|p| !p.targets.is_empty()) {
+        return None;
+    }
+    let effects: Vec<String> = parts.iter().map(|p| p.effect.clone()).collect();
+    Some(ParsedEffect {
+        targets: parts[0].targets.clone(),
+        effect: format!("Sequence([{}])", effects.join(", ")),
+    })
+}
+
+/// Splits a multi-sentence line into its ". "-separated sentences, each with
+/// its terminal period restored. `None` unless there are at least two —
+/// single sentences stay with the bespoke productions (and avoid the
+/// [`parse_sequence`] recursion re-splitting them).
+fn split_sentences(line: &str) -> Option<Vec<&str>> {
+    if !line.ends_with('.') || !line.contains(". ") {
+        return None;
+    }
+    let mut sentences = Vec::new();
+    let mut rest = line;
+    while let Some(split) = rest.find(". ") {
+        let (sentence, tail) = rest.split_at(split + 1);
+        sentences.push(sentence);
+        rest = &tail[1..];
+    }
+    sentences.push(rest);
+    (sentences.len() >= 2).then_some(sentences)
+}
+
+/// The delayed-trigger template ([CR#603.7]): "At the beginning of the next
+/// end step, <clause>" -> `Delayed(event: StepBegins(at: Ending(End),
+/// whose: EachPlayers), effect: <clause>)` — a one-shot schedule created on
+/// resolution (fire-once is `Effect::Delayed`'s own semantics,
+/// [CR#603.7c]). The inner clause may not declare targets (a delayed body
+/// reads products, never the spell's slots — the elaborator drops them).
+fn parse_delayed_next_end_step(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+    let rest = strip_prefix_ci(line, "at the beginning of the next end step, ")?;
+    let mut capitalized = String::with_capacity(rest.len());
+    let mut chars = rest.chars();
+    capitalized.extend(chars.next()?.to_uppercase());
+    capitalized.push_str(chars.as_str());
+    let inner = parse_clause(&capitalized, ctx)?;
+    if !inner.targets.is_empty() {
+        return None;
+    }
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!(
+            "Delayed(event: StepBegins(at: Ending(End), whose: EachPlayers), effect: {})",
+            inner.effect
+        ),
+    })
+}
+
+/// `Exile target <subject>.` -> a targeted exile: `Move(Target(0), Exile)`
+/// ([CR#701.13a]; the slot spelling stays the runtime-supported read). The
+/// exile clause's PRODUCT — the exiled card — is what a following sentence's
+/// `That(Card)` resolves to ([CR#400.7j]; the Otherworldly-Journey chain).
+fn parse_exile_target(line: &str) -> Option<ParsedEffect> {
+    let subject = strip_prefix_ci(line, "exile ")?
+        .strip_suffix('.')?
+        .strip_prefix("target ")?;
+    let filter = object_target_filter(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: "Move(Target(0), Exile)".to_owned(),
+    })
+}
+
+/// `Return that card to the battlefield[ under its owner's control][
+/// tapped][ with a +1/+1 counter on it].` -> `Move(That(Card),
+/// Battlefield[, riders])` — the sorted anaphor reads the nearest card
+/// product ([CR#400.7j]; typically the exile clause to its left, surviving
+/// into a `Delayed` body per [CR#603.7c]), and the postposed adjuncts ride
+/// as enter riders ([CR#614.12]).
+fn parse_return_that_card(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "return that card to the battlefield")?.strip_suffix('.')?;
+    let mut riders: Vec<&str> = Vec::new();
+    let mut rest = body;
+    if let Some(tail) = rest.strip_prefix(" under its owner's control") {
+        riders.push("UnderOwnersControl");
+        rest = tail;
+    }
+    if let Some(tail) = rest.strip_prefix(" tapped") {
+        riders.push("Tapped");
+        rest = tail;
+    }
+    if let Some(tail) = rest.strip_prefix(" with a +1/+1 counter on it") {
+        riders.push("WithCounters(P1P1Counter, 1)");
+        rest = tail;
+    }
+    if !rest.is_empty() {
+        return None;
+    }
+    let effect = if riders.is_empty() {
+        "Move(That(Card), Battlefield)".to_owned()
+    } else {
+        format!("Move(That(Card), Battlefield, [{}])", riders.join(", "))
+    };
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect,
+    })
+}
+
 fn parse_destroy(line: &str) -> Option<ParsedEffect> {
     let subject = strip_prefix_ci(line, "destroy ")?
         .strip_suffix('.')?
@@ -1959,6 +2082,19 @@ mod tests {
         );
     }
 
+    /// The sentence-order `Sequence` production: two parseable sentences
+    /// join in oracle order, targets declared by the first only.
+    #[test]
+    fn sequence_parses_counter_then_gain() {
+        let parsed = parse_clause(
+            "Counter target spell. You gain 5 life.",
+            &crate::parsers::test_ctx::ctx(crate::resolve::CardKind::Spell),
+        )
+        .expect("both sentences are productions");
+        assert_eq!(parsed.targets, vec!["TargetOne(Spell)".to_owned()]);
+        assert_eq!(parsed.effect, "Sequence([Counter(Target(0)), GainLife(5)])");
+    }
+
     #[test]
     fn counter_declines_richer_riders() {
         // Riders past the bare/mana-tax forms decline (later productions).
@@ -1968,7 +2104,9 @@ mod tests {
         assert!(declines(
             "Counter target spell unless its controller pays {1} for each card in your graveyard."
         ));
-        assert!(declines("Counter target spell. You gain 5 life."));
+        // "Counter target spell. You gain 5 life." parses now — the
+        // sentence-order Sequence production picked it up (both sentences
+        // are productions); see `sequence_parses_counter_then_gain`.
         assert!(declines("Counter target spell you don't control."));
         // Spell-on-the-stack restrictions ("that targets a creature") aren't
         // modeled here.

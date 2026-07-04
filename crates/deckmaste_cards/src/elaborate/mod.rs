@@ -46,11 +46,15 @@ pub enum Code {
     /// ([CR#115.3,601.2c]) — including targets dropped by a `Delayed` body
     /// ([CR#603.7c]).
     BindTarget,
-    /// Singular `That` read outside a one-binder `With` ([CR#608.2d]).
+    /// The sorted singular anaphor `That(Sort)` (or `The(label)`'s singular
+    /// read) with NO compatible antecedent on the stack ([CR#608.2d]) —
+    /// unbound, sort-mismatched, or reaching only a Many antecedent.
     BindThat,
-    /// Group `That` read outside a many-binder `With` ([CR#608.2d]).
+    /// The plural anaphor `They`/`Them(Sort)` with no compatible Many
+    /// antecedent on the stack ([CR#608.2d]).
     BindThatGroup,
-    /// `It` read outside an `Each`/`DivideAmong`/`Where`/`Pick` binder
+    /// `It` with no antecedent at all: outside every `Each`/`DivideAmong`/
+    /// `Where`/`Pick` binder AND with an empty antecedent stack
     /// ([CR#608.2]).
     BindIt,
     /// `Allotment` read outside a `DivideAmong` body ([CR#601.2d]).
@@ -59,6 +63,17 @@ pub enum Code {
     BindEvent,
     /// A noted key read but never noted in scope ([CR#607.2]).
     BindNote,
+    /// The R2 uniqueness gate: an anaphor (`It`/`That`/`They`/`Them`/
+    /// `ThatMany`) with a SECOND same-kind, compatible antecedent in scope —
+    /// resolution would be a guess, so it is a load error instead
+    /// ([CR#608.2d]); the error text offers the `Label`/`The` and
+    /// `Target(n)` fallbacks. STRICT until the corpus dry-run calibrates the
+    /// gate; the one pre-approved loosening (exact-sort precedence) is the
+    /// emitted `exact_sort_precedence` flag.
+    BindAmbiguous,
+    /// A labeled reference (`The`/`TheGroup`/a `ChoosePile` label) naming no
+    /// label in scope, or one of the wrong cardinality ([CR#608.2d]).
+    BindLabel,
     /// `EventObject` read where the event caps supply no object
     /// ([CR#603.2e,608.2k]).
     CapsObject,
@@ -166,6 +181,9 @@ pub enum Code {
     /// A divided amount statically smaller than the minimum group size
     /// ([CR#601.2d]).
     FloorDivide,
+    /// A pile-shape floor ([CR#700.3]): a `SeparatePiles` with no pile
+    /// labels, or duplicate pile labels.
+    FloorPiles,
     /// An `Nth` occurrence index below one — a 0th occurrence never occurs
     /// ([CR#603.2g]).
     FloorNth,
@@ -188,7 +206,7 @@ pub enum Code {
 impl Code {
     /// Every active code, in manifest order — the drift pin against the
     /// emitted checker-rule manifest.
-    pub const ALL: [Code; 45] = [
+    pub const ALL: [Code; 48] = [
         Code::BindTarget,
         Code::BindThat,
         Code::BindThatGroup,
@@ -196,6 +214,8 @@ impl Code {
         Code::BindAllotment,
         Code::BindEvent,
         Code::BindNote,
+        Code::BindAmbiguous,
+        Code::BindLabel,
         Code::CapsObject,
         Code::CapsActor,
         Code::CapsPatient,
@@ -229,6 +249,7 @@ impl Code {
         Code::FloorModalCount,
         Code::FloorModalEmpty,
         Code::FloorDivide,
+        Code::FloorPiles,
         Code::FloorNth,
         Code::FloorDestination,
         Code::FloorDeedAgent,
@@ -248,6 +269,8 @@ impl Code {
             Code::BindAllotment => "E-BIND-ALLOTMENT",
             Code::BindEvent => "E-BIND-EVENT",
             Code::BindNote => "E-BIND-NOTE",
+            Code::BindAmbiguous => "E-BIND-AMBIGUOUS",
+            Code::BindLabel => "E-BIND-LABEL",
             Code::CapsObject => "E-CAPS-OBJECT",
             Code::CapsActor => "E-CAPS-ACTOR",
             Code::CapsPatient => "E-CAPS-PATIENT",
@@ -281,6 +304,7 @@ impl Code {
             Code::FloorModalCount => "E-FLOOR-MODAL-COUNT",
             Code::FloorModalEmpty => "E-FLOOR-MODAL-EMPTY",
             Code::FloorDivide => "E-FLOOR-DIVIDE",
+            Code::FloorPiles => "E-FLOOR-PILES",
             Code::FloorNth => "E-FLOOR-NTH",
             Code::FloorDestination => "E-FLOOR-DESTINATION",
             Code::FloorDeedAgent => "E-FLOOR-DEED-AGENT",

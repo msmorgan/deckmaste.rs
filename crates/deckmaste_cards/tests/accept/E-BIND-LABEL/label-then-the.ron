@@ -1,0 +1,17 @@
+// The R2 gate's escape hatch ([CR#608.2d]): `Label { as, effect }` names
+// the clause's introduction, and `The(<label>)` reads it back explicitly —
+// unambiguous even with a second compatible antecedent in scope.
+Normal(
+  name: "Accept Label Then The",
+  types: [Instant],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [TargetOne(Creature)],
+      effect: Sequence([
+        Label(as: "exiled", effect: Move(It, Exile)),
+        Move(This, Exile),
+        Move(The("exiled"), Battlefield),
+      ]),
+    )),
+  ],
+)

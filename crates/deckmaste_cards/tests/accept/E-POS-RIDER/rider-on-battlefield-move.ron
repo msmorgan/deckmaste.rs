@@ -9,7 +9,7 @@ Normal(
     Spell(effect: Sequence([
       With(
         binder: SearchOne(filter: AllOf([Supertype(Basic), Type(Land)])),
-        body: Move(That, Battlefield, [Tapped]),
+        body: Move(That(Card), Battlefield, [Tapped]),
       ),
       Shuffle,
     ])),

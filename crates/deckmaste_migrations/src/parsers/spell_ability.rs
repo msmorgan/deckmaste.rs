@@ -58,6 +58,26 @@ mod tests {
         assert_eq!(out.as_deref(), Some("Spell(effect: Investigate)"));
     }
 
+    /// The sentence-order telescope chain (the Otherworldly-Journey shape):
+    /// exile a target, then a delayed return reads the exiled card back as
+    /// the sorted anaphor `That(Card)` — no binder inversion, oracle order.
+    #[test]
+    fn frames_exile_return_delayed_chain() {
+        assert_eq!(
+            spell(
+                "Exile target creature. At the beginning of the next end step, \
+                 return that card to the battlefield under its owner's control."
+            )
+            .as_deref(),
+            Some(
+                "Spell(effect: Targeted(targets: [TargetOne(Creature)], \
+                 effect: Sequence([Move(Target(0), Exile), \
+                 Delayed(event: StepBegins(at: Ending(End), whose: EachPlayers), \
+                 effect: Move(That(Card), Battlefield, [UnderOwnersControl]))])))"
+            )
+        );
+    }
+
     #[test]
     fn frames_targeted_damage_like_lightning_bolt() {
         assert_eq!(
@@ -101,8 +121,8 @@ mod tests {
             .unwrap()
             .is_none()
         );
-        // Unknown effect on a spell still declines (exile isn't a production).
-        assert!(spell("Exile target creature.").is_none());
+        // Unknown effect on a spell still declines.
+        assert!(spell("Manifest the top card of your library.").is_none());
     }
 
     #[test]

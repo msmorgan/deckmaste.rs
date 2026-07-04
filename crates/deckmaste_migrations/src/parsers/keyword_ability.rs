@@ -369,7 +369,7 @@ mod tests {
             bare("Ward—Sacrifice a creature.").as_deref(),
             Some(
                 "Keyword(Ward([With(binder: ChooseOne(filter: Creature), \
-                 body: [Do(Sacrifice(That))])]))"
+                 body: [Do(Sacrifice(That(Permanent)))])]))"
             )
         );
         assert_eq!(

@@ -1,0 +1,18 @@
+// The 2-pile, no-note acceptance shape (Fact or Fiction, [CR#700.3]): an
+// opponent separates the top five cards into two labeled piles; the `then`
+// body reads them back explicitly as `TheGroup("a")` / `TheGroup("b")`.
+Normal(
+  name: "Accept Fact Or Fiction Shape",
+  types: [Instant],
+  abilities: [
+    Spell(effect: SeparatePiles(
+      group: TopOfLibrary(count: 5),
+      into: ["a", "b"],
+      by: Opponent,
+      then: Sequence([
+        Each(binder: Existing(TheGroup("a")), effect: Move(It, Hand)),
+        Each(binder: Existing(TheGroup("b")), effect: Move(It, Graveyard)),
+      ]),
+    )),
+  ],
+)

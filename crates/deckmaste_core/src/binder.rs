@@ -186,7 +186,7 @@ mod tests {
                 filter: one_filter.clone(),
                 by: Reference::Opponent,
             },
-            Binder::Existing(Selection::That),
+            Binder::Existing(Selection::They),
             Binder::Produce(Box::new(Action::Move(
                 Reference::It,
                 Destination::Zone(Zone::Exile),
@@ -233,7 +233,7 @@ mod tests {
     /// `Existing` wraps a `Selection` and reads it flat.
     #[test]
     fn existing_wraps_selection() {
-        assert_eq!(read("Existing(That)"), Binder::Existing(Selection::That));
+        assert_eq!(read("Existing(They)"), Binder::Existing(Selection::They));
     }
 
     /// The choose binders omit the default `by: You` on write and read it

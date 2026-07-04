@@ -69,14 +69,30 @@ pub enum Selection {
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         of: Reference,
     },
-    /// The whole ordered group bound by an enclosing many-binder
-    /// ([`Effect::With`](crate::With) / [`Each`](crate::Each) /
-    /// [`DivideAmong`](crate::DivideAmong)) — the Idris `Selection.That`
-    /// (Many). Resolves to the frame's bound group, order preserved; iterated
-    /// with [`Each`](crate::Each) (per-element [`Reference::It`]). The same
-    /// anaphor name as singular [`Reference::That`](crate::Reference::That),
-    /// resolved by slot — a `Selection` position here, a `Reference` there.
-    That,
+    /// The PLURAL anaphor — "they"/"them": the nearest Many antecedent on
+    /// the elaborator's antecedent stack, any sort (R1 nearest-compatible,
+    /// R2 uniqueness gate). Pushed by a many-binder
+    /// ([`Effect::With`](crate::With), [CR#608.2d]), a plural target slot
+    /// ([CR#115.3]), or a group-producing clause ("create two tokens —
+    /// **they** gain haste", [CR#111.2]); order preserved; iterated with
+    /// [`Each`](crate::Each) (per-element [`Reference::It`]).
+    They,
+    /// The SORTED plural anaphor — "those tokens", "those cards": the
+    /// nearest Many antecedent of this [`Sort`](crate::Sort) (R1/R2, like
+    /// [`They`](Selection::They) with the sort constraint of
+    /// [`Reference::That`](crate::Reference::That)).
+    Them(crate::Sort),
+    /// The LABELED plural antecedent — piles and labeled groups: reads the
+    /// unique Many antecedent introduced under this label
+    /// (`Label { as, effect }` or a
+    /// [`SeparatePiles`](crate::Effect::SeparatePiles) pile label)
+    /// ([CR#700.3a,608.2d]; the ambiguity fallback for groups).
+    TheGroup(crate::Ident),
+    /// Piles noted earlier by a [`SeparatePiles`](crate::Effect::SeparatePiles)
+    /// with a `note:` key, keyed by their divider: `of` names the player
+    /// whose piles these are ([CR#700.3a]; the Whims-of-the-Fates per-player
+    /// nesting).
+    PilesOf { note: crate::Ident, of: Reference },
     /// The set of objects chosen for the nth announced target spec
     /// ([CR#115.3,601.2c]) — the plural-target group fed to
     /// [`DivideAmong`](crate::DivideAmong) / [`Each`](crate::Each)
@@ -188,13 +204,33 @@ mod tests {
         assert_eq!(read(&to_string(&v)), v);
     }
 
-    /// `That` — the With/Each/DivideAmong-bound many group — reads bare and
-    /// round-trips (the Idris `Selection.That`, the same anaphor name as
-    /// singular `Reference::That`, resolved by slot).
+    /// `They` — the plural anaphor — reads bare and round-trips; `Them(t)`
+    /// carries its sort with the bare card-type spelling.
     #[test]
-    fn that_round_trips() {
-        assert_eq!(read("That"), Selection::That);
-        assert_eq!(read(&to_string(&Selection::That)), Selection::That);
+    fn they_and_them_round_trip() {
+        assert_eq!(read("They"), Selection::They);
+        assert_eq!(read(&to_string(&Selection::They)), Selection::They);
+        assert_eq!(read("Them(Token)"), Selection::Them(crate::Sort::Token));
+        assert_eq!(
+            read("Them(Creature)"),
+            Selection::Them(crate::Sort::OfType(Type::Creature))
+        );
+        let v = Selection::Them(crate::Sort::OfType(Type::Creature));
+        assert_eq!(to_string(&v), "Them(Creature)");
+        assert_eq!(read(&to_string(&v)), v);
+    }
+
+    /// `TheGroup(<label>)` and `PilesOf { note, of }` — the labeled plural
+    /// reads — round-trip.
+    #[test]
+    fn labeled_groups_round_trip() {
+        let group = Selection::TheGroup(crate::Ident::new("a"));
+        assert_eq!(read(&to_string(&group)), group);
+        let piles = Selection::PilesOf {
+            note: crate::Ident::new("whims"),
+            of: crate::Reference::It,
+        };
+        assert_eq!(read(&to_string(&piles)), piles);
     }
 
     /// `Pick` (extremal element) parses from named RON and round-trips — the

@@ -64,6 +64,33 @@ pub enum Effect {
     Simultaneous(Vec<Effect>),
     /// A one-shot-created continuous effect ([CR#611.2]).
     Continuously(Continuously),
+    /// A one-shot-created continuous effect over a LIST of static parts —
+    /// `Until(EndOfTurn, [Modify(…), Deontic(…)])` ([CR#611.2]). Fixed-vs-
+    /// live affected sets are PER PART ([CR#611.2c]): characteristic-/
+    /// controller-modifying parts gather their `Matching` set once at start;
+    /// deontic/prevention/replacement/cost parts stay live — the class is
+    /// the emitted `static-classes.ron` column, stamped by the elaborator.
+    /// (`Continuously` is the single-part spelling; `Static` ability
+    /// position stays live re-gathering, [CR#611.3a].)
+    Until(Duration, Vec<StaticEffect>),
+    /// `Label { as, effect }` — names the antecedents the inner effect
+    /// introduces, so later clauses can read them explicitly as
+    /// [`Reference::The`](crate::Reference::The) /
+    /// [`Selection::TheGroup`](crate::Selection::TheGroup) — the R2
+    /// ambiguity gate's escape hatch ([CR#608.2d]).
+    Label(Label),
+    /// `SeparatePiles { group, into, by, note, then }` — `by` separates
+    /// `group` into labeled piles ([CR#700.3a]; piles may be empty). Each
+    /// label becomes a Many antecedent (read as
+    /// [`Selection::TheGroup`](crate::Selection::TheGroup)); `note:`
+    /// persists the piles as noted groups keyed by (note, label, divider),
+    /// read back via [`Selection::PilesOf`](crate::Selection::PilesOf).
+    SeparatePiles(SeparatePiles),
+    /// `ChoosePile { from, by, random, then }` — `by` picks one pile
+    /// ([CR#700.3b] — the Fact-or-Fiction shape); `then` runs with the
+    /// chosen pile bound as a Many antecedent
+    /// ([`Selection::Them`](crate::Selection::Them)`(Pile)`).
+    ChoosePile(ChoosePile),
     /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't".
     May(May),
     /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
@@ -328,6 +355,52 @@ pub struct Modal {
     pub modes: Vec<Mode>,
 }
 
+/// `Label { as, effect }` — see [`Effect::Label`]. `as` is a Rust keyword,
+/// hence the raw identifier; the RON field is spelled `as`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct Label {
+    pub r#as: crate::Ident,
+    pub effect: Box<Effect>,
+}
+
+/// `SeparatePiles { group, into, by, note, then }` — see
+/// [`Effect::SeparatePiles`]. `by` defaults to `You` and is omitted from
+/// RON when it is; `note`/`then` are omitted when absent.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct SeparatePiles {
+    pub group: crate::Selection,
+    pub into: Vec<crate::Ident>,
+    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+    pub by: Reference,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<crate::Ident>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub then: Option<Box<Effect>>,
+}
+
+/// `ChoosePile { from, by, random, then }` — see [`Effect::ChoosePile`].
+/// `by` defaults to `You`; `random` defaults to `false`; both are omitted
+/// from RON at their defaults.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct ChoosePile {
+    pub from: PileSource,
+    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+    pub by: Reference,
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub random: bool,
+    pub then: Box<Effect>,
+}
+
+/// Where a [`ChoosePile`] takes its piles from: labels introduced in scope
+/// (`Labels(["a", "b"])`, the Fact-or-Fiction shape) or piles noted earlier
+/// under a key, per divider (`Noted { note, of }`, the Whims-of-the-Fates
+/// shape) ([CR#700.3a..700.3b]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PileSource {
+    Labels(Vec<crate::Ident>),
+    Noted { note: crate::Ident, of: Reference },
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -477,12 +550,12 @@ mod tests {
             // in `Existing`), binding `It` per element.
             "Each(binder:Existing(Filter(Type(Creature))),effect:Draw(Literal(1)))",
             // Brainstorm's shape in the new model: choose 2 cards (a many-binder
-            // `With`), then `Each` over the bound group (`Existing(That)`), moving
+            // `With`), then `Each` over the bound group (`Existing(They)`), moving
             // each onto the library via the `It` element. Core reader has no
             // macros, so the `Quantity` is the bare `Range` primitive
             // (`Exactly(2)` is the cards-layer macro spelling).
             "With(binder:Choose(quantity:Range(Literal(2),Literal(2)),filter:InZone(Hand)),\
-             body:Each(binder:Existing(That),\
+             body:Each(binder:Existing(They),\
              effect:Move(It,Library(FromTop(Literal(0))))))",
         ];
         for source in cases {
@@ -656,9 +729,9 @@ mod tests {
         assert_eq!(read(&write(&damage)), damage, "round-trip");
 
         // Divided counters: the same primitive, a different body, iterating the
-        // With-bound group (`Existing(That)`).
+        // With-bound group (`Existing(They)`).
         let counters = read(
-            "DivideAmong(amount: X, binder: Existing(That), \
+            "DivideAmong(amount: X, binder: Existing(They), \
              body: PutCounters(It, P1P1Counter, Allotment))",
         );
         assert!(matches!(counters, Effect::DivideAmong(_)));
@@ -680,42 +753,100 @@ mod tests {
         ));
         assert_eq!(read(&write(&v)), v, "round-trip");
 
-        // Iterating the With-bound group: `Each(Existing(That), …)` reads `It`.
-        let over_group = read("Each(binder:Existing(That),effect:Destroy(It))");
+        // Iterating the With-bound group: `Each(Existing(They), …)` reads `It`.
+        let over_group = read("Each(binder:Existing(They),effect:Destroy(It))");
         assert!(matches!(
             over_group,
-            Effect::Each(ref e) if matches!(e.binder, crate::Binder::Existing(Selection::That)),
+            Effect::Each(ref e) if matches!(e.binder, crate::Binder::Existing(Selection::They)),
         ));
         assert_eq!(read(&write(&over_group)), over_group, "round-trip");
     }
 
-    /// The one `That` anaphor is resolved BY SLOT: the same `That` token reads
-    /// as [`Reference::That`] in a `Reference`-typed position and as
-    /// [`Selection::That`] in a `Selection`-typed position — serde/RON picks
-    /// the variant from the field's type. Both forms round-trip; there is
-    /// no `Those` spelling. (The Idris `Reference.That` / `Selection.That`
-    /// split.)
+    /// The sorted anaphors resolve BY SLOT: `That(Card)` in a
+    /// `Reference`-typed position, `They`/`Them(Sort)` in a
+    /// `Selection`-typed position — serde/RON picks the variant from the
+    /// field's type. Both forms round-trip.
     #[test]
-    fn that_resolves_by_slot() {
-        // Reference slot: `Destroy(That)`'s patient is a single `Reference`.
-        let reference_slot = read("Destroy(That)");
+    fn sorted_anaphors_resolve_by_slot() {
+        // Reference slot: `Destroy(That(Creature))`'s patient is a single
+        // sorted anaphor.
+        let reference_slot = read("Destroy(That(Creature))");
         assert_eq!(
             reference_slot,
-            Effect::Act(Action::Destroy(Reference::That)),
-            "`That` in a Reference slot is Reference::That",
+            Effect::Act(Action::Destroy(Reference::That(crate::Sort::OfType(
+                crate::Type::Creature
+            )))),
+            "`That(Creature)` in a Reference slot is Reference::That",
         );
         assert_eq!(read(&write(&reference_slot)), reference_slot, "round-trip");
 
-        // Selection slot: a many-`Binder` `Existing(That)` wraps a `Selection`.
-        let selection_slot = read("With(binder:Existing(That),body:Sequence([]))");
+        // Selection slot: a many-`Binder` `Existing(They)` wraps a `Selection`.
+        let selection_slot = read("With(binder:Existing(They),body:Sequence([]))");
         let Effect::With(w) = &selection_slot else {
             panic!("expected With, got {selection_slot:?}");
         };
         assert_eq!(
             w.binder,
-            crate::Binder::Existing(Selection::That),
-            "`That` in a Selection slot is Selection::That",
+            crate::Binder::Existing(Selection::They),
+            "`They` in a Selection slot is Selection::They",
         );
         assert_eq!(read(&write(&selection_slot)), selection_slot, "round-trip");
+    }
+
+    /// `Until(duration, parts)` takes a LIST of static parts and
+    /// round-trips ([CR#611.2,611.2c]) — the Boros Charm mode-2 shape.
+    #[test]
+    fn until_reads_a_part_list() {
+        let src =
+            "Until(FixedUntil(EndOfTurn),[Modify(of:Of(This),changes:[Power(Up(Literal(1)))])])";
+        let parsed = read(src);
+        let Effect::Until(_, parts) = &parsed else {
+            panic!("expected Until, got {parsed:?}");
+        };
+        assert_eq!(parts.len(), 1);
+        assert_eq!(read(&write(&parsed)), parsed, "round-trip");
+    }
+
+    /// `Label { as, effect }` names an introduction; `The`/`TheGroup` read
+    /// it back. The raw-keyword field spells `as` in RON.
+    #[test]
+    fn label_round_trips() {
+        let src = "Label(as:\"exiled\",effect:Move(Target(0),Exile))";
+        let parsed = read(src);
+        let Effect::Label(label) = &parsed else {
+            panic!("expected Label, got {parsed:?}");
+        };
+        assert_eq!(label.r#as.as_str(), "exiled");
+        assert_eq!(read(&write(&parsed)), parsed, "round-trip");
+    }
+
+    /// `SeparatePiles`/`ChoosePile` — the pile shapes ([CR#700.3a..700.3b])
+    /// — read flat, default `by: You`/`random: false`, and round-trip.
+    #[test]
+    fn piles_round_trip() {
+        let separate = read("SeparatePiles(group: TopOfLibrary(count: 5), into: [\"a\", \"b\"])");
+        let Effect::SeparatePiles(sp) = &separate else {
+            panic!("expected SeparatePiles, got {separate:?}");
+        };
+        assert_eq!(sp.by, Reference::You, "omitted by defaults to You");
+        assert!(sp.note.is_none() && sp.then.is_none());
+        assert_eq!(read(&write(&separate)), separate, "round-trip");
+
+        let choose = read(
+            "ChoosePile(from: Labels([\"a\", \"b\"]), by: Opponent, \
+             then: Each(binder: Existing(Them(Pile)), effect: Move(It, Hand)))",
+        );
+        let Effect::ChoosePile(cp) = &choose else {
+            panic!("expected ChoosePile, got {choose:?}");
+        };
+        assert!(!cp.random, "omitted random defaults to false");
+        assert_eq!(read(&write(&choose)), choose, "round-trip");
+
+        // The noted per-player form (the Whims shape).
+        let noted = read(
+            "ChoosePile(from: Noted(note: \"whims\", of: It), random: true, \
+             then: Sequence([]))",
+        );
+        assert_eq!(read(&write(&noted)), noted, "round-trip");
     }
 }

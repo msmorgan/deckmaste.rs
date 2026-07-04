@@ -369,8 +369,8 @@ mod tests {
         assert!(trig("Draw a card.").is_none());
         // Unknown event (cast trigger not in v1).
         assert!(trig("When you cast ~, draw a card.").is_none());
-        // Unknown effect (exile isn't a production yet).
-        assert!(trig("When ~ dies, exile target creature.").is_none());
+        // Unknown effect declines.
+        assert!(trig("When ~ dies, manifest the top card of your library.").is_none());
         // Trigger word present but no ", " separator (no effect clause).
         assert!(trig("When ~ dies").is_none());
     }

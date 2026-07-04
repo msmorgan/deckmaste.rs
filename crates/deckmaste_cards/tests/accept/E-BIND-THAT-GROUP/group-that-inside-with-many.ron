@@ -1,12 +1,13 @@
 // Accept twin of reject/E-BIND-THAT-GROUP/group-that-outside-with.ron: the
-// group `That` selection INSIDE an enclosing many-binder `With` [CR#608.2d].
+// plural anaphor `They` INSIDE an enclosing many-binder `With` frame
+// [CR#608.2d].
 Normal(
   name: "Accept Group That Bound",
   types: [Sorcery],
   abilities: [
     Spell(effect: With(
       binder: Choose(quantity: AtLeast(1), filter: Creature, by: You),
-      body: Each(binder: Existing(That), effect: Destroy(It)),
+      body: Each(binder: Existing(They), effect: Destroy(It)),
     )),
   ],
 )

@@ -1018,7 +1018,7 @@ fn activated_ability_pays_choose_sacrifice_cost() {
                     by: Reference::You,
                 }),
                 body: deckmaste_core::Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                    Reference::That,
+                    Reference::That(deckmaste_core::Sort::Permanent),
                 ))]),
             },
         ],

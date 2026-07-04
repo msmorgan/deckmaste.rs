@@ -1,0 +1,13 @@
+// Cardinality discipline ([CR#601.2d]): a RANGE target slot pushes a Many
+// antecedent — the singular `That(Sort)` cannot read it (spell it `They` /
+// `Them(Sort)`). Twin of Implicit.idr's `oneFromMany` failing block.
+Normal(
+  name: "Reject Singular Reads Range Slot",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Targeted(
+      targets: [Target(Between(1, 3), Creature)],
+      effect: Destroy(That(Creature)),
+    )),
+  ],
+)

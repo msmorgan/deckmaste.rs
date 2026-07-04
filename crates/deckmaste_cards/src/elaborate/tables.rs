@@ -130,6 +130,11 @@ struct EventCapsRow {
     amount: bool,
     patient: Option<Kind>,
     defender: bool,
+    /// Where the form's OBJECT antecedent takes its SORT from — a named
+    /// participant slot (`"source"`/`"what"`/`"by"`/`"of"`/`"on"`), the
+    /// destination zone (`"to_zone"`), a fixed sort (`"spell"`/
+    /// `"stack_object"`/`"token"`), or `"none"`.
+    object_sort: String,
     #[expect(
         dead_code,
         reason = "cites ride the rows for `cite audit`, not the checker"
@@ -367,6 +372,121 @@ struct BridgeFile {
     rows: Vec<BridgeRow>,
 }
 
+/// One sort-compat row (the anaphor surface's R1 table): an anaphor's
+/// wanted sort KEY reaching an antecedent's have sort KEY. `widened` marks
+/// a non-exact (widening) match — the R2 gate's exact-vs-widened
+/// distinction. A pair with no row is incompatible. `OfType`/`OfType`
+/// additionally requires the same card type (applied by the walker).
+#[derive(Debug, Deserialize)]
+struct CompatRow {
+    want: String,
+    have: String,
+    widened: bool,
+    #[expect(
+        dead_code,
+        reason = "cites ride the rows for `cite audit`, not the checker"
+    )]
+    cite: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompatFile {
+    /// The R2 gate's ONE pre-approved loosening (a nearer exact-sort match
+    /// beats farther non-exact candidates without erroring) — OFF until the
+    /// corpus dry-run calibrates the gate ([[cards-corpus-dry-run]]).
+    exact_sort_precedence: bool,
+    rows: Vec<CompatRow>,
+}
+
+/// One zone-sort row: the noun an object answers to in each zone
+/// ([CR#110.1,112.1,108.2]).
+#[derive(Debug, Deserialize)]
+struct ZoneSortRow {
+    zone: deckmaste_core::Zone,
+    sort: String,
+    #[expect(
+        dead_code,
+        reason = "cites ride the rows for `cite audit`, not the checker"
+    )]
+    cite: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ZoneSortsFile {
+    rows: Vec<ZoneSortRow>,
+}
+
+/// Which SITE an intro row's antecedent lands at.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum IntroSite {
+    TargetSlot,
+    Product,
+    Chosen,
+    Loop,
+}
+
+/// An intro row's cardinality rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum IntroCard {
+    One,
+    Many,
+    /// Derived from the clause's quantity (literal 1 = One, else Many).
+    FromQuantity,
+    /// Derived from the clause's count (literal 1 = One, else Many) — the
+    /// fact-signature product-arity column.
+    FromCount,
+}
+
+/// One intro row: a producing clause's antecedent pushes (the plan's §2.1
+/// intro table). `sort`/`zone` are derivation tags the walker interprets
+/// (`"from_filter"`, `"from_destination"`, `"from_binder"`, a fixed sort /
+/// zone name, `"none"`).
+#[derive(Debug, Deserialize)]
+pub struct IntroRow {
+    pub clause: String,
+    /// Whether the clause pushes an OBJECT antecedent at all.
+    pub object: bool,
+    pub site: IntroSite,
+    pub card: IntroCard,
+    pub sort: String,
+    pub zone: String,
+    /// Whether the clause ADDITIONALLY pushes an Amount antecedent
+    /// ("that many/much").
+    pub amount: bool,
+    /// Rides the row for `cite audit`, not the checker.
+    pub cite: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct IntroFile {
+    rows: Vec<IntroRow>,
+}
+
+/// A static part's affected-set class under `Until` ([CR#611.2c]):
+/// characteristic-/controller-modifying parts gather once at start;
+/// rules-modifying parts stay live.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum SetClass {
+    GatherOnce,
+    GatherLive,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClassRow {
+    kind: String,
+    class: SetClass,
+    #[expect(
+        dead_code,
+        reason = "cites ride the rows for `cite audit`, not the checker"
+    )]
+    cite: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClassesFile {
+    rows: Vec<ClassRow>,
+}
+
 /// One checker-rule manifest row: an error code the elaborator may emit,
 /// with its CR citation. The drift pin: a test asserts the elaborator's code
 /// list equals this manifest (no checker rule without a table row).
@@ -387,6 +507,7 @@ struct RulesFile {
 /// The loaded tables.
 pub struct Tables {
     event_caps: HashMap<String, Caps>,
+    event_object_sorts: HashMap<String, String>,
     cost_actions: HashMap<String, Caps>,
     counter_default: Kind,
     counter_scopes: HashMap<String, Kind>,
@@ -398,6 +519,11 @@ pub struct Tables {
     entailments: HashMap<String, EntailmentRow>,
     lanes: HashMap<String, LaneRow>,
     bridge: HashMap<String, BridgeRow>,
+    exact_sort_precedence: bool,
+    compat: HashMap<(String, String), bool>,
+    zone_sorts: HashMap<deckmaste_core::Zone, String>,
+    intro: HashMap<String, IntroRow>,
+    static_classes: HashMap<String, SetClass>,
     pub rules: Vec<RuleRow>,
 }
 
@@ -511,6 +637,71 @@ impl Tables {
     pub fn bridge_rows(&self) -> impl Iterator<Item = &BridgeRow> {
         self.bridge.values()
     }
+
+    /// The R2 gate's one pre-approved loosening flag (`sort-compat.ron`,
+    /// [[cards-corpus-dry-run]] flips it): a nearer exact-sort match beats
+    /// farther non-exact candidates without erroring.
+    #[must_use]
+    pub fn exact_sort_precedence(&self) -> bool {
+        self.exact_sort_precedence
+    }
+
+    /// R1 sort compatibility by table KEYS: `Some(widened)` when the wanted
+    /// sort reaches the had sort (`widened = false` marks an exact-shape
+    /// match); `None` = incompatible. `OfType`/`OfType` same-type refinement
+    /// is the caller's (the keys collapse the payload).
+    #[must_use]
+    pub fn sort_compat(&self, want: &str, have: &str) -> Option<bool> {
+        self.compat
+            .get(&(want.to_owned(), have.to_owned()))
+            .copied()
+    }
+
+    /// The noun an object answers to in `zone` ([CR#110.1,112.1,108.2]) —
+    /// a fixed sort key (`"Permanent"`/`"Spell"`/`"Card"`).
+    ///
+    /// # Panics
+    /// On a missing row: the emitter enumerates every zone.
+    #[must_use]
+    pub fn zone_sort(&self, zone: deckmaste_core::Zone) -> &str {
+        self.zone_sorts
+            .get(&zone)
+            .unwrap_or_else(|| panic!("no zone-sort row emitted for {zone:?}"))
+    }
+
+    /// A producing clause's intro row (the plan's §2.1 intro table).
+    ///
+    /// # Panics
+    /// On a missing row: the walker's clause keys and the emitted rows are
+    /// fixed together (both compiled in), so a miss is a bug, not data.
+    #[must_use]
+    pub fn intro(&self, clause: &str) -> &IntroRow {
+        self.intro
+            .get(clause)
+            .unwrap_or_else(|| panic!("no intro row emitted for clause {clause:?}"))
+    }
+
+    /// Where an event form's OBJECT antecedent takes its sort from
+    /// (`event-caps.ron`'s `object_sort` column); `"none"` for unknown keys.
+    #[must_use]
+    pub fn event_object_sort(&self, key: &str) -> &str {
+        self.event_object_sorts
+            .get(key)
+            .map_or("none", String::as_str)
+    }
+
+    /// A static part's affected-set class under `Until` ([CR#611.2c]).
+    ///
+    /// # Panics
+    /// On a missing row: the walker's kind keys and the emitted rows are
+    /// fixed together.
+    #[must_use]
+    pub fn static_class(&self, kind: &str) -> SetClass {
+        *self
+            .static_classes
+            .get(kind)
+            .unwrap_or_else(|| panic!("no static-class row emitted for {kind:?}"))
+    }
 }
 
 fn parse<T: serde::de::DeserializeOwned>(what: &str, source: &str) -> T {
@@ -540,7 +731,20 @@ pub fn tables() -> &'static Tables {
             "checker-rules",
             include_str!("../../tables/checker-rules.ron"),
         );
+        let compat: CompatFile = parse("sort-compat", include_str!("../../tables/sort-compat.ron"));
+        let zone_sorts: ZoneSortsFile =
+            parse("zone-sorts", include_str!("../../tables/zone-sorts.ron"));
+        let intro: IntroFile = parse("intro", include_str!("../../tables/intro.ron"));
+        let classes: ClassesFile = parse(
+            "static-classes",
+            include_str!("../../tables/static-classes.ron"),
+        );
         Tables {
+            event_object_sorts: caps
+                .rows
+                .iter()
+                .map(|r| (r.key.clone(), r.object_sort.clone()))
+                .collect(),
             event_caps: caps
                 .rows
                 .into_iter()
@@ -618,6 +822,27 @@ pub fn tables() -> &'static Tables {
                 .rows
                 .into_iter()
                 .map(|r| (r.atom.clone(), r))
+                .collect(),
+            exact_sort_precedence: compat.exact_sort_precedence,
+            compat: compat
+                .rows
+                .into_iter()
+                .map(|r| ((r.want, r.have), r.widened))
+                .collect(),
+            zone_sorts: zone_sorts
+                .rows
+                .into_iter()
+                .map(|r| (r.zone, r.sort))
+                .collect(),
+            intro: intro
+                .rows
+                .into_iter()
+                .map(|r| (r.clause.clone(), r))
+                .collect(),
+            static_classes: classes
+                .rows
+                .into_iter()
+                .map(|r| (r.kind, r.class))
                 .collect(),
             rules: rules.rows,
         }
@@ -724,6 +949,43 @@ mod tests {
         let delayed = t.bind_rule("Delayed");
         assert!(delayed.drops_targets && delayed.keeps_that);
         assert_eq!(delayed.caps_from, CapsFrom::Query);
+    }
+
+    /// The anaphor-surface tables ride: sort compat (R1), the R2 loosening
+    /// flag (STRICT until the corpus dry-run), zone sorts, intro rows,
+    /// static-part classes, the event object-sort column.
+    #[test]
+    fn anaphor_tables_load() {
+        let t = tables();
+        assert!(
+            !t.exact_sort_precedence(),
+            "the R2 gate ships STRICT — the dry-run flips the loosening"
+        );
+        assert_eq!(t.sort_compat("Card", "Card"), Some(false));
+        assert_eq!(t.sort_compat("Permanent", "OfType"), Some(true));
+        assert_eq!(t.sort_compat("OfType", "OfType"), Some(false));
+        assert_eq!(t.sort_compat("Card", "Token"), None, "tokens aren't cards");
+        assert_eq!(t.sort_compat("StackObject", "Spell"), Some(true));
+        assert_eq!(t.zone_sort(deckmaste_core::Zone::Battlefield), "Permanent");
+        assert_eq!(t.zone_sort(deckmaste_core::Zone::Exile), "Card");
+        assert_eq!(t.zone_sort(deckmaste_core::Zone::Stack), "Spell");
+        let mv = t.intro("Move");
+        assert!(mv.object && !mv.amount);
+        assert_eq!(mv.site, IntroSite::Product);
+        assert_eq!(mv.zone, "from_destination", "the [CR#603.7c] zone stamp");
+        let draw = t.intro("Draw");
+        assert!(
+            draw.object && draw.amount,
+            "draw pushes cards AND an amount"
+        );
+        assert_eq!(draw.card, IntroCard::FromCount);
+        assert_eq!(t.static_class("Modify"), SetClass::GatherOnce);
+        assert_eq!(t.static_class("Deontic"), SetClass::GatherLive);
+        assert_eq!(t.event_object_sort("ZoneChange"), "to_zone");
+        assert_eq!(t.event_object_sort("Cast"), "spell");
+        assert_eq!(t.event_object_sort("Bogus"), "none");
+        // MayPay's new bind row: the "if they do" branch reads payment caps.
+        assert_eq!(t.bind_rule("MayPay").caps_from, CapsFrom::Cost);
     }
 
     /// The emitted join table IS the Idris `\/` semilattice: identity on

@@ -540,6 +540,26 @@ impl GameState {
                     );
                 }
             }
+            // The LIST spelling of `Continuously` ([CR#611.2c] — a single
+            // continuous effect with parts, each part's affected set
+            // determined independently): each part lowers to its own
+            // continuous-effect instance sharing the duration.
+            Effect::Until(duration, parts) => {
+                let items: Vec<WorkItem> = parts
+                    .into_iter()
+                    .map(|part| WorkItem::RunEffect {
+                        effect: Box::new(Effect::Continuously(deckmaste_core::Continuously {
+                            effect: Box::new(part),
+                            duration: duration.clone(),
+                        })),
+                        frame: frame.clone(),
+                    })
+                    .collect();
+                self.schedule_front(items);
+            }
+            // A label names the clause's introductions for the ELABORATOR
+            // (`The`/`TheGroup` reads); at runtime it is transparent.
+            Effect::Label(label) => self.run_effect(*label.effect, frame),
             // A remembered macro expansion (e.g. an `Effect`-kind macro like
             // `PumpThisUntilEot`) is transparent to resolution — run its value,
             // matching how every other engine layer sees through `*::Expanded`.
@@ -958,11 +978,11 @@ impl GameState {
                 | PlayerAction::Discard { what: Some(r), .. } => Some(r),
                 _ => None,
             };
-            // Only a directly-resolvable reference is captured here; a `That`
-            // bound by an enclosing cost `With(ChooseOne, …)` has no fixed
-            // object until the choice resolves (seam).
+            // Only a directly-resolvable reference is captured here; a
+            // `That(Sort)` bound by an enclosing cost `With(ChooseOne, …)`
+            // has no fixed object until the choice resolves (seam).
             if let Some(reference) = reference
-                && !matches!(reference, Reference::That)
+                && !matches!(reference, Reference::That(_))
             {
                 let object = self.eval_reference(reference, frame);
                 return Some(crate::lki::LkiSnapshot::capture(self, object));
@@ -1927,19 +1947,29 @@ impl GameState {
             // singular `Reference::That` is its only reader — so a single object
             // can never be silently splayed into a group here. Panics outside a
             // many-binder `With` — always a bug.
-            Selection::That => {
-                let that = frame
-                    .endophora
-                    .that
-                    .as_ref()
-                    .expect("Selection::That outside an enclosing With many-binder");
+            Selection::They | Selection::Them(_) => {
+                // The sort is elaborator-verified surface; the frame's bound
+                // group is the value. A product-sited plural read (create-
+                // two-tokens … They) is [[engine-bound-references]] work.
+                let Some(that) = frame.endophora.that.as_ref() else {
+                    todo!(
+                        "engine-bound-references: a product-sited They/Them(Sort) at \
+                         runtime (no enclosing With binding)"
+                    )
+                };
                 assert_eq!(
                     that.cardinality,
                     crate::stack::Cardinality::Many,
-                    "Selection::That reads a group, but the bound `That` is a single object \
-                     (a one-binder) — its only read is the singular Reference::That",
+                    "They/Them reads a group, but the bound choice is a single object \
+                     (a one-binder) — read it as That(Sort)",
                 );
                 that.group.clone()
+            }
+            Selection::TheGroup(_) | Selection::PilesOf { .. } => {
+                todo!(
+                    "engine-piles: labeled pile groups at runtime land with the piles \
+                     engine subsystem"
+                )
             }
             // The top `count` cards of `of`'s library, front-to-back (top→down).
             // `of` resolves to a player via `eval_reference` → player proxy →
@@ -2077,22 +2107,39 @@ impl GameState {
             // group has NO singular read — it is read as `Selection::That` and
             // iterated with `Each` — so this never silently takes the first of
             // many. Panics outside an enclosing one-binder `With` — always a bug.
-            Reference::That => {
-                let that = frame
-                    .endophora
-                    .that
-                    .as_ref()
-                    .expect("Reference::That outside an enclosing With one-binder");
+            Reference::That(_) => {
+                // The sort is elaborator-verified surface; at runtime the
+                // frame's binding is the value. A PRODUCT-sited `That(Sort)`
+                // (the exile-and-return chain) has no frame binding — its
+                // runtime backing (GameState.noted product groups) lands
+                // with [[engine-bound-references]]; loud until then.
+                let Some(that) = frame.endophora.that.as_ref() else {
+                    todo!(
+                        "engine-bound-references: a product-sited That(Sort) at \
+                         runtime (no enclosing With binding)"
+                    )
+                };
                 assert_eq!(
                     that.cardinality,
                     crate::stack::Cardinality::One,
-                    "Reference::That reads a single object, but the bound `That` is a group \
-                     (a many-binder) — read it as Selection::That and iterate with Each",
+                    "That(Sort) reads a single object, but the bound choice is a group \
+                     (a many-binder) — read it as They and iterate with Each",
                 );
                 *that
                     .group
                     .first()
                     .expect("a One binding holds its single element")
+            }
+            // The labeled / indefinite reads land with
+            // [[engine-bound-references]]; loud until then.
+            Reference::The(_) => {
+                todo!("engine-bound-references: The(label) at runtime")
+            }
+            Reference::A { .. } => {
+                todo!(
+                    "engine-bound-references: A(filter) desugars to a resolution-time \
+                     choice at runtime"
+                )
             }
             // [CR#603.10a,603.2e,608.2k]: the trigger's provenance-explicit
             // roles, read from the bindings the fired trigger carried. The
@@ -2330,10 +2377,11 @@ impl GameState {
             // by `resolve_object`. Still loud when neither fixed an amount:
             // that is an authoring error (a `ThatMuch` with no antecedent
             // magnitude), not an engine seam.
-            Count::ThatMuch => self.that_much.unwrap_or_else(|| {
+            Count::ThatMany | Count::ThatMuch => self.that_much.unwrap_or_else(|| {
                 panic!(
-                    "ThatMuch with no amount fixed this resolution and no trigger-bound \
-                     magnitude — the card authors a magnitude anaphor with no antecedent"
+                    "ThatMany/ThatMuch with no amount fixed this resolution and no \
+                     trigger-bound magnitude — the card authors a magnitude anaphor \
+                     with no antecedent"
                 )
             }),
             // [CR#601.2d]: the per-element share in scope inside a `DivideAmong`
@@ -3589,7 +3637,9 @@ mod tests {
                     filter: creatures,
                     by: Reference::Opponent,
                 },
-                body: Box::new(Effect::Act(Action::Destroy(Reference::That))),
+                body: Box::new(Effect::Act(Action::Destroy(Reference::That(
+                    deckmaste_core::Sort::Permanent,
+                )))),
             }),
             &frame,
         );
@@ -3632,7 +3682,9 @@ mod tests {
                     filter: creatures,
                     by: Reference::You,
                 },
-                body: Box::new(Effect::Act(Action::Destroy(Reference::That))),
+                body: Box::new(Effect::Act(Action::Destroy(Reference::That(
+                    deckmaste_core::Sort::Permanent,
+                )))),
             }),
             &frame,
         );
@@ -5279,7 +5331,7 @@ mod tests {
         });
         let effect = Effect::DivideAmong(DivideAmong {
             amount: Count::Literal(3),
-            binder: Binder::Existing(Selection::That),
+            binder: Binder::Existing(Selection::They),
             body: Box::new(Effect::Act(Action::deal_damage(
                 Reference::It,
                 Count::Allotment,
@@ -7601,9 +7653,9 @@ mod tests {
             group: top2.clone(),
         });
         assert_eq!(
-            state.eval_selection_set(&Selection::That, &bound),
+            state.eval_selection_set(&Selection::They, &bound),
             vec![a, b],
-            "Selection::That inside a With frame returns the bound group in order"
+            "Selection::They inside a With frame returns the bound group in order"
         );
 
         // Effect::With end-to-end: run_effect schedules a body that reads
@@ -7745,7 +7797,7 @@ mod tests {
                     of: deckmaste_core::Reference::You,
                 }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
-                    group: Selection::That,
+                    group: Selection::They,
                     bins: vec![Bin::Top, Bin::Bottom],
                     name: deckmaste_core::Ident::new("Scry"),
                 })),
@@ -7865,7 +7917,7 @@ mod tests {
                     of: deckmaste_core::Reference::Opponent,
                 }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
-                    group: Selection::That,
+                    group: Selection::They,
                     bins: vec![Bin::Top, Bin::Bottom],
                     name: deckmaste_core::Ident::new("Fateseal"),
                 })),
@@ -7986,7 +8038,7 @@ mod tests {
                     of: deckmaste_core::Reference::You,
                 }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
-                    group: Selection::That,
+                    group: Selection::They,
                     bins: vec![Bin::Top, Bin::Bottom],
                     name: deckmaste_core::Ident::new("Scry"),
                 })),
@@ -8062,7 +8114,7 @@ mod tests {
                     of: deckmaste_core::Reference::You,
                 }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
-                    group: Selection::That,
+                    group: Selection::They,
                     bins: vec![Bin::Top, Bin::Bottom],
                     name: deckmaste_core::Ident::new("Scry"),
                 })),
@@ -8100,7 +8152,7 @@ mod tests {
                     of: deckmaste_core::Reference::You,
                 }),
                 body: Box::new(Effect::act_by_you(PlayerAction::Distribute {
-                    group: Selection::That,
+                    group: Selection::They,
                     bins: vec![Bin::Top, Bin::Bottom],
                     name: deckmaste_core::Ident::new("Scry"),
                 })),

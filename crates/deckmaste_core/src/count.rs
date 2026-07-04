@@ -119,8 +119,15 @@ pub enum Count {
     /// Half a count, rounded per [`RoundMode`] ([CR#107.1a], "half its power
     /// rounded up"). Boxed.
     Half(RoundMode, Box<Count>),
-    /// Magnitude anaphora: "that much" / "that many" — the amount fixed by
-    /// an earlier instruction ([CR#107.3]).
+    /// Magnitude anaphora, countable spelling: "that many" — the nearest
+    /// Amount antecedent on the elaborator's antecedent stack, fixed by an
+    /// earlier instruction or the enclosing event ([CR#107.3]). The primary
+    /// spelling; [`ThatMuch`](Count::ThatMuch) is the uncountable alias
+    /// ("that much life"), identical in resolution.
+    ThatMany,
+    /// Magnitude anaphora, uncountable spelling: "that much" — the same
+    /// amount anaphor as [`ThatMany`](Count::ThatMany), rendered "that
+    /// much" ([CR#107.3]).
     ThatMuch,
     /// The amount allotted to the current element of a divided distribution
     /// ([CR#601.2d] — "N damage/counters divided as you choose"): the

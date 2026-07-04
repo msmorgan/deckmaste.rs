@@ -729,19 +729,19 @@ mod tests {
 
         // Riders read positionally and round-trip.
         let tapped = Action::Move(
-            Reference::That,
+            Reference::That(crate::Sort::Card),
             Destination::Zone(Zone::Battlefield),
             vec![EnterRider::Tapped, EnterRider::UnderOwnersControl],
         );
         assert_eq!(
-            read("Move(That, Battlefield, [Tapped, UnderOwnersControl])"),
+            read("Move(That(Card), Battlefield, [Tapped, UnderOwnersControl])"),
             tapped,
         );
         assert_eq!(read(&write(&tapped)), tapped);
 
         // The counter/attacking riders carry their payloads.
         let countered = Action::Move(
-            Reference::That,
+            Reference::That(crate::Sort::Card),
             Destination::Zone(Zone::Battlefield),
             vec![
                 EnterRider::WithCounters(crate::CounterRef::from("P1P1Counter"), Count::Literal(1)),
@@ -759,13 +759,13 @@ mod tests {
     fn move_group_arrangements_round_trip() {
         use crate::Selection;
         let brainstorm = Action::MoveGroup {
-            group: Selection::That,
+            group: Selection::They,
             arrangement: Arrangement::AnyOrder,
             to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
             riders: vec![],
         };
         assert_eq!(
-            read("MoveGroup(group: That, arrangement: AnyOrder, to: Library(FromTop(0)))"),
+            read("MoveGroup(group: They, arrangement: AnyOrder, to: Library(FromTop(0)))"),
             brainstorm,
         );
         let written = write(&brainstorm);
@@ -777,7 +777,7 @@ mod tests {
 
         // The chooser-carrying arrangement and a rider list round-trip.
         let arranged = Action::MoveGroup {
-            group: Selection::That,
+            group: Selection::They,
             arrangement: Arrangement::ChosenOrder(Reference::Opponent),
             to: Destination::Zone(crate::Zone::Battlefield),
             riders: vec![EnterRider::Tapped],
@@ -785,7 +785,7 @@ mod tests {
         assert_eq!(read(&write(&arranged)), arranged);
         for arrangement in ["SameOrder", "RandomOrder"] {
             let v = read(&format!(
-                "MoveGroup(group: That, arrangement: {arrangement}, to: Library(FromBottom(0)))"
+                "MoveGroup(group: They, arrangement: {arrangement}, to: Library(FromBottom(0)))"
             ));
             assert_eq!(read(&write(&v)), v, "round-trip failed for {arrangement}");
         }
@@ -875,7 +875,7 @@ mod tests {
     #[test]
     fn distribute_round_trips() {
         let v = PlayerAction::Distribute {
-            group: Selection::That,
+            group: Selection::They,
             bins: vec![Bin::Top, Bin::Bottom],
             name: crate::Ident::new("Scry"),
         };

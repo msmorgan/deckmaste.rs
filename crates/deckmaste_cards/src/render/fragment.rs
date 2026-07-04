@@ -57,6 +57,9 @@ pub(super) fn count(c: &Count) -> String {
                 filter_noun(filter)
             )
         }
+        // The value anaphor's two spellings ([CR#107.3,608.2i]).
+        Count::ThatMany => "that many".to_string(),
+        Count::ThatMuch => "that much".to_string(),
         // A remembered count macro (e.g. `Domain`): prefer its own template,
         // else render the expansion structurally.
         Count::Expanded(e) => super::template::expanded(e, "it").unwrap_or_else(|| count(&e.value)),
@@ -93,9 +96,16 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
             .map(|m| selection(m, ctx))
             .collect::<Vec<_>>()
             .join(" and "),
-        // The plural anaphor bound by an enclosing `With` ([CR#608.2d]): reads
-        // the bound group's noun phrase, falling back to the bare "them".
-        Selection::That => ctx.that.unwrap_or("them").to_string(),
+        // The plural anaphors ([CR#608.2d]): `They` reads the bound group's
+        // noun phrase when an enclosing binder supplies one, else the bare
+        // pronoun; `Them(sort)` names its sort ("those cards").
+        Selection::They => ctx.that.unwrap_or("them").to_string(),
+        Selection::Them(sort) => format!("those {}s", sort.noun()),
+        // The labeled pile/group reads ([CR#700.3,608.2d]).
+        Selection::TheGroup(label) => format!("the {} pile", label.as_str()),
+        Selection::PilesOf { of, .. } => {
+            format!("the piles {} separated", reference(of, ctx))
+        }
         // The announced-target set of the nth spec ([CR#115.3,601.2c]).
         Selection::GetTargets(_) => "them".to_string(),
         // [CR#107.1] the extremal element: "the creature with the greatest
@@ -122,19 +132,29 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::Target(i) => target_phrase(*i, ctx),
         Reference::This => ctx.subject.to_string(),
         Reference::You => "you".to_string(),
-        // The single object/element bound by an enclosing binder, read from the
-        // shared `ctx.that` slot ([CR#601.2b,608]): `That` is a `With`
-        // one-binder's object ("a creature"); `It` is an `Each`/`DivideAmong`
-        // element (the group-move collapse handles `It` directly, so a bare `It`
-        // here is a per-element body or — with no binder in scope — a mis-encode,
-        // which the engine panics on too). Outside any binder, surface the
-        // unrendered marker rather than a silent "it".
-        Reference::That => ctx
+        // The sorted singular anaphor: an enclosing binder's noun phrase
+        // when one is bound (the With collapse — "Sacrifice a creature"),
+        // else the English pronoun phrase — "that card", "that creature"
+        // ([CR#608.2d]; the elaborator, not the renderer, resolves it).
+        Reference::That(sort) => ctx
             .that
-            .map_or_else(|| "[unrendered: That]".to_string(), str::to_string),
-        Reference::It => ctx
-            .that
-            .map_or_else(|| "[unrendered: It]".to_string(), str::to_string),
+            .map_or_else(|| format!("that {}", sort.noun()), str::to_string),
+        // The labeled fallback: "the exiled card" family reads as "the
+        // <label>".
+        Reference::The(label) => format!("the {}", label.as_str()),
+        // The indefinite determiner ([CR#608.2d]): "a creature".
+        Reference::A { filter, .. } => {
+            let noun = filter_noun(filter);
+            let article = match noun.chars().next() {
+                Some('a' | 'e' | 'i' | 'o' | 'u') => "an",
+                _ => "a",
+            };
+            format!("{article} {noun}")
+        }
+        // `It`: an `Each`/`DivideAmong` element reads the binder's noun
+        // phrase from the shared `ctx.that` slot ([CR#601.2b,608]); outside
+        // a binder it is the wildcard anaphor — the plain English pronoun.
+        Reference::It => ctx.that.map_or_else(|| "it".to_string(), str::to_string),
         // The triggering event's object/patient ([CR#603.2e,608.2k]) render as
         // the generic anaphor "it" (no type info at this layer).
         Reference::EventObject | Reference::EventPatient => "it".to_string(),
@@ -442,12 +462,12 @@ mod tests {
     }
 
     /// `Reference::It` — the `Each`/`DivideAmong` element — reads the enclosing
-    /// binder's phrase from `ctx.that`, and surfaces the unrendered marker at a
-    /// frameless position rather than a silent "it" ([CR#608]).
+    /// binder's phrase from `ctx.that`; at a frameless position it is the
+    /// wildcard stack anaphor and prints the plain pronoun ([CR#608]).
     #[test]
     fn it_anaphor_reads_binder_phrase_else_marks() {
         let frameless = ctx(); // that: None
-        assert_eq!(reference(&Reference::It, &frameless), "[unrendered: It]");
+        assert_eq!(reference(&Reference::It, &frameless), "it");
         let scoped = Ctx {
             subject: "Grizzly Bears",
             targets: &[],

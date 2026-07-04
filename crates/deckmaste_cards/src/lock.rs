@@ -7,13 +7,18 @@
 //! artifact.
 //!
 //! The hash is over each card's fully macro-EXPANDED form
-//! ([`deckmaste_core::Expand::expand_all`], what the engine evaluates) rather
-//! than its authored RON: a macro or table change that re-points a reference
-//! changes the expanded value even when the authored file doesn't, and
-//! that's exactly the drift this file exists to catch loudly — a
-//! `Stage::Deny` plugin's cards are always elaboration-CLEAN by the time
-//! `--lock` can run (an unclean one already failed `Plugin::load`), so the
-//! interesting content is the resolved VALUE, not pass/fail.
+//! ([`deckmaste_core::Expand::expand_all`], what the engine evaluates) PLUS
+//! its computed anaphor resolutions
+//! ([`crate::elaborate::elaborate_with_resolutions`] — which antecedent each
+//! `It`/`That(Sort)`/`They`/`ThatMany`/`Target(n)` bound to): the wire
+//! serializes surface anaphors (the anaphor-surface wire ruling), so the
+//! lock is what pins the COMPUTED indices — a macro or table change that
+//! re-points a reference changes the resolution trace even when the
+//! authored file doesn't, and that's exactly the drift this file exists to
+//! catch loudly. A `Stage::Deny` plugin's cards are always
+//! elaboration-CLEAN by the time `--lock` can run (an unclean one already
+//! failed `Plugin::load`), so the interesting content is the resolved
+//! VALUE, not pass/fail.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -81,9 +86,20 @@ pub fn compute(workspace_root: &Path) -> anyhow::Result<BTreeMap<String, String>
                 .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
             let name = crate::plugin::card_lookup_name(&card).to_owned();
             let expanded = deckmaste_core::ron::options()
-                .to_string(&card.expand_all())
+                .to_string(&card.clone().expand_all())
                 .with_context(|| format!(r#"serializing "{}""#, path.display()))?;
-            checksums.insert(key(plugin_name, &name), hash(&expanded));
+            // The computed resolutions join the hash: the wire keeps the
+            // SURFACE anaphors, so the lock is what pins where each one
+            // bound — a re-pointing table/macro change drifts the trace
+            // even when the authored spelling didn't change.
+            let registries = plugin.registries();
+            let (_, resolutions) = crate::elaborate::elaborate_with_resolutions(&card, &registries);
+            let mut content = expanded;
+            for resolution in &resolutions {
+                content.push('\n');
+                let _ = write!(content, "{resolution}");
+            }
+            checksums.insert(key(plugin_name, &name), hash(&content));
         }
     }
     Ok(checksums)

@@ -1,0 +1,9 @@
+// `ThatMany` — the countable spelling of the value anaphor — with no Amount
+// antecedent in scope ([CR#107.3,608.2i]).
+Normal(
+  name: "Reject ThatMany Unbound",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: Draw(ThatMany)),
+  ],
+)

@@ -55,6 +55,7 @@ use deckmaste_core::RelationFilter;
 use deckmaste_core::Replacement;
 use deckmaste_core::Scope;
 use deckmaste_core::Selection;
+use deckmaste_core::Sort;
 use deckmaste_core::StateChange;
 use deckmaste_core::StateFilter;
 use deckmaste_core::StaticAbility;
@@ -254,32 +255,100 @@ fn fixes_crossing(event: &EventFilter) -> bool {
     }
 }
 
-/// The running binding context — the antecedent state a position sees
-/// (the Idris `Endophora`, plus the positional discipline the plan's `Ctx`
-/// adds: `may_target`, `has_x`, the amount antecedent, noted keys).
+/// Where an antecedent came from — the plan's §2.1 `Site`. Sites drive the
+/// survival rules ([CR#603.7c] delayed bodies drop `TargetSlot`s, keep
+/// `Product`s) and the runtime mapping (a `TargetSlot`-resolved anaphor is
+/// the announced target; a `Product` is fact-backed).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Site {
+    /// Pushed by an announced target slot ([CR#115.3,601.2c]).
+    TargetSlot(usize),
+    /// Pushed by a producing verb — backed by enacted facts at runtime
+    /// ([CR#400.7j]).
+    Product,
+    /// A trigger/replacement/payment event role ([CR#603.2e,608.2k]).
+    EventRole(Role),
+    /// An `Each`/`DivideAmong`/`Where`/`Pick` element ([CR#608.2]) — `It`
+    /// binds to the innermost of these deterministically.
+    Loop,
+    /// A `DivideAmong` share ([CR#601.2d]) — read only as
+    /// `Count::Allotment`, never by the amount anaphors.
+    Allot,
+    /// A resolution-time choice — a `With` binder, `A(filter)`, a chosen
+    /// pile ([CR#608.2d]).
+    Chosen,
+}
+
+/// The event role an [`Site::EventRole`] antecedent carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Role {
+    Object,
+    Patient,
+    Actor,
+    Amount,
+    Defender,
+}
+
+/// One antecedent on the ordered stack — the plan's §2.1 `Ante`.
+#[derive(Debug, Clone)]
+struct Ante {
+    /// The English noun ([`Sort`]) an anaphor must be compatible with (R1).
+    sort: Sort,
+    /// The reference kind the antecedent denotes ([CR#109.1]).
+    kind: Kind,
+    /// One object or a group ([CR#608.2d]).
+    card: Cardinality,
+    site: Site,
+    /// The zone the producing clause put the object in — the [CR#603.7c]
+    /// expected-zone stamp delayed bodies consume.
+    expected_zone: Option<deckmaste_core::Zone>,
+    /// The `Label { as, .. }` / pile-label name, when the antecedent is
+    /// labeled — read explicitly as `The`/`TheGroup` (the R2 fallback).
+    label: Option<Ident>,
+    /// A BINDER FRAME: a `With` binder's choice or a chosen pile — the
+    /// legacy deterministic scope. An anaphor inside the frame binds to it
+    /// directly (innermost frame wins, never R2-gated), preserving the
+    /// pre-stack `With`/`That` semantics; the telescope surface doesn't
+    /// spell `With` at all.
+    binder: bool,
+}
+
+impl Ante {
+    /// A short human description for traces and error messages.
+    fn describe(&self) -> String {
+        use std::fmt::Write as _;
+        let mut s = format!("{:?} {:?} at {:?}", self.card, self.sort, self.site);
+        if let Some(zone) = self.expected_zone {
+            let _ = write!(s, ", expected zone {zone:?}");
+        }
+        if let Some(label) = self.label {
+            let _ = write!(s, ", label {:?}", label.as_str());
+        }
+        s
+    }
+}
+
+/// The running binding context: the ordered ANTECEDENT STACK (nearest =
+/// last), plus the positional discipline the plan's `Ctx` adds
+/// (`may_target`, `has_x`, event caps for the explicit role reads, noted
+/// keys). Subsumes the old role-named fields (`targets`/`that`/`it`/
+/// `allotment`/`amount`) — those are now sites on the one stack.
 #[expect(
     clippy::struct_excessive_bools,
     reason = "each flag is an independent binding-context dimension, not a state machine"
 )]
 #[derive(Debug, Clone)]
 struct Ctx {
-    /// One kind per announced target slot ([CR#115.3,601.2c]).
-    targets: Vec<Kind>,
-    /// The enclosing `With` binding ([CR#608.2d]).
-    that: Option<(Cardinality, Kind)>,
-    /// The enclosing loop/candidate element ([CR#608.2]).
-    it: Option<Kind>,
-    /// A `DivideAmong` share in scope ([CR#601.2d]).
-    allotment: bool,
+    /// The ordered antecedent stack, nearest LAST.
+    stack: Vec<Ante>,
     /// The surrounding event's caps; [`NO_CAPS`] outside an event body.
+    /// Gates the EXPLICIT event-role reads (`EventObject`/…); the stack's
+    /// `EventRole` antecedents serve the anaphors.
     caps: Caps,
     /// Whether ANY event body encloses this position — splits `E-BIND-EVENT`
     /// (no event at all) from `E-CAPS-*` (an event that doesn't supply the
     /// role).
     in_event: bool,
-    /// An amount antecedent is in scope ("that much", [CR#107.3]): the
-    /// event's amount, or an amount-guaranteeing earlier instruction.
-    amount: bool,
     /// The surrounding event fixes a before/after totals channel — every
     /// anchor is a counter-placement fact ([CR#714.2b,122.1]); the
     /// `Condition::Crossed` read is legal only here.
@@ -301,13 +370,9 @@ struct Ctx {
 impl Ctx {
     fn base(has_x: bool) -> Ctx {
         Ctx {
-            targets: Vec::new(),
-            that: None,
-            it: None,
-            allotment: false,
+            stack: Vec::new(),
             caps: NO_CAPS,
             in_event: false,
-            amount: false,
             crossing: false,
             in_exchange_macro: false,
             has_x,
@@ -315,20 +380,70 @@ impl Ctx {
             notes: Vec::new(),
         }
     }
+
+    /// The announced target-slot count in scope — slot antes carry their
+    /// index, so the count is `max + 1` ([CR#115.3,601.2c]).
+    fn target_count(&self) -> usize {
+        self.stack
+            .iter()
+            .filter_map(|a| match a.site {
+                Site::TargetSlot(i) => Some(i + 1),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// The slot ante for `Target(n)`/`GetTargets(n)`.
+    fn target_slot(&self, n: usize) -> Option<&Ante> {
+        self.stack
+            .iter()
+            .rev()
+            .find(|a| a.site == Site::TargetSlot(n))
+    }
+
+    /// The innermost BINDER — a loop element or a `With`/pile choice
+    /// frame — `It`'s deterministic antecedent ([CR#608.2]; the pre-stack
+    /// semantics, generalized: inside a binder, `It` is ALWAYS the bound
+    /// thing, never gated by R2).
+    fn innermost_binder(&self) -> Option<(usize, &Ante)> {
+        self.stack
+            .iter()
+            .rev()
+            .enumerate()
+            .find(|(_, a)| a.site == Site::Loop || (a.binder && a.site == Site::Chosen))
+    }
+
+    /// The innermost `With`/pile CHOICE frame — the legacy deterministic
+    /// scope the sorted anaphors bind inside ([CR#608.2d]; never R2-gated).
+    fn innermost_frame(&self) -> Option<(usize, &Ante)> {
+        self.stack
+            .iter()
+            .rev()
+            .enumerate()
+            .find(|(_, a)| a.binder && a.site == Site::Chosen)
+    }
 }
 
 /// What a walked effect introduces for its FOLLOWING siblings (the
-/// `Sequence` telescope): an amount antecedent, and noted keys.
+/// `Sequence` telescope, the plan's §2.1 `intro`): antecedent pushes and
+/// noted keys.
 #[derive(Debug, Default)]
 struct Intro {
-    amount: bool,
+    pushes: Vec<Ante>,
     notes: Vec<(Ident, NotedKind)>,
 }
 
 impl Intro {
     fn absorb(&mut self, other: Intro) {
-        self.amount |= other.amount;
+        self.pushes.extend(other.pushes);
         self.notes.extend(other.notes);
+    }
+
+    /// Applies this intro to a running context (the telescope step).
+    fn apply_to(&self, ctx: &mut Ctx) {
+        ctx.stack.extend(self.pushes.iter().cloned());
+        ctx.notes.extend(self.notes.iter().copied());
     }
 }
 
@@ -399,6 +514,10 @@ struct Walker<'a> {
     /// bookkeeping.
     trace: bool,
     resolutions: Vec<super::Resolution>,
+    /// Antecedents pushed by REFERENCES inside the clause being walked
+    /// (`A(filter)`'s Chosen push) — drained into the clause's [`Intro`] by
+    /// the `Act` arm, dropped by non-clause positions.
+    pending: Vec<Ante>,
 }
 
 impl<'a> Walker<'a> {
@@ -411,6 +530,7 @@ impl<'a> Walker<'a> {
             bridge_pending: Vec::new(),
             trace,
             resolutions: Vec::new(),
+            pending: Vec::new(),
         }
     }
 
@@ -439,58 +559,598 @@ impl<'a> Walker<'a> {
         }
     }
 
-    /// Applies a construct's emitted bind-rule row to the context. `targets`
-    /// replaces the slot list when the row binds targets; `that_kind` /
-    /// `it_kind` supply the bound kinds; `caps` is consumed per the row's
-    /// `caps_from`.
+    /// Applies a construct's emitted bind-rule row to the context, as STACK
+    /// transitions. `targets` replaces the slot antecedents when the row
+    /// binds targets; `bind` is the binder's antecedent (pushed at `Chosen`
+    /// per `binds_that`, `Loop` per `binds_it`); `caps`+`roles` are consumed
+    /// per the row's `caps_from` (the event/payment role antecedents).
     fn descend(
         &self,
         ctx: &Ctx,
         construct: &str,
-        targets: Option<Vec<Kind>>,
-        bind_kind: Kind,
+        targets: Option<Vec<Ante>>,
+        bind: Option<Ante>,
         caps: Caps,
+        roles: Vec<Ante>,
     ) -> Ctx {
         let rule = self.tables.bind_rule(construct);
         let mut next = ctx.clone();
         if rule.drops_targets {
-            next.targets.clear();
+            // [CR#603.7c]: delayed bodies drop the announced targets;
+            // Product antecedents (with their expected zones) survive.
+            next.stack
+                .retain(|a| !matches!(a.site, Site::TargetSlot(_)));
         }
         if rule.binds_targets
             && let Some(slots) = targets
         {
-            next.targets = slots;
+            next.stack
+                .retain(|a| !matches!(a.site, Site::TargetSlot(_)));
+            next.stack.extend(slots);
         }
-        if !rule.keeps_that {
-            next.that = None;
+        if rule.clears_allotment {
+            // Loop bodies clear `Allot` on nesting (the survival rules).
+            next.stack.retain(|a| a.site != Site::Allot);
         }
-        if let Some(card) = rule.binds_that {
-            next.that = Some((card, bind_kind));
-        }
-        if rule.binds_it {
-            next.it = Some(bind_kind);
+        if let Some(mut ante) = bind {
+            if let Some(card) = rule.binds_that {
+                // The binder's own site stands: a choice binds a Chosen
+                // FRAME; a search/produce binder pushes a whiffable
+                // Product ([CR#701.23]).
+                ante.card = card;
+                next.stack.push(ante);
+            } else if rule.binds_it {
+                ante.site = Site::Loop;
+                ante.card = Cardinality::One;
+                next.stack.push(ante);
+            }
         }
         if rule.binds_allotment {
-            next.allotment = true;
-        } else if rule.clears_allotment {
-            next.allotment = false;
+            // The `DivideAmong` share ([CR#601.2d]) — an Amount antecedent
+            // at the `Allot` site, read only as `Count::Allotment`.
+            next.stack.push(Ante {
+                sort: Sort::Amount,
+                kind: Kind::Any,
+                card: Cardinality::One,
+                site: Site::Allot,
+                expected_zone: None,
+                label: None,
+                binder: false,
+            });
         }
         match rule.caps_from {
             CapsFrom::Keep => {}
             CapsFrom::Query | CapsFrom::Cost => {
                 next.caps = caps;
                 next.in_event = true;
-                next.amount = caps.amount;
                 // A fresh event context: the crossing channel is per-event
                 // ([CR#714.2b]); `triggered_ability` re-derives it from the
-                // new pattern.
+                // new pattern. Event-role antecedents SHADOW an outer
+                // event's ("one antecedent per caps guarantee" — per body).
                 next.crossing = false;
+                next.stack.retain(|a| !matches!(a.site, Site::EventRole(_)));
+                next.stack.extend(roles);
             }
         }
         if let Some(may_target) = rule.may_target {
             next.may_target = may_target;
         }
         next
+    }
+
+    // ------------------------------------------------------------------
+    // the anaphor surface: R1 nearest-compatible + the R2 uniqueness gate
+    // ------------------------------------------------------------------
+
+    /// R1 sort compatibility: `Some(widened)` when an anaphor wanting `want`
+    /// (`None` = the `It`/`They` wildcard) reaches an antecedent of sort
+    /// `have`; `widened = true` marks a non-exact reach (the wildcard, or a
+    /// widening table row).
+    fn sort_reaches(&self, want: Option<Sort>, have: Sort) -> Option<bool> {
+        match want {
+            // The wildcard reaches every object/player/pile noun — but
+            // never an Amount antecedent (value anaphora is `ThatMany`).
+            None => (have != Sort::Amount).then_some(true),
+            Some(w) => {
+                if let (Sort::OfType(a), Sort::OfType(b)) = (w, have)
+                    && a != b
+                {
+                    return None;
+                }
+                self.tables.sort_compat(w.key(), have.key())
+            }
+        }
+    }
+
+    /// The R1+R2 stack resolution shared by every anaphor spelling:
+    /// nearest compatible antecedent ([R1]), refusing when a SECOND
+    /// same-kind compatible antecedent is in scope ([R2] — strict; the
+    /// emitted `exact_sort_precedence` flag is the one pre-approved
+    /// loosening, [[cards-corpus-dry-run]] calibrates it). `Allot`-sited
+    /// antecedents never participate (they are `Count::Allotment`'s).
+    ///
+    /// On failure pushes `unbound` (nothing compatible) or
+    /// `Code::BindAmbiguous` and returns `None`.
+    fn resolve_anaphor(
+        &mut self,
+        ctx: &Ctx,
+        spelling: &str,
+        want: Option<Sort>,
+        card: Cardinality,
+        expected: Kind,
+        unbound: Code,
+    ) -> Option<Ante> {
+        let candidates: Vec<(usize, &Ante, bool)> = ctx
+            .stack
+            .iter()
+            .rev()
+            .enumerate()
+            .filter(|(_, a)| a.site != Site::Allot)
+            .filter(|(_, a)| a.card == card)
+            .filter(|(_, a)| a.kind.compatible_with(expected))
+            .filter_map(|(depth, a)| {
+                self.sort_reaches(want, a.sort)
+                    .map(|widened| (depth, a, widened))
+            })
+            .collect();
+        let Some((depth, nearest, nearest_widened)) = candidates.first().copied() else {
+            self.err(
+                unbound,
+                format!("{spelling} read with no compatible antecedent in scope"),
+            );
+            return None;
+        };
+        let farther = &candidates[1..];
+        if !farther.is_empty() {
+            // R2: a second same-kind, compatible antecedent exists. The one
+            // pre-approved loosening: a nearer EXACT-sort match beats
+            // farther non-exact candidates ([[cards-corpus-dry-run]] flips
+            // the emitted flag; STRICT ships off).
+            let loosened = self.tables.exact_sort_precedence()
+                && !nearest_widened
+                && farther.iter().all(|(_, _, widened)| *widened);
+            if !loosened {
+                self.err(
+                    Code::BindAmbiguous,
+                    format!(
+                        "ambiguous reference — add `Label`/`The`, or use `Target(n)`: \
+                         {spelling} reaches {} antecedents (nearest: {})",
+                        candidates.len(),
+                        nearest.describe(),
+                    ),
+                );
+                return None;
+            }
+        }
+        let resolved = nearest.clone();
+        self.resolve(|| format!("{spelling} -> #{depth} {}", resolved.describe()));
+        Some(resolved)
+    }
+
+    /// The labeled-antecedent read (`The`/`TheGroup`, the R2 fallback):
+    /// nearest antecedent carrying `label`, of the wanted cardinality.
+    fn resolve_label(
+        &mut self,
+        ctx: &Ctx,
+        spelling: &str,
+        label: Ident,
+        card: Cardinality,
+    ) -> Option<Ante> {
+        let found = ctx
+            .stack
+            .iter()
+            .rev()
+            .enumerate()
+            .find(|(_, a)| a.label == Some(label));
+        match found {
+            Some((depth, ante)) if ante.card == card => {
+                let resolved = ante.clone();
+                self.resolve(|| format!("{spelling} -> #{depth} {}", resolved.describe()));
+                Some(resolved)
+            }
+            Some((_, ante)) => {
+                self.err(
+                    Code::BindLabel,
+                    format!(
+                        "{spelling} names label {:?}, but that antecedent is {:?} \
+                         where {card:?} is read",
+                        label.as_str(),
+                        ante.card,
+                    ),
+                );
+                None
+            }
+            None => {
+                self.err(
+                    Code::BindLabel,
+                    format!("{spelling} names no label in scope: {:?}", label.as_str()),
+                );
+                None
+            }
+        }
+    }
+
+    /// The shared plural-anaphor read (`They`/`Them`): the innermost
+    /// choice frame when one encloses (deterministic), else the stack.
+    fn plural_anaphor(
+        &mut self,
+        ctx: &Ctx,
+        spelling: &str,
+        want: Option<Sort>,
+        expected: Kind,
+    ) -> Option<Kind> {
+        if let Some((depth, ante)) = ctx.innermost_frame() {
+            if ante.card != Cardinality::Many {
+                self.err(
+                    Code::BindThatGroup,
+                    format!(
+                        "{spelling} read where the enclosing binder binds a single object \
+                         (read it as That(Sort))"
+                    ),
+                );
+                return None;
+            }
+            if self.sort_reaches(want, ante.sort).is_none() {
+                self.err(
+                    Code::BindThatGroup,
+                    format!(
+                        "{spelling} is incompatible with the enclosing binder's {:?} choice",
+                        ante.sort
+                    ),
+                );
+                return None;
+            }
+            let kind = ante.kind;
+            let description = ante.describe();
+            self.resolve(|| format!("{spelling} -> #{depth} {description} (binder frame)"));
+            return Some(kind);
+        }
+        self.resolve_anaphor(
+            ctx,
+            spelling,
+            want,
+            Cardinality::Many,
+            expected,
+            Code::BindThatGroup,
+        )
+        .map(|ante| ante.kind)
+    }
+
+    // ------------------------------------------------------------------
+    // sort derivation: filters, zones, destinations, binders
+    // ------------------------------------------------------------------
+
+    /// The [`Sort`] a zone gives its objects (the emitted `zone-sorts.ron`,
+    /// [CR#110.1,112.1,108.2]), refined on the battlefield by a pinned card
+    /// type / token kind.
+    fn zone_sort(
+        &self,
+        zone: deckmaste_core::Zone,
+        type_pin: Option<Type>,
+        token_pin: bool,
+    ) -> Sort {
+        match self.tables.zone_sort(zone) {
+            "Spell" => Sort::Spell,
+            "Permanent" => {
+                if token_pin {
+                    Sort::Token
+                } else if let Some(t) = type_pin {
+                    Sort::OfType(t)
+                } else {
+                    Sort::Permanent
+                }
+            }
+            _ => Sort::Card,
+        }
+    }
+
+    /// The [`Sort`] a filter's objects answer to: a pinned zone (else the
+    /// battlefield default) through [`Self::zone_sort`], refined by
+    /// conjunctive type/kind pins.
+    fn filter_sort(&self, filter: &Filter) -> Sort {
+        let pins = filter_pins(filter);
+        if pins.player {
+            return Sort::Player;
+        }
+        match pins.object_kind {
+            Some(deckmaste_core::ObjectKind::Spell) => return Sort::Spell,
+            Some(deckmaste_core::ObjectKind::Ability) => return Sort::StackObject,
+            _ => {}
+        }
+        let zone = pins.zone.unwrap_or(deckmaste_core::Zone::Battlefield);
+        self.zone_sort(
+            zone,
+            pins.card_type,
+            pins.object_kind == Some(deckmaste_core::ObjectKind::Token),
+        )
+    }
+
+    /// The antecedent a binder introduces for its body (site filled in by
+    /// the bind-rule row): sort/kind/cardinality from the binder's content,
+    /// per the emitted intro rows.
+    fn binder_ante(&self, binder: &Binder, cardinality: Cardinality, kind: Kind) -> Ante {
+        let (sort, site, frame) = match binder {
+            // Choice binders are legacy deterministic FRAMES (the emitted
+            // `With.ChooseOne`/`With.Choose`/`With.TheRef`/`With.Existing`
+            // intro rows, site Chosen).
+            Binder::ChooseOne { filter, .. } | Binder::Choose { filter, .. } => {
+                (self.filter_sort(filter), Site::Chosen, true)
+            }
+            Binder::TheRef(_) => (kind_sort(kind), Site::Chosen, true),
+            Binder::Existing(selection) => (self.selection_sort(selection), Site::Chosen, true),
+            // Search/produce binders push whiffable PRODUCTS (the
+            // `With.SearchOne`/`With.Search`/`With.Produce` rows,
+            // [CR#701.23,400.7j]).
+            Binder::SearchOne { .. } | Binder::Search { .. } => (Sort::Card, Site::Product, false),
+            Binder::Produce(action) => (
+                match &**action {
+                    Action::Move(_, destination, _) => {
+                        self.zone_sort(destination_zone(destination), None, false)
+                    }
+                    _ => Sort::Permanent,
+                },
+                Site::Product,
+                false,
+            ),
+            Binder::Expanded(e) => return self.binder_ante(&e.value, cardinality, kind),
+        };
+        Ante {
+            sort,
+            kind,
+            card: cardinality,
+            site,
+            expected_zone: None,
+            label: None,
+            binder: frame,
+        }
+    }
+
+    /// A best-effort sort for a selection (an `Existing` binder's group).
+    fn selection_sort(&self, selection: &Selection) -> Sort {
+        match selection {
+            Selection::Filter(f) | Selection::Random(_, f) => self.filter_sort(f),
+            // Library windows and noted sets are non-battlefield cards.
+            Selection::TopOfLibrary { .. }
+            | Selection::BottomOfLibrary { .. }
+            | Selection::AmongNoted(..) => Sort::Card,
+            Selection::Pick { of, .. } => self.filter_sort(of),
+            Selection::Union(members) => {
+                let sorts: Vec<Sort> = members.iter().map(|m| self.selection_sort(m)).collect();
+                match sorts.split_first() {
+                    Some((first, rest)) if rest.iter().all(|s| s == first) => *first,
+                    _ => Sort::Permanent,
+                }
+            }
+            // The plural anaphors re-read an existing antecedent; their
+            // group keeps that antecedent's noun where it is unambiguous —
+            // conservative `Permanent` otherwise (the walk of the selection
+            // itself already validated the read).
+            Selection::They
+            | Selection::Them(_)
+            | Selection::TheGroup(_)
+            | Selection::GetTargets(_)
+            | Selection::PilesOf { .. } => Sort::Permanent,
+            Selection::Expanded(e) => self.selection_sort(&e.value),
+        }
+    }
+
+    /// Builds a producing clause's [`Intro`] from its emitted intro row:
+    /// the object push (site/cardinality/sort/expected-zone per the row's
+    /// rules) plus the Amount companion ("that much", [CR#608.2i]).
+    fn intro_from_row(
+        &self,
+        clause: &str,
+        one: bool,
+        filter: Option<&Filter>,
+        destination: Option<&Destination>,
+    ) -> Intro {
+        let row = self.tables.intro(clause);
+        let mut intro = Intro::default();
+        if row.object {
+            let card = match row.card {
+                tables::IntroCard::One => Cardinality::One,
+                tables::IntroCard::Many => Cardinality::Many,
+                tables::IntroCard::FromQuantity | tables::IntroCard::FromCount => {
+                    if one {
+                        Cardinality::One
+                    } else {
+                        Cardinality::Many
+                    }
+                }
+            };
+            let site = match row.site {
+                tables::IntroSite::Product => Site::Product,
+                tables::IntroSite::Chosen => Site::Chosen,
+                tables::IntroSite::TargetSlot | tables::IntroSite::Loop => {
+                    unreachable!("slot/loop intro rows are applied by their own constructs")
+                }
+            };
+            let expected_zone = match row.zone.as_str() {
+                "none" => None,
+                "from_destination" => destination.map(destination_zone),
+                "Battlefield" => Some(deckmaste_core::Zone::Battlefield),
+                "Hand" => Some(deckmaste_core::Zone::Hand),
+                "Graveyard" => Some(deckmaste_core::Zone::Graveyard),
+                other => panic!("unknown intro zone rule {other:?}"),
+            };
+            let sort = match row.sort.as_str() {
+                "Card" => Sort::Card,
+                "Token" => Sort::Token,
+                "Pile" => Sort::Pile,
+                "from_filter" => filter.map_or(Sort::Permanent, |f| self.filter_sort(f)),
+                "from_destination" => match destination {
+                    Some(d) => self.zone_sort(destination_zone(d), None, false),
+                    None => Sort::Card,
+                },
+                other => panic!("unknown intro sort rule {other:?}"),
+            };
+            let kind = if sort == Sort::Player { Kind::Player } else { Kind::Object };
+            intro.pushes.push(Ante {
+                sort,
+                kind,
+                card,
+                site,
+                expected_zone,
+                label: None,
+                binder: false,
+            });
+        }
+        if row.amount {
+            intro.pushes.push(Ante {
+                sort: Sort::Amount,
+                kind: Kind::Any,
+                card: Cardinality::One,
+                site: Site::Product,
+                expected_zone: None,
+                label: None,
+                binder: false,
+            });
+        }
+        intro
+    }
+
+    /// The role antecedents an event/payment body pushes — ONE per caps
+    /// guarantee ([CR#603.2e,608.2k]; the caps table and the anaphora
+    /// mechanism are the same machine).
+    fn role_antes(caps: Caps, object_sort: Sort, patient_sort: Option<Sort>) -> Vec<Ante> {
+        let ante = |sort, kind, role| Ante {
+            sort,
+            kind,
+            card: Cardinality::One,
+            site: Site::EventRole(role),
+            expected_zone: None,
+            label: None,
+            binder: false,
+        };
+        let mut roles = Vec::new();
+        if caps.object {
+            roles.push(ante(object_sort, Kind::Object, Role::Object));
+        }
+        if let Some(kind) = caps.patient {
+            let sort = patient_sort.unwrap_or(match kind {
+                Kind::Player => Sort::Player,
+                _ => Sort::Permanent,
+            });
+            roles.push(ante(sort, kind, Role::Patient));
+        }
+        if caps.actor {
+            roles.push(ante(Sort::Player, Kind::Player, Role::Actor));
+        }
+        if caps.amount {
+            roles.push(ante(Sort::Amount, Kind::Any, Role::Amount));
+        }
+        if caps.defender {
+            roles.push(ante(Sort::Player, Kind::Player, Role::Defender));
+        }
+        roles
+    }
+
+    /// The role antecedents an EVENT body pushes, with the object/patient
+    /// sorts derived from the pattern (the `object_sort` column +
+    /// per-form patient slots).
+    fn event_role_antes(&self, event: &EventFilter) -> Vec<Ante> {
+        let caps = self.event_caps(event);
+        Self::role_antes(
+            caps,
+            self.event_object_sort_of(event),
+            self.event_patient_sort_of(event),
+        )
+    }
+
+    /// The role antecedents a COST payment pushes ([CR#601.2f]) — payment
+    /// objects leave for another zone, so the object noun is `Card`.
+    fn cost_role_antes(caps: Caps) -> Vec<Ante> {
+        Self::role_antes(caps, Sort::Card, None)
+    }
+
+    /// The SORT of an event pattern's object antecedent — the emitted
+    /// `object_sort` column names the deriving slot; the walker extracts it
+    /// ([CR#400.7e] — the noun follows the zone the object moved to).
+    fn event_object_sort_of(&self, event: &EventFilter) -> Sort {
+        match event {
+            EventFilter::Expanded(e) => self.event_object_sort_of(&e.value),
+            EventFilter::OneOrMore(inner)
+            | EventFilter::Nth { of: inner, .. }
+            | EventFilter::When(inner, _)
+            | EventFilter::Within(inner, _) => self.event_object_sort_of(inner),
+            EventFilter::AllOf(members) | EventFilter::OneOf(members) => {
+                let sorts: Vec<Sort> = members
+                    .iter()
+                    .map(|m| self.event_object_sort_of(m))
+                    .collect();
+                match sorts.split_first() {
+                    Some((first, rest)) if rest.iter().all(|s| s == first) => *first,
+                    _ => Sort::Permanent,
+                }
+            }
+            master => {
+                let Some(key) = form_key(master) else {
+                    return Sort::Permanent;
+                };
+                match self.tables.event_object_sort(key) {
+                    "to_zone" => {
+                        let EventFilter::ZoneChange {
+                            what,
+                            to,
+                            cause,
+                            from: _,
+                        } = master
+                        else {
+                            return Sort::Permanent;
+                        };
+                        // An unfixed `to` falls back to the cause verb's
+                        // entailed destination ([CR#701] entailment rows).
+                        let to = to.or_else(|| {
+                            if let Some(deckmaste_core::Cause::Cause(pattern)) = cause
+                                && let Some(verb) = pattern.verb
+                                && let Some(row) = self.tables.entailment(verb.as_str())
+                            {
+                                row.to
+                            } else {
+                                None
+                            }
+                        });
+                        match to {
+                            Some(zone) => {
+                                let pins = filter_pins(what);
+                                self.zone_sort(
+                                    zone,
+                                    pins.card_type,
+                                    pins.object_kind == Some(deckmaste_core::ObjectKind::Token),
+                                )
+                            }
+                            // The object left its zone; where it went is
+                            // unfixed — the conservative noun is "card".
+                            None => Sort::Card,
+                        }
+                    }
+                    "spell" => Sort::Spell,
+                    "stack_object" => Sort::StackObject,
+                    "token" => Sort::Token,
+                    slot @ ("source" | "what" | "by" | "of" | "on") => {
+                        match event_slot_filter(master, slot) {
+                            Some(filter) => self.filter_sort(filter),
+                            None => Sort::Permanent,
+                        }
+                    }
+                    _ => Sort::Permanent,
+                }
+            }
+        }
+    }
+
+    /// The SORT of an event pattern's patient antecedent, where a form
+    /// fixes one (`Damage.to`, [CR#120.3]).
+    fn event_patient_sort_of(&self, event: &EventFilter) -> Option<Sort> {
+        match event {
+            EventFilter::Expanded(e) => self.event_patient_sort_of(&e.value),
+            EventFilter::OneOrMore(inner)
+            | EventFilter::Nth { of: inner, .. }
+            | EventFilter::When(inner, _)
+            | EventFilter::Within(inner, _) => self.event_patient_sort_of(inner),
+            EventFilter::Damage { to, .. } => Some(self.filter_sort(to)),
+            _ => None,
+        }
     }
 
     // ------------------------------------------------------------------
@@ -618,13 +1278,13 @@ impl<'a> Walker<'a> {
             }
             Property::StateBased { condition, effect } => {
                 self.condition(condition, &ctx);
-                let inner = self.descend(&ctx, "Sba", None, Kind::Any, NO_CAPS);
+                let inner = self.descend(&ctx, "Sba", None, None, NO_CAPS, vec![]);
                 self.effect(effect, &inner);
             }
             Property::TurnBased { at: _, effect } => {
                 // A turn-based action never targets ([CR#703]); the Sba row
                 // carries the same never-a-targeting-position discipline.
-                let inner = self.descend(&ctx, "Sba", None, Kind::Any, NO_CAPS);
+                let inner = self.descend(&ctx, "Sba", None, None, NO_CAPS, vec![]);
                 self.effect(effect, &inner);
             }
         }
@@ -731,11 +1391,12 @@ impl<'a> Walker<'a> {
         // The event pattern reads the context BEFORE the event binds — but
         // with the row's drops already applied (a delayed trigger's pattern
         // can't see the spell's targets either, [CR#603.7c]).
-        let pattern_ctx = self.descend(ctx, construct, None, Kind::Any, NO_CAPS);
+        let pattern_ctx = self.descend(ctx, construct, None, None, NO_CAPS, vec![]);
         let lane = Lane::for_trigger_construct(construct);
         self.scoped("event", |w| w.event(&triggered.event, &pattern_ctx, lane));
         let caps = self.event_caps(&triggered.event);
-        let mut body = self.descend(ctx, construct, None, Kind::Any, caps);
+        let roles = self.event_role_antes(&triggered.event);
+        let mut body = self.descend(ctx, construct, None, None, caps, roles);
         body.crossing = fixes_crossing(&triggered.event);
         if let Some(condition) = &triggered.condition {
             // Intervening-if ([CR#603.4]) is elaborated in the event-extended
@@ -751,13 +1412,31 @@ impl<'a> Walker<'a> {
     // effects
     // ------------------------------------------------------------------
 
+    fn effect(&mut self, effect: &Effect, ctx: &Ctx) -> Intro {
+        let pending_floor = self.pending.len();
+        let intro = self.effect_inner(effect, ctx, pending_floor);
+        // Drop reference-pushes no clause consumed (an `A()` in a
+        // condition/cost position introduces nothing for siblings).
+        self.pending.truncate(pending_floor);
+        intro
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per Effect variant; the flat dispatch reads better whole"
     )]
-    fn effect(&mut self, effect: &Effect, ctx: &Ctx) -> Intro {
+    fn effect_inner(&mut self, effect: &Effect, ctx: &Ctx, pending_floor: usize) -> Intro {
         match effect {
-            Effect::Act(action) => self.action(action, ctx),
+            Effect::Act(action) => {
+                let mut intro = self.action(action, ctx);
+                // An `A(filter)` read inside the clause pushes a Chosen
+                // antecedent for the clauses to its right ([CR#608.2d]) —
+                // ahead of the verb's own products (the choice precedes the
+                // act).
+                let chosen: Vec<Ante> = self.pending.split_off(pending_floor);
+                intro.pushes.splice(0..0, chosen);
+                intro
+            }
             // [CR#603.3b,616.1]: the simultaneous batch — every member reads
             // ONE pre-application snapshot, so no member's Intro reaches a
             // sibling (unlike `Sequence`'s telescope). Load-capped to the
@@ -780,6 +1459,9 @@ impl<'a> Walker<'a> {
                 intro
             }
             Effect::Sequence(effects) => {
+                // The TELESCOPE: clause i+1 elaborates in the context
+                // extended by clause i's introductions — sentence order IS
+                // binder order (the plan's §2.2 `Seq`).
                 let mut running = ctx.clone();
                 let mut intro = Intro::default();
                 for (i, element) in effects.iter().enumerate() {
@@ -787,14 +1469,19 @@ impl<'a> Walker<'a> {
                     self.scoped(format!("Sequence[{i}]"), |w| {
                         introduced = w.effect(element, &running);
                     });
-                    running.amount |= introduced.amount;
-                    running.notes.extend(introduced.notes.iter().copied());
+                    introduced.apply_to(&mut running);
                     intro.absorb(introduced);
                 }
                 intro
             }
             Effect::Continuously(continuously) => {
                 self.scoped("Continuously", |w| {
+                    // The single-part spelling of `Until` — the same
+                    // per-part class stamp ([CR#611.2c]).
+                    let class = w
+                        .tables
+                        .static_class(static_effect_key(&continuously.effect));
+                    w.resolve(|| format!("Continuously part -> {class:?} ([CR#611.2c])"));
                     w.static_effect(&continuously.effect, ctx);
                     w.duration(&continuously.duration, ctx);
                 });
@@ -806,8 +1493,7 @@ impl<'a> Walker<'a> {
                     intro = w.effect(&may.effect, ctx);
                     // "if you do" elaborates in intro(effect)'s context.
                     let mut did_ctx = ctx.clone();
-                    did_ctx.amount |= intro.amount;
-                    did_ctx.notes.extend(intro.notes.iter().copied());
+                    intro.apply_to(&mut did_ctx);
                     if let Some(if_did) = &may.if_did {
                         w.scoped("if_did", |w| {
                             w.effect(if_did, &did_ctx);
@@ -819,8 +1505,11 @@ impl<'a> Walker<'a> {
                         });
                     }
                 });
-                // A declined May guarantees nothing to later siblings.
-                Intro::default()
+                // A May's introductions FLOW to its right siblings (the
+                // Through-the-Breach shape: "You may put a creature card …
+                // That creature gains haste"); a DECLINED May's products are
+                // runtime-skipped — defined, not grace ([CR#701.23b]).
+                intro
             }
             Effect::If(branch) => {
                 self.scoped("If", |w| {
@@ -846,7 +1535,14 @@ impl<'a> Walker<'a> {
                 self.scoped("MayPay", |w| {
                     w.reference(&may_pay.actor, ctx, Kind::Player);
                     w.cost(&may_pay.cost, ctx);
-                    w.effect(&may_pay.and_then, ctx);
+                    // "if they do" reads the payment ([CR#608.2d]): the
+                    // cost's caps push role antecedents, like an
+                    // AdditionalCost body. The "or else" branch runs when
+                    // nothing was paid and reads the plain context.
+                    let caps = w.cost_caps(&may_pay.cost);
+                    let roles = Walker::cost_role_antes(caps);
+                    let body = w.descend(ctx, "MayPay", None, None, caps, roles);
+                    w.effect(&may_pay.and_then, &body);
                     if let Some(or_else) = &may_pay.or_else {
                         w.effect(or_else, ctx);
                     }
@@ -867,18 +1563,26 @@ impl<'a> Walker<'a> {
                     // The payment is an event: the body reads the paid object
                     // through the event roles ([CR#601.2f,118.8]).
                     let caps = w.cost_caps(&additional.pay);
-                    let body = w.descend(ctx, "AdditionalCost", None, Kind::Any, caps);
+                    let roles = Walker::cost_role_antes(caps);
+                    let body = w.descend(ctx, "AdditionalCost", None, None, caps, roles);
                     w.effect(&additional.body, &body);
                 });
                 Intro::default()
             }
             Effect::Each(each) => {
+                let mut intro = Intro::default();
                 self.scoped("Each", |w| {
                     let (_, kind) = w.binder(&each.binder, ctx);
-                    let body = w.descend(ctx, "Each", None, kind, NO_CAPS);
-                    w.effect(&each.effect, &body);
+                    let ante = w.binder_ante(&each.binder, Cardinality::One, kind);
+                    let body = w.descend(ctx, "Each", None, Some(ante), NO_CAPS, vec![]);
+                    let inner = w.effect(&each.effect, &body);
+                    // Loop antecedents pop with the body; NOTES are
+                    // game-state memory ([CR#607.2]) and escape — the
+                    // Whims-of-the-Fates two-loop shape reads loop-1's
+                    // noted piles in loop 2.
+                    intro.notes.extend(inner.notes);
                 });
-                Intro::default()
+                intro
             }
             Effect::With(with) => {
                 let mut intro = Intro::default();
@@ -888,7 +1592,8 @@ impl<'a> Walker<'a> {
                         Cardinality::One => "With.One",
                         Cardinality::Many => "With.Many",
                     };
-                    let body = w.descend(ctx, construct, None, kind, NO_CAPS);
+                    let ante = w.binder_ante(&with.binder, cardinality, kind);
+                    let body = w.descend(ctx, construct, None, Some(ante), NO_CAPS, vec![]);
                     intro = w.effect(&with.body, &body);
                 });
                 intro
@@ -898,8 +1603,159 @@ impl<'a> Walker<'a> {
                     w.count(&divide.amount, ctx);
                     let (_, kind) = w.binder(&divide.binder, ctx);
                     w.divide_floor(&divide.amount, &divide.binder, ctx);
-                    let body = w.descend(ctx, "DivideAmong", None, kind, NO_CAPS);
+                    let ante = w.binder_ante(&divide.binder, Cardinality::One, kind);
+                    let body = w.descend(ctx, "DivideAmong", None, Some(ante), NO_CAPS, vec![]);
                     w.effect(&divide.body, &body);
+                });
+                Intro::default()
+            }
+            Effect::Until(duration, parts) => {
+                self.scoped("Until", |w| {
+                    w.duration(duration, ctx);
+                    for (i, part) in parts.iter().enumerate() {
+                        w.scoped(format!("parts[{i}]"), |w| {
+                            // [CR#611.2c]: fixed-vs-live affected sets are
+                            // PER PART — the emitted static-classes column
+                            // stamps each one.
+                            let class = w.tables.static_class(static_effect_key(part));
+                            w.resolve(|| format!("Until part -> {class:?} ([CR#611.2c])"));
+                            w.static_effect(part, ctx);
+                        });
+                    }
+                });
+                Intro::default()
+            }
+            Effect::Label(label) => {
+                let mut intro = Intro::default();
+                self.scoped("Label", |w| {
+                    intro = w.effect(&label.effect, ctx);
+                });
+                // Re-site the inner introductions at the label — the R2
+                // gate's escape hatch (`The`/`TheGroup` read them,
+                // [CR#608.2d]).
+                for ante in &mut intro.pushes {
+                    ante.label = Some(label.r#as);
+                }
+                intro
+            }
+            Effect::SeparatePiles(piles) => {
+                let mut intro = Intro::default();
+                self.scoped("SeparatePiles", |w| {
+                    w.selection(&piles.group, ctx, Kind::Object);
+                    w.reference(&piles.by, ctx, Kind::Player);
+                    // Pile floors ([CR#700.3]): at least one label, no
+                    // duplicates. (Piles themselves may be EMPTY,
+                    // [CR#700.3d] — the floor is about the label list.)
+                    if piles.into.is_empty() {
+                        w.err(Code::FloorPiles, "SeparatePiles with no pile labels");
+                    }
+                    let mut seen = BTreeSet::new();
+                    for label in &piles.into {
+                        if !seen.insert(label.as_str()) {
+                            w.err(
+                                Code::FloorPiles,
+                                format!("duplicate pile label {:?}", label.as_str()),
+                            );
+                        }
+                    }
+                    // One labeled Many antecedent per pile (the emitted
+                    // `SeparatePiles.pile` intro row); `note:` persists
+                    // them as noted pile groups ([CR#700.3], read back via
+                    // `PilesOf`).
+                    let row = w.tables.intro("SeparatePiles.pile");
+                    debug_assert!(row.object && row.site == tables::IntroSite::Product);
+                    for label in &piles.into {
+                        intro.pushes.push(Ante {
+                            sort: Sort::Pile,
+                            kind: Kind::Object,
+                            card: Cardinality::Many,
+                            site: Site::Product,
+                            expected_zone: None,
+                            label: Some(*label),
+                            binder: false,
+                        });
+                    }
+                    if let Some(note) = piles.note {
+                        intro.notes.push((note, NotedKind::Piles));
+                    }
+                    if let Some(then) = &piles.then {
+                        let mut then_ctx = ctx.clone();
+                        intro.apply_to(&mut then_ctx);
+                        w.scoped("then", |w| {
+                            w.effect(then, &then_ctx);
+                        });
+                    }
+                });
+                intro
+            }
+            Effect::ChoosePile(choose) => {
+                self.scoped("ChoosePile", |w| {
+                    match &choose.from {
+                        deckmaste_core::PileSource::Labels(labels) => {
+                            if labels.is_empty() {
+                                w.err(Code::FloorPiles, "ChoosePile with no pile labels");
+                            }
+                            for label in labels {
+                                let _ = w.resolve_label(
+                                    ctx,
+                                    "ChoosePile label",
+                                    *label,
+                                    Cardinality::Many,
+                                );
+                            }
+                        }
+                        deckmaste_core::PileSource::Noted { note, of } => {
+                            w.reference(of, ctx, Kind::Player);
+                            match noted_kind(ctx, note) {
+                                Some(NotedKind::Piles) => {
+                                    w.resolve(|| {
+                                        format!(
+                                            "ChoosePile -> piles noted under {:?}",
+                                            note.as_str()
+                                        )
+                                    });
+                                }
+                                Some(kind) => {
+                                    w.err(
+                                        Code::KindNoteDomain,
+                                        format!(
+                                            "ChoosePile reads piles, but key {:?} stores \
+                                             {kind:?} ([CR#607.2])",
+                                            note.as_str()
+                                        ),
+                                    );
+                                }
+                                None => {
+                                    w.err(
+                                        Code::BindNote,
+                                        format!(
+                                            "ChoosePile reads key {:?} but nothing noted it",
+                                            note.as_str()
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    w.reference(&choose.by, ctx, Kind::Player);
+                    // The chosen pile binds for `then` as a Many Pile
+                    // antecedent (the emitted `ChoosePile` intro row),
+                    // read as `Them(Pile)`.
+                    let row = w.tables.intro("ChoosePile");
+                    debug_assert!(row.object && row.site == tables::IntroSite::Chosen);
+                    let mut body = ctx.clone();
+                    body.stack.push(Ante {
+                        sort: Sort::Pile,
+                        kind: Kind::Object,
+                        card: Cardinality::Many,
+                        site: Site::Chosen,
+                        expected_zone: None,
+                        label: None,
+                        binder: true,
+                    });
+                    w.scoped("then", |w| {
+                        w.effect(&choose.then, &body);
+                    });
                 });
                 Intro::default()
             }
@@ -959,24 +1815,49 @@ impl<'a> Walker<'a> {
         let mut slots = Vec::with_capacity(targeted.targets.len());
         let mut intro = Intro::default();
         self.scoped("Targeted", |w| {
+            // Each announced slot pushes an antecedent (the emitted
+            // `Targeted.slot` intro row): sort from the slot's filter,
+            // cardinality from its quantity ([CR#115.3,601.2c]).
+            let row = w.tables.intro("Targeted.slot");
+            debug_assert!(row.site == tables::IntroSite::TargetSlot);
             for (i, spec) in targeted.targets.iter().enumerate() {
-                let mut kind = Kind::Any;
+                let mut slot = (Kind::Any, Sort::Permanent, Cardinality::One);
                 w.scoped(format!("targets[{i}]"), |w| {
-                    kind = w.target_spec(spec, ctx, targeted.targets.len());
+                    slot = w.target_spec(spec, ctx, targeted.targets.len());
                 });
-                slots.push(kind);
+                let (kind, sort, card) = slot;
+                slots.push(Ante {
+                    sort,
+                    kind,
+                    card,
+                    site: Site::TargetSlot(i),
+                    expected_zone: None,
+                    label: None,
+                    binder: false,
+                });
             }
-            let body = w.descend(ctx, "Targeted", Some(slots), Kind::Any, NO_CAPS);
+            let body = w.descend(ctx, "Targeted", Some(slots), None, NO_CAPS, vec![]);
             intro = w.effect(&targeted.effect, &body);
         });
         intro
     }
 
-    fn target_spec(&mut self, spec: &TargetSpec, ctx: &Ctx, sibling_count: usize) -> Kind {
+    /// One announced target spec: its kind, its SORT (from the filter), and
+    /// its cardinality (a literal-1 quantity announces One, anything wider
+    /// a Many group — a range slot is read as `They`, [CR#601.2d]).
+    fn target_spec(
+        &mut self,
+        spec: &TargetSpec,
+        ctx: &Ctx,
+        sibling_count: usize,
+    ) -> (Kind, Sort, Cardinality) {
         match spec {
             TargetSpec::Target(quantity, filter) => {
                 self.quantity(quantity, ctx, true);
-                self.filter(filter, ctx, Kind::Any)
+                let kind = self.filter(filter, ctx, Kind::Any);
+                let card =
+                    if quantity_is_one(quantity) { Cardinality::One } else { Cardinality::Many };
+                (kind, self.filter_sort(filter), card)
             }
             TargetSpec::Distinct(siblings, inner) => {
                 for &index in siblings {
@@ -1069,13 +1950,9 @@ impl<'a> Walker<'a> {
                 self.reference(patient, ctx, Kind::Any);
                 self.count(amount, ctx);
                 self.reference(source, ctx, Kind::Object);
-                // The action emits a `Damage` fact — its amount antecedent
-                // ("that much", [CR#107.3]) comes from that master form's
-                // caps row, mirroring the apply funnel's `that_much` set.
-                Intro {
-                    amount: self.tables.event_caps("Damage").amount,
-                    notes: Vec::new(),
-                }
+                // An amount-bearing verb pushes "that much" ([CR#608.2i])
+                // — the emitted DealDamage intro row.
+                self.intro_from_row("DealDamage", true, None, None)
             }
             Action::Destroy(r)
             | Action::ReturnToHand(r)
@@ -1093,7 +1970,9 @@ impl<'a> Walker<'a> {
                 self.reference(r, ctx, Kind::Object);
                 self.destination(destination, ctx);
                 self.enter_riders(riders, Some(destination), ctx);
-                Intro::default()
+                // The moved object is a product the effect can find
+                // ([CR#400.7j]); its noun follows the destination.
+                self.intro_from_row("Move", true, None, Some(destination))
             }
             Action::MoveGroup {
                 group,
@@ -1107,7 +1986,7 @@ impl<'a> Walker<'a> {
                 }
                 self.destination(to, ctx);
                 self.enter_riders(riders, Some(to), ctx);
-                Intro::default()
+                self.intro_from_row("MoveGroup", false, None, Some(to))
             }
             Action::Fight(a, b) => {
                 self.reference(a, ctx, Kind::Object);
@@ -1166,30 +2045,31 @@ impl<'a> Walker<'a> {
 
     fn player_action(&mut self, action: &PlayerAction, ctx: &Ctx) -> Intro {
         match action {
-            PlayerAction::Draw(count)
-            | PlayerAction::SetLife(count)
+            PlayerAction::SetLife(count)
             | PlayerAction::FlipCoins(count)
-            | PlayerAction::RollDice(count, _)
-            | PlayerAction::Mill(count) => {
+            | PlayerAction::RollDice(count, _) => {
                 self.count(count, ctx);
                 Intro::default()
             }
+            PlayerAction::Draw(count) => {
+                self.count(count, ctx);
+                // Drawn cards land in hand ([CR#121.1]) and push an amount
+                // antecedent — the emitted Draw intro row.
+                self.intro_from_row("Draw", count.literal_value() == Some(1), None, None)
+            }
+            PlayerAction::Mill(count) => {
+                self.count(count, ctx);
+                // Milled cards land in the graveyard ([CR#701.17a]).
+                self.intro_from_row("Mill", count.literal_value() == Some(1), None, None)
+            }
             PlayerAction::GainLife(count) => {
                 self.count(count, ctx);
-                // The action emits a `LifeGained` fact ([CR#119.3]) — the
-                // amount antecedent comes from that master form's caps row.
-                Intro {
-                    amount: self.tables.event_caps("LifeGained").amount,
-                    notes: Vec::new(),
-                }
+                // The amount antecedent ([CR#119.3]) — the GainLife row.
+                self.intro_from_row("GainLife", true, None, None)
             }
             PlayerAction::LoseLife(count) => {
                 self.count(count, ctx);
-                // The action emits a `LifeLost` fact ([CR#119.3]).
-                Intro {
-                    amount: self.tables.event_caps("LifeLost").amount,
-                    notes: Vec::new(),
-                }
+                self.intro_from_row("LoseLife", true, None, None)
             }
             PlayerAction::Discard {
                 count,
@@ -1200,18 +2080,9 @@ impl<'a> Walker<'a> {
                 if let Some(what) = what {
                     self.reference(what, ctx, Kind::Object);
                 }
-                // The action's moves ride `ZoneChange` facts carrying the
-                // Discard cause ([CR#701.9a]); whether they fix an amount
-                // antecedent (the card count — "…, then draws that many
-                // cards") is the verb's entailment row, mirroring the
-                // master-form caps reads above.
-                Intro {
-                    amount: self
-                        .tables
-                        .entailment("Discard")
-                        .is_some_and(|row| row.caps().amount),
-                    notes: Vec::new(),
-                }
+                // Discarded cards land in the graveyard ([CR#701.9a]) and
+                // fix the card count ("…, then draws that many cards").
+                self.intro_from_row("Discard", count.literal_value() == Some(1), None, None)
             }
             PlayerAction::AddMana(count, production) => {
                 self.count(count, ctx);
@@ -1222,9 +2093,10 @@ impl<'a> Walker<'a> {
                 self.count(count, ctx);
                 self.token_spec(spec);
                 // A created token always enters the battlefield ([CR#111.2]),
-                // so every rider is legal here — no destination gate.
+                // so every rider is legal here — no destination gate. The
+                // product arity is DERIVED from the count (the Create row).
                 self.enter_riders(riders, None, ctx);
-                Intro::default()
+                self.intro_from_row("Create", count.literal_value() == Some(1), None, None)
             }
             PlayerAction::Sacrifice(r)
             | PlayerAction::Tap(r)
@@ -1238,7 +2110,9 @@ impl<'a> Walker<'a> {
                 self.reference(r, ctx, Kind::Object);
                 self.destination(destination, ctx);
                 self.enter_riders(riders, Some(destination), ctx);
-                Intro::default()
+                // The player-verb move produces like `Action::Move`
+                // ([CR#400.7j]).
+                self.intro_from_row("Move", true, None, Some(destination))
             }
             PlayerAction::GetEmblem(abilities) => {
                 self.abilities(abilities, false);
@@ -1249,7 +2123,7 @@ impl<'a> Walker<'a> {
                 Intro::default()
             }
             PlayerAction::ChooseAndNote(key, kind) => Intro {
-                amount: false,
+                pushes: Vec::new(),
                 notes: vec![(*key, *kind)],
             },
             PlayerAction::PutCounters(r, counter, count)
@@ -1376,7 +2250,16 @@ impl<'a> Walker<'a> {
             ManaRider::GrantOnSpend(effect) | ManaRider::TriggerOnSpend(effect) => {
                 // The paid-for object binds as `It` ([CR#106.6]) — the same
                 // element-binding shape as a loop body.
-                let body = self.descend(ctx, "Each", None, Kind::Object, NO_CAPS);
+                let element = Ante {
+                    sort: Sort::Permanent,
+                    kind: Kind::Object,
+                    card: Cardinality::One,
+                    site: Site::Loop,
+                    expected_zone: None,
+                    label: None,
+                    binder: false,
+                };
+                let body = self.descend(ctx, "Each", None, Some(element), NO_CAPS, vec![]);
                 self.effect(effect, &body);
             }
             ManaRider::Persistent(_) | ManaRider::Snow => {}
@@ -1432,7 +2315,8 @@ impl<'a> Walker<'a> {
                     Cardinality::One => "With.One",
                     Cardinality::Many => "With.Many",
                 };
-                let inner = self.descend(ctx, construct, None, kind, NO_CAPS);
+                let ante = self.binder_ante(binder, cardinality, kind);
+                let inner = self.descend(ctx, construct, None, Some(ante), NO_CAPS, vec![]);
                 self.cost(body, &inner);
             }
             CostComponent::Expanded(e) => self.cost_component(&e.value, ctx),
@@ -1591,53 +2475,95 @@ impl<'a> Walker<'a> {
                 self.reference(of, ctx, Kind::Player);
                 Kind::Object
             }
-            Selection::That => match ctx.that {
-                Some((Cardinality::Many, kind)) => {
+            // The plural anaphors: inside a `With`/pile choice frame they
+            // bind the frame deterministically (legacy semantics);
+            // otherwise R1 nearest Many antecedent (wildcard / sorted) +
+            // the R2 uniqueness gate ([CR#608.2d]).
+            Selection::They => match self.plural_anaphor(ctx, "They", None, expected) {
+                Some(kind) => kind,
+                None => Kind::Any,
+            },
+            Selection::Them(sort) => {
+                match self.plural_anaphor(ctx, &format!("Them({sort:?})"), Some(*sort), expected) {
+                    Some(kind) => kind,
+                    None => Kind::Any,
+                }
+            }
+            // The labeled plural fallback — piles and `Label`ed groups
+            // ([CR#700.3,608.2d]); explicit, never gated.
+            Selection::TheGroup(label) => {
+                match self.resolve_label(ctx, "TheGroup", *label, Cardinality::Many) {
+                    Some(ante) => ante.kind,
+                    None => Kind::Any,
+                }
+            }
+            // Piles noted earlier under a key, per divider ([CR#700.3]).
+            Selection::PilesOf { note, of } => {
+                self.reference(of, ctx, Kind::Player);
+                match noted_kind(ctx, note) {
+                    Some(NotedKind::Piles) => {
+                        self.resolve(|| {
+                            format!(
+                                "PilesOf({:?}) -> bound to a prior pile noting",
+                                note.as_str()
+                            )
+                        });
+                    }
+                    Some(kind) => {
+                        self.err(
+                            Code::KindNoteDomain,
+                            format!(
+                                "PilesOf({:?}) reads piles, but the key stores {kind:?} \
+                                 ([CR#607.2])",
+                                note.as_str()
+                            ),
+                        );
+                    }
+                    None => {
+                        self.err(
+                            Code::BindNote,
+                            format!("PilesOf reads key {:?} but nothing noted it", note.as_str()),
+                        );
+                    }
+                }
+                Kind::Object
+            }
+            // The explicit slot-set spelling — LEGAL but deprecated in
+            // favor of the anaphor surface (sunset:
+            // cards-fidelity-target-sunset).
+            Selection::GetTargets(n) => {
+                let count = ctx.target_count();
+                if let Some(ante) = ctx.target_slot(*n) {
+                    let kind = ante.kind;
                     self.resolve(|| {
-                        format!("group That -> {kind:?} (the enclosing With many-binder)")
+                        format!(
+                            "GetTargets({n}) -> {kind:?} (target spec {n} of {count} announced; \
+                             deprecated — prefer They/Them(Sort))"
+                        )
                     });
                     kind
-                }
-                Some((Cardinality::One, _)) => {
-                    self.err(
-                        Code::BindThatGroup,
-                        "group That read where the enclosing With binds a single object \
-                         (read it as the singular That)",
-                    );
-                    Kind::Any
-                }
-                None => {
-                    self.err(
-                        Code::BindThatGroup,
-                        "group That read outside an enclosing With many-binder",
-                    );
-                    Kind::Any
-                }
-            },
-            Selection::GetTargets(n) => {
-                if *n >= ctx.targets.len() {
+                } else {
                     self.err(
                         Code::BindTarget,
                         format!(
-                            "GetTargets({n}) but {} target spec(s) are announced in scope",
-                            ctx.targets.len()
+                            "GetTargets({n}) but {count} target spec(s) are announced in scope"
                         ),
                     );
                     Kind::Any
-                } else {
-                    self.resolve(|| {
-                        format!(
-                            "GetTargets({n}) -> {:?} (target spec {n} of {} announced)",
-                            ctx.targets[*n],
-                            ctx.targets.len()
-                        )
-                    });
-                    ctx.targets[*n]
                 }
             }
             Selection::Pick { op: _, of, by } => {
                 self.filter(of, ctx, Kind::Object);
-                let body = self.descend(ctx, "Pick", None, Kind::Object, NO_CAPS);
+                let candidate = Ante {
+                    sort: self.filter_sort(of),
+                    kind: Kind::Object,
+                    card: Cardinality::One,
+                    site: Site::Loop,
+                    expected_zone: None,
+                    label: None,
+                    binder: false,
+                };
+                let body = self.descend(ctx, "Pick", None, Some(candidate), NO_CAPS, vec![]);
                 self.count(by, &body);
                 Kind::Object
             }
@@ -1662,44 +2588,137 @@ impl<'a> Walker<'a> {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per Reference variant; the flat dispatch reads better whole"
+    )]
     fn reference(&mut self, reference: &Reference, ctx: &Ctx, expected: Kind) -> Kind {
         let kind = match reference {
             Reference::This => Kind::Object,
             Reference::You | Reference::Opponent => Kind::Player,
             Reference::It => {
-                if let Some(kind) = ctx.it {
+                // A binder body's `It` is ALWAYS the innermost bound
+                // thing — a loop element or a `With`/pile choice —
+                // deterministic, never gated ([CR#608.2]; the pre-stack
+                // semantics, kept). Outside every binder, `It` is the
+                // wildcard singular anaphor over the stack (R1 nearest +
+                // the R2 gate).
+                if let Some((depth, ante)) = ctx.innermost_binder() {
+                    let kind = ante.kind;
+                    let description = ante.describe();
+                    self.resolve(|| format!("It -> #{depth} {description} (loop element)"));
+                    kind
+                } else if ctx.stack.is_empty() {
+                    self.err(
+                        Code::BindIt,
+                        "It read with no antecedent in scope (no loop binder, empty stack)",
+                    );
+                    Kind::Any
+                } else {
+                    match self.resolve_anaphor(
+                        ctx,
+                        "It",
+                        None,
+                        Cardinality::One,
+                        expected,
+                        Code::BindIt,
+                    ) {
+                        Some(ante) => ante.kind,
+                        None => Kind::Any,
+                    }
+                }
+            }
+            // The explicit slot spelling — LEGAL but deprecated in favor of
+            // the anaphor surface (sunset: cards-fidelity-target-sunset).
+            Reference::Target(n) => {
+                let count = ctx.target_count();
+                if let Some(ante) = ctx.target_slot(*n) {
+                    let kind = ante.kind;
                     self.resolve(|| {
-                        format!("It -> {kind:?} (the enclosing loop/candidate binder)")
+                        format!(
+                            "Target({n}) -> {kind:?} (target spec {n} of {count} announced; \
+                             deprecated — prefer It/That(Sort))"
+                        )
                     });
                     kind
                 } else {
                     self.err(
-                        Code::BindIt,
-                        "It read outside an Each/DivideAmong/Where/Pick binder",
+                        Code::BindTarget,
+                        format!("Target({n}) but {count} target spec(s) are announced in scope"),
                     );
                     Kind::Any
                 }
             }
-            Reference::Target(n) => {
-                if *n >= ctx.targets.len() {
-                    self.err(
-                        Code::BindTarget,
-                        format!(
-                            "Target({n}) but {} target spec(s) are announced in scope",
-                            ctx.targets.len()
-                        ),
-                    );
-                    Kind::Any
+            // The sorted singular anaphor: inside a `With`/pile choice
+            // frame it binds the frame deterministically (the legacy
+            // semantics — never R2-gated); otherwise R1 nearest of this
+            // sort + the R2 uniqueness gate ([CR#608.2d]).
+            Reference::That(sort) => {
+                if let Some((depth, ante)) = ctx.innermost_frame() {
+                    if ante.card != Cardinality::One {
+                        self.err(
+                            Code::BindThat,
+                            "singular That read where the enclosing binder binds a group \
+                             (iterate it with Each, or read They)",
+                        );
+                        Kind::Any
+                    } else if self.sort_reaches(Some(*sort), ante.sort).is_none() {
+                        self.err(
+                            Code::BindThat,
+                            format!(
+                                "That({sort:?}) is incompatible with the enclosing binder's \
+                                 {:?} choice",
+                                ante.sort
+                            ),
+                        );
+                        Kind::Any
+                    } else {
+                        let kind = ante.kind;
+                        let description = ante.describe();
+                        self.resolve(|| {
+                            format!("That({sort:?}) -> #{depth} {description} (binder frame)")
+                        });
+                        kind
+                    }
                 } else {
-                    self.resolve(|| {
-                        format!(
-                            "Target({n}) -> {:?} (target spec {n} of {} announced)",
-                            ctx.targets[*n],
-                            ctx.targets.len()
-                        )
-                    });
-                    ctx.targets[*n]
+                    match self.resolve_anaphor(
+                        ctx,
+                        &format!("That({sort:?})"),
+                        Some(*sort),
+                        Cardinality::One,
+                        expected,
+                        Code::BindThat,
+                    ) {
+                        Some(ante) => ante.kind,
+                        None => Kind::Any,
+                    }
                 }
+            }
+            // The labeled fallback ([CR#608.2d]) — explicit, never gated.
+            Reference::The(label) => {
+                match self.resolve_label(ctx, "The", *label, Cardinality::One) {
+                    Some(ante) => ante.kind,
+                    None => Kind::Any,
+                }
+            }
+            // The indefinite determiner ([CR#608.2d]): the actor chooses a
+            // matching object at resolution; the choice pushes a Chosen
+            // antecedent for the clauses to the right.
+            Reference::A { filter, by } => {
+                self.reference(by, ctx, Kind::Player);
+                let kind = self.filter(filter, ctx, Kind::Object);
+                let sort = self.filter_sort(filter);
+                self.resolve(|| format!("A(…) -> chooses a {sort:?} ({kind:?})"));
+                self.pending.push(Ante {
+                    sort,
+                    kind,
+                    card: Cardinality::One,
+                    site: Site::Chosen,
+                    expected_zone: None,
+                    label: None,
+                    binder: false,
+                });
+                kind
             }
             Reference::EventObject => {
                 if ctx.caps.object {
@@ -1765,27 +2784,6 @@ impl<'a> Walker<'a> {
                 }
                 Kind::Player
             }
-            Reference::That => match ctx.that {
-                Some((Cardinality::One, kind)) => {
-                    self.resolve(|| format!("That -> {kind:?} (the enclosing With one-binder)"));
-                    kind
-                }
-                Some((Cardinality::Many, _)) => {
-                    self.err(
-                        Code::BindThat,
-                        "singular That read where the enclosing With binds a group \
-                         (iterate it with Each)",
-                    );
-                    Kind::Any
-                }
-                None => {
-                    self.err(
-                        Code::BindThat,
-                        "singular That read outside an enclosing With one-binder",
-                    );
-                    Kind::Any
-                }
-            },
             // Engine-seam references: named-role and linked-value bindings
             // are resolved by engine machinery this walk doesn't model.
             Reference::Bound(name) => {
@@ -1869,7 +2867,16 @@ impl<'a> Walker<'a> {
             }
             Filter::Where(condition) => {
                 // The candidate binds as `It` for the condition ([CR#603.4]).
-                let body = self.descend(ctx, "Where", None, Kind::Any, NO_CAPS);
+                let candidate = Ante {
+                    sort: Sort::Permanent,
+                    kind: Kind::Any,
+                    card: Cardinality::One,
+                    site: Site::Loop,
+                    expected_zone: None,
+                    label: None,
+                    binder: false,
+                };
+                let body = self.descend(ctx, "Where", None, Some(candidate), NO_CAPS, vec![]);
                 self.condition(condition, &body);
                 Kind::Any
             }
@@ -2032,19 +3039,36 @@ impl<'a> Walker<'a> {
                 self.count(b, ctx);
             }
             Count::Half(_, inner) => self.count(inner, ctx),
-            Count::ThatMuch => {
-                if ctx.amount {
-                    self.resolve(|| "ThatMuch -> bound to the in-scope amount antecedent".into());
-                } else {
-                    self.err(
-                        Code::CapsAmount,
-                        "ThatMuch read with no amount antecedent in scope",
-                    );
-                }
+            // The ONE value anaphor, two spellings ([CR#107.3,608.2i]):
+            // "that many" (countable) / "that much" (uncountable) — the
+            // nearest Amount antecedent, R2-gated like the object anaphors.
+            Count::ThatMany | Count::ThatMuch => {
+                let spelling = match count {
+                    Count::ThatMany => "ThatMany",
+                    _ => "ThatMuch",
+                };
+                self.resolve_anaphor(
+                    ctx,
+                    spelling,
+                    Some(Sort::Amount),
+                    Cardinality::One,
+                    Kind::Any,
+                    Code::CapsAmount,
+                );
             }
             Count::Allotment => {
-                if ctx.allotment {
-                    self.resolve(|| "Allotment -> bound to the enclosing DivideAmong share".into());
+                // The `DivideAmong` share — the nearest `Allot`-sited
+                // antecedent, read only by this spelling ([CR#601.2d]).
+                let found = ctx
+                    .stack
+                    .iter()
+                    .rev()
+                    .enumerate()
+                    .find(|(_, a)| a.site == Site::Allot);
+                if let Some((depth, _)) = found {
+                    self.resolve(|| {
+                        format!("Allotment -> #{depth} the enclosing DivideAmong share")
+                    });
                 } else {
                     self.err(
                         Code::BindAllotment,
@@ -2730,7 +3754,7 @@ impl<'a> Walker<'a> {
             }
             StaticEffect::Sba { when, then } => {
                 self.condition(when, ctx);
-                let body = self.descend(ctx, "Sba", None, Kind::Any, NO_CAPS);
+                let body = self.descend(ctx, "Sba", None, None, NO_CAPS, vec![]);
                 self.scoped("Sba", |w| {
                     w.effect(then, &body);
                 });
@@ -2765,7 +3789,16 @@ impl<'a> Walker<'a> {
                 self.filter(filter, ctx, Kind::Object);
             }
         }
-        let body = self.descend(ctx, "Where", None, Kind::Object, NO_CAPS);
+        let subject = Ante {
+            sort: Sort::Permanent,
+            kind: Kind::Object,
+            card: Cardinality::One,
+            site: Site::Loop,
+            expected_zone: None,
+            label: None,
+            binder: false,
+        };
+        let body = self.descend(ctx, "Where", None, Some(subject), NO_CAPS, vec![]);
         for (i, change) in changes.iter().enumerate() {
             self.scoped(format!("changes[{i}]"), |w| w.modification(change, &body));
         }
@@ -2841,7 +3874,9 @@ impl<'a> Walker<'a> {
                     }
                     w.event(would, ctx, Lane::Replacement);
                     let caps = w.event_caps(would);
-                    let body = w.descend(ctx, "Replacement.Instead", None, Kind::Any, caps);
+                    let roles = w.event_role_antes(would);
+                    let body =
+                        w.descend(ctx, "Replacement.Instead", None, None, caps, roles);
                     w.effect(instead, &body);
                 });
             }
@@ -2850,7 +3885,8 @@ impl<'a> Walker<'a> {
                 self.scoped("Also", |w| {
                     w.event(would, ctx, Lane::Replacement);
                     let caps = w.event_caps(would);
-                    let body = w.descend(ctx, "Replacement.Also", None, Kind::Any, caps);
+                    let roles = w.event_role_antes(would);
+                    let body = w.descend(ctx, "Replacement.Also", None, None, caps, roles);
                     w.effect(also, &body);
                 });
             }
@@ -2974,6 +4010,130 @@ impl<'a> Walker<'a> {
             Duration::UntilEvent(event) => self.event(event, ctx, Lane::UntilEvent),
             Duration::ForAsLongAs(condition) => self.condition(condition, ctx),
         }
+    }
+}
+
+/// Conjunctive pins a filter fixes, for SORT derivation: a definite player
+/// atom, a card-type atom, a zone atom, an object-kind atom. `AllOf` merges
+/// (first pin wins); `OneOf` pins only what EVERY disjunct pins; `Not` pins
+/// nothing.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct FilterPins {
+    player: bool,
+    card_type: Option<Type>,
+    zone: Option<deckmaste_core::Zone>,
+    object_kind: Option<deckmaste_core::ObjectKind>,
+}
+
+fn filter_pins(filter: &Filter) -> FilterPins {
+    match filter {
+        Filter::Kind(deckmaste_core::ObjectKind::Player) => FilterPins {
+            player: true,
+            ..FilterPins::default()
+        },
+        Filter::Kind(k) => FilterPins {
+            object_kind: Some(*k),
+            ..FilterPins::default()
+        },
+        Filter::Characteristic(CharacteristicFilter::Type(t)) => FilterPins {
+            card_type: Some(*t),
+            ..FilterPins::default()
+        },
+        Filter::State(StateFilter::InZone(z)) => FilterPins {
+            zone: Some(*z),
+            ..FilterPins::default()
+        },
+        Filter::AllOf(members) => {
+            let mut pins = FilterPins::default();
+            for member in members {
+                let m = filter_pins(member);
+                pins.player |= m.player;
+                pins.card_type = pins.card_type.or(m.card_type);
+                pins.zone = pins.zone.or(m.zone);
+                pins.object_kind = pins.object_kind.or(m.object_kind);
+            }
+            pins
+        }
+        Filter::OneOf(members) => {
+            let all: Vec<FilterPins> = members.iter().map(filter_pins).collect();
+            match all.split_first() {
+                Some((first, rest)) if rest.iter().all(|p| p == first) => *first,
+                _ => FilterPins::default(),
+            }
+        }
+        Filter::Expanded(e) => filter_pins(&e.value),
+        _ => FilterPins::default(),
+    }
+}
+
+/// The static-classes table key of a static part ([CR#611.2c]) — its
+/// variant name, looked through remembered macros.
+fn static_effect_key(effect: &StaticEffect) -> &'static str {
+    match effect {
+        StaticEffect::Modify { .. } => "Modify",
+        StaticEffect::ModifyPlayer(..) => "ModifyPlayer",
+        StaticEffect::Deontic(_) => "Deontic",
+        StaticEffect::CostModifier { .. } => "CostModifier",
+        StaticEffect::CostOption(_) => "CostOption",
+        StaticEffect::TriggerMultiplier { .. } => "TriggerMultiplier",
+        StaticEffect::Replacement(_) => "Replacement",
+        StaticEffect::Prevention(_) => "Prevention",
+        StaticEffect::CantPrevent { .. } => "CantPrevent",
+        StaticEffect::SpendAsThough { .. } => "SpendAsThough",
+        StaticEffect::Sba { .. } => "Sba",
+        StaticEffect::OutcomeGate { .. } => "OutcomeGate",
+        StaticEffect::CantHappen(_) => "CantHappen",
+        StaticEffect::PayPips(..) => "PayPips",
+        StaticEffect::AsThough(_) => "AsThough",
+        StaticEffect::Expanded(e) => static_effect_key(&e.value),
+    }
+}
+
+/// The zone a `Move`/`MoveGroup` destination lands in.
+fn destination_zone(destination: &Destination) -> deckmaste_core::Zone {
+    match destination {
+        Destination::Zone(z) => *z,
+        Destination::Library(_) => deckmaste_core::Zone::Library,
+    }
+}
+
+/// The kind-directed fallback sort for a bound reference: a player is
+/// `Player`, anything else the battlefield default `Permanent`.
+fn kind_sort(kind: Kind) -> Sort {
+    match kind {
+        Kind::Player => Sort::Player,
+        _ => Sort::Permanent,
+    }
+}
+
+/// Whether a quantity is literally "exactly one" — the One/Many
+/// cardinality derivation for announced slots ([CR#115.3]).
+fn quantity_is_one(quantity: &Quantity) -> bool {
+    let (lo, hi) = quantity.bounds();
+    lo.and_then(Count::literal_value) == Some(1) && hi.and_then(Count::literal_value) == Some(1)
+}
+
+/// The named participant slot of a master form (the `object_sort` column's
+/// slot tags) — tree shape; the tag itself is emitted data.
+fn event_slot_filter<'e>(event: &'e EventFilter, slot: &str) -> Option<&'e Filter> {
+    match (event, slot) {
+        (EventFilter::Damage { source, .. }, "source") => Some(source),
+        (
+            EventFilter::Played { what, .. }
+            | EventFilter::Attached { what, .. }
+            | EventFilter::BecomesTarget { what, .. },
+            "what",
+        ) => Some(what),
+        (EventFilter::AttackDeclared { by, .. } | EventFilter::BlockDeclared { by, .. }, "by") => {
+            Some(by)
+        }
+        (EventFilter::StateBecame { of, .. } | EventFilter::ControlChanged { of, .. }, "of") => {
+            Some(of)
+        }
+        (EventFilter::CounterPlaced { on, .. } | EventFilter::CounterRemoved { on, .. }, "on") => {
+            Some(on)
+        }
+        _ => None,
     }
 }
 

@@ -1,0 +1,13 @@
+// Duplicate pile labels make the labeled reads a guess — the pile-shape
+// floor ([CR#700.3]).
+Normal(
+  name: "Reject Duplicate Pile Labels",
+  types: [Sorcery],
+  abilities: [
+    Spell(effect: SeparatePiles(
+      group: TopOfLibrary(count: 5),
+      into: ["a", "a"],
+      by: Opponent,
+    )),
+  ],
+)
