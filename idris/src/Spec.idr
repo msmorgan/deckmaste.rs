@@ -1,26 +1,107 @@
-||| The regression suite. Building the package (`scripts/build`) typechecks this
-||| module: the positives must typecheck, and every `failing` block must FAIL to
-||| typecheck (each asserts a type-level invariant still bites). A `failing`
-||| block that ever compiles makes the build error, so the suite is self-checking.
-||| Each negative changes exactly one thing from a known-good construction.
+||| The regression suite (v2 — the antecedent stack). Building the package
+||| (`scripts/build`) typechecks this module: the positives must typecheck, and
+||| every `failing "<message>"` block must FAIL to typecheck WITH the pinned
+||| message in the error (each asserts a type-level invariant still bites, and
+||| the pin names the rule — a block that fails for an unrelated reason no
+||| longer counts, killing the vacuous-block class). Each negative changes
+||| exactly one thing from a known-good construction; each twins a RON reject
+||| fixture on the Rust side (crates/deckmaste_cards/tests/reject/).
 module Spec
 
 import Core
 import Macros
 
+%default total
+
+-- concrete announce-slot antecedents for raw-context positives/negatives
+-- (what `Targeted [Target (^1) creature]` pushes, spelled as a value).
+-- `public export` so the resolve proofs REDUCE through them; Capitalized —
+-- an arg-free lowercase name in a type position would be implicitly bound.
+public export
+creatureSlotAnte : Ante
+creatureSlotAnte = MkAnte (OfType Creature) AnObject One TargetSlot Nothing Nothing
+
+public export
+playerSlotAnte : Ante
+playerSlotAnte = MkAnte Player APlayer One TargetSlot Nothing Nothing
+
+public export
+CtxCreatureTarget : Ctx
+CtxCreatureTarget = bindTargets [creatureSlotAnte] Base
+
+public export
+CtxPlayerTarget : Ctx
+CtxPlayerTarget = bindTargets [playerSlotAnte] Base
+
 -- POSITIVE — must typecheck ---------------------------------------------------
 
--- target 0 is referenceable once a 1-target scope is open
-tTargetInScope : Reference (bindTargets [AnObject] Base) AnObject
-tTargetInScope = GetTarget 0
+-- TABLE AGREEMENT: the emitted `sort-compat.ron` rows, pinned against the v2
+-- `compat` function — one boolean per emitted row. If `compat` moves, this
+-- Refl breaks before the table can silently drift ([CR#108.2,110.1,205.2a,405.1]).
+public export
+compatRowPairs : List (Sort, Sort)
+compatRowPairs =
+  [ (Player, Player), (Card, Card), (Token, Token), (Spell, Spell)
+  , (StackObject, Spell), (StackObject, StackObject)
+  , (Permanent, Permanent), (Permanent, OfType Creature), (Permanent, Token)
+  , (OfType Creature, OfType Creature), (Amount, Amount), (Pile, Pile) ]
 
--- `That` is available inside a `With`-bound endophora (kind comes from the binding)
-tThatInWith : Selection (bindThat Many AnObject Base) AnObject
-tThatInWith = That
+tCompatRows : map (\p => compat (fst p) (snd p)) Spec.compatRowPairs
+            = [True, True, True, True, True, True, True, True, True, True, True, True]
+tCompatRows = Refl
 
--- a ONE-binder's `That` reads back as a single `Reference` (no `Each`/`Single`)
-tThatOneInWith : Reference (bindThat One AnObject Base) AnObject
-tThatOneInWith = That
+-- …and the NEGATIVE SPACE the table leaves closed: "that card" never reaches
+-- a token ([CR#108.2b]); a typed noun reaches only its own type ([CR#205.2a]);
+-- widening is one-directional (a creature anaphor doesn't reach a bare
+-- Permanent antecedent); the wildcard never reaches a value antecedent.
+public export
+compatClosedPairs : List (Sort, Sort)
+compatClosedPairs =
+  [ (Card, Token), (Card, Player), (OfType Creature, OfType Land)
+  , (OfType Creature, Permanent), (Spell, StackObject), (Amount, Card) ]
+
+tCompatClosed : map (\p => compat (fst p) (snd p)) Spec.compatClosedPairs
+              = [False, False, False, False, False, False]
+tCompatClosed = Refl
+
+tWildNeverAmount : wildReaches Amount = False
+tWildNeverAmount = Refl
+
+-- the emitted `zone-sorts.ron` column IS `zoneSort` (the emitter now derives
+-- it); pin the full valuation ([CR#110.1,112.1,108.2]).
+tZoneSorts : map Core.zoneSort [Battlefield, Stack, Graveyard, Hand, Library, Exile, Command, Sideboard]
+           = the (List Sort) [Permanent, Spell, Card, Card, Card, Card, Card, Card]
+tZoneSorts = Refl
+
+-- THE stack-weakening lemma, exercised ([type-theory#4]): pushing a
+-- NON-candidate (here a player role antecedent, against a "that card" read)
+-- moves no resolution — one lemma over the one resolve function. Sorted
+-- anaphors are deliberately NOT weakenable by a COMPATIBLE push: that
+-- instability IS the R2 ambiguity gate (see tBadAmbiguousThat).
+tWeaken : resolveStack (Just Card) One
+            (MkAnte Player APlayer One EventRole Nothing Nothing
+              :: [MkAnte Card AnObject One Product Nothing Nothing])
+        = resolveStack (Just Card) One [MkAnte Card AnObject One Product Nothing Nothing]
+tWeaken = weakenResolve {w = Just Card} {cd = One}
+                        {s = [MkAnte Card AnObject One Product Nothing Nothing]}
+                        (MkAnte Player APlayer One EventRole Nothing Nothing) Refl
+
+-- an announced slot's antecedent is read back as an anaphor — the wildcard
+-- `It` (Lightning Bolt's `DealDamage(It, 3)`) and the sorted `That`.
+tTargetInScope : OneShotEffect Base
+tTargetInScope = Targeted [Target (^1) creature] (Act (Destroy It))
+
+tTargetBySort : OneShotEffect Base
+tTargetBySort = Targeted [Target (^1) creature] (Act (Destroy (That (OfType Creature))))
+
+-- a Many-binder's group is read back as the plural anaphor `They`,
+-- iterated with `Each` (the group-move shape).
+tTheyInWith : OneShotEffect Base
+tTheyInWith = With (Choose (^2) inHand) (Each (Existing They) (Act (Move It (ToZone Graveyard))))
+
+-- a ONE-binder's choice is the deterministic FRAME — `It` reads it directly.
+tItInWith : OneShotEffect Base
+tItInWith = With (ChooseOne creature) (Act (Destroy It))
 
 -- a multi-type card may carry one subtype per card type [CR#205.3c]
 tLandCreature : Card
@@ -30,11 +111,73 @@ tLandCreature = Normal $ ^:
   , subtypes := [^Island, ^Bear]
   }
 
--- `That`, bound by a `With`, SURVIVES into a delayed body (captured); targets don't
+-- a produced object, bound by a `With (Produce …)`, SURVIVES into a delayed
+-- body ([CR#603.7c] — Products survive; targets don't): the exiled object
+-- answers to "card" in exile, so the delayed body reads `That Card`.
 tThatSurvivesDelay : OneShotEffect Base
 tThatSurvivesDelay =
   With (Produce (Move (Only creature) (ToZone Exile)))
-    (Delayed nextEndStep (Act (Move That (ToZone Battlefield))))
+    (Delayed nextEndStep (Act (Move (That Card) (ToZone Battlefield))))
+
+-- the TELESCOPE ([CR#608.2d]): sentence order IS binder order. Cloudshift —
+-- "Exile target creature you control, then return that card to the
+-- battlefield": the exile clause's product answers to "card" (its new zone),
+-- so the second clause's `That Card` resolves with no binder inversion.
+tTelescopeCloudshift : OneShotEffect Base
+tTelescopeCloudshift =
+  Targeted [Target (^1) (And [creature, ControlledBy you])]
+    (Sequence [ Act (Move It (ToZone Exile))
+              , Act (Move (That Card) (ToZone Battlefield)) ])
+
+-- "Create two tokens. THEY gain haste. Sacrifice them at the next end step."
+-- — the Many product antecedent ([CR#111.2]), read as `Them Token`/`They`,
+-- surviving into the delayed body (the Chandra [0] shape, unrepresentable
+-- in v1 where `Produce` was One-only).
+tTelescopeTokens : OneShotEffect Base
+tTelescopeTokens =
+  Sequence [ Act (CreateToken (^2) (^: { types := [Creature], subtypes := [^Elemental], colors := [Red], power := Just 1, toughness := Just 1 }))
+           , Continuously UntilEndOfTurn (Each (Existing (Them Token)) (Modify It (GrantAbility (keyword Haste))))
+           , Delayed nextEndStep (Each (Existing They) (Act (Move It (ToZone Graveyard)))) ]
+
+-- "Draw three cards … gain THAT MUCH life" — the value anaphor over the
+-- amount antecedent a card-flow verb pushes ([CR#608.2i]).
+tThatMany : OneShotEffect Base
+tThatMany = Sequence [ Act (Draw (^3)), Act (GainLife ThatMany) ]
+
+-- the INDEFINITE determiner + the May-intro flow (Through the Breach): "You
+-- may put a creature card from your hand onto the battlefield. That
+-- permanent gains haste. Sacrifice it at the next end step." The A-choice
+-- pushes a Chosen antecedent, the Move pushes the battlefield product
+-- (`Permanent` — its new zone's noun), and a DECLINED May's products are
+-- runtime-skipped, not scope-blocked ([CR#701.23b,608.2d]).
+tIndefiniteMay : OneShotEffect Base
+tIndefiniteMay =
+  Sequence [ May (Act (Move (A (And [inHand, creature])) (ToZone Battlefield)))
+           , Continuously UntilEndOfTurn (Modify (That Permanent) (GrantAbility (keyword Haste)))
+           , Delayed nextEndStep (Act (Move (That Permanent) (ToZone Graveyard))) ]
+
+-- `As`-NAMED announce slots ([CR#608.2d]): two same-sort slots would trip
+-- the R2 gate (tBadAmbiguousThat), so the Arc Trail shape names them — and
+-- `Distinct` pins the "any OTHER target" co-target constraint ([CR#115.7e]).
+tLabeledSlots : OneShotEffect Base
+tLabeledSlots =
+  Targeted [ As "first" anyTarget, Distinct [0] (As "second" anyTarget) ]
+    (Sequence [ Act (DealDamage (The "first") (^2))
+              , Act (DealDamage (The "second") (^1)) ])
+
+-- an event-role antecedent serves the SORTED anaphor (the stack side of the
+-- caps machinery): a discard trigger's object went to a graveyard, so its
+-- role antecedent answers to "card" ([CR#603.2e,400.7e]).
+tEventRoleThat : Ability Base
+tEventRoleThat = Triggered (MkEventQuery [Discard] [Actor opponent])
+  (Act (Move (That Card) (ToZone Exile)))
+
+-- …and where the event's role antecedent COLLIDES with an announced slot,
+-- the `As` label disambiguates without loosening R2 (the Goblin Medics
+-- canon shape — mirror of `plugins/canon/cards/Goblin Medics.ron`).
+tTriggerTargetLabel : Ability Base
+tTriggerTargetLabel = Triggered (MkEventQuery [Becomes Tapped] [Agent (SameAs This)])
+  (Targeted [As "target" anyTarget] (Act (DealDamage (The "target") (^1))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
@@ -47,7 +190,8 @@ tIf = If yourTurn (Act (Draw (^1)))
 tContinuously : OneShotEffect Base
 tContinuously = Continuously UntilEndOfTurn (Modify This (ApplyAll (modifyPT (Up (^1)))))
 
--- a modal effect: choose one of two modes
+-- a modal effect: choose one of two modes ([CR#700.2]; the mode vector is
+-- non-empty BY CONSTRUCTION — `Vect (S n)`)
 tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (^1))
   [ MkMode (Act (Draw (^1)))
@@ -61,11 +205,12 @@ tModalVariable =
   [ Modal (MkChooseSpec (between (^1) (^2))) [ MkMode (Act (Draw (^1))), MkMode (Act (GainLife (^2))) ]
   , Modal (MkChooseSpec (atLeast (^1)))      [ MkMode (Act (Draw (^1))), MkMode (Act (GainLife (^2))) ] ]
 
--- `Reflexive` NESTS: inside a `With`, its body still sees `That` (no sibling scan)
+-- `Reflexive` NESTS: inside a `With`, its body still sees the bound product
+-- (no sibling scan; the full outer context, [CR#603.12a])
 tReflexiveSeesThat : OneShotEffect Base
 tReflexiveSeesThat =
   With (Produce (Move (Only creature) (ToZone Exile)))
-    (Reflexive (Act (Move That (ToZone Battlefield))))
+    (Reflexive (Act (Move (That Card) (ToZone Battlefield))))
 
 -- `Each` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
@@ -166,7 +311,8 @@ tQuantities =
   , Choose anyNumber creature
   ]
 
--- the ONE-binders: each binds a single object, read back as `That : Reference` (no `Each`/`Single`)
+-- the ONE-binders: each binds a single object — a choice binds a FRAME (read
+-- deterministically), a produce/search binder a whiffable Product (read by sort)
 tOneBinders : List (Bindable Base One AnObject)
 tOneBinders =
   [ Produce (Move (Only creature) (ToZone Exile))
@@ -227,13 +373,13 @@ tOutcomeGate = OutcomeGate CantLose you
 -- "Enchant creature" is the `enchant` MACRO — a bundle, not a keyword: (1) the PERMISSION to attach
 -- (attaching is forbidden by DEFAULT, so it ENABLES this aura to attach to creatures — the dual of a
 -- planeswalker granting `Can (Enact Attack … This)`); (2) the aura's SPELL (cast → target a host →
--- `Attach This (GetTarget 0)`). The falls-off SBA is conferred by the Aura SUBTYPE (`subtypeConfers`). The
--- non-cast "choose a valid host on ETB" rule is still pending a constrained-choice primitive.
+-- attach, the host read back through its `As` label). The falls-off SBA is conferred by the Aura
+-- SUBTYPE (`subtypeConfers`). The non-cast "choose a valid host on ETB" rule rides the `Also`.
 tEnchant : List (Ability Base)
 tEnchant = enchant creature
 
 tAuraEnters : StaticEffect Base
-tAuraEnters = Also thisEnters (With (ChooseOne creature) (Act (Attach This That)))
+tAuraEnters = Also thisEnters (With (ChooseOne creature) (Act (Attach This It)))
 
 tAuraFallsOff : StaticEffect Base
 tAuraFallsOff = Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard)))
@@ -273,8 +419,6 @@ tChosenPlayer = ChosenPlayer
 
 -- ...and a chosen OBJECT by `ChosenObject` — Clone ([CR#706.2]): "as ~ enters, you may have it enter as a
 -- copy of a creature you choose." The copy is a continuous self-modification reading the chosen object.
--- The "a creature" restriction now rides `AsEntersChoosing`'s filter (no longer a separable gap); the
--- "you may" is the one remaining separable refinement.
 tClone : Ability Base
 tClone = AsEntersChoosing AnObject creature [ Static (Modify This (BecomeCopyOf ChosenObject)) ]
 
@@ -296,19 +440,16 @@ tFaceDownFilter = And [creature, HasState FaceDown]
 
 -- copy (minimal): a permanent BECOMES a copy of a reference (layer-1 Modification); a token COPY of a
 -- reference. "a copy, except …" layers on as a separate higher-layer mod, not bundled here.
-tBecomeCopy : Modification (bindTargets [AnObject] Base)
-tBecomeCopy = BecomeCopyOf (GetTarget 0)
+tBecomeCopy : Modification CtxCreatureTarget
+tBecomeCopy = BecomeCopyOf It
 
-tCopy : Action (bindTargets [AnObject] Base)
-tCopy = Copy (GetTarget 0)
+tCopy : OneShotEffect Base
+tCopy = Targeted [Target (^1) (IsKind Spell)] (Act (Copy It))
 
 -- stack-object redirection. `ChangeTarget … This` is Spellskite (named new target);
 -- `ChooseNewTargets` is Bolt Bend / Redirect (a player picks). Both ride the original targetspec.
-tChangeTarget : Action (bindTargets [AnObject] Base)
-tChangeTarget = ChangeTarget (GetTarget 0) This
-
-tChooseNewTargets : Action (bindTargets [AnObject] Base)
-tChooseNewTargets = ChooseNewTargets (GetTarget 0)
+tChangeTarget : OneShotEffect Base
+tChangeTarget = Targeted [Target (^1) spellOrAbility] (Act (ChangeTarget It This))
 
 -- Bolt Bend ([CR#115.7d]) end-to-end: TARGET a "spell or ability with a SINGLE target" — the single-target
 -- restriction is just `TargetCount Eq (^1)` (an existing predicate, no new machinery) conjoined with
@@ -316,7 +457,7 @@ tChooseNewTargets = ChooseNewTargets (GetTarget 0)
 tBoltBend : OneShotEffect Base
 tBoltBend =
   Targeted [Target (^1) (And [spellOrAbility, TargetCount Eq (^1)])]
-    (Act (ChooseNewTargets (GetTarget 0)))
+    (Act (ChooseNewTargets It))
 
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
@@ -325,11 +466,11 @@ tCrewCost = TapTotal Power AtLeast (^3) creature
 
 -- every-kind move (Ozolith / Fate Transfer): `MoveCounters AllKinds`
 tMoveAllCounters : OneShotEffect Base
-tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveCounters AllKinds This (GetTarget 0)))
+tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveCounters AllKinds This It))
 
 -- single-kind move (Power Conduit / Leech Bonder): the general primitive that was previously inexpressible
 tMoveSomeCounters : OneShotEffect Base
-tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some P1P1 (^1)) This (GetTarget 0)))
+tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some P1P1 (^1)) This It))
 
 tMayCastFor : StaticEffect Base
 tMayCastFor = MayCastFor [Do (LoseLife (^1))]
@@ -351,7 +492,8 @@ tActivated = Activated (Costs [Mana [^2], Do (Tap This), Do (LoseLife (Literal 1
                        (Act (Draw (^1)))
 
 -- cost-payment DECISIONS (supersede `Unless`): MAY-pay (optional, reward + downside) and
--- MUST-pay (pay or be punished). The full `Cost` algebra rides both (here life / mana).
+-- MUST-pay (pay or be punished). The full `Cost` algebra rides both (here life / mana);
+-- the MayPay "if they do" branch runs in the PAYMENT's caps ([CR#601.2f]).
 tMayPay : OneShotEffect Base
 tMayPay = MayPay (Do (LoseLife (Literal 2))) (Act (Draw (^1))) {or_else = Just (Act (LoseLife (^1)))}
 
@@ -379,7 +521,7 @@ tCounters : OneShotEffect Base
 tCounters = Sequence [ Each (Existing (SelectAll creature)) (Act (PutCounters P1P1 (Literal 1) It))
                      , Each (Existing (SelectAll (Not (HasCounter P1P1)))) (Act (Destroy It)) ]
 
--- anthem: a static `ModifyAll` over a controller-predicate filter, with layer mods
+-- anthem: a static `Each` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
 tAnthem = Static (Each (Existing (SelectAll (And [hasType Creature, ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
 
@@ -419,11 +561,10 @@ tAggregations =
 tGreatestPowerCreature : Selection Base AnObject
 tGreatestPowerCreature = Pick MaxOf (eachOf (And [permanent, creature, ControlledBy you]) (StatOf It Power))
 
--- the GLOBAL [CR#704.5] state-based actions AS DATA — replacing the old loose `tLethalSba`, which was a
--- bare `Condition` with no scope (it silently assumed `This` was a creature) and no effect (the destroy
--- was gone). Each `SbaRule` now carries its domain (`scope`), trigger (`when`), AND action (`thenDo`).
--- Deathtouch [CR#704.5h] is ABSENT by design: it's intrinsic to the `Deathtouch` keyword ([CR#702.2c]
--- prospective lethality), not a keyword-independent global rule, so the engine bakes it in.
+-- the GLOBAL [CR#704.5] state-based actions AS DATA. Each `SbaRule` carries its domain (`scope`),
+-- trigger (`when`), AND action (`thenDo`). Deathtouch [CR#704.5h] is ABSENT by design: it's intrinsic
+-- to the `Deathtouch` keyword ([CR#702.2c] prospective lethality), not a keyword-independent global
+-- rule, so the engine bakes it in.
 tGlobalSbas : List SbaRule
 tGlobalSbas =
   [ -- lethal damage [CR#704.5g]: a creature with toughness > 0 whose marked damage ≥ toughness is destroyed
@@ -447,7 +588,7 @@ tVerbs =
   [ scry (Literal 2)
   , fight This (Only creature)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
-  , With (SearchOne {from = [Library, Graveyard]} (HasName "Forest")) (Act (Move That (ToZone Hand)))  -- tutor across two zones
+  , With (SearchOne {from = [Library, Graveyard]} (HasName "Forest")) (Act (Move (That Card) (ToZone Hand)))  -- tutor across two zones; the found card is a whiffable Product, noun `Card`
   , Act (Copy (Only (IsKind Spell))) ]
 
 -- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
@@ -465,10 +606,10 @@ tNamelessToken = Act (CreateToken (^2)
   (^: { types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
 
 -- searching ANOTHER player's library (Bribery: "search target OPPONENT's library"): the
--- opponent is now a TARGET (player-predicate `opponent`), so `whose` is that targeted player.
+-- opponent is a TARGET (player-predicate `opponent`), so `whose` is that announced player (`It`).
 tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target (^1) opponent]
-  (With (SearchOne {whose = GetTarget 0} creature) (Act (Move That (ToZone Battlefield))))
+  (With (SearchOne {whose = It} creature) (Act (Move (That Card) (ToZone Battlefield))))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
@@ -494,7 +635,7 @@ tSetChars =
   , Alter Supertypes (Set [Legendary]) ]
 
 -- ...and it's VALUE-TYPED by construction: a non-Color value for `Colors` is a type error.
-failing
+failing "Mismatch between: Type_ and Color"
   tBadSetColorValue : Modification Base
   tBadSetColorValue = Alter Colors (Set [Creature])
 
@@ -506,20 +647,21 @@ tCDA = Normal $ ^:
   , power := Just (CountMatching (hasType Land))
   , toughness := Just (Plus (CountMatching (hasType Land)) (Literal 1)) }
 
--- Stage 2: a target's kind comes from its slot's filter — a PLAYER target reads as a player
-tPlayerTarget : Count (bindTargets [APlayer] Base)
-tPlayerTarget = lifeTotal (GetTarget 0)
+-- a target's KIND comes from its slot's filter — a PLAYER target reads as a player
+tPlayerTarget : Count CtxPlayerTarget
+tPlayerTarget = lifeTotal It
 
 -- "each player" is a player-`Selection`; `Each` binds a player `It` (EachPlayer dissolved)
 tEachPlayerForEach : OneShotEffect Base
 tEachPlayerForEach = Each (Existing eachPlayer) (Act (Draw {actor = It} (^1)))
 
 -- MIXED-kind multi-target (Donate: "target player gains control of target permanent"):
--- slot 0 is a player, slot 1 an object — each `GetTarget` strictly kinded by its own slot.
+-- the two slots differ in SORT (`Player` vs `Permanent`), so the sorted anaphors
+-- disambiguate with no labels — R2 never fires across sorts.
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
   Targeted [Target (^1) Anyone, Target (^1) (And [permanent, ControlledBy you])]
-    (Continuously Forever (Modify (GetTarget 1) (GainControl (GetTarget 0))))
+    (Continuously Forever (Modify (That Permanent) (GainControl (That Player))))
 
 -- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.
@@ -583,118 +725,219 @@ tPromoteOp = [^Red, ^1, ^Blue]
 tPromoteOpArg : OneShotEffect Base
 tPromoteOpArg = Act (Draw (^1))
 
--- `Single` demotes a selection to its sole element (the dual of `Only`); `GetTarget n` is sugar
--- for `Single (GetTargets n)`, so a plural slot is referenced as the group `GetTargets`.
+-- `Single` demotes a selection to its sole element (the dual of `Only`).
 tSingle : Reference Base AnObject
 tSingle = Single (SelectAll creature)
 
--- a PLURAL target slot (1–2) feeds divided damage; the kind is the union (`Anything`). Divided damage is
--- the general `Distribute`: total `(^2)` split among the target group, each element dealt its `Allotment`.
+-- a PLURAL target slot (1–2) feeds divided damage; the announced group is the plural anaphor
+-- `They` ([CR#601.2d]), and divided damage is the general `Distribute`: total `(^2)` split among
+-- the group, each element dealt its `Allotment` (the Arc Lightning canon shape).
 tPluralTarget : OneShotEffect Base
 tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
-  (Distribute (^2) (Existing (GetTargets 0)) (Act (DealDamage It Allotment)))
+  (Distribute (^2) (Existing They) (Act (DealDamage It Allotment)))
 
 -- the SAME `Distribute` over a different body: "distribute three +1/+1 counters among any number of target
 -- creatures" (Hunting Triad) — `PutCounters` per element, each getting its `Allotment`. Carrier-typed.
 tDistributeCounters : OneShotEffect Base
 tDistributeCounters = Targeted [Target (between (^1) (^3)) creature]
-  (Distribute (^3) (Existing (GetTargets 0)) (Act (PutCounters P1P1 Allotment It)))
+  (Distribute (^3) (Existing They) (Act (PutCounters P1P1 Allotment It)))
 
--- NEGATIVE — each must be rejected --------------------------------------------
+-- NEGATIVE — each must be rejected, WITH the pinned message ------------------
 
--- a 2nd target where only one was bound
-failing
-  tBadTargetRange : OneShotEffect Base
-  tBadTargetRange = Targeted [anyTarget] (Act (DealDamage (GetTarget 1) (^1)))
+-- THE ANAPHOR SURFACE (R1/R2/R3 + survival rules) -----------------------------
+
+-- `It` with NO antecedent: no binder, empty stack (E-BIND-IT twin).
+failing "innermostBinder (Base .stack)"
+  tBadItOutside : Reference Base AnObject
+  tBadItOutside = It
+
+-- a sorted anaphor with NO compatible antecedent (E-BIND-THAT twin).
+failing "resolveStack (Just Card) One (Base .stack)"
+  tBadThatNoAntecedent : Reference Base AnObject
+  tBadThatNoAntecedent = That Card
+
+-- a plural anaphor with NO Many antecedent in scope (E-BIND-THAT-GROUP twin).
+failing "resolveStack Nothing Many (Base .stack)"
+  tBadTheyOutside : Selection Base AnObject
+  tBadTheyOutside = They
+
+-- THE STALE TARGET ([CR#603.7c]): a `Delayed` body drops the announced target,
+-- and the exile clause's product answers to "card" (its new zone), NOT
+-- "creature" — `That (OfType Creature)` has no antecedent there. Twin of
+-- reject/E-BIND-THAT/stale-target-that-creature.ron (the v2 re-twin of the
+-- retired v1 `tBadDelayedTarget`); the accept twin is `tThatSurvivesDelay`.
+failing "unbindTargets"
+  tBadDelayedTarget : OneShotEffect Base
+  tBadDelayedTarget = Targeted [Target (^1) creature]
+    (Sequence [ Act (Move It (ToZone Exile))
+              , Delayed nextEndStep (Act (Move (That (OfType Creature)) (ToZone Battlefield))) ])
+
+-- a `Distinct` constraint naming an announce sibling that doesn't exist
+-- ([CR#115.7e,601.2c]). Twin of reject/E-BIND-TARGET/distinct-sibling-out-of-
+-- range.ron (the v2 re-twin of the retired index-read `tBadTargetRange`).
+failing "distinctOk"
+  tBadDistinctSibling : OneShotEffect Base
+  tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage It (^1)))
+
+-- THE R2 UNIQUENESS GATE (E-BIND-AMBIGUOUS twin): a second same-sort
+-- antecedent makes the sorted anaphor a guess — refused; `As` labels are the
+-- escape hatch (tLabeledSlots).
+failing "Target ((^) 1) creature, Target ((^) 1) creature"
+  tBadAmbiguousThat : OneShotEffect Base
+  tBadAmbiguousThat = Targeted [Target (^1) creature, Target (^1) creature]
+    (Act (Destroy (That (OfType Creature))))
+
+-- ...and the wildcard trips it too: inside a trigger body the event's role
+-- antecedent is in scope, so an announced slot + `It` is a guess (the Goblin
+-- Medics shape without its label — tTriggerTargetLabel is the fix).
+failing "queryRoles thisEnters"
+  tBadAmbiguousIt : Ability Base
+  tBadAmbiguousIt = Triggered thisEnters
+    (Targeted [Target (^1) (hasType Land)] (Act (Tap It)))
+
+-- a SINGULAR anaphor cannot read a MANY antecedent (the cardinality split;
+-- read the group as `They`/`Them`).
+failing "resolveStack (Just Token) One"
+  tBadOneFromMany : OneShotEffect Base
+  tBadOneFromMany = Sequence [ Act (CreateToken (^2) (^: { types := [Creature] }))
+                             , Act (Destroy (That Token)) ]
+
+-- ...nor a plural anaphor a ONE antecedent (read it as `It`/`That w`).
+failing "resolveStack Nothing Many ((bindTargets"
+  tBadTheyFromOne : OneShotEffect Base
+  tBadTheyFromOne = Targeted [Target (^1) creature] (Each (Existing They) (Act (Tap It)))
+
+-- tokens aren't cards ([CR#108.2b]): "that card" never reaches a token
+-- antecedent — the compat table's most load-bearing closed pair.
+failing "resolveStack (Just Card) One ((intro"
+  tBadTokenIsNotCard : OneShotEffect Base
+  tBadTokenIsNotCard = Sequence [ Act (CreateToken (^1) (^: { types := [Creature] }))
+                                , Act (Move (That Card) (ToZone Exile)) ]
+
+-- a labeled read naming NO label in scope (E-BIND-LABEL twin).
+failing "sameLabel (Just \"host\")"
+  tBadLabelMissing : OneShotEffect Base
+  tBadLabelMissing = Targeted [Target (^1) creature] (Act (Destroy (The "host")))
+
+-- duplicate `As` names would make the labeled read a guess — refused
+-- (the duplicate-name side of E-BIND-LABEL).
+failing "labelsOk"
+  tBadDuplicateLabels : OneShotEffect Base
+  tBadDuplicateLabels = Targeted [As "x" (Target (^1) creature), As "x" (Target (^1) opponent)] (Act (Draw (^1)))
+
+-- `Allotment` outside any `Distribute` body (E-BIND-ALLOTMENT twin).
+failing "hasAllot (Base .stack) = True"
+  tBadAllotmentOutside : Count Base
+  tBadAllotmentOutside = Allotment
+
+-- `ThatMany` with no amount antecedent in scope (E-CAPS-AMOUNT twin).
+failing "candidates (Just Amount) One (Base .stack)"
+  tBadThatManyNoAmount : Count Base
+  tBadThatManyNoAmount = ThatMany
+
+-- TWO amount antecedents make `ThatMany` a guess — the R2 gate ranges over
+-- value anaphora too ([CR#608.2i]).
+failing "candidates (Just Amount) One ((intro"
+  tBadAmbiguousAmount : OneShotEffect Base
+  tBadAmbiguousAmount = Sequence [ Act (Draw (^2)), Act (GainLife (^3)), Act (LoseLife ThatMany) ]
+
+-- an ORDERED zone is no bare destination ([CR#401.4]; E-FLOOR-DESTINATION
+-- twin) — position it with `ToLibrary (FromTop …)`.
+failing "implementation for Void"
+  tBadDestinationLibrary : Action Base
+  tBadDestinationLibrary = Move This (ToZone Library)
+
+-- THE CARRIED-OVER V1 GATES ---------------------------------------------------
 
 -- a target slot can't target ZERO — `NonZeroQ` rejects a statically-zero upper bound
-failing
+failing "NonZeroQ"
   tBadZeroTarget : TargetSpec Base AnObject
   tBadZeroTarget = Target (^0) creature
 
 -- a card with NO card types is rejected — `CharacteristicsOk` (the one lenient well-formedness floor)
-failing
+failing "implementation for NonEmpty"
   tBadTypeless : Card
   tBadTypeless = Normal $ ^: { name := Just "Typeless" }
 
 -- a two-faced card's BACK face is well-formedness-checked too, not just the front — a typeless back fails
-failing
+failing "implementation for NonEmpty"
   tBadTwoFacedBack : Card
   tBadTwoFacedBack = TwoFaced Split (^: { types := [Instant] }) (^: { name := Just "Back" })
 
 -- a PLAYER-carried counter can't go on an object — `counterScope Poison = APlayer`, so `This`
 -- (an `AnObject` reference) is rejected with no runtime check. The dependent carrier is load-bearing.
-failing
+failing "counterScope Poison"
   tBadPoisonOnObject : Action Base
   tBadPoisonOnObject = PutCounters Poison (^1) This
 
 -- granting a PLAYER designation to an object is a type error — `designationScope Monarch = APlayer`
-failing
+failing "designationScope Monarch"
   tBadDesignationScope : Action Base
   tBadDesignationScope = GrantDesignation Monarch This
 
 -- replacing the AMOUNT of an amountless event is rejected — a Cast has no numeric payload
-failing
+failing "False = True"
   tBadReplaceAmountless : StaticEffect Base
   tBadReplaceAmountless = ReplaceAmount (MkEventQuery [Begins Cast] []) (^0)
 
 -- folding the amount of an amountless event is rejected likewise
-failing
+failing "False = True"
   tBadEventAggAmountless : Count Base
   tBadEventAggAmountless = EventAgg SumOf (MkEventQuery [Begins Cast] [])
 
 -- "becomes summoning-sick" isn't a transition event — `IsBecomesState SummoningSick = Void`
-failing
+failing "implementation for Void"
   tBadBecomesSummoningSick : EventKind
   tBadBecomesSummoningSick = Becomes SummoningSick
 
 -- projecting a NON-object `Countable` is rejected — only `Objects` is `Projectable`, so `Project (Events …)`
 -- has no `Projectable (Events …)` proof (you cannot bind `It` over an atomic event).
-failing
+failing "Projectable (Events"
   tBadProjectEvents : Projection Base
   tBadProjectEvents = Project (Events (MkEventQuery [DealDamage Nothing] [])) (Literal 0)
 
 -- `CountDistinct` is gated by `readableOn`: an object-only characteristic over a non-object source is
 -- rejected — "distinct powers of the mana you spent" is nonsense (`readableOn Power ManaSpent = Void`).
-failing
+failing "implementation for Void"
   tBadDistinctStatOfMana : Count Base
   tBadDistinctStatOfMana = CountDistinct Power ManaSpent
 
 -- ...and a non-colour characteristic over events is rejected too (`Name` reads nothing off an event).
-failing
+failing "implementation for Void"
   tBadDistinctNameOfEvents : Count Base
   tBadDistinctNameOfEvents = CountDistinct Name (Events (MkEventQuery [DealDamage Nothing] []))
 
 -- `Pick` is gated to the EXTREMAL ops by `IsExtremal`: argmax-by-SUM is meaningless (`IsExtremal SumOf` is uninhabited).
-failing
+failing "IsExtremal SumOf"
   tBadPickNonExtremal : Selection Base AnObject
   tBadPickNonExtremal = Pick SumOf (eachOf creature (StatOf It Power))
 
 -- an empty symbol disjunction ("devotion to no colours") is rejected — the restored `NonEmpty` guard.
-failing
+failing "NonEmpty []"
   tBadEmptySymbolOr : Countable Base
   tBadEmptySymbolOr = ManaSymbols This (Or [])
 
 -- a `Distribute` share (`Allotment`) can't leak into a `Projection` accessor — `eachOf`/`Project` rebind `It`
--- via `bindIt`, which clears `hasAllotment`, so `Allotment` has no proof there (it was indexed to a DIFFERENT loop element).
-failing
+-- via `bindIt`, which clears the `Allot` antecedent, so `Allotment` has no proof there (it was indexed to
+-- a DIFFERENT loop element).
+failing "bindIt (loopOf creature)"
   tBadAllotmentInProjection : Projection Base
   tBadAllotmentInProjection = eachOf creature Allotment
 
 -- THE INVALID-REFERENCE GATE: an event anaphor is valid only where the event SUPPLIES it (`eventQueryCaps`).
 -- `EventObject` ("that card") in a step-begin body — a `BeginStep` event has no object.
-failing
+failing ".hasObject = True"
   tBadEventObjectNoObject : Ability Base
   tBadEventObjectNoObject =
     Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject (ToZone Exile)))
 
 -- `EventAmount` (the amount) in a `Begins Cast` body — a cast carries no amount.
-failing
+failing ".hasAmount = True"
   tBadThatMuchNoAmount : StaticEffect Base
   tBadThatMuchNoAmount = Replaces (MkEventQuery [Begins Cast] []) (Act (DealDamage This EventAmount))
 
 -- `EventActor` ("that player") in a Destroy body — a destruction has no actor.
-failing
+failing ".hasActor = True"
   tBadEventActorNoActor : Ability Base
   tBadEventActorNoActor = Triggered (MkEventQuery [Destroy] []) (Conclude (WinGame EventActor))
 
@@ -705,7 +948,7 @@ tEventActorValid = Triggered (MkEventQuery [Begins Cast] []) (Conclude (WinGame 
 -- MULTI-KIND SOUNDNESS (the EventQuery restructure): a multi-kind query's caps are the INTERSECTION —
 -- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Begins Cast, Destroy]` is
 -- rejected (a Destroy event has no actor), so the old union-cap leak (A6) is gone.
-failing
+failing "Begins Cast, Destroy"
   tBadEventActorMultiKind : Ability Base
   tBadEventActorMultiKind = Triggered (MkEventQuery [Begins Cast, Destroy] []) (Conclude (WinGame EventActor))
 
@@ -717,34 +960,34 @@ tEventObjectMultiKind =
 
 -- "whenever a creature enters, draw THAT MANY cards" — meaningless: a creature entering (`ZoneChanged`)
 -- carries no amount, so `EventAmount` has no referent. The caps gate rejects it.
-failing
+failing ".hasAmount = True"
   tBadDrawThatManyOnEnter : Ability Base
   tBadDrawThatManyOnEnter =
     Triggered (MkEventQuery [ZoneChanged Nothing (Just Battlefield)] [Agent creature])
       (Act (Draw EventAmount))
 
 -- BOUNDED-NUMERIC gates. An inverted range ("between 5 and 2") — `OrderedRange` rejects `lo > hi`.
-failing
-  tBadInvertedRange : Bindable Base AnObject
+failing "OrderedRange"
+  tBadInvertedRange : Bindable Base Many AnObject
   tBadInvertedRange = Choose (between (^5) (^2)) creature
 
 -- `MainPhase` is a closed 2-value enum now, not a `Nat` — `MainPhase 99` doesn't typecheck.
-failing
+failing "Num MainPhaseKind"
   tBadMainPhase99 : PhaseStep
   tBadMainPhase99 = MainPhase 99
 
--- a modal "choose 5" of a single mode — `ModalCountOk` bounds the literal count by the mode count.
-failing
+-- a modal "choose 5" of a single mode — `modalCountOk` bounds the literal count by the mode count.
+failing "modalCountOk"
   tBadModalOverCount : OneShotEffect Base
   tBadModalOverCount = Modal (MkChooseSpec (^5)) [ MkMode (Act (Draw (^1))) ]
 
--- a modal with NO modes — `NonEmpty modes` rejects it.
-failing
+-- a modal with NO modes — the `Vect (S n)` mode vector has no empty form.
+failing "Mismatch between: 0 and S"
   tBadModalEmptyModes : OneShotEffect Base
   tBadModalEmptyModes = Modal (MkChooseSpec (^1)) []
 
 -- a 0-way mode domain — `ModeDomainOk (AMode 0)` is `LT 0 0` = uninhabited.
-failing
+failing "LTE 1 0"
   tBadModeDomainZero : Ability Base
   tBadModeDomainZero = AsEnters (AMode 0) []
 
@@ -753,78 +996,62 @@ failing
 -- test the type distinction, not the model.)
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
-failing
+failing "NonZeroQ"
   tBadZeroBlock : StaticEffect Base
   tBadZeroBlock = cant (BlockedBy (SameAs This) (^0))
 
 -- `OfChosen` with no as-enters choice in scope — `IsCharDomain Nothing = Void` denies the anaphor
-failing
+failing "IsCharDomain (Base .chosenKind)"
   tBadOfChosenNoChoice : Predicate Base AnObject
   tBadOfChosenNoChoice = OfChosen
 
 -- `ChosenIs` past the mode count is rejected — `LT 2 2` is uninhabited (a 2-mode card, index 2)
-failing
+failing "LTE 3 2"
   tBadChosenMode : Condition (bindChosen (AMode 2) Base)
   tBadChosenMode = ChosenIs 2
 
 -- `OfChosen` on a MODE choice is rejected — a mode isn't a characteristic (`IsCharDomain (AMode _) = Void`)
-failing
+failing "IsCharDomain ((bindChosen (AMode 2)"
   tBadOfChosenMode : Predicate (bindChosen (AMode 2) Base) AnObject
   tBadOfChosenMode = OfChosen
 
 -- `OfChosen` on an as-enters ENTITY choice is rejected — an object is identity, not a characteristic, and
 -- it binds `chosenRefKind` (NOT `chosenKind`), so `OfChosen`'s `IsCharDomain (chosenKind b)` finds
 -- `Nothing` → `Void`. Read a chosen object with `ChosenObject`/`SameAs`, never `OfChosen`.
-failing
+failing "bindChosenRef AnObject"
   tBadOfChosenObject : Predicate (bindChosenRef AnObject Base) AnObject
   tBadOfChosenObject = OfChosen
 
--- `That` with no enclosing `With`
-failing
-  tBadThatOutsideWith : Selection Base
-  tBadThatOutsideWith = That
-
 -- a subtype whose category isn't among the card's types [CR#205.3d]
-failing
+failing "Elem (subtypeCategory"
   tBadSubtype : Card
   tBadSubtype = Normal $ ^:
     { name := Just "Bad", types := [Creature], subtypes := [^Aura] }
 
--- a target leaking into a delayed body (`unbindTargets` clears it; only `That` crosses)
-failing
-  tBadDelayedTarget : OneShotEffect Base
-  tBadDelayedTarget = Targeted [anyTarget]
-    (Delayed nextEndStep (Act (DealDamage (GetTarget 0) (^1))))
-
--- `It` with no enclosing `Each`
-failing
-  tBadItOutside : Reference Base AnObject
-  tBadItOutside = It
-
 -- the split makes the old `CountOf (During …)` category error ILL-TYPED: `CountOf`
 -- takes a `Predicate`, but `During` (a game-state test) is a `Condition`.
-failing
+failing "and Countable"
   tBadCountOfCondition : Count Base
-  tBadCountOfCondition = CountOf (During (MainPhase 0))
+  tBadCountOfCondition = CountOf (During (MainPhase PreCombat))
 
 -- `EventObject` ("that card") is rejected outside a trigger/replacement/delayed body
--- (no `eventBound`) — the review fix that closed the ungated-anaphora hole.
-failing
+-- (the caps are `NoCaps` there) — the review fix that closed the ungated-anaphora hole.
+failing "(Base .eventCaps) .hasObject"
   tBadEventObjectOutside : Reference Base AnObject
   tBadEventObjectOutside = EventObject
 
 -- one Reference, but the kind still bites: a player has no power/toughness
-failing
+failing "Mismatch between: APlayer and AnObject"
   tBadStatOfPlayer : Count Base
   tBadStatOfPlayer = StatOf You Power       -- You : APlayer, StatOf wants AnObject
 
 -- ...and an object has no life total
-failing
+failing "Mismatch between: AnObject and APlayer"
   tBadLifeOfObject : Count Base
   tBadLifeOfObject = lifeTotal This         -- This : AnObject, lifeTotal wants APlayer
 
--- Stage-2 strictness: a CREATURE target can't be read as a player — the hole the flex
--- `GetTarget` left open in Stage 1, now closed (its kind comes from `targetKinds`).
-failing
-  tBadLifeOfCreatureTarget : Count (bindTargets [AnObject] Base)
-  tBadLifeOfCreatureTarget = lifeTotal (GetTarget 0)
+-- kind strictness through the stack: a CREATURE target's anaphor can't be
+-- read as a player — the resolved kind rides the antecedent.
+failing "CtxCreatureTarget .stack"
+  tBadLifeOfCreatureTarget : Count CtxCreatureTarget
+  tBadLifeOfCreatureTarget = lifeTotal It

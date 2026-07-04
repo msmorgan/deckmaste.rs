@@ -1,11 +1,18 @@
-||| Card encodings. Each is a `Core.Card` built with the `^: { … }`
-||| builder, using `Core` constructors and `Macros` templates. Verbs go through
-||| `Act` (the verb compartment); a binder that produces a moved object wraps
-||| the producing `Action` in `Produce`.
+||| Card encodings (v2 — the antecedent stack). Each is a `Core.Card` built
+||| with the `^: { … }` builder, using `Core` constructors and `Macros`
+||| templates. Verbs go through `Act` (the verb compartment); bodies read
+||| announced targets and produced objects back as SORTED ANAPHORS
+||| (`It`/`That w`/`They`/`The l`) in sentence order — the telescope
+||| `Sequence` threads each clause's introductions to its right siblings, so
+||| the v1 `With (Produce …)` inversions are gone where the printed text
+||| reads left-to-right. Encodings mirror the canon RON spellings
+||| (`plugins/canon/cards/`) where a card exists there.
 module Cards
 
 import Core
 import Macros
+
+%default total
 
 export
 card_LightningBolt : Card
@@ -16,7 +23,7 @@ card_LightningBolt = Normal $ ^:
   , abilities :=
       [ Spell $
           Targeted [anyTarget] $
-          (Act (DealDamage (GetTarget 0) (^3)))
+          (Act (DealDamage It (^3)))       -- the one announced slot, read as "it" (canon: DealDamage(It, 3))
       ]
   }
 
@@ -69,10 +76,13 @@ card_GiantSpider = Normal $ ^:
   , toughness := Just 4
   }
 
--- TRICKY: ETB trigger exiles "another target permanent", binding it as `That`; a
--- DELAYED trigger returns `That` next end step. `unbindTargets` drops the target
--- (stale post-move) but KEEPS the captured `That` — no key, no MovedRef. The
--- engine resolves `That` to the reminted (or gone) object [CR#400.7].
+-- TRICKY: ETB trigger exiles "another target permanent"; a DELAYED trigger
+-- returns THAT CARD next end step — pure telescope: the exile clause's
+-- product answers to "card" (its new zone), survives the [CR#603.7c] target
+-- drop, and the delayed body reads `That Card`. The announced slot is
+-- `As`-named because the ETB event's own object antecedent (this permanent)
+-- shares the slot's noun — the R2 gate would make a bare anaphor a guess.
+-- The engine resolves the product to the reminted (or gone) object [CR#400.7].
 export
 card_Flickerwisp : Card
 card_Flickerwisp = Normal $ ^:
@@ -83,10 +93,11 @@ card_Flickerwisp = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , Triggered (thisEnters) $
-          Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
-            With (Produce (Move ((GetTarget 0)) (ToZone Exile))) $  -- exile the target, bind `That`
-              Delayed nextEndStep
-                (Act (Move That (ToZone Battlefield)))                                  -- return `That` (captured; target gone)
+          Targeted [As "flickered" (Target (^1) (And [permanent, Not (SameAs This)]))] $
+            Sequence
+              [ Act (Move (The "flickered") (ToZone Exile))                -- exile the named target
+              , Delayed nextEndStep
+                  (Act (Move (That Card) (ToZone Battlefield))) ]          -- return the exiled card ([CR#603.7c]: the Product survives)
       ]
   , power := Just 3
   , toughness := Just 1
@@ -104,7 +115,7 @@ card_Brainstorm = Normal $ ^:
       [ Spell $
           Sequence
           [ Act (Draw (^3))
-          , Each (Choose (^2) inHand) (Act (Move It (ToZone Library)))
+          , Each (Choose (^2) inHand) (Act (Move It (ToLibrary (FromTop (^0)))))   -- canon: Move(It, Library(FromTop(0))) — a bare Library destination is the E-FLOOR-DESTINATION reject
           ]
       ]
   }
@@ -133,8 +144,11 @@ card_Rancor = Normal $ ^:
       ]
   }
 
--- TRICKY: Cloudshift — exile→return in ONE resolution (the pure [CR#400.7j] case).
--- `With (Produce (Move …))` binds the exiled object as `That`; the body returns it.
+-- TRICKY: Cloudshift — exile→return in ONE resolution (the pure [CR#400.7j]
+-- case), in SENTENCE ORDER: "Exile target creature you control, then return
+-- that card to the battlefield." The exile clause's product answers to
+-- "card" (exile's noun), so the second telescope cell reads `That Card` —
+-- no binder inversion (the signature fixture's accept twin).
 export
 card_Cloudshift : Card
 card_Cloudshift = Normal $ ^:
@@ -147,16 +161,23 @@ card_Cloudshift = Normal $ ^:
                                      , ControlledBy you
                                      ])
                    ] $
-          With (Produce (Move ((GetTarget 0)) (ToZone Exile))) $
-          Act (Move That (ToZone Battlefield))
+          Sequence
+            [ Act (Move It (ToZone Exile))
+            , Act (Move (That Card) (ToZone Battlefield)) ]
       ]
   }
 
--- TRICKY: Through the Breach — put a creature onto the battlefield (binding it as `That`); it GAINS
--- HASTE (now a grantable keyword — a continuous `GrantAbility (keyword Haste)` until end of turn);
--- then a DELAYED trigger sacrifices `That` at the next end step. The captured `That` is the
--- acceptance test: if the engine can't still find the object at fire time, the sacrifice does
--- nothing. (The alternative cast cost stays casting machinery, not a card-effect clause.)
+-- TRICKY: Through the Breach — SENTENCE ORDER with the `May` kept (v1 lost
+-- it): "You MAY put a creature card from your hand onto the battlefield.
+-- That creature gains haste. Sacrifice it at the beginning of the next end
+-- step." The indefinite `A` pushes the chosen card, the Move pushes the
+-- battlefield product (noun `Permanent` — its new zone), the May's
+-- introductions flow to its right siblings ([CR#701.23b] — a declined May's
+-- products are runtime-skipped, not scope-blocked), and both later clauses
+-- read `That Permanent` — through the `Delayed` drop, since Products
+-- survive [CR#603.7c]. If the engine can't still find the object at fire
+-- time, the sacrifice does nothing. (The alternative cast cost stays
+-- casting machinery, not a card-effect clause.)
 export
 card_ThroughTheBreach : Card
 card_ThroughTheBreach = Normal $ ^:
@@ -165,11 +186,10 @@ card_ThroughTheBreach = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell $
-          With (ChooseOne (And [inHand, creature])) $
-            Sequence
-              [ Act (Move That (ToZone Battlefield))
-              , Continuously UntilEndOfTurn (Modify That (GrantAbility (keyword Haste)))  -- "it gains haste"
-              , Delayed nextEndStep (Act (Move That (ToZone Graveyard))) ]
+          Sequence
+            [ May (Act (Move (A (And [inHand, creature])) (ToZone Battlefield)))
+            , Continuously UntilEndOfTurn (Modify (That Permanent) (GrantAbility (keyword Haste)))  -- "that creature gains haste"
+            , Delayed nextEndStep (Act (Move (That Permanent) (ToZone Graveyard))) ]
       ]
   }
 
@@ -212,7 +232,7 @@ card_OblivionStone = Normal $ ^:
   , abilities :=
       [ Activated (Costs [Mana [^4], Do (Tap This)])
           (Targeted [Target (^1) permanent]
-            (Act (PutCounters Fate (Literal 1) ((GetTarget 0)))))
+            (Act (PutCounters Fate (Literal 1) It)))
       , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
           (Sequence
             [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter Fate)]))) (Act (Destroy It))
@@ -236,8 +256,8 @@ card_GloriousAnthem = Normal $ ^:
 -- Activated abilities whose cost adds/removes Loyalty counters, carrying {window = AsSorcery,
 -- limits = [OncePerTurn]}; the printed loyalty (3) is "enters with 3 Loyalty counters"
 -- (Face.loyalty). "Each player" is `Each eachPlayer` (a player-`Selection`); "target
--- player" is a player-kinded target (`Anyone`), so `GetTarget 0` is `APlayer` with no
--- annotation. The −6 pile ultimate is OMITTED (no pile-division); the "Liliana"
+-- player" is a player-kinded target (`Anyone`), read back as `It` (kind `APlayer` from
+-- the slot's antecedent). The −6 pile ultimate is OMITTED (no pile-division); the "Liliana"
 -- planeswalker subtype is omitted (no planeswalker-subtype enum).
 export
 card_LilianaOfTheVeil : Card
@@ -252,7 +272,7 @@ card_LilianaOfTheVeil = Normal $ ^:
           (Each (Existing eachPlayer) (Act (Discard {actor = It} (^1)))) {window = AsSorcery, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters Loyalty (Literal 2) This))
           (Targeted [Target (^1) Anyone]
-            (Act (Sacrifice creature {actor = GetTarget 0}))) {window = AsSorcery, limits = [OncePerTurn]}
+            (Act (Sacrifice creature {actor = It}))) {window = AsSorcery, limits = [OncePerTurn]}
       ]
   }
 
@@ -273,7 +293,7 @@ card_TideShaper = Normal $ ^:
           (If (PaidCost "Kicker")
               (Targeted [Target (^1) (hasType Land)]
                 (Continuously (ForAsLongAs (Matches This (InZone Battlefield)))
-                              (Modify (GetTarget 0) (Alter Subtypes (Add (^Island)))))))
+                              (Modify (That (OfType Land)) (Alter Subtypes (Add (^Island)))))))  -- "that land": the SORT skips the ETB event's own (Permanent) antecedent
       , Static (While (exists (And [InZone Battlefield, hasSubtype (^Island), ControlledBy opponent]))
                       (Modify This (ApplyAll (modifyPT (Up (^1))))))
       ]
@@ -296,9 +316,9 @@ card_Necropotence = Normal $ ^:
       , Triggered (MkEventQuery [Discard] [Actor you])
           (Act (Move EventObject (ToZone Exile)))
       , Activated (Do (LoseLife (Literal 1)))
-          (Each (Existing (TopOfLibrary (Literal 1)))
-            (With (Produce (Move It (ToZone Exile)))
-              (Delayed nextEndStep (Act (Move That (ToZone Hand))))))
+          (Sequence
+            [ Act (Move (Single (TopOfLibrary (Literal 1))) (ToZone Exile))
+            , Delayed nextEndStep (Act (Move (That Card) (ToZone Hand))) ])  -- "put THAT CARD into your hand": the exiled product, through the delayed drop
       ]
   }
 
@@ -336,8 +356,8 @@ card_OblivionRing = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ Triggered (thisEnters)
-          (Targeted [Target (^1) (And [permanent, Not (hasType Land), Not (SameAs This)])]
-            (Act (Move ((GetTarget 0)) (ToZone Exile))))
+          (Targeted [As "ringed" (Target (^1) (And [permanent, Not (hasType Land), Not (SameAs This)]))]
+            (Act (Move (The "ringed") (ToZone Exile))))   -- `As`-named: the ETB event's own object antecedent shares the slot's noun
       , Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
           (Each (Existing (SelectAll (ExiledBy This))) (Act (Move It (ToZone Battlefield))))
       ]
@@ -358,16 +378,16 @@ card_BanishingLight = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ Triggered (thisEnters) $
-          Targeted [Target (^1) (And [permanent, Not (hasType Land), ControlledBy opponent])] $
+          Targeted [As "banished" (Target (^1) (And [permanent, Not (hasType Land), ControlledBy opponent]))] $
             Continuously (UntilEvent (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                                                    [Agent (SameAs This)]))
-                         (Relocate (GetTarget 0) Battlefield Exile)
+                         (Relocate (The "banished") Battlefield Exile)
       ]
   }
 
 -- Donate — "Target player gains control of target permanent you control." The MIXED-kind
 -- multi-target case: slot 0 is a player (`APlayer`), slot 1 an object (`AnObject`), so
--- `GetTarget 0`/`GetTarget 1` are strictly kinded by their own slots. The control shift is
+-- the two sorted anaphors (`That Player`/`That Permanent`) disambiguate by NOUN. The control shift is
 -- a rest-of-game continuous effect (`Continuously … Forever`).
 export
 card_Donate : Card
@@ -378,7 +398,7 @@ card_Donate = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [ Target (^1) Anyone
                         , Target (^1) (And [permanent, ControlledBy you]) ]
-          (Continuously Forever (Modify (GetTarget 1) (GainControl (GetTarget 0)))))
+          (Continuously Forever (Modify (That Permanent) (GainControl (That Player)))))  -- mixed-kind slots: the SORTS disambiguate, no labels needed
       ]
   }
 
@@ -463,8 +483,8 @@ card_ManaLeak = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) (IsKind Spell)]
-          (MustPay {actor = ControllerOf (GetTarget 0)} (Mana [^3])
-            (Act (Counter ((GetTarget 0)))))) ]
+          (MustPay {actor = ControllerOf It} (Mana [^3])
+            (Act (Counter It)))) ]        -- canon: ControllerOf(It) / Counter(It)
   }
 
 -- Invisible Stalker — a DEONTIC-KEYWORD creature: `keyword (Hexproof Nothing)` is a `Composite`
@@ -495,8 +515,8 @@ card_CrypticCommand = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Modal (MkChooseSpec (^2))
-          [ MkMode (Targeted [Target (^1) (IsKind Spell)] (Act (Counter ((GetTarget 0)))))
-          , MkMode (Targeted [Target (^1) permanent] (Act (Move ((GetTarget 0)) (ToZone Hand))))
+          [ MkMode (Targeted [Target (^1) (IsKind Spell)] (Act (Counter It)))
+          , MkMode (Targeted [Target (^1) permanent] (Act (Move It (ToZone Hand))))
           , MkMode (Each (Existing (SelectAll (And [creature, ControlledBy opponent]))) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
           ]) ]
@@ -504,7 +524,7 @@ card_CrypticCommand = Normal $ ^:
 
 -- PLURAL targets + divided damage. "deals 2 damage divided as you choose among one or two target
 -- creatures and/or players" — a single slot with a NON-ZERO range cardinality (1–2), referenced as
--- the GROUP `GetTargets 0` and fed to the general `Distribute` (each element dealt its `Allotment`).
+-- the plural anaphor `They` and fed to the general `Distribute` (each element dealt its `Allotment`).
 -- Then an untargeted draw.
 export
 card_Electrolyze : Card
@@ -515,7 +535,7 @@ card_Electrolyze = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
           (Sequence
-            [ Distribute (^2) (Existing (GetTargets 0)) (Act (DealDamage It Allotment))
+            [ Distribute (^2) (Existing They) (Act (DealDamage It Allotment))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
             , Act (Draw (^1)) ]))
       ]
   }
@@ -638,12 +658,12 @@ card_CitadelSiege = Normal $ ^:
             Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
                   (Targeted [Target (^1) (And [creature, ControlledBy you])]
-                    (Act (PutCounters P1P1 (^2) (GetTarget 0)))))
+                    (Act (PutCounters P1P1 (^2) It))))
           , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
             Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf opponent)])
               (If (ChosenIs 1)
                   (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
-                    (Act (Tap (GetTarget 0)))))
+                    (Act (Tap It))))
           ]
       ]
   }
@@ -660,16 +680,18 @@ card_OutpostSiege = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ AsEnters (AMode 2)
-          [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play it
+          [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play THAT CARD
             Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
-                  (With (Produce (Move (Single (TopOfLibrary (^1))) (ToZone Exile)))
-                    (Continuously UntilEndOfTurn (Can (Enact Play you (SameAs That))))))
-          , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target
+                  (Sequence
+                    [ Act (Move (Single (TopOfLibrary (^1))) (ToZone Exile))
+                    , Continuously UntilEndOfTurn (Can (Enact Play you (SameAs (That Card)))) ]))
+          , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target —
+            -- the slot is `As`-named: the leave event's own object antecedent is in scope beside it
             Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
               (If (ChosenIs 1)
-                  (Targeted [anyTarget] (Act (DealDamage (GetTarget 0) (^1)))))
+                  (Targeted [As "struck" anyTarget] (Act (DealDamage (The "struck") (^1)))))
           ]
       ]
   }
@@ -702,12 +724,12 @@ card_WearTear = TwoFaced Split
   (^: { name := Just "Wear"
       , manaCost := [^1, ^Red]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (hasType Artifact)] (Act (Destroy (GetTarget 0)))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Artifact)] (Act (Destroy It))) ]
       })
   (^: { name := Just "Tear"
       , manaCost := [^White]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (hasType Enchantment)] (Act (Destroy (GetTarget 0)))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Enchantment)] (Act (Destroy It))) ]
       })
 
 -- Brazen Borrower // Petty Theft — an ADVENTURE card ([CR#715]): a creature whose "adventure" half is
@@ -731,7 +753,7 @@ card_BrazenBorrower = TwoFaced Adventure
   (^: { name := Just "Petty Theft"
       , manaCost := [^1, ^Blue]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (hasType Land)])] (Act (Move (GetTarget 0) (ToZone Hand)))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (hasType Land)])] (Act (Move It (ToZone Hand)))) ]
       })
 
 -- Delver of Secrets // Insectile Aberration — a TRANSFORMING DFC ([CR#712]). The front's upkeep trigger
@@ -794,7 +816,7 @@ card_TimeWalk = Normal $ ^:
   { name := Just "Time Walk"
   , manaCost := [^1, ^Blue]
   , types := [Sorcery]
-  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {actor = GetTarget 0}))) ]
+  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {actor = It}))) ]
   }
 
 -- Mindslaver — "{T}, Sacrifice Mindslaver: You control target player during that player's next turn."
@@ -807,7 +829,7 @@ card_Mindslaver = Normal $ ^:
   , types := [Artifact]
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (Sacrifice (SameAs This))])
-          (Targeted [Target (^1) Anyone] (Act (ControlPlayer (GetTarget 0)))) ]
+          (Targeted [Target (^1) Anyone] (Act (ControlPlayer It))) ]
   }
 
 -- Mind Bend — TEXT-CHANGE ([CR#612]): "change the text of target permanent or spell by replacing one
@@ -821,7 +843,7 @@ card_MindBend = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) (Or [permanent, IsKind Spell])]
-          (Continuously Forever (Modify (GetTarget 0) (ChangeText [ColorWords, BasicLandTypes])))) ]
+          (Continuously Forever (Modify It (ChangeText [ColorWords, BasicLandTypes])))) ]
   }
 
 -- Flooded Strand — a FETCH LAND: {T}, pay 1 life, sacrifice it → search your library for a Plains or
@@ -835,7 +857,7 @@ card_FloodedStrand = Normal $ ^:
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice (SameAs This))])
           (With (SearchOne {from = [Library]} (Or [hasSubtype (^Plains), hasSubtype (^Island)]))
-            (Sequence [ Act (Move That (ToZone Battlefield))
+            (Sequence [ Act (Move (That Card) (ToZone Battlefield))     -- the found card: a whiffable Product, noun `Card`
                       , Act Shuffle ])) ]
   }
 
@@ -1029,7 +1051,7 @@ card_MutagenicGrowth = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Continuously UntilEndOfTurn (Modify (GetTarget 0) (ApplyAll (modifyPT (Up (^2))))))) ]
+          (Continuously UntilEndOfTurn (Modify It (ApplyAll (modifyPT (Up (^2))))))) ]
   }
 
 -- Skred — SNOW mana ({S}): deals damage to target creature equal to the snow permanents you control.
@@ -1041,7 +1063,7 @@ card_Skred = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Act (DealDamage (GetTarget 0) (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you]))))) ]
+          (Act (DealDamage It (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you]))))) ]
   }
 
 -- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (^Saga)`
@@ -1099,7 +1121,7 @@ card_VodalianIllusionist = Normal $ ^:
   , subtypes := [^Merfolk, ^Wizard]
   , abilities :=
       [ Activated (Costs [Mana [^2], Do (Tap This)])
-          (Targeted [Target (^1) creature] (Act (PhaseOut (GetTarget 0)))) ]
+          (Targeted [Target (^1) creature] (Act (PhaseOut It))) ]
   , power := Just 1
   , toughness := Just 1
   }
@@ -1162,7 +1184,7 @@ card_CacklingCounterpart = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) (And [creature, ControlledBy you])]
-          (Act (Copy (GetTarget 0)))) ]
+          (Act (Copy It))) ]
   }
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
@@ -1252,7 +1274,7 @@ card_SnapcasterMage = Normal $ ^:
       , Triggered thisEnters $
           Targeted [Target (^1) (And [Or [hasType Instant, hasType Sorcery], InZone Graveyard, OwnedBy you])] $
             Continuously UntilEndOfTurn
-              (Modify (GetTarget 0) (GrantAbility (flashback [ManaCostOf (GetTarget 0)])))
+              (Modify (That Card) (GrantAbility (flashback [ManaCostOf (That Card)])))  -- "that card": the graveyard slot's noun — the ETB event's own antecedent (a Permanent) is skipped by SORT
       ]
   , power := Just 2
   , toughness := Just 1

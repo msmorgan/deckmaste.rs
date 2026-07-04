@@ -1,6 +1,7 @@
-||| Core grammar of the toy MTG card model: characteristics, the `Endophora`
-||| typestate (what references are in scope), and the filter / reference /
-||| selection / action / effect / ability trees. Kept deliberately brief.
+||| Core grammar of the toy MTG card model: characteristics, the antecedent
+||| STACK binding context (`Ctx` — what references are in scope, v2), and the
+||| filter / reference / selection / action / effect / ability trees. Kept
+||| deliberately brief.
 module Core
 
 import public Data.Vect
@@ -8,6 +9,9 @@ import public Data.Nat
 import public Data.List
 import public Data.List.Elem
 import public Data.List.Quantifiers
+import public Data.Maybe
+
+%default total
 
 namespace Color
   public export
@@ -521,7 +525,7 @@ namespace EventKind
     ZoneChanged : Maybe Zone -> Maybe Zone -> EventKind
     BeginStep : PhaseStep -> EventKind
     -- "whenever ~ BECOMES [state]" — TRANSITION states only (gated; not `SummoningSick`).
-    Becomes : (s : ObjectState) -> {auto prf : IsBecomesState s} -> EventKind
+    Becomes : (s : ObjectState) -> {auto 0 prf : IsBecomesState s} -> EventKind
     -- the ONSET of a relation ([CR#508],[CR#509]) — the inchoative aspect of the relation spine. `Begins
     -- Attack` fires once per attack; FACETS pick the side (`[Agent This]` = it attacks, `[Patient you]` =
     -- you're attacked). Unifies the paired `Becomes Attacking`/`Becomes Attacked` (one happening, two
@@ -608,7 +612,7 @@ kindsHaveAmount []        = False
 kindsHaveAmount (k :: ks) = eventKindHasAmount k && all eventKindHasAmount ks
 
 -- A VALUE-choice DOMAIN: what an as-enters "choose …" picks from when the pick is a VALUE, not a game
--- entity ([CR#614.12]). The chosen value is bound in `Endophora.chosenKind` and read back by `OfChosen`
+-- entity ([CR#614.12]). The chosen value is bound in `Ctx.chosenKind` and read back by `OfChosen`
 -- (characteristic domains) / `ChosenIs` (mode) / `ChosenNumber`. Characteristic domains (color / creature
 -- type / name) name something an object can HAVE; a mode/number domain won't. Choosing a game ENTITY (a
 -- creature to copy, a player) is NOT a value — it's a filtered `AsEntersChoosing` binding `chosenRefKind`.
@@ -644,70 +648,490 @@ ChoiceRefKindOk AnObject = ()
 ChoiceRefKindOk APlayer  = ()
 ChoiceRefKindOk _        = Void
 
--- `Endophora`: the typestate of what references are in scope. Its fields are
--- PROJECTIONS we write constraints against; it grows as the model binds roles.
-public export
-record Endophora where
-  constructor MkEndophora
-  targetKinds : List RefKind     -- one `RefKind` per target slot (the slot's kind, from its filter)
-  thatKind    : Maybe (Cardinality, RefKind)  -- a `With`-bound `That`'s CARDINALITY + element kind, if bound: `(One, k)` → `That : Reference b k`; `(Many, k)` → `That : Selection b k`
-  itKind      : Maybe RefKind    -- a `Each`-bound element's kind (`It`), if bound
-  eventCaps      : EventCaps    -- the surrounding event's caps (`NoCaps` outside an event body) — gates `EventObject`/`EventActor`/`EventAmount`
-  chosenKind  : Maybe ChooseDomain  -- an as-enters "choose …" VALUE (color/type/name/number/mode) in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`), if bound
-  chosenRefKind : Maybe RefKind  -- an as-enters "choose …" GAME ENTITY (an object/player) in scope (`ChosenObject`/`ChosenPlayer`), if bound — the identity twin of `chosenKind`
-  hasAllotment : Bool    -- inside a `Distribute` body: a per-element share is in scope (gates `Allotment`)
+-- ===========================================================================
+-- THE ANTECEDENT STACK (v2). The binding context is an ordered stack of
+-- ANTECEDENTS — one entry per thing the text has introduced (an announced
+-- target slot [CR#115.3], a producing clause's moved/created object
+-- [CR#400.7], an event body's roles [CR#603.2e,608.2k], a binder's choice
+-- [CR#608.2d], a loop element) — and references are SORTED ANAPHORS resolved
+-- against it: R1 nearest-compatible, R2 uniqueness gate, R3 strictly leftward
+-- (the telescope `Sequence` below threads introductions in sentence order).
+-- Replaces the v1 role-named `Ctx` record. The same resolution
+-- algorithm is implemented in Rust (`deckmaste_cards::elaborate::walk`)
+-- against the emitted tables; divergence between the two is the meta-level
+-- failure mode the shared fixtures guard.
+-- ===========================================================================
 
--- The endophora a resolving spell starts in: nothing bound yet.
-public export
-Base : Endophora
-Base = MkEndophora [] Nothing Nothing NoCaps Nothing Nothing False
+-- The SORT of an anaphor/antecedent — the English NOUN it answers to
+-- ("that card" / "that creature" / "those tokens"). Mirrors the Rust `Sort`
+-- and the emitted `sort-compat.ron`. `OfType t` is "that creature"/"that
+-- land"/… ([CR#205.2a]); `Card` is a non-battlefield object ([CR#108.2]);
+-- `Amount` is a value antecedent ("that many/much", [CR#608.2i]).
+namespace Sort
+  public export
+  data Sort : Type where
+    Player : Sort                -- a player ([CR#102.1])
+    Card : Sort                  -- a non-battlefield object ([CR#108.2]); tokens aren't cards ([CR#108.2b])
+    Token : Sort                 -- a created token ([CR#111.1])
+    Spell : Sort                 -- a spell on the stack ([CR#112.1])
+    StackObject : Sort           -- a spell or ability ([CR#405.1]) — the widened stack noun
+    Permanent : Sort             -- a battlefield object of unknown type ([CR#110.1])
+    OfType : Type_ -> Sort       -- a typed battlefield object — "that creature" ([CR#110.1,205.2a])
+    Amount : Sort                -- a value antecedent — "that many"/"that much" ([CR#608.2i])
+    Pile : Sort                  -- a labeled pile group ([CR#700.3a])
 
--- Each sets one field, reconstructing `MkEndophora` explicitly so a projection of a
--- bind result reduces definitionally even for abstract `b` (record-update sugar
+-- structural equality on card types / sorts — plain Bool functions (not an
+-- interface) so type-level `resolve` reduces without instance search.
+public export
+sameType : Type_ -> Type_ -> Bool
+sameType Artifact Artifact = True
+sameType Battle Battle = True
+sameType Creature Creature = True
+sameType Enchantment Enchantment = True
+sameType Instant Instant = True
+sameType Kindred Kindred = True
+sameType Land Land = True
+sameType Planeswalker Planeswalker = True
+sameType Sorcery Sorcery = True
+sameType _ _ = False
+
+public export
+sameSort : Sort -> Sort -> Bool
+sameSort Player Player = True
+sameSort Card Card = True
+sameSort Token Token = True
+sameSort Spell Spell = True
+sameSort StackObject StackObject = True
+sameSort Permanent Permanent = True
+sameSort (OfType a) (OfType b) = sameType a b
+sameSort Amount Amount = True
+sameSort Pile Pile = True
+sameSort _ _ = False
+
+-- R1 sort COMPATIBILITY: which antecedent nouns an anaphor of each wanted
+-- noun reaches — the Idris twin of the emitted `sort-compat.ron` rows
+-- (`Spec.tCompatTable` pins the agreement). "That card" never reaches a
+-- token ([CR#108.2b]); "that permanent" reaches any battlefield noun
+-- ([CR#110.1]); "spell or ability" reaches a spell ([CR#405.1]); a typed
+-- noun reaches exactly its own type ([CR#205.2a]). (The exact-vs-widened
+-- distinction feeds the R2 gate's ONE pre-approved loosening,
+-- `exact_sort_precedence` — calibrated and FROZEN STRICT=off by the corpus
+-- dry-run, so the flag is not modeled here.)
+public export
+compat : (want : Sort) -> (have : Sort) -> Bool
+compat Player Player = True
+compat Card Card = True
+compat Token Token = True
+compat Spell Spell = True
+compat StackObject Spell = True
+compat StackObject StackObject = True
+compat Permanent Permanent = True
+compat Permanent (OfType _) = True
+compat Permanent Token = True
+compat (OfType a) (OfType b) = sameType a b
+compat Amount Amount = True
+compat Pile Pile = True
+compat _ _ = False
+
+-- the WILDCARD anaphor ("it"/"they") reaches every object/player/pile noun,
+-- but never a value antecedent (value anaphora is `ThatMany`).
+public export
+wildReaches : Sort -> Bool
+wildReaches Amount = False
+wildReaches _ = True
+
+public export
+reaches : Maybe Sort -> Sort -> Bool
+reaches Nothing h = wildReaches h
+reaches (Just w) h = compat w h
+
+-- WHERE an antecedent came from — the survival rules key on it: `Delayed`
+-- bodies drop `TargetSlot`s and keep `Product`s ([CR#603.7c]); event bodies
+-- replace `EventRole`s ([CR#603.2e]); loop bodies clear `Allot` ([CR#601.2d]).
+-- `Frame` is a `With`/pile CHOICE binder — the legacy deterministic scope:
+-- anaphors inside it bind the frame directly, never R2-gated ([CR#608.2d]).
+namespace Site
+  public export
+  data Site = TargetSlot | Product | EventRole | Loop | Allot | Chosen | Frame
+
+public export
+isTargetSlot : Site -> Bool
+isTargetSlot TargetSlot = True
+isTargetSlot _ = False
+
+public export
+isEventRole : Site -> Bool
+isEventRole EventRole = True
+isEventRole _ = False
+
+public export
+isAllotSite : Site -> Bool
+isAllotSite Allot = True
+isAllotSite _ = False
+
+public export
+isBinderSite : Site -> Bool    -- `It`'s deterministic scopes: loop elements + choice frames
+isBinderSite Loop = True
+isBinderSite Frame = True
+isBinderSite _ = False
+
+public export
+isFrameSite : Site -> Bool     -- the sorted/plural anaphors' deterministic scope
+isFrameSite Frame = True
+isFrameSite _ = False
+
+public export
+sameCard : Cardinality -> Cardinality -> Bool
+sameCard One One = True
+sameCard Many Many = True
+sameCard _ _ = False
+
+-- ONE antecedent on the stack. `kind` rides along (an "any target" slot is
+-- sort `Permanent` but kind `Anything`); `expectedZone` is the [CR#603.7c]
+-- stamp a producing clause leaves (where the object went); `label` is the
+-- `As`-named announce slot / `Label` re-site the explicit `The`/`TheGroup`
+-- reads consume ([CR#608.2d]).
+public export
+record Ante where
+  constructor MkAnte
+  sort : Sort
+  kind : RefKind
+  card : Cardinality
+  site : Site
+  expectedZone : Maybe Zone
+  label : Maybe String
+
+-- the RESULT of an anaphor resolution — the constructor names the checker
+-- rule, so a failed auto-search error names it too: `Unbound` twins
+-- E-BIND-THAT/-IT/-THAT-GROUP ("no compatible antecedent in scope"),
+-- `Ambiguous` twins E-BIND-AMBIGUOUS (the R2 uniqueness gate).
+namespace Bind
+  public export
+  data Bind = Bound RefKind | Unbound | Ambiguous
+
+public export
+isBound : Bind -> Bool
+isBound (Bound _) = True
+isBound _ = False
+
+-- an antecedent is a CANDIDATE for an anaphor read when it is not the
+-- `Allot` share (that is `Allotment`'s alone), its cardinality matches
+-- (`It`/`That` = One, `They`/`Them` = Many), and its sort is reachable (R1).
+public export
+candidate : Maybe Sort -> Cardinality -> Ante -> Bool
+candidate w cd a = not (isAllotSite a.site) && sameCard cd a.card && reaches w a.sort
+
+public export
+candidates : Maybe Sort -> Cardinality -> List Ante -> List Ante
+candidates w cd [] = []
+candidates w cd (a :: as) = case candidate w cd a of
+  True => a :: candidates w cd as
+  False => candidates w cd as
+
+-- classify a candidate list: none = `Unbound`, a unique one binds, a
+-- second candidate ANYWHERE is `Ambiguous` (the R2 uniqueness gate, STRICT
+-- per the corpus dry-run freeze — an insertion flips "resolves" to a load
+-- error, never to a silent re-point).
+public export
+classifyCandidates : List Ante -> Bind
+classifyCandidates [] = Unbound
+classifyCandidates [a] = Bound a.kind
+classifyCandidates (_ :: _ :: _) = Ambiguous
+
+-- R1 + R2 over the stack (nearest FIRST).
+public export
+resolveStack : Maybe Sort -> Cardinality -> List Ante -> Bind
+resolveStack w cd s = classifyCandidates (candidates w cd s)
+
+-- THE stack-weakening lemma ([type-theory#4] — one lemma over the one
+-- resolve function, instead of per-rule ad-hoc weakening): pushing an
+-- antecedent that is NOT a candidate for a read leaves that read's
+-- resolution untouched. Sorted anaphors are deliberately NOT weakenable by
+-- a COMPATIBLE push — R2 flips them to `Ambiguous` (the ambiguity gate is
+-- the design); the labeled reads (`The`/`TheGroup`) are the escape hatch.
+export
+weakenResolve : {w : Maybe Sort} -> {cd : Cardinality} -> {s : List Ante}
+             -> (a : Ante) -> (off : candidate w cd a = False)
+             -> resolveStack w cd (a :: s) = resolveStack w cd s
+weakenResolve a off = rewrite off in Refl
+
+-- the innermost BINDER (a loop element or a `With`/pile choice frame) —
+-- `It`'s deterministic antecedent: inside a binder, `It` is ALWAYS the
+-- bound thing, never gated ([CR#608.2]; the pre-stack semantics, kept).
+public export
+innermostBinder : List Ante -> Maybe Ante
+innermostBinder [] = Nothing
+innermostBinder (a :: as) = if isBinderSite a.site then Just a else innermostBinder as
+
+-- the innermost choice FRAME — the sorted/plural anaphors' deterministic
+-- scope ([CR#608.2d]; never R2-gated).
+public export
+innermostFrame : List Ante -> Maybe Ante
+innermostFrame [] = Nothing
+innermostFrame (a :: as) = if isFrameSite a.site then Just a else innermostFrame as
+
+-- `It` — the wildcard singular anaphor: the innermost binder when one
+-- encloses, else R1+R2 over the stack.
+public export
+resolveIt : List Ante -> Bind
+resolveIt s = case innermostBinder s of
+  Just a => Bound a.kind
+  Nothing => resolveStack Nothing One s
+
+-- `That (w)` — the sorted singular anaphor: the innermost choice frame when
+-- one encloses (it must be a single object of a reachable sort), else R1+R2.
+public export
+resolveThat : Sort -> List Ante -> Bind
+resolveThat w s = case innermostFrame s of
+  Just a => if sameCard One a.card && compat w a.sort then Bound a.kind else Unbound
+  Nothing => resolveStack (Just w) One s
+
+-- `They` / `Them (w)` — the plural anaphors (`Nothing` = the wildcard).
+public export
+resolveThey : Maybe Sort -> List Ante -> Bind
+resolveThey w s = case innermostFrame s of
+  Just a => if sameCard Many a.card && reaches w a.sort then Bound a.kind else Unbound
+  Nothing => resolveStack w Many s
+
+-- `ThatMany`/`ThatMuch` — the value anaphor over `Amount` antecedents
+-- ([CR#608.2i]).
+public export
+resolveAmount : List Ante -> Bind
+resolveAmount = resolveStack (Just Amount) One
+
+public export
+sameLabel : Maybe String -> Maybe String -> Bool
+sameLabel (Just a) (Just b) = a == b
+sameLabel _ _ = False
+
+-- `The (l)` / `TheGroup (l)` — the LABELED reads ([CR#608.2d]): explicit,
+-- never R2-gated — the ambiguity fallback (and the one read the weakening
+-- lemma's caveat blesses: a fresh push can never re-point a label).
+public export
+resolveLabel : String -> Cardinality -> List Ante -> Bind
+resolveLabel l cd s = case filter (\a => sameLabel (Just l) a.label) s of
+  [] => Unbound
+  (a :: _) => if sameCard cd a.card then Bound a.kind else Unbound
+
+public export
+hasAllot : List Ante -> Bool
+hasAllot [] = False
+hasAllot (a :: as) = isAllotSite a.site || hasAllot as
+
+-- stamp an `As`/`Label` name onto an antecedent ([CR#608.2d]).
+public export
+withLabel : String -> Ante -> Ante
+withLabel l a = MkAnte a.sort a.kind a.card a.site a.expectedZone (Just l)
+
+-- the chosen-pile FRAME a `DivideAndChoose` body binds ([CR#700.3,608.2d]).
+public export
+PileFrame : Ante
+PileFrame = MkAnte Pile AnObject Many Frame Nothing Nothing
+
+-- the value antecedent an amount-bearing clause pushes ("that much",
+-- [CR#608.2i]).
+public export
+amountAnte : Ante
+amountAnte = MkAnte Amount AnObject One Product Nothing Nothing
+
+-- the paid-for SPELL a mana rider binds as its loop element ([CR#106.6a]).
+public export
+PaidSpellAnte : Ante
+PaidSpellAnte = MkAnte Spell AnObject One Loop Nothing Nothing
+
+-- the noun an object answers to once it sits in a zone — the emitted
+-- `zone-sorts.ron` (derived from THIS function) ([CR#110.1,112.1,108.2]). This
+-- is why "exile target creature … return that card" resolves: the exile
+-- clause's product answers to `Card`.
+public export
+zoneSort : Zone -> Sort
+zoneSort Battlefield = Permanent
+zoneSort Stack = Spell
+zoneSort Command = Card
+zoneSort Exile = Card
+zoneSort Graveyard = Card
+zoneSort Hand = Card
+zoneSort Library = Card
+zoneSort Sideboard = Card
+
+-- the fallback noun of a bare reference of known kind (a `TheRef` binder).
+public export
+kindSort : RefKind -> Sort
+kindSort APlayer = Player
+kindSort _ = Permanent
+
+-- conjunctive PINS read off a filter (the Rust walker's `filter_pins`):
+-- an object-kind pin, a zone pin, a card-type pin. `sortFromPins` turns
+-- them into the filter's noun — battlefield objects refine to `Token`/
+-- `OfType t` when pinned ([CR#110.1]).
+public export
+record Pins where
+  constructor MkPins
+  pKind : Maybe ObjectKind
+  pZone : Maybe Zone
+  pType : Maybe Type_
+
+public export
+noPins : Pins
+noPins = MkPins Nothing Nothing Nothing
+
+public export
+orElse : Maybe a -> Maybe a -> Maybe a
+orElse (Just x) _ = Just x
+orElse Nothing y = y
+
+public export
+mergePins : Pins -> Pins -> Pins
+mergePins (MkPins k1 z1 t1) (MkPins k2 z2 t2) =
+  MkPins (orElse k1 k2) (orElse z1 z2) (orElse t1 t2)
+
+public export
+sortFromPins : Pins -> Sort
+sortFromPins (MkPins (Just Spell) _ _) = Spell
+sortFromPins (MkPins (Just Ability) _ _) = StackObject
+sortFromPins (MkPins k z t) =
+  case zoneSort (fromMaybe Battlefield z) of
+    Permanent => case k of
+      Just Token => Token
+      _ => case t of
+        Just ty => OfType ty
+        Nothing => Permanent
+    s => s
+
+-- the object-role NOUN an event kind supplies its body's "that …" anaphor
+-- ([CR#400.7e] — a moved object's noun follows the zone it moved to; a
+-- sacrificed/destroyed/discarded object went to a graveyard, an exiled one
+-- to exile — the entailment rows). Mirrors the emitted `object_sort` column.
+public export
+eventKindObjectSort : EventKind -> Sort
+eventKindObjectSort Sacrifice = Card                       -- [CR#701.21a] battlefield -> graveyard
+eventKindObjectSort Draw = Permanent                       -- (no object cap; unused)
+eventKindObjectSort Discard = Card                         -- [CR#701.9a] hand -> graveyard
+eventKindObjectSort (DealDamage _) = Permanent             -- the damage SOURCE
+eventKindObjectSort CreateToken = Token                    -- [CR#701.7]
+eventKindObjectSort PutCounters = Permanent                -- the "on" carrier
+eventKindObjectSort RemoveCounters = Permanent
+eventKindObjectSort Destroy = Card                         -- [CR#701.8a] battlefield -> graveyard
+eventKindObjectSort (ZoneChanged _ (Just z)) = zoneSort z  -- the NEW zone's noun
+eventKindObjectSort (ZoneChanged _ Nothing) = Card         -- left; destination unfixed
+eventKindObjectSort (BeginStep _) = Permanent              -- (no object cap; unused)
+eventKindObjectSort (Becomes _) = Permanent                -- the "of" permanent
+eventKindObjectSort (Begins Cast) = Spell                  -- [CR#601.2i]
+eventKindObjectSort (Begins Activate) = StackObject        -- [CR#602.2a]
+eventKindObjectSort (Begins _) = Permanent                 -- attacker/blocker/attachment/…
+eventKindObjectSort GainLife = Permanent                   -- (no object cap; unused)
+eventKindObjectSort LoseLife = Permanent
+eventKindObjectSort GainControl = Permanent                -- the "of" permanent
+
+-- one antecedent per CAPS guarantee ([CR#603.2e,608.2k]): the roles an
+-- event/payment body pushes for its anaphora — object, patient (sort fixed
+-- by its kind), actor, amount, defending player. Push order mirrors the
+-- Rust walker (later pushes land nearer).
+public export
+roleAntes : EventCaps -> (objectSort : Sort) -> List Ante
+roleAntes (MkEventCaps o a m p d) objSort =
+  (if o then [MkAnte objSort AnObject One EventRole Nothing Nothing] else [])
+  ++ (case p of
+        Just k => [MkAnte (kindSort k) k One EventRole Nothing Nothing]
+        Nothing => [])
+  ++ (if a then [MkAnte Player APlayer One EventRole Nothing Nothing] else [])
+  ++ (if m then [MkAnte Amount Anything One EventRole Nothing Nothing] else [])
+  ++ (if d then [MkAnte Player APlayer One EventRole Nothing Nothing] else [])
+
+-- a COST payment's roles ([CR#601.2f]): payment objects leave for another
+-- zone, so the object noun is `Card`.
+public export
+costRoles : EventCaps -> List Ante
+costRoles caps = roleAntes caps Card
+
+-- The binding CONTEXT: the ordered antecedent stack (nearest FIRST) plus
+-- the value channels the stack doesn't carry — the surrounding event's caps
+-- (gating the EXPLICIT role reads `EventObject`/`EventActor`/…) and the
+-- card-scoped as-enters choices ([CR#614.12]).
+public export
+record Ctx where
+  constructor MkCtx
+  stack : List Ante
+  eventCaps : EventCaps          -- `NoCaps` outside an event body
+  chosenKind : Maybe ChooseDomain    -- an as-enters VALUE choice in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`)
+  chosenRefKind : Maybe RefKind      -- an as-enters ENTITY choice in scope (`ChosenObject`/`ChosenPlayer`)
+
+-- The context a resolving spell starts in: nothing bound yet.
+public export
+Base : Ctx
+Base = MkCtx [] NoCaps Nothing Nothing
+
+-- Each transition reconstructs `MkCtx` explicitly so a projection of a bind
+-- result reduces definitionally even for abstract `b` (record-update sugar
 -- has no get-after-set law for an abstract record).
+
+-- push antecedents, listed in PUSH ORDER (the last pushed lands nearest —
+-- the stack is nearest-first, so the list is reversed on).
 public export
-bindTargets : List RefKind -> Endophora -> Endophora
-bindTargets ks b = MkEndophora ks (thatKind b) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+pushAntes : List Ante -> Ctx -> Ctx
+pushAntes as b = MkCtx (reverse as ++ stack b) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 public export
-unbindTargets : Endophora -> Endophora
-unbindTargets b = MkEndophora [] (thatKind b) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+notTargetSlotA : Ante -> Bool
+notTargetSlotA a = not (isTargetSlot a.site)
 
 public export
-bindThat : Cardinality -> RefKind -> Endophora -> Endophora
-bindThat c k b = MkEndophora (targetKinds b) (Just (c, k)) (itKind b) (eventCaps b) (chosenKind b) (chosenRefKind b) (hasAllotment b)
+notEventRoleA : Ante -> Bool
+notEventRoleA a = not (isEventRole a.site)
 
 public export
--- bind the per-element `It` of kind k (for `Each`/`Project`/`eachOf` loop bodies) AND clear the loop-local
--- `hasAllotment`: a `Distribute` share is indexed to ITS element, so once an inner loop re-binds `It` to a
--- different element that share no longer makes sense and `Allotment` must not leak through (everything else —
--- targets, `That`, event caps, as-enters choices — legitimately stays in scope). Formerly split into a
--- share-preserving `bindIt` (which leaked the share into a nested `Each`) and an allotment-clearing `bindIt`; merged.
-bindIt : RefKind -> Endophora -> Endophora
-bindIt k b = MkEndophora (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) False
+notAllotA : Ante -> Bool
+notAllotA a = not (isAllotSite a.site)
 
--- entering a trigger/replacement/delayed body, carrying the event's CAPS (what anaphora it supplies).
+-- announce the target slots ([CR#115.3,601.2c]): the slot antecedents
+-- REPLACE any outer ones (a nested announce list is its own).
 public export
-bindEvent : EventCaps -> Endophora -> Endophora
-bindEvent caps b = MkEndophora (targetKinds b) (thatKind b) (itKind b) caps (chosenKind b) (chosenRefKind b) (hasAllotment b)
+bindTargets : List Ante -> Ctx -> Ctx
+bindTargets slots b = MkCtx (reverse slots ++ filter notTargetSlotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
--- the as-enters VALUE choice ([CR#614.12]): binds `chosenKind` (a color/type/name/number/mode) for the
--- whole card's abilities.
+-- a `Delayed` body drops the announced targets ([CR#603.7c]); `Product`
+-- antecedents (with their expected zones) survive.
 public export
-bindChosen : ChooseDomain -> Endophora -> Endophora
-bindChosen d b = MkEndophora (targetKinds b) (thatKind b) (itKind b) (eventCaps b) (Just d) (chosenRefKind b) (hasAllotment b)
+unbindTargets : Ctx -> Ctx
+unbindTargets b = MkCtx (filter notTargetSlotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
--- the as-enters GAME-ENTITY choice ([CR#614.12]): binds `chosenRefKind` (a chosen object/player) for the
--- whole card's abilities — the identity-reference twin of `bindChosen`, opened by `AsEntersChoosing`.
+-- a `With` binder's antecedent ([CR#608.2d]): a choice binds a `Frame`, a
+-- search/produce binder a whiffable `Product` — the ante's own site stands.
 public export
-bindChosenRef : RefKind -> Endophora -> Endophora
-bindChosenRef k b = MkEndophora (targetKinds b) (thatKind b) (itKind b) (eventCaps b) (chosenKind b) (Just k) (hasAllotment b)
+bindThat : Ante -> Ctx -> Ctx
+bindThat a = pushAntes [a]
 
--- a `Distribute` body ([CR#601.2d] division): binds the loop element `It` of kind k AND marks a per-element
--- share in scope (read back by `Allotment`). The allotment-bearing twin of `bindIt`.
+-- a loop element ([CR#608.2]): re-sited at `Loop`, one element at a time;
+-- clears any `Allot` share (it was indexed to a DIFFERENT element, so it
+-- must not leak into a nested loop).
 public export
-bindAllot : RefKind -> Endophora -> Endophora
-bindAllot k b = MkEndophora (targetKinds b) (thatKind b) (Just k) (eventCaps b) (chosenKind b) (chosenRefKind b) True
+bindIt : Ante -> Ctx -> Ctx
+bindIt a b = MkCtx (MkAnte a.sort a.kind One Loop a.expectedZone a.label :: filter notAllotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
+
+-- a `Distribute` body ([CR#601.2d]): the loop element plus its `Allot`
+-- share (read back only by `Allotment`).
+public export
+bindAllot : Ante -> Ctx -> Ctx
+bindAllot a b = MkCtx (MkAnte Amount Anything One Allot Nothing Nothing :: MkAnte a.sort a.kind One Loop a.expectedZone a.label :: stack b) (eventCaps b) (chosenKind b) (chosenRefKind b)
+
+-- entering a trigger/replacement/delayed/payment body: carry the event's
+-- CAPS and push one role antecedent per guarantee; an inner event's roles
+-- SHADOW an outer's ([CR#603.2e] — one antecedent set per body).
+public export
+bindEvent : EventCaps -> List Ante -> Ctx -> Ctx
+bindEvent caps roles b = MkCtx (reverse roles ++ filter notEventRoleA (stack b)) caps (chosenKind b) (chosenRefKind b)
+
+-- the as-enters VALUE choice ([CR#614.12]): binds `chosenKind` (a color/
+-- type/name/number/mode) for the abilities that read it.
+public export
+bindChosen : ChooseDomain -> Ctx -> Ctx
+bindChosen d b = MkCtx (stack b) (eventCaps b) (Just d) (chosenRefKind b)
+
+-- the as-enters GAME-ENTITY choice ([CR#614.12]): binds `chosenRefKind` (a
+-- chosen object/player) — the identity twin of `bindChosen`.
+public export
+bindChosenRef : RefKind -> Ctx -> Ctx
+bindChosenRef k b = MkCtx (stack b) (eventCaps b) (chosenKind b) (Just k)
 
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
@@ -722,7 +1146,7 @@ mutual
   -- event-edit; Reach/Flash = flag/window) carry no clause.
   namespace KeywordSpec
     public export
-    data KeywordSpec : Endophora -> Type where
+    data KeywordSpec : Ctx -> Type where
       Flying : KeywordSpec b
       FirstStrike : KeywordSpec b
       DoubleStrike : KeywordSpec b
@@ -761,7 +1185,7 @@ mutual
   -- A REFERENCE to a game object/player ([CR#108,109.1]) — a text-internal anaphor.
   namespace Reference
     public export
-    data Reference : Endophora -> RefKind -> Type where
+    data Reference : Ctx -> RefKind -> Type where
       -- the source object; always available [CR#113.7].
       This : Reference b AnObject
       -- demote a `Selection` to its SOLE element. Partial — the author asserts singularity, exactly
@@ -770,34 +1194,50 @@ mutual
       -- the host this is attached to ("enchanted creature"); and its inverse.
       AttachHostOf : Reference b AnObject -> Reference b AnObject
       AttachedTo : Reference b AnObject -> Reference b AnObject
-      -- the current element ("it"): the `Each`-bound loop element OR the `Modify`-bound per-subject
-      -- object (an anthem's candidate); its kind is the binder's (`itKind`). Serves as the "Subject" an
-      -- anthem's mods read, without a dedicated reference — predicates are already candidate-implicit.
-      It : {auto prf : itKind b = Just k} -> Reference b k
-      -- the `With`-bound SINGLE object (a one-binder — `ChooseOne`/`SearchOne`/`Produce`/`TheRef`); a
-      -- many-binder's `That` is a `Selection` (`Selection.That`), iterated with `Each`. No more `Each That`
-      -- over a guaranteed singleton — the cardinality makes that unwritable.
-      That : {auto prf : thatKind b = Just (One, k)} -> Reference b k
+      -- the WILDCARD singular anaphor ("it"): inside a binder it is ALWAYS the
+      -- innermost bound thing — a loop element or a `With`/pile choice frame —
+      -- deterministic, never gated ([CR#608.2]); outside every binder it
+      -- resolves over the antecedent stack (R1 nearest + the R2 uniqueness
+      -- gate). Also the per-subject candidate an anthem's mods read.
+      It : {auto 0 prf : resolveIt (stack b) = Bound k} -> Reference b k
+      -- the SORTED singular anaphor — "that card" / "that creature" / "that
+      -- player" ([CR#608.2d]): the antecedent answering to the noun `w` (R1
+      -- per `compat`, R2 strict — a second compatible antecedent is a type
+      -- error, not a guess). Inside a `With`/pile choice frame it binds the
+      -- frame deterministically. Antecedents are pushed by announced target
+      -- slots ([CR#115.3]), producing clauses ([CR#400.7]), event bodies
+      -- ([CR#603.2e]), and binders ([CR#608.2d]).
+      That : (w : Sort) -> {auto 0 prf : resolveThat w (stack b) = Bound k} -> Reference b k
+      -- the LABELED antecedent ([CR#608.2d]) — the R2 gate's escape hatch:
+      -- reads the `As`-named announce slot (or a labeled push) by name;
+      -- explicit, never gated.
+      The : (l : String) -> {auto 0 prf : resolveLabel l One (stack b) = Bound k} -> Reference b k
       -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2k]).
-      EventObject : {auto prf : hasObject (eventCaps b) = True} -> Reference b AnObject
+      EventObject : {auto 0 prf : hasObject (eventCaps b) = True} -> Reference b AnObject
       -- the triggering event's PATIENT — the acted-upon thing (damage recipient, …), KIND-POLY but fixed by
       -- the event's `patientKind` cap so the binder stays sound ([CR#120.3]); distinct from the Agent
       -- (`EventObject`). For the combat DEFENDER specifically, prefer `DefendingPlayer` (always a player).
-      EventPatient : {auto prf : patientKind (eventCaps b) = Just k} -> Reference b k
+      EventPatient : {auto 0 prf : patientKind (eventCaps b) = Just k} -> Reference b k
       -- PLAYERS (the old `PlayerRef`, folded in here):
       You : Reference b APlayer                            -- controller of this ability [CR#109.5]
       ControllerOf : Reference b AnObject -> Reference b APlayer   -- the controller of an object
       OwnerOf : Reference b AnObject -> Reference b APlayer        -- the owner of an object [CR#108.3]
-      EventActor : {auto prf : hasActor (eventCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
-      DefendingPlayer : {auto prf : hasDefender (eventCaps b) = True} -> Reference b APlayer  -- the defending player of an attack/combat — ALWAYS a player, even vs a planeswalker/battle ([CR#506.2,508.5]); landwalk/Annihilator/Afflict
-      ChosenPlayer : {auto prf : chosenRefKind b = Just APlayer} -> Reference b APlayer  -- the as-enters chosen PLAYER (the identity-reference twin of OfChosen/ChosenNumber); opened by `AsEntersChoosing APlayer …`
-      ChosenObject : {auto prf : chosenRefKind b = Just AnObject} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`); opened by `AsEntersChoosing AnObject …`
+      EventActor : {auto 0 prf : hasActor (eventCaps b) = True} -> Reference b APlayer  -- the event's player ("that player") — only if supplied
+      DefendingPlayer : {auto 0 prf : hasDefender (eventCaps b) = True} -> Reference b APlayer  -- the defending player of an attack/combat — ALWAYS a player, even vs a planeswalker/battle ([CR#506.2,508.5]); landwalk/Annihilator/Afflict
+      ChosenPlayer : {auto 0 prf : chosenRefKind b = Just APlayer} -> Reference b APlayer  -- the as-enters chosen PLAYER (the identity-reference twin of OfChosen/ChosenNumber); opened by `AsEntersChoosing APlayer …`
+      ChosenObject : {auto 0 prf : chosenRefKind b = Just AnObject} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`); opened by `AsEntersChoosing AnObject …`
+      -- the INDEFINITE determiner — "a creature", "an artifact you control"
+      -- ([CR#608.2d]): `by` chooses one match at resolution (`Nothing` = the
+      -- default chooser, you — a within-declaration default can't name the
+      -- `You` constructor); the choice pushes a `Chosen` antecedent for the
+      -- clauses to its right (`refIntro`).
+      A : (of_ : Predicate b k) -> {default Nothing by : Maybe (Reference b APlayer)} -> Reference b k
 
   -- A query selecting events ([CR#700]): kinds and filter filters (e.g. "Whenever a creature
   -- dies" = actor creature). Event predicates (`EventObject`/`EventActor`/`EventPatient`/
   -- `DefendingPlayer`) can ONLY be read if the event query's kinds have those caps.
   public export
-  record EventQuery (b : Endophora) where
+  record EventQuery (b : Ctx) where
     constructor MkEventQuery
     kinds  : List EventKind
     facets : List (Facet b)
@@ -816,7 +1256,7 @@ mutual
   -- or a count of matching ones (for affinity/devotion), or a list of events.
   namespace Countable
     public export
-    data Countable : Endophora -> Type where
+    data Countable : Ctx -> Type where
       Objects     : Predicate b AnObject -> Countable b
       Players     : Predicate b APlayer -> Countable b
       Events      : EventQuery b -> Countable b
@@ -848,13 +1288,13 @@ mutual
   -- A PROJECTION of a game property/state to a value.
   namespace Projection
     public export
-    data Projection : Endophora -> Type where
-      Project : (src : Countable b) -> {auto 0 prj : Projectable src} -> Count (bindIt AnObject b) -> Projection b
+    data Projection : Ctx -> Type where
+      Project : (src : Countable b) -> {auto 0 prj : Projectable src} -> Count (bindIt (projElemAnte src) b) -> Projection b
 
   -- A COUNT / mathematical expression producing a number.
   namespace Count
     public export
-    data Count : Endophora -> Type where
+    data Count : Ctx -> Type where
       Literal : Nat -> Count b                  -- a bare number
       X : Count b                               -- the chosen {X} value ([CR#107.3])
       CountOf : Countable b -> Count b          -- the CARDINALITY of a countable (|set|); `CountMatching`/`CountEvents` are sugar
@@ -874,7 +1314,7 @@ mutual
       -- have no `It` to bind, so they fold their single amount rather than a projection). Gated by
       -- `eventQueryHasAmount`, so every queried kind must carry one (`EventAgg SumOf (MkEventQuery [Begins Cast] [])`
       -- is rejected — a cast has no amount). Cardinality of events is `CountEvents q` = `CountOf (Events q)`.
-      EventAgg : AggregateOp -> (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> Count b
+      EventAgg : AggregateOp -> (q : EventQuery b) -> {auto 0 amt : eventQueryHasAmount q = True} -> Count b
       Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
       CountersOn : (c : CounterKind) -> Reference b (counterScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterScope`)
       TimesPaid : (tag : String) -> Count b     -- how many times the tagged optional cost (`CostOption`) was paid (multikicker, [CR#702.33c..702.33d]). Rust: Count::TimesPaid(CostTag)
@@ -885,14 +1325,18 @@ mutual
       Half : RoundMode -> Count b -> Count b               -- half, rounded per `RoundMode` ([CR#107.1a]); one rounding vocabulary, shared with `AverageOf`
       Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
       Max : Count b -> Count b -> Count b                  -- the greater
-      EventAmount : {auto prf : hasAmount (eventCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
-      Allotment : {auto prf : hasAllotment b = True} -> Count b   -- inside a `Distribute`: the share allotted to the current element ([CR#601.2d])
-      ChosenNumber : {auto prf : chosenKind b = Just ANumber} -> Count b   -- the as-enters chosen NUMBER (the value-anaphor twin of OfChosen/ChosenIs)
+      EventAmount : {auto 0 prf : hasAmount (eventCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
+      -- the VALUE anaphor — "that many"/"that much" ([CR#608.2i]): the unique
+      -- `Amount` antecedent a producing clause pushed (a draw's card count,
+      -- a damage clause's amount); R2 gates a second one like any anaphor.
+      ThatMany : {auto 0 prf : isBound (resolveAmount (stack b)) = True} -> Count b
+      Allotment : {auto 0 prf : hasAllot (stack b) = True} -> Count b   -- inside a `Distribute`: the share allotted to the current element ([CR#601.2d])
+      ChosenNumber : {auto 0 prf : chosenKind b = Just ANumber} -> Count b   -- the as-enters chosen NUMBER (the value-anaphor twin of OfChosen/ChosenIs)
 
   -- A PREDICATE / filter atom testing a candidate. Gated by candidate kind (`RefKind`).
   namespace Predicate
     public export
-    data Predicate : Endophora -> RefKind -> Type where
+    data Predicate : Ctx -> RefKind -> Type where
       -- the candidate's collection axis `c` CONTAINS this element — the read mirror of
       -- `Alter c (Add …)`. Gated by `Collection` (the 4 set-kinded axes); `ElemOf c` is the
       -- element type. Terse sugar: `hasType`/`hasColor`/`hasSubtype`/`hasSupertype`.
@@ -944,7 +1388,7 @@ mutual
       -- chosen color") or creature type (Cavern: "a creature spell of the chosen type"). Gated on an
       -- as-enters CHARACTERISTIC choice being in scope (`IsCharDomain (chosenKind b)`); the engine
       -- resolves which characteristic to test from the domain. No per-color/-type literal anaphor needed.
-      OfChosen : {auto prf : IsCharDomain (chosenKind b)} -> Predicate b AnObject
+      OfChosen : {auto 0 prf : IsCharDomain (chosenKind b)} -> Predicate b AnObject
       -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
       Anyone : Predicate b APlayer
       -- team-relative player predicates ([CR#102.3]): `OpponentOf` = a player NOT on your team; `TeammateOf` = another
@@ -966,7 +1410,7 @@ mutual
   -- (apply a `Predicate` to a named `Reference`) or `exists`/`unique` (below).
   namespace Condition
     public export
-    data Condition : Endophora -> Type where
+    data Condition : Ctx -> Type where
       Matches : Reference b k -> Predicate b k -> Condition b   -- does r satisfy the (same-kind) predicate
       Compare : Count b -> Cmp -> Count b -> Condition b
       TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
@@ -981,7 +1425,7 @@ mutual
       -- ANAPHOR (modal): "the chosen MODE is index i" — reads an as-enters `AMode` choice ([CR#614.12]).
       -- `i` is bounded by the choice's mode count `n` (recovered from `chosenKind b = Just (AMode n)`),
       -- so `ChosenIs 2` on a 2-mode card is rejected. Each siege ability gates on it: `If (ChosenIs k) …`.
-      ChosenIs : (i : Nat) -> {auto prf : chosenKind b = Just (AMode n)} -> {auto inb : LT i n} -> Condition b
+      ChosenIs : (i : Nat) -> {auto 0 prf : chosenKind b = Just (AMode n)} -> {auto 0 inb : LT i n} -> Condition b
       And : List (Condition b) -> Condition b
       Or : List (Condition b) -> Condition b
       Not : Condition b -> Condition b
@@ -992,7 +1436,7 @@ mutual
   -- player language; `Within` and `Whenever` (over `During`/`TurnOf`) are the timing facets ("not during your turn" = `Not (Whenever (TurnOf You))`).
   namespace Facet
     public export
-    data Facet : Endophora -> Type where
+    data Facet : Ctx -> Type where
       -- ACTOR: the responsible PLAYER matches a player-pred (you / opponent) — the player AXIS, orthogonal to
       -- the agent→patient relation, NOT a third role. Double duty: the direct doer of a player-event
       -- (`[Begins Cast] [Actor you]`) and the CONTROLLER behind an object-`Agent` (`[DealDamage] [Agent ~, Actor you]`).
@@ -1035,18 +1479,25 @@ mutual
   -- A cardinality spec for a choice ([CR#107.3]). In the mutual block so `Selection` can use it.
   namespace Quantity
     public export
-    data Quantity : Endophora -> Type where
+    data Quantity : Ctx -> Type where
       Range : Maybe (Count b) -> Maybe (Count b) -> Quantity b
 
   -- A resolution-time GROUP / choice. In the mutual block because `Single` (a `Reference`)
-  -- demotes it. `GetTargets n` = the n-th target slot's targets (`GetTarget` demotes to one).
+  -- demotes it. Plural anaphora (`They`/`Them`/`TheGroup`) lives here — the
+  -- group-side twins of `It`/`That`/`The`.
   namespace Selection
     public export
-    data Selection : Endophora -> RefKind -> Type where
+    data Selection : Ctx -> RefKind -> Type where
       SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
       Union : List (Selection b k) -> Selection b k              -- groups combined ("each X and each Y"); a fixed set = `Union` of `SameAs` singletons
-      That : {auto prf : thatKind b = Just (Many, k)} -> Selection b k    -- the `With`-bound MANY group (a one-binder's `That` is `Reference.That`, a single object)
-      GetTargets : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Selection b (index n (targetKinds b))
+      -- the PLURAL anaphors ([CR#608.2d]): `They` (any noun) / `Them w` ("those
+      -- tokens") read the nearest Many antecedent — a plural target slot
+      -- ([CR#115.3]), a group-producing clause ("create two tokens … THEY gain
+      -- haste", [CR#111.2]), a many-binder — under the same R1/R2 rules;
+      -- `TheGroup l` is the labeled plural read (piles, `As`-named slots).
+      They : {auto 0 prf : resolveThey Nothing (stack b) = Bound k} -> Selection b k
+      Them : (w : Sort) -> {auto 0 prf : resolveThey (Just w) (stack b) = Bound k} -> Selection b k
+      TheGroup : (l : String) -> {auto 0 prf : resolveLabel l Many (stack b) = Bound k} -> Selection b k
       Random : Quantity b -> Predicate b k -> Selection b k
       TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
       BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
@@ -1055,6 +1506,44 @@ mutual
       -- a value); the op is gated to the extremal ones by `IsExtremal` (no `Pick SumOf`); ties yield the whole
       -- group, narrowed by the usual `Single`/choice path.
       Pick : (op : AggregateOp) -> {auto 0 ext : IsExtremal op} -> Projection b -> Selection b AnObject
+
+  -- conjunctive PINS off a `Predicate` (the object-kind / zone / card-type
+  -- atoms a conjunction fixes) — `sortFromPins` turns them into the noun the
+  -- filter's objects answer to. Only pinning atoms contribute; a disjunction
+  -- pins nothing (the conservative direction).
+  public export
+  pins : Predicate b k -> Pins
+  pins (IsKind o) = MkPins (Just o) Nothing Nothing
+  pins (InZone z) = MkPins Nothing (Just z) Nothing
+  pins (HasChar Types t) = MkPins Nothing Nothing (Just t)
+  pins (And ps) = pinsAll ps
+  pins _ = noPins
+
+  public export
+  pinsAll : List (Predicate b k) -> Pins
+  pinsAll [] = noPins
+  pinsAll (p :: ps) = mergePins (pins p) (pinsAll ps)
+
+  -- the noun a filter's objects answer to ([CR#110.1,108.2]): a player
+  -- filter is `Player` (the kind index says so); an object filter derives
+  -- from its pins — this is what an announced slot / binder stamps on the
+  -- antecedent it pushes.
+  public export
+  filterSort : {k : RefKind} -> Predicate b k -> Sort
+  filterSort {k = APlayer} _ = Player
+  filterSort p = sortFromPins (pins p)
+
+  -- the loop-element antecedent of a per-element construct over a filter.
+  public export
+  loopOf : {k : RefKind} -> Predicate b k -> Ante
+  loopOf p = MkAnte (filterSort p) k One Loop Nothing Nothing
+
+  -- the element antecedent a `Projection` binds (`It` = each counted
+  -- object); total over `Countable`, though only `Objects` is projectable.
+  public export
+  projElemAnte : Countable b -> Ante
+  projElemAnte (Objects p) = loopOf p
+  projElemAnte _ = MkAnte Permanent AnObject One Loop Nothing Nothing
 
 
 -- the patient kind survives a cap-combine only when BOTH sources agree on it (a disjunction's body can
@@ -1088,6 +1577,21 @@ eventQueryCaps q = case q.kinds of
   []        => NoCaps
   (k :: ks) => foldl andCaps (eventKindCaps k) (map eventKindCaps ks)
 
+-- the object-role NOUN a whole query supplies ([CR#400.7e]): its kinds must
+-- AGREE on it (the sort mirror of the caps intersection); disagreement falls
+-- back to the conservative `Permanent`.
+public export
+queryObjectSort : EventQuery b -> Sort
+queryObjectSort q = case map eventKindObjectSort q.kinds of
+  [] => Permanent
+  (s :: ss) => if all (sameSort s) ss then s else Permanent
+
+-- the role antecedents an event body pushes ([CR#603.2e,608.2k]): one per
+-- caps guarantee, the object's noun derived from the query's kinds.
+public export
+queryRoles : EventQuery b -> List Ante
+queryRoles q = roleAntes (eventQueryCaps q) (queryObjectSort q)
+
 -- "it's your turn" — the common specialization of `TurnOf`.
 public export
 yourTurn : Condition b
@@ -1107,7 +1611,7 @@ CountEvents : EventQuery b -> Count b
 CountEvents q = CountOf (Events q)
 
 public export
-eachOf : Predicate b AnObject -> Count (bindIt AnObject b) -> Projection b
+eachOf : (p : Predicate b AnObject) -> Count (bindIt (loopOf p) b) -> Projection b
 eachOf p acc = Project (Objects p) acc
 
 -- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from `CountOf` + `Compare`, not
@@ -1140,7 +1644,7 @@ implementation Num (Count b) where
 -- isn't just another verb; `OneShotEffect`'s `Conclude` wraps it.
 namespace Outcome
   public export
-  data Outcome : Endophora -> Type where
+  data Outcome : Ctx -> Type where
     WinGame  : Reference b APlayer -> Outcome b
     LoseGame : Reference b APlayer -> Outcome b
 
@@ -1155,7 +1659,7 @@ namespace OutcomeGateKind
 -- `Anchor` (general over ordered zones — currently the library) rather than `LibraryPosition`.
 namespace Anchor
   public export
-  data Anchor : Endophora -> Type where
+  data Anchor : Ctx -> Type where
     FromTop    : Count b -> Anchor b
     FromBottom : Count b -> Anchor b
 
@@ -1165,9 +1669,30 @@ namespace Anchor
 -- unrepresentable.
 namespace Destination
   public export
-  data Destination : Endophora -> Type where
+  data Destination : Ctx -> Type where
     ToZone    : Zone -> Destination b
     ToLibrary : Anchor b -> Destination b
+
+-- the zone / noun a destination fixes for the moved object — the
+-- [CR#603.7c] expected-zone stamp and the [CR#400.7e] product noun.
+public export
+destZone : Destination b -> Zone
+destZone (ToZone z) = z
+destZone (ToLibrary _) = Library
+
+public export
+destSort : Destination b -> Sort
+destSort d = zoneSort (destZone d)
+
+-- an ORDERED zone is only a destination AT A POSITION ([CR#401.4] — bare
+-- Library is unanchored), and the stack is never a `Move` destination
+-- ([CR#405.1] — casting puts a spell there, not a move). The E-FLOOR-
+-- DESTINATION twin; demanded by `Move`/`MoveArranged`.
+public export
+DestinationOk : Destination b -> Type
+DestinationOk (ToZone Library) = Void
+DestinationOk (ToZone Stack) = Void
+DestinationOk _ = ()
 
 -- How a SIMULTANEOUS group of cards is ordered as it lands at a position in an ORDERED zone — the
 -- order is a property of the PLACEMENT, not the loop. `ChosenOrder` = the owner arranges them, the
@@ -1184,7 +1709,7 @@ namespace Arrangement
 -- so `Continuously` can name it.)
 namespace Duration
   public export
-  data Duration : Endophora -> Type where
+  data Duration : Ctx -> Type where
     UntilEndOfTurn : Duration b
     UntilEvent : EventQuery b -> Duration b
     ForAsLongAs : Condition b -> Duration b   -- a resolution effect's duration: affected set FIXED at start, ends when the cond lapses ([CR#611.2b,611.2c]). DISTINCT from the re-evaluated conditional static `StaticEffect.While` ([CR#604.3]) — NOT a redundancy.
@@ -1221,17 +1746,65 @@ NonZeroQ _ = ()
 
 namespace TargetSpec
   public export
-  data TargetSpec : Endophora -> RefKind -> Type where
+  data TargetSpec : Ctx -> RefKind -> Type where
     -- a target slot: a NON-ZERO `Quantity` of targets matching the predicate (`Target (^1)` = one;
-    -- `Target (between (^1) (^2))` = "one or two"). The slot's targets are `GetTargets n` (a group);
-    -- `GetTarget n` demotes a single-target slot to a `Reference`.
+    -- `Target (between (^1) (^2))` = "one or two"). The announced slot pushes an ANTECEDENT the body
+    -- reads back as an anaphor (`It` / `That w` / `They`) — the index reads are gone from the surface.
     Target : (q : Quantity b) -> {auto 0 prf : NonZeroQ q} -> Predicate b k -> TargetSpec b k
+    -- a NAMED announce slot ([CR#608.2d]): the slot's antecedent carries this label, read explicitly
+    -- as `The l` (one target) / `TheGroup l` (a plural slot) — how an announce-AMBIGUOUS body names
+    -- its slots WITHOUT loosening the R2 gate (the labeled slot still participates in R1/R2).
+    As : (l : String) -> TargetSpec b k -> TargetSpec b k
+    -- a co-target set-DISTINCTNESS constraint ([CR#115.7e], "any OTHER target"): this spec's picks
+    -- must not overlap the sibling slots at these indices; `Targeted` bounds the indices (the
+    -- E-BIND-TARGET twin — the rule's remaining trigger now that index READS are gone).
+    Distinct : (siblings : List Nat) -> TargetSpec b k -> TargetSpec b k
 
--- the n-th target as a single `Reference` (the common case) — sugar that demotes the slot's
--- targets via `Single`. A plural slot (`Target (between …)`) uses `GetTargets` directly.
+-- a slot announces ONE target iff its quantity is literally one ([CR#115.3]);
+-- anything wider announces a Many group, read back as `They` ([CR#601.2d]).
 public export
-GetTarget : (n : Nat) -> {auto prf : InBounds n (targetKinds b)} -> Reference b (index n (targetKinds b))
-GetTarget n = Single (GetTargets n)
+quantityCard : Quantity b -> Cardinality
+quantityCard (Range (Just (Literal 1)) (Just (Literal 1))) = One
+quantityCard _ = Many
+
+-- the antecedent an announced slot pushes ([CR#115.3,601.2c]): noun from its
+-- filter, kind from its slot, cardinality from its quantity, the `As` label
+-- carried along.
+public export
+slotAnte : {k : RefKind} -> TargetSpec b k -> Ante
+slotAnte (Target q p) = MkAnte (filterSort p) k (quantityCard q) TargetSlot Nothing Nothing
+slotAnte (As l t) = withLabel l (slotAnte t)
+slotAnte (Distinct _ t) = slotAnte t
+
+public export
+slotAntes : {ks : List RefKind} -> All (TargetSpec b) ks -> List Ante
+slotAntes [] = []
+slotAntes {ks = k :: ks'} (t :: ts) = slotAnte t :: slotAntes ts
+
+-- duplicate `As` names would make the labeled read a guess — refused
+-- ([CR#608.2d]; the duplicate-label side of E-BIND-LABEL).
+public export
+labelFresh : Maybe String -> List Ante -> Bool
+labelFresh _ [] = True
+labelFresh l (a :: as) = not (sameLabel l a.label) && labelFresh l as
+
+public export
+labelsOk : List Ante -> Bool
+labelsOk [] = True
+labelsOk (a :: as) = labelFresh a.label as && labelsOk as
+
+-- a `Distinct` constraint may only name announce siblings that exist
+-- ([CR#115.7e,601.2c]).
+public export
+specDistinctOk : TargetSpec b k -> Nat -> Bool
+specDistinctOk (Target _ _) n = True
+specDistinctOk (As _ t) n = specDistinctOk t n
+specDistinctOk (Distinct sibs t) n = all (\i => i < n) sibs && specDistinctOk t n
+
+public export
+distinctOk : All (TargetSpec b) ks -> Nat -> Bool
+distinctOk [] n = True
+distinctOk (t :: ts) n = specDistinctOk t n && distinctOk ts n
 
 -- "the unique object matching a predicate" — sugar: the sole element of `SelectAll p`.
 public export
@@ -1243,7 +1816,7 @@ Only p = Single (SelectAll p)
 -- (regeneration: the next destroy), n AMOUNT-POINTS for an amount event (prevention: the next n damage).
 namespace ReplaceLimit
   public export
-  data ReplaceLimit : Endophora -> Type where
+  data ReplaceLimit : Ctx -> Type where
     Unlimited : ReplaceLimit b
     UpTo : Count b -> ReplaceLimit b
 
@@ -1254,7 +1827,7 @@ namespace ReplaceLimit
 -- the kind/quantity (or "everything") is data, not a second constructor.
 namespace CounterSpec
   public export
-  data CounterSpec : Endophora -> Type where
+  data CounterSpec : Ctx -> Type where
     Some : (c : CounterKind) -> Count b -> CounterSpec b
     AllKinds : CounterSpec b
 
@@ -1263,16 +1836,18 @@ namespace CounterSpec
 -- "choose one or more" = `atLeast (^1)`, "choose up to two" = `atMost (^2)` (subsumes the old `upTo` flag).
 namespace ChooseSpec
   public export
-  data ChooseSpec : Endophora -> Type where
+  data ChooseSpec : Ctx -> Type where
     MkChooseSpec : (count : Quantity b) -> {default False repeats : Bool} -> ChooseSpec b
 
 -- a modal choose-count must not exceed the number of modes ([CR#700.2d]) — checked only when the UPPER
 -- bound is a LITERAL and modes can't repeat (a repeating choice, or an unbounded "one or more", is lenient,
 -- exactly like `NonZeroQ` guards only a literal bound). An unbounded upper is implicitly the mode count.
+-- A BOOL law (gated as `modalCountOk … = True`), not a Type family: a stuck Type-level gate over the
+-- mode list is opaque to the strict-positivity checker, a stuck Bool equation is not.
 public export
-ModalCountOk : ChooseSpec b -> (modeCount : Nat) -> Type
-ModalCountOk (MkChooseSpec (Range _ (Just (Literal hi))) {repeats = False}) modeCount = LTE hi modeCount
-ModalCountOk _ _ = ()
+modalCountOk : ChooseSpec b -> (modeCount : Nat) -> Bool
+modalCountOk (MkChooseSpec (Range _ (Just (Literal hi))) {repeats = False}) modeCount = hi <= modeCount
+modalCountOk _ _ = True
 
 -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
 -- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
@@ -1296,7 +1871,7 @@ namespace PricedTiming
 
 namespace Deed
   public export
-  data Deed : Endophora -> Type where
+  data Deed : Ctx -> Type where
     -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Constrain/
     -- Priced). The AGENT's kind is fixed by `agentScope r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
     -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
@@ -1315,14 +1890,14 @@ namespace Deed
     -- WHOLE blocker set, not one blocker at a time — Menace = `cant (BlockedBy (SameAs This) (^1))`
     -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). The one combat constraint the identity
     -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
-    BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto prf : NonZeroQ size} -> Deed b
+    BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto 0 prf : NonZeroQ size} -> Deed b
 
 -- the value class of each `Characteristic` axis (defined far above, before the mutual block) — the type a
 -- `Set` op overwrites it with. Lives HERE, apart from the enum, because the numeric axes' value is a `Count`
 -- ([CR#613] — a possibly-dynamic CDA "*/*"), and `Count` is defined in the mutual block above. NOT a value-type
 -- index, which would tempt a non-RON `valueOf : Ref -> Characteristic t -> t`.
 public export
-CharValue : Endophora -> Characteristic -> Type
+CharValue : Ctx -> Characteristic -> Type
 CharValue _ Colors     = List Color
 CharValue _ Types  = List Type_
 CharValue _ Subtypes   = List Subtype
@@ -1339,12 +1914,44 @@ CharValue _ Name       = Maybe String   -- `Nothing` = "has no name"
 -- axis. The gates make the mismatches unrepresentable: `Up` on `Colors` and `Add` on `Power` are ill-typed.
 namespace ModificationOp
   public export
-  data ModificationOp : Endophora -> Characteristic -> Type where
+  data ModificationOp : Ctx -> Characteristic -> Type where
     Set    : CharValue b c -> ModificationOp b c                          -- overwrite (any axis)
     Up     : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "+N" (numeric, layer 7c)
     Down   : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "−N"
     Add    : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c   -- add one element (collection)
     Remove : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c
+
+-- a best-effort NOUN for an `Existing` binder's group ([CR#608.2d]): the
+-- filter-backed shapes derive from their filter; library windows are cards;
+-- a union agrees or falls back; the plural anaphors re-read an existing
+-- antecedent, so their group keeps the conservative `Permanent`.
+mutual
+  public export
+  selectionSort : {k : RefKind} -> Selection b k -> Sort
+  selectionSort (SelectAll p) = filterSort p
+  selectionSort (Random _ p) = filterSort p
+  selectionSort (TopOfLibrary c) = Card
+  selectionSort (BottomOfLibrary c) = Card
+  selectionSort (Pick op prj) = projSort prj
+  selectionSort (Union gs) = unionSort gs
+  selectionSort They = Permanent
+  selectionSort (Them _) = Permanent
+  selectionSort (TheGroup _) = Permanent
+
+  public export
+  projSort : Projection b -> Sort
+  projSort (Project (Objects p) _) = filterSort p
+  projSort (Project _ _) = Permanent
+
+  public export
+  unionAgrees : {k : RefKind} -> Sort -> List (Selection b k) -> Bool
+  unionAgrees x [] = True
+  unionAgrees x (g :: gs) = sameSort x (selectionSort g) && unionAgrees x gs
+
+  public export
+  unionSort : {k : RefKind} -> List (Selection b k) -> Sort
+  unionSort [] = Permanent
+  unionSort (g :: gs) = if unionAgrees (selectionSort g) gs then selectionSort g else Permanent
 
 -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
 -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. `Cost` joins
@@ -1355,7 +1962,7 @@ mutual
   -- the payer performs ([CR#118.3]), so they ride `Do` rather than each getting a duplicate cost verb.
   namespace Cost
     public export
-    data Cost : Endophora -> Type where
+    data Cost : Ctx -> Type where
       Mana      : ManaCost -> Cost b                 -- "{4}"
       -- pay mana equal to an object's MANA COST ([CR#202.1]) — the full COLORED cost, the cost-language twin of
       -- the numeric `ManaValueOf`. "The flashback cost is equal to its mana cost" (Snapcaster's granted flashback).
@@ -1380,7 +1987,7 @@ mutual
   -- (`ScaledBy (Reduce [^1]) (CountOf …)`) and taxers (scale an `Increase`) need no own constructor.
   namespace CostChange
     public export
-    data CostChange : Endophora -> Type where
+    data CostChange : Ctx -> Type where
       Reduce     : ManaCost -> CostChange b                 -- "costs {…} less" — a mana amount only (the mana-numeric layer [CR#118.7a])
       Increase   : ManaCost -> CostChange b                 -- "costs {…} more" — likewise mana-only; non-mana extras go through `Additional`
       Additional : List (Cost b) -> CostChange b            -- mandatory "as an additional cost, …"; may be NON-mana (sacrifice/discard/life) [CR#118.8]
@@ -1394,7 +2001,7 @@ mutual
   -- the per-{1} alternative-payment action for `PayPips` ([CR#601.2]) — the object is chosen at payment time.
   namespace PayAct
     public export
-    data PayAct : Endophora -> Type where
+    data PayAct : Ctx -> Type where
       TapToPay   : Predicate b AnObject -> PayAct b   -- tap an untapped matching permanent you control (convoke creatures / improvise artifacts / waterbend artifacts-or-creatures)
       ExileToPay : Predicate b AnObject -> PayAct b   -- exile a matching card from your graveyard (delve)
 
@@ -1403,7 +2010,7 @@ mutual
   -- `Count b`: "an X/X where X = [a value known at creation]"). `colors` is the explicit color (a
   -- color indicator [CR#204.2] / a token's printed color); a card's color-FROM-MANA is derived.
   public export
-  record Characteristics (b : Endophora) where
+  record Characteristics (b : Ctx) where
     constructor MkCharacteristics
     name : Maybe String          -- optional — most tokens are nameless ([CR#111.4])
     manaCost : ManaCost
@@ -1431,10 +2038,10 @@ mutual
   -- double-represent. The paid-for object is bound `It` in the two effect-bearing riders.
   namespace ManaRider
     public export
-    data ManaRider : Endophora -> Type where
+    data ManaRider : Ctx -> Type where
       SpendOnly      : Predicate b AnObject -> ManaRider b               -- (1) "spend only to cast/activate a [pred]" (Cavern's creature spell of the chosen type)
-      GrantOnSpend   : StaticEffect (bindIt AnObject b) -> ManaRider b   -- (2) the object it's spent on (`It`) gains [static] (Cavern's "that spell can't be countered")
-      TriggerOnSpend : OneShotEffect (bindIt AnObject b) -> ManaRider b  -- (3) a delayed trigger when the mana is spent ([CR#603.7a]); `It` = the object paid for
+      GrantOnSpend   : StaticEffect (bindIt PaidSpellAnte b) -> ManaRider b   -- (2) the object it's spent on (`It`) gains [static] (Cavern's "that spell can't be countered")
+      TriggerOnSpend : OneShotEffect (bindIt PaidSpellAnte b) -> ManaRider b  -- (3) a delayed trigger when the mana is spent ([CR#603.7a]); `It` = the object paid for
 
   -- the COMPOSITE keyword actions ([CR#701]) — the ones the grammar desugars rather than naming as a
   -- primitive verb (Reveal/Shuffle/Destroy/… ARE primitive verbs below). Their mechanics are just the
@@ -1450,7 +2057,7 @@ mutual
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
   namespace Action
     public export
-    data Action : Endophora -> Type where
+    data Action : Ctx -> Type where
       -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
       -- `source` object is the agent. "Deals N to EACH …" is a `Each` over the recipients.
       DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
@@ -1459,7 +2066,7 @@ mutual
       -- a plain zone change [CR#400.7]; owner-relative, control implicit. `enteringAttacking` ([CR#508.4],
       -- default `Nothing`): on a battlefield destination, put the object on ATTACKING the named player
       -- (Ninjutsu's "tapped and attacking", Encore) — senseless (no-op) for any non-battlefield destination.
-      Move : Reference b AnObject -> Destination b -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
+      Move : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
       -- (There is no "exile until ~" verb. A duration-bounded zone change is `Relocate` (a
       --  StaticEffect) under a `Continuously`/`While` duration — see `Relocate` and
       --  card_BanishingLight. Permanent exile is just `Move … (ToZone Exile)`.)
@@ -1488,7 +2095,7 @@ mutual
       -- "...in a random order" = `… RandomOrder …`. Distinct from single `Move` — order
       -- only EMERGES for a simultaneous group landing in an ordered zone. (Per `DealDamage`-single +
       -- group-via-`Each` house style, single moves stay `Move`; this is the group verb.)
-      MoveArranged : Selection b AnObject -> Arrangement -> Destination b -> Action b
+      MoveArranged : Selection b AnObject -> Arrangement -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> Action b
       -- put / remove counters ([CR#122]). `RemoveCounters` is symmetric with `PutCounters` (a `Count`);
       -- "remove all of a kind" is `RemoveCounters c (CountersOn c r) r`. Loyalty/counter COSTS reuse these via
       -- `Do` (e.g. "−2" = `Do (RemoveCounters Loyalty (^2) This)`), so there is no duplicate counter-cost verb.
@@ -1519,7 +2126,7 @@ mutual
       ControlPlayer : (whom : Reference b APlayer) -> Action b
       -- the token's full characteristics (P/T may be a `Count b`); `enteringAttacking` ([CR#508.4], default
       -- `Nothing`) = create it ATTACKING the named player (Myriad/Encore's "attacking that [opponent]").
-      CreateToken : Count b -> (c : Characteristics b) -> {auto wf : CharacteristicsOk c} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
+      CreateToken : Count b -> (c : Characteristics b) -> {auto 0 wf : CharacteristicsOk c} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
       Copy : Reference b AnObject -> Action b                        -- "copy [r]" — a spell/ability copy on the stack ([CR#707.10]) or a token copy of a permanent ([CR#707.2]); a permanent BECOMING a copy is `BecomeCopyOf`. Copies carry the original's modes/targets/X; "you may choose new targets" is a separate `ChooseNewTargets`
       ChangeTarget : (of_ : Reference b AnObject) -> (to : Reference b AnObject) -> Action b  -- redirect [of_]'s target to the NAMED [to] (Spellskite → `This`); engine leaves it unchanged if [to] isn't a legal target ([CR#115.7a])
       ChooseNewTargets : (of_ : Reference b AnObject) -> {default You by : Reference b APlayer} -> Action b  -- [by] PICKS new legal targets for [of_], bound by the original targetspec (Bolt Bend, Redirect, copy-with-new-targets) ([CR#115.7d])
@@ -1541,24 +2148,63 @@ mutual
 
   -- the event-anaphor caps the PAYMENT of a cost-action supplies its `AdditionalCost` body — the cost-side
   -- twin of `eventKindCaps`, for the object-moving cost verbs. Sacrifice/Discard bind the moved object
-  -- (`EventObject`) + payer (`EventActor`); a zone change (exile-to-pay) binds the object. Mana/tap/life pay
-  -- with no object to name → `NoCaps`. (Extend as exile/discard cost-references appear.)
+  -- (`EventObject`) + payer (`EventActor`); a zone change (exile-to-pay) binds the object; the tap/untap/
+  -- life/counter payments carry their event kind's caps. TOTAL-BY-ENUMERATION (the emitted cost-actions
+  -- table demands it): every verb has an explicit row — a capless verb says `NoCaps` in its own arm, so a
+  -- NEW verb forces a decision here rather than silently binding nothing.
   public export
   actionEventCaps : Action b -> EventCaps
-  actionEventCaps (Sacrifice _) = eventKindCaps Sacrifice
-  actionEventCaps (Discard _)   = eventKindCaps Discard
-  actionEventCaps (Move _ _)    = eventKindCaps (ZoneChanged Nothing Nothing)
-  actionEventCaps _             = NoCaps
+  actionEventCaps (Action.Sacrifice _)        = eventKindCaps Sacrifice
+  actionEventCaps (Action.Discard _)          = eventKindCaps Discard
+  actionEventCaps (Action.Move _ _)           = eventKindCaps (ZoneChanged Nothing Nothing)
+  actionEventCaps (Action.Tap _)              = eventKindCaps (Becomes Tapped)
+  actionEventCaps (Action.Untap _)            = eventKindCaps (Becomes Untapped)
+  actionEventCaps (Action.LoseLife _)         = eventKindCaps LoseLife
+  actionEventCaps (Action.RemoveCounters _ _ _) = eventKindCaps RemoveCounters
+  actionEventCaps (Action.Reveal _)           = NoCaps   -- reveals bind nothing ([CR#701.20a])
+  actionEventCaps (Action.DealDamage _ _)     = NoCaps
+  actionEventCaps (Action.Destroy _)          = NoCaps
+  actionEventCaps (Action.Counter _)          = NoCaps
+  actionEventCaps (Action.RemoveAllDamage _)  = NoCaps
+  actionEventCaps (Action.RemoveFromCombat _) = NoCaps
+  actionEventCaps (Action.Transform _)        = NoCaps
+  actionEventCaps (Action.PhaseOut _)         = NoCaps
+  actionEventCaps (Action.GrantDesignation _ _) = NoCaps
+  actionEventCaps (Action.Attach _ _)         = NoCaps
+  actionEventCaps (Action.Unattach _)         = NoCaps
+  actionEventCaps (Action.Draw _)             = NoCaps
+  actionEventCaps (Action.GainLife _)         = NoCaps
+  actionEventCaps (Action.MoveArranged _ _ _) = NoCaps
+  actionEventCaps (Action.PutCounters _ _ _)  = NoCaps
+  actionEventCaps (Action.MoveCounters _ _ _) = NoCaps
+  actionEventCaps (Action.SetLifeTo _)        = NoCaps
+  actionEventCaps Action.Shuffle              = NoCaps
+  actionEventCaps Action.ExtraTurn            = NoCaps
+  actionEventCaps (Action.ControlPlayer _)    = NoCaps
+  actionEventCaps (Action.CreateToken _ _)    = NoCaps
+  actionEventCaps (Action.Copy _)             = NoCaps
+  actionEventCaps (Action.ChangeTarget _ _)   = NoCaps
+  actionEventCaps (Action.ChooseNewTargets _) = NoCaps
+  actionEventCaps (Action.AddMana _ _)        = NoCaps
+  actionEventCaps (Action.Composite _ _)      = NoCaps
 
   -- the caps a COST's payment supplies its `AdditionalCost` body: an action pays via its event; a composite
   -- `Costs […]` UNIONS (any object-moving component binds), `Scaled` rides its inner cost; pure mana binds
   -- nothing. Mirrors `eventQueryCaps` — the value-driven cap derivation an `AdditionalCost` body's type uses.
   public export
   costCaps : Cost b -> EventCaps
-  costCaps (Do a)       = actionEventCaps a
-  costCaps (Scaled _ c) = costCaps c
-  costCaps (Costs cs)   = foldl orCaps NoCaps (map costCaps cs)
-  costCaps _            = NoCaps
+  costCaps (Do a)          = actionEventCaps a
+  costCaps (Scaled _ c)    = costCaps c
+  costCaps (Costs cs)      = costsCaps cs
+  costCaps (Mana _)        = NoCaps
+  costCaps (ManaCostOf _)  = NoCaps
+  costCaps (TapTotal _ _ _ _) = NoCaps
+
+  -- the composite fold, spelled recursively (structural, so totality sees it).
+  public export
+  costsCaps : List (Cost b) -> EventCaps
+  costsCaps [] = NoCaps
+  costsCaps (c :: cs) = orCaps (costCaps c) (costsCaps cs)
 
   -- What a binder (`With`) binds as `That`: a QUERY of existing objects, a PRODUCER
   -- (an `Action` run for effect, binding its product), or a CHOICE (a player picks).
@@ -1569,7 +2215,7 @@ mutual
     -- CARDINALITY-typed (`One`/`Many`): a `One`-binder's `That` reads back as a single `Reference`; a
     -- `Many`-binder's `That` is a `Selection` you `Each` over. The `^1`/`^3` quantities share one type, so the
     -- ONE-ness can't ride the quantity — it's a dedicated constructor (`ChooseOne` vs `Choose`).
-    data Bindable : Endophora -> Cardinality -> RefKind -> Type where
+    data Bindable : Ctx -> Cardinality -> RefKind -> Type where
       -- ONE-binders → `That : Reference b k` (a single object):
       Produce : Action b -> Bindable b One AnObject  -- run the action, bind its product (the moved object) as `That`
       ChooseOne : {default You by : Reference b APlayer} -> Predicate b k -> Bindable b One k  -- `by` chooses exactly ONE match (interactive, so here not in `Selection`)
@@ -1586,19 +2232,49 @@ mutual
       -- is a following owner-routed `Move That …`. Rust: Selection::Search.
       Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b Many k
 
+  -- the antecedent a `With`/`Each`/`Distribute` binder introduces for its
+  -- body ([CR#608.2d]): a CHOICE binder is a deterministic `Frame` (the
+  -- legacy `That`-scope semantics — inside it the anaphors bind the frame,
+  -- never R2-gated); a search/produce binder pushes a whiffable `Product`
+  -- ([CR#701.23,400.7j]) that resolves like any other stack antecedent.
+  public export
+  binderAnte : {k : RefKind} -> {cd : Cardinality} -> Bindable b cd k -> Ante
+  binderAnte (Produce act) = MkAnte (produceSort act) k cd Product Nothing Nothing
+  binderAnte (ChooseOne p) = MkAnte (filterSort p) k cd Frame Nothing Nothing
+  binderAnte (SearchOne p) = MkAnte Card k cd Product Nothing Nothing
+  binderAnte (TheRef r) = MkAnte (kindSort k) k cd Frame Nothing Nothing
+  binderAnte (Existing g) = MkAnte (selectionSort g) k cd Frame Nothing Nothing
+  binderAnte (Choose q p) = MkAnte (filterSort p) k cd Frame Nothing Nothing
+  binderAnte (Search q p) = MkAnte Card k cd Product Nothing Nothing
+
+  -- a produced (moved) object's noun follows its destination ([CR#400.7e]);
+  -- a non-move producer is conservatively a `Permanent`.
+  public export
+  produceSort : Action b -> Sort
+  produceSort (Move r d) = destSort d
+  produceSort _ = Permanent
+
   -- Effects, continuous effects, and abilities are mutually recursive: a one-shot
   -- can CREATE a continuous effect (`Continuously`), a static ability can grant an
   -- ability, and an ability wraps an effect.
   namespace OneShotEffect
     public export
-    data OneShotEffect : Endophora -> Type where
-      Sequence : (List (OneShotEffect b)) -> OneShotEffect b
-      -- each target slot carries its OWN kind (its filter's), gathered as `ks : List RefKind`
-      -- (a heterogeneous `All`), so the body's `GetTarget i` is strictly kinded PER SLOT —
-      -- mixed-kind multi-target ("target player gains control of target creature", Donate) works.
-      Targeted : {ks : List RefKind} -> All (TargetSpec b) ks -> OneShotEffect (bindTargets ks b) -> OneShotEffect b
-      -- binds `that` as `That` (of the bound kind) for `body`; `that` may PRODUCE a moved object. Rust: Effect::With.
-      With : Bindable b card k -> OneShotEffect (bindThat card k b) -> OneShotEffect b
+    data OneShotEffect : Ctx -> Type where
+      -- the TELESCOPE ([CR#608.2d]): clause i+1 elaborates in the context
+      -- extended by clause i's introductions (`SeqList`/`intro` below) —
+      -- sentence order IS binder order, so "Exile target creature, then
+      -- return THAT CARD" needs no binder inversion. Rust: Effect::Sequence.
+      Sequence : SeqList b -> OneShotEffect b
+      -- each announced slot carries its OWN kind (its filter's), gathered as `ks : List RefKind`
+      -- (a heterogeneous `All`); the slots push antecedents the body reads back as anaphors
+      -- ([CR#115.3,601.2c]) — mixed-kind multi-target (Donate) disambiguates by SORT, same-sort
+      -- slots by `As` labels. The gates: no duplicate `As` names; `Distinct` sibling indices in
+      -- range ([CR#115.7e]).
+      Targeted : {ks : List RefKind} -> (ts : All (TargetSpec b) ks) -> {auto 0 lbl : labelsOk (slotAntes ts) = True} -> {auto 0 rng : distinctOk ts (length ks) = True} -> OneShotEffect (bindTargets (slotAntes ts) b) -> OneShotEffect b
+      -- binds `that`'s antecedent for `body` ([CR#608.2d]): a choice binder is a deterministic
+      -- frame; a produce/search binder a whiffable product. Read back by sort (`It`/`That w`/
+      -- `They`). Rust: Effect::With.
+      With : (that : Bindable b cd k) -> OneShotEffect (bindThat (binderAnte that) b) -> OneShotEffect b
       -- mid-resolution VALUE choice: "choose a [color/type/name/number/mode], then [body]".
       -- The effect-level twin of `AsEnters` (which is enters-only) — `body` runs at `bindChosen d b`, reading the
       -- pick via `OfChosen`/`ChosenIs`/`ChosenNumber`. Three Tree City's "{2},{T}: Choose a color. Add mana of
@@ -1608,8 +2284,12 @@ mutual
       Act : Action b -> OneShotEffect b
       -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: Effect::Conclude.
       Conclude : Outcome b -> OneShotEffect b
-      -- "you may [effect]", with optional "if you do / if you don't". Rust: Effect::May.
-      May : (effect : OneShotEffect b) -> {default Nothing ifDid : Maybe (OneShotEffect b)} -> {default Nothing ifNot : Maybe (OneShotEffect b)} -> OneShotEffect b
+      -- "you may [effect]", with optional "if you do / if you don't". The "if you do" branch —
+      -- and the May's right siblings (`introduces`) — see the inner effect's introductions
+      -- (the Through the Breach shape: "You may put a creature card … THAT creature gains
+      -- haste"); a DECLINED May's products are runtime-skipped, not scope-blocked ([CR#701.23b]).
+      -- Rust: Effect::May.
+      May : (effect : OneShotEffect b) -> {default Nothing ifDid : Maybe (OneShotEffect (intro effect b))} -> {default Nothing ifNot : Maybe (OneShotEffect b)} -> OneShotEffect b
       -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
       If : Condition b -> (thenDo : OneShotEffect b) -> {default Nothing otherwise : Maybe (OneShotEffect b)} -> OneShotEffect b
       -- COST-payment DECISIONS — a player chooses whether to pay (the common decider slice; the
@@ -1617,7 +2297,9 @@ mutual
       --  • `MayPay`  — "[actor] MAY pay [cost]; if they do → `and_then`; if not → optional `or_else`."
       --  • `MustPay` — "[actor] must pay [cost], OR ELSE `or_else`" — the resolution-stage punisher
       --    (Mana Leak: "counter target spell unless its controller pays {2}"; supersedes `Unless`).
-      MayPay  : {default You actor : Reference b APlayer} -> Cost b -> (and_then : OneShotEffect b) -> {default Nothing or_else : Maybe (OneShotEffect b)} -> OneShotEffect b
+      -- the "if they do" branch reads the PAYMENT like an `AdditionalCost` body
+      -- ([CR#608.2d,601.2f]): the cost's caps + role antecedents; "or else" runs unpaid, in the plain context.
+      MayPay  : {default You actor : Reference b APlayer} -> (cost : Cost b) -> (and_then : OneShotEffect (bindEvent (costCaps cost) (costRoles (costCaps cost)) b)) -> {default Nothing or_else : Maybe (OneShotEffect b)} -> OneShotEffect b
       MustPay : {default You actor : Reference b APlayer} -> Cost b -> (or_else : OneShotEffect b) -> OneShotEffect b
       -- "As an additional cost, [pay]." Mirrors the printed additional-cost CLAUSE: the payment is an EVENT, so
       -- `body` reads the sacrificed/exiled object through the SAME `EventObject`/`EventActor`/`EventAmount`
@@ -1625,43 +2307,146 @@ mutual
       -- Fall). At the ROOT of a `Spell`/`Activated` effect the engine HOISTS it to cast/activation time (the
       -- printed additional cost, [CR#601.2f,118.8]); nested, it's an extra resolution-time cost. The body's caps
       -- are value-derived (`costCaps pay`), exactly like `Delayed`/`Triggered`. Rust: Effect::AdditionalCost.
-      AdditionalCost : (pay : Cost b) -> OneShotEffect (bindEvent (costCaps pay) b) -> OneShotEffect b
+      AdditionalCost : (pay : Cost b) -> OneShotEffect (bindEvent (costCaps pay) (costRoles (costCaps pay)) b) -> OneShotEffect b
       -- create a continuous effect for a duration ([CR#611.2]): `Continuously UntilEndOfTurn (Modify This …)`.
       -- Duration FIRST so it reads "continuously, for [duration], [effect]". Rust: Effect::Continuously.
       Continuously : Duration b -> StaticEffect b -> OneShotEffect b
-      -- choose modes, then apply them ([CR#700.2]). Rust: Effect::Modal.
-      Modal : (spec : ChooseSpec b) -> (modes : List (Mode b)) -> {auto 0 ne : NonEmpty modes} -> {auto 0 cnt : ModalCountOk spec (length modes)} -> OneShotEffect b
+      -- choose modes, then apply them ([CR#700.2]). The mode list is a `Vect (S n)` — ≥1 mode
+      -- BY CONSTRUCTION ([CR#700.2]; replaces the `NonEmpty` gate), and the choose-count gate
+      -- ([CR#700.2d]) ranges over the NAT `S n`, not the mode list (a gate over a mutual-group
+      -- value is opaque to the strict-positivity checker). Rust: Effect::Modal.
+      Modal : (spec : ChooseSpec b) -> {n : Nat} -> (modes : Vect (S n) (Mode b)) -> {auto 0 cnt : modalCountOk spec (S n) = True} -> OneShotEffect b
       -- a VOTE ([CR#701.38]): starting with `starting` and proceeding in turn order ([CR#701.38a]), each player
       -- votes for one option on the `ballot`; the tally drives the effect. The two CR option kinds ([CR#701.38b])
       -- are the two `Ballot` arms (objects vs labeled outcomes) — Council's Judgment / Tyrant's Choice. The
       -- per-player vote and tally are engine-resolved; the grammar names the starting player + the ballot. Rust: Effect::Vote.
       Vote : {default You starting : Reference b APlayer} -> Ballot b -> OneShotEffect b
-      -- DIVIDE AND CHOOSE (Fact or Fiction): the `divider` splits `group` into two piles; the `chooser` picks one
-      -- as the "chosen" pile, the rest is "other". Each pile is just a BOUND GROUP, so it rides the existing `That`
-      -- anaphor — `chosen`/`other` run at `bindThat AnObject` and read their pile as `That` (no bespoke pile slot;
-      -- a pile IS what `With` binds). FoF = `DivideAndChoose (TopOfLibrary (^5)) (Single (SelectAll Opponent))
-      -- (chosen = Each That (Act (Move It (ToZone Hand)))) (other = Each That (Act (Move It (ToZone Graveyard))))`.
-      -- The split + pick are engine-resolved; the grammar names who does each and the per-pile fate. Rust: Effect::DivideAndChoose.
-      DivideAndChoose : (group : Selection b AnObject) -> (divider : Reference b APlayer) -> {default You chooser : Reference b APlayer} -> (chosen : OneShotEffect (bindThat Many AnObject b)) -> (other : OneShotEffect (bindThat Many AnObject b)) -> OneShotEffect b
+      -- DIVIDE AND CHOOSE (Fact or Fiction): the `divider` splits `group` into two piles; the `chooser` picks
+      -- one as the "chosen" pile, the rest is "other". Each pile is a BOUND GROUP — a choice FRAME
+      -- ([CR#700.3,608.2d]), so `chosen`/`other` read their pile as the plural anaphor (`They`, iterated with
+      -- `Each (Existing They) …`); no bespoke pile slot. The split + pick are engine-resolved; the grammar
+      -- names who does each and the per-pile fate. Rust: Effect::DivideAndChoose.
+      DivideAndChoose : (group : Selection b AnObject) -> (divider : Reference b APlayer) -> {default You chooser : Reference b APlayer} -> (chosen : OneShotEffect (bindThat PileFrame b)) -> (other : OneShotEffect (bindThat PileFrame b)) -> OneShotEffect b
       -- "for each [domain], [body]" — binds each element as `It`. The distributive
       -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
-      Each : Bindable b Many k -> OneShotEffect (bindIt k b) -> OneShotEffect b
+      Each : (dom : Bindable b Many k) -> OneShotEffect (bindIt (binderAnte dom) b) -> OneShotEffect b
       -- "[amount] divided as you choose among [a group]" ([CR#601.2d]): bind each element as `It` with its
       -- `Allotment` (the split is engine-resolved, ≥1 each summing to amount), then apply `body`. GENERAL over
       -- the per-element effect — subsumes divided damage (`Act (DealDamage It Allotment)`) and divided
       -- counters (`Act (PutCounters c Allotment It)`); replaced the bespoke `DealDamageDivided`. (`amount`,
       -- not `total` — the latter is a reserved totality keyword.)
-      Distribute : (amount : Count b) -> Bindable b Many k -> OneShotEffect (bindAllot k b) -> OneShotEffect b
+      Distribute : (amount : Count b) -> (among : Bindable b Many k) -> OneShotEffect (bindAllot (binderAnte among) b) -> OneShotEffect b
       -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
       -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
       Reflexive : OneShotEffect b -> OneShotEffect b
-      -- schedule `body` for `event`; `unbindTargets` keeps `That`, drops targets. Rust: Effect::Delayed.
-      Delayed : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (unbindTargets b)) -> OneShotEffect b
+      -- schedule `body` for `event` ([CR#603.7c]): the announced TARGETS are dropped (stale after
+      -- resolution), `Product` antecedents — with their expected-zone stamps — survive, and the
+      -- delayed event's own caps/roles bind. Rust: Effect::Delayed.
+      Delayed : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) (unbindTargets b)) -> OneShotEffect b
+
+  -- the TELESCOPE ([CR#608.2d] — sentence order IS binder order; R3, no
+  -- forward references, is structural: a clause reads only what stands to
+  -- its left): each `Sequence` cell elaborates in the context extended by
+  -- the previous cell's introductions, per the total `intro` below.
+  namespace SeqList
+    public export
+    data SeqList : Ctx -> Type where
+      Nil : SeqList b
+      (::) : (e : OneShotEffect b) -> SeqList (intro e b) -> SeqList b
+
+  -- the `Chosen` antecedents the REFERENCES inside a clause push for its
+  -- right siblings — the indefinite determiner `A` ([CR#608.2d]; the choice
+  -- precedes the act, so these land farther than the clause's products).
+  public export
+  refIntro : {k : RefKind} -> Reference b k -> List Ante
+  refIntro (A of_ {by = byr}) = refIntroM byr ++ [MkAnte (filterSort of_) k One Chosen Nothing Nothing]
+  refIntro (ControllerOf r) = refIntro r
+  refIntro (OwnerOf r) = refIntro r
+  refIntro (AttachHostOf r) = refIntro r
+  refIntro (AttachedTo r) = refIntro r
+  refIntro _ = []
+
+  public export
+  refIntroM : Maybe (Reference b APlayer) -> List Ante
+  refIntroM Nothing = []
+  refIntroM (Just r) = refIntro r
+
+  public export
+  countCard : Count b -> Cardinality
+  countCard (Literal 1) = One
+  countCard _ = Many
+
+  -- what one ACTION introduces for its right siblings — the intro rows:
+  -- moved objects ([CR#400.7j]; noun + expected zone from the destination),
+  -- created tokens ([CR#111.2]; arity from the count), the card-flow verbs
+  -- (plus the "that many" amount companion), the bare amount verbs ("that
+  -- much", [CR#608.2i]). TOTAL-BY-ENUMERATION: a verb that introduces
+  -- nothing says so in its own arm.
+  public export
+  actionIntro : Action b -> List Ante
+  actionIntro (Action.Move r d) = refIntro r ++ [MkAnte (destSort d) AnObject One Product (Just (destZone d)) Nothing]
+  actionIntro (Action.MoveArranged g _ d) = [MkAnte (destSort d) AnObject Many Product (Just (destZone d)) Nothing]
+  actionIntro (Action.CreateToken n c) = [MkAnte Token AnObject (countCard n) Product (Just Battlefield) Nothing]
+  actionIntro (Action.Draw n) = [MkAnte Card AnObject (countCard n) Product (Just Hand) Nothing, amountAnte]
+  actionIntro (Action.Discard n) = [MkAnte Card AnObject (countCard n) Product (Just Graveyard) Nothing, amountAnte]
+  -- (the DealDamage recipient's kind is an erased index — no `A` push there;
+  -- damage recipients are targets or loop elements, never indefinites)
+  actionIntro (Action.DealDamage r n) = [amountAnte]
+  actionIntro (Action.GainLife n) = [amountAnte]
+  actionIntro (Action.LoseLife n) = [amountAnte]
+  actionIntro (Action.Destroy r) = refIntro r
+  actionIntro (Action.Counter r) = refIntro r
+  actionIntro (Action.Tap r) = refIntro r
+  actionIntro (Action.Untap r) = refIntro r
+  actionIntro (Action.RemoveAllDamage r) = refIntro r
+  actionIntro (Action.RemoveFromCombat r) = refIntro r
+  actionIntro (Action.Transform r) = refIntro r
+  actionIntro (Action.PhaseOut r) = refIntro r
+  actionIntro (Action.GrantDesignation _ r) = refIntro r
+  actionIntro (Action.Attach w t) = refIntro w ++ refIntro t
+  actionIntro (Action.Unattach r) = refIntro r
+  actionIntro (Action.Reveal r) = refIntro r
+  actionIntro (Action.Copy r) = refIntro r
+  actionIntro (Action.ChangeTarget o t) = refIntro o ++ refIntro t
+  actionIntro (Action.ChooseNewTargets o) = refIntro o
+  actionIntro (Action.PutCounters _ _ r) = refIntro r
+  actionIntro (Action.RemoveCounters _ _ r) = refIntro r
+  actionIntro (Action.MoveCounters _ f t) = refIntro f ++ refIntro t
+  actionIntro (Action.Sacrifice _) = []
+  actionIntro (Action.SetLifeTo _) = []
+  actionIntro Action.Shuffle = []
+  actionIntro Action.ExtraTurn = []
+  actionIntro (Action.ControlPlayer r) = refIntro r
+  actionIntro (Action.AddMana _ _) = []
+  actionIntro (Action.Composite _ _) = []   -- composite tags introduce nothing (no intro row)
+
+  -- the antecedents an effect INTRODUCES for its right siblings
+  -- ([CR#608.2d]): a clause's products, a `May`'s inner introductions, a
+  -- `With`/`Targeted` body's escape. Loop bodies (`Each`/`Distribute`)
+  -- introduce nothing — their elements pop with the body.
+  public export
+  introduces : OneShotEffect b -> List Ante
+  introduces (Act a) = actionIntro a
+  introduces (Sequence es) = seqIntro es
+  introduces (Targeted ts e) = introduces e
+  introduces (With that e) = introduces e
+  introduces (May e) = introduces e
+  introduces _ = []
+
+  public export
+  seqIntro : SeqList b -> List Ante
+  seqIntro [] = []
+  seqIntro (e :: es) = introduces e ++ seqIntro es
+
+  -- the telescope STEP: the context a clause's right sibling elaborates in.
+  public export
+  intro : OneShotEffect b -> Ctx -> Ctx
+  intro e = pushAntes (introduces e)
 
   -- one option of a modal effect: an effect plus an optional extra cost. Rust: Mode.
   namespace Mode
     public export
-    data Mode : Endophora -> Type where
+    data Mode : Ctx -> Type where
       MkMode : (effect : OneShotEffect b) -> {default Nothing cost : Maybe (Cost b)} -> Mode b
 
   -- one labeled option of an OUTCOME vote ([CR#701.38b]): a `word` with no rules meaning (cosmetic — it appears
@@ -1669,7 +2454,7 @@ mutual
   -- is its POSITION in the `Outcomes` list (what `tiebreak` indexes); `word` is for rendering/communication.
   namespace VoteOption
     public export
-    data VoteOption : Endophora -> Type where
+    data VoteOption : Ctx -> Type where
       MkVoteOption : (word : String) -> (effect : OneShotEffect b) -> VoteOption b
 
   -- a vote's BALLOT — the two CR option kinds ([CR#701.38b]). `OverMatching`: each player votes for one object
@@ -1680,8 +2465,8 @@ mutual
   -- Choice = torture). An out-of-range `tiebreak` is a senseless no-op (grammar-layer concern, not gated).
   namespace Ballot
     public export
-    data Ballot : Endophora -> Type where
-      OverMatching : Predicate b AnObject -> OneShotEffect (bindIt AnObject b) -> Ballot b
+    data Ballot : Ctx -> Type where
+      OverMatching : (p : Predicate b AnObject) -> OneShotEffect (bindIt (loopOf p) b) -> Ballot b
       Outcomes : (options : List (VoteOption b)) -> {auto 0 ne : NonEmpty options} -> {default 0 tiebreak : Nat} -> Ballot b
 
   -- a continuous modification to a PLAYER attribute — the player-side twin of `ModificationOp`. `Raise`/`Lower`/
@@ -1690,7 +2475,7 @@ mutual
   -- value, since `PlayerStatOf` is a `Count` reader). Carried by `ModifyPlayer`.
   namespace PlayerMod
     public export
-    data PlayerMod : Endophora -> Type where
+    data PlayerMod : Ctx -> Type where
       SetTo : PlayerAttr -> Count b -> PlayerMod b
       Raise : PlayerAttr -> Count b -> PlayerMod b
       Lower : PlayerAttr -> Count b -> PlayerMod b
@@ -1699,7 +2484,7 @@ mutual
   -- A continuous modification a static ability applies to its subject.
   namespace Modification
     public export
-    data Modification : Endophora -> Type where
+    data Modification : Ctx -> Type where
       -- modify one CHARACTERISTIC axis with a (gated) `ModificationOp` ([CR#613]). The operation carries the
       -- layer/base-vs-current: "gets +2/+1" = `Alter Power (Up (^2))` + `Alter Toughness (Up (^1))`; "becomes
       -- blue" = `Alter Colors (Set [Blue])`; "is also an artifact" = `Alter Types (Add Artifact)`; "becomes
@@ -1731,7 +2516,7 @@ mutual
   -- replacement effect is a continuous effect too ([CR#614]). Rust: the StaticEffect family.
   namespace StaticEffect
     public export
-    data StaticEffect : Endophora -> Type where
+    data StaticEffect : Ctx -> Type where
       -- continuous modification of ONE subject ([CR#613]): "this gets +1/+1 and gains flying" =
       -- `Modify This [Alter Power (Up …), Alter Toughness (Up …), GrantAbility …]`. The subject is a SINGULAR
       -- `Reference` (`This`, a target, or `It` when iterated). Plurality is lifted OUT to `Each` (below) — there
@@ -1748,7 +2533,7 @@ mutual
       -- selection re-gathers continuously (a LIVE filter — creatures get the buff as they enter), unlike one-shot
       -- `Each` which fixes the set once. Shares the bare name `Each` with `OneShotEffect.Each` (its own namespace,
       -- disambiguated by type). Subsumes the former `Modify`-over-`Selection`/`ModifyAll` split.
-      Each : Bindable b Many k -> StaticEffect (bindIt k b) -> StaticEffect b
+      Each : (dom : Bindable b Many k) -> StaticEffect (bindIt (binderAnte dom) b) -> StaticEffect b
       -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
       -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
       -- [^1])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
@@ -1767,7 +2552,7 @@ mutual
       -- "if [event] would happen, do [effect] INSTEAD" — a replacement ([CR#614]). Empty body = a SKIP
       -- (a replacement that removes the event — e.g. "skip your draw step"). This is NOT a prohibition:
       -- the event still "would happen" and is intercepted; for "can't happen", use `CantHappen` below.
-      Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default Unlimited limit : ReplaceLimit b} -> StaticEffect b
+      Replaces : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b) -> {default Unlimited limit : ReplaceLimit b} -> StaticEffect b
       -- "[event] CAN'T happen" — a continuous PROHIBITION, semantically distinct from replacing-with-
       -- nothing: it's not a one-shot ([CR#614.5]) application, isn't ordered against other replacements
       -- ([CR#616]), and the event never "would happen". Indestructible = `CantHappen (MkEventQuery [Destroy]
@@ -1779,14 +2564,14 @@ mutual
       -- `ReplaceAmount (MkEventQuery [DealDamage Nothing] []) (Times EventAmount (^2))`. Takes the same `EventQuery` as
       -- `Replaces`/`Also`, gated so every queried kind carries an amount — `ReplaceAmount (MkEventQuery [Begins Cast] []) …`
       -- (a cast has no amount) is a TYPE ERROR; the query's facets add the non-kind conditions.
-      ReplaceAmount : (q : EventQuery b) -> {auto amt : eventQueryHasAmount q = True} -> (newAmount : Count (bindEvent (eventQueryCaps q) b)) -> StaticEffect b
+      ReplaceAmount : (q : EventQuery b) -> {auto 0 amt : eventQueryHasAmount q = True} -> (newAmount : Count (bindEvent (eventQueryCaps q) (queryRoles q) b)) -> StaticEffect b
       -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
       -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
       -- game-loss isn't a replaceable event — and from a deontic `cant` — it's not a player action.)
       OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
       -- ADDITIVE replacement ([CR#614.13] "as well as"): when [event] happens it STILL happens, but
       -- [effect] also runs. An Aura enters attached via `Also thisEnters (Act (Attach This host))`.
-      Also : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> StaticEffect b
+      Also : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b) -> StaticEffect b
       -- TRIGGER MULTIPLICATION ([CR#603.2d]): a matching triggered ability triggers `extra` ADDITIONAL times.
       -- NOT a copy ([CR#707.10]) — each instance chooses its OWN modes/targets, and multipliers ADD rather
       -- than compound (two Panharmonicons → 3×, not 4×). `cause` is the EVENT whose resulting triggers are
@@ -1857,7 +2642,7 @@ mutual
   -- `Keyword` wraps it; `keyword` (Macros) builds it.
   namespace KeywordAbility
     public export
-    data KeywordAbility : Endophora -> Type where
+    data KeywordAbility : Ctx -> Type where
       Bare      : KeywordSpec b -> KeywordAbility b
       Composite : KeywordSpec b -> List (Ability b) -> KeywordAbility b
 
@@ -1866,7 +2651,7 @@ mutual
   -- reference an anaphor — "protection from the CHOSEN color/player" (Mother of Runes).
   namespace Ability
     public export
-    data Ability : Endophora -> Type where
+    data Ability : Ctx -> Type where
       Spell : OneShotEffect b -> Ability b
       Keyword : KeywordAbility b -> Ability b
       -- "{cost}: {effect}" — an activated ability ([CR#602]). `window` is its activation timing
@@ -1882,7 +2667,7 @@ mutual
       -- "triggers only once each turn" = `{limits = [OncePerTurn]}` — the same `UsageLimit` list
       -- `Activated` carries. `from` = the zone(s) it functions in ([CR#113.6b], default `[Battlefield]`): a
       -- graveyard/hand trigger (Madness, "while in your graveyard") sets `[Graveyard]`/`[Hand]`. Rust: Ability::Triggered.
-      Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) b) -> {default [] limits : List UsageLimit} -> {default [Battlefield] from : List Zone} -> Ability b
+      Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b) -> {default [] limits : List UsageLimit} -> {default [Battlefield] from : List Zone} -> Ability b
       -- a TURN-BASED action ([CR#703]) intrinsic to the bearer: at `phase`, perform `effect` automatically —
       -- no stack, unlike `Triggered`. The Saga lore-increment ([CR#714.3c], conferred by the Saga subtype):
       -- `TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))`. (Was the old `PropTurnBased`.)
@@ -1979,13 +2764,13 @@ namespace FaceLayout
 namespace Card
   public export
   data Card : Type where
-    Normal : (c : Characteristics Base) -> {auto ok : SubtypesOk c} -> {auto wf : CharacteristicsOk c} -> Card
+    Normal : (c : Characteristics Base) -> {auto 0 ok : SubtypesOk c} -> {auto 0 wf : CharacteristicsOk c} -> Card
     -- a TWO-faced card: `front` (the primary/default face) and `back`, arranged per `layout`. Each face
     -- is a full `Face` with its own well-formedness ([CR#712.8] each face has its own characteristics);
     -- transform / cast-the-other-face is the engine's job — the grammar just holds both faces.
     TwoFaced : (layout : FaceLayout) -> (front : Face) -> (back : Face) ->
-               {auto okF : SubtypesOk front} -> {auto wfF : CharacteristicsOk front} ->
-               {auto okB : SubtypesOk back} -> {auto wfB : CharacteristicsOk back} -> Card
+               {auto 0 okF : SubtypesOk front} -> {auto 0 wfF : CharacteristicsOk front} ->
+               {auto 0 okB : SubtypesOk back} -> {auto 0 wfB : CharacteristicsOk back} -> Card
 
 -- What a counter / subtype / type CONFERS on its bearer is just a list of `Ability`s — the engine's
 -- mechanism for intrinsic behavior with NO subtype special-casing (`This` = the bearer). There is no

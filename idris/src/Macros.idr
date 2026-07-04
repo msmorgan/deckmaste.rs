@@ -6,6 +6,8 @@ module Macros
 
 import public Core
 
+%default total
+
 -- terse read sugar over the unified `HasChar`/`SharesChar`/`PlayerStatOf` primitives,
 -- so card source stays readable (the primitive is what the RON serializes).
 public export
@@ -132,7 +134,7 @@ hexproof : Ability b
 hexproof = Keyword (Composite (Hexproof Nothing) [Static (cant (Enact Target (ControlledBy opponent) (SameAs This)))])
 
 -- "hexproof from [f]": can't be targeted by an opponent's source matching `f`. `f` may be an
--- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Endophora`-indexed.
+-- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Ctx`-indexed.
 public export
 hexproofFrom : Predicate b AnObject -> Ability b
 hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (cant (Enact Target (And [ControlledBy opponent, f]) (SameAs This)))])
@@ -232,8 +234,12 @@ surveil n = Act (Composite Surveil
       , MkMode (Act (Move It (ToZone Graveyard))) ])))
 
 -- fight ([CR#701.14a]): two creatures each deal damage equal to their power to the other (simultaneous).
+-- The refs are RANK-2 (context-polymorphic): the second clause of the desugaring sits one telescope cell
+-- to the right of the first (which introduced an amount antecedent), so a fixed-context reference could
+-- not cross — the simultaneity is the engine's; the macro just needs the refs at both cells. (Anaphoric
+-- fight arguments — the Pounce `The`-label shape — ride the Rust `Fight` verb, not this macro.)
 public export
-fight : Reference b AnObject -> Reference b AnObject -> OneShotEffect b
+fight : ({0 c : Ctx} -> Reference c AnObject) -> ({0 c : Ctx} -> Reference c AnObject) -> OneShotEffect b
 fight x y = Act (Composite Fight
   (Sequence [ Act (DealDamage {source = x} y (StatOf x Power))
             , Act (DealDamage {source = y} x (StatOf y Power)) ]))
@@ -254,19 +260,21 @@ protection q = Keyword (Composite (Protection q)
 -- to attach (attaching is default-forbidden, so this ENABLES it — the dual of a planeswalker's `Can (Enact
 -- Attack … This)`); (2) the non-cast ENTRY rule ([CR#303.4f]) — as This enters, if it isn't already
 -- attached, choose a valid host and enter attached (`Also thisEnters`, the documented enters-attached
--- idiom; host chosen via `Choose`, read back as `That`). The `If (Not (LegallyAttached This))` guard is
--- what scopes this to NON-cast entry: a cast aura entered attached to its target (ability 3), so the
--- guard skips it. That guard is the SAME condition the falls-off SBA reads, so the two compose — choose a
--- host on entry, and if none is legal the SBA sweeps it. (3) the aura's SPELL — cast it targeting a valid
--- host, attach to that host on resolution. The falls-off SBA ("no valid attachment → graveyard",
--- [CR#704.5n]) is conferred by the Aura SUBTYPE (`subtypeConfers`), not here.
+-- idiom; the chosen host is the binder FRAME, read back as `It`). The `If (Not (LegallyAttached This))`
+-- guard is what scopes this to NON-cast entry: a cast aura entered attached to its target (ability 3), so
+-- the guard skips it. That guard is the SAME condition the falls-off SBA reads, so the two compose —
+-- choose a host on entry, and if none is legal the SBA sweeps it. (3) the aura's SPELL — cast it
+-- targeting a valid host, attach to that host on resolution (`It` = the one announced slot). The
+-- falls-off SBA ("no valid attachment → graveyard", [CR#704.5n]) is conferred by the Aura SUBTYPE
+-- (`subtypeConfers`), not here. MONOMORPHIC at `Base`: an anaphor read under an ABSTRACT context cannot
+-- reduce its resolve proof, so the macro pins the printed-face context (its one kind of use site).
 public export
-enchant : {b : Endophora} -> ({0 c : Endophora} -> Predicate c AnObject) -> List (Ability b)
+enchant : ({0 c : Ctx} -> Predicate c AnObject) -> List (Ability Base)
 enchant hosts =
   [ Static (Can (Enact Attach (SameAs This) hosts))                                  -- (1) permission: the aura ENABLES attaching
   , Static (Also thisEnters (If (Not (LegallyAttached This))                         -- (2) [CR#303.4f] non-cast entry only (cast path is already attached):
-              (With (ChooseOne hosts) (Act (Attach This That)))))                    --     choose a valid host, enter attached
-  , Spell (Targeted [Target (^1) hosts] (Act (Attach This (GetTarget 0)))) ]         -- (3) cast → target a host → attach on resolution
+              (With (ChooseOne hosts) (Act (Attach This It)))))                      --     choose a valid host (the frame), enter attached
+  , Spell (Targeted [As "host" (Target (^1) hosts)] (Act (Attach This (The "host")))) ]  -- (3) cast → target a host → attach on resolution (the LABELED read: an abstract host filter's SORT is stuck, so the label — not the sort — names the slot)
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-

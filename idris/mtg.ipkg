@@ -1,11 +1,8 @@
 package mtg
 
-depends = elab-util
-
 modules = Core
         , Macros
         , Cards
-        , Ron
         , Spec
         , Experimental
         , EmitTables

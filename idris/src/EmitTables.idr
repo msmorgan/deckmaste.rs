@@ -5,30 +5,34 @@
 |||
 ||| DRIFT CONTROL: every row VALUE is computed by applying `Core.idr`'s total
 ||| functions (`eventKindCaps`, `actionEventCaps`, `counterScope`,
-||| `designationScope`, `agentScope`, the `bind*` Endophora transforms, `\/`)
-||| — never hand-copied. The only hand-written parts are (a) the KEY mapping
-||| from the Rust grammar's node/verb spellings to the Idris kinds, (b) the
-||| per-row CR citations, and (c) the checker-rule manifest (the catalog of
-||| error codes, each of which must also have a reject fixture on the Rust
-||| side). If a Core.idr function changes, the emitted rows change, and the
-||| Rust side's regenerate-and-diff turns red.
+||| `designationScope`, `agentScope`, the `bind*` Ctx transforms over the v2
+||| antecedent stack, `zoneSort`, `\/`) — never hand-copied. The only
+||| hand-written parts are (a) the KEY mapping from the Rust grammar's
+||| node/verb spellings to the Idris kinds, (b) the per-row CR citations, and
+||| (c) the checker-rule manifest (the catalog of error codes, each of which
+||| must also have a reject fixture on the Rust side). If a Core.idr function
+||| changes, the emitted rows change, and the Rust side's regenerate-and-diff
+||| turns red.
 |||
-||| The two known holes of the current model are deliberately NOT inherited:
-|||   * `actionEventCaps`'s `NoCaps` catch-all (Core.idr): the cost-action
-|||     table below carries an EXPLICIT row per cost-eligible action — the
-|||     verbs the catch-all would swallow (Tap/Untap/LoseLife/RemoveCounters)
-|||     get rows computed from the matching `eventKindCaps` kind, and `Reveal`
-|||     (no event kind) gets an explicit no-caps row. A verb with no row is
-|||     cost-INELIGIBLE to the checker, never silently capless-but-legal.
-|||   * `Facet.Patient`'s free kind (Core.idr): every caps row carries the
-|||     `patient:` kind the event actually fixes (from `EventCaps.patientKind`)
-|||     and the checker gates `EventPatient` reads on it — `None` means the
-|||     patient is unreachable, not kind-free.
+||| v2 notes:
+|||   * `actionEventCaps` is now TOTAL-BY-ENUMERATION in Core.idr (the v1
+|||     `NoCaps` catch-all is gone); the cost-action rows below still spell
+|||     each eligible verb explicitly — a verb with no row is cost-INELIGIBLE
+|||     to the checker, never silently capless-but-legal.
+|||   * every caps row carries the `patient:` kind the event actually fixes
+|||     (from `EventCaps.patientKind`) and the checker gates `EventPatient`
+|||     reads on it — `None` means the patient is unreachable, not kind-free.
+|||   * the sort-compat / intro rows remain hand data with their cites; the
+|||     Idris twins (`compat`, the intro machinery) are pinned against them
+|||     by Spec.idr's table-agreement proofs, and full derivation moves with
+|||     the fixture export (idris-tables-fixtures-v2).
 module EmitTables
 
 import Core
 import System
 import System.File
+
+%default total
 
 -- --------------------------------------------------------------------------
 -- rendering primitives
@@ -63,11 +67,12 @@ header what =
 -- --------------------------------------------------------------------------
 
 -- Where an event form's OBJECT antecedent takes its SORT from (the
--- anaphor-surface intro machinery): a named participant slot of the form
+-- anaphor-surface role-ante machinery): a named participant slot of the form
 -- ("source"/"what"/"by"/"of"/"on"), the destination zone's `zone_sort`
 -- ("to_zone"), a fixed sort ("spell"/"stack_object"/"token"), or nothing
 -- ("none" — the form supplies no object, or its object has no useful noun).
--- Hand data like the lane/bridge rows until the Idris v2 stack model lands
+-- Hand tags, MIRRORED by `Core.eventKindObjectSort` (the v2 role-ante
+-- machinery); full derivation moves with the fixture export
 -- ([[idris-tables-fixtures-v2]]).
 ObjectSort : Type
 ObjectSort = String
@@ -550,76 +555,104 @@ latticeTable =
 -- bind rules: how each construct transforms the binding context
 -- --------------------------------------------------------------------------
 
--- The probe: an Endophora with EVERYTHING bound, so applying a transform and
--- diffing fields reveals exactly what it drops/keeps.
+-- The probe: a Ctx with one antecedent of EVERY interesting site on the
+-- stack (a target slot, a `With` frame, a loop element, an allotment) plus
+-- full caps and both chosen channels — applying a transform and diffing
+-- the stack's site population reveals exactly what it drops/keeps/binds.
 fullCaps : EventCaps
 fullCaps = MkEventCaps True True True (Just AnObject) True
 
-probe : Endophora
-probe = MkEndophora [AnObject] (Just (One, AnObject)) (Just AnObject) fullCaps
-                    (Just AColor) (Just AnObject) True
+slotProbe : Ante
+slotProbe = MkAnte Permanent AnObject One TargetSlot Nothing Nothing
+
+frameProbe : Cardinality -> Ante
+frameProbe c = MkAnte Permanent AnObject c Frame Nothing Nothing
+
+loopProbe : Ante
+loopProbe = MkAnte Permanent AnObject One Loop Nothing Nothing
+
+allotProbe : Ante
+allotProbe = MkAnte Amount Anything One Allot Nothing Nothing
+
+probe : Ctx
+probe = MkCtx [slotProbe, frameProbe One, loopProbe, allotProbe] fullCaps
+              (Just AColor) (Just AnObject)
 
 cardinalityName : Cardinality -> String
 cardinalityName One = "One"
 cardinalityName Many = "Many"
 
-optCard : Maybe (Cardinality, RefKind) -> String
-optCard Nothing = "None"
-optCard (Just (c, _)) = "Some(" ++ cardinalityName c ++ ")"
-
 optBool : Maybe Bool -> String
 optBool Nothing = "None"
 optBool (Just b) = "Some(" ++ bool b ++ ")"
+
+-- site-population probes over a stack (the column extractors).
+hasSlotA : List Ante -> Bool
+hasSlotA = any (\a => isTargetSlot a.site)
+
+hasLoopA : List Ante -> Bool
+hasLoopA = any (\a => isBinderSite a.site && not (isFrameSite a.site))
+
+hasAllotP : List Ante -> Bool
+hasAllotP = hasAllot
+
+frameCard : List Ante -> Maybe Cardinality
+frameCard s = map (.card) (innermostFrame s)
+
+optCard : Maybe Cardinality -> String
+optCard Nothing = "None"
+optCard (Just c) = "Some(" ++ cardinalityName c ++ ")"
 
 isJust' : Maybe a -> Bool
 isJust' Nothing = False
 isJust' (Just _) = True
 
 -- One row, with the drop/keep/bind fields COMPUTED by applying `transform`
--- to the all-bound probe (drops) and reading what it introduces. `caps_from`
--- and `may_target` are positional discipline the Endophora doesn't carry
--- (may_target per [CR#115.1a..115.1e,601.2c]; the ticket's context threading
--- rules), so they are per-row data here.
-bindRow : (construct : String) -> (transform : Endophora -> Endophora)
+-- to the all-bound probe (drops) and to `Base` (binds) and reading the
+-- stack's site population. `caps_from` and `may_target` are positional
+-- discipline the stack doesn't carry (may_target per
+-- [CR#115.1a..115.1e,601.2c]), so they are per-row data here.
+bindRow : (construct : String) -> (transform : Ctx -> Ctx)
        -> (capsFrom : String) -> (mayTarget : Maybe Bool) -> (cite : String)
        -> String
 bindRow construct transform capsFrom mayTarget cite =
   let after = transform probe in
+  let fresh = transform Base in
   "        (construct: " ++ quoted construct
-  ++ ", drops_targets: " ++ bool (null (targetKinds after))
-  ++ ", keeps_that: " ++ bool (isJust' (thatKind after))
-  ++ ", binds_targets: " ++ bool (not (null (targetKinds (transform Base))))
-  ++ ", binds_that: " ++ optCard (thatKind (transform Base))
-  ++ ", binds_it: " ++ bool (isJust' (itKind (transform Base)))
-  ++ ", binds_allotment: " ++ bool (hasAllotment (transform Base))
-  ++ ", clears_allotment: " ++ bool (not (hasAllotment after))
+  ++ ", drops_targets: " ++ bool (not (hasSlotA (stack after)))
+  ++ ", keeps_that: " ++ bool (isJust' (frameCard (stack after)))
+  ++ ", binds_targets: " ++ bool (hasSlotA (stack fresh))
+  ++ ", binds_that: " ++ optCard (frameCard (stack fresh))
+  ++ ", binds_it: " ++ bool (hasLoopA (stack fresh))
+  ++ ", binds_allotment: " ++ bool (hasAllotP (stack fresh))
+  ++ ", clears_allotment: " ++ bool (not (hasAllotP (stack after)))
   ++ ", caps_from: " ++ capsFrom
   ++ ", may_target: " ++ optBool mayTarget
   ++ ", cite: " ++ quoted cite ++ "),\n"
 
 bindRows : List String
 bindRows =
-  [ bindRow "Targeted" (bindTargets [AnObject]) "Keep" Nothing "[CR#115.1,601.2c]"
-  , bindRow "With.One" (bindThat One AnObject) "Keep" Nothing "[CR#608.2d]"
-  , bindRow "With.Many" (bindThat Many AnObject) "Keep" Nothing "[CR#608.2d]"
-  , bindRow "Each" (bindIt AnObject) "Keep" (Just False) "[CR#608.2]"
-  , bindRow "DivideAmong" (bindAllot AnObject) "Keep" (Just False) "[CR#601.2d]"
-    -- Delayed: schedule for later — targets are DROPPED, `That` survives
-    -- ([CR#603.7c]); the body reads the delayed event's own caps; a delayed
-    -- trigger may announce its own targets.
-  , bindRow "Delayed" (bindEvent NoCaps . unbindTargets) "Query" (Just True) "[CR#603.7c]"
+  [ bindRow "Targeted" (bindTargets [slotProbe]) "Keep" Nothing "[CR#115.1,601.2c]"
+  , bindRow "With.One" (bindThat (frameProbe One)) "Keep" Nothing "[CR#608.2d]"
+  , bindRow "With.Many" (bindThat (frameProbe Many)) "Keep" Nothing "[CR#608.2d]"
+  , bindRow "Each" (bindIt loopProbe) "Keep" (Just False) "[CR#608.2]"
+  , bindRow "DivideAmong" (bindAllot loopProbe) "Keep" (Just False) "[CR#601.2d]"
+    -- Delayed: schedule for later — targets are DROPPED, the frame/product
+    -- antecedents survive ([CR#603.7c]); the body reads the delayed event's
+    -- own caps; a delayed trigger may announce its own targets.
+  , bindRow "Delayed" (bindEvent NoCaps [] . unbindTargets) "Query" (Just True) "[CR#603.7c]"
     -- Reflexive: "when you do" — sees the FULL outer context ([CR#603.12a]).
-  , bindRow "Reflexive" (bindEvent NoCaps) "Query" (Just True) "[CR#603.12a]"
-  , bindRow "Triggered" (bindEvent NoCaps) "Query" (Just True) "[CR#603.2]"
-  , bindRow "Replacement.Instead" (bindEvent NoCaps) "Query" (Just False) "[CR#614.1a]"
-  , bindRow "Replacement.Also" (bindEvent NoCaps) "Query" (Just False) "[CR#614.1c]"
-  , bindRow "AdditionalCost" (bindEvent NoCaps) "Cost" Nothing "[CR#601.2f]"
+  , bindRow "Reflexive" (bindEvent NoCaps []) "Query" (Just True) "[CR#603.12a]"
+  , bindRow "Triggered" (bindEvent NoCaps []) "Query" (Just True) "[CR#603.2]"
+  , bindRow "Replacement.Instead" (bindEvent NoCaps []) "Query" (Just False) "[CR#614.1a]"
+  , bindRow "Replacement.Also" (bindEvent NoCaps []) "Query" (Just False) "[CR#614.1c]"
+  , bindRow "AdditionalCost" (bindEvent NoCaps []) "Cost" Nothing "[CR#601.2f]"
     -- MayPay's "if they do" branch reads the payment like an
     -- AdditionalCost body ([CR#608.2d] resolution-time choices).
-  , bindRow "MayPay" (bindEvent NoCaps) "Cost" Nothing "[CR#608.2d]"
+  , bindRow "MayPay" (bindEvent NoCaps []) "Cost" Nothing "[CR#608.2d]"
     -- Filter::Where / Selection::Pick bind the candidate as `It`.
-  , bindRow "Where" (bindIt AnObject) "Keep" Nothing "[CR#603.4]"
-  , bindRow "Pick" (bindIt AnObject) "Keep" Nothing "[CR#107.1]"
+  , bindRow "Where" (bindIt loopProbe) "Keep" Nothing "[CR#603.4]"
+  , bindRow "Pick" (bindIt loopProbe) "Keep" Nothing "[CR#107.1]"
     -- An SBA body runs in the sweep — never a targeting position ([CR#704]).
   , bindRow "Sba" (\b => b) "Keep" (Just False) "[CR#704]"
   ]
@@ -627,6 +660,8 @@ bindRows =
 bindTable : String
 bindTable =
   header "Binding-context transitions per construct (the Endophora bind-family, applied to a probe)."
+  -- (header text kept verbatim — the emitted bytes are pinned; the family now
+  -- lives on the v2 antecedent stack)
   ++ "(\n    rows: [\n" ++ concat bindRows ++ "    ],\n)\n"
 
 -- --------------------------------------------------------------------------
@@ -639,8 +674,9 @@ bindTable =
 -- additionally requires the same card type, applied by the consumer);
 -- `widened: true` = a widening row (compatible, but not exact — the R2
 -- gate's exact-vs-widened distinction). A pair with NO row is incompatible.
--- Hand data until the Idris v2 stack model lands
--- ([[idris-tables-fixtures-v2]]); each row cites its noun's CR home.
+-- Hand rows (each citing its noun's CR home), PINNED against the Idris v2
+-- `compat` function by Spec.idr's `tCompatTable` agreement proof; full
+-- derivation moves with the fixture export ([[idris-tables-fixtures-v2]]).
 compatRow : (want : String) -> (have : String) -> (widened : Bool)
          -> (cite : String) -> String
 compatRow want have widened cite =
@@ -679,25 +715,38 @@ compatTable =
 -- zone sorts: what noun an object answers to once it sits in this zone
 -- --------------------------------------------------------------------------
 
-zoneSortRow : Zone -> (sort : String) -> (cite : String) -> String
-zoneSortRow z sort cite =
+-- the shape key of a sort (OfType collapses — same as the Rust `Sort::key`).
+sortKey : Sort -> String
+sortKey Player = "Player"
+sortKey Card = "Card"
+sortKey Token = "Token"
+sortKey Spell = "Spell"
+sortKey StackObject = "StackObject"
+sortKey Permanent = "Permanent"
+sortKey (OfType _) = "OfType"
+sortKey Amount = "Amount"
+sortKey Pile = "Pile"
+
+zoneSortRow : Zone -> (cite : String) -> String
+zoneSortRow z cite =
   "        (zone: " ++ zoneName z
-  ++ ", sort: " ++ quoted sort
+  ++ ", sort: " ++ quoted (sortKey (zoneSort z))
   ++ ", cite: " ++ quoted cite ++ "),\n"
 
 -- Battlefield objects are permanents ([CR#110.1]), stack objects spells
 -- ([CR#112.1]), anything else is a card ([CR#108.2]) — this is why "exile
 -- target creature … return that card" resolves: the exile clause's product
--- answers to "card".
+-- answers to "card". The sort column is COMPUTED from `Core.zoneSort` — the
+-- very function the v2 anaphor surface resolves with.
 zoneSortRows : List String
 zoneSortRows =
-  [ zoneSortRow Battlefield "Permanent" "[CR#110.1]"
-  , zoneSortRow Stack "Spell" "[CR#112.1]"
-  , zoneSortRow Graveyard "Card" "[CR#108.2]"
-  , zoneSortRow Hand "Card" "[CR#108.2]"
-  , zoneSortRow Library "Card" "[CR#108.2]"
-  , zoneSortRow Exile "Card" "[CR#108.2]"
-  , zoneSortRow Command "Card" "[CR#108.2]"
+  [ zoneSortRow Battlefield "[CR#110.1]"
+  , zoneSortRow Stack "[CR#112.1]"
+  , zoneSortRow Graveyard "[CR#108.2]"
+  , zoneSortRow Hand "[CR#108.2]"
+  , zoneSortRow Library "[CR#108.2]"
+  , zoneSortRow Exile "[CR#108.2]"
+  , zoneSortRow Command "[CR#108.2]"
   ]
 
 zoneSortTable : String
@@ -715,8 +764,9 @@ zoneSortTable =
 -- derivation the walker applies ("from_filter" — the clause's filter,
 -- "from_destination" — zone_sort of the destination, "from_binder" — the
 -- binder's own content). Zone rules: "none", a fixed zone, or
--- "from_destination" (the [CR#603.7c] expected_zone stamp). Hand data until
--- the Idris v2 stack model lands ([[idris-tables-fixtures-v2]]).
+-- "from_destination" (the [CR#603.7c] expected_zone stamp). Hand rows,
+-- mirrored by the Idris v2 `intro`/`actionIntro`/`binderAnte` machinery;
+-- full derivation moves with the fixture export ([[idris-tables-fixtures-v2]]).
 introRow : (clause : String) -> (object : Bool) -> (site : String)
         -> (card : String) -> (sort : String) -> (zone : String)
         -> (amount : Bool) -> (cite : String) -> String

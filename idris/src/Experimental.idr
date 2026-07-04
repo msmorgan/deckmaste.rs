@@ -47,7 +47,7 @@ namespace ParamShape
 ||| The arguments a shape demands — the total type-function refining the
 ||| closed enum (the probe's discipline: shape mismatch = no term).
 public export
-Args : ParamShape -> Endophora -> Type
+Args : ParamShape -> Ctx -> Type
 Args None        b = ()
 Args Counted     b = Count b
 Args Costed      b = Cost b
@@ -126,7 +126,7 @@ namespace KeywordUse
   ||| replace `KeywordSpec`'s constructors with shape-indexed ones and let
   ||| `Bare`/`Composite` take a `KeywordUse` instead.
   public export
-  data KeywordUse : Endophora -> Type where
+  data KeywordUse : Ctx -> Type where
     KA : {shape : ParamShape} -> Keyword shape -> Args shape b -> KeywordUse b
 
 -- ===== Keyword actions =====
@@ -145,7 +145,7 @@ namespace KeywordAction
 
   ||| A keyword action applied in effect position.
   public export
-  data ActionUse : Endophora -> Type where
+  data ActionUse : Ctx -> Type where
     Use : {shape : ParamShape} -> KeywordAction shape -> Args shape b -> ActionUse b
 
 -- ===== Positives (must typecheck) =====
@@ -174,27 +174,27 @@ aScry2 = Use Scry (^2)
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- A bare keyword cannot take a cost: "Deathtouch {2}" has no type.
-failing
+failing "Mismatch between: Cost ?b and ()"
   bad : KeywordUse Base
   bad = KA Deathtouch (Mana [^2])
 
 -- A costed keyword cannot be bare: "Ward" with no cost has no type.
-failing
+failing "Cost Base"
   bad : KeywordUse Base
   bad = KA Ward ()
 
 -- A counted keyword cannot take a predicate.
-failing
+failing "Mismatch between: Predicate ?b AnObject and Count ?b"
   bad : KeywordUse Base
   bad = KA Toxic creature
 
 -- The open tail obeys its declared shape too: a Costed custom keyword
 -- cannot be applied bare.
-failing
+failing "Cost Base"
   bad : KeywordUse Base
   bad = KA (Custom "Warp" Costed) ()
 
 -- A keyword action is not a keyword ability: `KA Scry …` has no type.
-failing
+failing "Keyword ?shape"
   bad : KeywordUse Base
   bad = KA Scry (^2)
