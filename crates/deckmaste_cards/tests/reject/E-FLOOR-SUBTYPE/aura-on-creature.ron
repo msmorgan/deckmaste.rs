@@ -1,9 +1,0 @@
-// Twin of Spec.idr `tBadSubtype`: Aura governs Enchantment — a face with no
-// Enchantment type can't carry it [CR#205.3d].
-Normal(
-  name: "Reject Aura Creature",
-  types: [Creature],
-  subtypes: [Aura],
-  power: 1,
-  toughness: 1,
-)

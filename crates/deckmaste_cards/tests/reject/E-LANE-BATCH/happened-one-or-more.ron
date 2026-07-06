@@ -1,9 +1,0 @@
-// `OneOrMore` matches a BATCH once ([CR#603.2c]) — meaningless in history
-// counting, where each occurrence counts, so the history lanes refuse it.
-Normal(
-  name: "Reject Counted Batch",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: Draw(EventCount(OneOrMore(Dies(Creature)), ThisTurn))),
-  ],
-)

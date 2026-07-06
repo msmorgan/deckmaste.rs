@@ -21,12 +21,8 @@ fn testing_mocks_are_valid() {
     for (path, msg) in &validation.lint_failures {
         eprintln!("{}: lint: {msg}", path.display());
     }
-    for (path, error) in &validation.elab_failures {
-        eprintln!("{}: {error}", path.display());
-    }
     assert!(validation.failures.is_empty());
     assert!(validation.lint_failures.is_empty());
-    assert!(validation.elab_failures.is_empty());
     assert!(
         validation.valid >= 3,
         "only {} items checked",

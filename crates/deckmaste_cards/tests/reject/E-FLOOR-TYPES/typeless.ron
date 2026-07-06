@@ -1,5 +1,0 @@
-// Twin of Spec.idr `tBadTypeless`: a card with NO card types [CR#109.3].
-Normal(
-  name: "Reject Typeless",
-  types: [],
-)

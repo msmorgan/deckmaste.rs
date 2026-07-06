@@ -43,8 +43,7 @@ pub struct InvalidCard {
 }
 
 /// What a validation pass saw: todos are skipped, everything else either
-/// parsed (`valid`) or landed in `failures`, `lint_failures`, or
-/// `elab_failures`.
+/// parsed (`valid`) or landed in `failures` or `lint_failures`.
 pub struct Validation {
     /// Files that parsed successfully (cards + tokens combined).
     pub valid: usize,
@@ -55,16 +54,6 @@ pub struct Validation {
     /// Cost-eligibility violations: `(path, message)` for every
     /// `CostComponent::Do(action)` where `!action.is_cost_eligible()`.
     pub lint_failures: Vec<(PathBuf, String)>,
-    /// Elaboration errors (`deckmaste_cards::elaborate`): per-card `E-*`
-    /// findings from the load-time binding-context walk.
-    pub elab_failures: Vec<(PathBuf, crate::elaborate::ElabError)>,
-    /// R2-fallback reads (`The`/`TheGroup` label lookups): how often authors
-    /// reached for the ambiguity escape hatch. Counted from the traced
-    /// walk's resolutions — the corpus dry-run's metric (b)
-    /// ([[cards-corpus-dry-run]]).
-    pub fallback_reads: usize,
-    /// Files with at least one fallback read.
-    pub fallback_files: usize,
 }
 
 /// Reads every non-todo `cards/**/*.ron` and `tokens/**/*.ron` in the plugin
@@ -82,11 +71,7 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         todos: 0,
         failures: Vec::new(),
         lint_failures: Vec::new(),
-        elab_failures: Vec::new(),
-        fallback_reads: 0,
-        fallback_files: 0,
     };
-    let registries = plugin.registries();
 
     // --- cards ---
     for path in ron_files_recursive(&plugin_dir.join(CARDS_DIR))? {
@@ -104,14 +89,6 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
                     &plugin.macros,
                     &mut validation.lint_failures,
                 );
-                let (result, resolutions) =
-                    crate::elaborate::elaborate_with_resolutions(&card, &registries);
-                if let Err(errors) = result {
-                    validation
-                        .elab_failures
-                        .extend(errors.into_iter().map(|e| (path.clone(), e)));
-                }
-                count_fallbacks(&resolutions, &mut validation);
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -128,14 +105,6 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
         match plugin.macros.read_str::<Token>(&source) {
             Ok(token) => {
                 lint_card_abilities(&path, &token.abilities, &mut validation.lint_failures);
-                let (result, resolutions) =
-                    crate::elaborate::elaborate_token_with_resolutions(&token, &registries);
-                if let Err(errors) = result {
-                    validation
-                        .elab_failures
-                        .extend(errors.into_iter().map(|e| (path.clone(), e)));
-                }
-                count_fallbacks(&resolutions, &mut validation);
                 validation.valid += 1;
             }
             Err(error) => validation.failures.push(InvalidCard { path, error }),
@@ -143,19 +112,6 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
     }
 
     Ok(validation)
-}
-
-/// Tallies one file's R2-fallback reads (`The`/`TheGroup` label lookups)
-/// into [`Validation::fallback_reads`]/[`Validation::fallback_files`] — the
-/// corpus dry-run's "escape hatch" metric. Matches the traced walk's
-/// `"{spelling} -> …"` resolution format.
-fn count_fallbacks(resolutions: &[crate::elaborate::Resolution], validation: &mut Validation) {
-    let reads = resolutions
-        .iter()
-        .filter(|r| r.description.starts_with("The ->") || r.description.starts_with("TheGroup ->"))
-        .count();
-    validation.fallback_reads += reads;
-    validation.fallback_files += usize::from(reads > 0);
 }
 
 /// A finished card that disagrees with canon's reference version of the same

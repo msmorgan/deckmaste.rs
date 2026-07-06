@@ -1,9 +1,0 @@
-// Twin of Spec.idr `tBadStatOfPlayer`: a player has no power — `StatOf` wants
-// an object [CR#109.1].
-Normal(
-  name: "Reject Power Of Player",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: Draw(StatOf(You, Power))),
-  ],
-)

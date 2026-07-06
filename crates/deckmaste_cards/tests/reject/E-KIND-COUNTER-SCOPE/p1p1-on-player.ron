@@ -1,9 +1,0 @@
-// Twin of Spec.idr `tBadPoisonOnObject` (inverted carrier): +1/+1 counters are
-// object-borne — a player can't carry one [CR#122.1].
-Normal(
-  name: "Reject P1P1 On Player",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: PutCounters(You, P1P1Counter, 1)),
-  ],
-)

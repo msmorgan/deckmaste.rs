@@ -5,7 +5,6 @@ modules = Core
         , Cards
         , Spec
         , Experimental
-        , Resolutions
         , EmitTables
 
 sourcedir = "src"

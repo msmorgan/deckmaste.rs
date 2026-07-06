@@ -1,9 +1,0 @@
-// Accept twin of reject/E-KIND-COUNTER-SCOPE/p1p1-on-player.ron: +1/+1
-// counters are object-borne — `This` (an object) can carry one [CR#122.1].
-Normal(
-  name: "Accept P1P1 On Object",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: PutCounters(This, P1P1Counter, 1)),
-  ],
-)

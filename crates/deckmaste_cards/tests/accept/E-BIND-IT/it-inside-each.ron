@@ -1,9 +1,0 @@
-// Accept twin of reject/E-BIND-IT/it-outside-binder.ron: `It` read INSIDE
-// an `Each` binder resolves to the loop's candidate element [CR#608.2].
-Normal(
-  name: "Accept It Bound",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: Each(binder: Existing(SelectAll(Creature)), effect: Destroy(It))),
-  ],
-)

@@ -1,9 +1,0 @@
-// `The(<label>)` — the explicit labeled read — with no `Label` introduction
-// in scope ([CR#608.2d]): the fallback spelling must name a real label.
-Normal(
-  name: "Reject The Names No Label",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: Destroy(The("exiled"))),
-  ],
-)

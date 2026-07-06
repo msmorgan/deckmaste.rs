@@ -1,7 +1,0 @@
-// Accept twin of reject/E-FLOOR-DEFENSE/defense-on-enchantment.ron: printed
-// defense on a Battle face [CR#210].
-Normal(
-  name: "Accept Defense",
-  types: [Battle],
-  defense: 3,
-)

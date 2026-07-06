@@ -1,7 +1,0 @@
-// Accept twin of reject/E-FLOOR-SUBTYPE/aura-on-creature.ron: Aura governs
-// Enchantment — a face WITH the Enchantment type can carry it [CR#205.3d].
-Normal(
-  name: "Accept Aura Enchantment",
-  types: [Enchantment],
-  subtypes: [Aura],
-)

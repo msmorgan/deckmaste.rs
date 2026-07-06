@@ -1,9 +1,0 @@
-// Accept twin of reject/E-KIND-COUNTER-UNDECLARED/undeclared-counter.ron: a
-// counter reference naming a DECLARED counter kind [CR#122.1].
-Normal(
-  name: "Accept Declared Counter",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: PutCounters(This, P1P1Counter, 1)),
-  ],
-)

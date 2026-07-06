@@ -1,9 +1,0 @@
-// Twin of Spec.idr `tBadDesignationScope` (inverted carrier): Monstrous is an
-// object designation — a player can't take it [CR#109.3,701.37b].
-Normal(
-  name: "Reject Monstrous Player",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: GetDesignation("Monstrous")),
-  ],
-)

@@ -1,9 +1,0 @@
-// Twin of Spec.idr `tBadItOutside`: `It` read with no enclosing
-// Each/DivideAmong/Where/Pick binder [CR#608.2].
-Normal(
-  name: "Reject It Unbound",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: Destroy(It)),
-  ],
-)

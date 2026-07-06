@@ -1,8 +1,0 @@
-// Printed loyalty on a non-Planeswalker face [CR#209].
-Normal(
-  name: "Reject Loyalty",
-  types: [Creature],
-  power: 1,
-  toughness: 1,
-  loyalty: 3,
-)

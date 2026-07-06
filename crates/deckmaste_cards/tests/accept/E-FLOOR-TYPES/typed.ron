@@ -1,9 +1,0 @@
-// Accept twin of reject/E-FLOOR-TYPES/typeless.ron and
-// two-faced-typeless-back.ron: a face WITH at least one card type
-// [CR#109.3].
-Normal(
-  name: "Accept Typed",
-  types: [Creature],
-  power: 1,
-  toughness: 1,
-)

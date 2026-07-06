@@ -29,9 +29,6 @@ pub fn run(args: ValidateArgs) -> anyhow::Result<()> {
     for failure in &validation.failures {
         eprintln!("{}: {}", failure.path.display(), failure.error);
     }
-    for (path, error) in &validation.elab_failures {
-        eprintln!("{}: {error}", path.display());
-    }
 
     // canon is the authority: a finished card a plugin shares with canon must
     // expand to canon's value (see `check_against_canon`).
@@ -45,24 +42,18 @@ pub fn run(args: ValidateArgs) -> anyhow::Result<()> {
     }
 
     println!(
-        "{}: {} valid, {} todos skipped, {} invalid, {} elaboration error(s), {} canon \
-         mismatch(es)",
+        "{}: {} valid, {} todos skipped, {} invalid, {} canon mismatch(es)",
         plugin_dir.display(),
         validation.valid,
         validation.todos,
         validation.failures.len(),
-        validation.elab_failures.len(),
         mismatches.len(),
     );
-    if !validation.failures.is_empty()
-        || !validation.elab_failures.is_empty()
-        || !mismatches.is_empty()
-    {
+    if !validation.failures.is_empty() || !mismatches.is_empty() {
         anyhow::bail!(
-            "{}: {} invalid card(s), {} elaboration error(s), {} canon mismatch(es)",
+            "{}: {} invalid card(s), {} canon mismatch(es)",
             plugin_dir.display(),
             validation.failures.len(),
-            validation.elab_failures.len(),
             mismatches.len(),
         );
     }

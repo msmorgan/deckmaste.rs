@@ -1,9 +1,0 @@
-// `Do(WinGame)` as a cost — not a cost-eligible verb [CR#118.3]. There is no
-// catch-all row: a verb absent from cost-actions.ron is ineligible.
-Normal(
-  name: "Reject WinGame Cost",
-  types: [Artifact],
-  abilities: [
-    Activated(cost: [Do(WinGame)], effect: Draw(1)),
-  ],
-)

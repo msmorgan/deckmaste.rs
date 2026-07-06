@@ -1,9 +1,0 @@
-// Twin of Spec.idr `tBadEventObjectOutside`: an event-role reference outside
-// any event body [CR#603.2e,608.2k].
-Normal(
-  name: "Reject Event Role Unbound",
-  types: [Sorcery],
-  abilities: [
-    Spell(effect: Destroy(EventObject)),
-  ],
-)

@@ -220,11 +220,6 @@ fn validate_builtin_with_tokens_has_no_failures() {
         "{} lint failure(s)",
         validation.lint_failures.len()
     );
-    assert!(
-        validation.elab_failures.is_empty(),
-        "{} elaboration error(s)",
-        validation.elab_failures.len()
-    );
     // 5 cards + 5 tokens = 10 minimum.
     assert!(
         validation.valid >= 10,

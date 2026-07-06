@@ -6,8 +6,6 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fmt;
-use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -20,18 +18,11 @@ use deckmaste_core::KeywordDecl;
 use deckmaste_core::ParamShape;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
-use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::MACROS_DIR;
 use deckmaste_core::plugin::RULES_DIR;
-use deckmaste_core::plugin::TOKENS_DIR;
 use deckmaste_core::plugin::card_path;
-use deckmaste_core::plugin::is_todo_source;
 use deckmaste_core::plugin::token_path;
 
-use crate::elaborate;
-use crate::elaborate::ElabError;
-use crate::elaborate::Registries;
-use crate::elaborate::Stage;
 use crate::macros::InsertError;
 use crate::macros::MacroDef;
 use crate::macros::MacroSet;
@@ -69,54 +60,6 @@ pub struct Plugin {
     /// globally by the engine's SBA sweep ([CR#704.3]). See
     /// `deckmaste_core::SbaRule`.
     pub sba_rules: Vec<deckmaste_core::SbaRule>,
-    /// The staged elaboration rollout this load ran under
-    /// ([`Stage::for_root`]) — `Stage::Deny` for every plugin except a
-    /// directory literally named `wizards`.
-    pub elab_stage: Stage,
-    /// The `Stage::Warn` counted report: empty for a `Stage::Deny` plugin
-    /// (any finding there fails the load outright, per
-    /// `elaborate_finished`, so none survive to be reported) or a totally
-    /// clean `Stage::Warn` plugin. See `cargo xtask elaborate`.
-    pub elab_report: ElabReport,
-    /// The `Stage::Warn` names skipped by [`Plugin::card`]/[`Plugin::token`]
-    /// — every name in `elab_report.findings`, kept alongside it as a fast
-    /// lookup set.
-    elab_skip: HashSet<String>,
-}
-
-/// One card/token that failed load-time elaboration ([`Plugin::elab_report`]).
-#[derive(Debug, Clone)]
-pub struct ElabFinding {
-    pub path: PathBuf,
-    /// The card/token's own name — what a lookup by [`Plugin::card`] /
-    /// [`Plugin::token`] uses, not necessarily the file's stem (a card name
-    /// with a filesystem-illegal character escapes in its file name; a
-    /// token has no name field of its own, so its file stem stands in).
-    pub name: String,
-    pub errors: Vec<ElabError>,
-}
-
-impl fmt::Display for ElabFinding {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, error) in self.errors.iter().enumerate() {
-            if i > 0 {
-                writeln!(f)?;
-            }
-            write!(f, "{error} at {} ({})", self.path.display(), self.name)?;
-        }
-        Ok(())
-    }
-}
-
-/// The load-time elaboration walk's counted report ([`Plugin::elab_report`]):
-/// how many finished cards/tokens were checked, and which ones failed.
-#[derive(Debug, Clone, Default)]
-pub struct ElabReport {
-    /// Every finished (non-todo) card/token file the walk parsed.
-    pub checked: usize,
-    /// The subset that failed elaboration — empty for a `Stage::Deny`
-    /// plugin, whose load fails outright instead of accumulating these.
-    pub findings: Vec<ElabFinding>,
 }
 
 impl Plugin {
@@ -313,33 +256,6 @@ impl Plugin {
 
         let sba_rules = load_sba_rules(&root, &macros)?;
 
-        // The load-time elaboration gate ([[cards-elab-load-gate]]): every
-        // finished (non-todo) card/token this plugin owns is parsed and
-        // walked NOW, so a live engine can never resolve a card that would
-        // panic on an unbound reference. The stage is a property of THIS
-        // load call (`root`'s own name), not a global switch — see
-        // `Stage::for_root`.
-        let elab_stage = Stage::for_root(&root);
-        let registries = Registries {
-            subtypes: &subtypes,
-            counters: &counters,
-            designations: &designations,
-            keywords: &keywords,
-        };
-        // Definition-time macro body checking ([typed-holes delta 3]): every
-        // macro THIS plugin defines is expanded once with typed placeholder
-        // arguments and elaborated, NOW that the whole scope (including the
-        // prelude) has settled — so an ill-formed body or an unbound-anaphor
-        // read fails the load, naming the macro, before any card invokes it.
-        crate::elaborate::defcheck::check_own(&macros, &own, &registries)
-            .with_context(|| format!(r#"checking macro definitions in "{}""#, root.display()))?;
-        let elab_report = elaborate_finished(&root, &macros, &registries, elab_stage)?;
-        let elab_skip = elab_report
-            .findings
-            .iter()
-            .map(|f| f.name.clone())
-            .collect();
-
         Ok(Self {
             root,
             macros,
@@ -348,22 +264,7 @@ impl Plugin {
             designations,
             keywords,
             sba_rules,
-            elab_stage,
-            elab_report,
-            elab_skip,
         })
-    }
-
-    /// The elaboration registries over this plugin's loaded tables — the
-    /// one construction point consumers (validate, tests, xtask) share.
-    #[must_use]
-    pub fn registries(&self) -> Registries<'_> {
-        Registries {
-            subtypes: &self.subtypes,
-            counters: &self.counters,
-            designations: &self.designations,
-            keywords: &self.keywords,
-        }
     }
 
     /// The file a card of this name would live in.
@@ -374,16 +275,9 @@ impl Plugin {
 
     /// Reads and parses `cards/<name>.ron`, with the plugin's macros in scope.
     ///
-    /// Under [`Stage::Warn`] (the `wizards` corpus), a name that failed the
-    /// load-time elaboration walk is refused here too — "the offending
-    /// cards skipped": the engine can still never resolve it, even though
-    /// the plugin's own load succeeded.
-    ///
     /// # Errors
-    /// If the file is missing, doesn't expand to a card, or (under
-    /// [`Stage::Warn`]) named a card the load-time walk already flagged.
+    /// If the file is missing or doesn't expand to a card.
     pub fn card(&self, name: &str) -> anyhow::Result<Card> {
-        self.reject_skipped(name)?;
         let path = self.card_path(name);
         self.macros
             .read_str(&read(&path)?)
@@ -398,37 +292,13 @@ impl Plugin {
 
     /// Reads and parses `tokens/<name>.ron`, with the plugin's macros in scope.
     ///
-    /// Under [`Stage::Warn`], a name that failed the load-time elaboration
-    /// walk is refused here too (see [`Plugin::card`]).
-    ///
     /// # Errors
-    /// If the file is missing, doesn't expand to a token, or (under
-    /// [`Stage::Warn`]) named a token the load-time walk already flagged.
+    /// If the file is missing or doesn't expand to a token.
     pub fn token(&self, name: &str) -> anyhow::Result<Token> {
-        self.reject_skipped(name)?;
         let path = self.token_path(name);
         self.macros
             .read_str(&read(&path)?)
             .with_context(|| format!(r#"parsing "{}""#, path.display()))
-    }
-
-    /// The [`Stage::Warn`] "offending cards skipped" check shared by
-    /// [`Plugin::card`]/[`Plugin::token`]: a no-op for [`Stage::Deny`]
-    /// (`elab_skip` is always empty there — any finding already failed the
-    /// whole load).
-    fn reject_skipped(&self, name: &str) -> anyhow::Result<()> {
-        if self.elab_skip.contains(name) {
-            let finding = self
-                .elab_report
-                .findings
-                .iter()
-                .find(|f| f.name == name)
-                .expect("elab_skip and elab_report.findings name the same set");
-            anyhow::bail!(
-                "{name:?} failed load-time elaboration and was skipped under Stage::Warn:\n{finding}"
-            );
-        }
-        Ok(())
     }
 }
 
@@ -490,93 +360,6 @@ fn load_sba_rules(root: &Path, macros: &MacroSet) -> anyhow::Result<Vec<deckmast
     Ok(rules)
 }
 
-/// The load-time elaboration walk: every finished `cards/**/*.ron` and
-/// `tokens/**/*.ron` under `root`, parsed with `macros` and elaborated
-/// against `registries` — the same shape as `validate::validate_plugin`'s
-/// card/token loop, run eagerly at load time instead of behind
-/// `cargo xtask validate`.
-///
-/// A file that doesn't even PARSE is always a hard error, regardless of
-/// stage — the staged rollout eases in the NEW elaboration checks, not
-/// parsing, which every other code path already treats as fatal.
-///
-/// # Errors
-/// If a file isn't readable or doesn't parse; under [`Stage::Deny`], also if
-/// any file fails elaboration (one aggregated error naming every finding).
-fn elaborate_finished(
-    root: &Path,
-    macros: &MacroSet,
-    registries: &Registries,
-    stage: Stage,
-) -> anyhow::Result<ElabReport> {
-    let mut report = ElabReport::default();
-    for path in ron_files_recursive(&root.join(CARDS_DIR))? {
-        let source = read(&path)?;
-        if is_todo_source(&source) {
-            continue;
-        }
-        let card: Card = macros
-            .read_str(&source)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
-        report.checked += 1;
-        if let Err(errors) = elaborate::elaborate(&card, registries) {
-            report.findings.push(ElabFinding {
-                name: card_lookup_name(&card).to_owned(),
-                path,
-                errors,
-            });
-        }
-    }
-    for path in ron_files_recursive(&root.join(TOKENS_DIR))? {
-        let source = read(&path)?;
-        if is_todo_source(&source) {
-            continue;
-        }
-        let token: Token = macros
-            .read_str(&source)
-            .with_context(|| format!(r#"parsing "{}""#, path.display()))?;
-        report.checked += 1;
-        if let Err(errors) = elaborate::elaborate_token(&token, registries) {
-            // A token has no name field of its own — the file stem IS its
-            // lookup name (`token_path`/`token_file` don't escape it).
-            let name = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or_default()
-                .to_owned();
-            report.findings.push(ElabFinding { path, name, errors });
-        }
-    }
-    if stage == Stage::Deny && !report.findings.is_empty() {
-        let mut message = format!(
-            "{} elaboration error(s) in \"{}\":\n",
-            report
-                .findings
-                .iter()
-                .map(|f| f.errors.len())
-                .sum::<usize>(),
-            root.display()
-        );
-        for finding in &report.findings {
-            let _ = writeln!(message, "  {finding}");
-        }
-        anyhow::bail!(message);
-    }
-    Ok(report)
-}
-
-/// The name [`Plugin::card`] would use to find `card`'s own file — the
-/// authoritative source (not the file path, which escapes filesystem-illegal
-/// characters): a face's `name` field, or a two-faced card's front face.
-/// Exposed crate-wide for `crate::lock`, which keys `cards.elab.lock` by
-/// this same name.
-pub(crate) fn card_lookup_name(card: &Card) -> &str {
-    match card {
-        Card::Normal(face) => &face.name,
-        Card::TwoFaced { front, .. } => &front.name,
-    }
-}
-
 /// Reads a plugin file to a string with path context on failure. Exposed for
 /// the migration pipeline (`deckmaste_migrations::graduate`), which reads
 /// `.ron.todo` candidates before handing them to a [`Plugin`]'s macro reader.
@@ -629,7 +412,6 @@ mod tests {
     use deckmaste_core::Type;
 
     use super::*;
-    use crate::elaborate::Code;
 
     fn plugins() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins")
@@ -833,186 +615,4 @@ mod tests {
         assert!(format!("{err:#}").contains("already defined"), "{err:#}");
     }
 
-    fn bad_card_source() -> &'static str {
-        // The E-BIND-TARGET reject fixture's shape: a `Distinct` constraint
-        // naming a sibling announce slot that doesn't exist
-        // ([CR#115.7e,601.2c]).
-        r#"Normal(
-            name: "Deliberately Bad Card",
-            types: [Sorcery],
-            abilities: [
-                Spell(effect: Targeted(targets: [Distinct([1], AnyTarget)], effect: DealDamage(It, 1))),
-            ],
-        )"#
-    }
-
-    /// [[cards-elab-load-gate]] `Stage::Deny`: a plugin with one malformed
-    /// card fails the WHOLE load, naming the code, the file, and the card.
-    #[test]
-    fn deny_stage_load_fails_naming_the_code_path_and_card() {
-        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
-        let root = tempfile::tempdir().unwrap();
-        // Not named "wizards" (a random tempdir leaf never is) — Deny by
-        // default, matching every hand-authored plugin and any ad hoc test
-        // directory.
-        let cards_dir = root.path().join("cards");
-        std::fs::create_dir_all(&cards_dir).unwrap();
-        std::fs::write(
-            cards_dir.join("Deliberately Bad Card.ron"),
-            bad_card_source(),
-        )
-        .unwrap();
-
-        let err = Plugin::load_with_prelude(&builtin, root.path())
-            .err()
-            .expect("a malformed card must fail the load");
-        let message = format!("{err:#}");
-        assert!(message.contains("E-BIND-TARGET"), "{message}");
-        assert!(message.contains("Deliberately Bad Card"), "{message}");
-        assert!(message.contains("Deliberately Bad Card.ron"), "{message}");
-    }
-
-    /// [typed-holes delta 3] Definition-time body checking: a macro whose body
-    /// reads an unbound anaphor (`It` outside any binder) fails at plugin LOAD,
-    /// named by the macro with `E-MACRO-CONTRACT` — before any card invokes it.
-    #[test]
-    fn defcheck_rejects_a_body_reading_an_unbound_anaphor() {
-        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
-        let root = tempfile::tempdir().unwrap();
-        let macros_dir = root.path().join("macros");
-        std::fs::create_dir_all(&macros_dir).unwrap();
-        std::fs::write(
-            macros_dir.join("BadRegen.ron"),
-            r#"(
-                name: "BadRegen",
-                kinds: [Effect],
-                body: DealDamage(It, 1),
-            )"#,
-        )
-        .unwrap();
-        let err = Plugin::load_with_prelude(&builtin, root.path())
-            .err()
-            .expect("a body reading unbound It must fail the load");
-        let msg = format!("{err:#}");
-        assert!(msg.contains("E-MACRO-CONTRACT"), "{msg}");
-        assert!(msg.contains("BadRegen"), "{msg}");
-    }
-
-    /// [typed-holes delta 3] An ill-formed body — one that doesn't read as its
-    /// declared kind with placeholder arguments — fails at load with
-    /// `E-MACRO-BODY`, naming the macro.
-    #[test]
-    fn defcheck_rejects_an_ill_formed_body() {
-        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
-        let root = tempfile::tempdir().unwrap();
-        let macros_dir = root.path().join("macros");
-        std::fs::create_dir_all(&macros_dir).unwrap();
-        std::fs::write(
-            macros_dir.join("BadBody.ron"),
-            r#"(
-                name: "BadBody",
-                kinds: [Effect],
-                body: Bogus(nonsense),
-            )"#,
-        )
-        .unwrap();
-        let err = Plugin::load_with_prelude(&builtin, root.path())
-            .err()
-            .expect("an ill-formed body must fail the load");
-        let msg = format!("{err:#}");
-        assert!(msg.contains("E-MACRO-BODY"), "{msg}");
-        assert!(msg.contains("BadBody"), "{msg}");
-    }
-
-    /// [typed-holes delta 2+3] A parameter's binder contract is CHECKED at
-    /// load: a body that wraps the hole in a binder supplying the granted
-    /// anaphor (`Effect(binds: [It])` over an `Each`) loads clean.
-    #[test]
-    fn defcheck_accepts_a_body_that_binds_its_contract_anaphor() {
-        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
-        let root = tempfile::tempdir().unwrap();
-        let macros_dir = root.path().join("macros");
-        std::fs::create_dir_all(&macros_dir).unwrap();
-        std::fs::write(
-            macros_dir.join("GoodLoop.ron"),
-            r#"(
-                name: "GoodLoop",
-                kinds: [Effect],
-                params: [Effect(binds: [It])],
-                body: Each(binder: Existing(SelectAll(Creature)), effect: Param(0)),
-            )"#,
-        )
-        .unwrap();
-        Plugin::load_with_prelude(&builtin, root.path())
-            .expect("a body that binds It over the hole loads clean");
-    }
-
-    /// [typed-holes delta 2+3] The dual: a body that DECLARES `binds: [It]`
-    /// but doesn't wrap the hole in an It-binder is a capture hazard — the
-    /// contract the body doesn't honor is a load error.
-    #[test]
-    fn defcheck_rejects_a_declared_contract_the_body_doesnt_honor() {
-        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
-        let root = tempfile::tempdir().unwrap();
-        let macros_dir = root.path().join("macros");
-        std::fs::create_dir_all(&macros_dir).unwrap();
-        std::fs::write(
-            macros_dir.join("BadContract.ron"),
-            r#"(
-                name: "BadContract",
-                kinds: [Effect],
-                params: [Effect(binds: [It])],
-                body: Param(0),
-            )"#,
-        )
-        .unwrap();
-        let err = Plugin::load_with_prelude(&builtin, root.path())
-            .err()
-            .expect("an unhonored binder contract must fail the load");
-        let msg = format!("{err:#}");
-        assert!(msg.contains("E-MACRO-CONTRACT"), "{msg}");
-        assert!(msg.contains("BadContract"), "{msg}");
-    }
-
-    /// [[cards-elab-load-gate]] `Stage::Warn`: a plugin directory literally
-    /// named `wizards` still loads with a malformed card present — the
-    /// counted report records it, and it's skipped (never fetchable via
-    /// `Plugin::card`) — while an unrelated clean card in the same plugin
-    /// loads normally.
-    #[test]
-    fn warn_stage_load_succeeds_and_skips_only_the_bad_card() {
-        let builtin = Plugin::load(plugins().join("builtin")).unwrap();
-        let root = tempfile::tempdir().unwrap();
-        let wizards_dir = root.path().join("wizards");
-        let cards_dir = wizards_dir.join("cards");
-        std::fs::create_dir_all(&cards_dir).unwrap();
-        std::fs::write(
-            cards_dir.join("Deliberately Bad Card.ron"),
-            bad_card_source(),
-        )
-        .unwrap();
-        std::fs::write(
-            cards_dir.join("Fine Bear.ron"),
-            r#"Normal(name: "Fine Bear", types: [Creature], power: 2, toughness: 2)"#,
-        )
-        .unwrap();
-
-        let plugin = Plugin::load_with_prelude(&builtin, &wizards_dir)
-            .expect("Stage::Warn never fails the load");
-        assert_eq!(plugin.elab_stage, Stage::Warn);
-        assert_eq!(plugin.elab_report.checked, 2);
-        assert_eq!(plugin.elab_report.findings.len(), 1);
-        assert_eq!(plugin.elab_report.findings[0].name, "Deliberately Bad Card");
-        assert_eq!(
-            plugin.elab_report.findings[0].errors[0].code,
-            Code::BindTarget
-        );
-
-        // Skipped: the engine can still never resolve it.
-        let skipped = plugin.card("Deliberately Bad Card").unwrap_err();
-        assert!(format!("{skipped:#}").contains("E-BIND-TARGET"));
-        // An unrelated clean card in the same warn-stage plugin is
-        // unaffected.
-        assert!(plugin.card("Fine Bear").is_ok());
-    }
 }

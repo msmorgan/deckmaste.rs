@@ -8,7 +8,6 @@
 
 pub mod card;
 pub mod cite;
-pub mod elaborate;
 pub mod extract;
 pub mod fidelity;
 pub mod generate;

@@ -96,12 +96,8 @@ fn builtin_cards_are_valid() {
     for (path, msg) in &validation.lint_failures {
         eprintln!("{}: lint: {msg}", path.display());
     }
-    for (path, error) in &validation.elab_failures {
-        eprintln!("{}: {error}", path.display());
-    }
     assert!(validation.failures.is_empty());
     assert!(validation.lint_failures.is_empty());
-    assert!(validation.elab_failures.is_empty());
     // The handwritten builtin cards: 5 basics + 3 tokens at the time of writing.
     // Floor, not exact, so adding cards or tokens doesn't break the test.
     assert!(

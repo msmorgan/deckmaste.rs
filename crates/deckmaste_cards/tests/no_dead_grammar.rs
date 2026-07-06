@@ -3,9 +3,8 @@
 //! variant defined in one of the seven grammar family files (effects,
 //! actions, statics, events, counts, conditions, references) — must carry at
 //! least one loading ACCEPTANCE card (`plugins/{canon,testing,builtin}`,
-//! cards or macro bodies) AND at least one REJECT fixture
-//! (`crates/deckmaste_cards/tests/reject/`), or be named, with a reviewed
-//! reason, in one of the two allowlists below.
+//! cards or macro bodies), or be named, with a reviewed reason, in the
+//! allowlist below.
 //!
 //! MECHANICAL, not hand-maintained: the inventory comes from parsing the
 //! actual `deckmaste_core` source (`syn`), so a newly-minted grammar node is
@@ -22,9 +21,15 @@
 //!    construction (`macro_ron(flatten)` dispatch, or bare-numeral sugar) — a
 //!    text search for the tag name is structurally meaningless, not evidence of
 //!    disuse.
-//!  - `ACCEPT_ALLOWLIST` / `REJECT_ALLOWLIST`: a real gap, with a reason each
-//!    entry's author stands behind (e.g. "no illegal configuration exists at
-//!    this node" for the reject side).
+//!  - `ACCEPT_ALLOWLIST`: a real gap, with a reason each entry's author
+//!    stands behind.
+//!
+//! The load-time elaborator this sweep's reject-fixture half depended on
+//! ([CR#-tagged binding-context walk] — `deckmaste_cards::elaborate`) was
+//! deleted; anaphora/binding resolution now happens purely at engine eval
+//! time, so there is no load-time gate left to demonstrate REJECT fixtures
+//! against. The reject-side requirement and `tests/reject/` corpus are gone
+//! with it — this sweep now only checks the accept side.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -51,10 +56,6 @@ fn core_src_dir() -> PathBuf {
 
 fn plugins_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins")
-}
-
-fn reject_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reject")
 }
 
 /// One grammar node: the enum it belongs to, and its variant name (the tag a
@@ -136,44 +137,6 @@ fn structurally_untagged() -> BTreeSet<Node> {
     .map(|(e, v)| (e.to_string(), v.to_string()))
     .collect()
 }
-
-// ── Shared, reviewed reasons (used across many entries below) ──────────────
-
-/// A closed selector/vocabulary position (a turn-structure step, an axis
-/// name, a cause verb, a player attribute, ...): every value the type can
-/// hold is well-formed at this position by construction — there is no
-/// elaboration-time legality predicate a fixture could trip. Picking the
-/// "wrong" one is a semantic mismatch a card author just wouldn't print,
-/// never a load error.
-const NO_ILLEGAL_VALUE: &str = "closed selector vocabulary; every value is well-formed at this position, no elaboration-time \
-     legality predicate exists to violate";
-
-/// The op/axis pairing this variant's field carries is enforced by the RUST
-/// TYPE SYSTEM itself (see `crate::continuous`'s own docs): a collection
-/// axis (`Colors`/`CardTypes`/...) only ever carries a `CollectionOp`,
-/// which has no `Up`/`Down`, and a numeric axis only ever carries a
-/// `NumericOp`, which has no `Add`/`Remove` — so the illegal combination a
-/// reject fixture would need to spell (raising a color, adding a power
-/// delta) is unrepresentable in RON at all. There is nothing to construct.
-const AXIS_OP_TYPE_ENFORCED: &str = "the op/axis pairing is Rust-type-enforced (recovers Idris's Collection/Numeric type-class \
-     gate structurally); the illegal combination this code would need is unrepresentable in RON";
-
-/// A plain, ungated verb/effect/static: the binding/caps/floor rules active
-/// at this position are generic across every sibling of the same kind and
-/// are already demonstrated, via an existing reject fixture, using a
-/// DIFFERENT sibling at the identical position. This node's own semantics
-/// add no further checked constraint beyond that shared, already-covered
-/// gate.
-const GENERIC_GATE_ALREADY_DEMONSTRATED: &str = "no bespoke legality rule targets this node specifically; the generic binding/caps/floor gate \
-     at this position is already demonstrated by a sibling node's reject fixture";
-
-/// `E-POS-RIDER` ([CR#614.12]) is generic across every `EnterRider` variant:
-/// "a rider on a non-battlefield destination" is illegal regardless of
-/// WHICH rider. The reject twin (`E-POS-RIDER/rider-on-battlefield-move.ron`)
-/// exercises this via `Tapped`; respelling the identical mistake with each
-/// sibling rider would exercise the same one line of checker logic again.
-const RIDER_POSITION_GENERIC: &str = "E-POS-RIDER is generic across every EnterRider variant (any rider off the battlefield \
-     destination is refused); the reject twin already demonstrates it via `Tapped`";
 
 /// Accept-side exemptions: a node with no real fixture anywhere in
 /// `plugins/{canon,testing,builtin}`.
@@ -759,392 +722,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
     ]
 }
 
-/// Reject-side exemptions: a node with no reject fixture, reviewed per
-/// entry (not a dumping ground) — see the three shared reasons above for
-/// what each category actually means.
-fn reject_allowlist() -> Vec<(Node, &'static str)> {
-    let mut v = vec![
-        (
-            n("Effect", "Continuously"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Effect", "Until"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Effect", "May"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Effect", "MayPay"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Effect", "MustPay"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Effect", "Noting"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Effect", "Reflexive"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Bin", "Top"), NO_ILLEGAL_VALUE),
-        (n("Bin", "Bottom"), NO_ILLEGAL_VALUE),
-        (n("Anchor", "FromTop"), NO_ILLEGAL_VALUE),
-        (n("Anchor", "FromBottom"), NO_ILLEGAL_VALUE),
-        (n("EnterRider", "FaceDown"), RIDER_POSITION_GENERIC),
-        (n("EnterRider", "UnderControlOf"), RIDER_POSITION_GENERIC),
-        (
-            n("EnterRider", "UnderOwnersControl"),
-            RIDER_POSITION_GENERIC,
-        ),
-        (n("EnterRider", "Attacking"), RIDER_POSITION_GENERIC),
-        (n("EnterRider", "WithCounters"), RIDER_POSITION_GENERIC),
-        (n("Arrangement", "ChosenOrder"), NO_ILLEGAL_VALUE),
-        (n("Arrangement", "AnyOrder"), NO_ILLEGAL_VALUE),
-        (n("Arrangement", "SameOrder"), NO_ILLEGAL_VALUE),
-        (n("Arrangement", "RandomOrder"), NO_ILLEGAL_VALUE),
-        (
-            n("Action", "ReturnToHand"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Action", "Attach"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Action", "Unattach"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Action", "MoveGroup"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Action", "ExtraPhase"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Action", "BecomeDay"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("Action", "BecomeNight"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Action", "TheRingTempts"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Action", "MoveCounters"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Action", "CreateReplacement"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "Discard"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "AddMana"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("PlayerAction", "Mill"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("PlayerAction", "VentureIntoDungeon"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("PlayerAction", "Tap"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("PlayerAction", "Untap"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "GetEmblem"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "CopySpell"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "FlipCoins"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "RollDice"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "RemoveCounters"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "Distribute"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "LoseGame"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "RestartGame"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "Shuffle"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "SetLife"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("PlayerAction", "RemoveDamage"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Duration", "FixedUntil"), NO_ILLEGAL_VALUE),
-        (n("Duration", "UntilEvent"), NO_ILLEGAL_VALUE),
-        (n("Duration", "ForAsLongAs"), NO_ILLEGAL_VALUE),
-        (n("Duration", "ForThisEvent"), NO_ILLEGAL_VALUE),
-        (n("Duration", "EndOfGame"), NO_ILLEGAL_VALUE),
-        (n("NumericOp", "Set"), AXIS_OP_TYPE_ENFORCED),
-        (n("NumericOp", "Down"), AXIS_OP_TYPE_ENFORCED),
-        (n("CollectionOp", "Set"), AXIS_OP_TYPE_ENFORCED),
-        (n("CollectionOp", "Add"), AXIS_OP_TYPE_ENFORCED),
-        (n("CollectionOp", "Remove"), AXIS_OP_TYPE_ENFORCED),
-        (n("Modification", "Toughness"), AXIS_OP_TYPE_ENFORCED),
-        (
-            n("Modification", "SwitchPowerToughness"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        // A change-bundling wrapper, not a legality-bearing shape of its
-        // own — an illegal `Several` member is rejected by THAT member's
-        // own node, never by `Several` itself.
-        (
-            n("Modification", "Several"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Modification", "Colors"), AXIS_OP_TYPE_ENFORCED),
-        (n("Modification", "CardTypes"), AXIS_OP_TYPE_ENFORCED),
-        (n("Modification", "Subtypes"), AXIS_OP_TYPE_ENFORCED),
-        (n("Modification", "Supertypes"), AXIS_OP_TYPE_ENFORCED),
-        (
-            n("Modification", "GainAbility"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Modification", "LoseAbility"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Modification", "LoseAllAbilities"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Modification", "CantHaveAbility"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Modification", "SetController"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Modification", "SetText"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Modification", "AllCreatureTypes"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Modification", "BaseLoyalty"), AXIS_OP_TYPE_ENFORCED),
-        (n("Modification", "BaseDefense"), AXIS_OP_TYPE_ENFORCED),
-        (
-            n("Modification", "BecomeBasicLandType"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("CostChange", "Increase"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("CostChange", "Reduce"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("CostChange", "Additional"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("CostChange", "Scaled"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("StaticEffect", "Modify"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "Conditionally"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "CostModifier"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "CostOption"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "TriggerMultiplier"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "ModifyPlayer"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "SpendAsThough"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "AsThough"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("StaticEffect", "Sba"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("StaticEffect", "OutcomeGate"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("StaticEffect", "PayPips"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("OutcomeGateKind", "CantLose"), NO_ILLEGAL_VALUE),
-        (n("OutcomeGateKind", "CantWin"), NO_ILLEGAL_VALUE),
-        (n("PipClass", "Generic"), NO_ILLEGAL_VALUE),
-        (n("PipClass", "Colored"), NO_ILLEGAL_VALUE),
-        (n("PayAct", "TapToPay"), NO_ILLEGAL_VALUE),
-        (n("PayAct", "ExileToPay"), NO_ILLEGAL_VALUE),
-        (n("PlayerAttr", "Life"), NO_ILLEGAL_VALUE),
-        (n("PlayerAttr", "HandSize"), NO_ILLEGAL_VALUE),
-        (n("PlayerAttr", "HandSizeLimit"), NO_ILLEGAL_VALUE),
-        (n("PlayerAttr", "LandPlaysPerTurn"), NO_ILLEGAL_VALUE),
-        (n("PlayerMod", "SetTo"), NO_ILLEGAL_VALUE),
-        (n("PlayerMod", "Raise"), NO_ILLEGAL_VALUE),
-        (n("PlayerMod", "Lower"), NO_ILLEGAL_VALUE),
-        (n("PlayerMod", "NoMax"), NO_ILLEGAL_VALUE),
-        (n("PhaseKind", "PrecombatMain"), NO_ILLEGAL_VALUE),
-        (n("PhaseKind", "PostcombatMain"), NO_ILLEGAL_VALUE),
-        (n("PhaseStep", "PrecombatMain"), NO_ILLEGAL_VALUE),
-        (n("PhaseStep", "PostcombatMain"), NO_ILLEGAL_VALUE),
-        (n("BeginningStep", "Untap"), NO_ILLEGAL_VALUE),
-        (n("CombatStep", "BeginningOfCombat"), NO_ILLEGAL_VALUE),
-        (n("CombatStep", "DeclareAttackers"), NO_ILLEGAL_VALUE),
-        (n("CombatStep", "DeclareBlockers"), NO_ILLEGAL_VALUE),
-        (n("CombatStep", "FirstCombatDamage"), NO_ILLEGAL_VALUE),
-        (n("CombatStep", "CombatDamage"), NO_ILLEGAL_VALUE),
-        (n("CombatStep", "EndOfCombat"), NO_ILLEGAL_VALUE),
-        (n("EndingStep", "Cleanup"), NO_ILLEGAL_VALUE),
-        (n("WhoseTurn", "AnOpponents"), NO_ILLEGAL_VALUE),
-        (n("StateChange", "Untapped"), NO_ILLEGAL_VALUE),
-        (n("Agency", "CostPayment"), NO_ILLEGAL_VALUE),
-        (n("Agency", "AttackDeclaration"), NO_ILLEGAL_VALUE),
-        (n("Agency", "EffectInstruction"), NO_ILLEGAL_VALUE),
-        (n("Agency", "TurnBasedAction"), NO_ILLEGAL_VALUE),
-        (n("Agency", "StateBasedAction"), NO_ILLEGAL_VALUE),
-        (n("Agency", "ManaAbilityResolution"), NO_ILLEGAL_VALUE),
-        (n("Agency", "SpecialAction"), NO_ILLEGAL_VALUE),
-        (n("CauseVerb", "Discard"), NO_ILLEGAL_VALUE),
-        (n("CauseVerb", "Mill"), NO_ILLEGAL_VALUE),
-        (n("CauseVerb", "Explore"), NO_ILLEGAL_VALUE),
-        (n("CauseVerb", "Regenerate"), NO_ILLEGAL_VALUE),
-        (
-            n("EventFilter", "LifeLost"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "CounterPlaced"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "CounterRemoved"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "Played"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "ActivatedAb"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "BlockDeclared"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "Attached"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "ControlChanged"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "DesignationChanged"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "DiceRolled"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "BecameDay"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("EventFilter", "BecameNight"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Stat", "Toughness"), NO_ILLEGAL_VALUE),
-        (n("Stat", "ManaValue"), NO_ILLEGAL_VALUE),
-        (n("RoundMode", "RoundUp"), NO_ILLEGAL_VALUE),
-        (n("RoundMode", "RoundDown"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "Colors"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "Types"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "Subtypes"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "BasicLandTypes"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "Supertypes"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "Toughness"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "ManaCost"), NO_ILLEGAL_VALUE),
-        (n("Characteristic", "Name"), NO_ILLEGAL_VALUE),
-        (n("Count", "CountOf"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("Count", "CountDistinct"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Count", "CounterCount"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Count", "Min"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Count", "Max"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Count", "Plus"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Count", "Minus"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Count", "Times"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Count", "TimesPaid"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Cmp", "AtMost"), NO_ILLEGAL_VALUE),
-        (n("Cmp", "Greater"), NO_ILLEGAL_VALUE),
-        (n("Cmp", "Less"), NO_ILLEGAL_VALUE),
-        (n("Condition", "Compare"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Condition", "Exists"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Condition", "Is"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("Condition", "LegallyAttached"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Condition", "DamagedByDeathtouch"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Condition", "Crossed"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("Condition", "PaidCost"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Condition", "TurnOf"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("Condition", "DuringPhase"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Reference", "Linked"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("Reference", "ControllerOf"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (n("Reference", "OwnerOf"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (
-            n("Reference", "AttachHostOf"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-        (
-            n("Reference", "AttachedTo"),
-            GENERIC_GATE_ALREADY_DEMONSTRATED,
-        ),
-    ];
-    v.sort();
-    v
-}
-
 /// Shorthand for building a `Node` key in the allowlists above.
 fn n(enum_name: &str, variant: &str) -> Node {
     (enum_name.to_string(), variant.to_string())
@@ -1184,10 +761,6 @@ fn accept_corpus() -> Vec<String> {
         .iter()
         .flat_map(|root| ron_texts_under(&plugins.join(root)))
         .collect()
-}
-
-fn reject_corpus() -> Vec<String> {
-    ron_texts_under(&reject_root())
 }
 
 /// Whether `name` appears as a whole-word token anywhere in `corpus` — a
@@ -1284,19 +857,11 @@ fn allowlists_name_only_real_nodes() {
         );
         assert!(!reason.is_empty(), "{node:?} has an empty allowlist reason");
     }
-    for (node, reason) in reject_allowlist() {
-        assert!(
-            inventory.contains(&node),
-            "reject_allowlist names {node:?} ({reason}), which is not a current grammar node"
-        );
-        assert!(!reason.is_empty(), "{node:?} has an empty allowlist reason");
-    }
 }
 
 /// The real sweep: every core grammar node (effects/actions/statics/events/
-/// counts/conditions/references) has at least one accept-corpus fixture and
-/// at least one reject fixture, or is named with a reason in the matching
-/// allowlist above.
+/// counts/conditions/references) has at least one accept-corpus fixture, or
+/// is named with a reason in `accept_allowlist`.
 #[test]
 fn no_dead_grammar_nodes() {
     let inventory = grammar_inventory();
@@ -1309,13 +874,11 @@ fn no_dead_grammar_nodes() {
 
     let untagged = structurally_untagged();
     let accept_allow = accept_allowlist();
-    let reject_allow = reject_allowlist();
 
     let accept_texts = accept_corpus();
-    let reject_texts = reject_corpus();
     assert!(
-        !accept_texts.is_empty() && !reject_texts.is_empty(),
-        "the accept/reject corpora must not be empty (a path likely resolved wrong)"
+        !accept_texts.is_empty(),
+        "the accept corpus must not be empty (a path likely resolved wrong)"
     );
 
     let uncovered_accept = find_uncovered(
@@ -1324,34 +887,16 @@ fn no_dead_grammar_nodes() {
         &untagged,
         &accept_allow,
     );
-    let uncovered_reject = find_uncovered(
-        &inventory,
-        |name| appears_as_token(&reject_texts, name),
-        &untagged,
-        &reject_allow,
-    );
 
-    if !uncovered_accept.is_empty() || !uncovered_reject.is_empty() {
+    if !uncovered_accept.is_empty() {
         let mut msg = String::new();
-        if !uncovered_accept.is_empty() {
-            msg.push_str(&format!(
-                "\n{} node(s) with NO accept fixture under plugins/{{canon,testing,builtin}} \
-                 (add a card, or a reviewed accept_allowlist() entry):\n",
-                uncovered_accept.len()
-            ));
-            for (enum_name, variant) in &uncovered_accept {
-                msg.push_str(&format!("  - {enum_name}::{variant}\n"));
-            }
-        }
-        if !uncovered_reject.is_empty() {
-            msg.push_str(&format!(
-                "\n{} node(s) with NO reject fixture under tests/reject/ (add a fixture, or a \
-                 reviewed reject_allowlist() entry):\n",
-                uncovered_reject.len()
-            ));
-            for (enum_name, variant) in &uncovered_reject {
-                msg.push_str(&format!("  - {enum_name}::{variant}\n"));
-            }
+        msg.push_str(&format!(
+            "\n{} node(s) with NO accept fixture under plugins/{{canon,testing,builtin}} \
+             (add a card, or a reviewed accept_allowlist() entry):\n",
+            uncovered_accept.len()
+        ));
+        for (enum_name, variant) in &uncovered_accept {
+            msg.push_str(&format!("  - {enum_name}::{variant}\n"));
         }
         panic!("{msg}");
     }
