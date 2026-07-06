@@ -21,6 +21,7 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use slotmap::Key;
 
 use crate::agenda::WorkItem;
 use crate::event::Cause;
@@ -2153,10 +2154,10 @@ impl GameState {
                 if no_other_singular && frame.endophora.targets.len() == 1 {
                     return frame.endophora.targets[0];
                 }
-                panic!(
-                    "Reference::It referenced outside an Each/DivideAmong/Where/Pick element \
-                     and without a lone announced target"
-                );
+                Self::unbound_ref(
+                    reference,
+                    "It outside an Each/DivideAmong/Where/Pick element and no lone announced target",
+                )
             }
             // The single object bound by an enclosing `Effect::With`/cost
             // `With` one-binder (`TheRef`/`ChooseOne`) — the choice made BEFORE
@@ -2172,21 +2173,20 @@ impl GameState {
                 // runtime backing (GameState.noted product groups) lands
                 // with [[engine-bound-references]]; loud until then.
                 let Some(that) = frame.endophora.that.as_ref() else {
-                    todo!(
-                        "engine-bound-references: a product-sited That(Sort) at \
-                         runtime (no enclosing With binding)"
-                    )
+                    return Self::unbound_ref(
+                        reference,
+                        "That(Sort) with no enclosing With binding",
+                    );
                 };
-                assert_eq!(
-                    that.cardinality,
-                    crate::stack::Cardinality::One,
-                    "That(Sort) reads a single object, but the bound choice is a group \
-                     (a many-binder) — read it as They and iterate with Each",
-                );
-                *that
-                    .group
-                    .first()
-                    .expect("a One binding holds its single element")
+                if that.cardinality != crate::stack::Cardinality::One {
+                    return Self::unbound_ref(
+                        reference,
+                        "That(Sort) bound to a group — read as They and iterate with Each",
+                    );
+                }
+                that.group.first().copied().unwrap_or_else(|| {
+                    Self::unbound_ref(reference, "That(Sort) bound to an empty group")
+                })
             }
             // The labeled read: an `As`-named announce slot ([CR#608.2d]),
             // filled by the enclosing `Effect::Targeted`. A `Label`-effect
@@ -2195,21 +2195,21 @@ impl GameState {
             Reference::The(label) => {
                 let Some((_, ids)) = frame.endophora.labeled.iter().find(|(l, _)| l == label)
                 else {
-                    todo!("engine-bound-references: a Label-effect The(label) at runtime")
+                    return Self::unbound_ref(
+                        reference,
+                        "The(label) with no matching announced slot",
+                    );
                 };
-                assert_eq!(
-                    ids.len(),
-                    1,
-                    "The(label) reads a one-target slot; a plural slot is read as \
-                     TheGroup(label)",
-                );
-                ids[0]
+                match ids.as_slice() {
+                    [id] => *id,
+                    _ => Self::unbound_ref(
+                        reference,
+                        "The(label) on a non-singular slot — read as TheGroup(label)",
+                    ),
+                }
             }
             Reference::A { .. } => {
-                todo!(
-                    "engine-bound-references: A(filter) desugars to a resolution-time \
-                     choice at runtime"
-                )
+                Self::unbound_ref(reference, "A(filter) resolution-time choice not wired")
             }
             // [CR#603.10a,603.2e,608.2k]: the trigger's provenance-explicit
             // roles, read from the bindings the fired trigger carried. The
@@ -2222,73 +2222,66 @@ impl GameState {
                 // patient — leaving existing snapshot-bearing reads unchanged.
                 match &frame.endophora.that_object {
                     Some(s) => s.object,
-                    None => match frame
-                        .endophora
-                        .that_patient
-                        .as_ref()
-                        .expect("EventObject referenced where the trigger bound one")
-                    {
-                        crate::trigger::EventPatient::Object(s) => s.object,
-                        crate::trigger::EventPatient::Player(p) => self.player(*p).object,
+                    None => match frame.endophora.that_patient.as_ref() {
+                        Some(crate::trigger::EventPatient::Object(s)) => s.object,
+                        Some(crate::trigger::EventPatient::Player(p)) => self.player(*p).object,
+                        None => Self::unbound_ref(reference, "EventObject outside a trigger"),
                     },
                 }
             }
             // The event ACTOR (the responsible player) — `EventActor`.
-            Reference::EventActor => {
-                let p = frame
-                    .endophora
-                    .that_player
-                    .expect("EventActor referenced where the trigger bound one");
-                self.player(p).object
-            }
+            Reference::EventActor => match frame.endophora.that_player {
+                Some(p) => self.player(p).object,
+                None => Self::unbound_ref(reference, "EventActor outside a trigger"),
+            },
             // [CR#608.2k,120.3]: the PATIENT (the acted-upon thing) —
             // kind-poly, an object or a player proxy.
-            Reference::EventPatient => {
-                let patient = frame
-                    .endophora
-                    .that_patient
-                    .as_ref()
-                    .expect("EventPatient referenced where the trigger bound one");
-                match patient {
-                    crate::trigger::EventPatient::Object(s) => s.object,
-                    crate::trigger::EventPatient::Player(p) => self.player(*p).object,
-                }
-            }
+            Reference::EventPatient => match frame.endophora.that_patient.as_ref() {
+                Some(crate::trigger::EventPatient::Object(s)) => s.object,
+                Some(crate::trigger::EventPatient::Player(p)) => self.player(*p).object,
+                None => Self::unbound_ref(reference, "EventPatient outside a trigger"),
+            },
             // [CR#506.2,508.5]: the combat DEFENDING player — always a player.
-            Reference::DefendingPlayer => {
-                let p = frame
-                    .defending_player
-                    .expect("DefendingPlayer referenced where the trigger bound one");
-                self.player(p).object
-            }
+            Reference::DefendingPlayer => match frame.defending_player {
+                Some(p) => self.player(p).object,
+                None => Self::unbound_ref(reference, "DefendingPlayer outside combat"),
+            },
             // [CR#109.5]: the derived controller of a referenced object.
             Reference::ControllerOf(inner) => {
                 let id = self.eval_reference(inner, frame);
+                if id.is_null() {
+                    return id;
+                }
                 self.player(self.layers().controller(id)).object
             }
             // [CR#108.3]: the owner of a referenced (card-backed) object.
             Reference::OwnerOf(inner) => {
                 let id = self.eval_reference(inner, frame);
+                if id.is_null() {
+                    return id;
+                }
                 self.player(self.owner_of(id)).object
             }
             // Look through a remembered macro invocation.
             Reference::Expanded(e) => self.eval_reference(&e.value, frame),
             // engine-resolve-selections follow-ups: these need stores that do
-            // not exist yet (see the filed tickets).
-            Reference::Bound(ident) => todo!(
-                "engine-bound-references: Bound({ident:?}) needs a named-role binding store ([CR#608.2])"
-            ),
-            Reference::Linked(ident) => todo!(
-                "engine-linked-abilities: Linked({ident:?}) needs a linked-ability store ([CR#607])"
-            ),
+            // not exist yet — an authored read fizzles until then.
+            Reference::Bound(_) => {
+                Self::unbound_ref(reference, "Bound(...) named-role binding store not wired")
+            }
+            Reference::Linked(_) => {
+                Self::unbound_ref(reference, "Linked(...) linked-ability store not wired")
+            }
             // [CR#301.5,303.4]: the host an attachment is attached to — read
             // the attachment→host relation directly off the resolved object.
             Reference::AttachHostOf(inner) => {
                 let id = self.eval_reference(inner, frame);
-                self.objects
-                    .obj(id)
-                    .attached_to
-                    .expect("AttachHostOf referenced an unattached object")
+                if id.is_null() {
+                    return id;
+                }
+                self.objects.obj(id).attached_to.unwrap_or_else(|| {
+                    Self::unbound_ref(reference, "AttachHostOf on an unattached object")
+                })
             }
             // The inverse (host→attachment): scan for the object whose
             // `attached_to` points at the resolved host. v1 single attachment —
@@ -2296,13 +2289,34 @@ impl GameState {
             // multiple-attachment fan-out is `Filter::Attachment` territory.
             Reference::AttachedTo(inner) => {
                 let host = self.eval_reference(inner, frame);
+                if host.is_null() {
+                    return host;
+                }
                 self.objects
                     .iter()
                     .find(|o| o.attached_to == Some(host))
                     .map(|o| o.id)
-                    .expect("AttachedTo referenced a host with no attachment")
+                    .unwrap_or_else(|| {
+                        Self::unbound_ref(reference, "AttachedTo a host with no attachment")
+                    })
             }
         }
+    }
+
+    /// Card-authoring mistakes must never crash the engine
+    /// ([[engine-never-crashes-on-authoring-mistakes]]): an unresolvable
+    /// authored reference degrades to the null [`ObjectId`] — a slotmap key
+    /// that never maps to a live object, so the effect fizzles exactly as a
+    /// reference to a departed/zone-changed object does — leaving an
+    /// `eprintln!` breadcrumb. Soundness (a well-formed card's references
+    /// always resolving) is the Idris re-emit gate's job, not a runtime
+    /// panic; skipping that gate is UB whose worst case here is a silent
+    /// no-op, never a crash.
+    fn unbound_ref(reference: &Reference, why: &str) -> ObjectId {
+        eprintln!(
+            "deckmaste: reference {reference:?} did not resolve ({why}); treating as unbound — effect fizzles"
+        );
+        ObjectId::null()
     }
 
     /// Price the `{X}` symbols of a resolution-time cost ([CR#702.21b] — a
@@ -3061,6 +3075,46 @@ mod tests {
         state.objects.obj_mut(theirs).controller = PlayerId(1);
         state.zones.battlefield.push(theirs);
         theirs
+    }
+
+    /// Card-authoring mistakes never crash the engine
+    /// ([[engine-never-crashes-on-authoring-mistakes]]): an unresolvable
+    /// authored reference degrades to the null object id (the effect
+    /// fizzles) rather than panicking. Soundness — that a well-formed
+    /// card's references always resolve — is the Idris re-emit gate's job,
+    /// not a runtime panic.
+    #[test]
+    fn unbound_reference_degrades_to_null_not_panic() {
+        use deckmaste_core::Reference;
+        use slotmap::Key;
+
+        let state = game();
+        let frame = frame_for(&state, PlayerId(0));
+        // `It` outside any binder with no lone announced target — was a panic.
+        assert!(state.eval_reference(&Reference::It, &frame).is_null());
+        // Event roles read outside any trigger — were `.expect()` panics.
+        assert!(
+            state
+                .eval_reference(&Reference::EventObject, &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_reference(&Reference::EventActor, &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_reference(&Reference::DefendingPlayer, &frame)
+                .is_null()
+        );
+        // A derived reference over an unbound inner stays null, not a secondary
+        // panic in `layers().controller()`.
+        assert!(
+            state
+                .eval_reference(&Reference::ControllerOf(Box::new(Reference::It)), &frame)
+                .is_null()
+        );
     }
 
     /// History tallies via `EventCount`/`EventSum` — the general primitives
