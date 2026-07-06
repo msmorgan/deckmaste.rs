@@ -407,6 +407,24 @@ fn emit_reference(r: &Reference) -> R {
     })
 }
 
+/// `emit_reference`, specialized for a position where Idris's `Reference b k`
+/// is genuinely kind-poly with nothing else to pin `k` (`DealDamage`'s
+/// recipient — "any target"). Every OTHER `Reference` constructor already
+/// carries its own kind-fixing proof (`It`'s antecedent, `EventPatient`'s
+/// cap, `That`'s sort, …) or gets unified from a concretely-kinded consumer
+/// elsewhere, so only the context-free `Target n` needs its kind pinned to
+/// `Anything` — a bare `Target n` there would leave `k` an unsolved hole, and
+/// forcing `Anything` on every `Reference` would wrongly override a caller
+/// (`Attach`, `Move`, both `Reference b AnObject`) that needs a concrete kind.
+/// `damageTarget` is the curly-free Core helper that bakes `{k = Anything}` at
+/// the type-constructor level (the emitter must never author a brace).
+fn emit_reference_anykind(r: &Reference) -> R {
+    Ok(match r {
+        Reference::Target(n) => format!("(damageTarget {n})"),
+        _ => emit_reference(r)?,
+    })
+}
+
 /// Convert a `Reference` used where Idris wants a `Predicate` (Idris's
 /// `Sacrifice`/`ChooseOne`/… bake the choice INTO the predicate rather than
 /// pre-resolving it via a binder, unlike Rust's newer split). Every reference
@@ -1136,7 +1154,7 @@ fn emit_action(a: &Action) -> R {
             "dealDamageFrom",
             vec![
                 emit_reference(source)?,
-                emit_reference(patient)?,
+                emit_reference_anykind(patient)?,
                 emit_count(count)?,
             ],
         ),

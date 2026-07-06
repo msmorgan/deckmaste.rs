@@ -154,26 +154,27 @@ tTelescopeTokens =
 tThatMany : OneShotEffect Base
 tThatMany = Sequence [ Act (Draw (^3)), Act (GainLife ThatMany) ]
 
--- the INDEFINITE determiner + the May-intro flow (Through the Breach): "You
+-- the INDEFINITE choice + the May-intro flow (Through the Breach): "You
 -- may put a creature card from your hand onto the battlefield. That
--- permanent gains haste. Sacrifice it at the next end step." The A-choice
--- pushes a Chosen antecedent, the Move pushes the battlefield product
--- (`Permanent` — its new zone's noun), and a DECLINED May's products are
--- runtime-skipped, not scope-blocked ([CR#701.23b,608.2d]).
+-- permanent gains haste. Sacrifice it at the next end step." The
+-- `With (ChooseOne …) … It` binds the chosen card, the Move pushes the
+-- battlefield product (`Permanent` — its new zone's noun), and a DECLINED
+-- May's products are runtime-skipped, not scope-blocked ([CR#701.23b,608.2d]).
 tIndefiniteMay : OneShotEffect Base
 tIndefiniteMay =
-  Sequence [ May (Act (Move (A (And [inHand, creature])) (ToZone Battlefield)))
+  Sequence [ May (With (ChooseOne (And [inHand, creature])) (Act (Move It (ToZone Battlefield))))
            , Continuously UntilEndOfTurn (Modify (That Permanent) (GrantAbility (keyword Haste)))
            , Delayed nextEndStep (Act (Move (That Permanent) (ToZone Graveyard))) ]
 
--- `As`-NAMED announce slots ([CR#608.2d]): two same-sort slots would trip
--- the R2 gate (tBadAmbiguousThat), so the Arc Trail shape names them — and
--- `Distinct` pins the "any OTHER target" co-target constraint ([CR#115.7e]).
+-- POSITIONAL announce-slot reads ([CR#115.3]): two same-sort slots would trip
+-- the R2 gate on a sorted anaphor (tBadAmbiguousThat), so the Arc Trail shape
+-- reads them back by index (`Target n`) instead — and `Distinct` pins the
+-- "any OTHER target" co-target constraint ([CR#115.7e]).
 tLabeledSlots : OneShotEffect Base
 tLabeledSlots =
-  Targeted [ As "first" anyTarget, Distinct [0] (As "second" anyTarget) ]
-    (Sequence [ Act (DealDamage (The "first") (^2))
-              , Act (DealDamage (The "second") (^1)) ])
+  Targeted [ anyTarget, Distinct [0] anyTarget ]
+    (Sequence [ Act (DealDamage (Target {k = Anything} 0) (^2))
+              , Act (DealDamage (Target {k = Anything} 1) (^1)) ])
 
 -- an event-role antecedent serves the SORTED anaphor (the stack side of the
 -- caps machinery): a discard trigger's object went to a graveyard, so its
@@ -183,11 +184,11 @@ tEventRoleThat = Triggered (MkEventQuery [Discard] [Actor opponent])
   (Act (Move (That Card) (ToZone Exile)))
 
 -- …and where the event's role antecedent COLLIDES with an announced slot,
--- the `As` label disambiguates without loosening R2 (the Goblin Medics
+-- a POSITIONAL read disambiguates without loosening R2 (the Goblin Medics
 -- canon shape — mirror of `plugins/canon/cards/Goblin Medics.ron`).
 tTriggerTargetLabel : Ability Base
 tTriggerTargetLabel = Triggered (MkEventQuery [Becomes Tapped] [Agent (SameAs This)])
-  (Targeted [As "target" anyTarget] (Act (DealDamage (The "target") (^1))))
+  (Targeted [anyTarget] (Act (DealDamage (Target {k = Anything} 0) (^1))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
@@ -806,7 +807,7 @@ failing "Target ((^) 1) creature, Target ((^) 1) creature"
 
 -- ...and the wildcard trips it too: inside a trigger body the event's role
 -- antecedent is in scope, so an announced slot + `It` is a guess (the Goblin
--- Medics shape without its label — tTriggerTargetLabel is the fix).
+-- Medics shape without a positional read — tTriggerTargetLabel is the fix).
 -- @twin reject/E-BIND-AMBIGUOUS/ambiguous-it-two-targets.ron
 failing "queryRoles thisEnters"
   tBadAmbiguousIt : Ability Base
@@ -834,19 +835,6 @@ failing "resolveStack (Just Card) One ((intro"
   tBadTokenIsNotCard : OneShotEffect Base
   tBadTokenIsNotCard = Sequence [ Act (CreateToken (^1) (^: { types := [Creature] }))
                                 , Act (Move (That Card) (ToZone Exile)) ]
-
--- a labeled read naming NO label in scope (E-BIND-LABEL twin).
--- @twin reject/E-BIND-LABEL/the-names-no-label.ron
-failing "sameLabel (Just \"host\")"
-  tBadLabelMissing : OneShotEffect Base
-  tBadLabelMissing = Targeted [Target (^1) creature] (Act (Destroy (The "host")))
-
--- duplicate `As` names would make the labeled read a guess — refused
--- (the duplicate-name side of E-BIND-LABEL).
--- @twin reject/E-BIND-LABEL/duplicate-announce-label.ron
-failing "labelsOk"
-  tBadDuplicateLabels : OneShotEffect Base
-  tBadDuplicateLabels = Targeted [As "x" (Target (^1) creature), As "x" (Target (^1) opponent)] (Act (Draw (^1)))
 
 -- `Allotment` outside any `Distribute` body (E-BIND-ALLOTMENT twin).
 -- @twin reject/E-BIND-ALLOTMENT/allotment-outside-divide.ron

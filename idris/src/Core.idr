@@ -782,9 +782,9 @@ sameCard _ _ = False
 
 -- ONE antecedent on the stack. `kind` rides along (an "any target" slot is
 -- sort `Permanent` but kind `Anything`); `expectedZone` is the [CR#603.7c]
--- stamp a producing clause leaves (where the object went); `label` is the
--- `As`-named announce slot / `Label` re-site the explicit `The`/`TheGroup`
--- reads consume ([CR#608.2d]).
+-- stamp a producing clause leaves (where the object went); `label` is
+-- vestigial (see `labelFresh`) — no live constructor sets it since
+-- positional `Target n` replaced the labeled-read mechanism ([CR#608.2d]).
 public export
 record Ante where
   constructor MkAnte
@@ -842,7 +842,7 @@ resolveStack w cd s = classifyCandidates (candidates w cd s)
 -- antecedent that is NOT a candidate for a read leaves that read's
 -- resolution untouched. Sorted anaphors are deliberately NOT weakenable by
 -- a COMPATIBLE push — R2 flips them to `Ambiguous` (the ambiguity gate is
--- the design); the labeled reads (`The`/`TheGroup`) are the escape hatch.
+-- the design); a positional `Target n` read is the escape hatch.
 export
 weakenResolve : {w : Maybe Sort} -> {cd : Cardinality} -> {s : List Ante}
              -> (a : Ante) -> (off : candidate w cd a = False)
@@ -898,24 +898,10 @@ sameLabel : Maybe String -> Maybe String -> Bool
 sameLabel (Just a) (Just b) = a == b
 sameLabel _ _ = False
 
--- `The (l)` / `TheGroup (l)` — the LABELED reads ([CR#608.2d]): explicit,
--- never R2-gated — the ambiguity fallback (and the one read the weakening
--- lemma's caveat blesses: a fresh push can never re-point a label).
-public export
-resolveLabel : String -> Cardinality -> List Ante -> Bind
-resolveLabel l cd s = case filter (\a => sameLabel (Just l) a.label) s of
-  [] => Unbound
-  (a :: _) => if sameCard cd a.card then Bound a.kind else Unbound
-
 public export
 hasAllot : List Ante -> Bool
 hasAllot [] = False
 hasAllot (a :: as) = isAllotSite a.site || hasAllot as
-
--- stamp an `As`/`Label` name onto an antecedent ([CR#608.2d]).
-public export
-withLabel : String -> Ante -> Ante
-withLabel l a = MkAnte a.sort a.kind a.card a.site a.expectedZone (Just l)
 
 -- the chosen-pile FRAME a `DivideAndChoose` body binds ([CR#700.3,608.2d]).
 public export
@@ -1186,15 +1172,26 @@ mutual
       -- demote a `Selection` to its SOLE element. Partial — the author asserts singularity, exactly
       -- like `Only` (undefined on a 0- or 2+-element set). `GetTarget`/`Only` are sugar over it.
       Single : Selection b k -> Reference b k
-      -- the host this is attached to ("enchanted creature"); and its inverse.
+      -- the host this is attached to ("enchanted creature").
       AttachHostOf : Reference b AnObject -> Reference b AnObject
-      AttachedTo : Reference b AnObject -> Reference b AnObject
       -- the WILDCARD singular anaphor ("it"): inside a binder it is ALWAYS the
       -- innermost bound thing — a loop element or a `With`/pile choice frame —
       -- deterministic, never gated ([CR#608.2]); outside every binder it
       -- resolves over the antecedent stack (R1 nearest + the R2 uniqueness
       -- gate). Also the per-subject candidate an anthem's mods read.
       It : {auto 0 prf : resolveIt (stack b) = Bound k} -> Reference b k
+      -- the nth ANNOUNCED target ([CR#115.3]) — a positional read of the
+      -- `Targeted` slot list, replacing the old sorted/labeled anaphors for
+      -- targets. Kind-poly and CONTEXT-FREE: no proof obligation, unlike
+      -- `It`/`That`/`EventObject` — an out-of-range index is a benign
+      -- runtime fizzle on the Rust side (the null-`ObjectId` degrade), so
+      -- there is nothing here for the grammar to gate. `k` is a plain free
+      -- implicit (no default): a kind-specific consumer (`Attach`, `Move`,
+      -- both `Reference b AnObject`) unifies it from the expected type as
+      -- usual; a genuinely kind-poly consumer (`DealDamage`'s recipient)
+      -- needs it named explicitly at the use site (`Target {k = Anything} n`)
+      -- since nothing else pins it. Rust: Reference::Target(n).
+      Target : Nat -> Reference b k
       -- the SORTED singular anaphor — "that card" / "that creature" / "that
       -- player" ([CR#608.2d]): the antecedent answering to the noun `w` (R1
       -- per `compat`, R2 strict — a second compatible antecedent is a type
@@ -1203,10 +1200,6 @@ mutual
       -- slots ([CR#115.3]), producing clauses ([CR#400.7]), event bodies
       -- ([CR#603.2e]), and binders ([CR#608.2d]).
       That : (w : Sort) -> {auto 0 prf : resolveThat w (stack b) = Bound k} -> Reference b k
-      -- the LABELED antecedent ([CR#608.2d]) — the R2 gate's escape hatch:
-      -- reads the `As`-named announce slot (or a labeled push) by name;
-      -- explicit, never gated.
-      The : (l : String) -> {auto 0 prf : resolveLabel l One (stack b) = Bound k} -> Reference b k
       -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2k]).
       EventObject : {auto 0 prf : hasObject (eventCaps b) = True} -> Reference b AnObject
       -- the triggering event's PATIENT — the acted-upon thing (damage recipient, …), KIND-POLY but fixed by
@@ -1221,12 +1214,6 @@ mutual
       DefendingPlayer : {auto 0 prf : hasDefender (eventCaps b) = True} -> Reference b APlayer  -- the defending player of an attack/combat — ALWAYS a player, even vs a planeswalker/battle ([CR#506.2,508.5]); landwalk/Annihilator/Afflict
       ChosenPlayer : {auto 0 prf : chosenRefKind b = Just APlayer} -> Reference b APlayer  -- the as-enters chosen PLAYER (the identity-reference twin of OfChosen/ChosenNumber); opened by `AsEntersChoosing APlayer …`
       ChosenObject : {auto 0 prf : chosenRefKind b = Just AnObject} -> Reference b AnObject  -- the as-enters chosen OBJECT (the object-twin of `ChosenPlayer`; Clone copies it via `BecomeCopyOf ChosenObject`); opened by `AsEntersChoosing AnObject …`
-      -- the INDEFINITE determiner — "a creature", "an artifact you control"
-      -- ([CR#608.2d]): `by` chooses one match at resolution (`Nothing` = the
-      -- default chooser, you — a within-declaration default can't name the
-      -- `You` constructor); the choice pushes a `Chosen` antecedent for the
-      -- clauses to its right (`refIntro`).
-      A : (of_ : Predicate b k) -> {default Nothing by : Maybe (Reference b APlayer)} -> Reference b k
 
   -- A query selecting events ([CR#700]): kinds and filter filters (e.g. "Whenever a creature
   -- dies" = actor creature). Event predicates (`EventObject`/`EventActor`/`EventPatient`/
@@ -1478,8 +1465,8 @@ mutual
       Range : Maybe (Count b) -> Maybe (Count b) -> Quantity b
 
   -- A resolution-time GROUP / choice. In the mutual block because `Single` (a `Reference`)
-  -- demotes it. Plural anaphora (`They`/`Them`/`TheGroup`) lives here — the
-  -- group-side twins of `It`/`That`/`The`.
+  -- demotes it. Plural anaphora (`They`/`Them`) lives here — the
+  -- group-side twins of `It`/`That`.
   namespace Selection
     public export
     data Selection : Ctx -> RefKind -> Type where
@@ -1488,11 +1475,9 @@ mutual
       -- the PLURAL anaphors ([CR#608.2d]): `They` (any noun) / `Them w` ("those
       -- tokens") read the nearest Many antecedent — a plural target slot
       -- ([CR#115.3]), a group-producing clause ("create two tokens … THEY gain
-      -- haste", [CR#111.2]), a many-binder — under the same R1/R2 rules;
-      -- `TheGroup l` is the labeled plural read (piles, `As`-named slots).
+      -- haste", [CR#111.2]), a many-binder — under the same R1/R2 rules.
       They : {auto 0 prf : resolveThey Nothing (stack b) = Bound k} -> Selection b k
       Them : (w : Sort) -> {auto 0 prf : resolveThey (Just w) (stack b) = Bound k} -> Selection b k
-      TheGroup : (l : String) -> {auto 0 prf : resolveLabel l Many (stack b) = Bound k} -> Selection b k
       Random : Quantity b -> Predicate b k -> Selection b k
       TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
       BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
@@ -1744,15 +1729,12 @@ namespace TargetSpec
   data TargetSpec : Ctx -> RefKind -> Type where
     -- a target slot: a NON-ZERO `Quantity` of targets matching the predicate (`Target (^1)` = one;
     -- `Target (between (^1) (^2))` = "one or two"). The announced slot pushes an ANTECEDENT the body
-    -- reads back as an anaphor (`It` / `That w` / `They`) — the index reads are gone from the surface.
+    -- may read back as an anaphor (`It` / `That w` / `They`), or read POSITIONALLY by its index in
+    -- the `Targeted` list (`Reference.Target n`, this constructor's namesake in a different
+    -- namespace) — the context-free escape hatch for same-sort/ambiguous slots.
     Target : (q : Quantity b) -> {auto 0 prf : NonZeroQ q} -> Predicate b k -> TargetSpec b k
-    -- a NAMED announce slot ([CR#608.2d]): the slot's antecedent carries this label, read explicitly
-    -- as `The l` (one target) / `TheGroup l` (a plural slot) — how an announce-AMBIGUOUS body names
-    -- its slots WITHOUT loosening the R2 gate (the labeled slot still participates in R1/R2).
-    As : (l : String) -> TargetSpec b k -> TargetSpec b k
     -- a co-target set-DISTINCTNESS constraint ([CR#115.7e], "any OTHER target"): this spec's picks
-    -- must not overlap the sibling slots at these indices; `Targeted` bounds the indices (the
-    -- E-BIND-TARGET twin — the rule's remaining trigger now that index READS are gone).
+    -- must not overlap the sibling slots at these indices; `Targeted` bounds the indices.
     Distinct : (siblings : List Nat) -> TargetSpec b k -> TargetSpec b k
 
 -- a slot announces ONE target iff its quantity is literally one ([CR#115.3]);
@@ -1763,12 +1745,10 @@ quantityCard (Range (Just (Literal 1)) (Just (Literal 1))) = One
 quantityCard _ = Many
 
 -- the antecedent an announced slot pushes ([CR#115.3,601.2c]): noun from its
--- filter, kind from its slot, cardinality from its quantity, the `As` label
--- carried along.
+-- filter, kind from its slot, cardinality from its quantity.
 public export
 slotAnte : {k : RefKind} -> TargetSpec b k -> Ante
 slotAnte (Target q p) = MkAnte (filterSort p) k (quantityCard q) TargetSlot Nothing Nothing
-slotAnte (As l t) = withLabel l (slotAnte t)
 slotAnte (Distinct _ t) = slotAnte t
 
 public export
@@ -1776,8 +1756,11 @@ slotAntes : {ks : List RefKind} -> All (TargetSpec b) ks -> List Ante
 slotAntes [] = []
 slotAntes {ks = k :: ks'} (t :: ts) = slotAnte t :: slotAntes ts
 
--- duplicate `As` names would make the labeled read a guess — refused
--- ([CR#608.2d]; the duplicate-label side of E-BIND-LABEL).
+-- VESTIGIAL: no live constructor stamps an antecedent's `label` anymore
+-- (`As`/`The`/`TheGroup` retired in favour of positional `Target n` reads),
+-- so every `.label` is `Nothing` and this is trivially true. Kept only
+-- because `Targeted`'s `lbl` obligation below still names it — a home for
+-- labeled disambiguation should it ever return.
 public export
 labelFresh : Maybe String -> List Ante -> Bool
 labelFresh _ [] = True
@@ -1793,7 +1776,6 @@ labelsOk (a :: as) = labelFresh a.label as && labelsOk as
 public export
 specDistinctOk : TargetSpec b k -> Nat -> Bool
 specDistinctOk (Target _ _) n = True
-specDistinctOk (As _ t) n = specDistinctOk t n
 specDistinctOk (Distinct sibs t) n = all (\i => i < n) sibs && specDistinctOk t n
 
 public export
@@ -1931,7 +1913,6 @@ mutual
   selectionSort (Union gs) = unionSort gs
   selectionSort They = Permanent
   selectionSort (Them _) = Permanent
-  selectionSort (TheGroup _) = Permanent
 
   public export
   projSort : Projection b -> Sort
@@ -2263,8 +2244,8 @@ mutual
       -- each announced slot carries its OWN kind (its filter's), gathered as `ks : List RefKind`
       -- (a heterogeneous `All`); the slots push antecedents the body reads back as anaphors
       -- ([CR#115.3,601.2c]) — mixed-kind multi-target (Donate) disambiguates by SORT, same-sort
-      -- slots by `As` labels. The gates: no duplicate `As` names; `Distinct` sibling indices in
-      -- range ([CR#115.7e]).
+      -- slots POSITIONALLY (`Reference.Target n`, [CR#115.3]). The gate: `Distinct` sibling
+      -- indices in range ([CR#115.7e]); `lbl` is a vestigial no-op (see `labelFresh`).
       Targeted : {ks : List RefKind} -> (ts : All (TargetSpec b) ks) -> {auto 0 lbl : labelsOk (slotAntes ts) = True} -> {auto 0 rng : distinctOk ts (length ks) = True} -> OneShotEffect (bindTargets (slotAntes ts) b) -> OneShotEffect b
       -- binds `that`'s antecedent for `body` ([CR#608.2d]): a choice binder is a deterministic
       -- frame; a produce/search binder a whiffable product. Read back by sort (`It`/`That w`/
@@ -2349,22 +2330,19 @@ mutual
       Nil : SeqList b
       (::) : (e : OneShotEffect b) -> SeqList (intro e b) -> SeqList b
 
-  -- the `Chosen` antecedents the REFERENCES inside a clause push for its
-  -- right siblings — the indefinite determiner `A` ([CR#608.2d]; the choice
-  -- precedes the act, so these land farther than the clause's products).
+  -- the `Chosen` antecedents a REFERENCE pushes for its right siblings
+  -- ([CR#608.2d]). VESTIGIAL since the indefinite determiner `A` (the only
+  -- source of a `Chosen` antecedent — a "choose one, then read it back"
+  -- effect now goes through `With (ChooseOne …) … It`, whose antecedent
+  -- comes from `binderAnte`, not here) was retired: every case now falls to
+  -- the recursion/catch-all, so this is always `[]`. Kept as the hook for a
+  -- reference that should introduce something for its siblings again.
   public export
   refIntro : {k : RefKind} -> Reference b k -> List Ante
-  refIntro (A of_ {by = byr}) = refIntroM byr ++ [MkAnte (filterSort of_) k One Chosen Nothing Nothing]
   refIntro (ControllerOf r) = refIntro r
   refIntro (OwnerOf r) = refIntro r
   refIntro (AttachHostOf r) = refIntro r
-  refIntro (AttachedTo r) = refIntro r
   refIntro _ = []
-
-  public export
-  refIntroM : Maybe (Reference b APlayer) -> List Ante
-  refIntroM Nothing = []
-  refIntroM (Just r) = refIntro r
 
   public export
   countCard : Count b -> Cardinality
@@ -2831,6 +2809,15 @@ public export
 dealDamageFrom : Reference b AnObject -> Reference b k -> Count b -> Action b
 dealDamageFrom src r c = DealDamage {source = src} r c
 
+-- `Target n` at the kind-poly `Anything` — the honest reading of an
+-- unconstrained announced slot read into a kind-poly position (`DealDamage`'s
+-- recipient, "any target"). A curly-free helper so the `{k = Anything}` named
+-- implicit lives at the type-constructor level (the emitter must never author
+-- a card with a brace); the emitter writes `(damageTarget n)`.
+public export
+damageTarget : Nat -> Reference b Anything
+damageTarget n = Target {k = Anything} n
+
 public export
 moveAttacking : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d}
              -> Maybe (Reference b APlayer) -> Action b
@@ -2926,10 +2913,6 @@ triggeredFull : (q : EventQuery b)
              -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b)
              -> List UsageLimit -> List Zone -> Ability b
 triggeredFull q e l f = Triggered q e {limits = l} {from = f}
-
-public export
-aBy : Predicate b k -> Maybe (Reference b APlayer) -> Reference b k
-aBy p by = A p {by = by}
 
 public export
 replacesLimit : (q : EventQuery b)

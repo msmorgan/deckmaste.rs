@@ -236,8 +236,8 @@ surveil n = Act (Composite Surveil
 -- fight ([CR#701.14a]): two creatures each deal damage equal to their power to the other (simultaneous).
 -- The refs are RANK-2 (context-polymorphic): the second clause of the desugaring sits one telescope cell
 -- to the right of the first (which introduced an amount antecedent), so a fixed-context reference could
--- not cross — the simultaneity is the engine's; the macro just needs the refs at both cells. (Anaphoric
--- fight arguments — the Pounce `The`-label shape — ride the Rust `Fight` verb, not this macro.)
+-- not cross — the simultaneity is the engine's; the macro just needs the refs at both cells. (Positional
+-- fight arguments — the Pounce `Target n` shape — ride the Rust `Fight` verb, not this macro.)
 public export
 fight : ({0 c : Ctx} -> Reference c AnObject) -> ({0 c : Ctx} -> Reference c AnObject) -> OneShotEffect b
 fight x y = Act (Composite Fight
@@ -274,7 +274,7 @@ enchant hosts =
   [ Static (Can (Enact Attach (SameAs This) hosts))                                  -- (1) permission: the aura ENABLES attaching
   , Static (Also thisEnters (If (Not (LegallyAttached This))                         -- (2) [CR#303.4f] non-cast entry only (cast path is already attached):
               (With (ChooseOne hosts) (Act (Attach This It)))))                      --     choose a valid host (the frame), enter attached
-  , Spell (Targeted [As "host" (Target (^1) hosts)] (Act (Attach This (The "host")))) ]  -- (3) cast → target a host → attach on resolution (the LABELED read: an abstract host filter's SORT is stuck, so the label — not the sort — names the slot)
+  , Spell (Targeted [Target (^1) hosts] (Act (Attach This (Target 0)))) ]  -- (3) cast → target a host → attach on resolution (the POSITIONAL read: an abstract host filter's SORT is stuck, so the index — not the sort — names the slot)
 
 -- desugar a `KeywordSpec` into its full `Ability` — dispatches to the macros above. EXHAUSTIVE
 -- (no catch-all): adding a `KeywordSpec` constructor forces a clause here. `Bare` = an engine-

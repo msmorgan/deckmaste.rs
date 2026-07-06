@@ -79,10 +79,11 @@ card_GiantSpider = Normal $ ^:
 -- TRICKY: ETB trigger exiles "another target permanent"; a DELAYED trigger
 -- returns THAT CARD next end step — pure telescope: the exile clause's
 -- product answers to "card" (its new zone), survives the [CR#603.7c] target
--- drop, and the delayed body reads `That Card`. The announced slot is
--- `As`-named because the ETB event's own object antecedent (this permanent)
--- shares the slot's noun — the R2 gate would make a bare anaphor a guess.
--- The engine resolves the product to the reminted (or gone) object [CR#400.7].
+-- drop, and the delayed body reads `That Card`. The announced slot is read
+-- POSITIONALLY (`Target 0`) because the ETB event's own object antecedent
+-- (this permanent) shares the slot's noun — a bare sorted anaphor would be
+-- an R2 guess. The engine resolves the product to the reminted (or gone)
+-- object [CR#400.7].
 export
 card_Flickerwisp : Card
 card_Flickerwisp = Normal $ ^:
@@ -93,9 +94,9 @@ card_Flickerwisp = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , Triggered (thisEnters) $
-          Targeted [As "flickered" (Target (^1) (And [permanent, Not (SameAs This)]))] $
+          Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
             Sequence
-              [ Act (Move (The "flickered") (ToZone Exile))                -- exile the named target
+              [ Act (Move (Target 0) (ToZone Exile))                       -- exile the announced target
               , Delayed nextEndStep
                   (Act (Move (That Card) (ToZone Battlefield))) ]          -- return the exiled card ([CR#603.7c]: the Product survives)
       ]
@@ -170,14 +171,14 @@ card_Cloudshift = Normal $ ^:
 -- TRICKY: Through the Breach — SENTENCE ORDER with the `May` kept (v1 lost
 -- it): "You MAY put a creature card from your hand onto the battlefield.
 -- That creature gains haste. Sacrifice it at the beginning of the next end
--- step." The indefinite `A` pushes the chosen card, the Move pushes the
--- battlefield product (noun `Permanent` — its new zone), the May's
--- introductions flow to its right siblings ([CR#701.23b] — a declined May's
--- products are runtime-skipped, not scope-blocked), and both later clauses
--- read `That Permanent` — through the `Delayed` drop, since Products
--- survive [CR#603.7c]. If the engine can't still find the object at fire
--- time, the sacrifice does nothing. (The alternative cast cost stays
--- casting machinery, not a card-effect clause.)
+-- step." The indefinite CHOICE (`With (ChooseOne …) … It`) binds the chosen
+-- card, the Move pushes the battlefield product (noun `Permanent` — its new
+-- zone), the May's introductions flow to its right siblings ([CR#701.23b] —
+-- a declined May's products are runtime-skipped, not scope-blocked), and
+-- both later clauses read `That Permanent` — through the `Delayed` drop,
+-- since Products survive [CR#603.7c]. If the engine can't still find the
+-- object at fire time, the sacrifice does nothing. (The alternative cast
+-- cost stays casting machinery, not a card-effect clause.)
 export
 card_ThroughTheBreach : Card
 card_ThroughTheBreach = Normal $ ^:
@@ -187,7 +188,7 @@ card_ThroughTheBreach = Normal $ ^:
   , abilities :=
       [ Spell $
           Sequence
-            [ May (Act (Move (A (And [inHand, creature])) (ToZone Battlefield)))
+            [ May (With (ChooseOne (And [inHand, creature])) (Act (Move It (ToZone Battlefield))))
             , Continuously UntilEndOfTurn (Modify (That Permanent) (GrantAbility (keyword Haste)))  -- "that creature gains haste"
             , Delayed nextEndStep (Act (Move (That Permanent) (ToZone Graveyard))) ]
       ]
@@ -356,8 +357,8 @@ card_OblivionRing = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ Triggered (thisEnters)
-          (Targeted [As "ringed" (Target (^1) (And [permanent, Not (hasType Land), Not (SameAs This)]))]
-            (Act (Move (The "ringed") (ToZone Exile))))   -- `As`-named: the ETB event's own object antecedent shares the slot's noun
+          (Targeted [Target (^1) (And [permanent, Not (hasType Land), Not (SameAs This)])]
+            (Act (Move (Target 0) (ToZone Exile))))   -- POSITIONAL: the ETB event's own object antecedent shares the slot's noun
       , Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing] [Agent (SameAs This)])
           (Each (Existing (SelectAll (ExiledBy This))) (Act (Move It (ToZone Battlefield))))
       ]
@@ -378,10 +379,10 @@ card_BanishingLight = Normal $ ^:
   , types := [Enchantment]
   , abilities :=
       [ Triggered (thisEnters) $
-          Targeted [As "banished" (Target (^1) (And [permanent, Not (hasType Land), ControlledBy opponent]))] $
+          Targeted [Target (^1) (And [permanent, Not (hasType Land), ControlledBy opponent])] $
             Continuously (UntilEvent (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                                                    [Agent (SameAs This)]))
-                         (Relocate (The "banished") Battlefield Exile)
+                         (Relocate (Target 0) Battlefield Exile)
       ]
   }
 
@@ -687,11 +688,11 @@ card_OutpostSiege = Normal $ ^:
                     [ Act (Move (Single (TopOfLibrary (^1))) (ToZone Exile))
                     , Continuously UntilEndOfTurn (Can (Enact Play you (SameAs (That Card)))) ]))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target —
-            -- the slot is `As`-named: the leave event's own object antecedent is in scope beside it
+            -- the slot is read POSITIONALLY: the leave event's own object antecedent is in scope beside it
             Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
               (If (ChosenIs 1)
-                  (Targeted [As "struck" anyTarget] (Act (DealDamage (The "struck") (^1)))))
+                  (Targeted [anyTarget] (Act (DealDamage (Target {k = Anything} 0) (^1)))))
           ]
       ]
   }
