@@ -2,6 +2,7 @@
 
 pub mod deck;
 pub mod fidelity;
+pub mod idris_emit;
 pub mod macros;
 pub mod plugin;
 pub mod render;

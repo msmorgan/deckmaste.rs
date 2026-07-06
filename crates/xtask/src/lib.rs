@@ -12,6 +12,7 @@ pub mod extract;
 pub mod fidelity;
 pub mod generate;
 pub mod graduate;
+pub mod idris_check;
 pub mod resolve;
 pub mod stubs;
 pub mod validate;

@@ -1,0 +1,2786 @@
+//! Re-emit an EXPANDED [`Card`] (i.e. after `Expand::expand_all`) as an
+//! equivalent RAW `idris/src/Core.idr` `Card` expression — sugar-free, using
+//! Core's real constructors (never the `^`/`^:` builder sugar, never
+//! `Macros.idr` templates). Typechecking the emitted expression with
+//! `idris2 --check` is the anaphora-soundness gate: Idris's dependent
+//! `Normal`/`Reference`/`Selection` proofs make an unsound card (a dangling
+//! `It`/`That`, an ambiguous antecedent, …) unrepresentable, so a card that
+//! typechecks is sound by construction.
+//!
+//! This module is a plain recursive `Card -> Result<String, Gap>` string
+//! emitter — no parsing, no macro layer (the input has already gone through
+//! `Plugin`+`Expand::expand_all`). Every function returns either a bare Idris
+//! ATOM (no internal spaces, safe to splice unparenthesized) or a FULLY
+//! PARENTHESIZED compound expression — so callers can always join emitted
+//! pieces with a space and wrap once, with no risk of a stray unparenthesized
+//! application.
+//!
+//! `deckmaste_core`'s grammar has drifted from `idris/src/Core.idr` in real
+//! ways since the surface-corrections migration (new `EventFilter` master
+//! forms, a `Deontic` family, a `Selection`/`Binder` split, …) — that drift is
+//! exactly what this gate is meant to surface. Coverage is intentionally
+//! partial: anything not yet mapped returns [`Gap`] rather than guessing, and
+//! callers (the `idris-check` xtask command) report gaps as coverage, not
+//! failures.
+//!
+//! Pedantic-lint note: this module is ~60 small `&NodeType -> R` string
+//! emitters sharing one calling convention (every AST node arrives by
+//! reference, since callers hold the real `Card`/`Ability`/… tree; every
+//! emitter returns `Result` uniformly, even the handful that can't currently
+//! fail, so growing coverage never has to change a signature). Clippy's
+//! pedantic pass flags each of those choices in isolation
+//! (`needless_pass_by_value`, `trivially_copy_pass_by_ref`, `ref_option`,
+//! `unnecessary_wraps`) — allowed module-wide rather than annotated at each
+//! of ~60 call sites for a style trade-off that's intentional and uniform.
+#![allow(
+    clippy::needless_pass_by_value,
+    clippy::trivially_copy_pass_by_ref,
+    clippy::ref_option,
+    clippy::unnecessary_wraps
+)]
+
+use deckmaste_core::Ability;
+use deckmaste_core::Action;
+use deckmaste_core::Anchor;
+use deckmaste_core::Arrangement;
+use deckmaste_core::Card;
+use deckmaste_core::CardFace;
+use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::Cmp;
+use deckmaste_core::Color;
+use deckmaste_core::ColorOrColorless;
+use deckmaste_core::Condition;
+use deckmaste_core::Cost;
+use deckmaste_core::CostChange;
+use deckmaste_core::CostComponent;
+use deckmaste_core::Count;
+use deckmaste_core::CountBound;
+use deckmaste_core::CounterSpec;
+use deckmaste_core::Deontic;
+use deckmaste_core::DeonticAction;
+use deckmaste_core::Destination;
+use deckmaste_core::Effect;
+use deckmaste_core::EnterRider;
+use deckmaste_core::EventFilter;
+use deckmaste_core::Filter;
+use deckmaste_core::Ident;
+use deckmaste_core::KeywordAbility;
+use deckmaste_core::ManaCost;
+use deckmaste_core::ManaProduction;
+use deckmaste_core::ManaSpec;
+use deckmaste_core::ManaSymbol;
+use deckmaste_core::Modification;
+use deckmaste_core::Normalize;
+use deckmaste_core::NumericOp;
+use deckmaste_core::PhaseStep;
+use deckmaste_core::PlayerAction;
+use deckmaste_core::PlayerAttr;
+use deckmaste_core::PlayerMod;
+use deckmaste_core::Quantity;
+use deckmaste_core::Reference;
+use deckmaste_core::RelationFilter;
+use deckmaste_core::Selection;
+use deckmaste_core::SimpleManaSymbol;
+use deckmaste_core::Sort;
+use deckmaste_core::StatValue;
+use deckmaste_core::StateFilter;
+use deckmaste_core::StaticEffect;
+use deckmaste_core::Subtype;
+use deckmaste_core::Supertype;
+use deckmaste_core::TargetSpec;
+use deckmaste_core::Token;
+use deckmaste_core::TokenSpec;
+use deckmaste_core::Type;
+
+/// A Rust grammar shape this emitter doesn't (yet) translate to Idris —
+/// either a genuine expressiveness gap between the two grammars (report
+/// honestly), or simply not implemented yet. Carries a short description of
+/// what was hit and why.
+#[derive(Debug, Clone)]
+pub struct Gap(pub String);
+
+impl std::fmt::Display for Gap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Gap {}
+
+type R = Result<String, Gap>;
+
+fn gap(msg: impl Into<String>) -> Gap {
+    Gap(msg.into())
+}
+
+/// Build `(head a1 a2 …)`, or the bare `head` when `args` is empty (a
+/// nullary/unit constructor never needs parens).
+fn app(head: &str, args: Vec<String>) -> String {
+    if args.is_empty() {
+        head.to_string()
+    } else {
+        format!("({} {})", head, args.join(" "))
+    }
+}
+
+/// An Idris list literal `[a, b, c]` — self-delimited, safe to splice as an
+/// argument with no extra parens.
+fn ilist(items: Vec<String>) -> String {
+    format!("[{}]", items.join(", "))
+}
+
+/// An Idris string literal. Rust's `Debug` escaping for `str` coincides with
+/// Idris's for the common (ASCII, no exotic control chars) case — good enough
+/// for card names / labels / tags.
+fn ilit(s: &str) -> String {
+    format!("{s:?}")
+}
+
+/// Strip exactly ONE outer layer of parens from an already-fully-parenthesized
+/// application, so a named-arg override (`{actor = …}`, `{window = …}`, …)
+/// can be spliced in before re-wrapping in one fresh pair. `str::trim_matches`
+/// is the WRONG tool here — it strips every repeated occurrence of the
+/// pattern, eating inner closing parens too (`"(Draw (Literal 1))"` ->
+/// `"Draw (Literal 1"`, not `"Draw (Literal 1)"`) and corrupting the
+/// expression while still (sometimes) looking plausible.
+fn unwrap_outer(base: &str) -> &str {
+    base.strip_prefix('(')
+        .and_then(|s| s.strip_suffix(')'))
+        .unwrap_or(base)
+}
+
+fn try_maybe<T>(o: &Option<T>, f: impl Fn(&T) -> R) -> Result<String, Gap> {
+    match o {
+        None => Ok("Nothing".to_string()),
+        Some(v) => Ok(format!("(Just {})", f(v)?)),
+    }
+}
+
+fn map_list<T>(items: &[T], f: impl Fn(&T) -> R) -> Result<String, Gap> {
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        out.push(f(item)?);
+    }
+    Ok(ilist(out))
+}
+
+// ===========================================================================
+// Leaf enums: Color / mana / Type / Supertype / Subtype / Zone / phase steps
+// ===========================================================================
+
+fn emit_color(c: Color) -> String {
+    match c {
+        Color::White => "White",
+        Color::Blue => "Blue",
+        Color::Black => "Black",
+        Color::Red => "Red",
+        Color::Green => "Green",
+    }
+    .to_string()
+}
+
+fn emit_color_or_colorless(c: ColorOrColorless) -> String {
+    match c {
+        ColorOrColorless::Colorless => "Nothing".to_string(),
+        ColorOrColorless::Color(c) => format!("(Just {})", emit_color(c)),
+    }
+}
+
+fn emit_simple_mana_symbol(s: &SimpleManaSymbol) -> String {
+    match s {
+        SimpleManaSymbol::Generic(n) => app("Generic", vec![n.to_string()]),
+        SimpleManaSymbol::Specific(c) => app("Specific", vec![emit_color_or_colorless(*c)]),
+    }
+}
+
+fn emit_mana_symbol(m: &ManaSymbol) -> String {
+    match m {
+        ManaSymbol::Variable => "Variable".to_string(),
+        ManaSymbol::Snow => "SnowMana".to_string(),
+        ManaSymbol::Hybrid(s, c) => app("Hybrid", vec![emit_simple_mana_symbol(s), emit_color(*c)]),
+        ManaSymbol::Phyrexian(c, mc) => app(
+            "Phyrexian",
+            vec![
+                emit_color(*c),
+                match mc {
+                    None => "Nothing".to_string(),
+                    Some(c2) => format!("(Just {})", emit_color(*c2)),
+                },
+            ],
+        ),
+        ManaSymbol::Simple(s) => app("Simple", vec![emit_simple_mana_symbol(s)]),
+    }
+}
+
+fn emit_mana_cost(cost: &ManaCost) -> String {
+    ilist(cost.iter().map(emit_mana_symbol).collect())
+}
+
+fn emit_type(t: Type) -> R {
+    Ok(match t {
+        Type::Artifact => "Artifact",
+        Type::Battle => "Battle",
+        Type::Creature => "Creature",
+        Type::Enchantment => "Enchantment",
+        Type::Instant => "Instant",
+        Type::Kindred => "Kindred",
+        Type::Land => "Land",
+        Type::Planeswalker => "Planeswalker",
+        Type::Sorcery => "Sorcery",
+        Type::Dungeon => return Err(gap("Type::Dungeon has no Idris Type_ counterpart")),
+    }
+    .to_string())
+}
+
+fn emit_supertype(s: Supertype) -> String {
+    match s {
+        Supertype::Basic => "Basic",
+        Supertype::Legendary => "Legendary",
+        Supertype::Ongoing => "Ongoing",
+        Supertype::Snow => "Snow",
+        Supertype::World => "World",
+    }
+    .to_string()
+}
+
+/// The curated Rust subtype `name` -> the matching `Subtype` Idris
+/// constructor application, e.g. `"Bear"` -> `"(CreatureSub Bear)"`. Idris
+/// keeps a CLOSED, curated subtype enum (`idris/src/Core.idr`); Rust's is
+/// open (name + declared `types`/`confers`), so only the curated names
+/// typecheck — anything else is a genuine coverage gap, not a bug.
+fn subtype_idris(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "Bear" => "(CreatureSub Bear)",
+        "Rat" => "(CreatureSub Rat)",
+        "Spider" => "(CreatureSub Spider)",
+        "Human" => "(CreatureSub Human)",
+        "Knight" => "(CreatureSub Knight)",
+        "Goblin" => "(CreatureSub Goblin)",
+        "Elf" => "(CreatureSub Elf)",
+        "Zombie" => "(CreatureSub Zombie)",
+        "Elemental" => "(CreatureSub Elemental)",
+        "Wall" => "(CreatureSub Wall)",
+        "Spirit" => "(CreatureSub Spirit)",
+        "Rogue" => "(CreatureSub Rogue)",
+        "Warrior" => "(CreatureSub Warrior)",
+        "Merfolk" => "(CreatureSub Merfolk)",
+        "Wizard" => "(CreatureSub Wizard)",
+        "Juggernaut" => "(CreatureSub Juggernaut)",
+        "Angel" => "(CreatureSub Angel)",
+        "Faerie" => "(CreatureSub Faerie)",
+        "Insect" => "(CreatureSub Insect)",
+        "Cat" => "(CreatureSub Cat)",
+        "Vampire" => "(CreatureSub Vampire)",
+        "Noble" => "(CreatureSub Noble)",
+        "Aura" => "(EnchantmentSub Aura)",
+        "Saga" => "(EnchantmentSub Saga)",
+        "Equipment" => "(ArtifactSub Equipment)",
+        "Vehicle" => "(ArtifactSub Vehicle)",
+        "Plains" => "(LandSub Plains)",
+        "Island" => "(LandSub Island)",
+        "Swamp" => "(LandSub Swamp)",
+        "Mountain" => "(LandSub Mountain)",
+        "Forest" => "(LandSub Forest)",
+        "Siege" => "(BattleSub Siege)",
+        _ => return None,
+    })
+}
+
+fn emit_subtype(s: &Subtype) -> R {
+    subtype_idris(s.name.as_str())
+        .map(str::to_string)
+        .ok_or_else(|| gap(format!("unmapped subtype: {}", s.name.as_str())))
+}
+
+/// The curated counter-registry name (`plugins/builtin/macros/counters/*`) ->
+/// the Idris `CounterKind` constructor. Idris's `CounterKind` is a small
+/// closed set (12 kinds); the Rust registry is open (plugin-declared), so
+/// only the kinds Idris also models typecheck.
+fn counterkind_idris(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "P1P1Counter" => "P1P1",
+        "M1M1Counter" => "M1M1",
+        "LoyaltyCounter" => "Loyalty",
+        "LoreCounter" => "Lore",
+        "Poison" => "Poison",
+        "Energy" => "Energy",
+        "Experience" => "Experience",
+        "FateCounter" => "Fate",
+        "ChargeCounter" => "Charge",
+        "LevelCounter" => "Level",
+        "StunCounter" => "Stun",
+        "ShieldCounter" => "Shield",
+        _ => return None,
+    })
+}
+
+/// The keyword NAME (`Ability::Keyword`'s `KeywordAbility::Composite.name`,
+/// or one of the 5 Rust-intrinsic bare variants) -> a Idris `KeywordSpec`
+/// expression. Parameterized specs (`Hexproof`/`Protection`/`Banding`) are
+/// emitted with a conservative default payload (`Nothing`/no source
+/// restriction) since the concrete parameter doesn't survive Rust's
+/// `Composite{name, abilities}` shape (only the DESUGARED abilities do,
+/// which are still emitted faithfully) — a cosmetic approximation of the
+/// TAG, not of the mechanics.
+fn keywordspec_idris(name: &str) -> Option<String> {
+    Some(
+        match name {
+            "Flying" => "Flying",
+            "FirstStrike" => "FirstStrike",
+            "DoubleStrike" => "DoubleStrike",
+            "Deathtouch" => "Deathtouch",
+            "Reach" => "Reach",
+            "Trample" => "Trample",
+            "Vigilance" => "Vigilance",
+            "Flash" => "Flash",
+            "Haste" => "Haste",
+            "Indestructible" => "Indestructible",
+            "Defender" => "Defender",
+            "Shroud" => "Shroud",
+            "Menace" => "Menace",
+            "Hexproof" => "(Hexproof Nothing)",
+            "Morph" => "Morph",
+            "Flashback" => "Flashback",
+            "Dash" => "Dash",
+            "Evoke" => "Evoke",
+            "Blitz" => "Blitz",
+            "Prowl" => "Prowl",
+            "Spectacle" => "Spectacle",
+            "Devoid" => "Devoid",
+            "Mutate" => "Mutate",
+            _ => return None,
+        }
+        .to_string(),
+    )
+}
+
+// ===========================================================================
+// StatValue -> Count
+// ===========================================================================
+
+fn emit_stat_value(v: &StatValue) -> R {
+    match v {
+        StatValue::Number(n) => Ok(app("Literal", vec![n.to_string()])),
+        StatValue::DefinedByAbility => Err(gap(
+            "StatValue::DefinedByAbility has no Idris Count value (CDA P/T isn't a printed value)",
+        )),
+        StatValue::Variable => Err(gap(
+            "StatValue::Variable (X loyalty) has no Idris Count mapping yet",
+        )),
+    }
+}
+
+// ===========================================================================
+// Reference / Sort
+// ===========================================================================
+
+fn emit_sort(s: &Sort) -> R {
+    Ok(match s {
+        Sort::Player => "Player".to_string(),
+        Sort::Card => "Card".to_string(),
+        Sort::Token => "Token".to_string(),
+        Sort::Spell => "Spell".to_string(),
+        Sort::StackObject => "StackObject".to_string(),
+        Sort::Permanent => "Permanent".to_string(),
+        Sort::OfType(t) => app("OfType", vec![emit_type(*t)?]),
+        Sort::Amount => "Amount".to_string(),
+        Sort::Pile => "Pile".to_string(),
+    })
+}
+
+fn emit_reference(r: &Reference) -> R {
+    Ok(match r {
+        Reference::This => "This".to_string(),
+        Reference::You => "You".to_string(),
+        // No definite "the opponent" Reference in Idris; the closest sound
+        // reading is the unique object matching the opponent predicate.
+        Reference::Opponent => "(Only OpponentOf)".to_string(),
+        Reference::It => "It".to_string(),
+        Reference::EventObject => "EventObject".to_string(),
+        Reference::EventPatient => "EventPatient".to_string(),
+        Reference::EventActor => "EventActor".to_string(),
+        Reference::DefendingPlayer => "DefendingPlayer".to_string(),
+        Reference::That(sort) => app("That", vec![emit_sort(sort)?]),
+        Reference::The(label) => app("The", vec![ilit(label.as_str())]),
+        Reference::A { filter, by } => {
+            let pred = emit_filter(filter)?;
+            if matches!(by.as_ref(), Reference::You) {
+                app("A", vec![pred])
+            } else {
+                format!("(A {} {{by = (Just {})}})", pred, emit_reference(by)?)
+            }
+        }
+        Reference::ControllerOf(r) => app("ControllerOf", vec![emit_reference(r)?]),
+        Reference::OwnerOf(r) => app("OwnerOf", vec![emit_reference(r)?]),
+        Reference::AttachHostOf(r) => app("AttachHostOf", vec![emit_reference(r)?]),
+        Reference::AttachedTo(r) => app("AttachedTo", vec![emit_reference(r)?]),
+        Reference::Bound(_) => {
+            return Err(gap(
+                "Reference::Bound (legacy role binding) has no Idris counterpart",
+            ));
+        }
+        Reference::Linked(_) => return Err(gap("Reference::Linked has no Idris counterpart")),
+        Reference::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Reference macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+/// Convert a `Reference` used where Idris wants a `Predicate` (Idris's
+/// `Sacrifice`/`ChooseOne`/… bake the choice INTO the predicate rather than
+/// pre-resolving it via a binder, unlike Rust's newer split). `A{filter,..}`
+/// unwraps to its filter directly (Idris's own "choose one matching" reading
+/// for that verb); anything else becomes `SameAs <ref>` (an already-resolved
+/// reference IS a predicate: "equal to r").
+fn reference_as_predicate(r: &Reference) -> R {
+    match r {
+        Reference::A { filter, .. } => emit_filter(filter),
+        other => Ok(app("SameAs", vec![emit_reference(other)?])),
+    }
+}
+
+// ===========================================================================
+// Filter -> Predicate
+// ===========================================================================
+
+fn emit_filter(f: &Filter) -> R {
+    Ok(match f {
+        Filter::Kind(k) => {
+            use deckmaste_core::ObjectKind as K;
+            match k {
+                K::Ability => "(IsKind Ability)".to_string(),
+                K::Card => "(IsKind Card)".to_string(),
+                K::Emblem => "(IsKind Emblem)".to_string(),
+                K::Spell => "(IsKind Spell)".to_string(),
+                K::Token => "(IsKind Token)".to_string(),
+                // Idris `ObjectKind` has no `Player` member (a player test is
+                // the top player-predicate, not an object kind).
+                K::Player => "Anyone".to_string(),
+                K::CardCopy => {
+                    return Err(gap(
+                        "ObjectKind::CardCopy has no Idris ObjectKind counterpart",
+                    ));
+                }
+            }
+        }
+        Filter::Characteristic(cf) => emit_characteristic_filter(cf)?,
+        Filter::State(sf) => emit_state_filter(sf)?,
+        Filter::Relation(rf) => emit_relation_filter(rf)?,
+        Filter::Ref(r) => app("SameAs", vec![emit_reference(r)?]),
+        Filter::FromSource(_) => {
+            return Err(gap("Filter::FromSource has no Idris Predicate counterpart"));
+        }
+        Filter::AllOf(fs) => app("And", vec![map_list(fs, emit_filter)?]),
+        Filter::OneOf(fs) => app("Or", vec![map_list(fs, emit_filter)?]),
+        Filter::Not(inner) => app("Not", vec![emit_filter(inner)?]),
+        Filter::Where(cond) => app("Where", vec![emit_condition(cond)?]),
+        // The vacuous conjunction is universally (if trivially) true at any
+        // kind — the one "matches anything" Predicate Idris has.
+        Filter::Any => "(And [])".to_string(),
+        Filter::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Filter macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn emit_characteristic_filter(cf: &CharacteristicFilter) -> R {
+    Ok(match cf {
+        CharacteristicFilter::Type(t) => app("HasChar", vec!["Types".to_string(), emit_type(*t)?]),
+        CharacteristicFilter::Subtype(name) => app(
+            "HasChar",
+            vec![
+                "Subtypes".to_string(),
+                subtype_idris(name.as_str())
+                    .ok_or_else(|| gap(format!("unmapped subtype in filter: {}", name.as_str())))?
+                    .to_string(),
+            ],
+        ),
+        CharacteristicFilter::Supertype(s) => app(
+            "HasChar",
+            vec!["Supertypes".to_string(), emit_supertype(*s)],
+        ),
+        CharacteristicFilter::ColorIs(c) => {
+            app("HasChar", vec!["Colors".to_string(), emit_color(*c)])
+        }
+        CharacteristicFilter::Named(name) => app("HasName", vec![ilit(name.as_str())]),
+        CharacteristicFilter::Stat(stat, cmp, count) => {
+            let characteristic = numeric_characteristic(*stat)?;
+            app(
+                "StatCmp",
+                vec![characteristic, emit_cmp(*cmp), emit_count(count)?],
+            )
+        }
+        CharacteristicFilter::Multicolored => "Multicolored".to_string(),
+        CharacteristicFilter::Colorless => "IsColorless".to_string(),
+        CharacteristicFilter::Has(kw) => {
+            let spec = keywordspec_idris(kw.as_str())
+                .ok_or_else(|| gap(format!("unmapped keyword in Has(): {}", kw.as_str())))?;
+            app("HasKeyword", vec![spec])
+        }
+    })
+}
+
+/// `Stat` restricted to Idris's `Numeric`-gated axes (Power/Toughness/Defense)
+/// — `StatCmp`/`TapTotal` demand one of these three.
+fn numeric_characteristic(stat: deckmaste_core::Stat) -> R {
+    use deckmaste_core::Stat as S;
+    Ok(match stat {
+        S::Power => "Power",
+        S::Toughness => "Toughness",
+        S::Defense => "Defense",
+        S::ManaValue => return Err(gap("Stat::ManaValue isn't a Numeric Characteristic in Idris (use ManaValueOf)")),
+        S::Loyalty => return Err(gap("Stat::Loyalty isn't a Numeric Characteristic in Idris (loyalty is read via CountersOn Loyalty)")),
+    }
+    .to_string())
+}
+
+fn emit_cmp(c: Cmp) -> String {
+    match c {
+        Cmp::Eq => "Eq",
+        Cmp::AtLeast => "AtLeast",
+        Cmp::AtMost => "AtMost",
+        Cmp::Greater => "Greater",
+        Cmp::Less => "Less",
+    }
+    .to_string()
+}
+
+fn emit_state_filter(sf: &StateFilter) -> R {
+    Ok(match sf {
+        StateFilter::InZone(z) => app("InZone", vec![emit_zone(*z)]),
+        StateFilter::Status(status) => {
+            use deckmaste_core::Status as S;
+            match status {
+                S::Tapped => "(HasState Tapped)".to_string(),
+                S::Untapped => "(HasState Untapped)".to_string(),
+                S::PhasedOut => "(HasState PhasedOut)".to_string(),
+                S::FaceDown => "(HasState FaceDown)".to_string(),
+                S::PhasedIn => "(Not (HasState PhasedOut))".to_string(),
+                S::FaceUp => "(Not (HasState FaceDown))".to_string(),
+                S::Flipped | S::Unflipped => {
+                    return Err(gap(
+                        "Status::Flipped/Unflipped has no Idris ObjectState counterpart",
+                    ));
+                }
+            }
+        }
+        StateFilter::HasCounter(c) => {
+            let kind = counterkind_idris(c.as_str()).ok_or_else(|| {
+                gap(format!(
+                    "unmapped counter kind in HasCounter: {}",
+                    c.as_str()
+                ))
+            })?;
+            app("HasCounter", vec![kind.to_string()])
+        }
+        StateFilter::Designated(name) => {
+            let d = designation_idris(name.as_str())
+                .ok_or_else(|| gap(format!("unmapped designation: {}", name.as_str())))?;
+            app("HasDesignation", vec![d.to_string()])
+        }
+        StateFilter::RelatedBy(..) => {
+            return Err(gap(
+                "StateFilter::RelatedBy has no Idris Predicate counterpart",
+            ));
+        }
+        StateFilter::Attacking => "(Holds Attack Agent)".to_string(),
+        StateFilter::Blocking => "(Holds Block Agent)".to_string(),
+        // "attacking and unblocked": approximated as attacking AND not filling
+        // the blocked-patient role.
+        StateFilter::Unblocked => {
+            "(And [Holds Attack Agent, Not (Holds Block Patient)])".to_string()
+        }
+        StateFilter::Targets(inner) => app("Targets", vec![emit_filter(inner)?]),
+        StateFilter::TargetCount(bound) => {
+            let (cmp, count) = bound.split();
+            app("TargetCount", vec![emit_cmp(cmp), emit_count(count)?])
+        }
+        StateFilter::WasPaidWith(tag) => app("WasPaidWith", vec![ilit(tag.as_str())]),
+    })
+}
+
+fn designation_idris(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "Monarch" => "Monarch",
+        "TheInitiative" => "TheInitiative",
+        "CitysBlessing" => "CitysBlessing",
+        "Monstrous" => "Monstrous",
+        "Goaded" => "Goaded",
+        "Renowned" => "Renowned",
+        "Suspected" => "Suspected",
+        "Saddled" => "Saddled",
+        "Solved" => "Solved",
+        _ => return None,
+    })
+}
+
+fn emit_relation_filter(rf: &RelationFilter) -> R {
+    Ok(match rf {
+        RelationFilter::ControlledBy(f) => app("ControlledBy", vec![emit_filter(f)?]),
+        RelationFilter::Controls(f) => app("Controls", vec![emit_filter(f)?]),
+        RelationFilter::Owner(f) => app("OwnedBy", vec![emit_filter(f)?]),
+        RelationFilter::OpponentOf(f) => {
+            if matches!(f.as_ref(), Filter::Ref(Reference::You)) {
+                "OpponentOf".to_string()
+            } else {
+                return Err(gap(
+                    "OpponentOf(<non-You>) has no Idris counterpart (Idris's OpponentOf is always relative to You)",
+                ));
+            }
+        }
+        RelationFilter::TeammateOf(f) => {
+            if matches!(f.as_ref(), Filter::Ref(Reference::You)) {
+                "TeammateOf".to_string()
+            } else {
+                return Err(gap("TeammateOf(<non-You>) has no Idris counterpart"));
+            }
+        }
+        RelationFilter::AttachedTo(_) => {
+            return Err(gap(
+                "Filter RelationFilter::AttachedTo has no Idris Predicate counterpart",
+            ));
+        }
+        RelationFilter::Attachment(_) => {
+            return Err(gap(
+                "RelationFilter::Attachment has no Idris Predicate counterpart",
+            ));
+        }
+    })
+}
+
+fn emit_zone(z: deckmaste_core::Zone) -> String {
+    use deckmaste_core::Zone as Z;
+    match z {
+        Z::Battlefield => "Battlefield",
+        Z::Command => "Command",
+        Z::Exile => "Exile",
+        Z::Graveyard => "Graveyard",
+        Z::Hand => "Hand",
+        Z::Library => "Library",
+        Z::Stack => "Stack",
+    }
+    .to_string()
+}
+
+// ===========================================================================
+// Condition
+// ===========================================================================
+
+fn emit_condition(c: &Condition) -> R {
+    Ok(match c {
+        Condition::Compare(a, cmp, b) => app(
+            "Compare",
+            vec![emit_count(a)?, emit_cmp(*cmp), emit_count(b)?],
+        ),
+        Condition::Exists(f) => format!("(exists {})", emit_filter(f)?),
+        Condition::Is(r, f) => app("Matches", vec![emit_reference(r)?, emit_filter(f)?]),
+        Condition::LegallyAttached(r) => app("LegallyAttached", vec![emit_reference(r)?]),
+        Condition::DamagedByDeathtouch(_) => {
+            return Err(gap(
+                "Condition::DamagedByDeathtouch has no Idris counterpart",
+            ));
+        }
+        Condition::Happened { .. } => {
+            return Err(gap("Condition::Happened (history lookback) not yet mapped"));
+        }
+        Condition::Crossed { .. } => return Err(gap("Condition::Crossed not yet mapped")),
+        Condition::PaidCost(tag) => app("PaidCost", vec![ilit(tag.as_str())]),
+        Condition::YourTurn => "yourTurn".to_string(),
+        Condition::TurnOf(f) => app("TurnOf", vec![emit_filter(f)?]),
+        Condition::DuringPhase(p) => app("During", vec![emit_phase_step(*p)?]),
+        Condition::AllOf(cs) => app("And", vec![map_list(cs, emit_condition)?]),
+        Condition::OneOf(cs) => app("Or", vec![map_list(cs, emit_condition)?]),
+        Condition::Not(inner) => app("Not", vec![emit_condition(inner)?]),
+        Condition::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Condition macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn emit_phase_step(p: PhaseStep) -> R {
+    use deckmaste_core::BeginningStep as B;
+    use deckmaste_core::CombatStep as C;
+    use deckmaste_core::EndingStep as E;
+    Ok(match p {
+        PhaseStep::Beginning(b) => app(
+            "BeginningPhase",
+            vec![
+                match b {
+                    B::Untap => "UntapStep",
+                    B::Upkeep => "UpkeepStep",
+                    B::Draw => "DrawStep",
+                }
+                .to_string(),
+            ],
+        ),
+        PhaseStep::PrecombatMain => "(MainPhase PreCombat)".to_string(),
+        PhaseStep::PostcombatMain => "(MainPhase PostCombat)".to_string(),
+        PhaseStep::Combat(c) => app(
+            "CombatPhase",
+            vec![
+                match c {
+                    C::BeginningOfCombat => "BeginningOfCombatStep",
+                    C::DeclareAttackers => "DeclareAttackersStep",
+                    C::DeclareBlockers => "DeclareBlockersStep",
+                    C::FirstCombatDamage => "FirstCombatDamageStep",
+                    C::CombatDamage => "CombatDamageStep",
+                    C::EndOfCombat => "EndOfCombatStep",
+                }
+                .to_string(),
+            ],
+        ),
+        PhaseStep::Ending(e) => app(
+            "EndingPhase",
+            vec![
+                match e {
+                    E::End => "EndStep",
+                    E::Cleanup => "CleanupStep",
+                }
+                .to_string(),
+            ],
+        ),
+    })
+}
+
+// ===========================================================================
+// Count / Quantity
+// ===========================================================================
+
+fn emit_count(c: &Count) -> R {
+    Ok(match c {
+        Count::X => "X".to_string(),
+        Count::Literal(n) => app("Literal", vec![n.to_string()]),
+        Count::CountOf(f) => format!("(CountMatching {})", emit_filter(f)?),
+        Count::CountDistinct(characteristic, f) => {
+            let c = collection_characteristic(*characteristic)?;
+            app(
+                "CountDistinct",
+                vec![c, format!("(Objects {})", emit_filter(f)?)],
+            )
+        }
+        Count::StatOf(r, stat) => {
+            use deckmaste_core::Stat as S;
+            match stat {
+                S::ManaValue => app("ManaValueOf", vec![emit_reference(r)?]),
+                S::Loyalty => app(
+                    "CountersOn",
+                    vec!["Loyalty".to_string(), emit_reference(r)?],
+                ),
+                S::Power | S::Toughness | S::Defense => app(
+                    "StatOf",
+                    vec![emit_reference(r)?, numeric_characteristic(*stat)?],
+                ),
+            }
+        }
+        Count::CounterCount(r, kind) => {
+            let k = counterkind_idris(kind.as_str())
+                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
+            app("CountersOn", vec![k.to_string(), emit_reference(r)?])
+        }
+        Count::Min(a, b) => app("Min", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Max(a, b) => app("Max", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Plus(a, b) => app("Plus", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Minus(a, b) => app("Minus", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Times(a, b) => app("Times", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Half(mode, inner) => app(
+            "Half",
+            vec![
+                match mode {
+                    deckmaste_core::RoundMode::RoundUp => "RoundUp",
+                    deckmaste_core::RoundMode::RoundDown => "RoundDown",
+                }
+                .to_string(),
+                emit_count(inner)?,
+            ],
+        ),
+        Count::ThatMany | Count::ThatMuch => "ThatMany".to_string(),
+        Count::Allotment => "Allotment".to_string(),
+        Count::EventCount(..) => {
+            return Err(gap("Count::EventCount (history lookback) not yet mapped"));
+        }
+        Count::EventSum(..) => {
+            return Err(gap("Count::EventSum (history lookback) not yet mapped"));
+        }
+        Count::Noted(_) => return Err(gap("Count::Noted has no Idris counterpart")),
+        Count::TimesPaid(tag) => app("TimesPaid", vec![ilit(tag.as_str())]),
+        Count::Damage(r) => app("Damage", vec![emit_reference(r)?]),
+        Count::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Count macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn collection_characteristic(c: deckmaste_core::Characteristic) -> R {
+    use deckmaste_core::Characteristic as C;
+    Ok(match c {
+        C::Colors => "Colors",
+        C::Types => "Types",
+        C::Subtypes => "Subtypes",
+        C::Supertypes => "Supertypes",
+        C::Power => "Power",
+        C::Toughness => "Toughness",
+        C::Defense => "Defense",
+        C::ManaCost => "ManaCost",
+        C::Name => "Name",
+        C::BasicLandTypes => {
+            return Err(gap(
+                "Characteristic::BasicLandTypes has no Idris Characteristic counterpart",
+            ));
+        }
+    }
+    .to_string())
+}
+
+fn emit_quantity(q: &Quantity) -> R {
+    let (lo, hi) = q.bounds();
+    Ok(app(
+        "Range",
+        vec![
+            try_maybe(&lo.cloned(), emit_count)?,
+            try_maybe(&hi.cloned(), emit_count)?,
+        ],
+    ))
+}
+
+/// A `CountBound` widened into a `Quantity` range — only exact for
+/// `Eq`/`AtLeast`/`AtMost`; `Greater`/`Less` need `±1` arithmetic, only
+/// possible when the bound is a literal.
+fn count_bound_as_quantity(b: &CountBound) -> R {
+    let lit = |c: &Count| match c {
+        Count::Literal(n) => Some(*n),
+        _ => None,
+    };
+    Ok(match b {
+        CountBound::Eq(c) => {
+            let c = emit_count(c)?;
+            app("Range", vec![format!("(Just {c})"), format!("(Just {c})")])
+        }
+        CountBound::AtLeast(c) => app(
+            "Range",
+            vec![format!("(Just {})", emit_count(c)?), "Nothing".to_string()],
+        ),
+        CountBound::AtMost(c) => app(
+            "Range",
+            vec!["Nothing".to_string(), format!("(Just {})", emit_count(c)?)],
+        ),
+        CountBound::Greater(c) => {
+            let n = lit(c).ok_or_else(|| {
+                gap("CountBound::Greater on a dynamic Count can't be widened to a Quantity")
+            })?;
+            app(
+                "Range",
+                vec![format!("(Just (Literal {}))", n + 1), "Nothing".to_string()],
+            )
+        }
+        CountBound::Less(c) => {
+            let n = lit(c).ok_or_else(|| {
+                gap("CountBound::Less on a dynamic Count can't be widened to a Quantity")
+            })?;
+            if n == 0 {
+                return Err(gap("CountBound::Less(0) has no non-negative Quantity"));
+            }
+            app(
+                "Range",
+                vec!["Nothing".to_string(), format!("(Just (Literal {}))", n - 1)],
+            )
+        }
+    })
+}
+
+// ===========================================================================
+// Selection / Binder / TargetSpec
+// ===========================================================================
+
+fn emit_selection(s: &Selection) -> R {
+    Ok(match s {
+        Selection::SelectAll(f) => app("SelectAll", vec![emit_filter(f)?]),
+        Selection::Union(gs) => app("Union", vec![map_list(gs, emit_selection)?]),
+        Selection::Random(q, f) => app("Random", vec![emit_quantity(q)?, emit_filter(f)?]),
+        Selection::AmongNoted(..) => {
+            return Err(gap("Selection::AmongNoted has no Idris counterpart"));
+        }
+        Selection::TopOfLibrary { count, of } => {
+            let base = format!("(TopOfLibrary {})", emit_count(count)?);
+            with_whose(base, of)
+        }
+        Selection::BottomOfLibrary { count, of } => {
+            let base = format!("(BottomOfLibrary {})", emit_count(count)?);
+            with_whose(base, of)
+        }
+        Selection::They => "They".to_string(),
+        Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
+        Selection::TheGroup(label) => app("TheGroup", vec![ilit(label.as_str())]),
+        Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),
+        Selection::Pick { op, of, by } => {
+            let op_name = match op {
+                deckmaste_core::Extremum::Greatest => "MaxOf",
+                deckmaste_core::Extremum::Least => "MinOf",
+            };
+            app(
+                "Pick",
+                vec![
+                    op_name.to_string(),
+                    format!("(eachOf {} {})", emit_filter(of)?, emit_count(by)?),
+                ],
+            )
+        }
+        Selection::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Selection macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+/// Append a `{whose = …}` override to a base `TopOfLibrary`/`BottomOfLibrary`
+/// application when the owner isn't the default `You`.
+fn with_whose(base: String, of: &Reference) -> String {
+    if matches!(of, Reference::You) {
+        base
+    } else {
+        // Splice the named-arg override into the already-parenthesized base.
+        let inner = unwrap_outer(&base);
+        match emit_reference(of) {
+            Ok(r) => format!("({inner} {{whose = {r}}})"),
+            Err(_) => base,
+        }
+    }
+}
+
+/// `TargetSpec.Target`'s filter is a `Predicate b k` with `k` free (like the
+/// `Deed` patient), so a bare "any target" filter needs a concretely-kinded
+/// value too — reproduced here (sugar-free) from `Macros.idr`'s own
+/// `anyTarget` ([CR#115.4]: creature/planeswalker/battle permanent OR any
+/// player) rather than the kind-ambiguous empty conjunction.
+fn any_target_predicate() -> String {
+    "(Or [(And [(InZone Battlefield), (HasChar Types Battle)]), \
+(And [(InZone Battlefield), (HasChar Types Creature)]), \
+(And [(InZone Battlefield), (HasChar Types Planeswalker)]), \
+Anyone])"
+        .to_string()
+}
+
+fn emit_target_spec(t: &TargetSpec) -> R {
+    Ok(match t {
+        TargetSpec::Target(q, f) => {
+            let pred =
+                if matches!(f, Filter::Any) { any_target_predicate() } else { emit_filter(f)? };
+            app("Target", vec![emit_quantity(q)?, pred])
+        }
+        TargetSpec::As(label, inner) => {
+            app("As", vec![ilit(label.as_str()), emit_target_spec(inner)?])
+        }
+        TargetSpec::Distinct(idxs, inner) => app(
+            "Distinct",
+            vec![
+                ilist(idxs.iter().map(usize::to_string).collect()),
+                emit_target_spec(inner)?,
+            ],
+        ),
+        TargetSpec::Expanded(_) => {
+            return Err(gap(
+                "unexpanded TargetSpec macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+/// `deckmaste_core::Binder` -> Idris `Bindable`. Only the shapes actually
+/// wired for resolution are mapped (`binder.rs` notes `Produce`/`Search*`
+/// aren't yet engine-resolved either, so gapping them costs nothing today).
+fn emit_binder(b: &deckmaste_core::Binder) -> R {
+    use deckmaste_core::Binder as B;
+    Ok(match b {
+        B::TheRef(r) => app("TheRef", vec![emit_reference(r)?]),
+        B::ChooseOne { filter, by } => with_by(app("ChooseOne", vec![emit_filter(filter)?]), by),
+        B::Choose {
+            quantity,
+            filter,
+            by,
+        } => with_by(
+            app(
+                "Choose",
+                vec![emit_quantity(quantity)?, emit_filter(filter)?],
+            ),
+            by,
+        ),
+        B::Existing(sel) => app("Existing", vec![emit_selection(sel)?]),
+        B::Produce(action) => app("Produce", vec![emit_action(action)?]),
+        B::SearchOne { filter, .. } => app("SearchOne", vec![emit_filter(filter)?]),
+        B::Search {
+            quantity, filter, ..
+        } => app(
+            "Search",
+            vec![emit_quantity(quantity)?, emit_filter(filter)?],
+        ),
+        B::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Binder macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn with_by(base: String, by: &Reference) -> String {
+    if matches!(by, Reference::You) {
+        base
+    } else {
+        let inner = unwrap_outer(&base);
+        match emit_reference(by) {
+            Ok(r) => format!("({inner} {{by = {r}}})"),
+            Err(_) => base,
+        }
+    }
+}
+
+// ===========================================================================
+// Cost
+// ===========================================================================
+
+fn emit_cost(cost: &Cost) -> R {
+    let normalized = cost.clone().normalize();
+    let mut components = Vec::with_capacity(normalized.len());
+    for c in &normalized {
+        components.push(emit_cost_component(c)?);
+    }
+    Ok(app("Costs", vec![ilist(components)]))
+}
+
+fn emit_cost_component(c: &CostComponent) -> R {
+    Ok(match c {
+        CostComponent::Mana(cost) => app("Mana", vec![emit_mana_cost(cost)]),
+        CostComponent::ManaCostOf(r) => app("ManaCostOf", vec![emit_reference(r)?]),
+        CostComponent::Tap => "(Do (Tap This))".to_string(),
+        CostComponent::Untap => "(Do (Untap This))".to_string(),
+        CostComponent::Do(action) => app("Do", vec![emit_player_action(action, &Reference::You)?]),
+        CostComponent::Cost(_) => {
+            return Err(gap("CostComponent::Cost should have been normalized away"));
+        }
+        CostComponent::TapTotal {
+            stat,
+            cmp,
+            count,
+            filter,
+        } => app(
+            "TapTotal",
+            vec![
+                numeric_characteristic(*stat)?,
+                emit_cmp(*cmp),
+                emit_count(count)?,
+                emit_filter(filter)?,
+            ],
+        ),
+        CostComponent::With { binder, body } => {
+            // The common "sacrifice/tap a chosen one" cost shape: a
+            // ChooseOne binder whose body pays with the bound choice. Idris's
+            // verbs already bake the choice into a Predicate, so this
+            // desugars to a single Cost component naming the filter — no
+            // Binder needed on the Idris side.
+            emit_with_cost_as_predicate_verb(binder, body)?
+        }
+        CostComponent::Expanded(_) => {
+            return Err(gap(
+                "unexpanded CostComponent macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn emit_with_cost_as_predicate_verb(binder: &deckmaste_core::Binder, body: &Cost) -> R {
+    use deckmaste_core::Binder as B;
+    let B::ChooseOne { filter, by } = binder else {
+        return Err(gap(
+            "CostComponent::With over a non-ChooseOne binder not yet mapped",
+        ));
+    };
+    let normalized = body.clone().normalize();
+    if normalized.len() != 1 {
+        return Err(gap("CostComponent::With body isn't a single component"));
+    }
+    match &normalized[0] {
+        CostComponent::Do(action) => match action.as_ref() {
+            PlayerAction::Sacrifice(Reference::That(_)) => {
+                let pred = emit_filter(filter)?;
+                let sac = if matches!(by, Reference::You) {
+                    format!("(Sacrifice {pred})")
+                } else {
+                    format!("(Sacrifice {{actor = {}}} {pred})", emit_reference(by)?)
+                };
+                Ok(format!("(Do {sac})"))
+            }
+            _ => Err(gap(
+                "CostComponent::With body isn't the recognized Sacrifice(That) shape",
+            )),
+        },
+        _ => Err(gap("CostComponent::With body isn't a Do(...) component")),
+    }
+}
+
+// ===========================================================================
+// Destination / EnterRider / Arrangement / CounterSpec
+// ===========================================================================
+
+fn emit_destination(d: &Destination) -> R {
+    Ok(match d {
+        Destination::Zone(z) => app("ToZone", vec![emit_zone(*z)]),
+        Destination::Library(anchor) => app("ToLibrary", vec![emit_anchor(anchor)?]),
+    })
+}
+
+fn emit_anchor(a: &Anchor) -> R {
+    Ok(match a {
+        Anchor::FromTop(c) => app("FromTop", vec![emit_count(c)?]),
+        Anchor::FromBottom(c) => app("FromBottom", vec![emit_count(c)?]),
+    })
+}
+
+fn emit_arrangement(a: &Arrangement) -> String {
+    match a {
+        Arrangement::AnyOrder | Arrangement::ChosenOrder(_) => "ChosenOrder",
+        Arrangement::SameOrder => "SameOrder",
+        Arrangement::RandomOrder => "RandomOrder",
+    }
+    .to_string()
+}
+
+/// Only an empty rider list, or a single `Attacking(Some(_))` rider, has an
+/// Idris counterpart (`enteringAttacking`); anything else is a gap.
+fn enter_riders_as_attacking(riders: &[EnterRider]) -> Result<Option<String>, Gap> {
+    match riders {
+        [] => Ok(None),
+        [EnterRider::Attacking(Some(who))] => Ok(Some(format!("(Just {})", emit_reference(who)?))),
+        _ => Err(gap(
+            "EnterRider list has no Idris Move/MoveArranged counterpart beyond a lone Attacking(Some(_))",
+        )),
+    }
+}
+
+fn emit_counter_spec(c: &CounterSpec) -> R {
+    Ok(match c {
+        CounterSpec::Named(kind, count) => {
+            let k = counterkind_idris(kind.as_str())
+                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
+            app("Some", vec![k.to_string(), emit_count(count)?])
+        }
+        CounterSpec::AllKinds => "AllKinds".to_string(),
+    })
+}
+
+// ===========================================================================
+// Action / PlayerAction
+// ===========================================================================
+
+fn emit_action(a: &Action) -> R {
+    Ok(match a {
+        Action::DealDamage(patient, count, source) => {
+            let base = app(
+                "DealDamage",
+                vec![emit_reference(patient)?, emit_count(count)?],
+            );
+            if matches!(source, Reference::This) {
+                base
+            } else {
+                let inner = unwrap_outer(&base);
+                format!("({inner} {{source = {}}})", emit_reference(source)?)
+            }
+        }
+        Action::Destroy(r) => app("Destroy", vec![emit_reference(r)?]),
+        Action::ReturnToHand(r) => app(
+            "Move",
+            vec![emit_reference(r)?, "(ToZone Hand)".to_string()],
+        ),
+        Action::Counter(r) => app("Counter", vec![emit_reference(r)?]),
+        Action::Attach { what, to } => {
+            app("Attach", vec![emit_reference(what)?, emit_reference(to)?])
+        }
+        Action::Unattach(r) => app("Unattach", vec![emit_reference(r)?]),
+        Action::Move(r, dest, riders) => {
+            let base = app("Move", vec![emit_reference(r)?, emit_destination(dest)?]);
+            match enter_riders_as_attacking(riders)? {
+                None => base,
+                Some(attacking) => {
+                    let inner = unwrap_outer(&base);
+                    format!("({inner} {{enteringAttacking = {attacking}}})")
+                }
+            }
+        }
+        Action::MoveGroup {
+            group,
+            arrangement,
+            to,
+            riders,
+        } => {
+            if !riders.is_empty() {
+                return Err(gap("MoveGroup riders not yet mapped"));
+            }
+            app(
+                "MoveArranged",
+                vec![
+                    emit_selection(group)?,
+                    emit_arrangement(arrangement),
+                    emit_destination(to)?,
+                ],
+            )
+        }
+        Action::GainControl(..) => {
+            return Err(gap(
+                "Action::GainControl has no Idris one-shot Action counterpart (only the continuous Modification)",
+            ));
+        }
+        Action::Fight(..) => {
+            return Err(gap(
+                "Action::Fight not yet mapped (Idris models it as a Composite over the primitives)",
+            ));
+        }
+        Action::ExtraPhase(..) => return Err(gap("Action::ExtraPhase has no Idris counterpart")),
+        Action::BecomeDay | Action::BecomeNight => {
+            return Err(gap("day/night has no Idris counterpart"));
+        }
+        Action::TheRingTempts(_) => {
+            return Err(gap("Action::TheRingTempts has no Idris counterpart"));
+        }
+        Action::MoveCounters(spec, from, to) => app(
+            "MoveCounters",
+            vec![
+                emit_counter_spec(spec)?,
+                emit_reference(from)?,
+                emit_reference(to)?,
+            ],
+        ),
+        Action::CreateReplacement { .. } => {
+            return Err(gap("Action::CreateReplacement has no Idris counterpart"));
+        }
+        Action::By(actor, pa) => emit_player_action(pa, actor)?,
+    })
+}
+
+/// Splice `{actor = <r>}` onto an already-parenthesized base application,
+/// only when `actor` differs from the default `You`.
+fn with_actor(base: String, actor: &Reference) -> R {
+    if matches!(actor, Reference::You) {
+        Ok(base)
+    } else {
+        let inner = unwrap_outer(&base);
+        Ok(format!("({inner} {{actor = {}}})", emit_reference(actor)?))
+    }
+}
+
+fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
+    match pa {
+        PlayerAction::Draw(c) => with_actor(app("Draw", vec![emit_count(c)?]), actor),
+        PlayerAction::Discard {
+            count,
+            what,
+            random,
+        } => {
+            if what.is_some() || *random {
+                return Err(gap(
+                    "Discard{what|random} has no Idris Discard counterpart (Idris Discard is count-only)",
+                ));
+            }
+            with_actor(app("Discard", vec![emit_count(count)?]), actor)
+        }
+        PlayerAction::GainLife(c) => with_actor(app("GainLife", vec![emit_count(c)?]), actor),
+        PlayerAction::LoseLife(c) => with_actor(app("LoseLife", vec![emit_count(c)?]), actor),
+        PlayerAction::AddMana(count, production) => {
+            let (mana, riders) = emit_mana_production(production)?;
+            let mut base = app("AddMana", vec![emit_count(count)?, mana]);
+            if !riders.is_empty() {
+                let inner = unwrap_outer(&base);
+                base = format!("({inner} {{riders = {}}})", ilist(riders));
+            }
+            with_actor(base, actor)
+        }
+        PlayerAction::Create(count, spec, riders) => {
+            let characteristics = emit_token_spec(spec)?;
+            let base = app("CreateToken", vec![emit_count(count)?, characteristics]);
+            let based = match enter_riders_as_attacking(riders)? {
+                None => base,
+                Some(attacking) => {
+                    let inner = unwrap_outer(&base);
+                    format!("({inner} {{enteringAttacking = {attacking}}})")
+                }
+            };
+            // CreateToken has no `actor` field in Idris; the creator is
+            // implicit.
+            if !matches!(actor, Reference::You) {
+                return Err(gap("Create has no Idris actor slot"));
+            }
+            Ok(based)
+        }
+        PlayerAction::Sacrifice(r) => {
+            with_actor(app("Sacrifice", vec![reference_as_predicate(r)?]), actor)
+        }
+        PlayerAction::Move(r, dest, riders) => {
+            if !matches!(actor, Reference::You) {
+                return Err(gap("Move has no Idris actor slot"));
+            }
+            emit_action(&Action::Move(r.clone(), dest.clone(), riders.clone()))
+        }
+        PlayerAction::Mill(n) => {
+            // "[actor] mills n" = move the actor's own top n library cards to
+            // the graveyard. Idris has no bare `Mill` verb (only the
+            // `KeywordActionSpec` composite tag over the primitives, per
+            // `Core.idr`'s `Composite` doc comment), so it's rebuilt here.
+            let top = with_whose(format!("(TopOfLibrary {})", emit_count(n)?), actor);
+            let move_ = app(
+                "MoveArranged",
+                vec![
+                    top,
+                    "SameOrder".to_string(),
+                    "(ToZone Graveyard)".to_string(),
+                ],
+            );
+            Ok(app(
+                "Composite",
+                vec!["Mill".to_string(), format!("(Act {move_})")],
+            ))
+        }
+        PlayerAction::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?])),
+        PlayerAction::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?])),
+        PlayerAction::PutCounters(r, kind, count) => {
+            let k = counterkind_idris(kind.as_str())
+                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
+            with_actor(
+                app(
+                    "PutCounters",
+                    vec![k.to_string(), emit_count(count)?, emit_reference(r)?],
+                ),
+                actor,
+            )
+        }
+        PlayerAction::RemoveCounters(r, kind, count) => {
+            let k = counterkind_idris(kind.as_str())
+                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
+            Ok(app(
+                "RemoveCounters",
+                vec![k.to_string(), emit_count(count)?, emit_reference(r)?],
+            ))
+        }
+        PlayerAction::Shuffle => with_actor("Shuffle".to_string(), actor),
+        PlayerAction::SetLife(c) => with_actor(app("SetLifeTo", vec![emit_count(c)?]), actor),
+        PlayerAction::Reveal { what, .. } => {
+            with_actor(app("Reveal", vec![emit_reference(what)?]), actor)
+        }
+        PlayerAction::RemoveDamage(r) => Ok(app("RemoveAllDamage", vec![emit_reference(r)?])),
+        PlayerAction::WinGame => Ok(app(
+            "Conclude",
+            vec![app("WinGame", vec![emit_reference(actor)?])],
+        )),
+        PlayerAction::LoseGame => Ok(app(
+            "Conclude",
+            vec![app("LoseGame", vec![emit_reference(actor)?])],
+        )),
+        PlayerAction::VentureIntoDungeon
+        | PlayerAction::GetEmblem(_)
+        | PlayerAction::GetDesignation(_)
+        | PlayerAction::ChooseAndNote(..)
+        | PlayerAction::CopySpell(_)
+        | PlayerAction::FlipCoins(_)
+        | PlayerAction::RollDice(..)
+        | PlayerAction::Distribute { .. }
+        | PlayerAction::RestartGame => Err(gap(format!(
+            "{pa:?} not yet mapped (no Idris counterpart or not implemented)"
+        ))),
+        PlayerAction::Expanded(_) => Err(gap(
+            "unexpanded PlayerAction macro invocation remained after expand_all",
+        )),
+    }
+}
+
+fn emit_mana_production(p: &ManaProduction) -> Result<(String, Vec<String>), Gap> {
+    let (spec, riders) = match p {
+        ManaProduction::Bare(spec) => (spec, &[][..]),
+        ManaProduction::WithRiders { mana, riders } => (mana, riders.as_slice()),
+    };
+    let mana = emit_mana_spec(spec)?;
+    let mut out_riders = Vec::new();
+    for r in riders {
+        match r {
+            deckmaste_core::ManaRider::SpendOnly(f) => {
+                out_riders.push(app("SpendOnly", vec![emit_filter(f)?]));
+            }
+            deckmaste_core::ManaRider::GrantOnSpend(_)
+            | deckmaste_core::ManaRider::TriggerOnSpend(_)
+            | deckmaste_core::ManaRider::Persistent(_)
+            | deckmaste_core::ManaRider::Snow
+            | deckmaste_core::ManaRider::Expanded(_) => {
+                return Err(gap("ManaRider variant not yet mapped"));
+            }
+        }
+    }
+    Ok((mana, out_riders))
+}
+
+fn emit_mana_spec(spec: &ManaSpec) -> R {
+    Ok(match spec {
+        ManaSpec::AnyColor => "AnyColor".to_string(),
+        ManaSpec::OneOf(cs) => app(
+            "OneOf",
+            vec![ilist(
+                cs.iter().map(|c| emit_color_or_colorless(*c)).collect(),
+            )],
+        ),
+        ManaSpec::Specific(c) => app("OfColor", vec![emit_color_or_colorless(*c)]),
+    })
+}
+
+// ===========================================================================
+// Token characteristics (for `Create`)
+// ===========================================================================
+
+fn emit_token_spec(spec: &TokenSpec) -> R {
+    let token = match spec {
+        TokenSpec::Token(t) => t.clone(),
+        TokenSpec::Named(name) => name.resolve().ok_or_else(|| {
+            gap(format!(
+                "unresolvable predefined token name: {}",
+                name.as_str()
+            ))
+        })?,
+    };
+    emit_token_characteristics(&token)
+}
+
+fn emit_token_characteristics(t: &Token) -> R {
+    let colors = ilist(t.color_indicator.iter().map(|c| emit_color(*c)).collect());
+    let types = map_list(&t.types, |ty| emit_type(*ty))?;
+    let supertypes = ilist(t.supertypes.iter().map(|s| emit_supertype(*s)).collect());
+    let subtypes = map_list(&t.subtypes, emit_subtype)?;
+    let abilities = emit_ability_list(&t.abilities)?;
+    let power = try_maybe(&t.power, emit_stat_value)?;
+    let toughness = try_maybe(&t.toughness, emit_stat_value)?;
+    Ok(app(
+        "MkCharacteristics",
+        vec![
+            "Nothing".to_string(),
+            "[]".to_string(),
+            colors,
+            types,
+            supertypes,
+            subtypes,
+            abilities,
+            power,
+            toughness,
+            "Nothing".to_string(),
+            "Nothing".to_string(),
+        ],
+    ))
+}
+
+// ===========================================================================
+// Modification / StaticEffect / Deontic
+// ===========================================================================
+
+fn emit_numeric_op(op: &NumericOp) -> R {
+    Ok(match op {
+        NumericOp::Set(c) => app("Set", vec![emit_count(c)?]),
+        NumericOp::Up(c) => app("Up", vec![emit_count(c)?]),
+        NumericOp::Down(c) => app("Down", vec![emit_count(c)?]),
+    })
+}
+
+fn emit_collection_op<T>(op: &deckmaste_core::CollectionOp<T>, elem: impl Fn(&T) -> R) -> R {
+    Ok(match op {
+        deckmaste_core::CollectionOp::Set(items) => app("Set", vec![map_list(items, &elem)?]),
+        deckmaste_core::CollectionOp::Add(item) => app("Add", vec![elem(item)?]),
+        deckmaste_core::CollectionOp::Remove(item) => app("Remove", vec![elem(item)?]),
+    })
+}
+
+/// One `Modification` -> a `Alter <characteristic> <op>` (or a bare special
+/// like `SwitchPowerToughness`); flattened into the caller's list (a Rust
+/// `Several` splices its members in, mirroring `Modification::flatten`).
+fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), Gap> {
+    match m {
+        Modification::Power(op) => out.push(app(
+            "Alter",
+            vec!["Power".to_string(), emit_numeric_op(op)?],
+        )),
+        Modification::Toughness(op) => out.push(app(
+            "Alter",
+            vec!["Toughness".to_string(), emit_numeric_op(op)?],
+        )),
+        Modification::BaseLoyalty(_) | Modification::BaseDefense(_) => {
+            // Idris's `Alter` has no dedicated loyalty/defense-BASE axis
+            // distinct from the counter-driven value; not yet mapped.
+            return Err(gap("Modification::BaseLoyalty/BaseDefense not yet mapped"));
+        }
+        Modification::SwitchPowerToughness => {
+            out.push("(Alter Power (Set (StatOf This Toughness)))".to_string());
+        }
+        Modification::Colors(op) => out.push(app(
+            "Alter",
+            vec![
+                "Colors".to_string(),
+                emit_collection_op(op, |c| Ok(emit_color(*c)))?,
+            ],
+        )),
+        Modification::CardTypes(op) => out.push(app(
+            "Alter",
+            vec![
+                "Types".to_string(),
+                emit_collection_op(op, |t| emit_type(*t))?,
+            ],
+        )),
+        Modification::Subtypes(op) => out.push(app(
+            "Alter",
+            vec![
+                "Subtypes".to_string(),
+                emit_collection_op(op, |ident: &Ident| {
+                    subtype_idris(ident.as_str())
+                        .map(str::to_string)
+                        .ok_or_else(|| gap(format!("unmapped subtype: {}", ident.as_str())))
+                })?,
+            ],
+        )),
+        Modification::Supertypes(op) => out.push(app(
+            "Alter",
+            vec![
+                "Supertypes".to_string(),
+                emit_collection_op(op, |s| Ok(emit_supertype(*s)))?,
+            ],
+        )),
+        Modification::GainAbility(ability) => {
+            out.push(app("GrantAbility", vec![emit_ability(ability)?]));
+        }
+        Modification::LoseAbility(name) => {
+            let spec = keywordspec_idris(name.as_str()).ok_or_else(|| {
+                gap(format!(
+                    "unmapped keyword in LoseAbility: {}",
+                    name.as_str()
+                ))
+            })?;
+            out.push(app("LoseKeyword", vec![spec]));
+        }
+        Modification::LoseAllAbilities => out.push("LoseAbilities".to_string()),
+        Modification::CantHaveAbility(_) => {
+            return Err(gap(
+                "Modification::CantHaveAbility has no Idris counterpart",
+            ));
+        }
+        Modification::SetController(r) => out.push(app("GainControl", vec![emit_reference(r)?])),
+        Modification::SetText(_) => {
+            return Err(gap(
+                "Modification::SetText has no Idris counterpart (Idris only has ChangeText's word-class swap)",
+            ));
+        }
+        Modification::AllCreatureTypes => {
+            return Err(gap("Modification::AllCreatureTypes not yet mapped"));
+        }
+        Modification::BecomeBasicLandType(_) => {
+            return Err(gap("Modification::BecomeBasicLandType not yet mapped"));
+        }
+        Modification::Several(inner) => {
+            for m in inner {
+                emit_modification_ops(m, out)?;
+            }
+        }
+        Modification::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Modification macro invocation remained after expand_all",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn emit_modification(m: &Modification) -> R {
+    let mut ops = Vec::new();
+    emit_modification_ops(m, &mut ops)?;
+    match ops.len() {
+        0 => Err(gap("Modification produced no Idris ops")),
+        1 => Ok(ops.into_iter().next().expect("len checked")),
+        _ => Ok(app("ApplyAll", vec![ilist(ops)])),
+    }
+}
+
+fn emit_player_mod(m: &PlayerMod) -> R {
+    Ok(match m {
+        PlayerMod::SetTo(attr, c) => app("SetTo", vec![emit_player_attr(*attr), emit_count(c)?]),
+        PlayerMod::Raise(attr, c) => app("Raise", vec![emit_player_attr(*attr), emit_count(c)?]),
+        PlayerMod::Lower(attr, c) => app("Lower", vec![emit_player_attr(*attr), emit_count(c)?]),
+        PlayerMod::NoMax(attr) => app("NoMax", vec![emit_player_attr(*attr)]),
+    })
+}
+
+fn emit_player_attr(a: PlayerAttr) -> String {
+    match a {
+        PlayerAttr::Life => "Life",
+        PlayerAttr::HandSize => "HandSize",
+        PlayerAttr::HandSizeLimit => "HandSizeLimit",
+        PlayerAttr::LandPlaysPerTurn => "LandPlaysPerTurn",
+    }
+    .to_string()
+}
+
+fn emit_cost_change(c: &CostChange) -> R {
+    Ok(match c {
+        CostChange::Reduce(cs) => app("Reduce", vec![emit_cost_components_as_mana(cs)?]),
+        CostChange::Increase(cs) => app("Increase", vec![emit_cost_components_as_mana(cs)?]),
+        CostChange::Additional { components } => {
+            let mut out = Vec::with_capacity(components.len());
+            for c in components {
+                out.push(emit_cost_component(c)?);
+            }
+            app("Additional", vec![ilist(out)])
+        }
+        CostChange::Scaled { change, times } => app(
+            "ScaledBy",
+            vec![emit_cost_change(change)?, emit_count(times)?],
+        ),
+    })
+}
+
+/// `Reduce`/`Increase` in Idris are mana-only (`ManaCost`); the common Rust
+/// shape is a single `CostComponent::Mana(cost)`.
+fn emit_cost_components_as_mana(cs: &[CostComponent]) -> R {
+    match cs {
+        [CostComponent::Mana(cost)] => Ok(emit_mana_cost(cost)),
+        _ => Err(gap(
+            "Reduce/Increase with a non-single-Mana component list not yet mapped",
+        )),
+    }
+}
+
+fn emit_replacement(r: &deckmaste_core::Replacement) -> R {
+    use deckmaste_core::Replacement as Repl;
+    Ok(match r {
+        Repl::Instead { would, instead } => {
+            let (kinds, facets) = emit_event_filter(would)?;
+            app(
+                "Replaces",
+                vec![event_query(&kinds, &facets), emit_effect(instead)?],
+            )
+        }
+        Repl::Also { would, also } => {
+            let (kinds, facets) = emit_event_filter(would)?;
+            app(
+                "Also",
+                vec![event_query(&kinds, &facets), emit_effect(also)?],
+            )
+        }
+        Repl::Skip { .. } => {
+            return Err(gap(
+                "Replacement::Skip not yet mapped (Idris models a skip as Replaces with an empty body)",
+            ));
+        }
+        Repl::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Replacement macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
+    use deckmaste_core::Prevention as P;
+    Ok(match p {
+        P::PreventAll { from, to, .. } => {
+            let q = event_query(
+                &["(DealDamage Nothing)".to_string()],
+                &damage_facets(from, to)?,
+            );
+            app("Replaces", vec![q, "(Sequence [])".to_string()])
+        }
+        P::PreventNext { n, from, to, .. } => {
+            let q = event_query(
+                &["(DealDamage Nothing)".to_string()],
+                &damage_facets(from, to)?,
+            );
+            format!(
+                "(Replaces {q} (Sequence []) {{limit = (UpTo {})}})",
+                emit_count(n)?
+            )
+        }
+        P::PreventNextInstance { .. } => {
+            return Err(gap(
+                "Prevention::PreventNextInstance not yet mapped (instance-vs-amount limiting has no Idris ReplaceLimit shape)",
+            ));
+        }
+    })
+}
+
+fn damage_facets(from: &Filter, to: &Filter) -> Result<Vec<String>, Gap> {
+    let mut facets = Vec::new();
+    if !matches!(from, Filter::Any) {
+        facets.push(app("Agent", vec![emit_filter(from)?]));
+    }
+    if !matches!(to, Filter::Any) {
+        facets.push(app("Patient", vec![emit_filter(to)?]));
+    }
+    Ok(facets)
+}
+
+fn emit_static_effect(se: &StaticEffect) -> R {
+    Ok(match se {
+        StaticEffect::Modify(r, m) => {
+            app("Modify", vec![emit_reference(r)?, emit_modification(m)?])
+        }
+        StaticEffect::Each(sel, inner) => app(
+            "Each",
+            vec![
+                format!("(Existing {})", emit_selection(sel)?),
+                emit_static_effect(inner)?,
+            ],
+        ),
+        StaticEffect::Conditionally(cond, inner) => app(
+            "While",
+            vec![emit_condition(cond)?, emit_static_effect(inner)?],
+        ),
+        StaticEffect::Deontic(d) => emit_deontic(d)?,
+        StaticEffect::CostModifier { of, change } => app(
+            "CostModifier",
+            vec![emit_filter(of)?, emit_cost_change(change)?],
+        ),
+        StaticEffect::CostOption(oc) => {
+            let mut costs = Vec::with_capacity(oc.components.len());
+            for c in &oc.components {
+                costs.push(emit_cost_component(c)?);
+            }
+            let base = app("CostOption", vec![ilit(oc.tag.as_str()), ilist(costs)]);
+            if oc.repeatable {
+                let inner = unwrap_outer(&base);
+                format!("({inner} {{repeatable = True}})")
+            } else {
+                base
+            }
+        }
+        StaticEffect::TriggerMultiplier {
+            cause,
+            extra,
+            affected,
+        } => {
+            let (kinds, facets) = emit_event_filter(cause)?;
+            let base = app(
+                "TriggerMultiplier",
+                vec![event_query(&kinds, &facets), emit_count(extra)?],
+            );
+            let default_affected = Filter::Relation(RelationFilter::ControlledBy(Box::new(
+                Filter::Ref(Reference::You),
+            )));
+            if *affected == default_affected {
+                base
+            } else {
+                let inner = unwrap_outer(&base);
+                format!("({inner} {{affected = {}}})", emit_filter(affected)?)
+            }
+        }
+        StaticEffect::ModifyPlayer(r, m) => app(
+            "ModifyPlayer",
+            vec![emit_reference(r)?, emit_player_mod(m)?],
+        ),
+        StaticEffect::Replacement(r) => emit_replacement(r)?,
+        StaticEffect::Prevention(p) => emit_prevention(p)?,
+        StaticEffect::CantPrevent { .. } => {
+            return Err(gap("StaticEffect::CantPrevent has no Idris counterpart"));
+        }
+        StaticEffect::SpendAsThough { .. } => {
+            return Err(gap("StaticEffect::SpendAsThough has no Idris counterpart"));
+        }
+        StaticEffect::AsThough(_) => {
+            return Err(gap(
+                "StaticEffect::AsThough has no concrete Rust variants yet",
+            ));
+        }
+        StaticEffect::Sba { when, then } => {
+            app("Sba", vec![emit_condition(when)?, emit_effect(then)?])
+        }
+        StaticEffect::OutcomeGate { who, gate } => {
+            let g = match gate {
+                deckmaste_core::OutcomeGateKind::CantLose => "CantLose",
+                deckmaste_core::OutcomeGateKind::CantWin => "CantWin",
+            };
+            app("OutcomeGate", vec![g.to_string(), emit_filter(who)?])
+        }
+        StaticEffect::CantHappen(ef) => {
+            let (kinds, facets) = emit_event_filter(ef)?;
+            app("CantHappen", vec![event_query(&kinds, &facets)])
+        }
+        StaticEffect::PayPips(class, act) => {
+            let class_s = match class {
+                deckmaste_core::PipClass::Generic => "Generic".to_string(),
+                deckmaste_core::PipClass::Colored(c) => app("Colored", vec![emit_color(*c)]),
+            };
+            let act_s = match act {
+                deckmaste_core::PayAct::TapToPay(f) => app("TapToPay", vec![emit_filter(f)?]),
+                deckmaste_core::PayAct::ExileToPay(f) => app("ExileToPay", vec![emit_filter(f)?]),
+            };
+            app("PayPips", vec![class_s, act_s])
+        }
+        StaticEffect::Expanded(_) => {
+            return Err(gap(
+                "unexpanded StaticEffect macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn emit_deontic(d: &Deontic) -> R {
+    Ok(match d {
+        Deontic::Cant(action) => app("Constrain", vec!["Forbid".to_string(), emit_deed(action)?]),
+        Deontic::Must(action) => app("Constrain", vec!["Require".to_string(), emit_deed(action)?]),
+        Deontic::May(action) => emit_can(action)?,
+        Deontic::Gate(action, costs) => {
+            let mut cs = Vec::with_capacity(costs.len());
+            for c in costs {
+                cs.push(emit_cost_component(c)?);
+            }
+            app(
+                "Priced",
+                vec![
+                    "AtDeclaration".to_string(),
+                    format!("(Costs {})", ilist(cs)),
+                    emit_deed(action)?,
+                ],
+            )
+        }
+        Deontic::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Deontic macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn emit_can(action: &DeonticAction) -> R {
+    if let DeonticAction::Cast {
+        what,
+        by,
+        from,
+        window,
+        cost,
+    } = action
+    {
+        if let Some(alt) = cost {
+            if !matches!(what, Filter::Ref(Reference::This)) || !matches!(by, Filter::Any) {
+                return Err(gap(
+                    "May(Cast) with a non-default what/by has no Idris MayCastFor counterpart",
+                ));
+            }
+            if window.is_some() {
+                return Err(gap("May(Cast{cost: Some, window: Some}) not yet mapped"));
+            }
+            let costs = match alt {
+                deckmaste_core::AlternativeCost::Free => "[]".to_string(),
+                deckmaste_core::AlternativeCost::Components(cs) => {
+                    let mut out = Vec::with_capacity(cs.len());
+                    for c in cs {
+                        out.push(emit_cost_component(c)?);
+                    }
+                    ilist(out)
+                }
+            };
+            let mut base = format!("(MayCastFor {costs})");
+            if let Some(z) = from {
+                let inner = unwrap_outer(&base);
+                base = format!("({inner} {{from = [{}]}})", emit_zone(*z));
+            }
+            return Ok(base);
+        }
+        // No alternative cost: a plain cast permission (flash-shaped).
+        let by_pred = if matches!(by, Filter::Any) {
+            "(SameAs You)".to_string()
+        } else {
+            emit_filter(by)?
+        };
+        let what_pred = if matches!(what, Filter::Any) {
+            "(SameAs This)".to_string()
+        } else {
+            emit_filter(what)?
+        };
+        let deed = app("Enact", vec!["Cast".to_string(), by_pred, what_pred]);
+        let mut base = format!("(Can {deed})");
+        match window {
+            None => {}
+            Some(deckmaste_core::Timing::InstantSpeed) => {
+                let inner = unwrap_outer(&base);
+                base = format!("({inner} {{window = (Just AsInstant)}})");
+            }
+            Some(deckmaste_core::Timing::SorcerySpeed) => {
+                let inner = unwrap_outer(&base);
+                base = format!("({inner} {{window = (Just AsSorcery)}})");
+            }
+            Some(_) => {
+                return Err(gap(
+                    "Timing::DuringTurn/DuringStep has no Idris Timing counterpart",
+                ));
+            }
+        }
+        return Ok(base);
+    }
+    Ok(app("Can", vec![emit_deed(action)?]))
+}
+
+/// `Deed.Enact`'s `patient : Predicate b k` carries a totally FREE `k` (no
+/// function ties it to `patientScope r`, unlike `agent`'s `agentScope r`,
+/// which reduces to a concrete kind since `r` is always a literal
+/// constructor here) — so a default `Filter::Any` patient can't elaborate as
+/// the kind-polymorphic-empty `And []` (Idris is left with an unsolved `k`
+/// hole). `Anyone` is Core.idr's own precedent for this
+/// (`Defender = cant (Enact Attack (SameAs This) Anyone)`): a concretely
+/// `APlayer`-kinded "no restriction" stand-in, since `Enact`'s `k` isn't
+/// actually forced to match `patientScope` at the type level.
+fn deed_patient(f: &Filter) -> R {
+    if matches!(f, Filter::Any) { Ok("Anyone".to_string()) } else { emit_filter(f) }
+}
+
+fn emit_deed(action: &DeonticAction) -> R {
+    Ok(match action {
+        DeonticAction::Attack { by, on } => app(
+            "Enact",
+            vec!["Attack".to_string(), emit_filter(by)?, deed_patient(on)?],
+        ),
+        DeonticAction::Block { by, on, count } => match count {
+            None => app(
+                "Enact",
+                vec!["Block".to_string(), emit_filter(by)?, deed_patient(on)?],
+            ),
+            Some(bound) => {
+                let attacker = if matches!(on, Filter::Any) { by } else { on };
+                app(
+                    "BlockedBy",
+                    vec![emit_filter(attacker)?, count_bound_as_quantity(bound)?],
+                )
+            }
+        },
+        DeonticAction::Target { by, on } => {
+            if by.source.is_some() {
+                return Err(gap(
+                    "DeedAgent.source (ability-source quality, e.g. hexproof-from) has no Idris Enact-Target counterpart",
+                ));
+            }
+            // `agentScope Target = AnObject` is forced concretely (Target is
+            // a literal constructor here), so the empty conjunction resolves
+            // fine as the agent (unlike the patient above).
+            let agent = match &by.stack_object {
+                None => "(And [])".to_string(),
+                Some(f) => emit_filter(f)?,
+            };
+            app(
+                "Enact",
+                vec!["Target".to_string(), agent, deed_patient(on)?],
+            )
+        }
+        DeonticAction::Attach { what, to } => app(
+            "Enact",
+            vec!["Attach".to_string(), emit_filter(what)?, deed_patient(to)?],
+        ),
+        DeonticAction::Cast { .. } => return Err(gap("Deontic::Cant/Must(Cast) not yet mapped")),
+        DeonticAction::Play { what, by, from } => {
+            if from.is_some() {
+                return Err(gap("DeonticAction::Play{from} not yet mapped"));
+            }
+            app(
+                "Enact",
+                vec!["Play".to_string(), emit_filter(by)?, deed_patient(what)?],
+            )
+        }
+        DeonticAction::Activate { what, by } => app(
+            "Enact",
+            vec![
+                "Activate".to_string(),
+                emit_filter(by)?,
+                deed_patient(what)?,
+            ],
+        ),
+        DeonticAction::Regenerate { by, on } => app(
+            "Enact",
+            vec![
+                "Regenerate".to_string(),
+                emit_filter(by)?,
+                deed_patient(on)?,
+            ],
+        ),
+        DeonticAction::Expanded(_) => {
+            return Err(gap(
+                "unexpanded DeonticAction macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+// ===========================================================================
+// EventFilter -> (kinds, facets) -> EventQuery
+// ===========================================================================
+
+fn event_query(kinds: &[String], facets: &[String]) -> String {
+    format!(
+        "(MkEventQuery {} {})",
+        ilist(kinds.to_vec()),
+        ilist(facets.to_vec())
+    )
+}
+
+/// Translate a Rust `EventFilter` master form into an Idris
+/// `(kinds : List EventKind, facets : List Facet)` pair — the two lists
+/// `MkEventQuery` bundles. Not a 1:1 grammar (Rust's cause-triple/amount-bound
+/// refinements have no Idris counterpart), so several fields are gapped
+/// rather than silently dropped.
+// One flat per-EventFilter-master-form dispatch, matching the project's
+// existing style for this shape (clippy.toml: "the engine has several flat
+// per-variant match dispatch functions ... that read better whole than
+// carved into helpers"); this one legitimately runs past the 150-line bar.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one match arm per EventFilter master form; splitting would scatter the kind/facet mapping this function documents as a whole"
+)]
+fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap> {
+    Ok(match ef {
+        EventFilter::ZoneChange {
+            what,
+            from,
+            to,
+            cause,
+        } => {
+            if cause.is_some() {
+                return Err(gap(
+                    "EventFilter::ZoneChange{cause} not yet mapped (Idris EventKind has no cause coordinate)",
+                ));
+            }
+            let kind = format!("(ZoneChanged {} {})", opt_zone(*from), opt_zone(*to));
+            let mut facets = Vec::new();
+            if !matches!(what, Filter::Any) {
+                facets.push(app("Agent", vec![emit_filter(what)?]));
+            }
+            (vec![kind], facets)
+        }
+        EventFilter::Damage {
+            source,
+            to,
+            combat,
+            amount,
+        } => {
+            if amount.is_some() {
+                return Err(gap(
+                    "EventFilter::Damage{amount} not yet mapped (no Idris amount-bound facet)",
+                ));
+            }
+            let kind = format!("(DealDamage {})", opt_bool(*combat));
+            let mut facets = Vec::new();
+            if !matches!(source, Filter::Any) {
+                facets.push(app("Agent", vec![emit_filter(source)?]));
+            }
+            if !matches!(to, Filter::Any) {
+                facets.push(app("Patient", vec![emit_filter(to)?]));
+            }
+            (vec![kind], facets)
+        }
+        EventFilter::LifeGained { who, amount } => {
+            reject_amount(amount)?;
+            (vec!["GainLife".to_string()], actor_facet(who)?)
+        }
+        EventFilter::LifeLost { who, amount } => {
+            reject_amount(amount)?;
+            (vec!["LoseLife".to_string()], actor_facet(who)?)
+        }
+        EventFilter::Drawn { who, amount } => {
+            reject_amount(amount)?;
+            (vec!["Draw".to_string()], actor_facet(who)?)
+        }
+        EventFilter::CounterPlaced { kind, on, amount } => {
+            reject_amount(amount)?;
+            if kind.is_some() {
+                return Err(gap(
+                    "EventFilter::CounterPlaced{kind} not yet mapped (Idris PutCounters carries no kind)",
+                ));
+            }
+            (vec!["PutCounters".to_string()], agent_facet(on)?)
+        }
+        EventFilter::CounterRemoved { kind, on, amount } => {
+            reject_amount(amount)?;
+            if kind.is_some() {
+                return Err(gap("EventFilter::CounterRemoved{kind} not yet mapped"));
+            }
+            (vec!["RemoveCounters".to_string()], agent_facet(on)?)
+        }
+        EventFilter::Cast { who, what } => (
+            vec!["(Begins Cast)".to_string()],
+            actor_agent_facets(who, what)?,
+        ),
+        EventFilter::Played { who, what } => (
+            vec!["(Begins Play)".to_string()],
+            actor_agent_facets(who, what)?,
+        ),
+        EventFilter::ActivatedAb { who, what } => (
+            vec!["(Begins Activate)".to_string()],
+            actor_agent_facets(who, what)?,
+        ),
+        EventFilter::AttackDeclared { by, against } => {
+            if !matches!(against, Filter::Any) {
+                return Err(gap(
+                    "AttackDeclared{against} not yet mapped (no Idris facet for the defending player)",
+                ));
+            }
+            (vec!["(Begins Attack)".to_string()], agent_facet(by)?)
+        }
+        EventFilter::BlockDeclared { by, of } => {
+            if !matches!(of, Filter::Any) {
+                return Err(gap("BlockDeclared{of} not yet mapped"));
+            }
+            (vec!["(Begins Block)".to_string()], agent_facet(by)?)
+        }
+        EventFilter::Attached { what, to } => {
+            if !matches!(to, Filter::Any) {
+                return Err(gap(
+                    "Attached{to} not yet mapped (no Idris patient facet for Begins Attach)",
+                ));
+            }
+            (vec!["(Begins Attach)".to_string()], agent_facet(what)?)
+        }
+        EventFilter::StateBecame { of, becomes } => {
+            let kind = match becomes {
+                deckmaste_core::StateChange::Tapped => "(Becomes Tapped)".to_string(),
+                deckmaste_core::StateChange::Untapped => "(Becomes Untapped)".to_string(),
+                deckmaste_core::StateChange::Phased(deckmaste_core::Phasing::Out) => {
+                    "(Becomes PhasedOut)".to_string()
+                }
+                deckmaste_core::StateChange::Phased(deckmaste_core::Phasing::In) => {
+                    return Err(gap(
+                        "StateChange::Phased(In) has no Idris ObjectState transition (only PhasedOut)",
+                    ));
+                }
+                deckmaste_core::StateChange::TurnedFace(deckmaste_core::Face::Down) => {
+                    "(Becomes FaceDown)".to_string()
+                }
+                deckmaste_core::StateChange::TurnedFace(deckmaste_core::Face::Up) => {
+                    return Err(gap(
+                        "StateChange::TurnedFace(Up) has no Idris ObjectState transition",
+                    ));
+                }
+            };
+            (vec![kind], agent_facet(of)?)
+        }
+        EventFilter::BecomesTarget { .. } => {
+            return Err(gap(
+                "EventFilter::BecomesTarget has no Idris EventKind counterpart",
+            ));
+        }
+        EventFilter::StepBegins { at, whose } => {
+            let kind = format!("(BeginStep {})", emit_phase_step(*at)?);
+            let facet = match whose {
+                deckmaste_core::WhoseTurn::EachPlayers => None,
+                deckmaste_core::WhoseTurn::Your => {
+                    Some("(Whenever (TurnOf (SameAs You)))".to_string())
+                }
+                deckmaste_core::WhoseTurn::AnOpponents => {
+                    Some("(Whenever (TurnOf OpponentOf))".to_string())
+                }
+            };
+            (vec![kind], facet.into_iter().collect())
+        }
+        EventFilter::ControlChanged { of, to } => {
+            let mut facets = Vec::new();
+            if !matches!(of, Filter::Any) {
+                facets.push(app("Agent", vec![emit_filter(of)?]));
+            }
+            if !matches!(to, Filter::Any) {
+                facets.push(app("Actor", vec![emit_filter(to)?]));
+            }
+            (vec!["GainControl".to_string()], facets)
+        }
+        EventFilter::DesignationChanged { .. } => {
+            return Err(gap(
+                "EventFilter::DesignationChanged has no Idris EventKind counterpart",
+            ));
+        }
+        EventFilter::TokenCreated { what, by } => {
+            let mut facets = Vec::new();
+            if !matches!(what, Filter::Any) {
+                facets.push(app("Agent", vec![emit_filter(what)?]));
+            }
+            if !matches!(by, Filter::Any) {
+                facets.push(app("Actor", vec![emit_filter(by)?]));
+            }
+            (vec!["CreateToken".to_string()], facets)
+        }
+        EventFilter::Used { .. } => {
+            return Err(gap("EventFilter::Used has no Idris EventKind counterpart"));
+        }
+        EventFilter::CoinFlipped { .. } => {
+            return Err(gap(
+                "EventFilter::CoinFlipped has no Idris EventKind counterpart",
+            ));
+        }
+        EventFilter::DiceRolled { .. } => {
+            return Err(gap(
+                "EventFilter::DiceRolled has no Idris EventKind counterpart",
+            ));
+        }
+        EventFilter::BecameDay | EventFilter::BecameNight => {
+            return Err(gap("day/night events have no Idris EventKind counterpart"));
+        }
+        EventFilter::AllOf(fs) => merge_all_of(fs)?,
+        EventFilter::OneOf(fs) => merge_one_of(fs)?,
+        EventFilter::Not(_) => return Err(gap("EventFilter::Not not yet mapped")),
+        EventFilter::OneOrMore(_) => return Err(gap("EventFilter::OneOrMore not yet mapped")),
+        EventFilter::Nth { .. } => return Err(gap("EventFilter::Nth not yet mapped")),
+        EventFilter::When(inner, cond) => {
+            let (kinds, mut facets) = emit_event_filter(inner)?;
+            facets.push(app("Whenever", vec![emit_condition(cond)?]));
+            (kinds, facets)
+        }
+        EventFilter::Within(..) => {
+            return Err(gap(
+                "EventFilter::Within not yet mapped (a history-lane refinement, not valid on a live trigger)",
+            ));
+        }
+        EventFilter::Expanded(_) => {
+            return Err(gap(
+                "unexpanded EventFilter macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn reject_amount(amount: &Option<CountBound>) -> Result<(), Gap> {
+    if amount.is_some() {
+        Err(gap(
+            "EventFilter{amount} not yet mapped (no Idris amount-bound facet on an EventQuery)",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn opt_zone(z: Option<deckmaste_core::Zone>) -> String {
+    match z {
+        None => "Nothing".to_string(),
+        Some(z) => format!("(Just {})", emit_zone(z)),
+    }
+}
+
+fn opt_bool(b: Option<bool>) -> String {
+    match b {
+        None => "Nothing".to_string(),
+        Some(true) => "(Just True)".to_string(),
+        Some(false) => "(Just False)".to_string(),
+    }
+}
+
+fn actor_facet(who: &Filter) -> Result<Vec<String>, Gap> {
+    if matches!(who, Filter::Any) {
+        Ok(vec![])
+    } else {
+        Ok(vec![app("Actor", vec![emit_filter(who)?])])
+    }
+}
+
+fn agent_facet(what: &Filter) -> Result<Vec<String>, Gap> {
+    if matches!(what, Filter::Any) {
+        Ok(vec![])
+    } else {
+        Ok(vec![app("Agent", vec![emit_filter(what)?])])
+    }
+}
+
+fn actor_agent_facets(who: &Filter, what: &Filter) -> Result<Vec<String>, Gap> {
+    let mut facets = actor_facet(who)?;
+    facets.extend(agent_facet(what)?);
+    Ok(facets)
+}
+
+/// `AllOf` merges constituents that share the same emitted kind list,
+/// concatenating facets (the same occurrence, refined further).
+fn merge_all_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
+    let mut kinds: Option<Vec<String>> = None;
+    let mut facets = Vec::new();
+    for f in fs {
+        let (k, mut fa) = emit_event_filter(f)?;
+        if !k.is_empty() {
+            match &kinds {
+                None => kinds = Some(k),
+                Some(existing) if *existing == k => {}
+                Some(_) => return Err(gap("AllOf constituents specify conflicting event kinds")),
+            }
+        }
+        facets.append(&mut fa);
+    }
+    Ok((kinds.unwrap_or_default(), facets))
+}
+
+/// `OneOf` widens the kind list when every disjunct shares the same facets
+/// (the common case: "whenever a creature attacks or blocks").
+fn merge_one_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
+    let mut kinds = Vec::new();
+    let mut shared_facets: Option<Vec<String>> = None;
+    for f in fs {
+        let (k, fa) = emit_event_filter(f)?;
+        kinds.extend(k);
+        match &shared_facets {
+            None => shared_facets = Some(fa),
+            Some(existing) if *existing == fa => {}
+            Some(_) => {
+                return Err(gap(
+                    "OneOf disjuncts have differing facets, unrepresentable as one shared EventQuery",
+                ));
+            }
+        }
+    }
+    Ok((kinds, shared_facets.unwrap_or_default()))
+}
+
+// ===========================================================================
+// Effect
+// ===========================================================================
+
+fn emit_effect(e: &Effect) -> R {
+    Ok(match e {
+        Effect::Act(a) => app("Act", vec![emit_action(a)?]),
+        Effect::Sequence(es) => app("Sequence", vec![map_list(es, emit_effect)?]),
+        Effect::Simultaneous(_) => {
+            return Err(gap("Effect::Simultaneous has no Idris counterpart"));
+        }
+        Effect::Continuously(c) => app(
+            "Continuously",
+            vec![emit_duration(&c.duration)?, emit_static_effect(&c.effect)?],
+        ),
+        Effect::Until(duration, parts) => {
+            let d = emit_duration(duration)?;
+            let mut wrapped = Vec::with_capacity(parts.len());
+            for p in parts {
+                wrapped.push(app("Continuously", vec![d.clone(), emit_static_effect(p)?]));
+            }
+            app("Sequence", vec![ilist(wrapped)])
+        }
+        Effect::Label { .. } => {
+            return Err(gap("Effect::Label has no Idris OneShotEffect counterpart"));
+        }
+        Effect::SeparatePiles(sp) => emit_separate_piles(sp)?,
+        Effect::ChoosePile(cp) => emit_choose_pile(cp)?,
+        Effect::May(m) => {
+            let effect = app("May", vec![emit_effect(&m.effect)?]);
+            let mut named = Vec::new();
+            if let Some(if_did) = &m.if_did {
+                named.push(format!("ifDid = (Just {})", emit_effect(if_did)?));
+            }
+            if let Some(if_not) = &m.if_not {
+                named.push(format!("ifNot = (Just {})", emit_effect(if_not)?));
+            }
+            with_named(effect, named)
+        }
+        Effect::If(i) => {
+            let base = app(
+                "If",
+                vec![emit_condition(&i.condition)?, emit_effect(&i.then)?],
+            );
+            match &i.otherwise {
+                None => base,
+                Some(otherwise) => {
+                    let inner = unwrap_outer(&base);
+                    format!(
+                        "({inner} {{otherwise = (Just {})}})",
+                        emit_effect(otherwise)?
+                    )
+                }
+            }
+        }
+        Effect::MayPay(m) => {
+            let base = app(
+                "MayPay",
+                vec![emit_cost(&m.cost)?, emit_effect(&m.and_then)?],
+            );
+            let base = with_effect_actor(base, &m.actor)?;
+            match &m.or_else {
+                None => base,
+                Some(or_else) => {
+                    let inner = unwrap_outer(&base);
+                    format!("({inner} {{or_else = (Just {})}})", emit_effect(or_else)?)
+                }
+            }
+        }
+        Effect::MustPay(m) => {
+            let base = app(
+                "MustPay",
+                vec![emit_cost(&m.cost)?, emit_effect(&m.or_else)?],
+            );
+            with_effect_actor(base, &m.actor)?
+        }
+        Effect::AdditionalCost(ac) => app(
+            "AdditionalCost",
+            vec![emit_cost(&ac.pay)?, emit_effect(&ac.body)?],
+        ),
+        Effect::Each(e) => app(
+            "Each",
+            vec![emit_binder(&e.binder)?, emit_effect(&e.effect)?],
+        ),
+        Effect::With(w) => app("With", vec![emit_binder(&w.binder)?, emit_effect(&w.body)?]),
+        Effect::DivideAmong(d) => app(
+            "Distribute",
+            vec![
+                emit_count(&d.amount)?,
+                emit_binder(&d.binder)?,
+                emit_effect(&d.body)?,
+            ],
+        ),
+        Effect::Noting(_) => return Err(gap("Effect::Noting not yet mapped")),
+        Effect::Delayed(ta) => {
+            let (kinds, facets) = emit_event_filter(&ta.event)?;
+            app(
+                "Delayed",
+                vec![event_query(&kinds, &facets), emit_effect(&ta.effect)?],
+            )
+        }
+        Effect::Reflexive(ta) => app("Reflexive", vec![emit_effect(&ta.effect)?]),
+        Effect::Modal(m) => emit_modal(m)?,
+        Effect::Targeted(t) => emit_targeted(t)?,
+        Effect::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Effect macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn with_effect_actor(base: String, actor: &Reference) -> R {
+    if matches!(actor, Reference::You) {
+        Ok(base)
+    } else {
+        let inner = unwrap_outer(&base);
+        Ok(format!("({inner} {{actor = {}}})", emit_reference(actor)?))
+    }
+}
+
+fn with_named(base: String, named: Vec<String>) -> String {
+    if named.is_empty() {
+        base
+    } else {
+        let inner = unwrap_outer(&base);
+        format!("({inner} {{{}}})", named.join(", "))
+    }
+}
+
+fn emit_duration(d: &deckmaste_core::Duration) -> R {
+    Ok(match d {
+        deckmaste_core::Duration::FixedUntil(marker) => match marker {
+            deckmaste_core::TurnMarker::EndOfTurn => "UntilEndOfTurn".to_string(),
+            deckmaste_core::TurnMarker::EndOfCombat => {
+                return Err(gap(
+                    "TurnMarker::EndOfCombat has no Idris Duration counterpart",
+                ));
+            }
+            deckmaste_core::TurnMarker::YourNextTurn => {
+                return Err(gap(
+                    "TurnMarker::YourNextTurn has no Idris Duration counterpart",
+                ));
+            }
+        },
+        deckmaste_core::Duration::UntilEvent(ef) => {
+            let (kinds, facets) = emit_event_filter(ef)?;
+            app("UntilEvent", vec![event_query(&kinds, &facets)])
+        }
+        deckmaste_core::Duration::ForAsLongAs(cond) => {
+            app("ForAsLongAs", vec![emit_condition(cond)?])
+        }
+        deckmaste_core::Duration::ForThisEvent => "ForThisEvent".to_string(),
+        deckmaste_core::Duration::EndOfGame => "Forever".to_string(),
+    })
+}
+
+fn emit_targeted(t: &deckmaste_core::Targeted) -> R {
+    let mut specs = Vec::with_capacity(t.targets.len());
+    for ts in &t.targets {
+        specs.push(emit_target_spec(ts)?);
+    }
+    Ok(format!(
+        "(Targeted {} {})",
+        ilist(specs),
+        emit_effect(&t.effect)?
+    ))
+}
+
+fn emit_modal(m: &deckmaste_core::Modal) -> R {
+    let choose = emit_choose_spec(&m.choose)?;
+    let mut modes = Vec::with_capacity(m.modes.len());
+    for mode in &m.modes {
+        modes.push(emit_mode(mode)?);
+    }
+    Ok(format!("(Modal {} {})", choose, ilist(modes)))
+}
+
+fn emit_choose_spec(cs: &deckmaste_core::ChooseSpec) -> R {
+    let base = format!("(MkChooseSpec {})", emit_quantity(&cs.count)?);
+    Ok(if cs.repeats {
+        let inner = unwrap_outer(&base);
+        format!("({inner} {{repeats = True}})")
+    } else {
+        base
+    })
+}
+
+fn emit_mode(m: &deckmaste_core::Mode) -> R {
+    let effect = emit_effect(&m.effect)?;
+    let base = format!("(MkMode {effect})");
+    Ok(match &m.cost {
+        None => base,
+        Some(cs) => {
+            let mut components = Vec::with_capacity(cs.len());
+            for c in cs {
+                components.push(emit_cost_component(c)?);
+            }
+            let inner = unwrap_outer(&base);
+            format!("({inner} {{cost = (Just (Costs {}))}})", ilist(components))
+        }
+    })
+}
+
+fn emit_separate_piles(_sp: &deckmaste_core::SeparatePiles) -> R {
+    Err(gap(
+        "Effect::SeparatePiles not yet mapped (Idris's DivideAndChoose has a different two-pile shape)",
+    ))
+}
+
+fn emit_choose_pile(_cp: &deckmaste_core::ChoosePile) -> R {
+    Err(gap("Effect::ChoosePile not yet mapped"))
+}
+
+// ===========================================================================
+// Ability / KeywordAbility
+// ===========================================================================
+
+/// Emit ONE ability (never splicing) — the Idris `Ability b` text.
+fn emit_ability(a: &Ability) -> R {
+    Ok(match a {
+        Ability::Static(se) => app("Static", vec![emit_static_effect(se)?]),
+        Ability::Activated(aa) => {
+            let base = app(
+                "Activated",
+                vec![emit_cost(&aa.cost)?, emit_effect(&aa.effect)?],
+            );
+            let mut named = Vec::new();
+            match aa.window {
+                None | Some(deckmaste_core::Timing::InstantSpeed) => {}
+                Some(deckmaste_core::Timing::SorcerySpeed) => {
+                    named.push("window = AsSorcery".to_string());
+                }
+                Some(_) => {
+                    return Err(gap(
+                        "ActivatedAbility.window not yet mapped (only Instant/SorcerySpeed)",
+                    ));
+                }
+            }
+            if !aa.limits.is_empty() {
+                named.push(format!(
+                    "limits = {}",
+                    ilist(aa.limits.iter().map(emit_use_limit).collect())
+                ));
+            }
+            if let Some(z) = aa.from {
+                named.push(format!("from = [{}]", emit_zone(z)));
+            }
+            if let Some(cond) = &aa.condition {
+                named.push(format!(
+                    "activationGuard = (Just {})",
+                    emit_condition(cond)?
+                ));
+            }
+            with_named(base, named)
+        }
+        Ability::Triggered(ta) => {
+            let (kinds, mut facets) = emit_event_filter(&ta.event)?;
+            if let Some(cond) = &ta.condition {
+                facets.push(app("Whenever", vec![emit_condition(cond)?]));
+            }
+            if ta.where_x.is_some() {
+                return Err(gap("TriggeredAbility.where_x not yet mapped"));
+            }
+            let base = app(
+                "Triggered",
+                vec![event_query(&kinds, &facets), emit_effect(&ta.effect)?],
+            );
+            let mut named = Vec::new();
+            if !ta.limits.is_empty() {
+                named.push(format!(
+                    "limits = {}",
+                    ilist(ta.limits.iter().map(emit_use_limit).collect())
+                ));
+            }
+            if let Some(z) = ta.from {
+                named.push(format!("from = [{}]", emit_zone(z)));
+            }
+            with_named(base, named)
+        }
+        Ability::Spell(sa) => app("Spell", vec![emit_effect(&sa.effect)?]),
+        Ability::Keyword(ka) => app("Keyword", vec![emit_keyword_ability(ka)?]),
+        Ability::Innate(inner) => emit_ability(inner)?,
+        Ability::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Ability macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+fn emit_use_limit(l: &deckmaste_core::UseLimit) -> String {
+    match l {
+        deckmaste_core::UseLimit::OncePerTurn => "OncePerTurn",
+        deckmaste_core::UseLimit::OncePerGame => "OncePerGame",
+    }
+    .to_string()
+}
+
+fn emit_keyword_ability(ka: &KeywordAbility) -> R {
+    Ok(match ka {
+        KeywordAbility::FirstStrike => "(Bare FirstStrike)".to_string(),
+        KeywordAbility::DoubleStrike => "(Bare DoubleStrike)".to_string(),
+        KeywordAbility::Deathtouch => "(Bare Deathtouch)".to_string(),
+        KeywordAbility::Trample => "(Bare Trample)".to_string(),
+        KeywordAbility::Vigilance => "(Bare Vigilance)".to_string(),
+        KeywordAbility::Composite { name, abilities } => {
+            let tag = keywordspec_idris(name.as_str())
+                .ok_or_else(|| gap(format!("unmapped keyword name: {}", name.as_str())))?;
+            app("Composite", vec![tag, emit_ability_list(abilities)?])
+        }
+        KeywordAbility::Expanded(_) => {
+            return Err(gap(
+                "unexpanded KeywordAbility macro invocation remained after expand_all",
+            ));
+        }
+    })
+}
+
+/// Emit one ability, SPLICING an unmappable `Composite` keyword's inner
+/// abilities in place of the (untranslatable) tag — e.g. Rust's `Enchant`
+/// keyword has no Idris `KeywordSpec` tag at all, but its four desugared
+/// abilities (the targeting spell, the two `Cant` rows, the attach
+/// replacement) are all faithfully representable on their own. Losing only
+/// the "this is named Enchant" bookkeeping, never the mechanics.
+fn emit_ability_or_splice(a: &Ability) -> Result<Vec<String>, Gap> {
+    match a {
+        Ability::Innate(inner) => emit_ability_or_splice(inner),
+        Ability::Keyword(KeywordAbility::Composite { name, abilities })
+            if keywordspec_idris(name.as_str()).is_none() =>
+        {
+            let mut out = Vec::new();
+            for inner in abilities {
+                out.extend(emit_ability_or_splice(inner)?);
+            }
+            Ok(out)
+        }
+        other => Ok(vec![emit_ability(other)?]),
+    }
+}
+
+fn emit_ability_list(abs: &[Ability]) -> R {
+    let mut items = Vec::new();
+    for a in abs {
+        items.extend(emit_ability_or_splice(a)?);
+    }
+    Ok(ilist(items))
+}
+
+// ===========================================================================
+// Characteristics / Card
+// ===========================================================================
+
+fn emit_characteristics_from_face(face: &CardFace) -> R {
+    let mana_cost = emit_mana_cost(&face.mana_cost);
+    let colors = ilist(
+        face.color_indicator
+            .iter()
+            .map(|c| emit_color(*c))
+            .collect(),
+    );
+    let types = map_list(&face.types, |t| emit_type(*t))?;
+    let supertypes = ilist(face.supertypes.iter().map(|s| emit_supertype(*s)).collect());
+    let subtypes = map_list(&face.subtypes, emit_subtype)?;
+    let abilities = emit_ability_list(&face.abilities)?;
+    let power = try_maybe(&face.power, emit_stat_value)?;
+    let toughness = try_maybe(&face.toughness, emit_stat_value)?;
+    let loyalty = try_maybe(&face.loyalty, emit_stat_value)?;
+    let defense = try_maybe(&face.defense, emit_stat_value)?;
+    Ok(app(
+        "MkCharacteristics",
+        vec![
+            format!("(Just {})", ilit(&face.name)),
+            mana_cost,
+            colors,
+            types,
+            supertypes,
+            subtypes,
+            abilities,
+            power,
+            toughness,
+            loyalty,
+            defense,
+        ],
+    ))
+}
+
+/// Emit a `Card`'s equivalent RAW Idris `Card` expression — `Normal
+/// (MkCharacteristics …)` for a single-faced card. `Card::TwoFaced` isn't
+/// mapped yet (Idris's `TwoFaced` needs two full `Face`s and this emitter has
+/// no two-faced canon fixture to validate against).
+///
+/// # Errors
+/// A [`Gap`] naming the first Rust grammar shape encountered with no (or
+/// not-yet-implemented) Idris translation.
+pub fn emit_card_expr(card: &Card) -> R {
+    match card {
+        Card::Normal(face) => Ok(app("Normal", vec![emit_characteristics_from_face(face)?])),
+        Card::TwoFaced { .. } => Err(gap("Card::TwoFaced not yet mapped")),
+    }
+}
+
+/// Every non-todo card in `plugin_dir/cards/**/*.ron`, parsed through
+/// `plugin`'s macro scope (its builtin sibling prelude already loaded) —
+/// mirrors `validate::validate_plugin`'s card walk, returning the parsed
+/// values (still macro-`Expanded`-wrapped; callers `expand_all()` them)
+/// instead of pass/fail counts.
+///
+/// # Errors
+/// If a directory isn't listable, a file isn't readable, or a non-todo card
+/// doesn't parse.
+pub fn load_all_cards(
+    plugin_dir: &std::path::Path,
+    plugin: &crate::plugin::Plugin,
+) -> anyhow::Result<Vec<Card>> {
+    use anyhow::Context;
+    use deckmaste_core::plugin::CARDS_DIR;
+    use deckmaste_core::plugin::is_todo_source;
+
+    let mut cards = Vec::new();
+    for path in crate::plugin::ron_files_recursive(&plugin_dir.join(CARDS_DIR))? {
+        let source = crate::plugin::read(&path)?;
+        if is_todo_source(&source) {
+            continue;
+        }
+        let card: Card = plugin
+            .macros
+            .read_str(&source)
+            .with_context(|| format!("parsing {}", path.display()))?;
+        cards.push(card);
+    }
+    Ok(cards)
+}
+
+/// The printed name of a card's primary face — what to display/sanitize into
+/// a `card_<Name>` Idris identifier.
+#[must_use]
+pub fn card_display_name(card: &Card) -> &str {
+    match card {
+        Card::Normal(face) => &face.name,
+        Card::TwoFaced { front, .. } => &front.name,
+    }
+}
+
+/// A valid Idris identifier suffix for `card_<Name>` — strips everything but
+/// ASCII alphanumerics, so "Elesh Norn, Grand Cenobite" becomes
+/// `"EleshNornGrandCenobite"`. Collisions across the 57-card canon corpus are
+/// not expected; a caller wanting collision safety can append an index.
+#[must_use]
+pub fn sanitize_ident(name: &str) -> String {
+    let mut out: String = name.chars().filter(char::is_ascii_alphanumeric).collect();
+    if out.is_empty() || out.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        out.insert(0, '_');
+    }
+    out
+}
