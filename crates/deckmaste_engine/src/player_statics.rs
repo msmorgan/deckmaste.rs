@@ -68,17 +68,18 @@ impl GameState {
                 crate::derive::flatten_composites(ability, &mut sources);
             }
             for ability in &sources {
-                let Ability::Static(sa) = ability else {
+                let Ability::Static(effect) = ability else {
                     continue;
                 };
-                // Conditions skipped — the same seam the object-layer gather has.
-                for effect in &sa.effects {
-                    let StaticEffect::ModifyPlayer(reference, pmod) = effect else {
-                        continue;
-                    };
-                    if let Some(p) = resolve_player_ref(reference, obj.controller) {
-                        visit(p, pmod);
-                    }
+                // `Conditionally` statics skipped — the same seam the
+                // object-layer gather has. `ModifyPlayer` is never
+                // distributed via `Each` (its `Reference` already names the
+                // affected player directly), so only the top-level shape is
+                // matched.
+                if let StaticEffect::ModifyPlayer(reference, pmod) = effect
+                    && let Some(p) = resolve_player_ref(reference, obj.controller)
+                {
+                    visit(p, pmod);
                 }
             }
         }
@@ -145,7 +146,6 @@ mod tests {
     use deckmaste_core::PlayerAttr;
     use deckmaste_core::PlayerMod;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
 
@@ -175,13 +175,10 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Player Static".into(),
             types: vec![Type::Enchantment],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                condition: None,
-                from: None,
-                effects: vec![StaticEffect::ModifyPlayer(Reference::You, pmod)],
-                characteristic_defining: false,
-            })],
+            abilities: vec![Ability::Static(StaticEffect::ModifyPlayer(
+                Reference::You,
+                pmod,
+            ))],
             ..CardFace::default()
         });
         let card_id = state.cards.push(Arc::new(card), controller);

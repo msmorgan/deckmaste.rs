@@ -3,7 +3,5 @@
 KeywordAbility(
     name: "Defender",
     template: "defender",
-    abilities: [Static(effects: [
-        Cant(Attack(by: Ref(This))),
-    ])],
+    abilities: [Static(Cant(Attack(by: Ref(This))))],
 )

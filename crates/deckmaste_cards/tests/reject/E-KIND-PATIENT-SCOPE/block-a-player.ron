@@ -5,9 +5,7 @@ Normal(
   name: "Reject Block A Player",
   types: [Creature],
   abilities: [
-    Static(effects: [
-      Cant(Block(by: Ref(This), on: Kind(Player))),
-    ]),
+    Static(Cant(Block(by: Ref(This), on: Kind(Player)))),
   ],
   power: 1,
   toughness: 1,

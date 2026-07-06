@@ -1,0 +1,11 @@
+// CardInAnyGraveyard = "each card in a graveyard" — the graveyard-wide
+// distribution set (no owner/controller restriction; every graveyard, not
+// just yours). A Selection-kind macro: the whole `SelectAll(...)` IS the
+// macro body, so a card spells it as `Each(CardInAnyGraveyard, ...)`
+// directly.
+(
+    name: "CardInAnyGraveyard",
+    template: "each card in a graveyard",
+    kinds: [Selection],
+    body: SelectAll(AllOf([Card, InZone(Graveyard)])),
+)

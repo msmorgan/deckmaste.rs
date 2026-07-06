@@ -44,17 +44,15 @@
     params: [Count],
     body: Composite(
         name: "Bloodthirst",
-        abilities: [Static(effects: [
-            Replacement(Also(
-                would: ThisEnters,
-                also: If(
-                    condition: Happened(
-                        event: Damage(to: OpponentOf(Ref(You))),
-                        within: ThisTurn,
-                    ),
-                    then: PutCounters(This, P1P1Counter, Param(0)),
+        abilities: [Static(Replacement(Also(
+            would: ThisEnters,
+            also: If(
+                condition: Happened(
+                    event: Damage(to: OpponentOf(Ref(You))),
+                    within: ThisTurn,
                 ),
-            )),
-        ])],
+                then: PutCounters(This, P1P1Counter, Param(0)),
+            ),
+        )))],
     ),
 )

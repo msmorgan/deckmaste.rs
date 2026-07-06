@@ -7,10 +7,7 @@
     body: Counter(
         name: "TrampleCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Trample))],
-            ),
+            Continuous(This, GainAbility(Keyword(Trample))),
         ],
     ),
 )

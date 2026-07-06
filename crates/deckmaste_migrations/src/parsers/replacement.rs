@@ -1,5 +1,5 @@
 //! Replacement-effect parser ([CR#614]): the closed template list, rendered as
-//! a `Static(effects: [Replacement(...)])` ability — replacements are carried
+//! a `Static(Replacement(...))` ability — replacements are carried
 //! by a static ([CR#614.1], a continuous effect that modifies how an event
 //! happens). Two templates:
 //!
@@ -55,7 +55,7 @@ fn parse_enters_with_counters(line: &str, ctx: &ResolveCtx) -> Option<String> {
         .strip_suffix(" on it.")?;
     let (count, kind) = effect::parse_counter_clause(clause, ctx)?;
     Some(format!(
-        "Static(effects: [Replacement(AsEnters(PutCounters(This, {kind}, {count})))])"
+        "Static(Replacement(AsEnters(PutCounters(This, {kind}, {count}))))"
     ))
 }
 
@@ -70,10 +70,7 @@ fn parse_as_enters(line: &str, ctx: &ResolveCtx) -> Option<String> {
     if !parsed.targets.is_empty() {
         return None;
     }
-    Some(format!(
-        "Static(effects: [Replacement(AsEnters({}))])",
-        parsed.effect
-    ))
+    Some(format!("Static(Replacement(AsEnters({})))", parsed.effect))
 }
 
 /// "If [subject] would [die|enter], [effect] instead." →
@@ -104,7 +101,7 @@ fn parse_instead(line: &str, ctx: &ResolveCtx) -> Option<String> {
         return None;
     }
     Some(format!(
-        "Static(effects: [Replacement(Instead(would: {event}, instead: {}))])",
+        "Static(Replacement(Instead(would: {event}, instead: {})))",
         parsed.effect
     ))
 }
@@ -123,8 +120,8 @@ fn parse_tapped_unless(line: &str) -> Option<String> {
         .strip_suffix('.')?;
     let condition = parse_board_condition(clause)?;
     Some(format!(
-        "Static(effects: [Replacement(AsEnters(If(condition: Not({condition}), \
-         then: Tap(This))))])"
+        "Static(Replacement(AsEnters(If(condition: Not({condition}), \
+         then: Tap(This)))))"
     ))
 }
 
@@ -137,8 +134,8 @@ fn parse_tapped_if(line: &str) -> Option<String> {
         .strip_suffix(", ~ enters tapped.")?;
     let condition = parse_board_condition(clause)?;
     Some(format!(
-        "Static(effects: [Replacement(AsEnters(If(condition: {condition}, \
-         then: Tap(This))))])"
+        "Static(Replacement(AsEnters(If(condition: {condition}, \
+         then: Tap(This)))))"
     ))
 }
 
@@ -322,20 +319,20 @@ mod tests {
         // that places one P1P1Counter at entry ([CR#122.6a,614.1c]).
         assert_eq!(
             rep_with_macros("~ enters with a +1/+1 counter on it.").as_deref(),
-            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, P1P1Counter, 1)))])")
+            Some("Static(Replacement(AsEnters(PutCounters(This, P1P1Counter, 1))))")
         );
         assert_eq!(
             rep_with_macros("~ enters with two +1/+1 counters on it.").as_deref(),
-            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, P1P1Counter, 2)))])")
+            Some("Static(Replacement(AsEnters(PutCounters(This, P1P1Counter, 2))))")
         );
         assert_eq!(
             rep_with_macros("~ enters with three +1/+1 counters on it.").as_deref(),
-            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, P1P1Counter, 3)))])")
+            Some("Static(Replacement(AsEnters(PutCounters(This, P1P1Counter, 3))))")
         );
         // "-1/-1 counters" generalizes to M1M1Counter for free.
         assert_eq!(
             rep_with_macros("~ enters with two -1/-1 counters on it.").as_deref(),
-            Some("Static(effects: [Replacement(AsEnters(PutCounters(This, M1M1Counter, 2)))])")
+            Some("Static(Replacement(AsEnters(PutCounters(This, M1M1Counter, 2))))")
         );
     }
 
@@ -366,9 +363,9 @@ mod tests {
         assert_eq!(
             rep("As ~ enters, ~ gets +1/+1 until end of turn.").as_deref(),
             Some(
-                "Static(effects: [Replacement(AsEnters(Continuously(effect: \
-                 Modify(of: Of(This), changes: [AddPowerToughness(1, 1)]), \
-                 duration: FixedUntil(EndOfTurn))))])"
+                "Static(Replacement(AsEnters(Continuously(effect: \
+                 Modify(This, AddPowerToughness(1, 1)), \
+                 duration: FixedUntil(EndOfTurn)))))"
             )
         );
     }
@@ -379,7 +376,7 @@ mod tests {
         // supplies `ThisDies`, the effect grammar supplies `Draw(1)`.
         assert_eq!(
             rep("If ~ would die, draw a card instead.").as_deref(),
-            Some("Static(effects: [Replacement(Instead(would: ThisDies, instead: Draw(1)))])")
+            Some("Static(Replacement(Instead(would: ThisDies, instead: Draw(1))))")
         );
     }
 
@@ -388,8 +385,8 @@ mod tests {
         assert_eq!(
             rep("If a creature you control would die, you gain 1 life instead.").as_deref(),
             Some(
-                "Static(effects: [Replacement(Instead(would: \
-                 Dies(AllOf([Creature, ControlledBy(Ref(You))])), instead: GainLife(1)))])"
+                "Static(Replacement(Instead(would: \
+                 Dies(AllOf([Creature, ControlledBy(Ref(You))])), instead: GainLife(1))))"
             )
         );
     }
@@ -427,8 +424,8 @@ mod tests {
     /// enters tapped exactly when the unless-condition does NOT hold.
     fn tapped_unless(condition: &str) -> String {
         format!(
-            "Static(effects: [Replacement(AsEnters(If(condition: Not({condition}), \
-             then: Tap(This))))])"
+            "Static(Replacement(AsEnters(If(condition: Not({condition}), \
+             then: Tap(This)))))"
         )
     }
 
@@ -583,9 +580,9 @@ mod tests {
         assert_eq!(
             rep("If you control two or more other lands, ~ enters tapped.").as_deref(),
             Some(
-                "Static(effects: [Replacement(AsEnters(If(condition: \
+                "Static(Replacement(AsEnters(If(condition: \
                  Compare(CountOf(AllOf([Type(Land), Not(Ref(This)), ControlledBy(Ref(You))])), \
-                 AtLeast, 2), then: Tap(This))))])"
+                 AtLeast, 2), then: Tap(This)))))"
             )
         );
     }

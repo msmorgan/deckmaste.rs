@@ -8,10 +8,8 @@
 KeywordAbility(
     name: "Flying",
     template: "flying",
-    abilities: [Static(effects: [
-        Cant(Block(
+    abilities: [Static(Cant(Block(
             on: Ref(This),
             by: Not(OneOf([Has(Flying), Has(Reach)])),
-        )),
-    ])],
+        )))],
 )

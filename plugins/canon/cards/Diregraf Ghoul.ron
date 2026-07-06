@@ -10,7 +10,7 @@ Normal(
     Zombie,
   ],
   abilities: [
-    Static(effects: [Replacement(AsEnters(Tap(This)))]),
+    Static(Replacement(AsEnters(Tap(This)))),
   ],
   power: 2,
   toughness: 2,

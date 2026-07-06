@@ -6,8 +6,5 @@
 KeywordAbility(
     name: "Devoid",
     template: "devoid",
-    abilities: [Static(
-        cda: true,
-        effects: [Modify(of: Of(This), changes: [Colors(Set([]))])],
-    )],
+    abilities: [Static(Modify(This, Colors(Set([]))))],
 )

@@ -6,9 +6,7 @@ Normal(
   name: "Reject Empty Deed Agent",
   types: [Creature],
   abilities: [
-    Static(effects: [
-      Cant(Target(on: Ref(This), by: ())),
-    ]),
+    Static(Cant(Target(on: Ref(This), by: ()))),
   ],
   power: 1,
   toughness: 1,

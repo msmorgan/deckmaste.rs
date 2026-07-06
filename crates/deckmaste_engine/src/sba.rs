@@ -848,7 +848,6 @@ mod tests {
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Effect;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
 
     fn game() -> GameState {
@@ -888,40 +887,28 @@ mod tests {
     /// The Aura-subtype shape (scaffolded in-Rust): `Innate(Static([Sba(Not(
     /// LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))]))`.
     fn aura_graveyard_sba() -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Sba {
-                when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
-                    Reference::This,
-                )))),
-                then: Box::new(Effect::Act(deckmaste_core::Action::move_to(
-                    Reference::This,
-                    Zone::Graveyard,
-                ))),
-            }],
-            characteristic_defining: false,
+        Ability::Innate(Box::new(Ability::Static(StaticEffect::Sba {
+            when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
+                Reference::This,
+            )))),
+            then: Box::new(Effect::Act(deckmaste_core::Action::move_to(
+                Reference::This,
+                Zone::Graveyard,
+            ))),
         })))
     }
 
     /// The Equipment-subtype shape: `Innate(Static([Cant(Attach(what:
     /// Ref(This), to: Not(Creature)))]))`.
     fn equipment_host_rule() -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                DeonticAction::Attach {
-                    what: Filter::Ref(Reference::This),
-                    to: Filter::Not(Box::new(Filter::Characteristic(
-                        CharacteristicFilter::Type(Type::Creature),
-                    ))),
-                },
-            ))],
-            characteristic_defining: false,
-        })))
+        Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+            Deontic::Cant(DeonticAction::Attach {
+                what: Filter::Ref(Reference::This),
+                to: Filter::Not(Box::new(Filter::Characteristic(
+                    CharacteristicFilter::Type(Type::Creature),
+                ))),
+            }),
+        ))))
     }
 
     /// [CR#704.5m]: an Aura (carrying the Innate graveyard `Sba`) that is
@@ -1075,18 +1062,12 @@ mod tests {
             &mut state,
             "Protected",
             vec![Type::Creature],
-            vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Attach {
-                        what: Filter::Any,
-                        to: Filter::Ref(Reference::This),
-                    },
-                ))],
-                characteristic_defining: false,
-            })],
+            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attach {
+                    what: Filter::Any,
+                    to: Filter::Ref(Reference::This),
+                },
+            )))],
         );
         let _ = host;
         state.objects.obj_mut(thing).attached_to = Some(protected);
@@ -1135,18 +1116,12 @@ mod tests {
                 Filter::State(StateFilter::Designated(name)),
             ))),
         ]);
-        let ascend = Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Sba {
-                when: Box::new(gate),
-                then: Box::new(Effect::Act(Action::By(
-                    Reference::You,
-                    PlayerAction::GetDesignation(name),
-                ))),
-            }],
-            characteristic_defining: false,
+        let ascend = Ability::Static(StaticEffect::Sba {
+            when: Box::new(gate),
+            then: Box::new(Effect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GetDesignation(name),
+            ))),
         });
         let _ascender = on_field(
             &mut state,
@@ -1215,33 +1190,27 @@ mod tests {
         // object's controller via the Sba frame, so each ascender counts ITS
         // controller's permanents and grants to that controller.
         let ascend = || {
-            Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Sba {
-                    when: Box::new(Condition::AllOf(vec![
-                        Condition::Compare(
-                            Count::CountOf(Box::new(Filter::AllOf(vec![
-                                Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                                Filter::Relation(RelationFilter::ControlledBy(Box::new(
-                                    Filter::Ref(Reference::You),
-                                ))),
-                            ]))),
-                            Cmp::AtLeast,
-                            Count::Literal(10),
-                        ),
-                        Condition::Not(Box::new(Condition::Is(
-                            Reference::You,
-                            Filter::State(StateFilter::Designated(name)),
-                        ))),
-                    ])),
-                    then: Box::new(Effect::Act(Action::By(
+            Ability::Static(StaticEffect::Sba {
+                when: Box::new(Condition::AllOf(vec![
+                    Condition::Compare(
+                        Count::CountOf(Box::new(Filter::AllOf(vec![
+                            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                                Reference::You,
+                            )))),
+                        ]))),
+                        Cmp::AtLeast,
+                        Count::Literal(10),
+                    ),
+                    Condition::Not(Box::new(Condition::Is(
                         Reference::You,
-                        PlayerAction::GetDesignation(name),
+                        Filter::State(StateFilter::Designated(name)),
                     ))),
-                }],
-                characteristic_defining: false,
+                ])),
+                then: Box::new(Effect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::GetDesignation(name),
+                ))),
             })
         };
 

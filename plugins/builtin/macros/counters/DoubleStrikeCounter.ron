@@ -7,10 +7,7 @@
     body: Counter(
         name: "DoubleStrikeCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(DoubleStrike))],
-            ),
+            Continuous(This, GainAbility(Keyword(DoubleStrike))),
         ],
     ),
 )

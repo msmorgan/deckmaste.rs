@@ -1047,7 +1047,7 @@ export
 card_MutagenicGrowth : Card
 card_MutagenicGrowth = Normal $ ^:
   { name := Just "Mutagenic Growth"
-  , manaCost := [Phyrexian Green]
+  , manaCost := [Phyrexian Green Nothing]
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]

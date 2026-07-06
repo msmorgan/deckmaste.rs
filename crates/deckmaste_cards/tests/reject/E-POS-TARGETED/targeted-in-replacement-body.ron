@@ -4,11 +4,9 @@ Normal(
   name: "Reject Targeted In Replacement",
   types: [Enchantment],
   abilities: [
-    Static(effects: [
-      Replacement(Instead(
-        would: Enters(Creature),
-        instead: Targeted(targets: [As("t", AnyTarget)], effect: Destroy(The("t"))),
-      )),
-    ]),
+    Static(Replacement(Instead(
+      would: Enters(Creature),
+      instead: Targeted(targets: [As("t", AnyTarget)], effect: Destroy(The("t"))),
+    ))),
   ],
 )

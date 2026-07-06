@@ -11,6 +11,6 @@ Normal(
     // "deals 4 damage to each player" — plurality is the `Each` iterator
     // binding each player as `It`; `Each` emits a simultaneous batch,
     // so both players reaching 0 at once is a draw ([CR#608,700.1,104.4a]).
-    Spell(effect: Each(binder: Existing(Filter(Player)), effect: DealDamage(It, 4))),
+    Spell(effect: Each(binder: Existing(SelectAll(Player)), effect: DealDamage(It, 4))),
   ],
 )

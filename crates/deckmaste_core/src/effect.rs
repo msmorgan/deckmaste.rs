@@ -531,7 +531,7 @@ mod tests {
             "May(effect:Draw(Literal(1)))",
             // `Each.binder` is a many-`Binder` (the set of all creatures wrapped
             // in `Existing`), binding `It` per element.
-            "Each(binder:Existing(Filter(Type(Creature))),effect:Draw(Literal(1)))",
+            "Each(binder:Existing(SelectAll(Type(Creature))),effect:Draw(Literal(1)))",
             // Brainstorm's shape in the new model: choose 2 cards (a many-binder
             // `With`), then `Each` over the bound group (`Existing(They)`), moving
             // each onto the library via the `It` element. Core reader has no
@@ -677,7 +677,7 @@ mod tests {
     #[test]
     fn divide_among_reads_and_round_trips() {
         let damage = read(
-            "DivideAmong(amount: 3, binder: Existing(Filter(Type(Creature))), \
+            "DivideAmong(amount: 3, binder: Existing(SelectAll(Type(Creature))), \
              body: DealDamage(It, Allotment))",
         );
         let Effect::DivideAmong(d) = &damage else {
@@ -686,7 +686,7 @@ mod tests {
         assert_eq!(d.amount, Count::Literal(3));
         assert!(matches!(
             d.binder,
-            crate::Binder::Existing(Selection::Filter(_))
+            crate::Binder::Existing(Selection::SelectAll(_))
         ));
         assert_eq!(
             *d.body,
@@ -709,13 +709,13 @@ mod tests {
     /// `Each : Bindable b Many k -> …`).
     #[test]
     fn each_binds_via_binder() {
-        let v = read("Each(binder:Existing(Filter(Type(Creature))),effect:Draw(Literal(1)))");
+        let v = read("Each(binder:Existing(SelectAll(Type(Creature))),effect:Draw(Literal(1)))");
         let Effect::Each(e) = &v else {
             panic!("expected Each, got {v:?}");
         };
         assert!(matches!(
             e.binder,
-            crate::Binder::Existing(Selection::Filter(_))
+            crate::Binder::Existing(Selection::SelectAll(_))
         ));
         assert_eq!(read(&write(&v)), v, "round-trip");
 
@@ -763,8 +763,7 @@ mod tests {
     /// round-trips ([CR#611.2,611.2c]) — the Boros Charm mode-2 shape.
     #[test]
     fn until_reads_a_part_list() {
-        let src =
-            "Until(FixedUntil(EndOfTurn),[Modify(of:Of(This),changes:[Power(Up(Literal(1)))])])";
+        let src = "Until(FixedUntil(EndOfTurn),[Modify(This,Power(Up(Literal(1))))])";
         let parsed = read(src);
         let Effect::Until(_, parts) = &parsed else {
             panic!("expected Until, got {parsed:?}");

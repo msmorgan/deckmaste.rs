@@ -11,10 +11,10 @@ use deckmaste_core::Count;
 use deckmaste_core::Destination;
 use deckmaste_core::Effect;
 use deckmaste_core::ManaSpec;
+use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
-use deckmaste_core::Scope;
 use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
@@ -515,33 +515,44 @@ impl GameState {
                     | deckmaste_core::Duration::EndOfGame => {}
                     other => todo!("P0.W1: duration {other:?} — sweep/tracking unbuilt"),
                 }
-                if let StaticEffect::Modify { of, changes } = &*e.effect {
-                    let scope = match of {
-                        Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
-                        Scope::Of(r) => ScopeResolved::Locked(vec![self.eval_reference(r, frame)]),
-                        Scope::These(rs) => ScopeResolved::Locked(
-                            rs.iter().map(|r| self.eval_reference(r, frame)).collect(),
+                // `Modify(reference, change)` — the single-object shape — locks
+                // the one resolved reference ([CR#613.6]). `Each(SelectAll(f),
+                // Modify(It, change))` — the distributor shape ("target
+                // creature and all creatures it shares a color with get
+                // +1/+1", or a plain anthem) — stays `Floating(f)`: the filter
+                // is NOT expanded to objects here, mirroring `gather`'s
+                // `static_effect_scope` in `layer.rs`.
+                let (scope, changes) = match &*e.effect {
+                    StaticEffect::Modify(r, change) => (
+                        ScopeResolved::Locked(vec![self.eval_reference(r, frame)]),
+                        Modification::flatten(vec![change.clone()]),
+                    ),
+                    StaticEffect::Each(Selection::SelectAll(f), inner) => match inner.as_ref() {
+                        StaticEffect::Modify(Reference::It, change) => (
+                            ScopeResolved::Floating(f.clone()),
+                            Modification::flatten(vec![change.clone()]),
                         ),
-                    };
-                    self.continuous.push(ContinuousEffect {
-                        timestamp,
-                        // The continuous effect's controller is the controller
-                        // of the spell/ability that created it ([CR#611.2c]);
-                        // it resolves the `You` in a layer-2 control change.
-                        controller: frame.controller,
-                        scope,
-                        changes: changes.clone(),
-                        duration: e.duration.clone(),
-                        is_cda: false,
-                    });
-                } else {
-                    // P0.W1 seam: a granted Deontic/CostModifier/… row would
-                    // be silently inert — loud instead.
-                    todo!(
-                        "P0.W1: Continuously({:?}) — non-Modify grants unbuilt",
-                        e.effect
-                    );
-                }
+                        other => todo!(
+                            "P0.W1: Continuously(Each(SelectAll, {other:?})) — only a bare \
+                             Modify(It, _) inner is wired"
+                        ),
+                    },
+                    // P0.W1 seam: a granted Deontic/CostModifier/… row (or an
+                    // `Each` over a non-`SelectAll` `Selection`) would be
+                    // silently inert — loud instead.
+                    other => todo!("P0.W1: Continuously({other:?}) — non-Modify grants unbuilt"),
+                };
+                self.continuous.push(ContinuousEffect {
+                    timestamp,
+                    // The continuous effect's controller is the controller
+                    // of the spell/ability that created it ([CR#611.2c]);
+                    // it resolves the `You` in a layer-2 control change.
+                    controller: frame.controller,
+                    scope,
+                    changes,
+                    duration: e.duration.clone(),
+                    is_cda: false,
+                });
             }
             // The LIST spelling of `Continuously` ([CR#611.2c] — a single
             // continuous effect with parts, each part's affected set
@@ -1906,7 +1917,7 @@ impl GameState {
     /// enclosing `Each`/`DivideAmong`/`With`, never the verb itself.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
-            Selection::Filter(f) => crate::target::candidates(self, f),
+            Selection::SelectAll(f) => crate::target::candidates(self, f),
 
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
             // per-element projection. Each candidate is bound as the frame's
@@ -3523,7 +3534,6 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::Deontic;
         use deckmaste_core::DeonticAction;
-        use deckmaste_core::StaticAbility;
         use deckmaste_core::StaticEffect;
 
         let mut state = game();
@@ -3532,20 +3542,14 @@ mod tests {
         let equip_card = Card::Normal(CardFace {
             name: "Test Equipment".into(),
             types: vec![Type::Artifact],
-            abilities: vec![Ability::Innate(Box::new(Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Attach {
-                        what: Filter::Ref(Reference::This),
-                        to: Filter::Not(Box::new(Filter::Characteristic(
-                            CharacteristicFilter::Type(Type::Creature),
-                        ))),
-                    },
-                ))],
-                characteristic_defining: false,
-            })))],
+            abilities: vec![Ability::Innate(Box::new(Ability::Static(
+                StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attach {
+                    what: Filter::Ref(Reference::This),
+                    to: Filter::Not(Box::new(Filter::Characteristic(
+                        CharacteristicFilter::Type(Type::Creature),
+                    ))),
+                })),
+            )))],
             ..CardFace::default()
         });
         let equip_id = state.cards.push(Arc::new(equip_card), PlayerId(0));
@@ -4292,7 +4296,7 @@ mod tests {
             Filter::State(StateFilter::InZone(Zone::Battlefield)),
             Filter::creature(),
         ]);
-        let mut got = state.eval_selection_set(&Selection::Filter(filter), &frame);
+        let mut got = state.eval_selection_set(&Selection::SelectAll(filter), &frame);
         got.sort();
         let mut want = vec![a, b];
         want.sort();
@@ -4310,7 +4314,7 @@ mod tests {
         let frame = frame_src(src);
 
         let effect = Effect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::Filter(Filter::Kind(ObjectKind::Player))),
+            binder: Binder::Existing(Selection::SelectAll(Filter::Kind(ObjectKind::Player))),
             effect: Box::new(Effect::Act(Action::deal_damage(
                 Reference::It,
                 Count::Literal(20),
@@ -4354,7 +4358,7 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = Effect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::Filter(Filter::AllOf(vec![
+            binder: Binder::Existing(Selection::SelectAll(Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::creature(),
             ]))),
@@ -4413,7 +4417,7 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = Effect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::Filter(Filter::AllOf(vec![
+            binder: Binder::Existing(Selection::SelectAll(Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::creature(),
             ]))),
@@ -4456,8 +4460,8 @@ mod tests {
         // happen), as the canted static.
         let survivor = {
             let source = "Normal(name: \"Darksteel Test\", types: [Creature], abilities: [\
-                 Static(effects: [CantHappen(ZoneChange(what: Ref(This), \
-                 from: Battlefield, to: Graveyard))])])";
+                 Static(CantHappen(ZoneChange(what: Ref(This), \
+                 from: Battlefield, to: Graveyard)))])";
             let card = builtin()
                 .macros
                 .read_str::<deckmaste_core::Card>(source)
@@ -4468,10 +4472,12 @@ mod tests {
         let effect = Effect::Noting(deckmaste_core::Noting {
             key: "destroyed".into(),
             effect: Box::new(Effect::Each(deckmaste_core::Each {
-                binder: deckmaste_core::Binder::Existing(Selection::Filter(Filter::AllOf(vec![
-                    Filter::State(deckmaste_core::StateFilter::InZone(Zone::Battlefield)),
-                    Filter::creature(),
-                ]))),
+                binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Filter::AllOf(
+                    vec![
+                        Filter::State(deckmaste_core::StateFilter::InZone(Zone::Battlefield)),
+                        Filter::creature(),
+                    ],
+                ))),
                 effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
             })),
         });
@@ -4752,7 +4758,8 @@ mod tests {
         use deckmaste_core::Filter;
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
-        use deckmaste_core::Scope;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Selection;
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
@@ -4762,10 +4769,13 @@ mod tests {
 
         let filter = Filter::creature();
         let effect = Effect::Continuously(Continuously {
-            effect: Box::new(StaticEffect::Modify {
-                of: Scope::Matching(filter.clone()),
-                changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
-            }),
+            effect: Box::new(StaticEffect::Each(
+                Selection::SelectAll(filter.clone()),
+                Box::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Power(NumericOp::Up(Count::Literal(1))),
+                )),
+            )),
             duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         });
         state.run_effect(effect, &frame);
@@ -4798,17 +4808,16 @@ mod tests {
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
         use deckmaste_core::Reference;
-        use deckmaste_core::Scope;
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
 
         let effect = Effect::Continuously(Continuously {
-            effect: Box::new(StaticEffect::Modify {
-                of: Scope::Of(Reference::This),
-                changes: vec![Modification::Toughness(NumericOp::Up(Count::Literal(2)))],
-            }),
+            effect: Box::new(StaticEffect::Modify(
+                Reference::This,
+                Modification::Toughness(NumericOp::Up(Count::Literal(2))),
+            )),
             duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         });
         state.run_effect(effect, &frame);
@@ -5409,7 +5418,7 @@ mod tests {
         let frame = frame_src(a);
         let effect = Effect::DivideAmong(DivideAmong {
             amount: Count::Literal(3),
-            binder: Binder::Existing(Selection::Filter(Filter::AllOf(vec![
+            binder: Binder::Existing(Selection::SelectAll(Filter::AllOf(vec![
                 Filter::State(StateFilter::InZone(Zone::Battlefield)),
                 Filter::creature(),
             ]))),
@@ -5493,7 +5502,7 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Each(Each {
-                binder: Binder::Existing(Selection::Filter(Filter::Kind(ObjectKind::Player))),
+                binder: Binder::Existing(Selection::SelectAll(Filter::Kind(ObjectKind::Player))),
                 effect: Box::new(Effect::Act(Action::deal_damage(
                     Reference::It,
                     Count::Literal(1),
@@ -5622,11 +5631,11 @@ mod tests {
         ]);
         let effect = Effect::DivideAmong(deckmaste_core::DivideAmong {
             amount: Count::Literal(2),
-            binder: Binder::Existing(Selection::Filter(creatures.clone())),
+            binder: Binder::Existing(Selection::SelectAll(creatures.clone())),
             // The outer share is in scope here, but the inner `Each` rebinds `It`
             // per inner element and clears it before the body runs.
             body: Box::new(Effect::Each(deckmaste_core::Each {
-                binder: Binder::Existing(Selection::Filter(creatures)),
+                binder: Binder::Existing(Selection::SelectAll(creatures)),
                 effect: Box::new(Effect::Act(Action::deal_damage(
                     Reference::It,
                     Count::Allotment,
@@ -6093,8 +6102,6 @@ mod tests {
     use deckmaste_core::CardFace;
     use deckmaste_core::Modification;
     use deckmaste_core::NumericOp;
-    use deckmaste_core::Scope;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
 
@@ -6115,19 +6122,13 @@ mod tests {
     /// A "host gets +n/+n" static targeting this attachment's host
     /// (`Of(AttachHostOf(This))`) — the equipped/enchanted-creature bonus.
     fn host_pump(n: u32) -> Ability {
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
-                changes: vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(n))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(n))),
-                ],
-            }],
-            characteristic_defining: false,
-        })
+        Ability::Static(StaticEffect::Modify(
+            Reference::AttachHostOf(Box::new(Reference::This)),
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(Count::Literal(n))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(n))),
+            ]),
+        ))
     }
 
     /// Mint a card-backed object directly onto the battlefield (player 0).
@@ -6329,18 +6330,12 @@ mod tests {
                 types: vec![Type::Creature],
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
-                abilities: vec![Ability::Static(StaticAbility {
-                    ability_word: None,
-                    from: None,
-                    condition: None,
-                    effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                        DeonticAction::Attach {
-                            what: Filter::Characteristic(CharacteristicFilter::ColorIs(Color::Red)),
-                            to: Filter::Ref(Reference::This),
-                        },
-                    ))],
-                    characteristic_defining: false,
-                })],
+                abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attach {
+                        what: Filter::Characteristic(CharacteristicFilter::ColorIs(Color::Red)),
+                        to: Filter::Ref(Reference::This),
+                    },
+                )))],
                 ..CardFace::default()
             }),
         );
@@ -6609,7 +6604,7 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Each(Each {
-                binder: Binder::Existing(Selection::Filter(creatures)),
+                binder: Binder::Existing(Selection::SelectAll(creatures)),
                 effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
             }),
             &frame,
@@ -6637,7 +6632,7 @@ mod tests {
         let life0 = state.player(PlayerId(0)).life;
         state.run_effect(
             Effect::Each(Each {
-                binder: Binder::Existing(Selection::Filter(creatures)),
+                binder: Binder::Existing(Selection::SelectAll(creatures)),
                 effect: Box::new(Effect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GainLife(Count::Literal(1)),

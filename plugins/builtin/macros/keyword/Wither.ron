@@ -16,10 +16,8 @@
 KeywordAbility(
     name: "Wither",
     template: "wither",
-    abilities: [Static(effects: [
-        Replacement(Instead(
+    abilities: [Static(Replacement(Instead(
             would: Damage(source: Ref(This), to: Type(Creature)),
             instead: PutCounters(EventObject, M1M1Counter, ThatMuch),
-        )),
-    ])],
+        )))],
 )

@@ -177,12 +177,7 @@ fn requirement(cost: &ManaCost) -> Option<Requirement> {
             // before payment; Variable ({X}) is announced there too
             // (engine-x-costs). A residual one here is an engine bug, not a
             // payable cost.
-            ManaSymbol::Hybrid(_)
-            | ManaSymbol::MonoHybrid(_)
-            | ManaSymbol::ColorlessHybrid(_)
-            | ManaSymbol::Phyrexian(_)
-            | ManaSymbol::HybridPhyrexian(_)
-            | ManaSymbol::Variable => {
+            ManaSymbol::Hybrid(..) | ManaSymbol::Phyrexian(..) | ManaSymbol::Variable => {
                 return None;
             }
         }
@@ -961,7 +956,6 @@ impl GameState {
                 deckmaste_core::Ability::Static(s) => Some(s),
                 _ => None,
             })
-            .flat_map(|s| &s.effects)
             .filter_map(|e| match e {
                 deckmaste_core::StaticEffect::CostOption(oc) => Some(oc.clone()),
                 deckmaste_core::StaticEffect::Expanded(exp) => match exp.value.as_ref() {
@@ -1819,7 +1813,6 @@ mod tests {
     use deckmaste_core::Filter;
     use deckmaste_core::Reference;
     use deckmaste_core::StateFilter;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -1891,23 +1884,17 @@ mod tests {
             name: "Fromite".into(),
             mana_cost: printed.parse().unwrap(),
             types: vec![Type::Artifact],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                characteristic_defining: false,
-                effects: vec![StaticEffect::CostModifier {
-                    of: Filter::Ref(Reference::This),
-                    change: CostChange::Scaled {
-                        change: Box::new(CostChange::Reduce(vec![CostComponent::Mana(
-                            "{1}".parse().unwrap(),
-                        )])),
-                        times: Count::CountOf(Box::new(Filter::AllOf(vec![
-                            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                            Filter::Characteristic(CharacteristicFilter::Type(Type::Artifact)),
-                        ]))),
-                    },
-                }],
+            abilities: vec![Ability::Static(StaticEffect::CostModifier {
+                of: Filter::Ref(Reference::This),
+                change: CostChange::Scaled {
+                    change: Box::new(CostChange::Reduce(vec![CostComponent::Mana(
+                        "{1}".parse().unwrap(),
+                    )])),
+                    times: Count::CountOf(Box::new(Filter::AllOf(vec![
+                        Filter::State(StateFilter::InZone(Zone::Battlefield)),
+                        Filter::Characteristic(CharacteristicFilter::Type(Type::Artifact)),
+                    ]))),
+                },
             })],
             ..CardFace::default()
         })
@@ -1974,15 +1961,9 @@ mod tests {
         let taxer = Card::Normal(CardFace {
             name: "Thorn Totem".into(),
             types: vec![Type::Artifact],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                characteristic_defining: false,
-                effects: vec![StaticEffect::CostModifier {
-                    of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                    change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
-                }],
+            abilities: vec![Ability::Static(StaticEffect::CostModifier {
+                of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
             })],
             ..CardFace::default()
         });

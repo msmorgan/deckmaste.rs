@@ -7,10 +7,7 @@
     body: Counter(
         name: "ReachCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Reach))],
-            ),
+            Continuous(This, GainAbility(Keyword(Reach))),
         ],
     ),
 )

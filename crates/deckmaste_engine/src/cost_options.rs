@@ -73,40 +73,22 @@ pub fn choosable(cost: &ManaCost) -> ChoosableOptions {
 
 /// The legal readings of one symbol, or `None` if it isn't choosable.
 fn symbol_options(symbol: ManaSymbol) -> Option<SymbolOptions> {
-    use deckmaste_core::ColorOrColorless;
     let choices = match symbol {
-        // [CR#107.4e]: the two color halves, in printed order.
-        ManaSymbol::Hybrid(pair) => {
-            let (left, right) = pair.colors();
-            vec![
-                SymbolChoice::Mana(left.into()),
-                SymbolChoice::Mana(right.into()),
-            ]
+        // [CR#107.4e]: a hybrid is its left component or its right color. The
+        // left half is paid as printed — a color ({W/U}), a generic amount
+        // ({2/W} — two mana of any type), or colorless ({C/W}).
+        ManaSymbol::Hybrid(left, right) => {
+            vec![SymbolChoice::Mana(left), SymbolChoice::Mana(right.into())]
         }
-        // [CR#107.4e]: {2/W} — two mana of any type, or one of the color.
-        ManaSymbol::MonoHybrid(c) => {
-            vec![
-                SymbolChoice::Mana(SimpleManaSymbol::Generic(2)),
-                SymbolChoice::Mana(c.into()),
-            ]
-        }
-        // [CR#107.4]: {C/W} — one colorless, or one of the color.
-        ManaSymbol::ColorlessHybrid(c) => {
-            vec![
-                SymbolChoice::Mana(ColorOrColorless::Colorless.into()),
-                SymbolChoice::Mana(c.into()),
-            ]
-        }
-        // [CR#107.4f]: one mana of the color, then 2 life.
-        ManaSymbol::Phyrexian(c) => vec![SymbolChoice::Mana(c.into()), SymbolChoice::Life],
-        // [CR#107.4f]: either component color, then 2 life.
-        ManaSymbol::HybridPhyrexian(pair) => {
-            let (c1, c2) = pair.colors();
-            vec![
-                SymbolChoice::Mana(c1.into()),
-                SymbolChoice::Mana(c2.into()),
-                SymbolChoice::Life,
-            ]
+        // [CR#107.4f]: one mana of the color — or either component color for a
+        // hybrid Phyrexian ({G/U/P}) — then 2 life.
+        ManaSymbol::Phyrexian(c, other) => {
+            let mut choices = vec![SymbolChoice::Mana(c.into())];
+            if let Some(o) = other {
+                choices.push(SymbolChoice::Mana(o.into()));
+            }
+            choices.push(SymbolChoice::Life);
+            choices
         }
         ManaSymbol::Simple(_) | ManaSymbol::Snow | ManaSymbol::Variable => return None,
     };

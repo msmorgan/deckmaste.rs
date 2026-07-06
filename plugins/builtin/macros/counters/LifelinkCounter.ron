@@ -7,10 +7,7 @@
     body: Counter(
         name: "LifelinkCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Lifelink))],
-            ),
+            Continuous(This, GainAbility(Keyword(Lifelink))),
         ],
     ),
 )

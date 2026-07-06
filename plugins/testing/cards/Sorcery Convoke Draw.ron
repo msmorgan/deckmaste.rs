@@ -16,9 +16,7 @@ Normal(
     types: [Sorcery],
     abilities: [
         Spell(effect: Draw(1)),
-        Static(effects: [
-            PayPips(Generic, TapToPay(AllOf([Creature, ControlledBy(Ref(You))]))),
-            PayPips(Colored(Green), TapToPay(AllOf([Creature, ColorIs(Green), ControlledBy(Ref(You))]))),
-        ]),
+        Static(PayPips(Generic, TapToPay(AllOf([Creature, ControlledBy(Ref(You))])))),
+        Static(PayPips(Colored(Green), TapToPay(AllOf([Creature, ColorIs(Green), ControlledBy(Ref(You))])))),
     ],
 )

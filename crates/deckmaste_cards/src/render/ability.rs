@@ -5,6 +5,7 @@ use deckmaste_core::Ability;
 use deckmaste_core::CharacteristicFilter;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
+use deckmaste_core::Condition;
 use deckmaste_core::Count;
 use deckmaste_core::EventFilter;
 use deckmaste_core::Filter;
@@ -15,7 +16,7 @@ use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Reference;
 use deckmaste_core::StateChange;
-use deckmaste_core::StaticAbility;
+use deckmaste_core::StateFilter;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TriggeredAbility;
 use deckmaste_core::Type;
@@ -86,6 +87,34 @@ pub(super) fn from_zone_qualified(
             lower_first(&text)
         ),
     }
+}
+
+/// The "as long as [condition]," qualifier a `Conditionally` static
+/// ([CR#611.3a]) prefixes its inner effect with. `Is(reference,
+/// InZone(zone))` is the graveyard/hand-functioning static shape
+/// ([CR#113.6,604.3]) the deleted `StaticAbility.from` field used to carry —
+/// it reuses [`from_zone_qualified`]'s exact phrasing. Any other condition
+/// falls back to a generic "As long as [cond]," prefix around the shared
+/// intervening-if condition renderer.
+fn conditionally_qualified(cond: &Condition, ctx: &Ctx, text: String) -> String {
+    let cond = match cond {
+        Condition::Expanded(e) => &e.value,
+        other => other,
+    };
+    if let Condition::Is(reference, filter) = cond
+        && let Filter::State(StateFilter::InZone(zone)) = super::fragment::strip_expanded(filter)
+    {
+        return from_zone_qualified(
+            Some(*zone),
+            &super::fragment::modify_subject(reference, ctx),
+            text,
+        );
+    }
+    format!(
+        "As long as {}, {}",
+        super::condition::condition(cond, ctx),
+        lower_first(&text)
+    )
 }
 
 /// Returns (lead word, the event clause).
@@ -186,33 +215,17 @@ pub(super) fn lower_first(s: &str) -> String {
 
 // ── Static abilities ─────────────────────────────────────────────────────────
 
-/// Render a `Static` ability's effects, one rules string each. A non-default
-/// `from` zone ([CR#113.6,604.3] — a graveyard/hand static) prefixes each
-/// effect with an "As long as ~ is in your <zone>," qualifier.
-pub(super) fn static_ability(s: &StaticAbility, ctx: &Ctx) -> Vec<String> {
-    let mut lines = Vec::new();
-    let mut i = 0;
-    while i < s.effects.len() {
-        // An adjacent can't-attack + can't-block pair over one subject
-        // prints as the single oracle clause "… can't attack or block."
-        // (Pacifism).
-        if i + 1 < s.effects.len()
-            && let Some(merged) =
-                super::deontic::merged_cant_attack_block(&s.effects[i], &s.effects[i + 1], ctx)
-        {
-            lines.push(merged);
-            i += 2;
-            continue;
-        }
-        if let Some(line) = static_effect(&s.effects[i], ctx) {
-            lines.push(line);
-        }
-        i += 1;
-    }
-    lines
-        .into_iter()
-        .map(|line| from_zone_qualified(s.from, ctx.subject, line))
-        .collect()
+/// Render a `Static` ability's one effect as its rules string. A
+/// graveyard/hand-functioning static ([CR#113.6,604.3]) is now a
+/// `StaticEffect::Conditionally(Is(this, InZone(zone)), inner)` wrapper
+/// (`conditionally_qualified` gives it the "As long as ~ is in your <zone>,"
+/// qualifier), so no separate `from`-zone step is needed here. The
+/// adjacent-can't-attack-and-block merge ([CR#509] Pacifism shape) spans TWO
+/// `Ability::Static` items now (one effect per `Static`), so it is re-homed
+/// to the per-ability render loop in `render/mod.rs`, which sees both
+/// abilities.
+pub(super) fn static_ability(s: &StaticEffect, ctx: &Ctx) -> Vec<String> {
+    static_effect(s, ctx).into_iter().collect()
 }
 
 /// Render one `StaticEffect` as a period-terminated sentence, or `None` for
@@ -235,12 +248,30 @@ pub(super) fn static_effect_one_shot(e: &StaticEffect, ctx: &Ctx) -> Option<Stri
 fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<String> {
     match e {
         StaticEffect::Expanded(exp) => static_effect_kind(&exp.value, ctx, one_shot),
-        StaticEffect::Modify { of, changes } => {
-            let (subj, plural) = super::fragment::scope_subject_agreed(of, ctx);
+        // A bare `Modify` targets ONE object — singular agreement ("Test Aura
+        // gets +1/+1.", "Enchanted creature gets +2/+2.").
+        StaticEffect::Modify(r, change) => {
+            let subj = super::fragment::modify_subject(r, ctx);
             Some(format!(
                 "{subj} {}.",
-                modifications_predicate(changes, plural, one_shot)
+                modifications_predicate(std::slice::from_ref(change), false, one_shot)
             ))
+        }
+        // `Each` distributes an inner effect over a `Selection` — plural
+        // agreement ("Creatures you control get +1/+1.", the anthem shape,
+        // [CR#613.6]). The inner effect is almost always `Modify(It, …)`;
+        // the `It` binding itself carries no render-visible content (the
+        // subject phrase already comes from the selection), so only the
+        // inner `Modification` is read.
+        StaticEffect::Each(sel, inner) => {
+            let subj = super::fragment::each_subject(sel, ctx);
+            let predicate = each_inner_predicate(inner, one_shot);
+            Some(format!("{subj} {predicate}."))
+        }
+        // "As long as [condition], [inner]" ([CR#611.3a]).
+        StaticEffect::Conditionally(cond, inner) => {
+            let text = static_effect_kind(inner, ctx, one_shot)?;
+            Some(conditionally_qualified(cond, ctx, text))
         }
         StaticEffect::ModifyPlayer(who, m) => Some(modify_player(who, m)),
         StaticEffect::TriggerMultiplier {
@@ -253,6 +284,23 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
         StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
         StaticEffect::PayPips(_class, act) => Some(pay_pips_keyword(act)),
         other => Some(format!("[unrendered: {other:?}].")),
+    }
+}
+
+/// The predicate half of an `Each`'s inner effect — everything after the
+/// selection-derived subject phrase, with NO trailing period (the caller adds
+/// it). The inner effect is normally `Modify(It, change)` (the anthem); `It`
+/// itself renders nothing here (the subject already came from the
+/// selection), so only `change` is read. Any other inner shape has no
+/// established plural predicate reading yet, so it falls back to the
+/// structural marker rather than guessing.
+fn each_inner_predicate(inner: &StaticEffect, one_shot: bool) -> String {
+    match inner {
+        StaticEffect::Expanded(exp) => each_inner_predicate(&exp.value, one_shot),
+        StaticEffect::Modify(_, change) => {
+            modifications_predicate(std::slice::from_ref(change), true, one_shot)
+        }
+        other => format!("[unrendered each-inner: {other:?}]"),
     }
 }
 

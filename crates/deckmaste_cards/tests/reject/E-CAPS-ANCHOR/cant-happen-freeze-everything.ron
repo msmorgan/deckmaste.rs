@@ -4,8 +4,6 @@ Normal(
   name: "Reject Unanchored Cant",
   types: [Enchantment],
   abilities: [
-    Static(effects: [
-      CantHappen(Not(ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard))),
-    ]),
+    Static(CantHappen(Not(ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard)))),
   ],
 )

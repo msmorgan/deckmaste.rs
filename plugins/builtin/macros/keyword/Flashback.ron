@@ -15,10 +15,8 @@
     body: Composite(
         name: "Flashback",
         abilities: [
-            Static(effects: [
-                May(Cast(what: Ref(This), from: Graveyard, cost: Components(Param(0)))),
-            ]),
-            Static(effects: [ExileWhenLeavesStack]),
+            Static(May(Cast(what: Ref(This), from: Graveyard, cost: Components(Param(0))))),
+            Static(ExileWhenLeavesStack),
         ],
     ),
 )

@@ -9,7 +9,7 @@ Normal(
       amount: 2,
       binder: Choose(quantity: Exactly(2), filter: Creature),
       body: Each(
-        binder: Existing(Filter(Creature)),
+        binder: Existing(SelectAll(Creature)),
         effect: DealDamage(It, Allotment),
       ),
     )),

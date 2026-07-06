@@ -13,7 +13,7 @@ Normal(
       // `Reference` now, so plurality is the `Each` iterator binding each
       // creature as `It`; `Each` emits a simultaneous batch
       // ([CR#608,700.1]).
-      effect: Each(binder: Existing(Filter(Creature)), effect: DealDamage(It, 2)),
+      effect: Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(It, 2)),
     ),
   ],
 )

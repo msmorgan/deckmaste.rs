@@ -10,8 +10,6 @@ Normal(
     Enchantment,
   ],
   abilities: [
-    Static(effects: [
-      Modify(of: Matching(AllOf([Creature, ColorIs(Black)])), changes: [Power(Up(1)), Toughness(Up(1))]),
-    ]),
+    Static(Each(SelectAll(AllOf([Creature, ColorIs(Black)])), Modify(It, Several([Power(Up(1)), Toughness(Up(1))])))),
   ],
 )

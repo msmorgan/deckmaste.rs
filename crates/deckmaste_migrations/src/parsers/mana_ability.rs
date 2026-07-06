@@ -238,9 +238,7 @@ pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Opti
 /// The bare ability RON (no indent/comma) for a `TapAbility`.
 fn render_bare(ability: &TapAbility) -> anyhow::Result<String> {
     Ok(match ability {
-        TapAbility::EntersTapped => {
-            "Static(effects: [Replacement(AsEnters(Tap(This)))])".to_owned()
-        }
+        TapAbility::EntersTapped => "Static(Replacement(AsEnters(Tap(This))))".to_owned(),
         TapAbility::Mana {
             cost,
             production,
@@ -446,7 +444,7 @@ mod tests {
             )
             .unwrap()
             .as_deref(),
-            Some("Static(effects: [Replacement(AsEnters(Tap(This)))])")
+            Some("Static(Replacement(AsEnters(Tap(This))))")
         );
         assert!(
             resolve_line(

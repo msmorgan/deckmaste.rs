@@ -33,14 +33,12 @@
                     effect: Sequence([]),
                 ),
             ),
-            Static(effects: [
-                Cant(Target(by: (stack_object: Ref(This)), on: Not(Param(0)))),
-                Cant(Attach(what: Ref(This), to: Not(Param(0)))),
-                Replacement(Also(
-                    would: ThisEnters,
-                    also: With(binder: ChooseOne(filter: Param(0)), body: Attach(what: This, to: It)),
-                )),
-            ]),
+            Static(Cant(Target(by: (stack_object: Ref(This)), on: Not(Param(0))))),
+            Static(Cant(Attach(what: Ref(This), to: Not(Param(0))))),
+            Static(Replacement(Also(
+                would: ThisEnters,
+                also: With(binder: ChooseOne(filter: Param(0)), body: Attach(what: This, to: It)),
+            ))),
         ],
     ),
 )

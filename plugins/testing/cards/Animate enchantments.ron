@@ -6,10 +6,6 @@ Normal(
     mana_cost: [Generic(4), White],
     types: [Enchantment],
     abilities: [
-        Static(effects: [
-            Modify(of: Matching(AllOf([Permanent, Type(Enchantment)])), changes: [
-                CardTypes(Set([Creature])), Power(Set(4)), Toughness(Set(4)),
-            ]),
-        ]),
+        Static(Each(SelectAll(AllOf([Permanent, Type(Enchantment)])), Modify(It, Several([CardTypes(Set([Creature])), Power(Set(4)), Toughness(Set(4))])))),
     ],
 )

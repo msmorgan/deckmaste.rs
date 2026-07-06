@@ -7,10 +7,7 @@
     body: Counter(
         name: "ShadowCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Shadow))],
-            ),
+            Continuous(This, GainAbility(Keyword(Shadow))),
         ],
     ),
 )

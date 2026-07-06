@@ -27,12 +27,10 @@
         types: [Enchantment],
         confers: [
             // [CR#714.3a]: enters with a lore counter.
-            Ability(Innate(Static(effects: [
-                Replacement(Also(
-                    would: ThisEnters,
-                    also: PutCounters(This, LoreCounter, 1),
-                )),
-            ]))),
+            Ability(Innate(Static(Replacement(Also(
+                would: ThisEnters,
+                also: PutCounters(This, LoreCounter, 1),
+            ))))),
             // [CR#714.3c]: the turn-based lore increment.
             TurnBased(
                 at: PrecombatMain,

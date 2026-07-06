@@ -6,11 +6,9 @@ Normal(
   name: "Reject Prevention As Instead",
   types: [Enchantment],
   abilities: [
-    Static(effects: [
-      Replacement(Instead(
-        would: Damage(to: Ref(This)),
-        instead: Sequence([]),
-      )),
-    ]),
+    Static(Replacement(Instead(
+      would: Damage(to: Ref(This)),
+      instead: Sequence([]),
+    ))),
   ],
 )

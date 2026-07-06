@@ -741,13 +741,13 @@ mod tests {
     #[test]
     fn as_activated_returns_none_for_non_activated() {
         assert!(
-            as_activated(&Ability::Static(deckmaste_core::StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![],
-                characteristic_defining: false,
-            }))
+            // The effect's content is immaterial here — only the
+            // `Ability::Static` shell (vs. `Activated`) matters, so a
+            // no-op `Several([])` stands in for "any static ability".
+            as_activated(&Ability::Static(deckmaste_core::StaticEffect::Modify(
+                deckmaste_core::Reference::This,
+                deckmaste_core::Modification::Several(vec![]),
+            )))
             .is_none()
         );
     }

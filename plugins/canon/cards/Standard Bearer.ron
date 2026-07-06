@@ -18,12 +18,10 @@ Normal(
     Flagbearer,
   ],
   abilities: [
-    Static(effects: [
-      Must(Target(
+    Static(Must(Target(
         by: (stack_object: ControlledBy(OpponentOf(Ref(You)))),
         on: AllOf([Permanent, Subtype("Flagbearer")]),
-      )),
-    ]),
+      ))),
   ],
   power: 1,
   toughness: 1,

@@ -7,10 +7,7 @@
     body: Counter(
         name: "IndestructibleCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Indestructible))],
-            ),
+            Continuous(This, GainAbility(Keyword(Indestructible))),
         ],
     ),
 )

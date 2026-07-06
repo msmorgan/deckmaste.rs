@@ -18,11 +18,9 @@
     params: { "quality": Default(Filter, Type(Land)) },
     body: Composite(
         name: "Landwalk",
-        abilities: [Static(effects: [
-            Cant(Block(
+        abilities: [Static(Cant(Block(
                 on: Ref(This),
                 by: ControlledBy(Controls(AllOf([Permanent, Param(quality)]))),
-            )),
-        ])],
+            )))],
     ),
 )

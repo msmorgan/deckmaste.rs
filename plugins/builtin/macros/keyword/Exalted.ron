@@ -10,7 +10,7 @@
 // `Compare(CountOf(Attacking), Eq, 1)`. Since the lone attacker IS that
 // creature, the pump targets `EventObject`, NOT the carrier: the keyword's
 // source is some other permanent (a Knight of Glory, an aura). So the pump is
-// a `Continuously(Modify(of: Of(EventObject), ...))` rather than the self-
+// a `Continuously(Modify(EventObject, ...))` rather than the self-
 // pumping `PumpThisUntilEot` tail prowess/bushido reuse — the +1/+1 lands on
 // the attacker, lasting until end of turn ([CR#611.2a]).
 //
@@ -26,7 +26,7 @@ KeywordAbility(
         ),
         condition: Compare(CountOf(Attacking), Eq, 1),
         effect: Continuously(
-            effect: Modify(of: Of(EventObject), changes: [Power(Up(1)), Toughness(Up(1))]),
+            effect: Modify(EventObject, Several([Power(Up(1)), Toughness(Up(1))])),
             duration: FixedUntil(EndOfTurn),
         ),
     )],

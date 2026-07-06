@@ -218,7 +218,7 @@ fn brainstorm_exactly_two_round_trips() {
 
 #[test]
 fn fate_transfer_cost_is_hybrid_blue_black() {
-    use deckmaste_core::HybridPair;
+    use deckmaste_core::Color;
     use deckmaste_core::ManaCost;
     use deckmaste_core::ManaSymbol;
     use deckmaste_core::SimpleManaSymbol;
@@ -231,7 +231,7 @@ fn fate_transfer_cost_is_hybrid_blue_black() {
         face.mana_cost,
         ManaCost::from(vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
-            ManaSymbol::Hybrid(HybridPair::UB),
+            ManaSymbol::Hybrid(SimpleManaSymbol::from(Color::Blue), Color::Black),
         ])
     );
 }

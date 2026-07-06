@@ -5,15 +5,13 @@ Normal(
   name: "Accept Two Slot Agent",
   types: [Creature],
   abilities: [
-    Static(effects: [
-      Cant(Target(
-        on: Ref(This),
-        by: (
-          stack_object: ControlledBy(OpponentOf(Ref(You))),
-          source: ColorIs(Red),
-        ),
-      )),
-    ]),
+    Static(Cant(Target(
+      on: Ref(This),
+      by: (
+        stack_object: ControlledBy(OpponentOf(Ref(You))),
+        source: ColorIs(Red),
+      ),
+    ))),
   ],
   power: 1,
   toughness: 1,

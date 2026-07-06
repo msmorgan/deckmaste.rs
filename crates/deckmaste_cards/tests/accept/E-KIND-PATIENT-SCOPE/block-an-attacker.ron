@@ -5,9 +5,7 @@ Normal(
   name: "Accept Block An Attacker",
   types: [Creature],
   abilities: [
-    Static(effects: [
-      Cant(Block(by: Ref(This), on: Type(Creature))),
-    ]),
+    Static(Cant(Block(by: Ref(This), on: Type(Creature)))),
   ],
   power: 1,
   toughness: 1,

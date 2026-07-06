@@ -13,9 +13,7 @@ Normal(
     Elf,
   ],
   abilities: [
-    Static(effects: [
-      Must(Block(by: Creature, on: Ref(This))),
-    ]),
+    Static(Must(Block(by: Creature, on: Ref(This)))),
   ],
   power: 0,
   toughness: 1,

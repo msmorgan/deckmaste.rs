@@ -5,7 +5,7 @@ Normal(
   types: [Sorcery],
   abilities: [
     Spell(effect: Each(
-      binder: Existing(Filter(Creature)),
+      binder: Existing(SelectAll(Creature)),
       effect: Targeted(targets: [AnyTarget], effect: Destroy(It)),
     )),
   ],

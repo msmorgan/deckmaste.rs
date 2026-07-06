@@ -7,10 +7,7 @@
     body: Counter(
         name: "VigilanceCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Vigilance))],
-            ),
+            Continuous(This, GainAbility(Keyword(Vigilance))),
         ],
     ),
 )

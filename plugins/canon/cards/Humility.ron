@@ -11,10 +11,6 @@ Normal(
     Enchantment,
   ],
   abilities: [
-    Static(effects: [
-      Modify(of: Matching(Creature), changes: [
-        LoseAllAbilities, Power(Set(1)), Toughness(Set(1)),
-      ]),
-    ]),
+    Static(Each(SelectAll(Creature), Modify(It, Several([LoseAllAbilities, Power(Set(1)), Toughness(Set(1))])))),
   ],
 )

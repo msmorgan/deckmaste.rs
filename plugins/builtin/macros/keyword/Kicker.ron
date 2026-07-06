@@ -12,8 +12,6 @@
     params: [Cost],
     body: Composite(
         name: "Kicker",
-        abilities: [Static(effects: [
-            CostOption(components: Param(0), tag: Kicker),
-        ])],
+        abilities: [Static(CostOption(components: Param(0), tag: Kicker))],
     ),
 )

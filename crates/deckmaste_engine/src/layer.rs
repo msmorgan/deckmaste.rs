@@ -22,7 +22,7 @@ use deckmaste_core::Int;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
-use deckmaste_core::Scope;
+use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
@@ -203,17 +203,18 @@ pub(crate) fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
         ManaSymbol::Simple(s) => {
             buf[0] = s.color();
         }
-        // A hybrid symbol is ALL its component colors ([CR#107.4e]); a
-        // hybrid Phyrexian is both component colors ([CR#107.4f]).
-        ManaSymbol::Hybrid(pair) | ManaSymbol::HybridPhyrexian(pair) => {
-            let (a, b) = pair.colors();
-            buf[0] = Some(a);
-            buf[1] = Some(b);
+        // A hybrid symbol is ALL its component colors ([CR#107.4e]); the left
+        // half may be generic or colorless (no color) or a color, the right is
+        // always a color.
+        ManaSymbol::Hybrid(left, right) => {
+            buf[0] = left.color();
+            buf[1] = Some(*right);
         }
-        // Monocolored hybrids ({2/W}, {C/W}) and Phyrexian symbols are
-        // their one color ([CR#107.4e..107.4f]).
-        ManaSymbol::MonoHybrid(c) | ManaSymbol::ColorlessHybrid(c) | ManaSymbol::Phyrexian(c) => {
+        // A Phyrexian symbol is its color ([CR#107.4f]); a hybrid Phyrexian
+        // adds its second component color.
+        ManaSymbol::Phyrexian(c, other) => {
             buf[0] = Some(*c);
+            buf[1] = *other;
         }
         ManaSymbol::Variable | ManaSymbol::Snow => {}
     }
@@ -398,8 +399,8 @@ fn bake_counter_counts(
 /// plus any floating one-shot effects from `state.continuous`, plus
 /// counter-conferred `Continuous` boosts ([CR#122.1]).
 ///
-/// Only unconditional effects are gathered here; `sa.condition` evaluation
-/// is a documented seam for a later task.
+/// Only unconditional effects are gathered here; `StaticEffect::Conditionally`
+/// evaluation is a documented seam for a later task.
 ///
 /// `derived` is the fixpoint hook ([CR#613.7] re-evaluation): on the FIRST
 /// iteration of the layer pass it is `None`, so the static-ability effect
@@ -463,52 +464,25 @@ fn gather(
             }
         }
         for ability in &sources {
-            let Ability::Static(sa) = ability else {
+            let Ability::Static(effect) = ability else {
                 continue;
             };
-            // Conditions skipped — a seam for later ([CR#611.3a]).
-            for effect in &sa.effects {
-                let StaticEffect::Modify { of, changes } = effect else { continue };
-                // Convert Scope to ScopeResolved. `Matching` floating scopes
-                // stay floating. `Of`/`These` reference the carrying object's
-                // relations — resolved here SOURCE-RELATIVE (`This = obj.id`,
-                // no `Frame`) so a host-targeting static ("enchanted/equipped
-                // creature gets +N/+N", `Of(AttachHostOf(This))`) lands on the
-                // host. The resolved ids are LOCKED at this first application
-                // ([CR#613.6]). References that genuinely need a `Frame`
-                // (`Target`, bindings) cannot be resolved in gather and drop to
-                // an empty locked set (a documented seam).
-                let scope = match of {
-                    Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
-                    Scope::Of(r) => {
-                        ScopeResolved::Locked(resolve_source_relative(state, obj.id, r))
-                    }
-                    // Dedup the resolved ids ([CR#613.7] deterministic id
-                    // order, mirroring `AttachedTo`'s host-set): overlapping
-                    // references (e.g. `These([AttachHostOf(This), This])` on a
-                    // self-attached object) must not apply an additive change
-                    // twice.
-                    Scope::These(rs) => ScopeResolved::Locked(
-                        rs.iter()
-                            .flat_map(|r| resolve_source_relative(state, obj.id, r))
-                            .collect::<BTreeSet<ObjectId>>()
-                            .into_iter()
-                            .collect(),
-                    ),
-                };
+            // `Conditionally` statics skipped — a seam for later
+            // ([CR#611.3a], see `static_effect_scope`).
+            if let Some((scope, changes)) = static_effect_scope(state, obj.id, effect) {
                 effects.push(ActiveEffect {
                     timestamp,
-                    is_cda: sa.characteristic_defining,
+                    // The 7a/CDA layer distinction is deferred (0 cards use
+                    // it; the surface no longer carries a
+                    // `characteristic_defining` flag at all) — every gathered
+                    // static routes through the non-CDA layers.
+                    is_cda: false,
                     // A static ability's continuous effect is controlled by the
                     // permanent it is on ([CR#611.2c]); its `You` is that
                     // permanent's controller.
                     controller: obj.controller,
                     scope,
-                    // The single flatten boundary: splice every change-bundling
-                    // `Several` away (and strip every `Expanded`) before the
-                    // layer pass, which is exhaustive over `Modification` but
-                    // treats both as `unreachable!`/no-layer.
-                    changes: Modification::flatten(changes.clone()),
+                    changes,
                     // The carrier is the source permanent itself: a `Matching`
                     // scope's `Ref(This)` is this object and `Ref(You)` is its
                     // controller ([CR#603.10a,109.5]).
@@ -529,22 +503,17 @@ fn gather(
                 continue;
             };
             for prop in &decl.confers {
-                let deckmaste_core::Property::Continuous { of, changes } = prop else {
+                let deckmaste_core::Property::Continuous(reference, change) = prop else {
                     continue;
                 };
-                let scope = match of {
-                    Scope::Matching(f) => ScopeResolved::Floating(f.clone()),
-                    Scope::Of(r) => {
-                        ScopeResolved::Locked(resolve_source_relative(state, obj.id, r))
-                    }
-                    Scope::These(rs) => ScopeResolved::Locked(
-                        rs.iter()
-                            .flat_map(|r| resolve_source_relative(state, obj.id, r))
-                            .collect::<BTreeSet<ObjectId>>()
-                            .into_iter()
-                            .collect(),
-                    ),
-                };
+                // `Property::Continuous` is always single-object ([CR#122.1] —
+                // plurality, if a counter ever needs it, would distribute with
+                // an `Each`-shaped conferral, which the `Property` grammar does
+                // not carry today), so this is always a locked, source-relative
+                // resolve — never `Floating`.
+                let scope =
+                    ScopeResolved::Locked(resolve_source_relative(state, obj.id, reference));
+                let changes = vec![change.clone()];
                 effects.push(ActiveEffect {
                     timestamp: obj.timestamp,
                     is_cda: false,
@@ -584,6 +553,53 @@ fn gather(
         });
     }
     effects
+}
+
+/// Resolve one gathered `StaticEffect` (a static ability's `effect`, or a
+/// counter's conferred `Property::Continuous` lowered to the same shape by the
+/// caller) into a `(ScopeResolved, flattened changes)` pair, SOURCE-RELATIVE
+/// (no [`Frame`](crate::resolve::Frame); mirrors [`resolve_source_relative`]).
+///
+/// `Modify(reference, change)` — the single-object shape — resolves the one
+/// reference and LOCKS it ([CR#613.6]: the affected set is fixed at first
+/// application). `Each(SelectAll(filter), Modify(It, change))` — the
+/// distributor shape ("every creature you control gets +1/+1") — stays a
+/// `Floating(filter)` scope: the filter is NOT expanded to objects here: the
+/// existing `Floating` machinery re-evaluates it against each layer pass's
+/// derived characteristics ([CR#613.6]), which this function must not
+/// shortcut.
+///
+/// Any other shape — `Each` over a non-`SelectAll` `Selection` (`Union`,
+/// `Random`, …), or an `Each` whose inner effect isn't a bare
+/// `Modify(It, _)` — is a documented seam: no current macro or card produces
+/// it, so it contributes no effect (`None`) rather than guessing a scope.
+/// Every other `StaticEffect` variant (`Deontic`, `CostModifier`, …) is
+/// likewise `None` here — the layer gather only ever contributes `Modify`/
+/// `Each`-of-`Modify` effects; the rest are read by their own consumers
+/// (`legal.rs`, `cast.rs`, `trigger.rs`, …).
+fn static_effect_scope(
+    state: &GameState,
+    obj: ObjectId,
+    effect: &StaticEffect,
+) -> Option<(ScopeResolved, Vec<Modification>)> {
+    match effect {
+        StaticEffect::Modify(reference, change) => Some((
+            ScopeResolved::Locked(resolve_source_relative(state, obj, reference)),
+            Modification::flatten(vec![change.clone()]),
+        )),
+        StaticEffect::Each(Selection::SelectAll(filter), inner) => match inner.as_ref() {
+            StaticEffect::Modify(deckmaste_core::Reference::It, change) => Some((
+                ScopeResolved::Floating(filter.clone()),
+                Modification::flatten(vec![change.clone()]),
+            )),
+            _ => None,
+        },
+        // A `Conditionally` static is not gathered yet — the condition-gating
+        // seam ([CR#611.3a]) is unwired, so it's skipped like any other
+        // non-`Modify`/non-`Each` shape.
+        StaticEffect::Conditionally(..) => None,
+        _ => None,
+    }
 }
 
 /// Resolve a `Reference` inside a static ability's `Scope::Of`/`These` to
@@ -1593,9 +1609,9 @@ mod tests {
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::Modification;
     use deckmaste_core::NumericOp;
-    use deckmaste_core::Scope;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
     use deckmaste_core::StatValue;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -1626,21 +1642,18 @@ mod tests {
     /// creature itself (a `Matching` floating scope, no Stage-3 source-relative
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
-        let s = Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Matching(Filter::Characteristic(CharacteristicFilter::Type(
-                    Type::Creature,
-                ))),
-                changes: vec![
+        let s = Ability::Static(StaticEffect::Each(
+            Selection::SelectAll(Filter::Characteristic(CharacteristicFilter::Type(
+                Type::Creature,
+            ))),
+            Box::new(StaticEffect::Modify(
+                Reference::It,
+                Modification::Several(vec![
                     Modification::Power(NumericOp::Up(Count::Literal(2))),
                     Modification::Toughness(NumericOp::Up(Count::Literal(2))),
-                ],
-            }],
-            characteristic_defining: false,
-        });
+                ]),
+            )),
+        ));
         if innate { Ability::Innate(Box::new(s)) } else { s }
     }
 
@@ -1943,24 +1956,18 @@ mod tests {
     }
 
     /// A host-targeting static: "enchanted/equipped creature gets +N/+N",
-    /// authored as `Modify { of: Of(AttachHostOf(This)), changes: [+N/+N] }`.
-    /// The source-relative `AttachHostOf(This)` reference is exactly the
-    /// Stage-3 seam this task resolves.
+    /// authored as `Modify(AttachHostOf(This), +N/+N)`. The source-relative
+    /// `AttachHostOf(This)` reference is exactly the Stage-3 seam this task
+    /// resolves.
     fn host_pump_static(n: u32) -> Ability {
         use deckmaste_core::Reference;
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
-                changes: vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(n))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(n))),
-                ],
-            }],
-            characteristic_defining: false,
-        })
+        Ability::Static(StaticEffect::Modify(
+            Reference::AttachHostOf(Box::new(Reference::This)),
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(Count::Literal(n))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(n))),
+            ]),
+        ))
     }
 
     /// Mint a bare (non-creature) permanent carrying `abilities` onto the
@@ -2044,29 +2051,27 @@ mod tests {
         );
     }
 
-    /// M1: `These` dedups its resolved id list. A static carrying
-    /// `Of: These([This, This])` with an *additive* op must apply that op only
-    /// once — without the `BTreeSet` dedup in gather the duplicate reference
-    /// would pump the source twice (+2 instead of +1).
+    /// M1 formerly covered `These([This, This])` dedup: a static naming the
+    /// same object twice through a fixed reference LIST had to apply its
+    /// additive op only once. That list shape is GONE — `StaticEffect::Modify`
+    /// now takes exactly one `Reference` ([CR#613.6] positional single-object
+    /// contract), so two references can no longer collide inside one `Modify`;
+    /// the dedup scenario is structurally impossible, not merely untested.
+    /// This is the closest surviving single-`Modify` shape: a plain self-pump,
+    /// applied exactly once by construction.
     #[test]
-    fn these_dedups_overlapping_references() {
+    fn single_modify_applies_its_change_once() {
         use deckmaste_core::Reference;
 
-        let dup_pump = Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::These(vec![Reference::This, Reference::This]),
-                changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
-            }],
-            characteristic_defining: false,
-        });
-        let (state, id) = creature_on_field(game(), vec![dup_pump]);
+        let pump = Ability::Static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Power(NumericOp::Up(Count::Literal(1))),
+        ));
+        let (state, id) = creature_on_field(game(), vec![pump]);
         assert_eq!(
             state.layers().power(id),
             Some(3),
-            "These([This, This]) applies +1 ONCE: base 2 → 3 (not 4)"
+            "Modify(This, +1) applies once: base 2 → 3"
         );
     }
 
@@ -2197,26 +2202,23 @@ mod tests {
     fn goblin_lord_static() -> Ability {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationFilter;
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Matching(Filter::AllOf(vec![
-                    Filter::creature(),
-                    Filter::Not(Box::new(Filter::Ref(Reference::This))),
-                    Filter::Characteristic(CharacteristicFilter::Subtype("Goblin".into())),
-                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
-                        Reference::You,
-                    )))),
-                ])),
-                changes: vec![
+        Ability::Static(StaticEffect::Each(
+            Selection::SelectAll(Filter::AllOf(vec![
+                Filter::creature(),
+                Filter::Not(Box::new(Filter::Ref(Reference::This))),
+                Filter::Characteristic(CharacteristicFilter::Subtype("Goblin".into())),
+                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                    Reference::You,
+                )))),
+            ])),
+            Box::new(StaticEffect::Modify(
+                Reference::It,
+                Modification::Several(vec![
                     Modification::Power(NumericOp::Up(Count::Literal(1))),
                     Modification::Toughness(NumericOp::Up(Count::Literal(1))),
-                ],
-            }],
-            characteristic_defining: false,
-        })
+                ]),
+            )),
+        ))
     }
 
     /// engine-static-scope-carrier: the derived/continuous-effect path threads
@@ -2307,26 +2309,24 @@ mod tests {
     // engine (CDAs, "+X/+X for each …").
     // -----------------------------------------------------------------------
 
-    /// A self-CDA ([CR#604.3]) that SETS its own P/T to the number of creatures
-    /// on the battlefield (the Tarmogoyf/creature-count pattern). Authored as a
-    /// 7a `Power`/`Toughness(Set(CountOf(Creature)))` scoped `Of(This)`. The
-    /// `characteristic_defining` flag routes both ops to layer 7a.
+    /// A self-CDA-SHAPED static ([CR#604.3]) that SETS its own P/T to the
+    /// number of creatures on the battlefield (the Tarmogoyf/creature-count
+    /// pattern) — `Power`/`Toughness(Set(CountOf(Creature)))` scoped
+    /// `Of(This)`. The 7a/CDA layer distinction is deferred (0 cards use it;
+    /// `characteristic_defining` is gone from the surface), so this routes
+    /// through plain 7b `Set` like any other static `Modify` — the dynamic
+    /// `Count` re-derivation this test exercises is a property of `Modify`'s
+    /// gather, not of the layer number.
     fn creature_count_cda() -> Ability {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Box::new(Filter::creature()));
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Of(Reference::This),
-                changes: vec![
-                    Modification::Power(NumericOp::Set(count.clone())),
-                    Modification::Toughness(NumericOp::Set(count)),
-                ],
-            }],
-            characteristic_defining: true,
-        })
+        Ability::Static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Set(count.clone())),
+                Modification::Toughness(NumericOp::Set(count)),
+            ]),
+        ))
     }
 
     /// A CDA setting P/T to `CountOf(creatures on the battlefield)` resolves to
@@ -2362,19 +2362,13 @@ mod tests {
     fn creature_count_pump() -> Ability {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Box::new(Filter::creature()));
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Of(Reference::This),
-                changes: vec![
-                    Modification::Power(NumericOp::Up(count.clone())),
-                    Modification::Toughness(NumericOp::Up(count)),
-                ],
-            }],
-            characteristic_defining: false,
-        })
+        Ability::Static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(count.clone())),
+                Modification::Toughness(NumericOp::Up(count)),
+            ]),
+        ))
     }
 
     /// A dynamic 7c pump ("+X/+X for each creature") adds the live count to an
@@ -2598,42 +2592,33 @@ mod tests {
     /// unambiguous regardless of how many creatures hold it.
     fn self_pump_static() -> Ability {
         use deckmaste_core::Reference;
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Of(Reference::This),
-                changes: vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(1))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(1))),
-                ],
-            }],
-            characteristic_defining: false,
-        })
+        Ability::Static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(Count::Literal(1))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(1))),
+            ]),
+        ))
     }
 
     /// A lord-granting-a-lord `Static`: "other creatures you control have
-    /// '<granted>'", i.e. `Modify { of: Matching(AllOf([Creature,
-    /// Not(Ref(This))])), changes: [GainAbility(granted)] }`. The grantor's
-    /// scope names `~` (`Ref(This)`) so it grants every OTHER creature (not
-    /// itself); the `granted` static is a layer-6 `GainAbility` payload that
-    /// only functions once the fixpoint re-gathers it from the derived list.
+    /// '<granted>'", i.e. `Each(SelectAll(AllOf([Creature, Not(Ref(This))])),
+    /// Modify(It, GainAbility(granted)))`. The distributor's filter names `~`
+    /// (`Ref(This)`) so it grants every OTHER creature (not itself); the
+    /// `granted` static is a layer-6 `GainAbility` payload that only
+    /// functions once the fixpoint re-gathers it from the derived list.
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Matching(Filter::AllOf(vec![
-                    Filter::creature(),
-                    Filter::Not(Box::new(Filter::Ref(Reference::This))),
-                ])),
-                changes: vec![Modification::GainAbility(Box::new(granted))],
-            }],
-            characteristic_defining: false,
-        })
+        Ability::Static(StaticEffect::Each(
+            Selection::SelectAll(Filter::AllOf(vec![
+                Filter::creature(),
+                Filter::Not(Box::new(Filter::Ref(Reference::This))),
+            ])),
+            Box::new(StaticEffect::Modify(
+                Reference::It,
+                Modification::GainAbility(Box::new(granted)),
+            )),
+        ))
     }
 
     /// engine-layers-fixpoint, THE granting case: a creature whose static

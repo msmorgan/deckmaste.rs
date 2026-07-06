@@ -14,9 +14,7 @@
         name: "Equipment",
         types: [Artifact],
         confers: [
-            Ability(Innate(Static(effects: [
-                Cant(Attach(what: Ref(This), to: Not(Type(Creature)))),
-            ]))),
+            Ability(Innate(Static(Cant(Attach(what: Ref(This), to: Not(Type(Creature))))))),
         ],
     ),
 )

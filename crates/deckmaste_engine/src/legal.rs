@@ -448,12 +448,7 @@ pub(crate) fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
         visit: &mut F,
     ) -> ControlFlow<B> {
         match a {
-            Ability::Static(s) => {
-                for e in &s.effects {
-                    in_static(e, visit)?;
-                }
-                ControlFlow::Continue(())
-            }
+            Ability::Static(s) => in_static(s, visit),
             Ability::Keyword(k) => in_keyword(k, visit),
             Ability::Expanded(e) => in_ability(&e.value, visit),
             // Peel `Innate` — its inner static is consumed normally
@@ -483,6 +478,16 @@ pub(crate) fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
     ) -> ControlFlow<B> {
         match e {
             StaticEffect::Expanded(x) => in_static(&x.value, visit),
+            // Distributed statics ([`StaticEffect::Each`]) are looked through to
+            // their inner effect for this presence scan: the walker's callers
+            // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
+            // not the affected set, so the wrapping `Selection` is immaterial
+            // here.
+            StaticEffect::Each(_, inner) => in_static(inner, visit),
+            // A `Conditionally` wrapper is looked through the same way — this
+            // presence scan cares about the inner effect's KIND, not whether
+            // its condition currently holds.
+            StaticEffect::Conditionally(_, inner) => in_static(inner, visit),
             other => visit(other),
         }
     }
@@ -809,7 +814,6 @@ mod tests {
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::OutcomeGateKind;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -842,36 +846,31 @@ mod tests {
         }
     }
 
-    fn static_ability(effects: Vec<StaticEffect>) -> Ability {
-        Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects,
-            characteristic_defining: false,
-        })
+    fn static_ability(effect: StaticEffect) -> Ability {
+        Ability::Static(effect)
     }
 
     /// A tree exercising every look-through path the one walker must descend:
-    /// a plain `Static` effect, an `Expanded`-wrapped effect inside a `Static`,
-    /// a `Static` reached through a `Composite` keyword, and a `Static` reached
+    /// a plain `Static` effect, an `Expanded`-wrapped effect (its own
+    /// `Static` — each ability now carries exactly one `effect`, so what was
+    /// once two effects on one ability is now two sibling abilities), a
+    /// `Static` reached through a `Composite` keyword, and a `Static` reached
     /// through an `Expanded` ability wrapper.
     fn sample_tree() -> Vec<Ability> {
         use OutcomeGateKind::CantLose;
         use OutcomeGateKind::CantWin;
         vec![
-            // [0] plain static effect, plus an Expanded-wrapped effect.
-            static_ability(vec![
-                gate(CantLose),
-                StaticEffect::Expanded(expand(gate(CantWin))),
-            ]),
+            // [0] plain static effect.
+            static_ability(gate(CantLose)),
+            // [0b] an Expanded-wrapped effect, as a sibling ability.
+            static_ability(StaticEffect::Expanded(expand(gate(CantWin)))),
             // [1] effect reached through a keyword composite.
             Ability::Keyword(KeywordAbility::Composite {
                 name: Ident::new("Kw"),
-                abilities: vec![static_ability(vec![gate(CantLose)])],
+                abilities: vec![static_ability(gate(CantLose))],
             }),
             // [2] effect reached through an Expanded ability wrapper.
-            Ability::Expanded(expand(static_ability(vec![gate(CantWin)]))),
+            Ability::Expanded(expand(static_ability(gate(CantWin)))),
         ]
     }
 
@@ -978,15 +977,9 @@ mod tests {
     /// An `Innate` static carrying a single `Cant(Attach(what, to))` row — the
     /// conferred host-restriction shape (Equipment/Fortification subtype rule).
     fn innate_cant_attach(what: Filter, to: Filter) -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                DeonticAction::Attach { what, to },
-            ))],
-            characteristic_defining: false,
-        })))
+        Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+            Deontic::Cant(DeonticAction::Attach { what, to }),
+        ))))
     }
 
     fn creature() -> Filter {
@@ -1052,18 +1045,12 @@ mod tests {
             &mut state,
             "Protected Bear",
             vec![Type::Creature],
-            vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Attach {
-                        what: Filter::Any,
-                        to: Filter::Ref(Reference::This),
-                    },
-                ))],
-                characteristic_defining: false,
-            })],
+            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attach {
+                    what: Filter::Any,
+                    to: Filter::Ref(Reference::This),
+                },
+            )))],
         );
         let plain = obj_on_field(&mut state, "Plain Bear", vec![Type::Creature], vec![]);
 
@@ -1111,18 +1098,12 @@ mod tests {
     /// An `Innate` static (any conferred rule): PEELED in place — never
     /// dropped — by the usable list, so it occupies an index slot.
     fn innate_static() -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                DeonticAction::Attach {
-                    what: Filter::Ref(Reference::This),
-                    to: Filter::Not(Box::new(creature())),
-                },
-            ))],
-            characteristic_defining: false,
-        })))
+        Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+            Deontic::Cant(DeonticAction::Attach {
+                what: Filter::Ref(Reference::This),
+                to: Filter::Not(Box::new(creature())),
+            }),
+        ))))
     }
 
     /// [CR#113.12,613.1f]: with an `Innate` ability positioned BEFORE an
@@ -1201,18 +1182,12 @@ mod tests {
         // keyword (the Enchant macro shape: a `Keyword(Composite{[Static(..)]})`).
         let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Enchant".into(),
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Attach {
-                        what: Filter::Ref(Reference::This),
-                        to: Filter::Not(Box::new(creature())),
-                    },
-                ))],
-                characteristic_defining: false,
-            })],
+            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attach {
+                    what: Filter::Ref(Reference::This),
+                    to: Filter::Not(Box::new(creature())),
+                },
+            )))],
         });
         let aura = obj_on_field(
             &mut state,

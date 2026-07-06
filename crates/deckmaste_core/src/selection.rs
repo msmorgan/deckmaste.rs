@@ -37,9 +37,10 @@ pub enum Extremum {
 /// writes the invocation back.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Selection {
-    /// All matching objects as one set — the shape continuous-effect
-    /// scopes and set-wide instructions consume.
-    Filter(Filter),
+    /// All matching objects as one set ("every creature you control") — the
+    /// group a distributor ([`Each`](crate::Each) / `StaticEffect::Each`)
+    /// iterates. Mirrors Idris `SelectAll : Predicate -> Selection`.
+    SelectAll(Filter),
     /// Several selections combined as ONE group ("each X and each Y") — the
     /// Idris `Union`. Order-preserving concatenation of the member groups; an
     /// object in more than one member appears once (first position wins).
@@ -142,7 +143,7 @@ mod tests {
 
     #[test]
     fn filter_variant_round_trip() {
-        let v = Selection::Filter(Filter::Kind(ObjectKind::Player));
+        let v = Selection::SelectAll(Filter::Kind(ObjectKind::Player));
         assert_eq!(read(&to_string(&v)), v);
     }
 
@@ -183,10 +184,10 @@ mod tests {
     #[test]
     fn union_round_trips() {
         let v = Selection::Union(vec![
-            Selection::Filter(Filter::Characteristic(CharacteristicFilter::Type(
+            Selection::SelectAll(Filter::Characteristic(CharacteristicFilter::Type(
                 Type::Creature,
             ))),
-            Selection::Filter(Filter::Kind(ObjectKind::Player)),
+            Selection::SelectAll(Filter::Kind(ObjectKind::Player)),
         ]);
         assert_eq!(read(&to_string(&v)), v);
     }

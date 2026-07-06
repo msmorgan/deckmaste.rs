@@ -11,13 +11,7 @@
     body: Counter(
         name: "P1P1Counter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [
-                    Power(Up(CounterCount(This, P1P1Counter))),
-                    Toughness(Up(CounterCount(This, P1P1Counter))),
-                ],
-            ),
+            Continuous(This, Several([Power(Up(CounterCount(This, P1P1Counter))), Toughness(Up(CounterCount(This, P1P1Counter)))])),
         ],
     ),
 )

@@ -1,0 +1,17 @@
+// "PowerAndToughness" = the single-op power-and-toughness bundler: one
+// `NumericOp` applied to BOTH axes at once ([CR#613.4] layer 7). A
+// `Modification`-kind macro that stands as the single change in a
+// `Modify(It, …)` — `PowerAndToughness(Up(2))` is Elesh Norn's "+2/+2",
+// `PowerAndToughness(Down(2))` her "-2/-2". A macro expands to ONE value, so
+// the two axis ops bundle in a `Several`; `Modification::flatten` splices it
+// away at the engine boundary. Unlike `AddPowerToughness(p, t)` (two `Count`
+// magnitudes, always `Up`), this takes ONE `NumericOp` (`Up`/`Down`/`Set`)
+// shared by both axes — the symmetric case where power and toughness move
+// together.
+(
+    name: "PowerAndToughness",
+    template: "gets ${0}/${0}",
+    kinds: [Modification],
+    params: [NumericOp],
+    body: Several([Power(Param(0)), Toughness(Param(0))]),
+)

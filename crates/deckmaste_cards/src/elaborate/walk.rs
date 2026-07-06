@@ -53,12 +53,10 @@ use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationFilter;
 use deckmaste_core::Replacement;
-use deckmaste_core::Scope;
 use deckmaste_core::Selection;
 use deckmaste_core::Sort;
 use deckmaste_core::StateChange;
 use deckmaste_core::StateFilter;
-use deckmaste_core::StaticAbility;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Token;
@@ -889,7 +887,7 @@ impl<'a> Walker<'a> {
     /// A best-effort sort for a selection (an `Existing` binder's group).
     fn selection_sort(&self, selection: &Selection) -> Sort {
         match selection {
-            Selection::Filter(f) | Selection::Random(_, f) => self.filter_sort(f),
+            Selection::SelectAll(f) | Selection::Random(_, f) => self.filter_sort(f),
             // Library windows and noted sets are non-battlefield cards.
             Selection::TopOfLibrary { .. }
             | Selection::BottomOfLibrary { .. }
@@ -1253,8 +1251,8 @@ impl<'a> Walker<'a> {
         let ctx = Ctx::base(false);
         match property {
             Property::Ability(ability) => self.ability(ability, false),
-            Property::Continuous { of, changes } => {
-                self.modify_scope(of, changes, &ctx);
+            Property::Continuous(reference, change) => {
+                self.modify_reference(reference, change, &ctx);
             }
             Property::StateBased { condition, effect } => {
                 self.condition(condition, &ctx);
@@ -1305,7 +1303,7 @@ impl<'a> Walker<'a> {
             Ability::Triggered(triggered) => {
                 self.triggered_ability(triggered, &Ctx::base(false), "Triggered");
             }
-            Ability::Static(static_ability) => self.static_ability(static_ability),
+            Ability::Static(effect) => self.static_ability(effect),
             Ability::Keyword(keyword) => self.keyword(keyword, face_x),
             Ability::Innate(inner) => self.ability(inner, face_x),
             Ability::Expanded(e) => self.ability(&e.value, face_x),
@@ -1354,14 +1352,9 @@ impl<'a> Walker<'a> {
         }
     }
 
-    fn static_ability(&mut self, ability: &StaticAbility) {
+    fn static_ability(&mut self, effect: &StaticEffect) {
         let ctx = Ctx::base(false);
-        if let Some(condition) = &ability.condition {
-            self.scoped("condition", |w| w.condition(condition, &ctx));
-        }
-        for (i, effect) in ability.effects.iter().enumerate() {
-            self.scoped(format!("effects[{i}]"), |w| w.static_effect(effect, &ctx));
-        }
+        self.scoped("effect", |w| w.static_effect(effect, &ctx));
     }
 
     /// A triggered ability, wherever it appears: the card-level kind, a
@@ -2426,7 +2419,7 @@ impl<'a> Walker<'a> {
 
     fn selection(&mut self, selection: &Selection, ctx: &Ctx, expected: Kind) -> Kind {
         let kind = match selection {
-            Selection::Filter(filter) => self.filter(filter, ctx, Kind::Any),
+            Selection::SelectAll(filter) => self.filter(filter, ctx, Kind::Any),
             Selection::Union(members) => members.iter().fold(Kind::Empty, |acc, member| {
                 let kind = self.selection(member, ctx, Kind::Any);
                 self.tables.join(acc, kind)
@@ -3639,7 +3632,19 @@ impl<'a> Walker<'a> {
 
     fn static_effect(&mut self, effect: &StaticEffect, ctx: &Ctx) {
         match effect {
-            StaticEffect::Modify { of, changes } => self.modify_scope(of, changes, ctx),
+            StaticEffect::Modify(reference, change) => {
+                self.modify_reference(reference, change, ctx);
+            }
+            StaticEffect::Each(selection, inner) => {
+                self.each_static_effect(selection, inner, ctx);
+            }
+            // "As long as [condition], [inner]" ([CR#611.3a]) — validate
+            // the condition, then recurse into the inner static effect in
+            // the same context (no new binding).
+            StaticEffect::Conditionally(condition, inner) => {
+                self.scoped("condition", |w| w.condition(condition, ctx));
+                self.scoped("effect", |w| w.static_effect(inner, ctx));
+            }
             StaticEffect::Deontic(deontic) => self.deontic(deontic, ctx),
             StaticEffect::CostModifier { of, change } => {
                 self.filter(of, ctx, Kind::Object);
@@ -3733,22 +3738,23 @@ impl<'a> Walker<'a> {
         }
     }
 
-    /// A `Modify`'s scope + changes: the per-subject candidate is readable
-    /// as `It` inside the changes (an anthem's Coat-of-Arms shape).
-    fn modify_scope(&mut self, of: &Scope, changes: &[Modification], ctx: &Ctx) {
-        match of {
-            Scope::Of(r) => {
-                self.reference(r, ctx, Kind::Object);
-            }
-            Scope::These(refs) => {
-                for r in refs {
-                    self.reference(r, ctx, Kind::Object);
-                }
-            }
-            Scope::Matching(filter) => {
-                self.filter(filter, ctx, Kind::Object);
-            }
-        }
+    /// A bare `Modify`: ONE target [`Reference`] + ONE [`Modification`]. NO
+    /// `It`-binding here — a bare `Modify` targets a specific, already-named
+    /// reference, not a per-element candidate; distributing over a set is
+    /// `Each`'s job (`each_static_effect`, just below). `self.modification`
+    /// already walks a `Several` bundle member-by-member.
+    fn modify_reference(&mut self, reference: &Reference, change: &Modification, ctx: &Ctx) {
+        self.reference(reference, ctx, Kind::Object);
+        self.modification(change, ctx);
+    }
+
+    /// `Each(selection, inner)`: the ONLY way a static reaches many objects
+    /// ([CR#613.6]). Validates the `Selection`, then binds its per-element
+    /// candidate as `It` (an anthem's Coat-of-Arms shape) before recursing
+    /// into the distributed inner effect — mirroring the old `modify_scope`'s
+    /// `Where`/`It` descent.
+    fn each_static_effect(&mut self, selection: &Selection, inner: &StaticEffect, ctx: &Ctx) {
+        self.selection(selection, ctx, Kind::Object);
         let subject = Ante {
             sort: Sort::Permanent,
             kind: Kind::Object,
@@ -3759,9 +3765,7 @@ impl<'a> Walker<'a> {
             binder: false,
         };
         let body = self.descend(ctx, "Where", None, Some(subject), NO_CAPS, vec![]);
-        for (i, change) in changes.iter().enumerate() {
-            self.scoped(format!("changes[{i}]"), |w| w.modification(change, &body));
-        }
+        self.scoped("Each", |w| w.static_effect(inner, &body));
     }
 
     fn modification(&mut self, modification: &Modification, ctx: &Ctx) {
@@ -4036,7 +4040,9 @@ fn filter_pins(filter: &Filter) -> FilterPins {
 /// variant name, looked through remembered macros.
 fn static_effect_key(effect: &StaticEffect) -> &'static str {
     match effect {
-        StaticEffect::Modify { .. } => "Modify",
+        StaticEffect::Modify(..) => "Modify",
+        StaticEffect::Each(..) => "Each",
+        StaticEffect::Conditionally(..) => "Conditionally",
         StaticEffect::ModifyPlayer(..) => "ModifyPlayer",
         StaticEffect::Deontic(_) => "Deontic",
         StaticEffect::CostModifier { .. } => "CostModifier",

@@ -1,9 +1,10 @@
 //! Always-on static abilities on permanents: "gets ±N/±N", "have/has/gain/gains
 //! <keyword>", "<subject> can't attack/block". The ±N/±N + keyword-grant +
-//! subject/scope grammar is shared via [`crate::parsers::modify`]; this module
-//! renders `Static(effects: [...])` RON. Declines (`Ok(None)`) on spells,
-//! durational clauses, targeted subjects, or anything its productions don't
-//! fully cover.
+//! subject/target grammar is shared via [`crate::parsers::modify`]; this module
+//! renders the bare positional `Static(<one effect>)` RON. Declines
+//! (`Ok(None)`) on spells, durational clauses, targeted subjects, a subject
+//! with more than one restricted action (one `StaticEffect` per `Static` — no
+//! bundling), or anything its productions don't fully cover.
 
 use crate::parsers::modify;
 use crate::resolve::CardKind;
@@ -53,20 +54,20 @@ fn parse_pt(subj: &str, pred: &str) -> Option<String> {
     if let Some(tail) = grant_tail {
         changes.extend(modify::parse_keyword_changes(tail)?);
     }
+    let change = modify::changes_to_modification(&changes);
     Some(format!(
-        "Static(effects: [Modify(of: {}, changes: [{}])])",
-        modify::filter_to_scope(&filter),
-        changes.join(", ")
+        "Static({})",
+        modify::filter_to_target(&filter).wrap(&change)
     ))
 }
 
 fn parse_grant(subj: &str, pred: &str) -> Option<String> {
     let filter = modify::subject_to_filter(subj)?;
     let changes = modify::parse_keyword_changes(pred)?;
+    let change = modify::changes_to_modification(&changes);
     Some(format!(
-        "Static(effects: [Modify(of: {}, changes: [{}])])",
-        modify::filter_to_scope(&filter),
-        changes.join(", ")
+        "Static({})",
+        modify::filter_to_target(&filter).wrap(&change)
     ))
 }
 
@@ -84,7 +85,7 @@ fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
     let low = pred.to_ascii_lowercase();
     if low.starts_with("be blocked") {
         let row = parse_cant_be_blocked(&filter, &low)?;
-        return Some(format!("Static(effects: [{row}])"));
+        return Some(format!("Static({row})"));
     }
     let effects: Option<Vec<String>> = modify::split_list(pred)
         .iter()
@@ -94,8 +95,14 @@ fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
             _ => None,
         })
         .collect();
-    let effects = effects?;
-    Some(format!("Static(effects: [{}])", effects.join(", ")))
+    // One `StaticEffect` per `Static` ability — multiple restricted actions
+    // ("can't attack or block") have no single-effect encoding, so decline
+    // rather than emit an invalid bundle; graduation leaves the line
+    // `Unparsed` for a future multi-ability split.
+    match effects?.as_slice() {
+        [one] => Some(format!("Static({one})")),
+        _ => None,
+    }
 }
 
 /// The passive "be blocked …" evasion clause ([CR#509.1b], [CR#702]) — the
@@ -142,16 +149,12 @@ fn parse_block_permission(subj: &str, pred: &str) -> Option<String> {
     let by = modify::subject_to_filter(subj)?;
     if let Some(only) = pred.strip_prefix("only ") {
         let on = crate::parsers::filter::parse_phrase(only.trim())?;
-        return Some(format!(
-            "Static(effects: [Cant(Block(by: {by}, on: Not({on})))])"
-        ));
+        return Some(format!("Static(Cant(Block(by: {by}, on: Not({on}))))"));
     }
     if pred == "an additional creature each combat" {
         // The default per-blocker cap is one creature ([CR#509.1a]); this row
         // raises it to two. A May permission over the second-block slot.
-        return Some(format!(
-            "Static(effects: [May(Block(by: {by}, count: AtMost(2)))])"
-        ));
+        return Some(format!("Static(May(Block(by: {by}, count: AtMost(2))))"));
     }
     None
 }
@@ -166,7 +169,7 @@ fn parse_requirement(subj: &str, pred: &str) -> Option<String> {
         return None;
     }
     let filter = modify::subject_to_filter(subj)?;
-    Some(format!("Static(effects: [Must(Attack(by: {filter}))])"))
+    Some(format!("Static(Must(Attack(by: {filter})))"))
 }
 
 #[cfg(test)]
@@ -182,7 +185,7 @@ mod tests {
         assert_eq!(
             stat("Creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [AddPowerToughness(1, 1)])])"
+                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
             )
         );
     }
@@ -192,14 +195,12 @@ mod tests {
         assert_eq!(
             stat("Creatures your opponents control get -1/-1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), changes: [Power(Down(1)), Toughness(Down(1))])])"
+                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), Modify(It, Several([Power(Down(1)), Toughness(Down(1))]))))"
             )
         );
         assert_eq!(
             stat("~ gets +1/-1.").as_deref(),
-            Some(
-                "Static(effects: [Modify(of: Of(This), changes: [Power(Up(1)), Toughness(Down(1))])])"
-            )
+            Some("Static(Modify(This, Several([Power(Up(1)), Toughness(Down(1))])))")
         );
     }
 
@@ -237,34 +238,32 @@ mod tests {
         assert_eq!(
             stat("Other Goblins have haste.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), changes: [GainAbility(Keyword(Haste))])])"
+                "Static(Each(SelectAll(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, GainAbility(Keyword(Haste)))))"
             )
         );
         assert_eq!(
             stat("Creatures you control have flying and vigilance.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))])])"
+                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, Several([GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))]))))"
             )
         );
         assert_eq!(
             stat("Creatures you control have flying, vigilance, and trample.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), changes: [GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance)), GainAbility(Keyword(Trample))])])"
+                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, Several([GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance)), GainAbility(Keyword(Trample))]))))"
             )
         );
     }
 
     #[test]
     fn restriction_attack_block() {
-        assert_eq!(
-            stat("Enchanted creature can't attack or block.").as_deref(),
-            Some(
-                "Static(effects: [Cant(Attack(by: Ref(AttachHostOf(This)))), Cant(Block(by: Ref(AttachHostOf(This))))])"
-            )
-        );
+        // "can't attack or block" restricts TWO actions — one `StaticEffect`
+        // per `Static` ability has no single-effect encoding for that, so it
+        // now declines rather than emit an invalid multi-effect bundle.
+        assert!(stat("Enchanted creature can't attack or block.").is_none());
         assert_eq!(
             stat("Creatures you control can't attack.").as_deref(),
-            Some("Static(effects: [Cant(Attack(by: AllOf([Creature, ControlledBy(Ref(You))])))])")
+            Some("Static(Cant(Attack(by: AllOf([Creature, ControlledBy(Ref(You))]))))")
         );
     }
 
@@ -278,16 +277,16 @@ mod tests {
         // Unblockable: no blocker may block This ([CR#509.1b]).
         assert_eq!(
             stat("~ can't be blocked.").as_deref(),
-            Some("Static(effects: [Cant(Block(on: Ref(This)))])")
+            Some("Static(Cant(Block(on: Ref(This))))")
         );
         // Equipment/aura conferral: the host can't be blocked.
         assert_eq!(
             stat("Equipped creature can't be blocked.").as_deref(),
-            Some("Static(effects: [Cant(Block(on: Ref(AttachHostOf(This))))])")
+            Some("Static(Cant(Block(on: Ref(AttachHostOf(This)))))")
         );
         assert_eq!(
             stat("Enchanted creature can't be blocked.").as_deref(),
-            Some("Static(effects: [Cant(Block(on: Ref(AttachHostOf(This))))])")
+            Some("Static(Cant(Block(on: Ref(AttachHostOf(This)))))")
         );
     }
 
@@ -297,13 +296,13 @@ mod tests {
         assert_eq!(
             stat("~ can't be blocked by creatures with power 2 or less.").as_deref(),
             Some(
-                "Static(effects: [Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtMost, 2)])))])"
+                "Static(Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtMost, 2)]))))"
             )
         );
         assert_eq!(
             stat("~ can't be blocked by creatures with power 3 or greater.").as_deref(),
             Some(
-                "Static(effects: [Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtLeast, 3)])))])"
+                "Static(Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtLeast, 3)]))))"
             )
         );
     }
@@ -313,14 +312,14 @@ mod tests {
         // An arrangement bound: a blocker set larger than one is forbidden.
         assert_eq!(
             stat("~ can't be blocked by more than one creature.").as_deref(),
-            Some("Static(effects: [Cant(Block(on: Ref(This), count: Greater(1)))])")
+            Some("Static(Cant(Block(on: Ref(This), count: Greater(1))))")
         );
         // Conferred form on the equip host.
         assert_eq!(
             stat("Each creature you control can't be blocked by more than one creature.")
                 .as_deref(),
             Some(
-                "Static(effects: [Cant(Block(on: AllOf([Creature, ControlledBy(Ref(You))]), count: Greater(1)))])"
+                "Static(Cant(Block(on: AllOf([Creature, ControlledBy(Ref(You))]), count: Greater(1))))"
             )
         );
     }
@@ -330,7 +329,7 @@ mod tests {
         // Menace generalized to N=3 — a spelled cardinal in the corpus.
         assert_eq!(
             stat("~ can't be blocked except by three or more creatures.").as_deref(),
-            Some("Static(effects: [Cant(Block(on: Ref(This), count: Less(3)))])")
+            Some("Static(Cant(Block(on: Ref(This), count: Less(3))))")
         );
     }
 
@@ -340,9 +339,7 @@ mod tests {
         // ([CR#509.1a]).
         assert_eq!(
             stat("~ can block only creatures with flying.").as_deref(),
-            Some(
-                "Static(effects: [Cant(Block(by: Ref(This), on: Not(AllOf([Creature, Has(Flying)]))))])"
-            )
+            Some("Static(Cant(Block(by: Ref(This), on: Not(AllOf([Creature, Has(Flying)])))))")
         );
     }
 
@@ -352,7 +349,7 @@ mod tests {
         // cap to two ([CR#509.1a]) — a May permission.
         assert_eq!(
             stat("~ can block an additional creature each combat.").as_deref(),
-            Some("Static(effects: [May(Block(by: Ref(This), count: AtMost(2)))])")
+            Some("Static(May(Block(by: Ref(This), count: AtMost(2))))")
         );
     }
 
@@ -362,14 +359,12 @@ mod tests {
         // shape as the already-wired "Enchanted creature".
         assert_eq!(
             stat("Equipped creature gets +2/+0.").as_deref(),
-            Some(
-                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPowerToughness(2, 0)])])"
-            )
+            Some("Static(Modify(AttachHostOf(This), AddPowerToughness(2, 0)))")
         );
         assert_eq!(
             stat("Equipped creature gets +1/+1 and has trample.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Of(AttachHostOf(This)), changes: [AddPowerToughness(1, 1), GainAbility(Keyword(Trample))])])"
+                "Static(Modify(AttachHostOf(This), Several([AddPowerToughness(1, 1), GainAbility(Keyword(Trample))])))"
             )
         );
     }
@@ -389,13 +384,13 @@ mod tests {
         assert_eq!(
             stat("Other Goblin creatures you control attack each combat if able.").as_deref(),
             Some(
-                "Static(effects: [Must(Attack(by: AllOf([Creature, Not(Ref(This)), Subtype(\"Goblin\"), ControlledBy(Ref(You))])))])"
+                "Static(Must(Attack(by: AllOf([Creature, Not(Ref(This)), Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))"
             )
         );
         // A self-ref subject ("~ attacks each combat if able") → Must over This.
         assert_eq!(
             stat("~ attacks each combat if able.").as_deref(),
-            Some("Static(effects: [Must(Attack(by: Ref(This)))])")
+            Some("Static(Must(Attack(by: Ref(This))))")
         );
     }
 
@@ -415,7 +410,7 @@ mod tests {
         assert_eq!(
             stat("Other Elf creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), changes: [AddPowerToughness(1, 1)])])"
+                "Static(Each(SelectAll(AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
             )
         );
     }
@@ -425,7 +420,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
             Some(
-                "Static(effects: [Modify(of: Matching(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), changes: [AddPowerToughness(1, 1), GainAbility(Keyword(Mountainwalk))])])"
+                "Static(Each(SelectAll(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, Several([AddPowerToughness(1, 1), GainAbility(Keyword(Mountainwalk))]))))"
             )
         );
     }

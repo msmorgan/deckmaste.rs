@@ -7,7 +7,6 @@ pub use ability::ChooseSpec;
 pub use ability::ModalCostRider;
 pub use ability::Mode;
 pub use ability::SpellAbility;
-pub use ability::StaticAbility;
 pub use ability::TriggeredAbility;
 pub use ability::UseLimit;
 
@@ -55,7 +54,6 @@ pub use continuous::PayAct;
 pub use continuous::PipClass;
 pub use continuous::PlayerAttr;
 pub use continuous::PlayerMod;
-pub use continuous::Scope;
 pub use continuous::StaticEffect;
 
 mod cost;
@@ -152,7 +150,6 @@ pub use keyword::KeywordRef;
 pub use keyword::ParamShape;
 
 mod mana;
-pub use mana::HybridPair;
 pub use mana::ManaCost;
 pub use mana::ManaProduction;
 pub use mana::ManaRider;

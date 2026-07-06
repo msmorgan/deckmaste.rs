@@ -7,8 +7,6 @@ Normal(
   power: 1,
   toughness: 1,
   abilities: [
-    Static(effects: [
-      Cant(Block(on: Ref(This), count: Eq(0))),
-    ]),
+    Static(Cant(Block(on: Ref(This), count: Eq(0)))),
   ],
 )

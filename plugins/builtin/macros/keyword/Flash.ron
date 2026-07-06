@@ -5,7 +5,5 @@
 KeywordAbility(
     name: "Flash",
     template: "flash",
-    abilities: [Static(effects: [
-        May(Cast(what: Ref(This), window: InstantSpeed)),
-    ])],
+    abilities: [Static(May(Cast(what: Ref(This), window: InstantSpeed)))],
 )

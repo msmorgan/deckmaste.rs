@@ -6,7 +6,5 @@
 KeywordAbility(
     name: "Shroud",
     template: "shroud",
-    abilities: [Static(effects: [
-        Cant(Target(on: Ref(This))),
-    ])],
+    abilities: [Static(Cant(Target(on: Ref(This))))],
 )

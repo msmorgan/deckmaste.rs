@@ -41,12 +41,10 @@
         name: "Graft",
         abilities: [
             // [CR#702.58a]: enters with N +1/+1 counters.
-            Static(effects: [
-                Replacement(Also(
-                    would: ThisEnters,
-                    also: PutCounters(This, P1P1Counter, Param(0)),
-                )),
-            ]),
+            Static(Replacement(Also(
+                would: ThisEnters,
+                also: PutCounters(This, P1P1Counter, Param(0)),
+            ))),
             // [CR#702.58a]: another creature enters, if This has a +1/+1
             // counter → may move one from This onto that creature.
             Triggered(

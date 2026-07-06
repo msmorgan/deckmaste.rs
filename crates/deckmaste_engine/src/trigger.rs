@@ -642,18 +642,15 @@ impl GameState {
         for &mid in &self.zones.battlefield {
             let multiplier_source = self.objects.obj(mid).source;
             for ability in crate::derive::abilities_of_source(self, multiplier_source) {
-                let Ability::Static(sa) = &ability else {
+                let Ability::Static(effect) = &ability else {
                     continue;
                 };
-                for effect in &sa.effects {
-                    let StaticEffect::TriggerMultiplier {
-                        cause,
-                        extra: count,
-                        affected,
-                    } = effect
-                    else {
-                        continue;
-                    };
+                if let StaticEffect::TriggerMultiplier {
+                    cause,
+                    extra: count,
+                    affected,
+                } = effect
+                {
                     // The fact that fired the trigger must match the cause, and
                     // the trigger's source permanent must match `affected` (with
                     // `Ref(You)` anchored on the multiplier's controller).

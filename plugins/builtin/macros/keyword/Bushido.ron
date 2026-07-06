@@ -36,10 +36,7 @@
                 BlockDeclared(of: Ref(This)),
             ]),
             effect: Continuously(
-                effect: Modify(
-                    of: Of(This),
-                    changes: [Power(Up(Param(0))), Toughness(Up(Param(0)))],
-                ),
+                effect: Modify(This, Several([Power(Up(Param(0))), Toughness(Up(Param(0)))])),
                 duration: FixedUntil(EndOfTurn),
             ),
         )],

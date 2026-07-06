@@ -11,10 +11,7 @@
     body: Counter(
         name: "FlyingCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Flying))],
-            ),
+            Continuous(This, GainAbility(Keyword(Flying))),
         ],
     ),
 )

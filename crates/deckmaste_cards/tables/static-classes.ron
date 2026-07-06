@@ -5,6 +5,8 @@
     rows: [
         (kind: "Modify", class: GatherOnce, cite: "[CR#611.2c]"),
         (kind: "ModifyPlayer", class: GatherOnce, cite: "[CR#611.2c]"),
+        (kind: "Each", class: GatherOnce, cite: "[CR#611.2c]"),
+        (kind: "Conditionally", class: GatherLive, cite: "[CR#611.2c]"),
         (kind: "Deontic", class: GatherLive, cite: "[CR#611.2c]"),
         (kind: "CostModifier", class: GatherLive, cite: "[CR#611.2c]"),
         (kind: "CostOption", class: GatherLive, cite: "[CR#611.2c]"),

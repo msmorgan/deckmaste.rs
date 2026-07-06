@@ -10,6 +10,6 @@ Normal(
     Enchantment,
   ],
   abilities: [
-    Static(effects: [ModifyPlayer(You, Raise(LandPlaysPerTurn, 1))]),
+    Static(ModifyPlayer(You, Raise(LandPlaysPerTurn, 1))),
   ],
 )

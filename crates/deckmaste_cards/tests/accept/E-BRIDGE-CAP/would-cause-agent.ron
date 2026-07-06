@@ -7,12 +7,10 @@ Normal(
   name: "Accept Bridge Would Agent",
   types: [Enchantment],
   abilities: [
-    Static(effects: [
-      Replacement(Instead(
-        would: ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard,
-                          cause: Cause(agent: Type(Instant))),
-        instead: GainLife(1),
-      )),
-    ]),
+    Static(Replacement(Instead(
+      would: ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard,
+                        cause: Cause(agent: Type(Instant))),
+      instead: GainLife(1),
+    ))),
   ],
 )

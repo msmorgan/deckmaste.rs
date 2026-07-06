@@ -25,7 +25,6 @@ use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
 use deckmaste_core::StatValue;
-use deckmaste_core::StaticAbility;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
@@ -115,13 +114,9 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         types: vec![Type::Creature],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
-        abilities: vec![Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            characteristic_defining: false,
-            effects: vec![StaticEffect::Replacement(Box::new(replacement))],
-            condition: None,
-        })],
+        abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+            replacement,
+        )))],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -274,18 +269,14 @@ fn indestructible_still_survives_via_cant_pass() {
         "Indestructible Test",
         1,
         1,
-        vec![Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            characteristic_defining: false,
-            effects: vec![StaticEffect::CantHappen(EventFilter::ZoneChange {
+        vec![Ability::Static(StaticEffect::CantHappen(
+            EventFilter::ZoneChange {
                 what: Filter::Ref(Reference::This),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,
-            })],
-            condition: None,
-        })],
+            },
+        ))],
     );
 
     // Lethal damage (toughness 1).
@@ -324,20 +315,8 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         toughness: Some(StatValue::Number(2)),
         // Two SEPARATE static abilities so gather yields two different keys.
         abilities: vec![
-            Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                characteristic_defining: false,
-                effects: vec![StaticEffect::Replacement(Box::new(instead.clone()))],
-                condition: None,
-            }),
-            Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                characteristic_defining: false,
-                effects: vec![StaticEffect::Replacement(Box::new(instead))],
-                condition: None,
-            }),
+            Ability::Static(StaticEffect::Replacement(Box::new(instead.clone()))),
+            Ability::Static(StaticEffect::Replacement(Box::new(instead))),
         ],
         ..CardFace::default()
     }));
@@ -761,13 +740,9 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     let aura_card = Arc::new(Card::Normal(CardFace {
         name: "Umbra Armor".into(),
         types: vec![Type::Enchantment],
-        abilities: vec![Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            characteristic_defining: false,
-            effects: vec![StaticEffect::Replacement(Box::new(umbra_armor))],
-            condition: None,
-        })],
+        abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+            umbra_armor,
+        )))],
         ..CardFace::default()
     }));
 
@@ -1108,16 +1083,10 @@ fn damage_as_counters_static(on: Filter, recipient: Reference, kind: &str) -> Ab
         Reference::You,
         PlayerAction::PutCounters(recipient, kind.into(), Count::ThatMuch),
     ));
-    Ability::Static(StaticAbility {
-        ability_word: None,
-        from: None,
-        characteristic_defining: false,
-        effects: vec![StaticEffect::Replacement(Box::new(Replacement::Instead {
-            would,
-            instead,
-        }))],
-        condition: None,
-    })
+    Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+        would,
+        instead,
+    })))
 }
 
 /// Build a source creature with the given abilities plus a separate target

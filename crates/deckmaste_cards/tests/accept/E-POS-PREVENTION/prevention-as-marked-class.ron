@@ -6,8 +6,6 @@ Normal(
   name: "Accept Prevention As Marked Class",
   types: [Enchantment],
   abilities: [
-    Static(effects: [
-      Prevention(PreventAll(from: Any, to: Ref(This))),
-    ]),
+    Static(Prevention(PreventAll(from: Any, to: Ref(This)))),
   ],
 )

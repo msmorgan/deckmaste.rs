@@ -8,7 +8,5 @@
 KeywordAbility(
     name: "Horsemanship",
     template: "horsemanship",
-    abilities: [Static(effects: [
-        Cant(Block(on: Ref(This), by: Not(Has(Horsemanship)))),
-    ])],
+    abilities: [Static(Cant(Block(on: Ref(This), by: Not(Has(Horsemanship)))))],
 )

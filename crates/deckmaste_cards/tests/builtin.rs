@@ -449,7 +449,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     let Ability::Static(s) = &abilities[0] else {
         panic!("Multikicker's row is a Static");
     };
-    let deckmaste_core::StaticEffect::CostOption(oc) = &s.effects[0] else {
+    let deckmaste_core::StaticEffect::CostOption(oc) = s else {
         panic!("Multikicker declares a CostOption");
     };
     assert!(oc.repeatable, "multikicker is the repeatable row");

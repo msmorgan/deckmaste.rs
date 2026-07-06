@@ -25,10 +25,7 @@ Normal(
           (effect: Targeted(targets: [TargetOne(Type(Enchantment))], effect: Destroy(It))),
           (effect: Targeted(
             targets: [TargetOne(Creature)],
-            effect: Until(FixedUntil(EndOfTurn), [Modify(
-              of: Of(It),
-              changes: [GainAbility(Keyword(Hexproof())), GainAbility(Keyword(Indestructible))],
-            )]),
+            effect: Until(FixedUntil(EndOfTurn), [Modify(It, Several([GainAbility(Keyword(Hexproof())), GainAbility(Keyword(Indestructible))]))]),
           )),
         ],
       ),

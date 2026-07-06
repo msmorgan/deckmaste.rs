@@ -10,7 +10,5 @@
 KeywordAbility(
     name: "Improvise",
     template: "improvise",
-    abilities: [Static(effects: [
-        PayPips(Generic, TapToPay(AllOf([Type(Artifact), ControlledBy(Ref(You))]))),
-    ])],
+    abilities: [Static(PayPips(Generic, TapToPay(AllOf([Type(Artifact), ControlledBy(Ref(You))]))))],
 )

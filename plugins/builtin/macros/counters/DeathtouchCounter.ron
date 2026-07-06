@@ -7,10 +7,7 @@
     body: Counter(
         name: "DeathtouchCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Deathtouch))],
-            ),
+            Continuous(This, GainAbility(Keyword(Deathtouch))),
         ],
     ),
 )

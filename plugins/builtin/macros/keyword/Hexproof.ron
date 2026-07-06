@@ -17,14 +17,12 @@
     params: { "from": Default(Filter, Any) },
     body: Composite(
         name: "Hexproof",
-        abilities: [Static(effects: [
-            Cant(Target(
+        abilities: [Static(Cant(Target(
                 on: Ref(This),
                 by: (
                     stack_object: ControlledBy(OpponentOf(Ref(You))),
                     source: Param(from),
                 ),
-            )),
-        ])],
+            )))],
     ),
 )

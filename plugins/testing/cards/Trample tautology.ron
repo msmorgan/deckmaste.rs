@@ -8,11 +8,6 @@ Normal(
     mana_cost: [Generic(1), Green],
     types: [Enchantment],
     abilities: [
-        Static(effects: [
-            Modify(
-                of: Matching(AllOf([Creature, Has(Trample)])),
-                changes: [GainAbility(Keyword(Trample))],
-            ),
-        ]),
+        Static(Each(SelectAll(AllOf([Creature, Has(Trample)])), Modify(It, GainAbility(Keyword(Trample))))),
     ],
 )

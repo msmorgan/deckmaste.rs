@@ -12,7 +12,6 @@ use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationFilter;
 use deckmaste_core::RoundMode;
-use deckmaste_core::Scope;
 use deckmaste_core::Selection;
 use deckmaste_core::Stat;
 use deckmaste_core::StateFilter;
@@ -153,8 +152,13 @@ fn characteristic_word(axis: Characteristic) -> &'static str {
 /// and render via [`reference`].
 pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
+        // Look through a macro-provenance wrapper (a Selection-position
+        // macro like `OtherCreatureYouControl` expands the WHOLE selection,
+        // not just an inner filter) — recompute from the expanded value,
+        // same as every other `Expanded` arm in this renderer.
+        Selection::Expanded(e) => selection(&e.value, ctx),
         // [CR#608.2d] the whole matching set — "each creature".
-        Selection::Filter(f) => format!("each {}", filter_noun(f)),
+        Selection::SelectAll(f) => format!("each {}", filter_noun(f)),
         // Combined groups — "each X and each Y".
         Selection::Union(members) => members
             .iter()
@@ -433,19 +437,25 @@ pub(super) fn strip_expanded(f: &Filter) -> &Filter {
     }
 }
 
-/// `(subject phrase, is_plural)`.  `ctx` resolves `Reference::This` and
-/// the slot-bound anaphors.
-pub(super) fn scope_subject_agreed(scope: &Scope, ctx: &super::Ctx) -> (String, bool) {
-    match scope {
-        Scope::Matching(f) => (filter_subject(f), true),
-        Scope::Of(r) => (reference_subject(r, ctx), false),
-        Scope::These(rs) => (
-            rs.iter()
-                .map(|r| reference_subject(r, ctx))
-                .collect::<Vec<_>>()
-                .join(" and "),
-            rs.len() != 1,
-        ),
+/// A bare `Modify`'s subject: a single [`Reference`], singular agreement
+/// ("Test Aura gets +1/+1.", "Enchanted creature gets +2/+2.").
+pub(super) fn modify_subject(r: &Reference, ctx: &super::Ctx) -> String {
+    reference_subject(r, ctx)
+}
+
+/// An `Each`'s subject: the [`Selection`] it distributes over, plural
+/// agreement ("Creatures you control get +1/+1."). `SelectAll` reads through
+/// [`filter_subject`] (the plural-controller-phrase reading); any other
+/// selection shape falls back to the generic noun-phrase reader, capitalized
+/// for sentence-start use.
+pub(super) fn each_subject(sel: &Selection, ctx: &super::Ctx) -> String {
+    match sel {
+        // Look through a macro-provenance wrapper first, same as `selection`
+        // above — a Selection-position macro's expanded value still reads as
+        // whichever shape it produced (usually `SelectAll`).
+        Selection::Expanded(e) => each_subject(&e.value, ctx),
+        Selection::SelectAll(f) => filter_subject(f),
+        other => capitalize(&selection(other, ctx)),
     }
 }
 

@@ -50,21 +50,6 @@ pub enum Duration {
     EndOfGame,
 }
 
-/// The set of objects a `Modify` applies to ([CR#611.2c] vs [CR#611.3] —
-/// lock-in is provenance the engine applies, not stored here).
-///
-/// `Of` wraps a single reference (the spec's dead `That` renamed); `These`
-/// a fixed list; `Matching` a filter-shaped, possibly-floating set.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Scope {
-    /// One referenced object.
-    Of(Reference),
-    /// A fixed list of referenced objects.
-    These(Vec<Reference>),
-    /// Every object matching a filter (anthem-shaped).
-    Matching(Filter),
-}
-
 /// A shared op for the NUMERIC characteristic axes — power, toughness, base
 /// defense, base loyalty. `Set` overwrites the base value (layer 7b, or 7a when
 /// CDA-flagged), `Up`/`Down` are the ±N modifications (layer 7c)
@@ -279,11 +264,31 @@ fn is_affected_you_control(f: &Filter) -> bool {
 /// flat in RON through generated helper structs + `unwrap_variant_newtypes`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum StaticEffect {
-    /// Change a scope's characteristics (anthems, pumps).
-    Modify {
-        of: Scope,
-        changes: Vec<Modification>,
-    },
+    /// Change ONE object's characteristics ([CR#613]) — `Modify(It,
+    /// PowerAndToughness(Up(2)))`. Positional — a single target [`Reference`]
+    /// and a single [`Modification`] (bundle several ops with
+    /// [`Modification::Several`]); the meaning is unambiguous, so no field
+    /// names. Plurality is NEVER implicit here: to affect a set, distribute a
+    /// single-object `Modify` with [`Each`](StaticEffect::Each) over a
+    /// [`Selection`]. Mirrors Idris `Modify : Reference AnObject ->
+    /// Modification -> StaticEffect`.
+    Modify(Reference, Modification),
+    /// Distribute an inner static effect over a [`Selection`] — "for each
+    /// object in the selection, bind it as [`Reference::It`](crate::Reference)
+    /// and apply the inner effect." The ONLY way a static reaches many
+    /// objects (there is no implicit whole-set scope). The selection is
+    /// re-evaluated every layer pass, so the affected set tracks state changes
+    /// live ([CR#613.6]). Mirrors Idris `Each : Bindable Many -> StaticEffect
+    /// -> StaticEffect`; `Each(SelectAll(F), Modify(It, Δ))` is the anthem.
+    Each(crate::Selection, Box<StaticEffect>),
+    /// A conditional static ([CR#611.3a]) — "as long as [condition],
+    /// [effect]." Wraps an inner static effect with a game-state predicate; the
+    /// effect applies only while the condition holds (re-checked continuously,
+    /// never locked in). The `condition:` field of the deleted `StaticAbility`
+    /// struct, now a composable effect wrapper. (Engine gating is a seam,
+    /// [CR#611.3a] — currently unwired, so a `Conditionally` static is not yet
+    /// gathered.)
+    Conditionally(Condition, Box<StaticEffect>),
     /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/Gate read bare
     /// in RON (`effects: [Cant(…)]`) via the flatten dispatch.
     #[macro_ron(flatten)]
@@ -488,23 +493,28 @@ mod tests {
         crate::ron::options().from_str(source).unwrap()
     }
 
-    /// The anthem shape reads flat and round-trips.
+    /// The anthem shape reads flat and round-trips: `Each(SelectAll(...),
+    /// Modify(It, ...))` distributes a single-object `Modify` over every
+    /// matching creature.
     #[test]
     fn modify_reads_flat() {
         let parsed = read(
-            "Modify(of: Matching(Type(Creature)), changes: [Power(Up(Literal(1))), Toughness(Up(Literal(1)))])",
+            "Each(SelectAll(Type(Creature)), Modify(It, Several([Power(Up(Literal(1))), Toughness(Up(Literal(1)))])))",
         );
         assert_eq!(
             parsed,
-            StaticEffect::Modify {
-                of: Scope::Matching(Filter::Characteristic(crate::CharacteristicFilter::Type(
-                    Type::Creature
-                ))),
-                changes: vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(1))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(1))),
-                ],
-            },
+            StaticEffect::Each(
+                crate::Selection::SelectAll(Filter::Characteristic(
+                    crate::CharacteristicFilter::Type(Type::Creature)
+                )),
+                Box::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Several(vec![
+                        Modification::Power(NumericOp::Up(Count::Literal(1))),
+                        Modification::Toughness(NumericOp::Up(Count::Literal(1))),
+                    ]),
+                )),
+            ),
         );
         let written = crate::ron::options().to_string(&parsed).unwrap();
         assert_eq!(read(&written), parsed);
@@ -514,19 +524,22 @@ mod tests {
     #[test]
     fn subtract_modify_round_trips() {
         let parsed = read(
-            "Modify(of: Matching(Type(Creature)), changes: [Power(Down(Literal(1))), Toughness(Down(Literal(1)))])",
+            "Each(SelectAll(Type(Creature)), Modify(It, Several([Power(Down(Literal(1))), Toughness(Down(Literal(1)))])))",
         );
         assert_eq!(
             parsed,
-            StaticEffect::Modify {
-                of: Scope::Matching(Filter::Characteristic(crate::CharacteristicFilter::Type(
-                    Type::Creature
-                ))),
-                changes: vec![
-                    Modification::Power(NumericOp::Down(Count::Literal(1))),
-                    Modification::Toughness(NumericOp::Down(Count::Literal(1))),
-                ],
-            },
+            StaticEffect::Each(
+                crate::Selection::SelectAll(Filter::Characteristic(
+                    crate::CharacteristicFilter::Type(Type::Creature)
+                )),
+                Box::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Several(vec![
+                        Modification::Power(NumericOp::Down(Count::Literal(1))),
+                        Modification::Toughness(NumericOp::Down(Count::Literal(1))),
+                    ]),
+                )),
+            ),
         );
         let written = crate::ron::options().to_string(&parsed).unwrap();
         assert_eq!(read(&written), parsed);
@@ -537,20 +550,23 @@ mod tests {
     #[test]
     fn collection_op_round_trips() {
         let parsed = read(
-            "Modify(of: Matching(Type(Creature)), changes: [Colors(Set([Black])), CardTypes(Add(Artifact)), Subtypes(Remove(\"Goblin\"))])",
+            "Each(SelectAll(Type(Creature)), Modify(It, Several([Colors(Set([Black])), CardTypes(Add(Artifact)), Subtypes(Remove(\"Goblin\"))])))",
         );
         assert_eq!(
             parsed,
-            StaticEffect::Modify {
-                of: Scope::Matching(Filter::Characteristic(crate::CharacteristicFilter::Type(
-                    Type::Creature
-                ))),
-                changes: vec![
-                    Modification::Colors(CollectionOp::Set(vec![Color::Black])),
-                    Modification::CardTypes(CollectionOp::Add(Type::Artifact)),
-                    Modification::Subtypes(CollectionOp::Remove("Goblin".into())),
-                ],
-            },
+            StaticEffect::Each(
+                crate::Selection::SelectAll(Filter::Characteristic(
+                    crate::CharacteristicFilter::Type(Type::Creature)
+                )),
+                Box::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Several(vec![
+                        Modification::Colors(CollectionOp::Set(vec![Color::Black])),
+                        Modification::CardTypes(CollectionOp::Add(Type::Artifact)),
+                        Modification::Subtypes(CollectionOp::Remove("Goblin".into())),
+                    ]),
+                )),
+            ),
         );
         let written = crate::ron::options().to_string(&parsed).unwrap();
         assert_eq!(read(&written), parsed);

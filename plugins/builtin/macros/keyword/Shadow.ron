@@ -11,8 +11,8 @@
 KeywordAbility(
     name: "Shadow",
     template: "shadow",
-    abilities: [Static(effects: [
-        Cant(Block(on: Ref(This), by: Not(Has(Shadow)))),
-        Cant(Block(by: Ref(This), on: Not(Has(Shadow)))),
-    ])],
+    abilities: [
+        Static(Cant(Block(on: Ref(This), by: Not(Has(Shadow))))),
+        Static(Cant(Block(by: Ref(This), on: Not(Has(Shadow))))),
+    ],
 )

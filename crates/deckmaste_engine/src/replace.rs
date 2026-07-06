@@ -32,16 +32,12 @@ impl GameState {
     ) -> EnterStatus {
         let mut status = EnterStatus::default();
         for ability in crate::derive::abilities_of_source(self, source) {
-            if let Ability::Static(s) = &ability {
-                for eff in &s.effects {
-                    if let StaticEffect::Replacement(replacement) = eff
-                        && let Replacement::Also { would, also } =
-                            look_through_replacement(replacement)
-                        && would_is_self_enter(would)
-                    {
-                        self.apply_as_enters(also, entering, &mut status);
-                    }
-                }
+            if let Ability::Static(s) = &ability
+                && let StaticEffect::Replacement(replacement) = s
+                && let Replacement::Also { would, also } = look_through_replacement(replacement)
+                && would_is_self_enter(would)
+            {
+                self.apply_as_enters(also, entering, &mut status);
             }
         }
         status
@@ -58,11 +54,9 @@ impl GameState {
             .iter()
             .any(|ability| {
                 let Ability::Static(s) = ability else { return false };
-                s.effects.iter().any(|eff| {
-                    matches!(eff, StaticEffect::Replacement(r)
-                        if matches!(look_through_replacement(r), Replacement::Also { would, also }
-                            if would_is_self_enter(would) && also_is_self_attach(also)))
-                })
+                matches!(s, StaticEffect::Replacement(r)
+                    if matches!(look_through_replacement(r), Replacement::Also { would, also }
+                        if would_is_self_enter(would) && also_is_self_attach(also)))
             })
     }
 
@@ -238,7 +232,6 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::Type;
 
     use super::*;
@@ -281,11 +274,8 @@ mod tests {
         Card::Normal(CardFace {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
+            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+                Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Filter::Ref(Reference::This),
                         from: None,
@@ -307,9 +297,8 @@ mod tests {
                             to: Reference::It,
                         })),
                     }),
-                }))],
-                characteristic_defining: false,
-            })],
+                },
+            )))],
             ..CardFace::default()
         })
     }
@@ -416,11 +405,8 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Counterer".into(),
             types: vec![Type::Artifact],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
+            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+                Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Filter::Ref(Reference::This),
                         from: None,
@@ -435,9 +421,8 @@ mod tests {
                             Count::Literal(2),
                         ),
                     )),
-                }))],
-                characteristic_defining: false,
-            })],
+                },
+            )))],
             ..CardFace::default()
         });
 
@@ -509,11 +494,8 @@ mod tests {
         Card::Normal(CardFace {
             name: "Test Tapland".into(),
             types: vec![Type::Land],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Replacement(Box::new(Replacement::Also {
+            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+                Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Filter::Ref(Reference::This),
                         from: None,
@@ -528,9 +510,8 @@ mod tests {
                         ))),
                         otherwise: None,
                     }),
-                }))],
-                characteristic_defining: false,
-            })],
+                },
+            )))],
             ..CardFace::default()
         })
     }

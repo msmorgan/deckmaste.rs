@@ -10,7 +10,5 @@
 KeywordAbility(
     name: "Delve",
     template: "delve",
-    abilities: [Static(effects: [
-        PayPips(Generic, ExileToPay(AllOf([InZone(Graveyard), Owner(Ref(You))]))),
-    ])],
+    abilities: [Static(PayPips(Generic, ExileToPay(AllOf([InZone(Graveyard), Owner(Ref(You))]))))],
 )

@@ -7,10 +7,7 @@
     body: Counter(
         name: "HasteCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Haste))],
-            ),
+            Continuous(This, GainAbility(Keyword(Haste))),
         ],
     ),
 )

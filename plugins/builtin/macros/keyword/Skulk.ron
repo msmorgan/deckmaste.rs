@@ -8,10 +8,8 @@
 KeywordAbility(
     name: "Skulk",
     template: "skulk",
-    abilities: [Static(effects: [
-        Cant(Block(
+    abilities: [Static(Cant(Block(
             on: Ref(This),
             by: Stat(Power, Greater, StatOf(This, Power)),
-        )),
-    ])],
+        )))],
 )

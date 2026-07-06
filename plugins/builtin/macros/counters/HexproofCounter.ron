@@ -7,10 +7,7 @@
     body: Counter(
         name: "HexproofCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(Hexproof()))],
-            ),
+            Continuous(This, GainAbility(Keyword(Hexproof()))),
         ],
     ),
 )

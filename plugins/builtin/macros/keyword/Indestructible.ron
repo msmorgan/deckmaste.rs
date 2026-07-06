@@ -7,12 +7,10 @@
 KeywordAbility(
     name: "Indestructible",
     template: "indestructible",
-    abilities: [Static(effects: [
-        CantHappen(ZoneChange(
+    abilities: [Static(CantHappen(ZoneChange(
             what: Ref(This),
             from: Battlefield,
             to: Graveyard,
             cause: Cause(verb: Destroy),
-        )),
-    ])],
+        )))],
 )

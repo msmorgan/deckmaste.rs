@@ -32,24 +32,17 @@ namespace SimpleManaSymbol
     = Generic Nat
     | Specific (Maybe Color)
 
-namespace HybridPair
-  public export
-  -- the TEN two-color hybrid pairs, in [CR#107.4]'s printed order. Enumerated (not `(Color, Color)`)
-  -- so `{W/W}` — and any other unprinted pairing — is unrepresentable BY CONSTRUCTION.
-  data HybridPair = WU | WB | UB | UR | BR | BG | RG | RW | GW | GU
-
 namespace ManaSymbol
   public export
-  -- the PRINTED cost language — STRUCTURALLY closed to the [CR#107.4] symbol set. NOT what a mana
+  -- the PRINTED cost language ([CR#107.4]) — what appears on a card as a mana cost. NOT what a mana
   -- ability produces (that's `ProducedMana` below — a different domain; the user's distinction).
+  -- Slightly more permissive than [CR#107.4]: the hybrid left half is any SimpleManaSymbol, so
+  -- unprinted forms like `{5/W}` are representable on purpose (variant/design headroom).
   data ManaSymbol
     = Simple SimpleManaSymbol
-    | Hybrid HybridPair              -- "{W/U}" ([CR#107.4e])
-    | MonoHybrid Color               -- "{2/W}" — one of the color, or two of any type ([CR#107.4e])
-    | ColorlessHybrid Color          -- "{C/W}" — one of the color, or one colorless ([CR#107.4])
+    | Hybrid SimpleManaSymbol Color
     | Variable
-    | Phyrexian Color                -- "{W/P}" — the color OR 2 life ([CR#107.4f]); `{C/P}` has no printed form
-    | HybridPhyrexian HybridPair     -- "{G/U/P}" — either component color, or 2 life ([CR#107.4f])
+    | Phyrexian Color (Maybe Color)  -- "{W/P}" = `Phyrexian White Nothing` (pay the color OR 2 life); a HYBRID Phyrexian "{G/U/P}" = `Phyrexian Green (Just Blue)` is both component colors ([CR#107.4f])
     | SnowMana                  -- "{S}" — one mana from a snow source ([CR#107.4h]); `SnowMana`, not `Snow` (the supertype)
 
 -- `Promote a b` (method `promote`) is the toy's value-injection interface — formerly Prelude's

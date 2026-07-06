@@ -10,16 +10,16 @@ Normal(
   abilities: [
     Spell(effect: Sequence([
       Each(
-        binder: Existing(Filter(Kind(Player))),
+        binder: Existing(SelectAll(Kind(Player))),
         effect: SeparatePiles(
-          group: Filter(AllOf([InZone(Battlefield), ControlledBy(Ref(It))])),
+          group: SelectAll(AllOf([InZone(Battlefield), ControlledBy(Ref(It))])),
           into: ["a", "b", "c"],
           by: It,
           note: "whims",
         ),
       ),
       Each(
-        binder: Existing(Filter(Kind(Player))),
+        binder: Existing(SelectAll(Kind(Player))),
         effect: ChoosePile(
           from: Noted(note: "whims", of: It),
           by: It,

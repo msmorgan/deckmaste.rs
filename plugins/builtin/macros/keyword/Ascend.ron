@@ -9,13 +9,11 @@
 KeywordAbility(
     name: "Ascend",
     template: "ascend",
-    abilities: [Static(effects: [
-        Sba(
-            when: AllOf([
-                Compare(CountOf(AllOf([InZone(Battlefield), ControlledBy(Ref(You))])), AtLeast, 10),
-                Not(Is(You, Designated("CitysBlessing"))),
-            ]),
-            then: GetDesignation("CitysBlessing"),
-        ),
-    ])],
+    abilities: [Static(Sba(
+        when: AllOf([
+            Compare(CountOf(AllOf([InZone(Battlefield), ControlledBy(Ref(You))])), AtLeast, 10),
+            Not(Is(You, Designated("CitysBlessing"))),
+        ]),
+        then: GetDesignation("CitysBlessing"),
+    ))],
 )

@@ -63,7 +63,7 @@ fn static_effects(a: &Ability) -> Vec<StaticEffect> {
         }
     }
     match a {
-        Ability::Static(s) => s.effects.iter().map(peel).collect(),
+        Ability::Static(s) => vec![peel(s)],
         Ability::Expanded(e) => static_effects(&e.value),
         _ => vec![],
     }

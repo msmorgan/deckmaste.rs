@@ -4,7 +4,7 @@ Normal(
     Land,
   ],
   abilities: [
-    Static(effects: [Replacement(AsEnters(Tap(This)))]),
+    Static(Replacement(AsEnters(Tap(This)))),
     Triggered(event: ThisEnters, effect: GainLife(2)),
     Activated(cost: [Tap], effect: AddMana(1, White)),
   ],

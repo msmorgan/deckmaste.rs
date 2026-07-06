@@ -51,16 +51,19 @@ fn push_symbol(s: &mut String, sym: &ManaSymbol) {
         }
         ManaSymbol::Variable => s.push_str("{X}"),
         ManaSymbol::Snow => s.push_str("{S}"),
-        ManaSymbol::Hybrid(pair) => {
-            let (a, b) = pair.colors();
-            write!(s, "{{{}/{}}}", a.code(), b.code()).unwrap();
+        // A hybrid renders its left component ({2/W}, {C/W}, {W/U}) then its
+        // right color.
+        ManaSymbol::Hybrid(left, right) => {
+            let left_code = match left {
+                SimpleManaSymbol::Generic(n) => n.to_string(),
+                SimpleManaSymbol::Specific(c) => color_letter(*c).to_owned(),
+            };
+            write!(s, "{{{left_code}/{}}}", right.code()).unwrap();
         }
-        ManaSymbol::MonoHybrid(c) => write!(s, "{{2/{}}}", c.code()).unwrap(),
-        ManaSymbol::ColorlessHybrid(c) => write!(s, "{{C/{}}}", c.code()).unwrap(),
-        ManaSymbol::Phyrexian(c) => write!(s, "{{{}/P}}", c.code()).unwrap(),
-        ManaSymbol::HybridPhyrexian(pair) => {
-            let (a, b) = pair.colors();
-            write!(s, "{{{}/{}/P}}", a.code(), b.code()).unwrap();
+        // A Phyrexian renders `{W/P}`, or `{G/U/P}` for a hybrid Phyrexian.
+        ManaSymbol::Phyrexian(c, None) => write!(s, "{{{}/P}}", c.code()).unwrap(),
+        ManaSymbol::Phyrexian(c, Some(o)) => {
+            write!(s, "{{{}/{}/P}}", c.code(), o.code()).unwrap();
         }
     }
 }

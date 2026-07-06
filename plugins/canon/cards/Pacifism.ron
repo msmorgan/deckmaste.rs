@@ -12,6 +12,7 @@ Normal(
   ],
   abilities: [
     Keyword(Enchant(Type(Creature))),
-    Static(effects: [Cant(Attack(by: Ref(AttachHostOf(This)))), Cant(Block(by: Ref(AttachHostOf(This))))]),
+    Static(Cant(Attack(by: Ref(AttachHostOf(This))))),
+    Static(Cant(Block(by: Ref(AttachHostOf(This))))),
   ],
 )

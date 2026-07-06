@@ -5,8 +5,5 @@
 KeywordAbility(
     name: "Changeling",
     template: "changeling",
-    abilities: [Static(
-        cda: true,
-        effects: [Modify(of: Of(This), changes: [AllCreatureTypes])],
-    )],
+    abilities: [Static(Modify(This, AllCreatureTypes))],
 )

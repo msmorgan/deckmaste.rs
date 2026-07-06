@@ -12,11 +12,9 @@ Normal(
     Artifact,
   ],
   abilities: [
-    Static(effects: [
-      TriggerMultiplier(
+    Static(TriggerMultiplier(
         cause: ZoneChange(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield),
         extra: 1,
-      ),
-    ]),
+      )),
   ],
 )

@@ -686,10 +686,19 @@ mod tests {
             .get("P1P1Counter")
             .expect("P1P1Counter registered");
         assert_eq!(counter.name, Ident::from("P1P1Counter"));
+        fn contains_power(m: &Modification) -> bool {
+            match m {
+                Modification::Power(_) => true,
+                Modification::Several(members) => members.iter().any(contains_power),
+                Modification::Expanded(e) => contains_power(&e.value),
+                _ => false,
+            }
+        }
         assert!(
-            counter.confers.iter().any(|p| matches!(p,
-                Property::Continuous { changes, .. }
-                    if changes.iter().any(|m| matches!(m, Modification::Power(_))))),
+            counter
+                .confers
+                .iter()
+                .any(|p| matches!(p, Property::Continuous(_, change) if contains_power(change))),
             "confers a Continuous Power(Up) boost; got {:?}",
             counter.confers
         );
@@ -930,7 +939,7 @@ mod tests {
                 name: "GoodLoop",
                 kinds: [Effect],
                 params: [Effect(binds: [It])],
-                body: Each(binder: Existing(Filter(Creature)), effect: Param(0)),
+                body: Each(binder: Existing(SelectAll(Creature)), effect: Param(0)),
             )"#,
         )
         .unwrap();

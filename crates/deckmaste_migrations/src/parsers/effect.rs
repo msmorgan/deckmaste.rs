@@ -154,7 +154,7 @@ fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffec
         },
         PlayerSubject::Each(filter) => ParsedEffect {
             targets: Vec::new(),
-            effect: format!("Each(binder: Existing(Filter({filter})), effect: By(It, {inv}))"),
+            effect: format!("Each(binder: Existing(SelectAll({filter})), effect: By(It, {inv}))"),
         },
     })
 }
@@ -299,16 +299,17 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
 
 /// `<subject> gets ±N/±N [and gain(s) <kw…>] until end of turn.` (and the
 /// keyword-only `<subject> gain(s)/have/has <kw…> until end of turn.`) -> a
-/// one-shot continuous effect ([CR#611.2]): `Continuously(effect: Modify(of:
-/// <scope>, changes: [...]), duration: FixedUntil(EndOfTurn))`. The durational
-/// marker is required — it's what makes this a one-shot continuous effect
-/// rather than an always-on static anthem ([`crate::parsers::static_ability`],
-/// which declines the marker). The ±N/±N + keyword-grant grammar is shared with
-/// that anthem parser via [`modify`]; the changes are written inline
-/// (`Modification` is not a macro kind, so no `AddPowerToughness` macro can
-/// stand here). Subject: a target ("target creature" -> `Of(It)` +
-/// `TargetOne(<filter>)`), or a team/self class via the shared subject grammar
-/// (`Matching`/`Of`).
+/// one-shot continuous effect ([CR#611.2]): `Continuously(effect:
+/// Modify(<ref>, <change>)` or `Each(SelectAll(<filter>), Modify(It,
+/// <change>))`, `duration: FixedUntil(EndOfTurn))`. The durational marker is
+/// required — it's what makes this a one-shot continuous effect rather than an
+/// always-on static anthem ([`crate::parsers::static_ability`], which declines
+/// the marker). The ±N/±N + keyword-grant grammar is shared with that anthem
+/// parser via [`modify`]; the changes are written inline (`Modification` is
+/// not a macro kind, so no `AddPowerToughness` macro can stand here). Subject:
+/// a target ("target creature" -> bare `It` + `TargetOne(<filter>)`), or a
+/// team/self class via the shared subject grammar (a bare `Reference` or a
+/// distributed class filter).
 fn parse_pump(line: &str) -> Option<ParsedEffect> {
     let body = line.strip_suffix('.')?;
     // The required "until end of turn" marker may sit on EITHER side of a "for
@@ -332,12 +333,13 @@ fn parse_pump(line: &str) -> Option<ParsedEffect> {
         (c.head.strip_suffix(" until end of turn")?, Some(c.count))
     };
     let changes = pump_changes(body, scaled.as_deref())?;
-    let (scope, targets) = pump_scope(pump_subject(body)?)?;
+    let change = modify::changes_to_modification(&changes);
+    let (target, targets) = pump_scope(pump_subject(body)?)?;
     Some(ParsedEffect {
         targets,
         effect: format!(
-            "Continuously(effect: Modify(of: {scope}, changes: [{}]), duration: FixedUntil(EndOfTurn))",
-            changes.join(", ")
+            "Continuously(effect: {}, duration: FixedUntil(EndOfTurn))",
+            target.wrap(&change)
         ),
     })
 }
@@ -370,23 +372,26 @@ fn pump_changes(body: &str, scaled: Option<&str>) -> Option<Vec<String>> {
     modify::parse_keyword_changes(pred)
 }
 
-/// Pump subject -> (`Modify` scope, target declarations). A "target <filter>"
-/// subject scopes `Of(It)` and declares `TargetOne(<filter>)`; the
-/// source anaphor "it" (a self-pump trigger surface, e.g. "it gets +2/+0 …")
-/// scopes `Of(This)`; a team/self class scopes via the shared subject grammar
-/// with no target.
-fn pump_scope(subj: &str) -> Option<(String, Vec<String>)> {
+/// Pump subject -> (`Modify` target, target declarations). A "target
+/// <filter>" subject targets bare `It` and declares `TargetOne(<filter>)`;
+/// the source anaphor "it" (a self-pump trigger surface, e.g. "it gets +2/+0
+/// …") targets bare `This`; a team/self class distributes via the shared
+/// subject grammar with no target declaration.
+fn pump_scope(subj: &str) -> Option<(modify::Target, Vec<String>)> {
     if let Some(rest) = modify::strip_prefix_ci(subj.trim(), "target ") {
         let filter = filter::parse_phrase(rest)?;
-        return Some(("Of(It)".to_owned(), vec![format!("TargetOne({filter})")]));
+        return Some((
+            modify::Target::Ref("It".to_owned()),
+            vec![format!("TargetOne({filter})")],
+        ));
     }
     // "it" — the resolving source pumping itself (trigger anaphor); same scope as
     // a "~ gets …" self-pump.
     if subj.trim().eq_ignore_ascii_case("it") {
-        return Some(("Of(This)".to_owned(), Vec::new()));
+        return Some((modify::Target::Ref("This".to_owned()), Vec::new()));
     }
     let filter = modify::subject_to_filter(subj)?;
-    Some((modify::filter_to_scope(&filter), Vec::new()))
+    Some((modify::filter_to_target(&filter), Vec::new()))
 }
 
 /// The markers that separate a pump subject from its predicate.
@@ -951,12 +956,12 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     };
     let (targets, selection) = damage_target(tail)?;
     // A verb takes a single `Reference`; a "to each / to all" shape's patient is
-    // a `Filter(...)` SELECTION, which can't ride the verb directly. Wrap it in
-    // `Each` over the many-`Binder` `Existing(<selection>)`, binding each member
-    // in turn as the iteration anaphor `It` per element ([CR#608.2d] to-each),
-    // with the verb taking that anaphor. A targeted shape's patient is a
-    // `Reference` (`It`) and rides the verb unchanged.
-    let effect = if selection.starts_with("Filter(") {
+    // a `SelectAll(...)` SELECTION, which can't ride the verb directly. Wrap it
+    // in `Each` over the many-`Binder` `Existing(<selection>)`, binding each
+    // member in turn as the iteration anaphor `It` per element ([CR#608.2d]
+    // to-each), with the verb taking that anaphor. A targeted shape's patient
+    // is a `Reference` (`It`) and rides the verb unchanged.
+    let effect = if selection.starts_with("SelectAll(") {
         format!("Each(binder: Existing({selection}), effect: DealDamage(It, {amount}))")
     } else {
         format!("DealDamage({selection}, {amount})")
@@ -1227,7 +1232,7 @@ pub(super) fn number_word(word: &str) -> Option<u32> {
 
 /// Maps the "to <X>" tail of a damage clause to its `(target declarations,
 /// body selection)`. Targeted shapes declare a `TargetSpec` and the body reads
-/// `It`; "each" shapes declare nothing and inline a `Filter(...)`
+/// `It`; "each" shapes declare nothing and inline a `SelectAll(...)`
 /// selection.
 fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
     Some(match text {
@@ -1244,16 +1249,17 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
             vec!["TargetOne(OneOf([Player, Planeswalker]))".to_owned()],
             "It".to_owned(),
         ),
-        "each creature" => (Vec::new(), "Filter(Creature)".to_owned()),
-        "each player" => (Vec::new(), "Filter(Player)".to_owned()),
+        "each creature" => (Vec::new(), "SelectAll(Creature)".to_owned()),
+        "each player" => (Vec::new(), "SelectAll(Player)".to_owned()),
         // "each opponent" — the players who are opponents of you ([CR#102.2]).
-        "each opponent" => (Vec::new(), "Filter(OpponentOf(Ref(You)))".to_owned()),
+        "each opponent" => (Vec::new(), "SelectAll(OpponentOf(Ref(You)))".to_owned()),
         // "each creature and each player" — every member of the combined set
         // ([CR#608.2d] distributive each). The two "each" groups union into one
-        // `Filter(OneOf([…]))` selection (Pestilence / Earthquake-style sweeps).
-        "each creature and each player" => {
-            (Vec::new(), "Filter(OneOf([Creature, Player]))".to_owned())
-        }
+        // `SelectAll(OneOf([…]))` selection (Pestilence / Earthquake-style sweeps).
+        "each creature and each player" => (
+            Vec::new(),
+            "SelectAll(OneOf([Creature, Player]))".to_owned(),
+        ),
         // A "target <subject>" object target whose subject parses through the
         // shared object-target grammar (single head noun, or a "<type> or
         // <type>" / "attacking or blocking creature" disjunction).
@@ -1309,7 +1315,7 @@ mod tests {
             parsed_with_macros("Each opponent mills a card."),
             Some((
                 String::new(),
-                "Each(binder: Existing(Filter(OpponentOf(Ref(You)))), effect: By(It, Mills(1)))"
+                "Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: By(It, Mills(1)))"
                     .to_owned()
             ))
         );
@@ -1317,7 +1323,7 @@ mod tests {
             parsed_with_macros("Each player discards two cards."),
             Some((
                 String::new(),
-                "Each(binder: Existing(Filter(Player)), effect: By(It, Discards(2)))".to_owned()
+                "Each(binder: Existing(SelectAll(Player)), effect: By(It, Discards(2)))".to_owned()
             ))
         );
         assert_eq!(
@@ -1354,7 +1360,7 @@ mod tests {
         let plugin = deckmaste_cards::plugin::Plugin::load(plugins.join("builtin")).unwrap();
         let effect: deckmaste_core::Effect = plugin
             .macros
-            .read_str("Each(binder: Existing(Filter(Player)), effect: By(It, Mills(2)))")
+            .read_str("Each(binder: Existing(SelectAll(Player)), effect: By(It, Mills(2)))")
             .unwrap();
         let deckmaste_core::Effect::Each(each) = effect else {
             panic!("expected Each, got {effect:?}");
@@ -1417,14 +1423,14 @@ mod tests {
             parsed("~ deals 2 damage to each creature."),
             Some((
                 String::new(),
-                "Each(binder: Existing(Filter(Creature)), effect: DealDamage(It, 2))".to_owned()
+                "Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(It, 2))".to_owned()
             ))
         );
         assert_eq!(
             parsed("~ deals 20 damage to each player."),
             Some((
                 String::new(),
-                "Each(binder: Existing(Filter(Player)), effect: DealDamage(It, 20))".to_owned()
+                "Each(binder: Existing(SelectAll(Player)), effect: DealDamage(It, 20))".to_owned()
             ))
         );
         // "each opponent" -> the player set "opponents of you".
@@ -1432,7 +1438,7 @@ mod tests {
             parsed("~ deals 1 damage to each opponent."),
             Some((
                 String::new(),
-                "Each(binder: Existing(Filter(OpponentOf(Ref(You)))), effect: DealDamage(It, 1))"
+                "Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: DealDamage(It, 1))"
                     .to_owned()
             ))
         );
@@ -1490,31 +1496,32 @@ mod tests {
             parsed("Creatures you control get +3/+3 and gain trample until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPowerToughness(3, 3), GainAbility(Keyword(Trample))]), \
-                 duration: FixedUntil(EndOfTurn))".to_owned()
+                "Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([AddPowerToughness(3, 3), GainAbility(Keyword(Trample))]))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
             ))
         );
     }
 
     #[test]
     fn durational_pump_self_and_target() {
-        // Self pump ("~ gets …"): scope Of(This), no target.
+        // Self pump ("~ gets …"): bare `This`, no target.
         assert_eq!(
             parsed("~ gets +1/+1 until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Modify(of: Of(This), changes: [AddPowerToughness(1, 1)]), \
+                "Continuously(effect: Modify(This, AddPowerToughness(1, 1)), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
         );
-        // Single-target pump ("target creature gets …"): TargetOne + Of(It).
+        // Single-target pump ("target creature gets …"): TargetOne + bare `It`.
         assert_eq!(
             parsed("Target creature gets +3/+3 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(of: Of(It), changes: [AddPowerToughness(3, 3)]), \
+                "Continuously(effect: Modify(It, AddPowerToughness(3, 3)), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -1524,8 +1531,9 @@ mod tests {
             parsed("Target creature gains flying until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(of: Of(It), changes: [GainAbility(Keyword(Flying))]), \
-                 duration: FixedUntil(EndOfTurn))".to_owned()
+                "Continuously(effect: Modify(It, GainAbility(Keyword(Flying))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
             ))
         );
     }
@@ -1879,9 +1887,9 @@ mod tests {
             parsed("Creatures you control get +1/+1 for each Goblin you control until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
-                 Toughness(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))]), \
+                "Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
+                 Toughness(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -1894,9 +1902,9 @@ mod tests {
             parsed("Creatures you control get +1/+0 for each Goblin you control until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
-                 Toughness(Up(0))]), \
+                "Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
+                 Toughness(Up(0))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -2148,10 +2156,10 @@ mod tests {
             Some((
                 String::new(),
                 "If(condition: YouHaveTheCitysBlessing, \
-                 then: Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPowerToughness(2, 2)]), duration: FixedUntil(EndOfTurn)), \
-                 otherwise: Continuously(effect: Modify(of: Matching(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 changes: [AddPowerToughness(1, 1)]), duration: FixedUntil(EndOfTurn)))".to_owned()
+                 then: Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, AddPowerToughness(2, 2))), duration: FixedUntil(EndOfTurn)), \
+                 otherwise: Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, AddPowerToughness(1, 1))), duration: FixedUntil(EndOfTurn)))".to_owned()
             ))
         );
     }
@@ -2439,7 +2447,7 @@ mod tests {
             parsed("~ deals 2 damage to each creature and each player."),
             Some((
                 String::new(),
-                "Each(binder: Existing(Filter(OneOf([Creature, Player]))), effect: DealDamage(It, 2))"
+                "Each(binder: Existing(SelectAll(OneOf([Creature, Player]))), effect: DealDamage(It, 2))"
                     .to_owned()
             ))
         );

@@ -97,7 +97,33 @@ pub fn render_card_face(face: &CardFace) -> RenderedCard {
 fn rules(view: &CardView) -> Vec<String> {
     let mut kw_line: Vec<String> = Vec::new();
     let mut body: Vec<String> = Vec::new();
-    for ability in view.abilities {
+    let mut idx = 0;
+    while idx < view.abilities.len() {
+        let ability = &view.abilities[idx];
+        // An adjacent can't-attack + can't-block pair, each its OWN
+        // `Ability::Static` (one effect per `Static` now), over the same
+        // subject prints as the single oracle clause "… can't attack or
+        // block." (Pacifism, [CR#509]) — checked before the general
+        // per-ability dispatch below so it can consume both abilities.
+        if let Ability::Static(s) = ability
+            && let Some(Ability::Static(s2)) = view.abilities.get(idx + 1)
+            && let Some(merged) = deontic::merged_cant_attack_block(
+                s,
+                s2,
+                &Ctx {
+                    subject: view.name,
+                    targets: &[],
+                    that: None,
+                },
+            )
+        {
+            // `Ability::Static` carries no `ability_word` slot anymore (the
+            // deleted `StaticAbility` struct did) — a static clause never
+            // gets the printed "Word — " prefix.
+            body.push(merged);
+            idx += 2;
+            continue;
+        }
         match ability {
             Ability::Keyword(k) => kw_line.push(keyword::keyword_name(k)),
             Ability::Spell(s) => {
@@ -127,7 +153,10 @@ fn rules(view: &CardView) -> Vec<String> {
                 ability::triggered(t, view),
             )),
             Ability::Static(s) => {
-                let mut lines = ability::static_ability(
+                // `Ability::Static` carries no `ability_word` slot anymore
+                // (the deleted `StaticAbility` struct did), so there is no
+                // "Word — " prefix to apply here.
+                let lines = ability::static_ability(
                     s,
                     &Ctx {
                         subject: view.name,
@@ -135,11 +164,6 @@ fn rules(view: &CardView) -> Vec<String> {
                         that: None,
                     },
                 );
-                // The printed ability word prefixes the static's (first)
-                // sentence ([CR#207.2c] — "Metalcraft — …").
-                if let Some(first) = lines.first_mut() {
-                    *first = with_ability_word(s.ability_word.as_ref(), std::mem::take(first));
-                }
                 body.extend(lines);
             }
             Ability::Activated(a) => body.push(with_ability_word(
@@ -148,6 +172,7 @@ fn rules(view: &CardView) -> Vec<String> {
             )),
             _ => {} // Mana-only variants beyond Activated: later tasks
         }
+        idx += 1;
     }
     let mut out = Vec::new();
     if !kw_line.is_empty() {

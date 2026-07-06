@@ -288,7 +288,7 @@ fn separate_piles(piles: &deckmaste_core::SeparatePiles, ctx: &Ctx) -> String {
                 "those cards".to_string(),
             )
         }
-        Selection::Filter(f) => (None, plural_group_noun(f, ctx)),
+        Selection::SelectAll(f) => (None, plural_group_noun(f, ctx)),
         other => (None, format!("[unrendered: {other:?}]")),
     };
     let piles_word = fragment::number_word(u32::try_from(piles.into.len()).unwrap_or(0))
@@ -314,7 +314,7 @@ fn separate_piles(piles: &deckmaste_core::SeparatePiles, ctx: &Ctx) -> String {
     out
 }
 
-/// The plural noun a `Selection::Filter` names, for the "[by] separates
+/// The plural noun a `Selection::SelectAll` names, for the "[by] separates
 /// [noun] into..." slot — "all creatures target player controls" (Do or
 /// Die's shape: a `Type` + a `ControlledBy(<dynamic reference>)` restrictor
 /// the shared `fragment::filter_noun` doesn't cover, since it only prints
@@ -571,7 +571,7 @@ fn binder_group_noun(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     use deckmaste_core::Binder;
     use deckmaste_core::Selection;
     match binder {
-        Binder::Existing(Selection::Filter(f)) => fragment::filter_noun(f),
+        Binder::Existing(Selection::SelectAll(f)) => fragment::filter_noun(f),
         Binder::Existing(sel) => fragment::selection(sel, ctx),
         Binder::Expanded(e) => binder_group_noun(&e.value, ctx),
         other => binder_phrase(other, ctx),
@@ -1382,7 +1382,7 @@ mod tests {
         let divide = super::effect(
             &deckmaste_core::Effect::DivideAmong(DivideAmong {
                 amount: Count::Literal(3),
-                binder: Binder::Existing(Selection::Filter(Filter::creature())),
+                binder: Binder::Existing(Selection::SelectAll(Filter::creature())),
                 body: Box::new(deckmaste_core::Effect::Act(Action::deal_damage(
                     Reference::It,
                     Count::Allotment,
@@ -1505,13 +1505,13 @@ mod tests {
         };
         // A group verb on the per-element `It` → the collective sentence.
         let destroy = Effect::Each(Each {
-            binder: Binder::Existing(Selection::Filter(Filter::creature())),
+            binder: Binder::Existing(Selection::SelectAll(Filter::creature())),
             effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
         });
         assert_eq!(effect(&destroy, &ctx), "Destroy each creature.");
         // A body the collapse does not recognise → the per-element form.
         let gain = Effect::Each(Each {
-            binder: Binder::Existing(Selection::Filter(Filter::creature())),
+            binder: Binder::Existing(Selection::SelectAll(Filter::creature())),
             effect: Box::new(Effect::act_by_you(PlayerAction::GainLife(Count::Literal(
                 1,
             )))),

@@ -102,7 +102,7 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
 
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         match a {
-            Ability::Static(s) => out.extend(s.effects.iter().cloned()),
+            Ability::Static(s) => out.push(s.clone()),
             Ability::Expanded(e) => statics(&e.value, out),
             _ => {}
         }
@@ -339,7 +339,7 @@ fn ascend_macro_expands_to_static_sba() {
     // Walk every Static effect (peel Expanded) and look for an Sba row.
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         match a {
-            Ability::Static(s) => out.extend(s.effects.iter().cloned()),
+            Ability::Static(s) => out.push(s.clone()),
             Ability::Expanded(e) => statics(&e.value, out),
             _ => {}
         }

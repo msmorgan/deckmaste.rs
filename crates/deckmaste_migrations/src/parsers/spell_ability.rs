@@ -101,7 +101,7 @@ mod tests {
         assert_eq!(
             spell("~ deals 2 damage to each creature.").as_deref(),
             Some(
-                "Spell(effect: Each(binder: Existing(Filter(Creature)), effect: DealDamage(It, 2)))"
+                "Spell(effect: Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(It, 2)))"
             )
         );
         assert_eq!(
@@ -161,9 +161,9 @@ mod tests {
         assert_eq!(
             spell("Creatures you control get +3/+3 and gain trample until end of turn.").as_deref(),
             Some(
-                "Spell(effect: Continuously(effect: Modify(of: Matching(AllOf([Creature, \
-                 ControlledBy(Ref(You))])), changes: [AddPowerToughness(3, 3), \
-                 GainAbility(Keyword(Trample))]), duration: FixedUntil(EndOfTurn)))"
+                "Spell(effect: Continuously(effect: Each(SelectAll(AllOf([Creature, \
+                 ControlledBy(Ref(You))])), Modify(It, Several([AddPowerToughness(3, 3), \
+                 GainAbility(Keyword(Trample))]))), duration: FixedUntil(EndOfTurn)))"
             )
         );
     }

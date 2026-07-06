@@ -107,35 +107,6 @@ pub struct TriggeredAbility {
     pub effect: Effect,
 }
 
-/// A static ability ([CR#113.3d,604]). Its duration is implicit: while it
-/// functions ([CR#611.3]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct StaticAbility {
-    /// The ability word printed before the em dash ([CR#207.2c] — no rules
-    /// meaning), pure render metadata: "Metalcraft — …". NEVER a macro tier.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ability_word: Option<crate::Ident>,
-    /// The zone the ability functions from ([CR#113.6,604.3]). `None` = the
-    /// battlefield default (omitted on write); a `Some` names another zone the
-    /// source must be in for the static to apply — a graveyard/hand static
-    /// (Riftstone Portal's land-mana from the graveyard, the incarnation
-    /// cycle's "as long as this is in your graveyard …") sets `from:
-    /// Graveyard` / `from: Hand`. Mirrors [`ActivatedAbility::from`] /
-    /// [`TriggeredAbility::from`]; engine zone-gating for statics lands with
-    /// `engine-static-ability-zone-gating`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub from: Option<crate::Zone>,
-    /// When the ability functions, if conditional ([CR#611.3a] — the effect
-    /// is never locked in; it applies to whatever its text indicates).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub condition: Option<Condition>,
-    pub effects: Vec<StaticEffect>,
-    /// The one explicit, validated flag ([CR#604.3]): a characteristic-defining
-    /// ability applies in layer 7a / a/b/c per its op.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub characteristic_defining: bool,
-}
-
 /// A `skip_serializing_if` predicate: a `false` bool is omitted from RON.
 /// serde requires the predicate to take `&T`, hence the by-ref bool.
 #[expect(clippy::trivially_copy_pass_by_ref)]
@@ -218,7 +189,13 @@ pub struct Mode {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 #[allow(clippy::large_enum_variant)]
 pub enum Ability {
-    Static(StaticAbility),
+    /// A static ability ([CR#113.3d,604]) — a single [`StaticEffect`], read
+    /// POSITIONALLY bare (`Static(Each(SelectAll(...), Modify(It, ...)))`,
+    /// `Static(Cant(...))`). Duration is implicit ("while it functions",
+    /// [CR#611.3]); conditionality/other qualifiers compose as `StaticEffect`
+    /// wrappers ([`Conditionally`](crate::StaticEffect::Conditionally)), never
+    /// a struct field. Mirrors Idris `Static : StaticEffect -> Ability`.
+    Static(StaticEffect),
     Activated(ActivatedAbility),
     Triggered(TriggeredAbility),
     Spell(SpellAbility),
@@ -409,47 +386,36 @@ mod tests {
         assert_eq!(reparsed, from_gy);
     }
 
-    /// `Ability::Static` is now a struct variant carrying a `StaticAbility`;
-    /// the CDA flag is omitted when false.
+    /// `Ability::Static` is a bare newtype over `StaticEffect` — it reads and
+    /// writes positionally with no field name in sight.
     #[test]
-    fn static_ability_parses_and_omits_cda() {
-        let ability = read_ability("Static(effects: [Cant(Attack(by: Ref(This)))])");
-        let Ability::Static(static_ability) = &ability else {
+    fn static_ability_reads_positionally_bare() {
+        let ability = read_ability("Static(Cant(Attack(by: Ref(This))))");
+        let Ability::Static(effect) = &ability else {
             panic!("expected a static ability");
         };
-        assert!(!static_ability.characteristic_defining);
+        assert!(matches!(effect, StaticEffect::Deontic(_)));
         let written = crate::ron::options().to_string(&ability).unwrap();
-        assert!(
-            !written.contains("characteristic_defining"),
-            "false CDA flag should be omitted: {written}"
-        );
-        assert!(!written.contains("condition"), "absent condition omitted");
-        // `from` defaults to the battlefield (None), omitted on write.
-        assert!(!written.contains("from"), "absent from omitted: {written}");
+        assert!(written.starts_with("Static(Cant("), "bare positional: {written}");
+        assert!(!written.contains("effect"), "no field name: {written}");
+        assert_eq!(read_ability(&written), ability, "round-trips");
     }
 
-    /// A static ability's `from` defaults to the battlefield (`None`, omitted
-    /// on write); `from: Graveyard` reads as `Some(Graveyard)` and
-    /// round-trips — the graveyard-functioning static (Riftstone Portal,
-    /// [CR#604.3]).
+    /// The anthem shape at the `Ability::Static` position reads and
+    /// re-serializes IDENTICALLY: `Static(Each(SelectAll(...), Modify(It,
+    /// ...)))`, no `effect:`/`effects:` field name anywhere, positional all
+    /// the way down.
     #[test]
-    fn static_from_zone_defaults_battlefield_and_reads_graveyard() {
-        let omitted: StaticAbility = crate::ron::options()
-            .from_str("(effects: [Cant(Attack(by: Ref(This)))])")
-            .unwrap();
-        assert_eq!(omitted.from, None);
-
-        let from_gy: StaticAbility = crate::ron::options()
-            .from_str("(from: Graveyard, effects: [Cant(Attack(by: Ref(This)))])")
-            .unwrap();
-        assert_eq!(from_gy.from, Some(crate::Zone::Graveyard));
-        let reser = crate::ron::options().to_string(&from_gy).unwrap();
-        assert!(
-            reser.contains("from:Graveyard"),
-            "from: Graveyard written: {reser}"
-        );
-        let reparsed: StaticAbility = crate::ron::options().from_str(&reser).unwrap();
-        assert_eq!(reparsed, from_gy);
+    fn static_anthem_reads_and_writes_positionally() {
+        let source = "Static(Each(SelectAll(AllOf([Type(Creature),ColorIs(White)])),Modify(It,Power(Up(2)))))";
+        let ability = read_ability(source);
+        let Ability::Static(effect) = &ability else {
+            panic!("expected a static ability");
+        };
+        assert!(matches!(effect, StaticEffect::Each(..)));
+        let written = crate::ron::options().to_string(&ability).unwrap();
+        assert_eq!(written, source, "round-trips identically: {written}");
+        assert_eq!(read_ability(&written), ability);
     }
 
     /// `Keyword(Trample)` parses to the *known* `Ability::Keyword` variant —
@@ -495,23 +461,14 @@ mod tests {
         use crate::Deontic;
         use crate::DeonticAction;
         use crate::Filter;
-        use crate::StaticAbility;
         use crate::StaticEffect;
 
-        let inner = Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                DeonticAction::Attach {
-                    what: Filter::Ref(Reference::This),
-                    to: Filter::Not(Box::new(Filter::Characteristic(
-                        crate::CharacteristicFilter::Type(crate::Type::Creature),
-                    ))),
-                },
-            ))],
-            characteristic_defining: false,
-        });
+        let inner = Ability::Static(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attach {
+            what: Filter::Ref(Reference::This),
+            to: Filter::Not(Box::new(Filter::Characteristic(
+                crate::CharacteristicFilter::Type(crate::Type::Creature),
+            ))),
+        })));
         let innate = Ability::Innate(Box::new(inner.clone()));
         assert!(innate.is_innate());
         assert!(!inner.is_innate());
@@ -533,13 +490,10 @@ mod tests {
         use crate::Expansion;
         use crate::ExpansionArgs;
 
-        let inner = Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![],
-            characteristic_defining: false,
-        });
+        let inner = Ability::Static(StaticEffect::Modify(
+            Reference::This,
+            crate::Modification::LoseAllAbilities,
+        ));
         let innate = Ability::Innate(Box::new(inner.clone()));
         // A macro-expanded Innate: `Expanded(Innate(...))`.
         let wrapped = Ability::Expanded(Expansion {

@@ -16,11 +16,11 @@
     params: [Filter],
     body: Composite(
         name: "Protection",
-        abilities: [Static(effects: [
-            Prevention(PreventAll(from: Param(0), to: Ref(This))),
-            Cant(Attach(what: Param(0), to: Ref(This))),
-            Cant(Block(on: Ref(This), by: Param(0))),
-            Cant(Target(on: Ref(This), by: (source: Param(0)))),
-        ])],
+        abilities: [
+            Static(Prevention(PreventAll(from: Param(0), to: Ref(This)))),
+            Static(Cant(Attach(what: Param(0), to: Ref(This)))),
+            Static(Cant(Block(on: Ref(This), by: Param(0)))),
+            Static(Cant(Target(on: Ref(This), by: (source: Param(0))))),
+        ],
     ),
 )

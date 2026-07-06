@@ -34,12 +34,10 @@
         name: "Modular",
         abilities: [
             // [CR#702.43a]: enters with N +1/+1 counters.
-            Static(effects: [
-                Replacement(Also(
-                    would: ThisEnters,
-                    also: PutCounters(This, P1P1Counter, Param(0)),
-                )),
-            ]),
+            Static(Replacement(Also(
+                would: ThisEnters,
+                also: PutCounters(This, P1P1Counter, Param(0)),
+            ))),
             // [CR#702.43a]: dies → may migrate its +1/+1 counters.
             Triggered(
                 event: ThisDies,

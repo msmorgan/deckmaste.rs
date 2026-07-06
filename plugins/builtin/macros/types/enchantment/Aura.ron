@@ -19,12 +19,10 @@
         name: "Aura",
         types: [Enchantment],
         confers: [
-            Ability(Innate(Static(effects: [
-                Sba(
-                    when: Not(LegallyAttached(This)),
-                    then: Move(This, Graveyard),
-                ),
-            ]))),
+            Ability(Innate(Static(Sba(
+                when: Not(LegallyAttached(This)),
+                then: Move(This, Graveyard),
+            )))),
         ],
     ),
 )

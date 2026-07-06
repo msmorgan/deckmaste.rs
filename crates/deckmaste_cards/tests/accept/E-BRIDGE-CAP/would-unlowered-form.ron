@@ -7,8 +7,6 @@ Normal(
   name: "Accept Bridge Would Cast",
   types: [Enchantment],
   abilities: [
-    Static(effects: [
-      CantHappen(Cast(who: Ref(You))),
-    ]),
+    Static(CantHappen(Cast(who: Ref(You)))),
   ],
 )

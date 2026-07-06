@@ -7,10 +7,7 @@
     body: Counter(
         name: "FirstStrikeCounter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [GainAbility(Keyword(FirstStrike))],
-            ),
+            Continuous(This, GainAbility(Keyword(FirstStrike))),
         ],
     ),
 )

@@ -14,9 +14,7 @@ Normal(
     Warrior,
   ],
   abilities: [
-    Static(effects: [
-      Must(Attack(by: Ref(This))),
-    ]),
+    Static(Must(Attack(by: Ref(This)))),
   ],
   power: 2,
   toughness: 2,

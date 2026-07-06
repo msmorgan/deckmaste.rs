@@ -4,6 +4,6 @@ Normal(
   name: "Accept It Bound",
   types: [Sorcery],
   abilities: [
-    Spell(effect: Each(binder: Existing(Filter(Creature)), effect: Destroy(It))),
+    Spell(effect: Each(binder: Existing(SelectAll(Creature)), effect: Destroy(It))),
   ],
 )

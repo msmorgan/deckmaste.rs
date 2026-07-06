@@ -377,7 +377,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: Enters(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 effect: Each(binder: Existing(Filter(OpponentOf(Ref(You)))), effect: \
+                 effect: Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: \
                  DealDamage(It, 1)))"
             )
         );
@@ -423,9 +423,9 @@ mod tests {
             trig("Whenever ~ attacks, it gets +1/+0 until end of turn for each other attacking Goblin.")
                 .as_deref(),
             Some(
-                "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(of: Of(This), \
-                 changes: [Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking])))), \
-                 Toughness(Up(0))]), duration: FixedUntil(EndOfTurn)))"
+                "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(This, \
+                 Several([Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking])))), \
+                 Toughness(Up(0))])), duration: FixedUntil(EndOfTurn)))"
             )
         );
     }
@@ -582,8 +582,8 @@ mod tests {
             Some(
                 "Triggered(ability_word: \"Landfall\", \
                  event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
-                 effect: Continuously(effect: Modify(of: Of(This), \
-                 changes: [AddPowerToughness(2, 2)]), duration: FixedUntil(EndOfTurn)))"
+                 effect: Continuously(effect: Modify(This, \
+                 AddPowerToughness(2, 2)), duration: FixedUntil(EndOfTurn)))"
             )
         );
     }

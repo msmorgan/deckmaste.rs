@@ -93,80 +93,18 @@ impl From<crate::Uint> for SimpleManaSymbol {
     }
 }
 
-/// One of the ten two-color hybrid pairs, in the [CR#107.4] printed order.
-/// Enumerated (rather than `(Color, Color)`) so `{W/W}` — and any other
-/// unprinted pairing — has no wire form: the printed symbol set is closed
-/// structurally.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum HybridPair {
-    WU,
-    WB,
-    UB,
-    UR,
-    BR,
-    BG,
-    RG,
-    RW,
-    GW,
-    GU,
-}
-
-impl HybridPair {
-    /// Every pair, in the [CR#107.4] printed order.
-    pub const ALL: [HybridPair; 10] = [
-        HybridPair::WU,
-        HybridPair::WB,
-        HybridPair::UB,
-        HybridPair::UR,
-        HybridPair::BR,
-        HybridPair::BG,
-        HybridPair::RG,
-        HybridPair::RW,
-        HybridPair::GW,
-        HybridPair::GU,
-    ];
-
-    /// The pair's two component colors, in printed order.
-    #[must_use]
-    pub fn colors(self) -> (Color, Color) {
-        use Color::Black;
-        use Color::Blue;
-        use Color::Green;
-        use Color::Red;
-        use Color::White;
-        match self {
-            HybridPair::WU => (White, Blue),
-            HybridPair::WB => (White, Black),
-            HybridPair::UB => (Blue, Black),
-            HybridPair::UR => (Blue, Red),
-            HybridPair::BR => (Black, Red),
-            HybridPair::BG => (Black, Green),
-            HybridPair::RG => (Red, Green),
-            HybridPair::RW => (Red, White),
-            HybridPair::GW => (Green, White),
-            HybridPair::GU => (Green, Blue),
-        }
-    }
-
-    /// The pair printed as `(left, right)` — CANONICAL order only, mirroring
-    /// the closed printed set ([CR#107.4] prints `{G/U}`, never `{U/G}`).
-    #[must_use]
-    pub fn from_colors(left: Color, right: Color) -> Option<HybridPair> {
-        HybridPair::ALL
-            .into_iter()
-            .find(|pair| pair.colors() == (left, right))
-    }
-}
-
-/// A printed mana symbol — the [CR#107.4] set, closed STRUCTURALLY: colored/
-/// colorless/generic/{X}/{S} plus the hybrid families. `Hybrid(HybridPair)`
-/// enumerates the ten color pairs, `MonoHybrid(Color)` is the `{2/W}` family,
-/// `ColorlessHybrid(Color)` the `{C/W}` family ([CR#107.4] classes both as
-/// monocolored hybrids; [CR#107.4e] a hybrid is a colored symbol even with a
-/// colorless component), `Phyrexian(Color)` the five `{W/P}` symbols and
-/// `HybridPhyrexian(HybridPair)` the ten `{G/U/P}` symbols ([CR#107.4f]).
-/// `{W/W}`, `{5/W}`, `{2/P}` and kin have NO wire form. Printed symbols and
-/// PRODUCED mana ([`ManaSpec`]) stay separate types.
+/// A printed mana symbol. Colored/colorless/generic/{X}/{S} plus the hybrid
+/// families, built compositionally: `Hybrid(SimpleManaSymbol, Color)` covers
+/// `{W/U}` (`Hybrid(White, Blue)`), the monocolored `{2/W}`
+/// (`Hybrid(Generic(2), White)`) and colorless `{C/W}` (`Hybrid(Colorless,
+/// White)`) families in one shape ([CR#107.4,107.4e]); `Phyrexian(Color,
+/// Option<Color>)` covers the five `{W/P}` (`Phyrexian(White, None)`) and the
+/// hybrid `{G/U/P}` (`Phyrexian(Green, Some(Blue))`) symbols ([CR#107.4f]).
+/// Deliberately a hair more permissive than the printed [CR#107.4] set —
+/// unprinted forms like `{5/W}` (`Hybrid(Generic(5), White)`) are
+/// representable on purpose (variant/design headroom); well-formedness beyond
+/// the type is a load-time/proof concern, not a structural one. Printed
+/// symbols and PRODUCED mana ([`ManaSpec`]) stay separate types.
 ///
 /// The untagged Simple variant serializes transparently, so the RON stays
 /// flat: `Generic(2)`, not `Simple(Generic(2))`.
@@ -174,22 +112,8 @@ impl HybridPair {
 pub enum ManaSymbol {
     Variable,
     Snow,
-    /// A two-color hybrid, `{W/U}` — `Hybrid(WU)`.
-    Hybrid(HybridPair),
-    /// A monocolored hybrid, `{2/W}` — `MonoHybrid(White)` ([CR#107.4e]:
-    /// payable with one white mana or two mana of any type).
-    MonoHybrid(Color),
-    /// A colorless-component hybrid, `{C/W}` — `ColorlessHybrid(White)`
-    /// ([CR#107.4]: the second monocolored-hybrid family; payable with one
-    /// white mana or one colorless mana).
-    ColorlessHybrid(Color),
-    /// A Phyrexian symbol, `{W/P}` — `Phyrexian(White)` ([CR#107.4f]:
-    /// payable with one mana of its color or 2 life). `Color` is exactly the
-    /// five-symbol set; `{C/P}` has no printed form.
-    Phyrexian(Color),
-    /// A hybrid Phyrexian symbol, `{G/U/P}` — `HybridPhyrexian(GU)`
-    /// ([CR#107.4f]: either component color, or 2 life).
-    HybridPhyrexian(HybridPair),
+    Hybrid(SimpleManaSymbol, Color), // Slightly more permissive than [CR#107.4].
+    Phyrexian(Color, Option<Color>),
     #[serde(untagged)]
     Simple(SimpleManaSymbol),
 }
@@ -316,15 +240,11 @@ impl ManaCost {
         self.iter()
             .map(|sym| match sym {
                 ManaSymbol::Variable => 0,
-                ManaSymbol::Snow
-                | ManaSymbol::Phyrexian(_)
-                | ManaSymbol::HybridPhyrexian(_)
-                | ManaSymbol::Hybrid(_)
-                // Largest component ([CR#202.3f]): a colorless-hybrid's
-                // halves are both 1.
-                | ManaSymbol::ColorlessHybrid(_) => 1,
-                // Largest component ([CR#202.3f]): the generic half is 2.
-                ManaSymbol::MonoHybrid(_) => 2,
+                ManaSymbol::Snow | ManaSymbol::Phyrexian(..) => 1,
+                // Largest component ([CR#202.3f]): the colored half is 1, so a
+                // generic-N left half (e.g. {2/W}) dominates, a colored or
+                // colorless left half ties at 1.
+                ManaSymbol::Hybrid(component, _) => component.mana_value().max(1),
                 ManaSymbol::Simple(component) => component.mana_value(),
             })
             .sum()
@@ -388,29 +308,21 @@ fn parse_simple(code: &str) -> Option<SimpleManaSymbol> {
         .or_else(|| parse_generic(code).map(SimpleManaSymbol::Generic))
 }
 
-/// Parses the body of a `{...}` mana symbol, braces already stripped —
-/// exactly the closed [CR#107.4] set: `{W/W}`, `{5/W}`, `{2/P}`, `{C/P}` and
-/// every other unprinted spelling fail.
+/// Parses the body of a `{...}` mana symbol, braces already stripped. Accepts
+/// the compositional hybrid/Phyrexian forms — including deliberately unprinted
+/// ones like `{5/W}` — matching the permissive [`ManaSymbol`] shape.
 fn parse_symbol_body(body: &str) -> Option<ManaSymbol> {
     Some(match *body.split('/').collect::<Vec<_>>() {
         ["X"] => ManaSymbol::Variable,
         ["S"] => ManaSymbol::Snow,
         [simple] => ManaSymbol::Simple(parse_simple(simple)?),
         // Phyrexian symbols need a colored left half: there is no {2/P} or {C/P}.
-        [simple, "P"] => ManaSymbol::Phyrexian(parse_simple(simple)?.color()?),
-        // The monocolored hybrids: {2/W} and {C/W} ([CR#107.4]) — only a
-        // literal 2 (or C) pairs with a color.
-        ["2", right] => ManaSymbol::MonoHybrid(Color::from_code(right)?),
-        ["C", right] => ManaSymbol::ColorlessHybrid(Color::from_code(right)?),
-        // The ten two-color hybrids, canonical order only ([CR#107.4]).
-        [left, right] => ManaSymbol::Hybrid(HybridPair::from_colors(
-            Color::from_code(left)?,
-            Color::from_code(right)?,
-        )?),
-        [left, right, "P"] => ManaSymbol::HybridPhyrexian(HybridPair::from_colors(
-            Color::from_code(left)?,
-            Color::from_code(right)?,
-        )?),
+        [simple, "P"] => ManaSymbol::Phyrexian(parse_simple(simple)?.color()?, None),
+        [simple, hybrid] => ManaSymbol::Hybrid(parse_simple(simple)?, Color::from_code(hybrid)?),
+        [simple, hybrid, "P"] => ManaSymbol::Phyrexian(
+            parse_simple(simple)?.color()?,
+            Some(Color::from_code(hybrid)?),
+        ),
         _ => return None,
     })
 }
@@ -469,42 +381,14 @@ mod tests {
         assert_eq!(symbol("{1000000}").unwrap(), Simple(Generic(1_000_000))); // Gleemax
         assert_eq!(symbol("{X}").unwrap(), Variable);
         assert_eq!(symbol("{S}").unwrap(), Snow);
-        assert_eq!(symbol("{G/U}").unwrap(), Hybrid(HybridPair::GU));
-        assert_eq!(symbol("{2/W}").unwrap(), MonoHybrid(White));
-        assert_eq!(symbol("{C/B}").unwrap(), ColorlessHybrid(Black));
-        assert_eq!(symbol("{R/P}").unwrap(), Phyrexian(Red));
-        assert_eq!(symbol("{G/U/P}").unwrap(), HybridPhyrexian(HybridPair::GU));
-    }
-
-    /// The [CR#107.4] set is closed: every printed hybrid family parses, and
-    /// each parses to the family's own variant.
-    #[test]
-    fn all_printed_hybrids_parse() {
-        use crate::Color;
-        for (pair, spelling) in HybridPair::ALL.iter().zip([
-            "W/U", "W/B", "U/B", "U/R", "B/R", "B/G", "R/G", "R/W", "G/W", "G/U",
-        ]) {
-            assert_eq!(symbol(&format!("{{{spelling}}}")).unwrap(), Hybrid(*pair));
-            assert_eq!(
-                symbol(&format!("{{{spelling}/P}}")).unwrap(),
-                HybridPhyrexian(*pair)
-            );
-        }
-        for c in [
-            Color::White,
-            Color::Blue,
-            Color::Black,
-            Color::Red,
-            Color::Green,
-        ] {
-            let code = c.code();
-            assert_eq!(symbol(&format!("{{2/{code}}}")).unwrap(), MonoHybrid(c));
-            assert_eq!(
-                symbol(&format!("{{C/{code}}}")).unwrap(),
-                ColorlessHybrid(c)
-            );
-            assert_eq!(symbol(&format!("{{{code}/P}}")).unwrap(), Phyrexian(c));
-        }
+        assert_eq!(
+            symbol("{G/U}").unwrap(),
+            Hybrid(Specific(Green.into()), Blue)
+        );
+        assert_eq!(symbol("{2/W}").unwrap(), Hybrid(Generic(2), White));
+        assert_eq!(symbol("{C/B}").unwrap(), Hybrid(Specific(Colorless), Black));
+        assert_eq!(symbol("{R/P}").unwrap(), Phyrexian(Red, None));
+        assert_eq!(symbol("{G/U/P}").unwrap(), Phyrexian(Green, Some(Blue)));
     }
 
     #[test]
@@ -529,14 +413,6 @@ mod tests {
             "{C/P}",
             "{2/W/P}",
             "{X/P}",
-            // Outside the closed [CR#107.4] set: same-color and
-            // arbitrary-generic hybrids have no printed form.
-            "{W/W}",
-            "{5/W}",
-            "{3/G}",
-            // Only the CANONICAL pair order is printed ({W/U}, never {U/W}).
-            "{U/W}",
-            "{U/W/P}",
             // The right half of a hybrid must be a color.
             "{W/C}",
             "{W/2}",
@@ -561,11 +437,14 @@ mod tests {
         assert_eq!(cost("{X}{S}").unwrap(), ManaCost(vec![Variable, Snow]));
         assert_eq!(
             cost("{2/W}{C/B}").unwrap(),
-            ManaCost(vec![MonoHybrid(White), ColorlessHybrid(Black)])
+            ManaCost(vec![
+                Hybrid(Generic(2), White),
+                Hybrid(Specific(Colorless), Black),
+            ])
         );
         assert_eq!(
             cost("{G/U/P}{W/P}").unwrap(),
-            ManaCost(vec![HybridPhyrexian(HybridPair::GU), Phyrexian(White)])
+            ManaCost(vec![Phyrexian(Green, Some(Blue)), Phyrexian(White, None),])
         );
         assert_eq!(cost("").unwrap(), ManaCost::default());
 
@@ -574,18 +453,20 @@ mod tests {
         assert_eq!(cost("{X}").unwrap().first(), Some(&Variable));
     }
 
-    /// Each symbol family's RON spelling round-trips — the closed wire forms
-    /// (`Hybrid(GU)`, `MonoHybrid(White)`, …) read back to the same value.
+    /// Each symbol family's RON spelling round-trips — the compositional wire
+    /// forms (`Hybrid(White, Blue)`, `Phyrexian(Red, None)`, …) read back to
+    /// the same value. Includes a deliberately-permissive `{5/W}`.
     #[test]
     fn symbol_ron_round_trips() {
         for sym in [
             Variable,
             Snow,
-            Hybrid(HybridPair::GU),
-            MonoHybrid(White),
-            ColorlessHybrid(Black),
-            Phyrexian(Red),
-            HybridPhyrexian(HybridPair::WU),
+            Hybrid(Specific(Green.into()), Blue),
+            Hybrid(Generic(2), White),
+            Hybrid(Generic(5), White),
+            Hybrid(Specific(Colorless), Black),
+            Phyrexian(Red, None),
+            Phyrexian(Green, Some(Blue)),
             Simple(Generic(3)),
             White.into(),
             Simple(Specific(Colorless)),

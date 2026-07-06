@@ -131,13 +131,6 @@ fn structurally_untagged() -> BTreeSet<Node> {
         ("Count", "Expanded"),
         ("Condition", "Expanded"),
         ("Reference", "Expanded"),
-        // `Several` is `Modification::flatten`'s OWN internal splice
-        // target for a change-bundling macro's expansion value
-        // (`AddPowerToughness` -> `Expanded(.., value: Several([..]))`); a
-        // card never spells `Several(...)` directly (there is no macro
-        // named that), so, like the `Expanded` family above, the tag never
-        // appears as an authored token.
-        ("Modification", "Several"),
     ]
     .into_iter()
     .map(|(e, v)| (e.to_string(), v.to_string()))
@@ -369,11 +362,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             batch — the corpus's permanent effects all ride genuine static abilities.",
         ),
         (
-            n("Scope", "These"),
-            "DEFERRED: no fixed-object-list (non-filter, non-single) Modify scope \
-            real card in this batch.",
-        ),
-        (
             n("CollectionOp", "Remove"),
             "DEFERRED: no single-element 'loses a color/type/subtype' \
             real card in this batch.",
@@ -417,6 +405,15 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("Modification", "BecomeBasicLandType"),
             "DEFERRED: no Blood-Moon-shaped real card in \
             this batch.",
+        ),
+        (
+            n("StaticEffect", "Conditionally"),
+            "DEFERRED: the \"as long as [condition], [effect]\" wrapper \
+            ([CR#611.3a]) is elaborated and rendered this session, but the engine gather is a \
+            documented unwired seam (`static_effect_scope` skips it) and no real card in this \
+            batch needs the qualifier over the graveyard/hand `from`-zone shape it replaces \
+            (see `renders_graveyard_static_from_zone` for a synthetic exercise); buildable once \
+            the gather seam is wired.",
         ),
         (
             n("StaticEffect", "CantPrevent"),
@@ -885,8 +882,6 @@ fn reject_allowlist() -> Vec<(Node, &'static str)> {
         (n("Duration", "ForAsLongAs"), NO_ILLEGAL_VALUE),
         (n("Duration", "ForThisEvent"), NO_ILLEGAL_VALUE),
         (n("Duration", "EndOfGame"), NO_ILLEGAL_VALUE),
-        (n("Scope", "These"), GENERIC_GATE_ALREADY_DEMONSTRATED),
-        (n("Scope", "Matching"), GENERIC_GATE_ALREADY_DEMONSTRATED),
         (n("NumericOp", "Set"), AXIS_OP_TYPE_ENFORCED),
         (n("NumericOp", "Down"), AXIS_OP_TYPE_ENFORCED),
         (n("CollectionOp", "Set"), AXIS_OP_TYPE_ENFORCED),
@@ -895,6 +890,13 @@ fn reject_allowlist() -> Vec<(Node, &'static str)> {
         (n("Modification", "Toughness"), AXIS_OP_TYPE_ENFORCED),
         (
             n("Modification", "SwitchPowerToughness"),
+            GENERIC_GATE_ALREADY_DEMONSTRATED,
+        ),
+        // A change-bundling wrapper, not a legality-bearing shape of its
+        // own — an illegal `Several` member is rejected by THAT member's
+        // own node, never by `Several` itself.
+        (
+            n("Modification", "Several"),
             GENERIC_GATE_ALREADY_DEMONSTRATED,
         ),
         (n("Modification", "Colors"), AXIS_OP_TYPE_ENFORCED),
@@ -947,6 +949,10 @@ fn reject_allowlist() -> Vec<(Node, &'static str)> {
         (n("CostChange", "Scaled"), GENERIC_GATE_ALREADY_DEMONSTRATED),
         (
             n("StaticEffect", "Modify"),
+            GENERIC_GATE_ALREADY_DEMONSTRATED,
+        ),
+        (
+            n("StaticEffect", "Conditionally"),
             GENERIC_GATE_ALREADY_DEMONSTRATED,
         ),
         (

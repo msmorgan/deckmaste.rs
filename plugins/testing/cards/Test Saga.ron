@@ -17,9 +17,9 @@ Normal(
         Chapter(n: 3, effect: GainLife(3)),
         // [CR#714.4]: sacrifice once the lore total reaches the final
         // chapter number (3 here).
-        Static(effects: [Sba(
+        Static(Sba(
             when: Compare(CounterCount(This, LoreCounter), AtLeast, 3),
             then: Sacrifice(This),
-        )]),
+        )),
     ],
 )

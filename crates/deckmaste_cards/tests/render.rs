@@ -541,7 +541,7 @@ fn renders_creature_dies_trigger_moonlit_wake() {
     );
 }
 
-// ── Coverage C: Scope::Of + full Modification vocabulary ────────────────────
+// ── Coverage C: bare Modify + full Modification vocabulary ──────────────────
 
 #[test]
 fn renders_set_colors_darkest_hour() {
@@ -574,25 +574,17 @@ fn renders_scope_of_singular() {
     use deckmaste_core::Count;
     use deckmaste_core::Modification;
     use deckmaste_core::Reference;
-    use deckmaste_core::Scope;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     let face = CardFace {
         name: "Test Aura".into(),
         types: vec![Type::Enchantment],
-        abilities: vec![Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Of(Reference::This),
-                changes: vec![
-                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-                ],
-            }],
-            characteristic_defining: false,
-        })],
+        abilities: vec![Ability::Static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+            ]),
+        ))],
         ..CardFace::default()
     };
     assert_eq!(
@@ -601,7 +593,7 @@ fn renders_scope_of_singular() {
     );
 }
 
-/// An Aura whose static effect pumps its host: `Scope::Of(AttachHostOf(This))`
+/// An Aura whose static effect pumps its host: `Modify(AttachHostOf(This), …)`
 /// → "Enchanted creature gets +2/+2."
 #[test]
 fn renders_aura_host_pump() {
@@ -610,25 +602,17 @@ fn renders_aura_host_pump() {
     use deckmaste_core::Count;
     use deckmaste_core::Modification;
     use deckmaste_core::Reference;
-    use deckmaste_core::Scope;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     let face = CardFace {
         name: "Test Buff Aura".into(),
         types: vec![Type::Enchantment],
-        abilities: vec![Ability::Static(StaticAbility {
-            ability_word: None,
-            from: None,
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Of(Reference::AttachHostOf(Box::new(Reference::This))),
-                changes: vec![
-                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(2))),
-                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(2))),
-                ],
-            }],
-            characteristic_defining: false,
-        })],
+        abilities: vec![Ability::Static(StaticEffect::Modify(
+            Reference::AttachHostOf(Box::new(Reference::This)),
+            Modification::Several(vec![
+                Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(2))),
+                Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(2))),
+            ]),
+        ))],
         ..CardFace::default()
     };
     assert_eq!(
@@ -654,7 +638,6 @@ fn renders_continuously_pump_until_eot() {
     use deckmaste_core::Modification;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
-    use deckmaste_core::Scope;
     use deckmaste_core::SpellAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::TargetSpec;
@@ -668,15 +651,15 @@ fn renders_continuously_pump_until_eot() {
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
                 Effect::Continuously(Continuously {
-                    effect: Box::new(StaticEffect::Modify {
-                        of: Scope::Of(Reference::It),
-                        changes: vec![
+                    effect: Box::new(StaticEffect::Modify(
+                        Reference::It,
+                        Modification::Several(vec![
                             Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(3))),
                             Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(
                                 3,
                             ))),
-                        ],
-                    }),
+                        ]),
+                    )),
                     duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
                 }),
             )),
@@ -840,36 +823,40 @@ fn renders_get_designation() {
 fn renders_graveyard_static_from_zone() {
     use deckmaste_core::Ability;
     use deckmaste_core::CardFace;
+    use deckmaste_core::Condition;
     use deckmaste_core::Count;
     use deckmaste_core::Filter;
     use deckmaste_core::Modification;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationFilter;
-    use deckmaste_core::Scope;
-    use deckmaste_core::StaticAbility;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StateFilter;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Zone;
     let face = CardFace {
         name: "Test Incarnation".into(),
         types: vec![Type::Creature],
-        abilities: vec![Ability::Static(StaticAbility {
-            ability_word: None,
-            from: Some(Zone::Graveyard),
-            condition: None,
-            effects: vec![StaticEffect::Modify {
-                of: Scope::Matching(Filter::AllOf(vec![
+        abilities: vec![Ability::Static(StaticEffect::Conditionally(
+            Condition::Is(
+                Reference::This,
+                Filter::State(StateFilter::InZone(Zone::Graveyard)),
+            ),
+            Box::new(StaticEffect::Each(
+                Selection::SelectAll(Filter::AllOf(vec![
                     Filter::type_(Type::Creature),
                     Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
                         Reference::You,
                     )))),
                 ])),
-                changes: vec![
-                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-                ],
-            }],
-            characteristic_defining: false,
-        })],
+                Box::new(StaticEffect::Modify(
+                    Reference::It,
+                    Modification::Several(vec![
+                        Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                        Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                    ]),
+                )),
+            )),
+        ))],
         ..CardFace::default()
     };
     assert_eq!(

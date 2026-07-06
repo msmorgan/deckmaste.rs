@@ -14,13 +14,7 @@
     body: Counter(
         name: "M1M1Counter",
         confers: [
-            Continuous(
-                of: Of(This),
-                changes: [
-                    Power(Down(CounterCount(This, M1M1Counter))),
-                    Toughness(Down(CounterCount(This, M1M1Counter))),
-                ],
-            ),
+            Continuous(This, Several([Power(Down(CounterCount(This, M1M1Counter))), Toughness(Down(CounterCount(This, M1M1Counter)))])),
             StateBased(
                 condition: AllOf([
                     Is(This, HasCounter(P1P1Counter)),

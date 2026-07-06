@@ -7,7 +7,7 @@ Normal(
     Land,
   ],
   abilities: [
-    Static(effects: [ModifyPlayer(You, NoMax(HandSizeLimit))]),
+    Static(ModifyPlayer(You, NoMax(HandSizeLimit))),
     Activated(cost: [Tap], effect: AddMana(1, Colorless)),
   ],
 )

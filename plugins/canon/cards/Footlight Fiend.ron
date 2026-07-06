@@ -1,7 +1,7 @@
 Normal(
   name: "Footlight Fiend",
   mana_cost: [
-    Hybrid(BR),
+    Hybrid(Black, Red),
   ],
   types: [
     Creature,

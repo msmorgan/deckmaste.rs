@@ -3,7 +3,7 @@
 // card in the canon corpus has Exalted, so this minimal carrier isolates the
 // keyword's trigger RESOLUTION: the lone attacker must bind as `EventObject`
 // (the event-provenance the engine derives for an `Attacking` fact) so the
-// `Continuously(Modify(of: Of(EventObject)))` pump lands on it.
+// `Continuously(Modify(EventObject, ...))` pump lands on it.
 Normal(
     name: "Exalted Creature",
     mana_cost: [Generic(1), White],

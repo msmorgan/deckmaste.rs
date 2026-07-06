@@ -1,0 +1,11 @@
+// CreatureOpponentControls = "each creature an opponent controls" — the
+// symmetric-anthem counterpart to `OtherCreatureYouControl` (a debuff over
+// the opposing team rather than a boost over your own). A Selection-kind
+// macro: the whole `SelectAll(...)` IS the macro body, so a card spells it as
+// `Each(CreatureOpponentControls, Modify(It, <change>))` directly.
+(
+    name: "CreatureOpponentControls",
+    template: "each creature an opponent controls",
+    kinds: [Selection],
+    body: SelectAll(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])),
+)

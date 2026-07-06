@@ -84,6 +84,9 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::KeywordAbility>("KeywordAbility");
     param_types.add_typed::<dc::ManaRider>("ManaRider");
     param_types.add_typed::<dc::Modification>("Modification");
+    // The numeric-axis op (`Up`/`Down`/`Set`) — a macro arg for the shared
+    // power+toughness bundler `PowerAndToughness(op)`.
+    param_types.add_typed::<dc::NumericOp>("NumericOp");
     param_types.add_typed::<dc::PlayerAction>("PlayerAction");
     param_types.add_typed::<dc::Quantity>("Quantity");
     param_types.add_typed::<dc::Reference>("Reference");
@@ -241,7 +244,6 @@ mod tests {
         use deckmaste_core::Expand as _;
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
-        use deckmaste_core::Scope;
 
         let mut macros = macro_set();
         macros
@@ -254,15 +256,20 @@ mod tests {
                 )"#))
             .unwrap();
 
-        // Read a whole `Modify` whose `changes` mixes the bundling macro with a
-        // plain ability grant — the Overrun shape.
+        // Read a whole `Modify` whose `Several` bundle mixes the bundling
+        // macro with a plain ability grant — the Overrun shape.
         let effect: StaticEffect = macros
-            .read_str("Modify(of: Of(This), changes: [AddPowerToughness(3, 3), GainAbility(Keyword(Trample))])")
+            .read_str(
+                "Modify(This, Several([AddPowerToughness(3, 3), GainAbility(Keyword(Trample))]))",
+            )
             .unwrap();
-        let StaticEffect::Modify { of, changes } = &effect else {
+        let StaticEffect::Modify(of, change) = &effect else {
             panic!("expected Modify, got {effect:?}");
         };
-        assert_eq!(*of, Scope::Of(Reference::This));
+        assert_eq!(*of, Reference::This);
+        let Modification::Several(changes) = change else {
+            panic!("expected a Several bundle, got {change:?}");
+        };
         // The macro is remembered as the first element; the grant is plain.
         let Modification::Expanded(exp) = &changes[0] else {
             panic!("expected a remembered modification, got {:?}", changes[0]);
@@ -280,14 +287,15 @@ mod tests {
         let written = deckmaste_core::ron::options().to_string(&effect).unwrap();
         assert_eq!(
             written,
-            "Modify(of:Of(This),changes:[AddPowerToughness(3,3),GainAbility(Keyword(Trample))])"
+            "Modify(This,Several([AddPowerToughness(3,3),GainAbility(Keyword(Trample))]))"
         );
 
         // `expand_all` then `flatten` → the flat three-op engine-facing list:
         // the bundle is spliced into the two P/T ops, the grant follows.
-        let StaticEffect::Modify { changes, .. } = effect.expand_all() else {
+        let StaticEffect::Modify(_, change) = effect.expand_all() else {
             unreachable!()
         };
+        let Modification::Several(changes) = change else { unreachable!() };
         let flat = Modification::flatten(changes);
         assert_eq!(flat.len(), 3, "Several spliced to flat ops: {flat:?}");
         assert_eq!(
@@ -314,7 +322,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "EachCreature",
                     kinds: [Selection],
-                    body: Filter(Type(Creature)),
+                    body: SelectAll(Type(Creature)),
                 )"#))
             .unwrap();
         let selection: Selection = macros.read_str("EachCreature").unwrap();
@@ -324,7 +332,7 @@ mod tests {
         assert_eq!(expanded.name, "EachCreature");
         assert_eq!(
             *expanded.value,
-            Selection::Filter(Filter::Characteristic(CharacteristicFilter::Type(
+            Selection::SelectAll(Filter::Characteristic(CharacteristicFilter::Type(
                 Type::Creature
             )))
         );
@@ -516,7 +524,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "Flying",
                     kinds: [Ability],
-                    body: Static(effects: [Cant(Attack(by: Ref(This)))]),
+                    body: Static(Cant(Attack(by: Ref(This)))),
                 )"#))
             .unwrap();
         macros

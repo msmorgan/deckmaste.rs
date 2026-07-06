@@ -1,6 +1,7 @@
 //! The shared characteristic-modification grammar: the `±N/±N` power/toughness
-//! changes, the "and gain/have <keyword…>" grant tail, and the subject→`Scope`
-//! mapping that a `Modify(of: <scope>, changes: [...])` consumes. Two positions
+//! changes, the "and gain/have <keyword…>" grant tail, and the subject→
+//! [`Target`] mapping that a `Modify(<ref>, <change>)` /
+//! `Each(SelectAll(<filter>), Modify(It, <change>))` consumes. Two positions
 //! speak it: `static_ability` (always-on anthems, wrapped in `Static`) and
 //! `effect` (one-shot durational pumps, wrapped in `Continuously`). Kept here
 //! so both share one grammar instead of duplicating it.
@@ -44,15 +45,48 @@ pub(super) fn subject_to_filter(subj: &str) -> Option<String> {
     filter::parse_phrase(s)
 }
 
-/// `Ref(r)` filter → `Of(r)` scope; any class filter → `Matching(filter)`.
-// `parse_phrase` always leads with a head-noun atom, so a top-level `Ref(` here
-// can only be our own `subject_to_filter` self-refs (`~`/enchanted); class
-// subjects take the `Matching(...)` branch.
-pub(super) fn filter_to_scope(f: &str) -> String {
+/// Where a `Modify` distributes: a bare object `Reference` (a self/attach-host
+/// subject), spliced directly into `Modify(<ref>, <change>)`; or a class
+/// filter, which has no single-object form and must be distributed via
+/// `Each(SelectAll(<filter>), Modify(It, <change>))` — the ONLY way a static
+/// reaches many objects (`StaticEffect::Each` in `deckmaste_core`).
+pub(super) enum Target {
+    /// A bare `Reference` string (`This`, `AttachHostOf(This)`, `It`, …).
+    Ref(String),
+    /// A class filter.
+    Filter(String),
+}
+
+impl Target {
+    /// Wrap a single `Modification` value `change` into the full
+    /// `Modify`/`Each` RON for this target.
+    pub(super) fn wrap(&self, change: &str) -> String {
+        match self {
+            Target::Ref(r) => format!("Modify({r}, {change})"),
+            Target::Filter(f) => format!("Each(SelectAll({f}), Modify(It, {change}))"),
+        }
+    }
+}
+
+/// `Ref(r)` filter → a bare-reference `Target::Ref(r)`; any class filter →
+/// `Target::Filter(filter)`. `parse_phrase` always leads with a head-noun
+/// atom, so a top-level `Ref(` here can only be our own `subject_to_filter`
+/// self-refs (`~`/enchanted); class subjects take the `Filter` branch.
+pub(super) fn filter_to_target(f: &str) -> Target {
     if let Some(inner) = f.strip_prefix("Ref(").and_then(|x| x.strip_suffix(')')) {
-        format!("Of({inner})")
+        Target::Ref(inner.to_owned())
     } else {
-        format!("Matching({f})")
+        Target::Filter(f.to_owned())
+    }
+}
+
+/// Bundle a changes list into ONE `Modification`, as `Modify` now takes a
+/// single `Modification` (bundle several ops with `Modification::Several`):
+/// a singleton list is spliced bare, a plural list wraps `Several([...])`.
+pub(super) fn changes_to_modification(changes: &[String]) -> String {
+    match changes {
+        [one] => one.clone(),
+        many => format!("Several([{}])", many.join(", ")),
     }
 }
 

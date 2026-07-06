@@ -1195,6 +1195,8 @@ classRows : List String
 classRows =
   [ classRow "Modify" True          -- characteristics/controller ([CR#613])
   , classRow "ModifyPlayer" True
+  , classRow "Each" True            -- distributes a Modify; same locked-set rule ([CR#613.6])
+  , classRow "Conditionally" False  -- re-checked continuously, never locked in ([CR#611.3a])
   , classRow "Deontic" False
   , classRow "CostModifier" False
   , classRow "CostOption" False

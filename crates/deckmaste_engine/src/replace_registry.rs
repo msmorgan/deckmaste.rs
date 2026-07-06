@@ -213,20 +213,22 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             let Ability::Static(s) = ability else {
                 continue;
             };
-            for (ei, eff) in s.effects.iter().enumerate() {
-                if let StaticEffect::Replacement(r) = eff
-                    && replacement_would(state, r, obj, e)
-                {
-                    out.push(Applicable {
-                        key: ReplacementKey::Static {
-                            source: obj,
-                            ability: ai,
-                            effect: ei,
-                        },
-                        effect: ApplicableEffect::Replacement((**r).clone()),
+            // `Ability::Static` carries a single `StaticEffect` directly, so
+            // the effect index is always 0 — kept in `ReplacementKey::Static`
+            // for shape stability (multi-effect abilities used to
+            // disambiguate by index).
+            if let StaticEffect::Replacement(r) = s
+                && replacement_would(state, r, obj, e)
+            {
+                out.push(Applicable {
+                    key: ReplacementKey::Static {
                         source: obj,
-                    });
-                }
+                        ability: ai,
+                        effect: 0,
+                    },
+                    effect: ApplicableEffect::Replacement((**r).clone()),
+                    source: obj,
+                });
             }
         }
     }
@@ -260,20 +262,18 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                 let Ability::Static(s) = ability else {
                     continue;
                 };
-                for (ei, eff) in s.effects.iter().enumerate() {
-                    if let StaticEffect::Prevention(p) = eff
-                        && prevention_watches(state, p, obj, event_source, event_target)
-                    {
-                        out.push(Applicable {
-                            key: ReplacementKey::Static {
-                                source: obj,
-                                ability: ai,
-                                effect: ei,
-                            },
-                            effect: ApplicableEffect::Prevention((**p).clone()),
+                if let StaticEffect::Prevention(p) = s
+                    && prevention_watches(state, p, obj, event_source, event_target)
+                {
+                    out.push(Applicable {
+                        key: ReplacementKey::Static {
                             source: obj,
-                        });
-                    }
+                            ability: ai,
+                            effect: 0,
+                        },
+                        effect: ApplicableEffect::Prevention((**p).clone()),
+                        source: obj,
+                    });
                 }
             }
         }
@@ -770,7 +770,6 @@ pub(crate) mod tests_support {
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -839,13 +838,7 @@ pub(crate) mod tests_support {
         let card = Arc::new(Card::Normal(CardFace {
             name: "Test Creature".into(),
             types: vec![Type::Creature],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                characteristic_defining: false,
-                effects: vec![effect],
-                condition: None,
-            })],
+            abilities: vec![Ability::Static(effect)],
             ..CardFace::default()
         }));
         let card_id = state.cards.push(card, PlayerId(0));

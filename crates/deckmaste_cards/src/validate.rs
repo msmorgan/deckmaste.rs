@@ -406,7 +406,6 @@ mod tests {
     use deckmaste_core::ManaSpec;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticAbility;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
     use deckmaste_core::Token;
@@ -530,18 +529,12 @@ mod tests {
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![],
-            abilities: vec![Ability::Static(StaticAbility {
-                ability_word: None,
-                from: None,
-                condition: None,
-                effects: vec![StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Attack {
-                        by: Filter::Ref(Reference::This),
-                        on: Filter::Any,
-                    },
-                ))],
-                characteristic_defining: false,
-            })],
+            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attack {
+                    by: Filter::Ref(Reference::This),
+                    on: Filter::Any,
+                },
+            )))],
             power: None,
             toughness: None,
         };
@@ -714,10 +707,9 @@ mod keyword_ref_tests {
     fn unknown_keyword_reference_is_flagged() {
         let plugin = builtin();
         let read = |src: &str| -> Ability { plugin.macros.read_str(src).unwrap() };
-        let typo = read("Static(effects: [Cant(Block(on: Ref(This), by: Not(Has(Flyng))))])");
-        let fine = read(
-            "Static(effects: [Cant(Block(on: Ref(This), by: Not(OneOf([Has(Flying), Has(Trample)]))))])",
-        );
+        let typo = read("Static(Cant(Block(on: Ref(This), by: Not(Has(Flyng)))))");
+        let fine =
+            read("Static(Cant(Block(on: Ref(This), by: Not(OneOf([Has(Flying), Has(Trample)])))))");
         let mut out = Vec::new();
         super::lint_keyword_refs(
             &PathBuf::from("test/dummy.ron"),
