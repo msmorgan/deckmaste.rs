@@ -259,6 +259,21 @@ fn subtype_idris(name: &str) -> Option<&'static str> {
         "Cat" => "(CreatureSub Cat)",
         "Vampire" => "(CreatureSub Vampire)",
         "Noble" => "(CreatureSub Noble)",
+        "Soldier" => "(CreatureSub Soldier)",
+        "Bird" => "(CreatureSub Bird)",
+        "Efreet" => "(CreatureSub Efreet)",
+        "Monk" => "(CreatureSub Monk)",
+        "Centaur" => "(CreatureSub Centaur)",
+        "Myr" => "(CreatureSub Myr)",
+        "Beast" => "(CreatureSub Beast)",
+        "Phyrexian" => "(CreatureSub Phyrexian)",
+        "Praetor" => "(CreatureSub Praetor)",
+        "Shaman" => "(CreatureSub Shaman)",
+        "Devil" => "(CreatureSub Devil)",
+        "Scout" => "(CreatureSub Scout)",
+        "Illusion" => "(CreatureSub Illusion)",
+        "Flagbearer" => "(CreatureSub Flagbearer)",
+        "Dwarf" => "(CreatureSub Dwarf)",
         "Aura" => "(EnchantmentSub Aura)",
         "Saga" => "(EnchantmentSub Saga)",
         "Equipment" => "(ArtifactSub Equipment)",
@@ -823,11 +838,7 @@ fn collection_characteristic(c: deckmaste_core::Characteristic) -> R {
         C::Defense => "Defense",
         C::ManaCost => "ManaCost",
         C::Name => "Name",
-        C::BasicLandTypes => {
-            return Err(gap(
-                "Characteristic::BasicLandTypes has no Idris Characteristic counterpart",
-            ));
-        }
+        C::BasicLandTypes => "BasicLandTypes",
     }
     .to_string())
 }
@@ -1201,10 +1212,33 @@ fn emit_action(a: &Action) -> R {
                 "Action::GainControl has no Idris one-shot Action counterpart (only the continuous Modification)",
             ));
         }
-        Action::Fight(..) => {
-            return Err(gap(
-                "Action::Fight not yet mapped (Idris models it as a Composite over the primitives)",
-            ));
+        // `Fight` ([CR#701.14a]): the two creatures deal damage equal to their
+        // power to each other, simultaneously. The engine keeps `Action::Fight`
+        // as a primitive; the Idris soundness check sees the FAITHFUL expansion
+        // — the same shape as the hand-written `fight` macro — so the same two
+        // references get exercised. `Composite Fight` tags it recognizably (the
+        // "whenever ~ fights" hook); the body is the pair of `dealDamageFrom`
+        // clauses. The recipient sits in a kind-poly `Reference b k` slot with
+        // nothing to pin `k`, so it takes the curly-free `damageTarget`/`Anything`
+        // reading (via `emit_reference_anykind`), exactly like a plain
+        // `DealDamage` recipient; the source + `StatOf` positions are `AnObject`
+        // and pin themselves.
+        Action::Fight(a, b) => {
+            let clause = |src: &Reference, tgt: &Reference| -> R {
+                Ok(app(
+                    "Act",
+                    vec![app(
+                        "dealDamageFrom",
+                        vec![
+                            emit_reference(src)?,
+                            emit_reference_anykind(tgt)?,
+                            app("StatOf", vec![emit_reference(src)?, "Power".to_string()]),
+                        ],
+                    )],
+                ))
+            };
+            let body = app("Sequence", vec![ilist(vec![clause(a, b)?, clause(b, a)?])]);
+            app("Composite", vec!["Fight".to_string(), body])
         }
         Action::ExtraPhase(..) => return Err(gap("Action::ExtraPhase has no Idris counterpart")),
         Action::BecomeDay | Action::BecomeNight => {
@@ -1923,9 +1957,20 @@ fn emit_deed(action: &DeonticAction) -> R {
             }
         },
         DeonticAction::Target { by, on } => {
-            if by.source.is_some() {
+            // A `source` of `Any` (plain `Hexproof()` — its `from` param
+            // defaults to `Filter::Any`) is NO source restriction, so it drops
+            // cleanly: the agent is fully captured by `stack_object`. Only a
+            // CONCRETE quality source (hexproof-/protection-from-[quality],
+            // [CR#702.11d,702.16b]) needs an Idris counterpart it doesn't yet
+            // have — that rides the AsThough/quality machinery (the Glaring
+            // Spotlight followup), so it stays gapped.
+            if by
+                .source
+                .as_ref()
+                .is_some_and(|f| !matches!(f, Filter::Any))
+            {
                 return Err(gap(
-                    "DeedAgent.source (ability-source quality, e.g. hexproof-from) has no Idris Enact-Target counterpart",
+                    "DeedAgent.source (a CONCRETE ability-source quality, e.g. hexproof-from-[quality]) has no Idris Enact-Target counterpart",
                 ));
             }
             // `agentScope Target = AnObject` is forced concretely (Target is

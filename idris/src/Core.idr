@@ -128,6 +128,8 @@ namespace CreatureSubtype
   data CreatureSubtype
     = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit
     | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect | Cat | Vampire | Noble  -- creature types
+    | Soldier | Bird | Efreet | Monk | Centaur | Myr | Beast | Phyrexian | Praetor | Shaman | Devil
+    | Scout | Illusion | Flagbearer | Dwarf
 namespace EnchantmentSubtype
   public export
   data EnchantmentSubtype
@@ -239,14 +241,18 @@ namespace Supertype
 -- A CHARACTERISTIC axis of an object ([CR#109.3]/[CR#613]) — name, colour, types, power/toughness, defense,
 -- mana cost, … ONE vocabulary shared by the reads (`StatOf`/`StatCmp`/`CountDistinct`, in the mutual block
 -- below) and the writes (`ModificationOp`/`Alter`, further down). Defined HERE so both sides see it. Membership
--- IS settability: every characteristic can be `Set`. The DERIVED mana value is NOT a characteristic ([CR#202.3])
--- — it has no axis here and is read via `ManaValueOf`. The object's actual VALUE (`Maybe Int`, …) is the
--- engine's; the grammar only *specifies* it (via `Count`) and *classifies* the axis (the families below), never
--- materializes it (no `valueOf` — it couldn't cross the RON boundary). Its own `namespace` keeps the leaf names
--- tidy (`Name`/`Defense`/… are generic).
+-- IS settability for the SETTABLE axes: each can be `Set`. The DERIVED mana value is NOT a characteristic
+-- ([CR#202.3]) — it has no axis here and is read via `ManaValueOf`. `BasicLandTypes` ([CR#205.3i]) is the
+-- one READ-ONLY axis — the count of DISTINCT basic land types (Domain, [CR#207.2c]), NOT the whole `Subtypes`
+-- axis (a Gate's `Gate` subtype never counts). It is unsettable by construction (`CharValue … BasicLandTypes =
+-- Void`, so `Set`/`Up`/`Add` can't name it), readable only via `CountDistinct`. The object's actual VALUE
+-- (`Maybe Int`, …) is the engine's; the grammar only *specifies* it (via `Count`) and *classifies* the axis
+-- (the families below), never materializes it (no `valueOf` — it couldn't cross the RON boundary). Its own
+-- `namespace` keeps the leaf names tidy (`Name`/`Defense`/… are generic).
 namespace Characteristic
   public export
   data Characteristic = Colors | Types | Subtypes | Supertypes | Power | Toughness | Defense | ManaCost | Name
+                      | BasicLandTypes   -- READ-ONLY: distinct-basic-land-type count (Domain); unsettable (CharValue = Void)
 
 -- a PLAYER's numeric attributes — the player-side twin of the object `Characteristic`
 -- numeric axes. Read via `PlayerStatOf` (a `Count`), mirroring `StatOf` for objects.
@@ -1884,6 +1890,7 @@ CharValue b Toughness  = Count b
 CharValue b Defense    = Count b
 CharValue _ ManaCost   = ManaCost       -- the symbol list ("no mana cost" = `Set ManaCost []`, eternalize)
 CharValue _ Name       = Maybe String   -- `Nothing` = "has no name"
+CharValue _ BasicLandTypes = Void       -- READ-ONLY axis (Domain): unsettable, so `Set`'s argument is uninhabited
 
 -- A modification OPERATION on one characteristic axis `c` ([CR#613]) — the layer/base-vs-current is the
 -- OPERATION, not the axis name (so `Power`/`Toughness` drop the "Base"). `Set` overwrites any axis; `Up`/
