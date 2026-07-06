@@ -16,10 +16,10 @@ Normal(
     Spell(
       effect: Targeted(
         targets: [
-          As("from", TargetOne(Creature)),
-          As("to", Distinct([0], TargetOne(Creature))),
+          TargetOne(Creature),
+          Distinct([0], TargetOne(Creature)),
         ],
-        effect: MoveCounters(AllKinds, The("from"), The("to")),
+        effect: MoveCounters(AllKinds, Target(0), Target(1)),
       ),
     ),
   ],

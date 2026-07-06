@@ -86,40 +86,43 @@ fn split_ability_word(line: &str) -> (Option<&str>, &str) {
 /// Wraps an event + [`ParsedEffect`] in the `Triggered` frame, emitting
 /// `targets:` only when the effect declares any.
 ///
-/// A TRIGGERED targeted body names its announce slot: the event pushes role
-/// antecedents (the dying/entering object, the responsible player), so the
-/// bare slot anaphor `It` the effect productions emit would be R2-ambiguous
-/// here ([CR#608.2d] — the announce-ambiguous shape). The frame wraps the
-/// slot in `As("target", …)` and rewrites the body's slot reads to
-/// `The("target")` — the explicit labeled read, never a guess.
+/// A TRIGGERED targeted body can't lean on the bare `It` fallback the
+/// spell/activated parsers use: several trigger events push their OWN role
+/// antecedents onto the resolving frame alongside the announced target — a
+/// dies/enters `ZoneChanged`, an attacks `Attacking`, a becomes-tapped
+/// `Tapped` all bind `endophora.that_object` on the very frame that also
+/// carries `endophora.targets` ([CR#608.2d]; see `resolve.rs`'s
+/// `StackObject::Triggered` frame build). The engine's `Reference::It`
+/// read refuses to guess between an event role and the announced target
+/// when both are bound, so it degrades to the null id — a silent fizzle,
+/// not a load error. Every production in this parser emits at most one
+/// target, so the body's `It` reads are rewritten to the positional
+/// `Target(0)` ([`target_slot_reads`]), never left bare.
 fn render(ability_word: Option<&str>, event: &str, parsed: &ParsedEffect) -> String {
     // [CR#207.2c]: the stripped ability-word label rides as render metadata.
     let word = ability_word.map_or_else(String::new, |w| format!("ability_word: \"{w}\", "));
     if parsed.targets.is_empty() {
         format!("Triggered({word}event: {event}, effect: {})", parsed.effect)
     } else {
-        let targets: Vec<String> = parsed
-            .targets
-            .iter()
-            .map(|spec| format!("As(\"target\", {spec})"))
-            .collect();
         format!(
             "Triggered({word}event: {event}, effect: Targeted(targets: [{}], effect: {}))",
-            targets.join(", "),
-            label_slot_reads(&parsed.effect),
+            parsed.targets.join(", "),
+            target_slot_reads(&parsed.effect),
         )
     }
 }
 
-/// Rewrites the effect productions' slot-anaphor reads (`It` — emitted only
-/// as the announced-slot read in targeted bodies; loop binders introduce
-/// their own `It` only in untargeted productions) to the labeled read
-/// `The("target")`. Token-exact (ASCII word boundaries — RON identifiers),
-/// so identifiers merely containing "It" are never touched.
-fn label_slot_reads(body: &str) -> String {
+/// Rewrites the effect body's slot-anaphor reads (`It` — emitted only as the
+/// announced-slot read in targeted bodies; loop binders introduce their own
+/// `It` only in untargeted productions) to the positional read `Target(0)`
+/// ([CR#115.3,601.2c]). Every production this parser's effect grammar reaches
+/// emits at most one target, so index 0 is always the right (and only)
+/// slot. Token-exact (ASCII word boundaries — RON identifiers), so
+/// identifiers merely containing "It" are never touched.
+fn target_slot_reads(body: &str) -> String {
     static IT_READ: std::sync::LazyLock<regex::Regex> =
         std::sync::LazyLock::new(|| regex::Regex::new(r"\bIt\b").unwrap());
-    IT_READ.replace_all(body, "The(\"target\")").into_owned()
+    IT_READ.replace_all(body, "Target(0)").into_owned()
 }
 
 /// Parses a trigger's event clause (the text between the trigger word and the
@@ -317,7 +320,7 @@ mod tests {
         assert_eq!(
             trig("When ~ dies, it deals 1 damage to any target.").as_deref(),
             Some(
-                "Triggered(event: ThisDies, effect: Targeted(targets: [As(\"target\", AnyTarget)], effect: DealDamage(The(\"target\"), 1)))"
+                "Triggered(event: ThisDies, effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
             )
         );
     }
@@ -409,7 +412,7 @@ mod tests {
             trig("When ~ dies, destroy target creature.").as_deref(),
             Some(
                 "Triggered(event: ThisDies, effect: \
-                 Targeted(targets: [As(\"target\", TargetOne(Creature))], effect: Destroy(The(\"target\"))))"
+                 Targeted(targets: [TargetOne(Creature)], effect: Destroy(Target(0))))"
             )
         );
     }
@@ -611,8 +614,8 @@ mod tests {
             trig("When ~ enters, attach it to target creature you control.").as_deref(),
             Some(
                 "Triggered(event: ThisEnters, effect: Targeted(targets: \
-                 [As(\"target\", TargetOne(AllOf([Creature, ControlledBy(Ref(You))])))], \
-                 effect: Attach(what: This, to: The(\"target\"))))"
+                 [TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))], \
+                 effect: Attach(what: This, to: Target(0))))"
             )
         );
     }

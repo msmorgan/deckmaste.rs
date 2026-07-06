@@ -78,33 +78,13 @@ mod tests {
         );
     }
 
-    /// `The(<label>)` — the labeled-antecedent fallback — round-trips.
+    /// `Target(n)` — the nth announced target — reads and round-trips.
     #[test]
-    fn the_label_round_trips() {
-        let v = Reference::The(crate::Ident::new("exiled"));
+    fn target_index_round_trips() {
+        let v = Reference::Target(0);
+        assert_eq!(read("Target(0)"), v);
         let written = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&written), v);
-    }
-
-    /// `A(filter)` — the indefinite determiner — defaults its actor to
-    /// `You` (omitted on write) and round-trips with an explicit actor.
-    #[test]
-    fn a_determiner_round_trips() {
-        let bare = read("A(filter: Type(Creature))");
-        let Reference::A { by, .. } = &bare else {
-            panic!("expected A, got {bare:?}");
-        };
-        assert_eq!(**by, Reference::You, "omitted by defaults to You");
-        let written = crate::ron::options().to_string(&bare).unwrap();
-        assert!(
-            !written.contains("by"),
-            "default by is omitted on write: {written}"
-        );
-        assert_eq!(read(&written), bare);
-
-        let explicit = read("A(filter: Type(Creature), by: Opponent)");
-        let written = crate::ron::options().to_string(&explicit).unwrap();
-        assert_eq!(read(&written), explicit);
     }
 }
 
@@ -141,6 +121,9 @@ pub enum Reference {
     /// compatible antecedent makes it a guess (the R2 gate): Lightning
     /// Bolt's `DealDamage(It, 3)` reads its one announced target.
     It,
+    /// The nth announced target ([CR#115.3,601.2c]); out-of-range degrades
+    /// to the null id (never-crash).
+    Target(usize),
     /// The triggering event's OBJECT — the doer/source ("that card"): the
     /// moving object of a zone change, the source of damage
     /// ([CR#603.2e,608.2k]). Mirrors the Idris `Reference.EventObject`
@@ -177,24 +160,6 @@ pub enum Reference {
     /// [`Selection::They`](crate::Selection::They) /
     /// [`Selection::Them`](crate::Selection::Them).
     That(crate::Sort),
-    /// The LABELED antecedent — the ambiguity fallback: reads the unique
-    /// antecedent introduced under `Label { as, effect }` — or a
-    /// [`TargetSpec::As`](crate::TargetSpec::As)-named announce slot — with
-    /// this name ([CR#608.2d]; the R2 gate's error text offers this
-    /// spelling). Replaces the sunset `Target(n)` index read for
-    /// announce-ambiguous bodies.
-    The(crate::Ident),
-    /// The indefinite determiner — "a creature", "an artifact you control":
-    /// `by` (the actor, default `You`) chooses one object matching `filter`
-    /// at resolution, and the choice pushes a Chosen antecedent for the
-    /// clauses to its right ([CR#608.2d]). Settles the sacrifice/discard
-    /// reference-vs-choice polarity: `Sacrifice(A(Type(Creature)))` is
-    /// "sacrifice a creature".
-    A {
-        filter: Box<crate::Filter>,
-        #[serde(default = "boxed_you", skip_serializing_if = "boxed_is_you")]
-        by: Box<Reference>,
-    },
     /// A named role bound by an event pattern or instruction (e.g. the
     /// attacker vs. the blocker).
     Bound(crate::Ident),
@@ -209,26 +174,7 @@ pub enum Reference {
     /// direction ([CR#301.5,303.4]).  Covers Equipment hosts, Aura
     /// enchantees, and Fortification hosts alike.
     AttachHostOf(Box<Reference>),
-    /// What is attached to R — host→attachment direction (inverse of
-    /// [`AttachHostOf`]).
-    AttachedTo(Box<Reference>),
     /// A remembered `Reference` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<Reference>),
-}
-
-/// serde default for [`Reference::A::by`] — the choosing actor is "you"
-/// unless the text names another ([CR#608.2d]).
-fn boxed_you() -> Box<Reference> {
-    Box::new(Reference::You)
-}
-
-/// `skip_serializing_if` predicate for [`Reference::A::by`]: the default
-/// `You` is omitted from RON.
-#[expect(
-    clippy::borrowed_box,
-    reason = "serde's skip_serializing_if passes the field type by reference"
-)]
-fn boxed_is_you(r: &Box<Reference>) -> bool {
-    matches!(**r, Reference::You)
 }

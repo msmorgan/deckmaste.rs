@@ -884,9 +884,12 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
 /// `None` for any payment shape besides the bare single sacrifice (the
 /// `EventObject` render then falls back to the plain "it").
 fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Option<String> {
+    use deckmaste_core::Binder;
     use deckmaste_core::CostComponent;
-    if let [CostComponent::Do(pa)] = cost
-        && let PlayerAction::Sacrifice(Reference::A { filter, .. }) = pa.as_ref()
+    if let [CostComponent::With { binder, body }] = cost
+        && let Binder::ChooseOne { filter, .. } = binder.as_ref()
+        && let [CostComponent::Do(pa)] = body.0.as_slice()
+        && let PlayerAction::Sacrifice(Reference::That(_)) = pa.as_ref()
     {
         return Some(format!("the sacrificed {}", fragment::filter_noun(filter)));
     }
@@ -1343,24 +1346,25 @@ mod tests {
         use deckmaste_core::CounterSpec;
 
         let slot = || TargetSpec::Target(Quantity::one(), Filter::creature());
-        let named_slot =
-            |name: &str| TargetSpec::As(deckmaste_core::Ident::new(name), Box::new(slot()));
-        let targets = [named_slot("from"), named_slot("to")];
+        let targets = [slot(), slot()];
         let ctx = Ctx {
             subject: "it",
             targets: &targets,
             that: None,
         };
-        let the = |name: &str| Reference::The(deckmaste_core::Ident::new(name));
-        let all = Action::MoveCounters(CounterSpec::AllKinds, the("from"), the("to"));
+        let all = Action::MoveCounters(
+            CounterSpec::AllKinds,
+            Reference::Target(0),
+            Reference::Target(1),
+        );
         assert_eq!(
             action(&all, &ctx),
             "Move all counters from target creature onto target creature."
         );
         let named = Action::MoveCounters(
             CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(1)),
-            the("from"),
-            the("to"),
+            Reference::Target(0),
+            Reference::Target(1),
         );
         assert_eq!(
             action(&named, &ctx),

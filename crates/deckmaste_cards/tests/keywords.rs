@@ -667,8 +667,9 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
 /// your hand`. Proves the macro expands to a `Triggered(ThisDies)` whose effect
 /// is a `May` over a `Targeted` whose one target filters
 /// Spirit ∧ in-your-graveyard ∧ mana value ≤ N (the printed `Param(0)`), and
-/// whose inner effect is `Move(The("target"), Hand)` — the slot is `As`-named
-/// because the dies-trigger's event roles make a bare anaphor R2-ambiguous.
+/// whose inner effect is `Move(Target(0), Hand)` — the announced target read
+/// back positionally (the dies-trigger's own event role rules out the bare
+/// `It` anaphor here).
 #[test]
 fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::Ability;
@@ -722,15 +723,8 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     };
     // One target whose filter is Spirit ∧ in-graveyard ∧ owned-by-you ∧ MV ≤ N.
     assert_eq!(t.targets.len(), 1, "soulshift targets exactly one card");
-    // The announce slot is `As`-named ([CR#608.2d]): the ThisDies event's
-    // roles are additional in-scope antecedents, so the body reads the slot
-    // explicitly as `The("target")`.
-    let TargetSpec::As(label, slot) = &t.targets[0] else {
-        panic!("expected an As-named slot; got {:?}", t.targets[0]);
-    };
-    assert_eq!(label.as_str(), "target");
-    let TargetSpec::Target(_, filter) = &**slot else {
-        panic!("expected a Target spec; got {slot:?}");
+    let TargetSpec::Target(_, filter) = &t.targets[0] else {
+        panic!("expected a Target spec; got {:?}", t.targets[0]);
     };
     let Filter::AllOf(clauses) = filter else {
         panic!("soulshift target is an AllOf; got {filter:?}");
@@ -769,10 +763,10 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
         matches!(
             &*t.effect,
             Effect::Act(Action::Move(
-                Reference::The(label),
+                Reference::Target(0),
                 Destination::Zone(Zone::Hand),
                 _,
-            )) if label.as_str() == "target"
+            ))
         ),
         "soulshift returns target to hand; got {:?}",
         t.effect

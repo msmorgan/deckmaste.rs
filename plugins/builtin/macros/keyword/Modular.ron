@@ -42,9 +42,9 @@
             Triggered(
                 event: ThisDies,
                 effect: May(effect: Targeted(
-                    targets: [As("target", Target(Exactly(1), AllOf([Type(Artifact), Type(Creature)])))],
+                    targets: [Target(Exactly(1), AllOf([Type(Artifact), Type(Creature)]))],
                     effect: PutCounters(
-                        The("target"),
+                        Target(0),
                         P1P1Counter,
                         CounterCount(This, P1P1Counter),
                     ),

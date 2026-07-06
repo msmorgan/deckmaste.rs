@@ -631,20 +631,6 @@ fn resolve_source_relative(
             .into_iter()
             .filter_map(|id| state.objects.get(id).and_then(|o| o.attached_to))
             .collect(),
-        // The inverse (host→attachment): every object whose `attached_to`
-        // points at the resolved host ([CR#613.7] deterministic id order). A
-        // host with multiple attachments fans out to all of them.
-        Reference::AttachedTo(inner) => {
-            let hosts: BTreeSet<ObjectId> = resolve_source_relative(state, source, inner)
-                .into_iter()
-                .collect();
-            state
-                .objects
-                .iter()
-                .filter(|o| o.attached_to.is_some_and(|h| hosts.contains(&h)))
-                .map(|o| o.id)
-                .collect()
-        }
         // Look through a remembered macro invocation.
         Reference::Expanded(e) => resolve_source_relative(state, source, &e.value),
         // Frame-dependent references only: `Target`, bindings (`Bound`,

@@ -799,11 +799,8 @@ mod tests {
     /// `By(You, …)`.
     #[test]
     fn new_verb_shapes_round_trip() {
-        let fight = Action::Fight(
-            Reference::The(crate::Ident::new("first")),
-            Reference::The(crate::Ident::new("second")),
-        );
-        assert_eq!(read(r#"Fight(The("first"), The("second"))"#), fight);
+        let fight = Action::Fight(Reference::Target(0), Reference::Target(1));
+        assert_eq!(read("Fight(Target(0), Target(1))"), fight);
         assert_eq!(read(&write(&fight)), fight);
 
         let phase = Action::ExtraPhase(crate::PhaseKind::Combat, Reference::You);
@@ -858,24 +855,21 @@ mod tests {
     fn move_counters_round_trips() {
         let named = Action::MoveCounters(
             crate::CounterSpec::Named(crate::CounterRef::from("P1P1Counter"), Count::Literal(1)),
-            Reference::The(crate::Ident::new("from")),
-            Reference::The(crate::Ident::new("to")),
+            Reference::Target(0),
+            Reference::Target(1),
         );
         assert_eq!(
-            read(r#"MoveCounters(Named(P1P1Counter, 1), The("from"), The("to"))"#),
+            read("MoveCounters(Named(P1P1Counter, 1), Target(0), Target(1))"),
             named,
         );
         assert_eq!(read(&write(&named)), named);
 
         let all = Action::MoveCounters(
             crate::CounterSpec::AllKinds,
-            Reference::The(crate::Ident::new("from")),
-            Reference::The(crate::Ident::new("to")),
+            Reference::Target(0),
+            Reference::Target(1),
         );
-        assert_eq!(
-            read(r#"MoveCounters(AllKinds, The("from"), The("to"))"#),
-            all,
-        );
+        assert_eq!(read("MoveCounters(AllKinds, Target(0), Target(1))"), all);
         assert_eq!(read(&write(&all)), all);
     }
 

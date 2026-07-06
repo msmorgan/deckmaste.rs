@@ -83,13 +83,6 @@ pub enum Selection {
     /// [`They`](Selection::They) with the sort constraint of
     /// [`Reference::That`](crate::Reference::That)).
     Them(crate::Sort),
-    /// The LABELED plural antecedent — piles and labeled groups: reads the
-    /// unique Many antecedent introduced under this label
-    /// (`Label { as, effect }`, a
-    /// [`SeparatePiles`](crate::Effect::SeparatePiles) pile label, or an
-    /// [`As`](crate::TargetSpec::As)-named plural announce slot)
-    /// ([CR#700.3a,608.2d]; the ambiguity fallback for groups).
-    TheGroup(crate::Ident),
     /// Piles noted earlier by a [`SeparatePiles`](crate::Effect::SeparatePiles)
     /// with a `note:` key, keyed by their divider: `of` names the player
     /// whose piles these are ([CR#700.3a]; the Whims-of-the-Fates per-player
@@ -208,12 +201,9 @@ mod tests {
         assert_eq!(read(&to_string(&v)), v);
     }
 
-    /// `TheGroup(<label>)` and `PilesOf { note, of }` — the labeled plural
-    /// reads — round-trip.
+    /// `PilesOf { note, of }` — the labeled plural read — round-trips.
     #[test]
-    fn labeled_groups_round_trip() {
-        let group = Selection::TheGroup(crate::Ident::new("a"));
-        assert_eq!(read(&to_string(&group)), group);
+    fn piles_of_round_trips() {
         let piles = Selection::PilesOf {
             note: crate::Ident::new("whims"),
             of: crate::Reference::It,

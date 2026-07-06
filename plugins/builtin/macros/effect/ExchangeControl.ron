@@ -7,7 +7,7 @@
 // if the entire exchange can't be completed, no part occurs; a
 // same-controller exchange does nothing, [CR#701.12b]).
 //
-// Usage: ExchangeControl(a, b) — e.g. ExchangeControl(The("first"), The("second")).
+// Usage: ExchangeControl(a, b) — e.g. ExchangeControl(Target(0), Target(1)).
 //
 // `Simultaneous`/`GainControl` are load-capped (`E-POS-SIMULTANEOUS`) to
 // THIS macro family's bodies until the engine's batch wiring generalizes.

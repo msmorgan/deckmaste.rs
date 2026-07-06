@@ -3386,7 +3386,7 @@ mod tests {
                     abilities: [
                         Triggered(
                             event: ThisEnters,
-                            effect: Targeted(targets: [As("target", TargetOne(Creature))], effect: DealDamage(The("target"), 1)),
+                            effect: Targeted(targets: [TargetOne(Creature)], effect: DealDamage(Target(0), 1)),
                         ),
                     ],
                 )"#,

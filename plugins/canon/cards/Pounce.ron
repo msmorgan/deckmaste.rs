@@ -17,10 +17,10 @@ Normal(
     Spell(
       effect: Targeted(
         targets: [
-          As("first", TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))),
-          As("second", TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))]))),
+          TargetOne(AllOf([Creature, ControlledBy(Ref(You))])),
+          TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))])),
         ],
-        effect: Fight(The("first"), The("second")),
+        effect: Fight(Target(0), Target(1)),
       ),
     ),
   ],

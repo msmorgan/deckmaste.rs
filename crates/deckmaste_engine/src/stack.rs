@@ -220,8 +220,8 @@ pub struct ThatBinding {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Endophora {
     /// Chosen at announce ([CR#601.2c]) or trigger placement ([CR#603.3d]);
-    /// read back by the slot-bound anaphors (`It`/`They`, or `The(label)`
-    /// for an `As`-named slot).
+    /// read back by the slot-bound anaphors (`It`/`They`, or by position via
+    /// `Reference::Target(n)`).
     pub targets: Vec<ObjectId>,
     /// A `Choose`/`Random` selection resolved into this scope for a re-run
     /// ([CR#608.2d]). Set only on the continuation the choice produces;
@@ -270,11 +270,6 @@ pub struct Endophora {
     /// read by `Condition::Crossed` at the trigger gate and the resolution
     /// recheck ([CR#603.4]). `None` outside a counter-event body.
     pub crossed: Option<(deckmaste_core::Uint, deckmaste_core::Uint)>,
-    /// `As`-NAMED announce slots ([CR#608.2d] labeled antecedents): label →
-    /// the slot's announced objects, filled when an `Effect::Targeted` node
-    /// resolves. Read by `Reference::The(label)` (a one-target slot) and
-    /// `Selection::TheGroup(label)` (a plural slot).
-    pub labeled: Vec<(deckmaste_core::Ident, Vec<ObjectId>)>,
 }
 
 impl Endophora {
@@ -296,7 +291,6 @@ impl Endophora {
             that_player: None,
             that_patient: None,
             crossed: None,
-            labeled: Vec::new(),
         }
     }
 }

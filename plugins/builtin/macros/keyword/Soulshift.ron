@@ -26,9 +26,10 @@
 //                     is the same graveyard-return filter shape (`AllOf([…,
 //                     InZone(Graveyard), Owner(Ref(You))])`) the engine's
 //                     graveyard-return cards use.
-//   - resolution:     `Move(It, Hand)` — the source-agent plain zone
-//                     change returning the chosen card to its owner's hand
-//                     ([CR#400.7]).
+//   - resolution:     `Move(Target(0), Hand)` — the positional announced-
+//                     target read (the dies-trigger's own event role rules
+//                     out the bare `It` anaphor here) returning the chosen
+//                     card to its owner's hand ([CR#400.7]).
 //
 // No engine gap: the mana-value target clause is the existing
 // `Stat(ManaValue, …)` characteristic filter ([CR#202.3]). Graduation (parse +
@@ -43,13 +44,13 @@
         abilities: [Triggered(
             event: ThisDies,
             effect: May(effect: Targeted(
-                targets: [As("target", Target(Exactly(1), AllOf([
+                targets: [Target(Exactly(1), AllOf([
                     Subtype("Spirit"),
                     InZone(Graveyard),
                     Owner(Ref(You)),
                     Stat(ManaValue, AtMost, Param(0)),
-                ])))],
-                effect: Move(The("target"), Hand),
+                ]))],
+                effect: Move(Target(0), Hand),
             )),
         )],
     ),

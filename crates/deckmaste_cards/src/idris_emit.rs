@@ -388,21 +388,11 @@ fn emit_reference(r: &Reference) -> R {
         Reference::EventActor => "EventActor".to_string(),
         Reference::DefendingPlayer => "DefendingPlayer".to_string(),
         Reference::That(sort) => app("That", vec![emit_sort(sort)?]),
-        Reference::The(label) => app("The", vec![ilit(label.as_str())]),
-        // `aBy` exposes the (default-`Nothing`) chooser positionally as a
-        // plain `Maybe`; a `You` chooser is the `Nothing` default.
-        Reference::A { filter, by } => {
-            let chooser = if matches!(by.as_ref(), Reference::You) {
-                "Nothing".to_string()
-            } else {
-                format!("(Just {})", emit_reference(by)?)
-            };
-            app("aBy", vec![emit_filter(filter)?, chooser])
-        }
+        // The nth announced target ([CR#115.3,601.2c]).
+        Reference::Target(n) => app("Target", vec![n.to_string()]),
         Reference::ControllerOf(r) => app("ControllerOf", vec![emit_reference(r)?]),
         Reference::OwnerOf(r) => app("OwnerOf", vec![emit_reference(r)?]),
         Reference::AttachHostOf(r) => app("AttachHostOf", vec![emit_reference(r)?]),
-        Reference::AttachedTo(r) => app("AttachedTo", vec![emit_reference(r)?]),
         Reference::Bound(_) => {
             return Err(gap(
                 "Reference::Bound (legacy role binding) has no Idris counterpart",
@@ -419,15 +409,11 @@ fn emit_reference(r: &Reference) -> R {
 
 /// Convert a `Reference` used where Idris wants a `Predicate` (Idris's
 /// `Sacrifice`/`ChooseOne`/… bake the choice INTO the predicate rather than
-/// pre-resolving it via a binder, unlike Rust's newer split). `A{filter,..}`
-/// unwraps to its filter directly (Idris's own "choose one matching" reading
-/// for that verb); anything else becomes `SameAs <ref>` (an already-resolved
-/// reference IS a predicate: "equal to r").
+/// pre-resolving it via a binder, unlike Rust's newer split). Every reference
+/// becomes `SameAs <ref>` (an already-resolved reference IS a predicate:
+/// "equal to r").
 fn reference_as_predicate(r: &Reference) -> R {
-    match r {
-        Reference::A { filter, .. } => emit_filter(filter),
-        other => Ok(app("SameAs", vec![emit_reference(other)?])),
-    }
+    Ok(app("SameAs", vec![emit_reference(r)?]))
 }
 
 // ===========================================================================
@@ -904,7 +890,6 @@ fn emit_selection(s: &Selection) -> R {
         }
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
-        Selection::TheGroup(label) => app("TheGroup", vec![ilit(label.as_str())]),
         Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),
         Selection::Pick { op, of, by } => {
             let op_name = match op {
@@ -946,9 +931,6 @@ fn emit_target_spec(t: &TargetSpec) -> R {
             let pred =
                 if matches!(f, Filter::Any) { any_target_predicate() } else { emit_filter(f)? };
             app("Target", vec![emit_quantity(q)?, pred])
-        }
-        TargetSpec::As(label, inner) => {
-            app("As", vec![ilit(label.as_str()), emit_target_spec(inner)?])
         }
         TargetSpec::Distinct(idxs, inner) => app(
             "Distinct",
