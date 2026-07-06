@@ -136,19 +136,6 @@ fn ilit(s: &str) -> String {
     format!("{s:?}")
 }
 
-/// Strip exactly ONE outer layer of parens from an already-fully-parenthesized
-/// application, so a named-arg override (`{actor = …}`, `{window = …}`, …)
-/// can be spliced in before re-wrapping in one fresh pair. `str::trim_matches`
-/// is the WRONG tool here — it strips every repeated occurrence of the
-/// pattern, eating inner closing parens too (`"(Draw (Literal 1))"` ->
-/// `"Draw (Literal 1"`, not `"Draw (Literal 1)"`) and corrupting the
-/// expression while still (sometimes) looking plausible.
-fn unwrap_outer(base: &str) -> &str {
-    base.strip_prefix('(')
-        .and_then(|s| s.strip_suffix(')'))
-        .unwrap_or(base)
-}
-
 fn try_maybe<T>(o: &Option<T>, f: impl Fn(&T) -> R) -> Result<String, Gap> {
     match o {
         None => Ok("Nothing".to_string()),
@@ -402,13 +389,15 @@ fn emit_reference(r: &Reference) -> R {
         Reference::DefendingPlayer => "DefendingPlayer".to_string(),
         Reference::That(sort) => app("That", vec![emit_sort(sort)?]),
         Reference::The(label) => app("The", vec![ilit(label.as_str())]),
+        // `aBy` exposes the (default-`Nothing`) chooser positionally as a
+        // plain `Maybe`; a `You` chooser is the `Nothing` default.
         Reference::A { filter, by } => {
-            let pred = emit_filter(filter)?;
-            if matches!(by.as_ref(), Reference::You) {
-                app("A", vec![pred])
+            let chooser = if matches!(by.as_ref(), Reference::You) {
+                "Nothing".to_string()
             } else {
-                format!("(A {} {{by = (Just {})}})", pred, emit_reference(by)?)
-            }
+                format!("(Just {})", emit_reference(by)?)
+            };
+            app("aBy", vec![emit_filter(filter)?, chooser])
         }
         Reference::ControllerOf(r) => app("ControllerOf", vec![emit_reference(r)?]),
         Reference::OwnerOf(r) => app("OwnerOf", vec![emit_reference(r)?]),
@@ -908,12 +897,10 @@ fn emit_selection(s: &Selection) -> R {
             return Err(gap("Selection::AmongNoted has no Idris counterpart"));
         }
         Selection::TopOfLibrary { count, of } => {
-            let base = format!("(TopOfLibrary {})", emit_count(count)?);
-            with_whose(base, of)
+            app("topFrom", vec![emit_count(count)?, emit_reference(of)?])
         }
         Selection::BottomOfLibrary { count, of } => {
-            let base = format!("(BottomOfLibrary {})", emit_count(count)?);
-            with_whose(base, of)
+            app("bottomFrom", vec![emit_count(count)?, emit_reference(of)?])
         }
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
@@ -938,21 +925,6 @@ fn emit_selection(s: &Selection) -> R {
             ));
         }
     })
-}
-
-/// Append a `{whose = …}` override to a base `TopOfLibrary`/`BottomOfLibrary`
-/// application when the owner isn't the default `You`.
-fn with_whose(base: String, of: &Reference) -> String {
-    if matches!(of, Reference::You) {
-        base
-    } else {
-        // Splice the named-arg override into the already-parenthesized base.
-        let inner = unwrap_outer(&base);
-        match emit_reference(of) {
-            Ok(r) => format!("({inner} {{whose = {r}}})"),
-            Err(_) => base,
-        }
-    }
 }
 
 /// `TargetSpec.Target`'s filter is a `Predicate b k` with `k` free (like the
@@ -1000,17 +972,21 @@ fn emit_binder(b: &deckmaste_core::Binder) -> R {
     use deckmaste_core::Binder as B;
     Ok(match b {
         B::TheRef(r) => app("TheRef", vec![emit_reference(r)?]),
-        B::ChooseOne { filter, by } => with_by(app("ChooseOne", vec![emit_filter(filter)?]), by),
+        B::ChooseOne { filter, by } => app(
+            "chooseOneBy",
+            vec![emit_reference(by)?, emit_filter(filter)?],
+        ),
         B::Choose {
             quantity,
             filter,
             by,
-        } => with_by(
-            app(
-                "Choose",
-                vec![emit_quantity(quantity)?, emit_filter(filter)?],
-            ),
-            by,
+        } => app(
+            "chooseBy",
+            vec![
+                emit_reference(by)?,
+                emit_quantity(quantity)?,
+                emit_filter(filter)?,
+            ],
         ),
         B::Existing(sel) => app("Existing", vec![emit_selection(sel)?]),
         B::Produce(action) => app("Produce", vec![emit_action(action)?]),
@@ -1027,18 +1003,6 @@ fn emit_binder(b: &deckmaste_core::Binder) -> R {
             ));
         }
     })
-}
-
-fn with_by(base: String, by: &Reference) -> String {
-    if matches!(by, Reference::You) {
-        base
-    } else {
-        let inner = unwrap_outer(&base);
-        match emit_reference(by) {
-            Ok(r) => format!("({inner} {{by = {r}}})"),
-            Err(_) => base,
-        }
-    }
 }
 
 // ===========================================================================
@@ -1108,13 +1072,11 @@ fn emit_with_cost_as_predicate_verb(binder: &deckmaste_core::Binder, body: &Cost
     match &normalized[0] {
         CostComponent::Do(action) => match action.as_ref() {
             PlayerAction::Sacrifice(Reference::That(_)) => {
-                let pred = emit_filter(filter)?;
-                let sac = if matches!(by, Reference::You) {
-                    format!("(Sacrifice {pred})")
-                } else {
-                    format!("(Sacrifice {{actor = {}}} {pred})", emit_reference(by)?)
-                };
-                Ok(format!("(Do {sac})"))
+                let sac = app(
+                    "sacrificeBy",
+                    vec![emit_reference(by)?, emit_filter(filter)?],
+                );
+                Ok(app("Do", vec![sac]))
             }
             _ => Err(gap(
                 "CostComponent::With body isn't the recognized Sacrifice(That) shape",
@@ -1163,6 +1125,13 @@ fn enter_riders_as_attacking(riders: &[EnterRider]) -> Result<Option<String>, Ga
     }
 }
 
+/// The `enteringAttacking` argument as a plain Idris `Maybe` — `Nothing` for
+/// no rider, `(Just <ref>)` for a lone `Attacking(Some(_))` — for the
+/// positional `moveAttacking`/`createTokenAttacking` helpers.
+fn attacking_maybe(riders: &[EnterRider]) -> R {
+    Ok(enter_riders_as_attacking(riders)?.unwrap_or_else(|| "Nothing".to_string()))
+}
+
 fn emit_counter_spec(c: &CounterSpec) -> R {
     Ok(match c {
         CounterSpec::Named(kind, count) => {
@@ -1180,18 +1149,15 @@ fn emit_counter_spec(c: &CounterSpec) -> R {
 
 fn emit_action(a: &Action) -> R {
     Ok(match a {
-        Action::DealDamage(patient, count, source) => {
-            let base = app(
-                "DealDamage",
-                vec![emit_reference(patient)?, emit_count(count)?],
-            );
-            if matches!(source, Reference::This) {
-                base
-            } else {
-                let inner = unwrap_outer(&base);
-                format!("({inner} {{source = {}}})", emit_reference(source)?)
-            }
-        }
+        // `dealDamageFrom` exposes the (default-`This`) `source` positionally.
+        Action::DealDamage(patient, count, source) => app(
+            "dealDamageFrom",
+            vec![
+                emit_reference(source)?,
+                emit_reference(patient)?,
+                emit_count(count)?,
+            ],
+        ),
         Action::Destroy(r) => app("Destroy", vec![emit_reference(r)?]),
         Action::ReturnToHand(r) => app(
             "Move",
@@ -1202,16 +1168,16 @@ fn emit_action(a: &Action) -> R {
             app("Attach", vec![emit_reference(what)?, emit_reference(to)?])
         }
         Action::Unattach(r) => app("Unattach", vec![emit_reference(r)?]),
-        Action::Move(r, dest, riders) => {
-            let base = app("Move", vec![emit_reference(r)?, emit_destination(dest)?]);
-            match enter_riders_as_attacking(riders)? {
-                None => base,
-                Some(attacking) => {
-                    let inner = unwrap_outer(&base);
-                    format!("({inner} {{enteringAttacking = {attacking}}})")
-                }
-            }
-        }
+        // `moveAttacking` exposes the (default-`Nothing`) `enteringAttacking`
+        // positionally as a plain `Maybe`.
+        Action::Move(r, dest, riders) => app(
+            "moveAttacking",
+            vec![
+                emit_reference(r)?,
+                emit_destination(dest)?,
+                attacking_maybe(riders)?,
+            ],
+        ),
         Action::MoveGroup {
             group,
             arrangement,
@@ -1262,20 +1228,14 @@ fn emit_action(a: &Action) -> R {
     })
 }
 
-/// Splice `{actor = <r>}` onto an already-parenthesized base application,
-/// only when `actor` differs from the default `You`.
-fn with_actor(base: String, actor: &Reference) -> R {
-    if matches!(actor, Reference::You) {
-        Ok(base)
-    } else {
-        let inner = unwrap_outer(&base);
-        Ok(format!("({inner} {{actor = {}}})", emit_reference(actor)?))
-    }
-}
-
 fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
+    // The player verbs whose Idris constructor carries a `{default You actor}`
+    // are emitted through the positional `<verb>By` helper, always passing the
+    // actor. The verbs whose Idris constructor has NO actor slot
+    // (`Reveal`/`PutCounters`/`Tap`/`Untap`/…) can only be the default `You`,
+    // so a non-`You` actor there is a gap.
     match pa {
-        PlayerAction::Draw(c) => with_actor(app("Draw", vec![emit_count(c)?]), actor),
+        PlayerAction::Draw(c) => Ok(app("drawBy", vec![emit_reference(actor)?, emit_count(c)?])),
         PlayerAction::Discard {
             count,
             what,
@@ -1286,39 +1246,50 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
                     "Discard{what|random} has no Idris Discard counterpart (Idris Discard is count-only)",
                 ));
             }
-            with_actor(app("Discard", vec![emit_count(count)?]), actor)
+            Ok(app(
+                "discardBy",
+                vec![emit_reference(actor)?, emit_count(count)?],
+            ))
         }
-        PlayerAction::GainLife(c) => with_actor(app("GainLife", vec![emit_count(c)?]), actor),
-        PlayerAction::LoseLife(c) => with_actor(app("LoseLife", vec![emit_count(c)?]), actor),
+        PlayerAction::GainLife(c) => Ok(app(
+            "gainLifeBy",
+            vec![emit_reference(actor)?, emit_count(c)?],
+        )),
+        PlayerAction::LoseLife(c) => Ok(app(
+            "loseLifeBy",
+            vec![emit_reference(actor)?, emit_count(c)?],
+        )),
         PlayerAction::AddMana(count, production) => {
             let (mana, riders) = emit_mana_production(production)?;
-            let mut base = app("AddMana", vec![emit_count(count)?, mana]);
-            if !riders.is_empty() {
-                let inner = unwrap_outer(&base);
-                base = format!("({inner} {{riders = {}}})", ilist(riders));
-            }
-            with_actor(base, actor)
+            Ok(app(
+                "addManaFull",
+                vec![
+                    emit_reference(actor)?,
+                    emit_count(count)?,
+                    mana,
+                    ilist(riders),
+                ],
+            ))
         }
         PlayerAction::Create(count, spec, riders) => {
-            let characteristics = emit_token_spec(spec)?;
-            let base = app("CreateToken", vec![emit_count(count)?, characteristics]);
-            let based = match enter_riders_as_attacking(riders)? {
-                None => base,
-                Some(attacking) => {
-                    let inner = unwrap_outer(&base);
-                    format!("({inner} {{enteringAttacking = {attacking}}})")
-                }
-            };
             // CreateToken has no `actor` field in Idris; the creator is
             // implicit.
             if !matches!(actor, Reference::You) {
                 return Err(gap("Create has no Idris actor slot"));
             }
-            Ok(based)
+            Ok(app(
+                "createTokenAttacking",
+                vec![
+                    emit_count(count)?,
+                    emit_token_spec(spec)?,
+                    attacking_maybe(riders)?,
+                ],
+            ))
         }
-        PlayerAction::Sacrifice(r) => {
-            with_actor(app("Sacrifice", vec![reference_as_predicate(r)?]), actor)
-        }
+        PlayerAction::Sacrifice(r) => Ok(app(
+            "sacrificeBy",
+            vec![emit_reference(actor)?, reference_as_predicate(r)?],
+        )),
         PlayerAction::Move(r, dest, riders) => {
             if !matches!(actor, Reference::You) {
                 return Err(gap("Move has no Idris actor slot"));
@@ -1330,7 +1301,7 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             // the graveyard. Idris has no bare `Mill` verb (only the
             // `KeywordActionSpec` composite tag over the primitives, per
             // `Core.idr`'s `Composite` doc comment), so it's rebuilt here.
-            let top = with_whose(format!("(TopOfLibrary {})", emit_count(n)?), actor);
+            let top = app("topFrom", vec![emit_count(n)?, emit_reference(actor)?]);
             let move_ = app(
                 "MoveArranged",
                 vec![
@@ -1347,15 +1318,15 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         PlayerAction::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?])),
         PlayerAction::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?])),
         PlayerAction::PutCounters(r, kind, count) => {
+            if !matches!(actor, Reference::You) {
+                return Err(gap("PutCounters has no Idris actor slot"));
+            }
             let k = counterkind_idris(kind.as_str())
                 .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
-            with_actor(
-                app(
-                    "PutCounters",
-                    vec![k.to_string(), emit_count(count)?, emit_reference(r)?],
-                ),
-                actor,
-            )
+            Ok(app(
+                "PutCounters",
+                vec![k.to_string(), emit_count(count)?, emit_reference(r)?],
+            ))
         }
         PlayerAction::RemoveCounters(r, kind, count) => {
             let k = counterkind_idris(kind.as_str())
@@ -1365,10 +1336,16 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
                 vec![k.to_string(), emit_count(count)?, emit_reference(r)?],
             ))
         }
-        PlayerAction::Shuffle => with_actor("Shuffle".to_string(), actor),
-        PlayerAction::SetLife(c) => with_actor(app("SetLifeTo", vec![emit_count(c)?]), actor),
+        PlayerAction::Shuffle => Ok(app("shuffleBy", vec![emit_reference(actor)?])),
+        PlayerAction::SetLife(c) => Ok(app(
+            "setLifeToBy",
+            vec![emit_reference(actor)?, emit_count(c)?],
+        )),
         PlayerAction::Reveal { what, .. } => {
-            with_actor(app("Reveal", vec![emit_reference(what)?]), actor)
+            if !matches!(actor, Reference::You) {
+                return Err(gap("Reveal has no Idris actor slot"));
+            }
+            Ok(app("Reveal", vec![emit_reference(what)?]))
         }
         PlayerAction::RemoveDamage(r) => Ok(app("RemoveAllDamage", vec![emit_reference(r)?])),
         PlayerAction::WinGame => Ok(app(
@@ -1696,9 +1673,15 @@ fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
                 &["(DealDamage Nothing)".to_string()],
                 &damage_facets(from, to)?,
             );
-            format!(
-                "(Replaces {q} (Sequence []) {{limit = (UpTo {})}})",
-                emit_count(n)?
+            // `replacesLimit` exposes the (default-`Unlimited`) `limit`
+            // positionally.
+            app(
+                "replacesLimit",
+                vec![
+                    q,
+                    "(Sequence [])".to_string(),
+                    format!("(UpTo {})", emit_count(n)?),
+                ],
             )
         }
         P::PreventNextInstance { .. } => {
@@ -1746,13 +1729,11 @@ fn emit_static_effect(se: &StaticEffect) -> R {
             for c in &oc.components {
                 costs.push(emit_cost_component(c)?);
             }
-            let base = app("CostOption", vec![ilit(oc.tag.as_str()), ilist(costs)]);
-            if oc.repeatable {
-                let inner = unwrap_outer(&base);
-                format!("({inner} {{repeatable = True}})")
-            } else {
-                base
-            }
+            let repeatable = if oc.repeatable { "True" } else { "False" };
+            app(
+                "costOptionRep",
+                vec![ilit(oc.tag.as_str()), ilist(costs), repeatable.to_string()],
+            )
         }
         StaticEffect::TriggerMultiplier {
             cause,
@@ -1760,19 +1741,14 @@ fn emit_static_effect(se: &StaticEffect) -> R {
             affected,
         } => {
             let (kinds, facets) = emit_event_filter(cause)?;
-            let base = app(
-                "TriggerMultiplier",
-                vec![event_query(&kinds, &facets), emit_count(extra)?],
-            );
-            let default_affected = Filter::Relation(RelationFilter::ControlledBy(Box::new(
-                Filter::Ref(Reference::You),
-            )));
-            if *affected == default_affected {
-                base
-            } else {
-                let inner = unwrap_outer(&base);
-                format!("({inner} {{affected = {}}})", emit_filter(affected)?)
-            }
+            app(
+                "triggerMultiplierFor",
+                vec![
+                    event_query(&kinds, &facets),
+                    emit_count(extra)?,
+                    emit_filter(affected)?,
+                ],
+            )
         }
         StaticEffect::ModifyPlayer(r, m) => app(
             "ModifyPlayer",
@@ -1879,12 +1855,13 @@ fn emit_can(action: &DeonticAction) -> R {
                     ilist(out)
                 }
             };
-            let mut base = format!("(MayCastFor {costs})");
-            if let Some(z) = from {
-                let inner = unwrap_outer(&base);
-                base = format!("({inner} {{from = [{}]}})", emit_zone(*z));
-            }
-            return Ok(base);
+            // `from` defaults to `[Hand]`; `mayCastForFrom` takes it
+            // positionally (leaving `tag`/`when` at their defaults).
+            let from_zones = match from {
+                None => "[Hand]".to_string(),
+                Some(z) => format!("[{}]", emit_zone(*z)),
+            };
+            return Ok(app("mayCastForFrom", vec![costs, from_zones]));
         }
         // No alternative cost: a plain cast permission (flash-shaped).
         let by_pred = if matches!(by, Filter::Any) {
@@ -1898,24 +1875,17 @@ fn emit_can(action: &DeonticAction) -> R {
             emit_filter(what)?
         };
         let deed = app("Enact", vec!["Cast".to_string(), by_pred, what_pred]);
-        let mut base = format!("(Can {deed})");
-        match window {
-            None => {}
-            Some(deckmaste_core::Timing::InstantSpeed) => {
-                let inner = unwrap_outer(&base);
-                base = format!("({inner} {{window = (Just AsInstant)}})");
-            }
-            Some(deckmaste_core::Timing::SorcerySpeed) => {
-                let inner = unwrap_outer(&base);
-                base = format!("({inner} {{window = (Just AsSorcery)}})");
-            }
+        let window_maybe = match window {
+            None => "Nothing".to_string(),
+            Some(deckmaste_core::Timing::InstantSpeed) => "(Just AsInstant)".to_string(),
+            Some(deckmaste_core::Timing::SorcerySpeed) => "(Just AsSorcery)".to_string(),
             Some(_) => {
                 return Err(gap(
                     "Timing::DuringTurn/DuringStep has no Idris Timing counterpart",
                 ));
             }
-        }
-        return Ok(base);
+        };
+        return Ok(app("canWindow", vec![deed, window_maybe]));
     }
     Ok(app("Can", vec![emit_deed(action)?]))
 }
@@ -2356,54 +2326,42 @@ fn emit_effect(e: &Effect) -> R {
         }
         Effect::SeparatePiles(sp) => emit_separate_piles(sp)?,
         Effect::ChoosePile(cp) => emit_choose_pile(cp)?,
-        Effect::May(m) => {
-            let effect = app("May", vec![emit_effect(&m.effect)?]);
-            let mut named = Vec::new();
-            if let Some(if_did) = &m.if_did {
-                named.push(format!("ifDid = (Just {})", emit_effect(if_did)?));
-            }
-            if let Some(if_not) = &m.if_not {
-                named.push(format!("ifNot = (Just {})", emit_effect(if_not)?));
-            }
-            with_named(effect, named)
-        }
-        Effect::If(i) => {
-            let base = app(
-                "If",
-                vec![emit_condition(&i.condition)?, emit_effect(&i.then)?],
-            );
-            match &i.otherwise {
-                None => base,
-                Some(otherwise) => {
-                    let inner = unwrap_outer(&base);
-                    format!(
-                        "({inner} {{otherwise = (Just {})}})",
-                        emit_effect(otherwise)?
-                    )
-                }
-            }
-        }
-        Effect::MayPay(m) => {
-            let base = app(
-                "MayPay",
-                vec![emit_cost(&m.cost)?, emit_effect(&m.and_then)?],
-            );
-            let base = with_effect_actor(base, &m.actor)?;
-            match &m.or_else {
-                None => base,
-                Some(or_else) => {
-                    let inner = unwrap_outer(&base);
-                    format!("({inner} {{or_else = (Just {})}})", emit_effect(or_else)?)
-                }
-            }
-        }
-        Effect::MustPay(m) => {
-            let base = app(
-                "MustPay",
-                vec![emit_cost(&m.cost)?, emit_effect(&m.or_else)?],
-            );
-            with_effect_actor(base, &m.actor)?
-        }
+        // `mayWith` takes the (default-`Nothing`) `ifDid`/`ifNot` positionally.
+        Effect::May(m) => app(
+            "mayWith",
+            vec![
+                emit_effect(&m.effect)?,
+                opt_effect(&m.if_did)?,
+                opt_effect(&m.if_not)?,
+            ],
+        ),
+        // `ifElse` takes the (default-`Nothing`) `otherwise` positionally.
+        Effect::If(i) => app(
+            "ifElse",
+            vec![
+                emit_condition(&i.condition)?,
+                emit_effect(&i.then)?,
+                opt_effect(&i.otherwise)?,
+            ],
+        ),
+        // `mayPayFull`/`mustPayBy` take the (default-`You`) actor positionally.
+        Effect::MayPay(m) => app(
+            "mayPayFull",
+            vec![
+                emit_reference(&m.actor)?,
+                emit_cost(&m.cost)?,
+                emit_effect(&m.and_then)?,
+                opt_effect(&m.or_else)?,
+            ],
+        ),
+        Effect::MustPay(m) => app(
+            "mustPayBy",
+            vec![
+                emit_reference(&m.actor)?,
+                emit_cost(&m.cost)?,
+                emit_effect(&m.or_else)?,
+            ],
+        ),
         Effect::AdditionalCost(ac) => app(
             "AdditionalCost",
             vec![emit_cost(&ac.pay)?, emit_effect(&ac.body)?],
@@ -2440,21 +2398,12 @@ fn emit_effect(e: &Effect) -> R {
     })
 }
 
-fn with_effect_actor(base: String, actor: &Reference) -> R {
-    if matches!(actor, Reference::You) {
-        Ok(base)
-    } else {
-        let inner = unwrap_outer(&base);
-        Ok(format!("({inner} {{actor = {}}})", emit_reference(actor)?))
-    }
-}
-
-fn with_named(base: String, named: Vec<String>) -> String {
-    if named.is_empty() {
-        base
-    } else {
-        let inner = unwrap_outer(&base);
-        format!("({inner} {{{}}})", named.join(", "))
+/// An optional sub-effect as a plain Idris `Maybe` — `Nothing`, or `(Just
+/// <effect>)` — for the positional `mayWith`/`ifElse`/`mayPayFull` helpers.
+fn opt_effect(e: &Option<Box<Effect>>) -> R {
+    match e {
+        None => Ok("Nothing".to_string()),
+        Some(inner) => Ok(format!("(Just {})", emit_effect(inner)?)),
     }
 }
 
@@ -2507,29 +2456,25 @@ fn emit_modal(m: &deckmaste_core::Modal) -> R {
 }
 
 fn emit_choose_spec(cs: &deckmaste_core::ChooseSpec) -> R {
-    let base = format!("(MkChooseSpec {})", emit_quantity(&cs.count)?);
-    Ok(if cs.repeats {
-        let inner = unwrap_outer(&base);
-        format!("({inner} {{repeats = True}})")
-    } else {
-        base
-    })
+    let repeats = if cs.repeats { "True" } else { "False" };
+    Ok(app(
+        "mkChooseSpecRep",
+        vec![emit_quantity(&cs.count)?, repeats.to_string()],
+    ))
 }
 
 fn emit_mode(m: &deckmaste_core::Mode) -> R {
-    let effect = emit_effect(&m.effect)?;
-    let base = format!("(MkMode {effect})");
-    Ok(match &m.cost {
-        None => base,
+    let cost_maybe = match &m.cost {
+        None => "Nothing".to_string(),
         Some(cs) => {
             let mut components = Vec::with_capacity(cs.len());
             for c in cs {
                 components.push(emit_cost_component(c)?);
             }
-            let inner = unwrap_outer(&base);
-            format!("({inner} {{cost = (Just (Costs {}))}})", ilist(components))
+            format!("(Just (Costs {}))", ilist(components))
         }
-    })
+    };
+    Ok(app("mkModeCost", vec![emit_effect(&m.effect)?, cost_maybe]))
 }
 
 fn emit_separate_piles(_sp: &deckmaste_core::SeparatePiles) -> R {
@@ -2550,40 +2495,40 @@ fn emit_choose_pile(_cp: &deckmaste_core::ChoosePile) -> R {
 fn emit_ability(a: &Ability) -> R {
     Ok(match a {
         Ability::Static(se) => app("Static", vec![emit_static_effect(se)?]),
+        // `activatedFull` exposes window/limits/from/activationGuard
+        // positionally (all default in the constructor).
         Ability::Activated(aa) => {
-            let base = app(
-                "Activated",
-                vec![emit_cost(&aa.cost)?, emit_effect(&aa.effect)?],
-            );
-            let mut named = Vec::new();
-            match aa.window {
-                None | Some(deckmaste_core::Timing::InstantSpeed) => {}
-                Some(deckmaste_core::Timing::SorcerySpeed) => {
-                    named.push("window = AsSorcery".to_string());
-                }
+            let window = match aa.window {
+                None | Some(deckmaste_core::Timing::InstantSpeed) => "AsInstant",
+                Some(deckmaste_core::Timing::SorcerySpeed) => "AsSorcery",
                 Some(_) => {
                     return Err(gap(
                         "ActivatedAbility.window not yet mapped (only Instant/SorcerySpeed)",
                     ));
                 }
-            }
-            if !aa.limits.is_empty() {
-                named.push(format!(
-                    "limits = {}",
-                    ilist(aa.limits.iter().map(emit_use_limit).collect())
-                ));
-            }
-            if let Some(z) = aa.from {
-                named.push(format!("from = [{}]", emit_zone(z)));
-            }
-            if let Some(cond) = &aa.condition {
-                named.push(format!(
-                    "activationGuard = (Just {})",
-                    emit_condition(cond)?
-                ));
-            }
-            with_named(base, named)
+            };
+            let limits = ilist(aa.limits.iter().map(emit_use_limit).collect());
+            let from = match aa.from {
+                None => "[Battlefield]".to_string(),
+                Some(z) => format!("[{}]", emit_zone(z)),
+            };
+            let guard = match &aa.condition {
+                None => "Nothing".to_string(),
+                Some(cond) => format!("(Just {})", emit_condition(cond)?),
+            };
+            app(
+                "activatedFull",
+                vec![
+                    emit_cost(&aa.cost)?,
+                    emit_effect(&aa.effect)?,
+                    window.to_string(),
+                    limits,
+                    from,
+                    guard,
+                ],
+            )
         }
+        // `triggeredFull` exposes limits/from positionally.
         Ability::Triggered(ta) => {
             let (kinds, mut facets) = emit_event_filter(&ta.event)?;
             if let Some(cond) = &ta.condition {
@@ -2592,21 +2537,20 @@ fn emit_ability(a: &Ability) -> R {
             if ta.where_x.is_some() {
                 return Err(gap("TriggeredAbility.where_x not yet mapped"));
             }
-            let base = app(
-                "Triggered",
-                vec![event_query(&kinds, &facets), emit_effect(&ta.effect)?],
-            );
-            let mut named = Vec::new();
-            if !ta.limits.is_empty() {
-                named.push(format!(
-                    "limits = {}",
-                    ilist(ta.limits.iter().map(emit_use_limit).collect())
-                ));
-            }
-            if let Some(z) = ta.from {
-                named.push(format!("from = [{}]", emit_zone(z)));
-            }
-            with_named(base, named)
+            let limits = ilist(ta.limits.iter().map(emit_use_limit).collect());
+            let from = match ta.from {
+                None => "[Battlefield]".to_string(),
+                Some(z) => format!("[{}]", emit_zone(z)),
+            };
+            app(
+                "triggeredFull",
+                vec![
+                    event_query(&kinds, &facets),
+                    emit_effect(&ta.effect)?,
+                    limits,
+                    from,
+                ],
+            )
         }
         Ability::Spell(sa) => app("Spell", vec![emit_effect(&sa.effect)?]),
         Ability::Keyword(ka) => app("Keyword", vec![emit_keyword_ability(ka)?]),

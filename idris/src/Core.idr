@@ -2799,3 +2799,140 @@ typeConfers : Type_ -> List (Ability b)
 typeConfers Planeswalker = [Static (Can (Enact Attack (HasChar Types Creature) (SameAs This)))]
 typeConfers Battle       = [Static (Can (Enact Attack (HasChar Types Creature) (SameAs This)))]
 typeConfers _            = []
+
+-- ===========================================================================
+-- EMITTER-TARGET POSITIONAL HELPERS. The RON→Idris re-emit gate
+-- (`deckmaste_cards::idris_emit`) authors card expressions mechanically and
+-- MUST NOT write curly-brace named-argument syntax (`{field = val}`). The
+-- constructors below carry ergonomic `{default …}` params for HAND authoring
+-- (Cards/Macros/Spec keep using them terse, untouched); these thin aliases
+-- expose each emitter-overridden param POSITIONALLY so the generated
+-- expression is a plain fully-parenthesized application. Purely additive —
+-- no existing signature or default changes.
+-- ===========================================================================
+
+public export
+topFrom : Count b -> Reference b APlayer -> Selection b AnObject
+topFrom c w = TopOfLibrary c {whose = w}
+
+public export
+bottomFrom : Count b -> Reference b APlayer -> Selection b AnObject
+bottomFrom c w = BottomOfLibrary c {whose = w}
+
+public export
+chooseOneBy : Reference b APlayer -> Predicate b k -> Bindable b One k
+chooseOneBy by p = ChooseOne {by} p
+
+public export
+chooseBy : Reference b APlayer -> Quantity b -> Predicate b k -> Bindable b Many k
+chooseBy by q p = Choose {by} q p
+
+public export
+dealDamageFrom : Reference b AnObject -> Reference b k -> Count b -> Action b
+dealDamageFrom src r c = DealDamage {source = src} r c
+
+public export
+moveAttacking : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d}
+             -> Maybe (Reference b APlayer) -> Action b
+moveAttacking r d ea = Move r d {enteringAttacking = ea}
+
+public export
+drawBy : Reference b APlayer -> Count b -> Action b
+drawBy a c = Draw {actor = a} c
+
+public export
+gainLifeBy : Reference b APlayer -> Count b -> Action b
+gainLifeBy a c = GainLife {actor = a} c
+
+public export
+discardBy : Reference b APlayer -> Count b -> Action b
+discardBy a c = Discard {actor = a} c
+
+public export
+loseLifeBy : Reference b APlayer -> Count b -> Action b
+loseLifeBy a c = LoseLife {actor = a} c
+
+public export
+setLifeToBy : Reference b APlayer -> Count b -> Action b
+setLifeToBy a c = SetLifeTo {actor = a} c
+
+public export
+sacrificeBy : Reference b APlayer -> Predicate b AnObject -> Action b
+sacrificeBy a p = Sacrifice {actor = a} p
+
+public export
+shuffleBy : Reference b APlayer -> Action b
+shuffleBy a = Shuffle {actor = a}
+
+public export
+addManaFull : Reference b APlayer -> Count b -> ProducedMana -> List (ManaRider b) -> Action b
+addManaFull a amt pm rs = AddMana {actor = a} amt pm {riders = rs}
+
+public export
+createTokenAttacking : Count b -> (c : Characteristics b) -> {auto 0 wf : CharacteristicsOk c}
+                    -> Maybe (Reference b APlayer) -> Action b
+createTokenAttacking n c ea = CreateToken n c {enteringAttacking = ea}
+
+public export
+costOptionRep : String -> List (Cost b) -> Bool -> StaticEffect b
+costOptionRep t cs r = CostOption t cs {repeatable = r}
+
+public export
+triggerMultiplierFor : (cause : EventQuery b) -> Count b -> Predicate b AnObject -> StaticEffect b
+triggerMultiplierFor c e a = TriggerMultiplier c e {affected = a}
+
+public export
+mayCastForFrom : List (Cost b) -> List Zone -> StaticEffect b
+mayCastForFrom cs z = MayCastFor cs {from = z}
+
+public export
+canWindow : Deed b -> Maybe Timing -> StaticEffect b
+canWindow d w = Can d {window = w}
+
+public export
+ifElse : Condition b -> (thenDo : OneShotEffect b) -> Maybe (OneShotEffect b) -> OneShotEffect b
+ifElse c t e = If c t {otherwise = e}
+
+public export
+mayWith : (effect : OneShotEffect b) -> Maybe (OneShotEffect (intro effect b))
+       -> Maybe (OneShotEffect b) -> OneShotEffect b
+mayWith e did notd = May e {ifDid = did} {ifNot = notd}
+
+public export
+mayPayFull : Reference b APlayer -> (cost : Cost b)
+          -> (and_then : OneShotEffect (bindEvent (costCaps cost) (costRoles (costCaps cost)) b))
+          -> Maybe (OneShotEffect b) -> OneShotEffect b
+mayPayFull a c at oe = MayPay {actor = a} c at {or_else = oe}
+
+public export
+mustPayBy : Reference b APlayer -> Cost b -> (or_else : OneShotEffect b) -> OneShotEffect b
+mustPayBy a c oe = MustPay {actor = a} c oe
+
+public export
+mkChooseSpecRep : Quantity b -> Bool -> ChooseSpec b
+mkChooseSpecRep q r = MkChooseSpec q {repeats = r}
+
+public export
+mkModeCost : (effect : OneShotEffect b) -> Maybe (Cost b) -> Mode b
+mkModeCost e c = MkMode e {cost = c}
+
+public export
+activatedFull : Cost b -> OneShotEffect b -> Timing -> List UsageLimit -> List Zone
+             -> Maybe (Condition b) -> Ability b
+activatedFull c e w l f g = Activated c e {window = w} {limits = l} {from = f} {activationGuard = g}
+
+public export
+triggeredFull : (q : EventQuery b)
+             -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b)
+             -> List UsageLimit -> List Zone -> Ability b
+triggeredFull q e l f = Triggered q e {limits = l} {from = f}
+
+public export
+aBy : Predicate b k -> Maybe (Reference b APlayer) -> Reference b k
+aBy p by = A p {by = by}
+
+public export
+replacesLimit : (q : EventQuery b)
+             -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b)
+             -> ReplaceLimit b -> StaticEffect b
+replacesLimit q e l = Replaces q e {limit = l}

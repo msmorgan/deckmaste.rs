@@ -614,5 +614,4 @@ mod tests {
             .expect("expected duplicate error");
         assert!(format!("{err:#}").contains("already defined"), "{err:#}");
     }
-
 }

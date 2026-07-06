@@ -21,8 +21,8 @@
 //!    construction (`macro_ron(flatten)` dispatch, or bare-numeral sugar) — a
 //!    text search for the tag name is structurally meaningless, not evidence of
 //!    disuse.
-//!  - `ACCEPT_ALLOWLIST`: a real gap, with a reason each entry's author
-//!    stands behind.
+//!  - `ACCEPT_ALLOWLIST`: a real gap, with a reason each entry's author stands
+//!    behind.
 //!
 //! The load-time elaborator this sweep's reject-fixture half depended on
 //! ([CR#-tagged binding-context walk] — `deckmaste_cards::elaborate`) was
