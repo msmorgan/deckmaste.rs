@@ -585,11 +585,12 @@ tGlobalSbas =
               (Compare (CountersOn loyaltyCounter This) Eq (^0))
               (Act (Move This (ToZone Graveyard))) ]
 
--- new verbs (scry/fight/token/search/copy) all typecheck
+-- new verbs (scry/token/search/copy) all typecheck. (Fight is now a RON macro
+-- over `DealDamage`; its emitted form is covered by the canon idris-check, not a
+-- hand-written helper here.)
 tVerbs : List (OneShotEffect Base)
 tVerbs =
   [ scry (Literal 2)
-  , fight This (Only creature)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
   , With (SearchOne {from = [Library, Graveyard]} (HasName "Forest")) (Act (Move (That Card) (ToZone Hand)))  -- tutor across two zones; the found card is a whiffable Product, noun `Card`
   , Act (Copy (Only (IsKind Spell))) ]

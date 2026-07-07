@@ -46,15 +46,16 @@ impl GameState {
                 } else if let Some(snapshot) = Self::bound_snapshot(reference, frame) {
                     self.filter_matches_snapshot(filter, snapshot, watcher)
                 } else {
-                    // A gone object with no bound snapshot: the reference cannot
-                    // be evaluated. No card reaches here today (the only gone
-                    // references are the snapshot-bound trigger roles); a future
-                    // gone-but-unbound reference is a real seam, not a silent
-                    // `false`.
-                    todo!(
-                        "engine-filter-breadth: Is({reference:?}, …) over a gone object with no \
-                         bound LKI snapshot"
-                    )
+                    // A gone object with no bound LKI snapshot matches no
+                    // CURRENT-state filter — it is not on the battlefield, has no
+                    // characteristics to test — so the sound answer is `false`
+                    // (never a panic; authoring mistakes fizzle, [CR#608.2b]).
+                    // First consumer: fight's both-or-neither guard
+                    // `Is(Target(n), Creature)` when a fighter has left the
+                    // battlefield ([CR#701.14b]) — the whole fight then no-ops.
+                    // A gone reference that WANTS its last-known state reads via
+                    // the snapshot path above (trigger roles), not here.
+                    false
                 }
             }
 

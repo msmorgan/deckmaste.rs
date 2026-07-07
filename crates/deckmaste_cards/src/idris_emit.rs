@@ -1309,34 +1309,6 @@ fn emit_action(a: &Action) -> R {
                 "Action::GainControl has no Idris one-shot Action counterpart (only the continuous Modification)",
             ));
         }
-        // `Fight` ([CR#701.14a]): the two creatures deal damage equal to their
-        // power to each other, simultaneously. The engine keeps `Action::Fight`
-        // as a primitive; the Idris soundness check sees the FAITHFUL expansion
-        // — the same shape as the hand-written `fight` macro — so the same two
-        // references get exercised. `Composite Fight` tags it recognizably (the
-        // "whenever ~ fights" hook); the body is the pair of `dealDamageFrom`
-        // clauses. The recipient sits in a kind-poly `Reference b k` slot with
-        // nothing to pin `k`, so it takes the curly-free `damageTarget`/`Anything`
-        // reading (via `emit_reference_anykind`), exactly like a plain
-        // `DealDamage` recipient; the source + `StatOf` positions are `AnObject`
-        // and pin themselves.
-        Action::Fight(a, b) => {
-            let clause = |src: &Reference, tgt: &Reference| -> R {
-                Ok(app(
-                    "Act",
-                    vec![app(
-                        "dealDamageFrom",
-                        vec![
-                            emit_reference(src)?,
-                            emit_reference_anykind(tgt)?,
-                            app("StatOf", vec![emit_reference(src)?, "Power".to_string()]),
-                        ],
-                    )],
-                ))
-            };
-            let body = app("Sequence", vec![ilist(vec![clause(a, b)?, clause(b, a)?])]);
-            app("Composite", vec!["Fight".to_string(), body])
-        }
         Action::ExtraPhase(..) => return Err(gap("Action::ExtraPhase has no Idris counterpart")),
         Action::BecomeDay | Action::BecomeNight => {
             return Err(gap("day/night has no Idris counterpart"));
@@ -2460,9 +2432,10 @@ fn emit_effect(e: &Effect) -> R {
     Ok(match e {
         Effect::Act(a) => app("Act", vec![emit_action(a)?]),
         Effect::Sequence(es) => app("Sequence", vec![map_list(es, emit_effect)?]),
-        Effect::Simultaneous(_) => {
-            return Err(gap("Effect::Simultaneous has no Idris counterpart"));
-        }
+        // One pre-application snapshot, one batch ([CR#701.14a]) — a plain list
+        // (no `SeqList` threading, unlike `Sequence`). Fight's guarded body
+        // rides this.
+        Effect::Simultaneous(es) => app("Simultaneous", vec![map_list(es, emit_effect)?]),
         Effect::Continuously(c) => app(
             "Continuously",
             vec![emit_duration(&c.duration)?, emit_static_effect(&c.effect)?],

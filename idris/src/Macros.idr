@@ -233,16 +233,12 @@ surveil n = Act (Composite Surveil
       [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
       , MkMode (Act (Move It (ToZone Graveyard))) ])))
 
--- fight ([CR#701.14a]): two creatures each deal damage equal to their power to the other (simultaneous).
--- The refs are RANK-2 (context-polymorphic): the second clause of the desugaring sits one telescope cell
--- to the right of the first (which introduced an amount antecedent), so a fixed-context reference could
--- not cross — the simultaneity is the engine's; the macro just needs the refs at both cells. (Positional
--- fight arguments — the Pounce `Target n` shape — ride the Rust `Fight` verb, not this macro.)
-public export
-fight : ({0 c : Ctx} -> Reference c AnObject) -> ({0 c : Ctx} -> Reference c AnObject) -> OneShotEffect b
-fight x y = Act (Composite Fight
-  (Sequence [ Act (DealDamage {source = x} y (StatOf x Power))
-            , Act (DealDamage {source = y} x (StatOf y Power)) ]))
+-- fight is no longer a hand-written Idris macro: it's a RON grammar macro over
+-- `DealDamage` (`plugins/builtin/macros/effect/Fight.ron`). Its emitted form —
+-- `Composite Fight (If (And [Matches …]) (Simultaneous [dealDamageFrom …, …]))`,
+-- guarding both-or-neither ([CR#701.14b]) with the engine coalescing a
+-- self-fight's packets ([CR#701.14c]) — is exercised by the canon idris-check
+-- (Pounce), not a helper here.
 
 -- "Protection from [q]" ([CR#702.16]): the DEBT bundle, keyed to the quality `q` — can't be Damaged by
 -- `q` sources, Enchanted/equipped by `q`, Blocked by `q`, or Targeted by `q`. ONE construct over the

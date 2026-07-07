@@ -2232,6 +2232,13 @@ mutual
       -- sentence order IS binder order, so "Exile target creature, then
       -- return THAT CARD" needs no binder inversion. Rust: Effect::Sequence.
       Sequence : SeqList b -> OneShotEffect b
+      -- SIMULTANEOUS ([CR#701.14a]): every member reads ONE pre-application
+      -- snapshot and the facts land as a single batch — NOT a telescope, so
+      -- members don't thread introductions to each other (plain `List`, not
+      -- `SeqList`). Fight's two `DealDamage` halves each read the pre-damage
+      -- powers; a self-fight's same-source/same-target packets coalesce to one
+      -- 2x instance ([CR#701.14c], engine-side). Rust: Effect::Simultaneous.
+      Simultaneous : List (OneShotEffect b) -> OneShotEffect b
       -- each announced slot carries its OWN kind (its filter's), gathered as `ks : List RefKind`
       -- (a heterogeneous `All`); the slots push antecedents the body reads back as anaphors
       -- ([CR#115.3,601.2c]) — mixed-kind multi-target (Donate) disambiguates by SORT, same-sort

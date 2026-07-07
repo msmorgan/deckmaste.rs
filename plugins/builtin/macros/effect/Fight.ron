@@ -1,0 +1,39 @@
+// "Fight" ([CR#701.14a]): two creatures each deal damage equal to their power
+// to the other, simultaneously. NOT a primitive verb — a macro over `DealDamage`.
+//
+// - [CR#701.14b] both-or-neither: the `If` guard fires the batch only when BOTH
+//   fighters are still creatures on the battlefield (`Creature` = a creature
+//   permanent). If either isn't, `then` never runs — neither deals damage, and
+//   `Composite`'s `KeywordActionPerformed{Fight}` is suppressed (no fight, no
+//   "fights" trigger).
+// - simultaneity: the `Simultaneous` batch — both halves read the pre-damage
+//   powers and land together, SBAs after the whole batch.
+// - [CR#701.14c] self-fight: same object both sides → two `X -> X` packets, which
+//   the engine coalesces (same source+target in one batch) into ONE 2x instance.
+// - [CR#701.14d] fight damage is never combat damage (`DealDamage`'s default).
+//
+// Each half spells its source explicitly (`DealDamage(target, amount, source)`),
+// so the dealer is the OTHER creature (deathtouch/lifelink attribution, Pounce
+// redirect). `Creature` inlined as `AllOf([Permanent, Type(Creature)])` to avoid
+// a nested macro in a macro body.
+//
+// Usage: Fight(a, b) — e.g. Fight(Target(0), Target(1)).
+(
+    name: "Fight",
+    template: "${0} fights ${1}",
+    kinds: [Effect],
+    params: [Reference, Reference],
+    body: Composite(
+        name: "Fight",
+        body: If(
+            condition: AllOf([
+                Is(Param(0), AllOf([Permanent, Type(Creature)])),
+                Is(Param(1), AllOf([Permanent, Type(Creature)])),
+            ]),
+            then: Simultaneous([
+                DealDamage(Param(1), StatOf(Param(0), Power), Param(0)),
+                DealDamage(Param(0), StatOf(Param(1), Power), Param(1)),
+            ]),
+        ),
+    ),
+)

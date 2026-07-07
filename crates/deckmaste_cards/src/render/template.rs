@@ -21,6 +21,23 @@ pub(super) fn expanded<T>(e: &Expansion<T>, subject: &str) -> Option<String> {
 /// `{…}` is a literal game symbol (mana, `{T}`, …) and passes through
 /// untouched, which is why `${…}` — not `{…}` — is the placeholder sigil.
 pub(super) fn fill(template: &str, subject: &str, args: &ExpansionArgs) -> Option<String> {
+    fill_with(template, subject, args, |raw, modifier| {
+        render_slot(raw, modifier)
+    })
+}
+
+/// Like [`fill`], but the caller supplies `resolve`: how a looked-up raw arg
+/// (with its optional `:modifier`) becomes text. [`fill`] passes the
+/// context-free [`render_slot`]; the effect renderer passes a `ctx`-aware
+/// resolver so a `Reference` arg (a fight's `Target(n)`) renders via
+/// `fragment::reference` — which this layer can't call directly without a
+/// module cycle, so the resolver is injected from above.
+pub(super) fn fill_with(
+    template: &str,
+    subject: &str,
+    args: &ExpansionArgs,
+    resolve: impl Fn(&str, Option<&str>) -> Option<String>,
+) -> Option<String> {
     let mut out = String::new();
     let mut chars = template.char_indices().peekable();
     while let Some((_, c)) = chars.next() {
@@ -46,12 +63,12 @@ pub(super) fn fill(template: &str, subject: &str, args: &ExpansionArgs) -> Optio
                     let (key, modifier) = split_modifier(value);
                     if let Some(raw) = lookup_arg(args, key) {
                         out.push_str(prefix);
-                        out.push_str(&render_slot(raw, modifier)?);
+                        out.push_str(&resolve(raw, modifier)?);
                         out.push_str(suffix);
                     }
                 } else {
                     let (key, modifier) = split_modifier(content.trim());
-                    out.push_str(&render_slot(lookup_arg(args, key)?, modifier)?);
+                    out.push_str(&resolve(lookup_arg(args, key)?, modifier)?);
                 }
             }
             other => out.push(other),
@@ -81,7 +98,7 @@ fn split_modifier(spec: &str) -> (&str, Option<&str>) {
 ///   count as a number word ("a card" / "three cards"). A dynamic (non-literal)
 ///   arg renders `<arg> <plur>` (the natural plural reading of a variable
 ///   count).
-fn render_slot(raw: &str, modifier: Option<&str>) -> Option<String> {
+pub(super) fn render_slot(raw: &str, modifier: Option<&str>) -> Option<String> {
     let Some(modifier) = modifier else {
         return render_arg(raw);
     };

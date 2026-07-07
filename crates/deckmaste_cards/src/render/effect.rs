@@ -70,10 +70,28 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
             out.push('.');
             out
         }
-        Effect::Expanded(e) => match super::template::expanded(e, ctx.subject) {
-            Some(s) => ensure_period(&s),
-            None => effect(&e.value, ctx),
-        },
+        // A macro invocation renders via its template. Args are resolved
+        // context-aware here (the template layer is context-free and can't reach
+        // `fragment`): a `Reference` arg — a fight's `Target(n)` — renders as its
+        // phrase ("target creature you control"), so `${0} fights ${1}` reads
+        // back to oracle; other args keep the context-free `render_slot`. The
+        // sentence is capitalized (a reference-leading template starts lower).
+        Effect::Expanded(e) => {
+            let filled = e.template.as_deref().and_then(|tmpl| {
+                super::template::fill_with(tmpl, ctx.subject, &e.args, |raw, modifier| {
+                    if modifier.is_none()
+                        && let Ok(r) = deckmaste_core::ron::options().from_str::<Reference>(raw)
+                    {
+                        return Some(fragment::reference(&r, ctx));
+                    }
+                    super::template::render_slot(raw, modifier)
+                })
+            });
+            match filled {
+                Some(s) => ensure_period(&capitalize_first(&s)),
+                None => effect(&e.value, ctx),
+            }
+        }
         Effect::Continuously(c) => {
             let clause = super::ability::static_effect_one_shot(&c.effect, ctx).map_or_else(
                 || format!("[unrendered: {:?}]", c.effect),
@@ -633,13 +651,6 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 where_x.map_or_else(String::new, |w| format!(", {w}")),
             )
         }
-        // [CR#701.14a]: "X fights Y" — each deals damage equal to its power
-        // to the other, printed as the single fight verb.
-        Action::Fight(a, b) => format!(
-            "{} fights {}.",
-            capitalize_first(&fragment::reference(a, ctx)),
-            fragment::reference(b, ctx)
-        ),
         Action::Destroy(r) => format!("Destroy {}.", fragment::reference(r, ctx)),
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
         // target spell" (Mana Leak's punisher branch).

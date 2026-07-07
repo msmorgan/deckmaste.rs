@@ -499,6 +499,14 @@ impl GameState {
                     return;
                 }
                 let events: Vec<GameEvent> = member_events.into_iter().flatten().collect();
+                // [CR#701.14c]: a creature that fights itself deals ONE instance
+                // equal to twice its power — not two. Within a simultaneous
+                // batch, damage from the same source to the same target (same
+                // combat-ness) is one instance; coalesce by summing amounts so a
+                // self-fight's two `X -> X` packets become one `2x` event. Fight
+                // is the only damage-bearing `Simultaneous` today; other member
+                // events (e.g. exchange `ControlChanged`) pass through untouched.
+                let events = coalesce_simultaneous_damage(events);
                 self.schedule_front(vec![WorkItem::Emit(crate::event::Occurrence::Batch(
                     events,
                 ))]);
@@ -1075,6 +1083,19 @@ impl GameState {
                 }
                 _ => true,
             },
+            // A guarded keyword action — e.g. fight fires no "fights" event when
+            // either creature is no longer a creature on the battlefield
+            // ([CR#701.14b], the `If (both are creatures) …` guard). Look
+            // through to whichever branch the condition selects.
+            Effect::If(i) => {
+                if self.condition_holds(&i.condition, frame) {
+                    self.composite_body_acts(&i.then, frame)
+                } else {
+                    i.otherwise
+                        .as_ref()
+                        .is_some_and(|o| self.composite_body_acts(o, frame))
+                }
+            }
             _ => true,
         }
     }
@@ -1492,52 +1513,6 @@ impl GameState {
             // its power to the other — a PRIMITIVE verb with native
             // semantics, never `Simultaneous` sugar (fight is its own CR
             // event family).
-            Action::Fight(a, b) => {
-                let x = self.eval_reference(a, frame);
-                let y = self.eval_reference(b, frame);
-                let view = self.layers();
-                // [CR#701.14b]: both-or-neither — if either is no longer a
-                // creature on the battlefield when the fight would occur,
-                // NEITHER fights or deals damage.
-                let fighting = |id: ObjectId| {
-                    self.objects
-                        .get(id)
-                        .is_some_and(|o| o.zone == Some(Zone::Battlefield))
-                        && view.get(id).card_types.contains(&Type::Creature)
-                };
-                if !fighting(x) || !fighting(y) {
-                    return vec![];
-                }
-                // [CR#701.14d]: fight damage is never combat damage.
-                let events: Vec<GameEvent> = if x == y {
-                    // [CR#701.14c]: a self-fight deals damage to itself
-                    // equal to TWICE its power — one damage instance.
-                    vec![GameEvent::DamageDealt {
-                        source: x,
-                        target: x,
-                        amount: 2 * Self::power_of(&view, x),
-                        combat: false,
-                    }]
-                } else {
-                    // One simultaneous batch: both packets land together,
-                    // SBAs after the whole batch ([CR#701.14a]).
-                    vec![
-                        GameEvent::DamageDealt {
-                            source: x,
-                            target: y,
-                            amount: Self::power_of(&view, x),
-                            combat: false,
-                        },
-                        GameEvent::DamageDealt {
-                            source: y,
-                            target: x,
-                            amount: Self::power_of(&view, y),
-                            combat: false,
-                        },
-                    ]
-                };
-                vec![WorkItem::Emit(occurrence_of(events))]
-            }
             Action::ExtraPhase(..) => {
                 todo!("engine seam: extra phases ([CR#500.8]) — turn-structure insertion unbuilt")
             }
@@ -3048,6 +3023,47 @@ fn occurrence_of(mut events: Vec<GameEvent>) -> crate::event::Occurrence {
     } else {
         Occurrence::Batch(events)
     }
+}
+
+/// Merge simultaneous `DamageDealt` packets sharing `(source, target, combat)`
+/// into one instance by summing amounts, preserving first-seen order; every
+/// other event passes through unchanged. This is what makes a self-fight
+/// (`X` fights `X` → two `X -> X` packets) deal ONE instance of twice its power
+/// ([CR#701.14c]) rather than two, once `Fight` is a `Simultaneous` macro over
+/// two `DealDamage`s. Distinct-target fights (the common case) are untouched.
+fn coalesce_simultaneous_damage(events: Vec<GameEvent>) -> Vec<GameEvent> {
+    let mut out: Vec<GameEvent> = Vec::with_capacity(events.len());
+    for ev in events {
+        if let GameEvent::DamageDealt {
+            source,
+            target,
+            amount,
+            combat,
+        } = ev
+        {
+            let existing = out.iter_mut().find_map(|e| match e {
+                GameEvent::DamageDealt {
+                    source: s,
+                    target: t,
+                    amount: a,
+                    combat: c,
+                } if *s == source && *t == target && *c == combat => Some(a),
+                _ => None,
+            });
+            match existing {
+                Some(a) => *a += amount,
+                None => out.push(GameEvent::DamageDealt {
+                    source,
+                    target,
+                    amount,
+                    combat,
+                }),
+            }
+        } else {
+            out.push(ev);
+        }
+    }
+    out
 }
 
 /// Extracts the `Predicate` from a `TargetSpec`. Stage 3 only handles
@@ -4779,36 +4795,91 @@ mod tests {
         );
     }
 
-    /// [CR#701.14a]: a fight — each creature deals damage equal to its
-    /// power to the other, as ONE simultaneous batch of noncombat
-    /// ([CR#701.14d]) damage facts; SBAs run after the whole batch.
+    /// The `Fight` grammar macro's expansion ([CR#701.14a]): `Composite Fight`
+    /// wrapping `If (both fighters are creatures on the battlefield —
+    /// [CR#701.14b]) (Simultaneous [each deals its power to the OTHER, source =
+    /// itself])`. Slots `x`/`y` are the two fighters. Mirrors
+    /// `plugins/builtin/macros/effect/Fight.ron` (the guard's `Permanent` is
+    /// spelled here as `InZone(Battlefield)`, an equivalent for the test).
+    fn fight_effect(x: Reference, y: Reference) -> Effect {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Stat;
+        use deckmaste_core::StatePredicate;
+        let is_creature = |r: &Reference| {
+            Condition::Is(
+                r.clone(),
+                Predicate::AllOf(vec![
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                ]),
+            )
+        };
+        let half = |tgt: &Reference, src: &Reference| {
+            Effect::Act(Action::DealDamage(
+                tgt.clone(),
+                Count::StatOf(src.clone(), Stat::Power),
+                src.clone(),
+            ))
+        };
+        Effect::Act(Action::Composite {
+            name: "Fight".into(),
+            body: Box::new(Effect::If(deckmaste_core::If {
+                condition: Condition::AllOf(vec![is_creature(&x), is_creature(&y)]),
+                then: Box::new(Effect::Simultaneous(vec![half(&y, &x), half(&x, &y)])),
+                otherwise: None,
+            })),
+        })
+    }
+
+    /// [CR#701.14a]: a fight — each creature deals damage equal to its power to
+    /// the other, as ONE simultaneous batch of noncombat ([CR#701.14d]) damage
+    /// facts; SBAs run after the whole batch. The `Composite Fight` fires its
+    /// keyword-action fact once the guarded body acts.
     #[test]
     fn fight_deals_each_others_power_as_one_noncombat_batch() {
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src_targets(a, vec![a, b]);
         state.run_effect(
-            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            fight_effect(Reference::Target(0), Reference::Target(1)),
             &frame,
         );
-        // The scheduled work is ONE Emit of a two-packet batch.
-        let front = state.agenda.front().cloned();
-        let Some(WorkItem::Emit(Occurrence::Batch(events))) = front else {
-            panic!("expected one batch Emit, got {front:?}");
-        };
-        assert_eq!(events.len(), 2, "both damage packets in one occurrence");
+        // Both packets land as ONE applied batch occurrence.
+        let batch = drain_progress(&mut state, 30)
+            .into_iter()
+            .find_map(|p| match p {
+                Progress::Applied(Occurrence::Batch(evs))
+                    if evs
+                        .iter()
+                        .all(|e| matches!(e, GameEvent::DamageDealt { .. })) =>
+                {
+                    Some(evs)
+                }
+                _ => None,
+            })
+            .expect("one batch of fight damage");
+        assert_eq!(batch.len(), 2, "both damage packets in one occurrence");
         assert!(
-            events
+            batch
                 .iter()
                 .all(|e| matches!(e, GameEvent::DamageDealt { combat: false, .. })),
-            "fight damage is noncombat damage ([CR#701.14d]), got {events:?}"
+            "fight damage is noncombat damage ([CR#701.14d]), got {batch:?}"
         );
-        run_injected(&mut state);
         assert_eq!(state.objects.obj(a).damage, 2, "a took b's power");
         assert_eq!(state.objects.obj(b).damage, 2, "b took a's power");
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::KeywordActionPerformed { .. }
+            )),
+            "the fight fired its 'fights' keyword-action fact"
+        );
     }
 
-    /// [CR#701.14b]: both-or-neither — a fighter that is no longer on the
-    /// battlefield when the fight would occur means NEITHER deals damage.
+    /// [CR#701.14b]: both-or-neither — a fighter that is no longer a creature on
+    /// the battlefield when the fight would occur means NEITHER deals damage,
+    /// and no "fights" fact fires (the `If` guard is false).
     #[test]
     fn fight_with_a_gone_fighter_deals_no_damage_at_all() {
         let (mut state, a, b) = two_permanents_on_field();
@@ -4817,24 +4888,33 @@ mod tests {
         state.objects.remove(b);
         let frame = frame_src_targets(a, vec![a, b]);
         state.run_effect(
-            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            fight_effect(Reference::Target(0), Reference::Target(1)),
             &frame,
         );
+        run_injected(&mut state);
         assert!(
-            !state.agenda.iter().any(|w| matches!(w, WorkItem::Emit(_))),
+            !logged(&state, |e| matches!(e, GameEvent::DamageDealt { .. })),
             "neither creature deals damage ([CR#701.14b])"
+        );
+        assert!(
+            !logged(&state, |e| matches!(
+                e,
+                GameEvent::KeywordActionPerformed { .. }
+            )),
+            "no fight occurred, so no 'fights' fact"
         );
         assert_eq!(state.objects.obj(a).damage, 0);
     }
 
-    /// [CR#701.14c]: a creature fighting itself deals damage to itself
-    /// equal to TWICE its power.
+    /// [CR#701.14c]: a creature fighting itself deals damage to itself equal to
+    /// TWICE its power — the macro's two `X -> X` packets coalesce to one
+    /// instance in the simultaneous batch.
     #[test]
     fn self_fight_deals_twice_its_power_to_itself() {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src_targets(a, vec![a, a]);
         state.run_effect(
-            Effect::Act(Action::Fight(Reference::Target(0), Reference::Target(1))),
+            fight_effect(Reference::Target(0), Reference::Target(1)),
             &frame,
         );
         run_injected(&mut state);
@@ -4852,7 +4932,7 @@ mod tests {
                     ..
                 }
             )),
-            "one damage instance of twice its power"
+            "one coalesced damage instance of twice its power"
         );
     }
 

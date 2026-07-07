@@ -112,8 +112,8 @@ pub enum Action {
     /// defaults to `This` (the ability's source object / the resolving spell,
     /// the implicit agent) and is omitted on write when default, so the common
     /// case stays `DealDamage(It, 3)`. An explicit source expresses
-    /// redirected/arbitrary-source damage ([`Fight`](Action::Fight) is the
-    /// dedicated two-way form, [CR#701.14a]).
+    /// redirected/arbitrary-source damage — e.g. each half of a fight, where a
+    /// creature deals damage equal to its power to the other ([CR#701.14a]).
     DealDamage(
         Reference,
         Count,
@@ -183,14 +183,6 @@ pub enum Action {
     /// ("gain control until end of turn") are the continuous layer-2 form,
     /// not this verb.
     GainControl(Reference, Reference),
-    /// Two creatures fight ([CR#701.14a]): each deals damage equal to its
-    /// power to the other, as one simultaneous noncombat batch. A PRIMITIVE
-    /// with native semantics — both-or-neither (a fight happens only if
-    /// both are still creatures on the battlefield, [CR#701.14b]),
-    /// self-fight = twice its power to itself ([CR#701.14c]), and the
-    /// damage isn't combat damage ([CR#701.14d]). Never `Simultaneous`
-    /// sugar — fight is its own CR event family.
-    Fight(Reference, Reference),
     /// Add an extra phase of the given kind to the referenced player's turn,
     /// directly after the current phase ([CR#500.8]).
     ExtraPhase(crate::PhaseKind, Reference),
@@ -784,17 +776,13 @@ mod tests {
         }
     }
 
-    /// The new verb shapes — `Fight` ([CR#701.14a]), `ExtraPhase`
-    /// ([CR#500.8]), day/night ([CR#731.1]), `TheRingTempts` ([CR#701.54a]),
-    /// and the player verbs `Mill` ([CR#701.17a]) / `VentureIntoDungeon`
-    /// ([CR#701.49a]) — read and round-trip; the player verbs read bare as
-    /// `By(You, …)`.
+    /// The new verb shapes — `ExtraPhase` ([CR#500.8]), day/night
+    /// ([CR#731.1]), `TheRingTempts` ([CR#701.54a]), and the player verbs
+    /// `Mill` ([CR#701.17a]) / `VentureIntoDungeon` ([CR#701.49a]) — read and
+    /// round-trip; the player verbs read bare as `By(You, …)`. (Fight is now a
+    /// grammar macro over `DealDamage`, not a primitive verb.)
     #[test]
     fn new_verb_shapes_round_trip() {
-        let fight = Action::Fight(Reference::Target(0), Reference::Target(1));
-        assert_eq!(read("Fight(Target(0), Target(1))"), fight);
-        assert_eq!(read(&write(&fight)), fight);
-
         let phase = Action::ExtraPhase(crate::PhaseKind::Combat, Reference::You);
         assert_eq!(read("ExtraPhase(Combat, You)"), phase);
         assert_eq!(read(&write(&phase)), phase);
