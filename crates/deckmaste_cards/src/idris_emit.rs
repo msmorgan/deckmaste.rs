@@ -58,9 +58,14 @@ use deckmaste_core::CostChange;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::CountBound;
+use deckmaste_core::Counter;
+use deckmaste_core::CounterScope;
 use deckmaste_core::CounterSpec;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
+use deckmaste_core::DesignationDecl;
+use deckmaste_core::DesignationDef;
+use deckmaste_core::DesignationScope;
 use deckmaste_core::Destination;
 use deckmaste_core::Effect;
 use deckmaste_core::EnterRider;
@@ -95,6 +100,8 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Token;
 use deckmaste_core::TokenSpec;
 use deckmaste_core::Type;
+
+use crate::plugin::Plugin;
 
 /// A Rust grammar shape this emitter doesn't (yet) translate to Idris —
 /// either a genuine expressiveness gap between the two grammars (report
@@ -333,26 +340,87 @@ fn emit_subtype_ref(name: &str) -> R {
     Ok(format!("(MkSubtype {cat} {name:?} [])"))
 }
 
-/// The curated counter-registry name (`plugins/builtin/macros/counters/*`) ->
-/// the Idris `CounterKind` constructor. Idris's `CounterKind` is a small
-/// closed set (12 kinds); the Rust registry is open (plugin-declared), so
-/// only the kinds Idris also models typecheck.
-fn counterkind_idris(name: &str) -> Option<&'static str> {
-    Some(match name {
-        "P1P1Counter" => "P1P1",
-        "M1M1Counter" => "M1M1",
-        "LoyaltyCounter" => "Loyalty",
-        "LoreCounter" => "Lore",
-        "Poison" => "Poison",
-        "Energy" => "Energy",
-        "Experience" => "Experience",
-        "FateCounter" => "Fate",
-        "ChargeCounter" => "Charge",
-        "LevelCounter" => "Level",
-        "StunCounter" => "Stun",
-        "ShieldCounter" => "Shield",
-        _ => return None,
-    })
+/// The Idris `Scope` token for a counter's carrier scope — `Object`/`Player`,
+/// the two members of the open `CounterKind`/`Designation` value's scope index
+/// (both map into `RefKind` via `scopeRef`).
+fn scope_idris(scope: &CounterScope) -> &'static str {
+    match scope {
+        CounterScope::Object => "Object",
+        CounterScope::Player => "Player",
+    }
+}
+
+/// The Idris `Scope` token for a designation's scope. `DesignationScope::Game`
+/// has no `RefKind`/`Scope` analogue (nothing in Idris is game-scoped, and no
+/// macro registry row uses it), so it gaps (`None`).
+fn designation_scope_idris(scope: &DesignationScope) -> Option<&'static str> {
+    match scope {
+        DesignationScope::Object => Some("Object"),
+        DesignationScope::Player => Some("Player"),
+        DesignationScope::Game => None,
+    }
+}
+
+thread_local! {
+    /// Counter name -> its Idris `Scope` token (`"Object"`/`"Player"`), rebuilt
+    /// from the loaded plugin's counter registry at each [`emit_card_expr`]
+    /// entry. A counter REFERENCE names a counter by identity only; its scope
+    /// (a dependent type index on the reference-taking constructors) resolves
+    /// here, from the same open registry the macro layer declares.
+    static COUNTER_SCOPE: RefCell<HashMap<String, &'static str>> = RefCell::new(HashMap::new());
+
+    /// Designation name -> its Idris `Scope` token, mirror of [`COUNTER_SCOPE`]
+    /// for designation references.
+    static DESIGNATION_SCOPE: RefCell<HashMap<String, &'static str>> = RefCell::new(HashMap::new());
+}
+
+/// Populate [`COUNTER_SCOPE`] from a plugin's counter registry. Called once per
+/// card at emit entry.
+fn load_counter_scopes<S>(counters: &HashMap<Ident, Counter, S>) {
+    COUNTER_SCOPE.with(|m| {
+        let mut m = m.borrow_mut();
+        m.clear();
+        for counter in counters.values() {
+            m.insert(
+                counter.name.as_str().to_string(),
+                scope_idris(&counter.scope),
+            );
+        }
+    });
+}
+
+/// Populate [`DESIGNATION_SCOPE`] from a plugin's designation registry. A
+/// `Stored` designation carries its scope; `Derived`/`DerivedIf` designations
+/// carry none, so default to object scope. Game-scoped designations have no
+/// Idris `Scope` and are simply absent (a reference then gaps).
+fn load_designation_scopes<S>(designations: &HashMap<Ident, DesignationDecl, S>) {
+    DESIGNATION_SCOPE.with(|m| {
+        let mut m = m.borrow_mut();
+        m.clear();
+        for decl in designations.values() {
+            let scope = match &decl.definition {
+                DesignationDef::Stored { scope, .. } => {
+                    let Some(scope) = designation_scope_idris(scope) else {
+                        continue;
+                    };
+                    scope
+                }
+                DesignationDef::Derived(_) | DesignationDef::DerivedIf(_) => "Object",
+            };
+            m.insert(decl.name.as_str().to_string(), scope);
+        }
+    });
+}
+
+/// Emit a counter REFERENCE by name — `(MkCounterKind <Scope> "<name>" [])`, no
+/// confers (a reference is an identity: "how many P1P1 counters?", not what
+/// they confer) — with the scope resolved from the registry loaded at emit
+/// entry. Gaps if the name isn't in the loaded counter registry.
+fn counter_ref_idris(name: &str) -> R {
+    let scope = COUNTER_SCOPE
+        .with(|m| m.borrow().get(name).copied())
+        .ok_or_else(|| gap(format!("counter not in registry: {name}")))?;
+    Ok(format!("(MkCounterKind {scope} {name:?} [])"))
 }
 
 /// The keyword NAME (`Ability::Keyword`'s `KeywordAbility::Composite.name`,
@@ -615,18 +683,12 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
             }
         }
         StatePredicate::HasCounter(c) => {
-            let kind = counterkind_idris(c.as_str()).ok_or_else(|| {
-                gap(format!(
-                    "unmapped counter kind in HasCounter: {}",
-                    c.as_str()
-                ))
-            })?;
-            app("HasCounter", vec![kind.to_string()])
+            let k = counter_ref_idris(c.as_str())?;
+            app("HasCounter", vec![k])
         }
         StatePredicate::Designated(name) => {
-            let d = designation_idris(name.as_str())
-                .ok_or_else(|| gap(format!("unmapped designation: {}", name.as_str())))?;
-            app("HasDesignation", vec![d.to_string()])
+            let d = designation_ref_idris(name.as_str())?;
+            app("HasDesignation", vec![d])
         }
         StatePredicate::RelatedBy(..) => {
             return Err(gap(
@@ -649,19 +711,15 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
     })
 }
 
-fn designation_idris(name: &str) -> Option<&'static str> {
-    Some(match name {
-        "Monarch" => "Monarch",
-        "TheInitiative" => "TheInitiative",
-        "CitysBlessing" => "CitysBlessing",
-        "Monstrous" => "Monstrous",
-        "Goaded" => "Goaded",
-        "Renowned" => "Renowned",
-        "Suspected" => "Suspected",
-        "Saddled" => "Saddled",
-        "Solved" => "Solved",
-        _ => return None,
-    })
+/// Emit a designation REFERENCE by name — `(MkDesignation <Scope> "<name>" [])`
+/// — with the scope resolved from the registry loaded at emit entry. Gaps if
+/// the name isn't in the loaded registry (including a game-scoped or otherwise
+/// unmapped designation).
+fn designation_ref_idris(name: &str) -> R {
+    let scope = DESIGNATION_SCOPE
+        .with(|m| m.borrow().get(name).copied())
+        .ok_or_else(|| gap(format!("designation not in registry: {name}")))?;
+    Ok(format!("(MkDesignation {scope} {name:?} [])"))
 }
 
 fn emit_relation_filter(rf: &RelationPredicate) -> R {
@@ -825,9 +883,8 @@ fn emit_count(c: &Count) -> R {
             }
         }
         Count::CounterCount(r, kind) => {
-            let k = counterkind_idris(kind.as_str())
-                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
-            app("CountersOn", vec![k.to_string(), emit_reference(r)?])
+            let k = counter_ref_idris(kind.as_str())?;
+            app("CountersOn", vec![k, emit_reference(r)?])
         }
         Count::Min(a, b) => app("Min", vec![emit_count(a)?, emit_count(b)?]),
         Count::Max(a, b) => app("Max", vec![emit_count(a)?, emit_count(b)?]),
@@ -1187,9 +1244,8 @@ fn attacking_maybe(riders: &[EnterRider]) -> R {
 fn emit_counter_spec(c: &CounterSpec) -> R {
     Ok(match c {
         CounterSpec::Named(kind, count) => {
-            let k = counterkind_idris(kind.as_str())
-                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
-            app("Some", vec![k.to_string(), emit_count(count)?])
+            let k = counter_ref_idris(kind.as_str())?;
+            app("Some", vec![k, emit_count(count)?])
         }
         CounterSpec::AllKinds => "AllKinds".to_string(),
     })
@@ -1411,19 +1467,17 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             if !matches!(actor, Reference::You) {
                 return Err(gap("PutCounters has no Idris actor slot"));
             }
-            let k = counterkind_idris(kind.as_str())
-                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
+            let k = counter_ref_idris(kind.as_str())?;
             Ok(app(
                 "PutCounters",
-                vec![k.to_string(), emit_count(count)?, emit_reference(r)?],
+                vec![k, emit_count(count)?, emit_reference(r)?],
             ))
         }
         PlayerAction::RemoveCounters(r, kind, count) => {
-            let k = counterkind_idris(kind.as_str())
-                .ok_or_else(|| gap(format!("unmapped counter kind: {}", kind.as_str())))?;
+            let k = counter_ref_idris(kind.as_str())?;
             Ok(app(
                 "RemoveCounters",
-                vec![k.to_string(), emit_count(count)?, emit_reference(r)?],
+                vec![k, emit_count(count)?, emit_reference(r)?],
             ))
         }
         PlayerAction::Shuffle => Ok(app("shuffleBy", vec![emit_reference(actor)?])),
@@ -2764,15 +2818,18 @@ fn emit_characteristics_from_face(face: &CardFace) -> R {
 /// mapped yet (Idris's `TwoFaced` needs two full `Face`s and this emitter has
 /// no two-faced canon fixture to validate against).
 ///
-/// `subtypes` is the loaded plugin's subtype registry (`plugin.subtypes`); it
-/// resolves the category of a subtype named by REFERENCE in a filter or
-/// `Alter Subtypes` op (which carry a name without its `types`).
+/// `plugin` supplies the loaded subtype/counter/designation registries; they
+/// resolve the category of a subtype and the scope of a counter/designation
+/// named by REFERENCE (a filter, an `Alter Subtypes` op, a `CountersOn`, …),
+/// which carry a name without the rest of the registry row.
 ///
 /// # Errors
 /// A [`Gap`] naming the first Rust grammar shape encountered with no (or
 /// not-yet-implemented) Idris translation.
-pub fn emit_card_expr<S>(card: &Card, subtypes: &HashMap<Ident, Subtype, S>) -> R {
-    load_subtype_categories(subtypes);
+pub fn emit_card_expr(card: &Card, plugin: &Plugin) -> R {
+    load_subtype_categories(&plugin.subtypes);
+    load_counter_scopes(&plugin.counters);
+    load_designation_scopes(&plugin.designations);
     match card {
         Card::Normal(face) => Ok(app("Normal", vec![emit_characteristics_from_face(face)?])),
         Card::TwoFaced { .. } => Err(gap("Card::TwoFaced not yet mapped")),

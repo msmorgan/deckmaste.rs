@@ -282,10 +282,10 @@ tYouAreAttacked = MkEventQuery [Begins Attack] [Patient you]
 tAttacksOrBlocks : EventQuery Base
 tAttacksOrBlocks = MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs This)]
 
--- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
--- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
+-- designations: ONE predicate, scope by type — `HasDesignation monarch` is a PLAYER test (you're the
+-- monarch), `HasDesignation monstrous` an OBJECT test. The carrier follows `designationKindScope`.
 tMonarchTest : Predicate Base APlayer
-tMonarchTest = HasDesignation Monarch
+tMonarchTest = HasDesignation monarch
 
 -- an as-enters value choice in scope: `OfChosen` reads "the chosen color" under a `bindChosen AColor`
 -- binding (Iona: "spells of the chosen color"). The card-level `AsEnters AColor` opens this binding.
@@ -395,7 +395,7 @@ tManaPersists = ManaPersists you
 -- (`counterConfers` → `Static (Modify …)`), and the Saga subtype confers the lore-increment `TurnBased`
 -- action (`subtypeConfers`) — engine-read, no special-casing.
 tCounterConfers : List (Ability Base)
-tCounterConfers = counterConfers P1P1
+tCounterConfers = counterConfers p1p1
 
 tSubtypeConfers : List (Ability Base)
 tSubtypeConfers = subtypeConfers (saga)
@@ -473,7 +473,7 @@ tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveCounters AllKinds T
 
 -- single-kind move (Power Conduit / Leech Bonder): the general primitive that was previously inexpressible
 tMoveSomeCounters : OneShotEffect Base
-tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some P1P1 (^1)) This It))
+tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some p1p1 (^1)) This It))
 
 tMayCastFor : StaticEffect Base
 tMayCastFor = MayCastFor [Do (LoseLife (^1))]
@@ -521,8 +521,8 @@ tDevotion = Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
-tCounters = Sequence [ Each (Existing (SelectAll creature)) (Act (PutCounters P1P1 (Literal 1) It))
-                     , Each (Existing (SelectAll (Not (HasCounter P1P1)))) (Act (Destroy It)) ]
+tCounters = Sequence [ Each (Existing (SelectAll creature)) (Act (PutCounters p1p1 (Literal 1) It))
+                     , Each (Existing (SelectAll (Not (HasCounter p1p1)))) (Act (Destroy It)) ]
 
 -- anthem: a static `Each` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
@@ -530,7 +530,7 @@ tAnthem = Static (Each (Existing (SelectAll (And [hasType Creature, ControlledBy
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
-tLoyalty = Activated (Do (RemoveCounters Loyalty (Literal 2) This)) (Act (Draw (^1)))
+tLoyalty = Activated (Do (RemoveCounters loyaltyCounter (Literal 2) This)) (Act (Draw (^1)))
 
 -- the value language: arithmetic, player attributes, counters-on, new stats, that-much
 tValues : List (Count Base)
@@ -538,9 +538,9 @@ tValues =
   [ Plus (lifeTotal You) (handSize You)
   , Times (CountMatching creature) (Literal 2)
   , Half RoundUp (StatOf This Power)
-  , CountersOn P1P1 This
+  , CountersOn p1p1 This
   , ManaValueOf This                                     -- derived mana value ([CR#202.3]) — not a characteristic
-  , Min (CountersOn P1P1 This) (CountersOn M1M1 This)   -- net counters after annihilation
+  , Min (CountersOn p1p1 This) (CountersOn m1m1 This)   -- net counters after annihilation
   , Max (StatOf This Power) (^0)
   , Damage This                                          -- marked damage
   , EventAgg SumOf (MkEventQuery [DealDamage Nothing] [Actor opponent])    -- fold matching events' amounts (old `EventSum`); kinds amount-gated
@@ -582,7 +582,7 @@ tGlobalSbas =
               (Act (Move This (ToZone Graveyard)))
     -- loyalty-0 [CR#704.5i]: a planeswalker with 0 loyalty counters → put into graveyard
   , MkSbaRule (And [hasType Planeswalker, InZone Battlefield])
-              (Compare (CountersOn Loyalty This) Eq (^0))
+              (Compare (CountersOn loyaltyCounter This) Eq (^0))
               (Act (Move This (ToZone Graveyard))) ]
 
 -- new verbs (scry/fight/token/search/copy) all typecheck
@@ -620,7 +620,7 @@ tConditionalStatic = Static (While (exists (ControlledBy opponent)) (Modify This
 
 tLimitedAbility : Ability Base
 tLimitedAbility =
-  Activated (Do (RemoveCounters Loyalty (Literal 1) This)) (Act (Draw (^1))) {window = AsSorcery, limits = [OncePerTurn]}
+  Activated (Do (RemoveCounters loyaltyCounter (Literal 1) This)) (Act (Draw (^1))) {window = AsSorcery, limits = [OncePerTurn]}
 
 -- P/T in the value language: SIGNED deltas (Alter Power/Toughness Up/Down) and a dynamic base via `Set`.
 tPTMods : List (Modification Base)
@@ -743,7 +743,7 @@ tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
 -- creatures" (Hunting Triad) — `PutCounters` per element, each getting its `Allotment`. Carrier-typed.
 tDistributeCounters : OneShotEffect Base
 tDistributeCounters = Targeted [Target (between (^1) (^3)) creature]
-  (Distribute (^3) (Existing They) (Act (PutCounters P1P1 Allotment It)))
+  (Distribute (^3) (Existing They) (Act (PutCounters p1p1 Allotment It)))
 
 -- NEGATIVE — each must be rejected, WITH the pinned message ------------------
 
@@ -853,16 +853,36 @@ failing "implementation for NonEmpty"
   tBadTwoFacedBack : Card
   tBadTwoFacedBack = TwoFaced Split (^: { types := [Instant] }) (^: { name := Just "Back" })
 
--- a PLAYER-carried counter can't go on an object — `counterScope Poison = APlayer`, so `This`
--- (an `AnObject` reference) is rejected with no runtime check. The dependent carrier is load-bearing.
-failing "counterScope Poison"
-  tBadPoisonOnObject : Action Base
-  tBadPoisonOnObject = PutCounters Poison (^1) This
+-- the GOOD direction of the scope index: a player counter/designation predicate at a PLAYER index
+-- typechecks (`counterKindScope poison` / `designationKindScope monarch` reduce to `APlayer`).
+tPoisonPredicate : Predicate Base APlayer
+tPoisonPredicate = HasCounter poison
 
--- granting a PLAYER designation to an object is a type error — `designationScope Monarch = APlayer`
-failing "designationScope Monarch"
+tMonarchPredicate : Predicate Base APlayer
+tMonarchPredicate = HasDesignation monarch
+
+-- a PLAYER-carried counter can't go on an object — `counterKindScope poison` REDUCES to `APlayer`, so
+-- `This` (an `AnObject` reference) is rejected with no runtime check. That the open value's scope
+-- projection still reduces at the type index is the load-bearing property this test pins.
+failing "APlayer"
+  tBadPoisonOnObject : Action Base
+  tBadPoisonOnObject = PutCounters poison (^1) This
+
+-- granting a PLAYER designation to an object is a type error — `designationKindScope monarch` reduces to `APlayer`
+failing "APlayer"
   tBadDesignationScope : Action Base
-  tBadDesignationScope = GrantDesignation Monarch This
+  tBadDesignationScope = GrantDesignation monarch This
+
+-- the `Predicate`-indexed constructors discriminate too: `HasCounter poison` is a PLAYER predicate
+-- (`counterKindScope poison` reduces to `APlayer`), so forcing it at an object index is a type error.
+failing "APlayer"
+  tBadPoisonPredicate : Predicate Base AnObject
+  tBadPoisonPredicate = HasCounter poison
+
+-- likewise `HasDesignation monarch` is a PLAYER predicate; forcing it at an object index is rejected.
+failing "APlayer"
+  tBadMonarchPredicate : Predicate Base AnObject
+  tBadMonarchPredicate = HasDesignation monarch
 
 -- replacing the AMOUNT of an amountless event is rejected — a Cast has no numeric payload
 failing "False = True"

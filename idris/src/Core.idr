@@ -253,16 +253,9 @@ namespace TextWordClass
   public export
   data TextWordClass = ColorWords | BasicLandTypes
 
--- A kind of counter ([CR#122]). The TYPE is `CounterKind` — bare `Counter` is taken by the spell-
--- countering `Action`. A CLOSED set (curated — NOT an open name+registry like the Rust engine, which
--- needs that for plugins); the carrier (object vs player) is the total function `counterScope`
--- below, which indexes the counter ops dependently. Counter kinds are engine-OPEN but grammar-CURATED,
--- the SAME family as `Designation` and `KeywordSpec` (each a curated enum + a dependent scope fn) — so
--- coverage grows by adding curated entries here as the canon needs them, never by an open string hatch.
-namespace CounterKind
-  public export
-  data CounterKind = Loyalty | Fate | Charge | P1P1 | M1M1 | Level | Lore | Stun | Shield
-                   | Poison | Energy | Experience
+-- `CounterKind` is now an OPEN name-carrying value (`MkCounterKind Scope String (List (Ability Base))`),
+-- defined inside the big mutual block alongside `Subtype` (its conferral field references `Ability`). Its
+-- scope projection `counterKindScope` (replacing the old closed `counterScope`) indexes the counter ops.
 
 -- A timing WINDOW — the speed at which an action is allowed: `AsInstant` (any time you have
 -- priority) or `AsSorcery` (your main phase, empty stack — [CR#601.3,602.5d]). The ONE timing
@@ -326,21 +319,24 @@ public export
 (\/) APlayer APlayer = APlayer
 (\/) _ _ = Anything
 
--- the CARRIER of a counter ([CR#122.1]): most are object-borne; poison/energy/experience are borne by
--- PLAYERS. This indexes the counter ops dependently — `PutCounters Poison n You` typechecks and
--- `PutCounters Poison n <object>` does not, with no runtime check. (Players-are-objects: the `Reference`
--- language already names players, so a player-carried counter needs no new machinery, just this kind.)
+-- The closed SCOPE of an open counter/designation ([CR#122.1] carrier): a counter kind / designation is
+-- borne by an OBJECT or a PLAYER. This is the one closed field of the otherwise open `MkCounterKind` /
+-- `MkDesignation` values, mapped into `RefKind` by `scopeRef` to index the counter/designation ops
+-- dependently (players-are-objects: the `Reference` language already names players, so a player-carried
+-- counter needs no new machinery, just this scope).
+namespace Scope
+  public export
+  data Scope = Object | Player
+
 public export
-counterScope : CounterKind -> RefKind
-counterScope Poison     = APlayer
-counterScope Energy     = APlayer
-counterScope Experience = APlayer
-counterScope _          = AnObject
+scopeRef : Scope -> RefKind
+scopeRef Object = AnObject
+scopeRef Player = APlayer
 
 -- RELATION SPINE. A `Relation` is an agent→patient relation the game tracks; from ONE relation we derive
 -- three ASPECTS — durative (`Holds`, a state predicate), inchoative (`Begins`, an event), deontic (`Enact`,
 -- a deed). `agentScope` fixes the AGENT's kind per relation (the Agent/Actor resolution: ONE agent slot, an
--- OBJECT for combat/attach/target/counter, a PLAYER for cast/activate/play) — `counterScope`'s sibling.
+-- OBJECT for combat/attach/target/counter, a PLAYER for cast/activate/play) — `counterKindScope`'s sibling.
 -- The PATIENT stays kind-poly (an attack's defender is a player/planeswalker/battle). The constructors are
 -- NAMESPACED — `Target`/`Counter`/`Attach` clash with the TargetSpec/Action of the same
 -- name — and disambiguate by type, like `Facet.Patient`/`Role.Patient` share `Patient`.
@@ -391,21 +387,10 @@ namespace Role
   data Role = Agent | Patient
 
 -- DESIGNATIONS (the 700-ish global flags: monarch, the initiative, city's blessing, monstrous,
--- goaded, renowned, suspected, saddled, solved…). The Rust engine carries these as an OPEN name +
--- a runtime `Decl` whose `scope` field says object/player/game — needed for plugins. The curated toy
--- uses a CLOSED enum + a total `designationScope`, so ONE `HasDesignation`/`GrantDesignation` pair
--- covers every flag with the carrier (player vs object) enforced dependently — no runtime scope check.
-namespace Designation
-  public export
-  data Designation = Monarch | TheInitiative | CitysBlessing      -- player-borne
-                   | Monstrous | Goaded | Renowned | Suspected | Saddled | Solved   -- object-borne
-
-public export
-designationScope : Designation -> RefKind
-designationScope Monarch       = APlayer
-designationScope TheInitiative = APlayer
-designationScope CitysBlessing = APlayer
-designationScope _             = AnObject
+-- goaded, renowned, suspected, saddled, solved…) are now an OPEN name-carrying value
+-- (`MkDesignation Scope String (List (Ability Base))`), defined inside the mutual block alongside
+-- `Subtype`/`CounterKind`. Its scope projection `designationKindScope` (replacing the old closed
+-- `designationScope`) indexes the `HasDesignation`/`GrantDesignation` pair — carrier enforced dependently.
 
 namespace BeginningStep
   public export
@@ -1111,6 +1096,30 @@ mutual
   CharValue _ Name       = Maybe String   -- `Nothing` = "has no name"
   CharValue _ BasicLandTypes = Void       -- READ-ONLY axis (Domain): unsettable, so `Set`'s argument is uninhabited
 
+  -- An OPEN counter kind ([CR#122]): its `Scope` (object/player carrier), its open registry name, and the
+  -- abilities it CONFERS on its bearer (+1/+1 & −1/−1's P/T pump). Open + name-keyed like `Subtype`, and in
+  -- this mutual block for the same reason (its conferral field references `Ability`, declared below). Defined
+  -- EARLY in the block so `counterKindScope` reduces at the counter-op type-index sites below.
+  public export
+  data CounterKind : Type where
+    MkCounterKind : Scope -> String -> List (Ability Base) -> CounterKind
+
+  -- An OPEN designation (monarch, monstrous, …): its `Scope`, its open name, and its conferrals (always []
+  -- for now — query-only; the real payload lives in Rust). The designation analogue of `CounterKind`.
+  public export
+  data Designation : Type where
+    MkDesignation : Scope -> String -> List (Ability Base) -> Designation
+
+  -- the carrier of a counter kind / designation as a `RefKind` — the total projection that indexes the
+  -- counter/designation ops dependently (replaces the old closed `counterScope`/`designationScope`).
+  public export
+  counterKindScope : CounterKind -> RefKind
+  counterKindScope (MkCounterKind s _ _) = scopeRef s
+
+  public export
+  designationKindScope : Designation -> RefKind
+  designationKindScope (MkDesignation s _ _) = scopeRef s
+
   -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
   -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
   -- an anaphor — "from the CHOSEN color"). `keyword` (Macros) desugars a spec into its full `Ability`
@@ -1290,7 +1299,7 @@ mutual
       -- is rejected — a cast has no amount). Cardinality of events is `CountEvents q` = `CountOf (Events q)`.
       EventAgg : AggregateOp -> (q : EventQuery b) -> {auto 0 amt : eventQueryHasAmount q = True} -> Count b
       Damage : Reference b AnObject -> Count b  -- marked damage on r ([CR#120.3]); the lethal-damage SBA reads `Compare (Damage This) GreaterEq (StatOf This Toughness)`
-      CountersOn : (c : CounterKind) -> Reference b (counterScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterScope`)
+      CountersOn : (c : CounterKind) -> Reference b (counterKindScope c) -> Count b   -- number of [kind] counters on r (object or player, per `counterKindScope`)
       TimesPaid : (tag : String) -> Count b     -- how many times the tagged optional cost (`CostOption`) was paid (multikicker, [CR#702.33c..702.33d]). Rust: Count::TimesPaid(CostTag)
       PlayerStatOf : Reference b APlayer -> PlayerAttr -> Count b   -- a player's numeric attribute (`Life`/`HandSize`) — the player-side twin of `StatOf`. Sugar: `lifeTotal`/`handSize`.
       Plus  : Count b -> Count b -> Count b                -- arithmetic on values
@@ -1329,15 +1338,15 @@ mutual
       DamagedBy : Reference b AnObject -> Predicate b AnObject  -- was dealt damage by r THIS TURN ("a creature dealt damage
                                                  -- by ~ this turn" = And [creature, DamagedBy This]); engine-held, like ExiledBy. Turn-scoped reset is the engine's.
       HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
-      HasCounter : (c : CounterKind) -> Predicate b (counterScope c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
+      HasCounter : (c : CounterKind) -> Predicate b (counterKindScope c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
       -- the DURATIVE aspect of the relation spine: "the candidate currently fills [role] of [r]" — object-only
       -- (only objects bear durative state; a player defender has none). `Holds Attack Agent` = an attacker,
       -- `Holds Block Patient` = a blocked creature. Unifies the legacy `Attacking`/`Blocking`/`Blocked` states.
       Holds : Relation -> Role -> Predicate b AnObject
-      -- carries a DESIGNATION; the candidate's kind follows `designationScope` ("you're the monarch" =
-      -- `HasDesignation Monarch` is a player test, "while ~ is monstrous" an object test).
-      HasDesignation : (d : Designation) -> Predicate b (designationScope d)
+      -- carries a DESIGNATION; the candidate's kind follows `designationKindScope` ("you're the monarch" =
+      -- `HasDesignation monarch` is a player test, "while ~ is monstrous" an object test).
+      HasDesignation : (d : Designation) -> Predicate b (designationKindScope d)
       -- a numeric-characteristic comparison on the candidate — "target creature with power ≤ 2" =
       -- `And [creature, StatCmp Power AtMost (^2)]`. (Closes the "no stat filter" hole — stat
       -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
@@ -1919,8 +1928,8 @@ mutual
       ManaCostOf : Reference b AnObject -> Cost b
       -- pay a cost by PERFORMING an action ([CR#118.3]): "{T}" = `Do (Tap This)`, "Pay N life" =
       -- `Do (LoseLife (^N))`, "Sacrifice this" = `Do (Sacrifice (SameAs This))`, "Pay {E}×N" =
-      -- `Do (RemoveCounters Energy (^N) You)` (energy is a player counter — no dedicated `PayEnergy` verb),
-      -- loyalty "+N"/"−N" = `Do (PutCounters/RemoveCounters Loyalty (^N) This)`. UNRESTRICTED — ANY action
+      -- `Do (RemoveCounters energy (^N) You)` (energy is a player counter — no dedicated `PayEnergy` verb),
+      -- loyalty "+N"/"−N" = `Do (PutCounters/RemoveCounters loyaltyCounter (^N) This)`. UNRESTRICTED — ANY action
       -- (even scry/shuffle as a cost is legal); a senseless cost just no-ops, and nonsense is the grammar
       -- layer's to catch, not a gate.
       Do        : Action b -> Cost b
@@ -2039,9 +2048,9 @@ mutual
       RemoveFromCombat : Reference b AnObject -> Action b   -- remove r from combat ([CR#506.4])
       Transform : Reference b AnObject -> Action b   -- turn a transforming DFC to its other face ([CR#701.27])
       PhaseOut : Reference b AnObject -> Action b     -- phase a permanent out ([CR#702.26]); phasing back in is the engine's turn-based action
-      -- "[r] becomes/gets the designation" — the target's kind follows `designationScope` (you become the
+      -- "[r] becomes/gets the designation" — the target's kind follows `designationKindScope` (you become the
       -- monarch; this creature becomes monstrous). Single-holder eviction (monarch) is the engine's.
-      GrantDesignation : (d : Designation) -> Reference b (designationScope d) -> Action b
+      GrantDesignation : (d : Designation) -> Reference b (designationKindScope d) -> Action b
       Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
       Unattach : Reference b AnObject -> Action b
       -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
@@ -2056,12 +2065,12 @@ mutual
       MoveArranged : Selection b AnObject -> Arrangement -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> Action b
       -- put / remove counters ([CR#122]). `RemoveCounters` is symmetric with `PutCounters` (a `Count`);
       -- "remove all of a kind" is `RemoveCounters c (CountersOn c r) r`. Loyalty/counter COSTS reuse these via
-      -- `Do` (e.g. "−2" = `Do (RemoveCounters Loyalty (^2) This)`), so there is no duplicate counter-cost verb.
-      PutCounters : (c : CounterKind) -> Count b -> Reference b (counterScope c) -> Action b
-      RemoveCounters : (c : CounterKind) -> Count b -> Reference b (counterScope c) -> Action b
+      -- `Do` (e.g. "−2" = `Do (RemoveCounters loyaltyCounter (^2) This)`), so there is no duplicate counter-cost verb.
+      PutCounters : (c : CounterKind) -> Count b -> Reference b (counterKindScope c) -> Action b
+      RemoveCounters : (c : CounterKind) -> Count b -> Reference b (counterKindScope c) -> Action b
       -- MOVE counters object→object ([CR#122.5] = remove-from + put-on, one operation). The `CounterSpec`
       -- says which: `Some c n` (Power Conduit, Leech Bonder) or `AllKinds` (Ozolith). Both ends are objects
-      -- (counters don't move between players), so no `counterScope` indexing — a senseless kind just no-ops.
+      -- (counters don't move between players), so no `counterKindScope` indexing — a senseless kind just no-ops.
       MoveCounters : CounterSpec b -> (from : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
       -- player verbs: discard / lose life; and a chooser-verb where a player sacrifices.
       Discard : {default You actor : Reference b APlayer} -> Count b -> Action b
@@ -2625,7 +2634,7 @@ mutual
       Triggered : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b) -> {default [] limits : List UsageLimit} -> {default [Battlefield] from : List Zone} -> Ability b
       -- a TURN-BASED action ([CR#703]) intrinsic to the bearer: at `phase`, perform `effect` automatically —
       -- no stack, unlike `Triggered`. The Saga lore-increment ([CR#714.3c], conferred by the Saga subtype):
-      -- `TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))`. (Was the old `PropTurnBased`.)
+      -- `TurnBased (MainPhase PreCombat) (Act (PutCounters loreCounter (^1) This))`. (Was the old `PropTurnBased`.)
       TurnBased : PhaseStep -> OneShotEffect b -> Ability b
       -- (Retired `Enchant`: the engine has no dedicated aura ability — "enchant X" is a `Can (Enact Attach …)`
       --  PERMISSION (attaching is default-forbidden, so the aura ENABLES it), enters-attached an `Also`,
@@ -2738,16 +2747,13 @@ namespace Card
 -- mechanism for intrinsic behavior with NO subtype special-casing (`This` = the bearer). There is no
 -- `Property` wrapper: a conferral IS an ability (`Static (Modify …)` for a continuous self-mod, `Static
 -- (Sba …)` for an SBA, `TurnBased …` for a turn-based action, a plain `Static`/keyword otherwise).
--- Closed; attached via the total functions below (the dependent-index style of `counterScope`/
--- `designationScope`), not an open registry.
+-- Open + name-keyed like `Subtype`; conferrals ride the value's third field, projected below.
 
--- +1/+1 and −1/−1 carry their OWN P/T pump (a `Static (Modify …)`), so it's not a hard-coded engine rule
--- (`CountersOn c This` reads the count). The rest confer nothing intrinsic.
+-- what a COUNTER KIND confers on its bearer — just its conferral field (parallel to `subtypeConfers`).
+-- +1/+1 and −1/−1 carry their OWN P/T pump (a `Static (Modify …)`), baked into the `p1p1`/`m1m1` helpers.
 public export
-counterConfers : CounterKind -> List (Ability b)
-counterConfers P1P1 = [Static (Modify This (ApplyAll [Alter Power (Up (CountersOn P1P1 This)), Alter Toughness (Up (CountersOn P1P1 This))]))]
-counterConfers M1M1 = [Static (Modify This (ApplyAll [Alter Power (Down (CountersOn M1M1 This)), Alter Toughness (Down (CountersOn M1M1 This))]))]
-counterConfers _    = []
+counterConfers : CounterKind -> List (Ability Base)
+counterConfers (MkCounterKind _ _ cs) = cs
 
 -- Terse category constructors for the common (non-conferring) subtypes: `creatureType "Bear"`,
 -- `landType "Island"`, etc. build an open subtype name owned by the given category, conferring
@@ -2775,15 +2781,94 @@ public export
 spellType : String -> Subtype
 spellType n = MkSubtype Spell n []
 
--- the two conferring subtypes, with their intrinsic rules baked into the conferral field. The Aura
--- falls-off SBA ([CR#704.5m], a `Static (Sba …)`) and the Saga lore-increment ([CR#714.3c], a
--- `TurnBased` action) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
+-- the conferring subtypes, with their intrinsic rules baked into the conferral field. The Aura
+-- falls-off SBA ([CR#704.5m], a `Static (Sba …)`) lives here — a shared rule, not a per-card static, and
+-- never a subtype `if`-branch. (Its sibling `saga` is defined below, after the counter helpers it needs.)
 public export
 aura : Subtype
 aura = MkSubtype Enchantment "Aura" [Static (Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard))))]
+-- Hand-authoring helper VALUES for the curated counter kinds / designations (parallel to the subtype
+-- `aura`/`saga` helpers) — one per member the closed enums used to carry, so every hand-authored
+-- reference names a helper, never a bare constructor. The `String` is the RON registry name; the `Scope`
+-- is the carrier. Confers is `[]` except `p1p1`/`m1m1`, which bake their P/T pump (the ex-`counterConfers`
+-- approximation, self-reference avoided via an inline literal — correcting it to the real
+-- `Continuous`/`StateBased` flavor belongs to `idris-sba-not-a-static-ability`).
+public export
+loyaltyCounter : CounterKind
+loyaltyCounter = MkCounterKind Object "LoyaltyCounter" []
+public export
+fateCounter : CounterKind
+fateCounter = MkCounterKind Object "FateCounter" []
+public export
+chargeCounter : CounterKind
+chargeCounter = MkCounterKind Object "ChargeCounter" []
+public export
+levelCounter : CounterKind
+levelCounter = MkCounterKind Object "LevelCounter" []
+public export
+loreCounter : CounterKind
+loreCounter = MkCounterKind Object "LoreCounter" []
+public export
+stunCounter : CounterKind
+stunCounter = MkCounterKind Object "StunCounter" []
+public export
+shieldCounter : CounterKind
+shieldCounter = MkCounterKind Object "ShieldCounter" []
+public export
+poison : CounterKind
+poison = MkCounterKind Player "Poison" []
+public export
+energy : CounterKind
+energy = MkCounterKind Player "Energy" []
+public export
+experience : CounterKind
+experience = MkCounterKind Player "Experience" []
+public export
+p1p1 : CounterKind
+p1p1 = MkCounterKind Object "P1P1Counter"
+         [Static (Modify This (ApplyAll
+            [ Alter Power     (Up (CountersOn (MkCounterKind Object "P1P1Counter" []) This))
+            , Alter Toughness (Up (CountersOn (MkCounterKind Object "P1P1Counter" []) This)) ]))]
+public export
+m1m1 : CounterKind
+m1m1 = MkCounterKind Object "M1M1Counter"
+         [Static (Modify This (ApplyAll
+            [ Alter Power     (Down (CountersOn (MkCounterKind Object "M1M1Counter" []) This))
+            , Alter Toughness (Down (CountersOn (MkCounterKind Object "M1M1Counter" []) This)) ]))]
+public export
+monarch : Designation
+monarch = MkDesignation Player "Monarch" []
+public export
+theInitiative : Designation
+theInitiative = MkDesignation Player "TheInitiative" []
+public export
+citysBlessing : Designation
+citysBlessing = MkDesignation Player "CitysBlessing" []
+public export
+monstrous : Designation
+monstrous = MkDesignation Object "Monstrous" []
+public export
+goaded : Designation
+goaded = MkDesignation Object "Goaded" []
+public export
+renowned : Designation
+renowned = MkDesignation Object "Renowned" []
+public export
+suspected : Designation
+suspected = MkDesignation Object "Suspected" []
+public export
+saddled : Designation
+saddled = MkDesignation Object "Saddled" []
+public export
+solved : Designation
+solved = MkDesignation Object "Solved" []
+
+-- the Saga subtype (the other conferring subtype besides `aura` above): its lore-increment ([CR#714.3c],
+-- a `TurnBased` action) is baked into its conferral field — a shared rule, never a subtype `if`-branch.
+-- Defined here (after the counter helpers) because it references the `loreCounter` helper.
 public export
 saga : Subtype
-saga = MkSubtype Enchantment "Saga" [TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
+saga = MkSubtype Enchantment "Saga" [TurnBased (MainPhase PreCombat) (Act (PutCounters loreCounter (^1) This))]
 
 -- what a SUBTYPE confers on its bearer — just its conferral field.
 public export

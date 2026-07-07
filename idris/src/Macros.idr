@@ -320,13 +320,13 @@ keyword Mutate              = Keyword (Bare Mutate)        -- DEGENERATE (alt co
 public export
 monstrosity : Cost b -> Count b -> Ability b
 monstrosity cost n = Activated cost
-  (If (Matches This (Not (HasDesignation Monstrous)))
-      (Sequence [ Act (PutCounters P1P1 n This), Act (GrantDesignation Monstrous This) ]))
+  (If (Matches This (Not (HasDesignation monstrous)))
+      (Sequence [ Act (PutCounters p1p1 n This), Act (GrantDesignation monstrous This) ]))
 
 -- "Level up [cost]" ([CR#702.87]): put a level counter on THIS; sorcery-speed only.
 public export
 levelUp : Cost b -> Ability b
-levelUp cost = Activated cost (Act (PutCounters Level (^1) This)) {window = AsSorcery}
+levelUp cost = Activated cost (Act (PutCounters levelCounter (^1) This)) {window = AsSorcery}
 
 -- "Crew N" ([CR#702.122]): tap any creatures with total power ≥ N → this Vehicle becomes an artifact
 -- creature until end of turn. The aggregate-tap cost is `TapTotal`.

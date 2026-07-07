@@ -233,11 +233,11 @@ card_OblivionStone = Normal $ ^:
   , abilities :=
       [ Activated (Costs [Mana [^4], Do (Tap This)])
           (Targeted [Target (^1) permanent]
-            (Act (PutCounters Fate (Literal 1) It)))
+            (Act (PutCounters fateCounter (Literal 1) It)))
       , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
           (Sequence
-            [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter Fate)]))) (Act (Destroy It))
-            , Each (Existing (SelectAll permanent)) (Act (RemoveCounters Fate (CountersOn Fate It) It)) ])
+            [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter fateCounter)]))) (Act (Destroy It))
+            , Each (Existing (SelectAll permanent)) (Act (RemoveCounters fateCounter (CountersOn fateCounter It) It)) ])
       ]
   }
 
@@ -269,9 +269,9 @@ card_LilianaOfTheVeil = Normal $ ^:
   , supertypes := [Legendary]
   , loyalty := Just 3
   , abilities :=
-      [ Activated (Do (PutCounters Loyalty (Literal 1) This))
+      [ Activated (Do (PutCounters loyaltyCounter (Literal 1) This))
           (Each (Existing eachPlayer) (Act (Discard {actor = It} (^1)))) {window = AsSorcery, limits = [OncePerTurn]}
-      , Activated (Do (RemoveCounters Loyalty (Literal 2) This))
+      , Activated (Do (RemoveCounters loyaltyCounter (Literal 2) This))
           (Targeted [Target (^1) Anyone]
             (Act (Sacrifice creature {actor = It}))) {window = AsSorcery, limits = [OncePerTurn]}
       ]
@@ -585,9 +585,9 @@ card_MidnightHaunting = Normal $ ^:
       ]
   }
 
--- Leveler ([CR#711]) — "a list of conditional statics keyed on the level-counter count": a `Level`
--- counter added by the level-up ability, and one `While (CountersOn Level This in range)` tier per
--- band. NO new machinery beyond the `Level` counter — While/CountersOn/SetPT/GrantAbility did it all.
+-- Leveler ([CR#711]) — "a list of conditional statics keyed on the level-counter count": a `levelCounter`
+-- added by the level-up ability, and one `While (CountersOn levelCounter This in range)` tier per
+-- band. NO new machinery beyond the level counter — While/CountersOn/SetPT/GrantAbility did it all.
 export
 card_StudentOfWarfare : Card
 card_StudentOfWarfare = Normal $ ^:
@@ -599,10 +599,10 @@ card_StudentOfWarfare = Normal $ ^:
   , toughness := Just 1
   , abilities :=
       [ levelUp (Mana [^White])                                                                  -- "Level up {W}"
-      , Static (While (And [ Compare (CountersOn Level This) AtLeast (^2)
-                           , Compare (CountersOn Level This) AtMost (^6) ])
+      , Static (While (And [ Compare (CountersOn levelCounter This) AtLeast (^2)
+                           , Compare (CountersOn levelCounter This) AtMost (^6) ])
           (Modify This (ApplyAll [Alter Power (Set (^3)), Alter Toughness (Set (^3)), GrantAbility (keyword FirstStrike)])))   -- LEVEL 2–6: 3/3 first strike
-      , Static (While (Compare (CountersOn Level This) AtLeast (^7))
+      , Static (While (Compare (CountersOn levelCounter This) AtLeast (^7))
           (Modify This (ApplyAll [Alter Power (Set (^4)), Alter Toughness (Set (^4)), GrantAbility (keyword DoubleStrike)])))   -- LEVEL 7+: 4/4 double strike
       ]
   }
@@ -659,7 +659,7 @@ card_CitadelSiege = Normal $ ^:
             Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
                   (Targeted [Target (^1) (And [creature, ControlledBy you])]
-                    (Act (PutCounters P1P1 (^2) It))))
+                    (Act (PutCounters p1p1 (^2) It))))
           , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
             Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf opponent)])
               (If (ChosenIs 1)
@@ -862,9 +862,9 @@ card_FloodedStrand = Normal $ ^:
                       , Act Shuffle ])) ]
   }
 
--- Aether Hub — a PLAYER-COUNTER (energy) demo. "You get {E}{E}" is `PutCounters Energy (^2) You`, which
--- typechecks ONLY because `counterScope Energy = APlayer` (energy on an object is a type error);
--- "Pay {E}" is `Do (RemoveCounters Energy (^1) You)` — energy rides `Do` like any cost-as-action
+-- Aether Hub — a PLAYER-COUNTER (energy) demo. "You get {E}{E}" is `PutCounters energy (^2) You`, which
+-- typechecks ONLY because `counterKindScope energy = APlayer` (energy on an object is a type error);
+-- "Pay {E}" is `Do (RemoveCounters energy (^1) You)` — energy rides `Do` like any cost-as-action
 -- ([CR#118.3]); no dedicated `PayEnergy` verb. The dependent carrier puts the counter on the player by type.
 export
 card_AetherHub : Card
@@ -873,14 +873,14 @@ card_AetherHub = Normal $ ^:
   , types := [Land]
   , abilities :=
       [ Triggered (thisEnters)
-          (Act (PutCounters Energy (^2) You))                                  -- "you get {E}{E}"
+          (Act (PutCounters energy (^2) You))                                  -- "you get {E}{E}"
       , Activated (Do (Tap This)) (Act (AddMana (^1) (^Colorless)))                         -- {T}: Add {C}
-      , Activated (Costs [Do (Tap This), Do (RemoveCounters Energy (^1) You)]) (Act (AddMana (^1) AnyColor))  -- {T}, Pay {E}: add one mana of any color
+      , Activated (Costs [Do (Tap This), Do (RemoveCounters energy (^1) You)]) (Act (AddMana (^1) AnyColor))  -- {T}, Pay {E}: add one mana of any color
       ]
   }
 
 -- Thorn of the Black Rose — a PLAYER designation (monarch): ETB → "you become the monarch" =
--- `GrantDesignation Monarch You`, which typechecks because `designationScope Monarch = APlayer`.
+-- `GrantDesignation monarch You`, which typechecks because `designationKindScope monarch = APlayer`.
 export
 card_ThornOfTheBlackRose : Card
 card_ThornOfTheBlackRose = Normal $ ^:
@@ -891,14 +891,14 @@ card_ThornOfTheBlackRose = Normal $ ^:
   , abilities :=
       [ keyword Deathtouch
       , Triggered (thisEnters)
-          (Act (GrantDesignation Monarch You))   -- "you become the monarch"
+          (Act (GrantDesignation monarch You))   -- "you become the monarch"
       ]
   , power := Just 1
   , toughness := Just 4
   }
 
 -- Fleecemane Lion — an OBJECT designation (monstrous): Monstrosity grants it (`GrantDesignation
--- Monstrous This`), and the statics read it (`HasDesignation Monstrous`, an object test) to confer
+-- monstrous This`), and the statics read it (`HasDesignation monstrous`, an object test) to confer
 -- hexproof AND indestructible while monstrous. Indestructible needs no new construct — it's `Replaces`
 -- (the destroy of This) with `Sequence []` (a pure skip).
 export
@@ -910,7 +910,7 @@ card_FleecemaneLion = Normal $ ^:
   , subtypes := [creatureType "Cat"]
   , abilities :=
       [ monstrosity (Mana [^3, ^Green, ^White]) (^1)                       -- Monstrosity 1
-      , Static (While (Matches This (HasDesignation Monstrous))
+      , Static (While (Matches This (HasDesignation monstrous))
           (Modify This (ApplyAll [ GrantAbility (keyword (Hexproof Nothing))
                        , GrantAbility (keyword Indestructible) ])))          -- while monstrous: hexproof + indestructible
       ]
@@ -1080,17 +1080,17 @@ card_HistoryOfBenalia = Normal $ ^:
   , abilities :=
       [ -- I, II — create a 2/2 white Knight
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
-          (If (Or [ Compare (CountersOn Lore This) Eq (^1)
-                  , Compare (CountersOn Lore This) Eq (^2) ])
+          (If (Or [ Compare (CountersOn loreCounter This) Eq (^1)
+                  , Compare (CountersOn loreCounter This) Eq (^2) ])
               (Act (CreateToken (^1)
                 (^: { name := Just "Knight", types := [Creature], subtypes := [creatureType "Knight"]
                     , colors := [White], power := Just 2, toughness := Just 2 }))))
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
-          (If (Compare (CountersOn Lore This) Eq (^3))
+          (If (Compare (CountersOn loreCounter This) Eq (^3))
               (Continuously UntilEndOfTurn (Each (Existing (SelectAll (And [hasSubtype (creatureType "Knight"), ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
       , -- sacrifice after the final chapter ([CR#714.4])
-        Static (Sba (Compare (CountersOn Lore This) AtLeast (^3)) (Act (Move This (ToZone Graveyard))))
+        Static (Sba (Compare (CountersOn loreCounter This) AtLeast (^3)) (Act (Move This (ToZone Graveyard))))
       ]
   }
 
@@ -1249,7 +1249,7 @@ card_GarzaZol = Normal $ ^:
         Triggered
           (MkEventQuery [ZoneChanged (Just Battlefield) (Just Graveyard)]
                    [Agent (And [creature, DamagedBy This])])
-          (Act (PutCounters P1P1 (^1) This))
+          (Act (PutCounters p1p1 (^1) This))
       , -- "Whenever ~ deals combat damage to a player, you may draw a card."
         Triggered
           (MkEventQuery [DealDamage (Just True)] [Agent (SameAs This), Patient Anyone])

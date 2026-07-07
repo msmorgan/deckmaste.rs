@@ -71,7 +71,7 @@ fn run_single(plugin: &Plugin, card_name: &str, idris_dir: &Path) -> anyhow::Res
     let ident = idris_emit::sanitize_ident(card_name);
     let module_name = format!("IdrisCheckSingle_{ident}");
 
-    let expr = match idris_emit::emit_card_expr(&card, &plugin.subtypes) {
+    let expr = match idris_emit::emit_card_expr(&card, plugin) {
         Ok(expr) => expr,
         Err(gap) => {
             println!("FAIL (emitter gap): {card_name}");
@@ -131,7 +131,7 @@ fn run_batch(
     let mut gaps: Vec<(String, String)> = Vec::new(); // (card name, gap message)
     for (name, ident, card) in named_cards {
         names.insert(ident.clone(), name.clone());
-        match idris_emit::emit_card_expr(&card, &plugin.subtypes) {
+        match idris_emit::emit_card_expr(&card, plugin) {
             Ok(expr) => emitted.push((ident, expr)),
             Err(gap) => gaps.push((name, gap.to_string())),
         }
