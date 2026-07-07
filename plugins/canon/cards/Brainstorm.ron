@@ -10,15 +10,15 @@ Normal(
     Spell(
       effect: Sequence([
         Draw(3),
-        // "put two cards from your hand on top of your library" — a many-binder
-        // `Choose` binds the two chosen cards, and `Each` iterates the whole
-        // group, moving each element `It` onto the library so BOTH cards move
-        // ([CR#601.2b,608.2]). The earlier `With(Choose(2), Move(That, …))` read
-        // only the first of the two (the dropped-cardinality bug); `Each` over
-        // the group is the group-move shape (`core-many-binder-group-move`).
-        Each(
+        // "put two cards from your hand on top of your library in any order"
+        // ([CR#401.4]). A many-binder `Choose` binds the two cards; `MoveGroup`
+        // relocates the whole group as one simultaneous batch and surfaces the
+        // "any order" arrange over the resulting top-of-library pile — the same
+        // ordered-landing surface scry uses, generalized to a hand→library
+        // group move.
+        With(
           binder: Choose(quantity: Exactly(2), filter: AllOf([InZone(Hand), Owner(Ref(You))])),
-          effect: Move(It, Library(FromTop(0))),
+          body: MoveGroup(group: They, arrangement: AnyOrder, to: Library(FromTop(0))),
         ),
       ])
     ),

@@ -8209,6 +8209,78 @@ mod tests {
         );
     }
 
+    /// Mint a fresh card-backed object into `owner`'s hand. Returns its id.
+    fn mint_in_hand(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
+        let cid = state.cards.push(
+            Arc::new(Card::Normal(CardFace {
+                name: name.into(),
+                types: vec![Type::Creature],
+                ..CardFace::default()
+            })),
+            owner,
+        );
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), owner, Some(Zone::Hand));
+        state.zones.hands[owner.index()].push(id);
+        id
+    }
+
+    /// [CR#401.4]: Brainstorm's group put-back — `MoveGroup(AnyOrder)` from hand
+    /// onto the top of the library moves the whole group (reminted, a real zone
+    /// change) and surfaces ONE arrange decision over the landed pile, which
+    /// then sits on top of the untouched rest of the library. The same
+    /// ordered-landing surface as scry, generalized beyond it.
+    #[test]
+    fn move_group_any_order_surfaces_arrange_over_landed_pile() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let lib = mint_in_library(&mut state, p0, "Lib"); // one card on top
+        mint_in_hand(&mut state, p0, "H1");
+        mint_in_hand(&mut state, p0, "H2");
+        let frame = frame_for(&state, p0);
+        let effect = Effect::Act(Action::MoveGroup {
+            group: Selection::SelectAll(Predicate::State(
+                deckmaste_core::StatePredicate::InZone(Zone::Hand),
+            )),
+            arrangement: deckmaste_core::Arrangement::AnyOrder,
+            to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
+            riders: vec![],
+        });
+        state.run_effect(effect, &frame);
+        drain_events(&mut state, 60);
+        let Some(PendingDecision::ArrangePile { player, objects }) = state.pending.clone() else {
+            panic!("expected an ArrangePile decision, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the owner arranges an 'any order' group");
+        assert_eq!(objects.len(), 2, "both moved cards form the top pile");
+        assert!(
+            state.zones.hands[p0.index()].is_empty(),
+            "the hand cards left the hand"
+        );
+        assert_eq!(
+            state.zones.libraries[p0.index()].len(),
+            3,
+            "library grew by the two moved cards"
+        );
+        // Arrange the pile, then it sits on top of the pre-existing card.
+        state
+            .submit_decision(Decision::Arranged(objects.clone()))
+            .unwrap();
+        drain_events(&mut state, 60);
+        let top: Vec<_> = state.zones.libraries[p0.index()]
+            .iter()
+            .copied()
+            .take(2)
+            .collect();
+        assert_eq!(top, objects, "the arranged pile sits on top");
+        assert_eq!(
+            state.zones.libraries[p0.index()].iter().copied().nth(2),
+            Some(lib),
+            "the pre-existing card is untouched beneath the pile"
+        );
+    }
+
     /// `Count` arithmetic ([CR#107.1]) evaluates structurally — no board
     /// needed. `Minus` floors at 0 ([CR#107.1b]); `Half` rounds per the mode.
     #[test]
