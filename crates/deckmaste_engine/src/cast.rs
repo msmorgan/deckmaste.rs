@@ -22,6 +22,7 @@ use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
+use crate::decide::Action;
 use crate::decide::PendingDecision;
 use crate::event::Cause;
 use crate::event::GameEvent;
@@ -647,11 +648,37 @@ impl GameState {
         player: PlayerId,
         object: ObjectId,
     ) -> bool {
+        // Split into the mana-independent legality (timing, non-empty cost, a
+        // legal target per spec) and the affordability gate. The former yields
+        // the concrete cost to price; a runner-side autotapper reuses it (see
+        // `autotap_for_cast`) to tell "blocked only by unfloated mana" apart
+        // from "illegal regardless of mana".
+        let Some(cost) = self.castable_cost_ignoring_mana(view, player, object) else {
+            return false;
+        };
+        // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
+        // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
+        self.gate_mana_affordable(player, &cost, object)
+    }
+
+    /// The concrete cost `player` must cover to cast `object`, IFF every
+    /// mana-INDEPENDENT casting legality holds (not a land, correct timing per
+    /// [CR#307.1,117.1a,702.8a], a non-empty printed cost per [CR#118.6], and —
+    /// per [CR#601.2c] — at least one legal candidate for every target spec);
+    /// otherwise `None`. The mana-affordability gate is deliberately omitted so
+    /// a runner autotapper can decide whether an unaffordable-looking cast is
+    /// blocked ONLY by unfloated mana. `can_cast` = this AND affordability.
+    pub(crate) fn castable_cost_ignoring_mana(
+        &self,
+        view: &crate::layer::LayeredView,
+        player: PlayerId,
+        object: ObjectId,
+    ) -> Option<ManaCost> {
         let face = crate::derive::face(self.def(object));
         // Lands are never cast as spells — playing a land is a special action
         // ([CR#305.9,116.2a]).
         if face.types.contains(&Type::Land) {
-            return false;
+            return None;
         }
         let instant = face.types.contains(&Type::Instant);
         // Sorcery speed for non-instants ([CR#307.1,117.1a]), unless a
@@ -673,7 +700,7 @@ impl GameState {
                         && self.filter_matches_live(&r.by, proxy, r.carrier)
                 });
         if !timing_ok {
-            return false;
+            return None;
         }
         // [CR#118.6]: an EMPTY mana cost is "no mana cost" — an unpayable
         // base. Attempting the cast is legal in the CR but pointless to
@@ -681,23 +708,159 @@ impl GameState {
         // is the future unlock. {0} is spelled [Generic(0)] and payable
         // ([CR#118.5]).
         if face.mana_cost.is_empty() {
-            return false;
+            return None;
         }
-        let Some(cost) = self.mana_cost(object) else {
-            return false;
-        };
-        // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
-        // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
-        if !self.gate_mana_affordable(player, &cost, object) {
-            return false;
-        }
+        let cost = self.mana_cost(object)?;
         // If the spell targets, every spec must admit at least one candidate.
         // The carrier is the spell's own object source ([CR#601.2c]) — anchors a
         // target filter's `Ref(This)` to the spell.
         let carrier = Some(self.objects.obj(object).source);
-        crate::resolve::spell_targets(view, object)
+        let has_a_target_each = crate::resolve::spell_targets(view, object)
             .iter()
-            .all(|spec| !self.legal_targets(spec, carrier).is_empty())
+            .all(|spec| !self.legal_targets(spec, carrier).is_empty());
+        has_a_target_each.then_some(cost)
+    }
+
+    /// Runner autotap ([CR#106.4,605.1a]): the ordered mana-ability activations
+    /// that float exactly enough mana for `player` to cast `object`, or `None`
+    /// when the cast is blocked by something floating mana can't fix (wrong
+    /// timing, no legal target, an empty/`{X}`/`{S}`/hybrid/Phyrexian cost) or
+    /// the player's untapped lands can't cover the cost. Pure and read-only:
+    /// the engine mutates nothing — auto-tapping is a runner POLICY, so a
+    /// consumer submits the returned `ActivateAbility` actions (then the
+    /// `CastSpell`) itself, exactly as if the player had tapped by hand.
+    ///
+    /// Minimal by design: it covers `{C}`/colored/generic pips paid by
+    /// tap-for-fixed-specific-mana sources (basics and mono lands), matching
+    /// colored pips to exact-colour sources first, then generic pips to any
+    /// leftover. Costs with `{X}`/`{S}`/hybrid/Phyrexian pips, and
+    /// `AnyColor`/`OneOf`/other non-fixed sources, return `None` (the player
+    /// taps those by hand). Colour-OPTIMAL selection (sparing a colored source
+    /// for a generic pip) is a deferred refinement; the greedy here is correct
+    /// for covering THIS cost.
+    #[must_use]
+    pub fn autotap_for_cast(&self, player: PlayerId, object: ObjectId) -> Option<Vec<Action>> {
+        let view = self.layers();
+        // Legal but for the mana? Also yields the concrete cost to cover.
+        let cost = self.castable_cost_ignoring_mana(&view, player, object)?;
+        // Only fixed Simple pips are auto-tappable; anything needing an announce
+        // choice ({X}) or a non-fixed source ({S}/hybrid/Phyrexian) bails.
+        let mut colored: Vec<ColorOrColorless> = Vec::new();
+        let mut generic: Uint = 0;
+        for sym in cost.iter() {
+            match sym {
+                ManaSymbol::Simple(SimpleManaSymbol::Specific(c)) => colored.push(*c),
+                ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => {
+                    generic = generic.checked_add(*n)?
+                }
+                _ => return None,
+            }
+        }
+        // The player's untapped fixed-mana land sources, each recorded with the
+        // ability index `legal_actions`/`ActivateAbility` uses (into the
+        // Innate-peeled `usable_abilities` list — see legal.rs).
+        struct Src {
+            object: ObjectId,
+            ability: usize,
+            color: ColorOrColorless,
+            amount: Uint,
+        }
+        let mut sources: Vec<Src> = Vec::new();
+        for &land in &self.zones.battlefield {
+            let obj = self.objects.obj(land);
+            if view.controller(land) != player || obj.tapped {
+                continue;
+            }
+            // Mirror the legal_actions guard: a summoning-sick creature's mana
+            // ability is illegal (lands aren't creatures, so this rarely bites).
+            if obj.summoning_sick && view.get(land).card_types.contains(&Type::Creature) {
+                continue;
+            }
+            for (ability, a) in crate::derive::usable_abilities(self, land)
+                .iter()
+                .enumerate()
+            {
+                if let Some((color, amount)) = crate::derive::tap_mana_ability(a) {
+                    sources.push(Src {
+                        object: land,
+                        ability,
+                        color,
+                        amount,
+                    });
+                    break; // one mana ability per source suffices here
+                }
+            }
+        }
+        // Greedy coverage over a working bag of available units: the spendable
+        // pool already floated ([CR#106.6] SpendOnly-filtered for this subject),
+        // then colored pips from exact-colour sources, then generic from any.
+        let mut available: Vec<ColorOrColorless> = self
+            .spendable_pool(player, object)
+            .units()
+            .iter()
+            .map(|u| u.kind)
+            .collect();
+        let take = |bag: &mut Vec<ColorOrColorless>, want: Option<ColorOrColorless>| -> bool {
+            let pos = match want {
+                Some(c) => bag.iter().position(|&x| x == c),
+                None => (!bag.is_empty()).then_some(0),
+            };
+            match pos {
+                Some(i) => {
+                    bag.remove(i);
+                    true
+                }
+                None => false,
+            }
+        };
+        let mut plan: Vec<Action> = Vec::new();
+        for &need in &colored {
+            if take(&mut available, Some(need)) {
+                continue;
+            }
+            let i = sources.iter().position(|s| s.color == need)?;
+            let s = sources.remove(i);
+            plan.push(Action::ActivateAbility {
+                object: s.object,
+                ability: s.ability,
+            });
+            for _ in 0..s.amount {
+                available.push(s.color);
+            }
+            take(&mut available, Some(need)); // now guaranteed present
+        }
+        let mut g = generic;
+        while g > 0 {
+            if take(&mut available, None) {
+                g -= 1;
+                continue;
+            }
+            let s = sources.pop()?;
+            plan.push(Action::ActivateAbility {
+                object: s.object,
+                ability: s.ability,
+            });
+            for _ in 0..s.amount {
+                available.push(s.color);
+            }
+        }
+        // Defence in depth: reuse the engine's exact pip matcher over the pool
+        // the plan would produce, so a planning slip fails closed (no taps)
+        // rather than tapping lands for a cast that can't actually be paid.
+        let mut projected = self.spendable_pool(player, object);
+        for act in &plan {
+            if let Action::ActivateAbility {
+                object: land,
+                ability,
+            } = act
+                && let Some((c, n)) = crate::derive::tap_mana_ability(
+                    &crate::derive::usable_abilities(self, *land)[*ability],
+                )
+            {
+                projected.add(c, n);
+            }
+        }
+        can_pay(&projected, &cost).then_some(plan)
     }
 
     /// [CR#601.2a,601.2b]: move the spell from its controller's hand to the stack and
@@ -1997,5 +2160,181 @@ mod tests {
             deckmaste_core::Color::Green.into(),
         ];
         assert_eq!(ManaCost::from(c), ManaCost::from(v));
+    }
+
+    // ---- autotap_for_cast (runner autotap planner) ----
+
+    /// A land whose only ability is `{T}: Add one <color>` — the fixed-specific
+    /// mana shape `tap_mana_ability` recognizes, at ability index 0.
+    fn mana_land(name: &str, color: ColorOrColorless) -> Card {
+        use deckmaste_core::ActivatedAbility;
+        use deckmaste_core::Cost;
+        use deckmaste_core::ManaSpec;
+        use deckmaste_core::PlayerAction;
+        Card::Normal(CardFace {
+            name: name.into(),
+            mana_cost: ManaCost::default(),
+            types: vec![Type::Land],
+            abilities: vec![Ability::Activated(ActivatedAbility {
+                ability_word: None,
+                cost: Cost(vec![CostComponent::Tap]),
+                from: None,
+                window: None,
+                condition: None,
+                limits: vec![],
+                effect: Effect::act_by_you(PlayerAction::AddMana(
+                    Count::Literal(1),
+                    ManaSpec::Specific(color).into(),
+                )),
+            })],
+            ..CardFace::default()
+        })
+    }
+
+    /// An instant (timing is always legal, so `castable_cost_ignoring_mana`
+    /// turns purely on cost + mana) with no targets.
+    fn instant(name: &str, mc: &str) -> Card {
+        Card::Normal(CardFace {
+            name: name.into(),
+            mana_cost: mc.parse().unwrap(),
+            types: vec![Type::Instant],
+            ..CardFace::default()
+        })
+    }
+
+    /// The land objects a plan taps, in order.
+    fn tapped(plan: &[Action]) -> Vec<crate::object::ObjectId> {
+        plan.iter()
+            .map(|a| match a {
+                Action::ActivateAbility { object, .. } => *object,
+                other => panic!("autotap planned a non-activation: {other:?}"),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn autotap_covers_a_single_colored_pip() {
+        let mut state = cm_game();
+        let land = put_synthetic(
+            &mut state,
+            mana_land("Mtn", red()),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        let spell = put_synthetic(&mut state, instant("Bolt", "{R}"), PlayerId(0), Zone::Hand);
+        // No mana floated → the engine does not offer the cast yet.
+        assert!(!state.can_cast(&state.layers(), PlayerId(0), spell));
+        let plan = state
+            .autotap_for_cast(PlayerId(0), spell)
+            .expect("plannable");
+        assert_eq!(tapped(&plan), vec![land]);
+        // The plan's activations all target index 0 (the land's mana ability).
+        assert!(matches!(
+            plan[0],
+            Action::ActivateAbility { ability: 0, .. }
+        ));
+    }
+
+    #[test]
+    fn autotap_covers_generic_and_colored_with_two_taps() {
+        let mut state = cm_game();
+        let l1 = put_synthetic(
+            &mut state,
+            mana_land("M1", red()),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        let l2 = put_synthetic(
+            &mut state,
+            mana_land("M2", red()),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        let spell = put_synthetic(
+            &mut state,
+            instant("Shock2", "{1}{R}"),
+            PlayerId(0),
+            Zone::Hand,
+        );
+        let plan = state
+            .autotap_for_cast(PlayerId(0), spell)
+            .expect("plannable");
+        let mut taps = tapped(&plan);
+        taps.sort();
+        let mut want = vec![l1, l2];
+        want.sort();
+        assert_eq!(taps, want, "both red sources tapped for {{1}}{{R}}");
+    }
+
+    #[test]
+    fn autotap_prefers_an_exact_colour_source_over_an_off_colour_one() {
+        let mut state = cm_game();
+        let _green = put_synthetic(
+            &mut state,
+            mana_land("Frst", green()),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        let mtn = put_synthetic(
+            &mut state,
+            mana_land("Mtn", red()),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        let spell = put_synthetic(&mut state, instant("Bolt", "{R}"), PlayerId(0), Zone::Hand);
+        let plan = state
+            .autotap_for_cast(PlayerId(0), spell)
+            .expect("plannable");
+        assert_eq!(
+            tapped(&plan),
+            vec![mtn],
+            "the {{R}} pip taps the Mountain, not the Forest"
+        );
+    }
+
+    #[test]
+    fn autotap_gives_up_when_untapped_lands_cannot_cover_the_cost() {
+        let mut state = cm_game();
+        put_synthetic(
+            &mut state,
+            mana_land("Mtn", red()),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        let spell = put_synthetic(
+            &mut state,
+            instant("Shock2", "{1}{R}"),
+            PlayerId(0),
+            Zone::Hand,
+        );
+        // One red source can't pay {1}{R} (two mana) → no plan, no wasted taps.
+        assert_eq!(state.autotap_for_cast(PlayerId(0), spell), None);
+    }
+
+    #[test]
+    fn autotap_gives_up_with_no_mana_sources() {
+        let mut state = cm_game();
+        let spell = put_synthetic(&mut state, instant("Bolt", "{R}"), PlayerId(0), Zone::Hand);
+        assert_eq!(state.autotap_for_cast(PlayerId(0), spell), None);
+    }
+
+    #[test]
+    fn autotap_declines_a_variable_cost() {
+        // {X}{R}: the {X} announce can't be autotapped → planner bails even
+        // though a red source is present.
+        let mut state = cm_game();
+        put_synthetic(
+            &mut state,
+            mana_land("Mtn", red()),
+            PlayerId(0),
+            Zone::Battlefield,
+        );
+        let spell = put_synthetic(
+            &mut state,
+            instant("XBurn", "{X}{R}"),
+            PlayerId(0),
+            Zone::Hand,
+        );
+        assert_eq!(state.autotap_for_cast(PlayerId(0), spell), None);
     }
 }

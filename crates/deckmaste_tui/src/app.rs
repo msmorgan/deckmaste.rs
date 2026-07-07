@@ -5,7 +5,9 @@ use clap::Parser;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
+use deckmaste_engine::PlayerId;
 use deckmaste_engine::sim::GreedyDemo;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::Event;
@@ -211,6 +213,9 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
         let mut cur = current.take();
         let mut submit: Option<Decision> = None;
         let mut replace: Option<Interaction> = None;
+        // A hand card the player tried to cast with no mana floated: attempt an
+        // auto-tap-then-cast after the match (multi-submit, so not `submit`).
+        let mut autotap_cast: Option<ObjectId> = None;
         match cur.as_mut() {
             // ---- Priority, ability popup open ----
             Some(Interaction::Priority { sub: Some(pick) }) => match key.code {
@@ -236,7 +241,11 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                     (Some(id), Some(legal)) => {
                         let acts = interact::actions_for(id, legal);
                         match acts.len() {
-                            0 => error = Some("no legal action for that card".to_string()),
+                            // No legal action right now — but a spell may be
+                            // castable if its mana were floated. Defer to the
+                            // autotapper (run after the match); it no-ops back
+                            // to the error message when it can't cover the cost.
+                            0 => autotap_cast = Some(id),
                             1 => submit = Some(Decision::Act(acts[0].clone())),
                             _ => {
                                 replace = Some(Interaction::Priority {
@@ -345,6 +354,23 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 Err(e) => error = Some(e.to_string()),
             }
         }
+
+        // Auto-tap-then-cast: the player pressed Enter on a hand card with no
+        // legal action, which for an otherwise-castable spell means no mana is
+        // floated. Tap the minimal set of untapped lands that covers its cost,
+        // then cast — else keep the plain "no legal action" message.
+        if let (Some(id), Some(player)) = (autotap_cast, priority_player(&stop)) {
+            match driver.autotap_and_cast(player, id, &mut pass) {
+                Ok(Some(next)) => {
+                    stop = next;
+                    current = interaction_for(&stop, &driver.state);
+                    error = None;
+                    steer_pending = true;
+                }
+                Ok(None) => error = Some("no legal action for that card".to_string()),
+                Err(e) => error = Some(e.to_string()),
+            }
+        }
     }
 }
 
@@ -369,6 +395,14 @@ fn interaction_for(stop: &Stop, state: &GameState) -> Option<Interaction> {
 fn priority_legal(stop: &Stop) -> Option<&[Action]> {
     match stop {
         Stop::Decision(PendingDecision::Priority { legal, .. }) => Some(legal),
+        _ => None,
+    }
+}
+
+/// The player holding priority, if the stop is a priority decision.
+fn priority_player(stop: &Stop) -> Option<PlayerId> {
+    match stop {
+        Stop::Decision(PendingDecision::Priority { player, .. }) => Some(*player),
         _ => None,
     }
 }

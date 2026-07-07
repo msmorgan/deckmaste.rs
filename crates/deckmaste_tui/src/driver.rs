@@ -179,6 +179,45 @@ impl Driver {
         self.state.submit_decision(decision)?;
         self.advance(pass)
     }
+
+    /// Auto-tap-then-cast ([CR#106.4] runner convenience): float exactly enough
+    /// mana for `player` to cast `object` by activating the land mana abilities
+    /// [`GameState::autotap_for_cast`] planned, then launch the cast via
+    /// [`Driver::submit_and_advance`]. Returns `Ok(None)` when nothing could be
+    /// planned (the cast is illegal for a reason floating mana can't fix, or
+    /// the untapped lands can't cover the cost) so the caller can show its
+    /// usual "no legal action"; `Ok(Some(stop))` once the cast is on the
+    /// stack and the game has advanced to the next stop. Each planned mana
+    /// ability resolves stacklessly ([CR#605.3a]) and hands priority
+    /// straight back to `player`, so the taps and the cast all land in one
+    /// priority window.
+    ///
+    /// # Errors
+    /// Propagates a `DecisionError` if any planned activation or the cast is
+    /// rejected (a planning bug — every returned action is legal by
+    /// construction).
+    pub fn autotap_and_cast(
+        &mut self,
+        player: deckmaste_engine::PlayerId,
+        object: deckmaste_engine::ObjectId,
+        pass: &mut PassState,
+    ) -> Result<Option<Stop>, DecisionError> {
+        let Some(plan) = self.state.autotap_for_cast(player, object) else {
+            return Ok(None);
+        };
+        for act in plan {
+            self.state.submit_decision(Decision::Act(act))?;
+            // Reopen the same priority window before the next submission (mana
+            // abilities are stackless, so priority returns to `player`).
+            match self.run_to_decision()? {
+                Stop::Decision(_) => {}
+                // A tap can't end the game; if it somehow did, surface that.
+                other => return Ok(Some(other)),
+            }
+        }
+        self.submit_and_advance(Decision::Act(Action::CastSpell { object }), pass)
+            .map(Some)
+    }
 }
 
 #[cfg(test)]
@@ -311,6 +350,89 @@ mod tests {
             .run_to_end(HEADLESS_BUDGET)
             .expect("no decision error");
         assert!(matches!(stop, Stop::GameOver(_) | Stop::Budget));
+    }
+
+    #[test]
+    fn autotap_and_cast_floats_mana_and_lands_the_spell() {
+        use deckmaste_engine::PlayerId;
+        use deckmaste_engine::sim::GreedyDemo;
+
+        // Drive the real demo to a P0 priority window where a hand spell is
+        // castable ONLY via auto-tapping (no mana floated by hand). Then
+        // autotap-and-cast it and confirm a land got tapped and the spell left
+        // the hand — the whole point: casting without a manual tap first.
+        let state = game::build_game().expect("build demo game");
+        let mut driver = Driver::new(state, Box::new(GreedyDemo));
+        let mut pass = PassState::new();
+        let me = PlayerId(0);
+        let mut stop = driver.advance(&mut pass).expect("advance");
+        let mut spell = None;
+        for _ in 0..2000 {
+            match &stop {
+                Stop::GameOver(_) | Stop::Budget => break,
+                Stop::Decision(PendingDecision::Priority { player, .. }) if *player == me => {
+                    if let Some(id) = driver.state.zones.hands[me.index()]
+                        .iter()
+                        .copied()
+                        .find(|&id| driver.state.autotap_for_cast(me, id).is_some())
+                    {
+                        spell = Some(id);
+                        break;
+                    }
+                    stop = driver
+                        .submit_and_advance(Decision::Act(Action::Pass), &mut pass)
+                        .expect("pass");
+                }
+                Stop::Decision(PendingDecision::Priority { .. }) => {
+                    stop = driver
+                        .submit_and_advance(Decision::Act(Action::Pass), &mut pass)
+                        .expect("pass opp");
+                }
+                Stop::Decision(p) => {
+                    let d = answer(&driver.state, p);
+                    stop = driver.submit_and_advance(d, &mut pass).expect("answer");
+                }
+            }
+        }
+        let spell = spell.expect("reached a window with an auto-tappable hand spell");
+
+        let untapped_before = driver
+            .state
+            .zones
+            .battlefield
+            .iter()
+            .filter(|&&id| {
+                driver.state.objects.obj(id).controller == me
+                    && !driver.state.objects.obj(id).tapped
+            })
+            .count();
+        assert!(untapped_before > 0, "there must be an untapped land to tap");
+
+        let next = driver
+            .autotap_and_cast(me, spell, &mut pass)
+            .expect("no decision error")
+            .expect("a plan was executed");
+        assert!(matches!(next, Stop::Decision(_) | Stop::GameOver(_)));
+
+        // The spell left the hand (it was cast), and a land is now tapped.
+        assert!(
+            !driver.state.zones.hands[me.index()].contains(&spell),
+            "the spell should have left the hand"
+        );
+        let untapped_after = driver
+            .state
+            .zones
+            .battlefield
+            .iter()
+            .filter(|&&id| {
+                driver.state.objects.obj(id).controller == me
+                    && !driver.state.objects.obj(id).tapped
+            })
+            .count();
+        assert!(
+            untapped_after < untapped_before,
+            "auto-tap must have tapped at least one land ({untapped_before} → {untapped_after})"
+        );
     }
 
     #[test]
