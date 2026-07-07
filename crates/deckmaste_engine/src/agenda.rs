@@ -134,15 +134,6 @@ pub enum WorkItem {
     BeginNote { key: deckmaste_core::Ident },
     /// Closes the innermost `Noting` collection window ([CR#607.2a]).
     EndNote,
-    /// [CR#701.22a]: surface a `Distribute` decision — player sorts `window`
-    /// into ordered `bins` (Top/Bottom/Graveyard). Dispatched from
-    /// `player_action_items` after evaluating the looked-at group.
-    OpenDistribute {
-        player: crate::player::PlayerId,
-        window: Vec<crate::object::ObjectId>,
-        bins: Vec<deckmaste_core::Bin>,
-        name: deckmaste_core::Ident,
-    },
     /// [CR#401.7]: reposition a card ALREADY in its owner's library to an
     /// anchored end of that same library — a same-zone move that is NOT a zone
     /// change ([CR#400.7]): the `ObjectId` is preserved, no `ZoneChanged` fires

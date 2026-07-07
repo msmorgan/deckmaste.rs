@@ -110,9 +110,6 @@ pub enum Progress {
     /// A `Noting` collection window opened (`true`) or closed (`false`)
     /// ([CR#607.2a] — fact-backed product groups).
     NoteScoped { open: bool },
-    /// [CR#701.22a]: a `Distribute` decision was surfaced (or skipped for an
-    /// empty window — scry/surveil 0 no-op per [CR#701.22b]).
-    DistributeOpened,
     /// [CR#401.7]: a card was repositioned within its own library (no zone
     /// change — `ObjectId` preserved).
     Repositioned(crate::object::ObjectId),
@@ -226,12 +223,6 @@ impl GameState {
                     .expect("EndNote pairs with a BeginNote (scheduled together)");
                 Progress::NoteScoped { open: false }
             }
-            WorkItem::OpenDistribute {
-                player,
-                window,
-                bins,
-                name,
-            } => self.open_distribute(player, window, bins, name),
             WorkItem::RepositionLibrary {
                 object,
                 end,
@@ -276,7 +267,7 @@ impl GameState {
         }
         #[expect(
             clippy::match_same_arms,
-            reason = "large apply dispatch; the pure-fact arms and the `Distributed` arm both return `event` unchanged but sit hundreds of lines apart with distinct explanatory comments — merging would wreck the structure"
+            reason = "large apply dispatch; the pure-fact arms and the `KeywordActionPerformed` arm both return `event` unchanged but sit hundreds of lines apart with distinct explanatory comments — merging would wreck the structure"
         )]
         match event {
             // Pure facts: nothing to mutate. `BecameTarget` ([CR#601.2c])
@@ -720,10 +711,6 @@ impl GameState {
             // ControlChanged's will re-home the object ([CR#603.2e] delta,
             // never a zone move).
             GameEvent::Revealed { .. } => todo!("P0.W6: reveal apply ([CR#701.20a])"),
-            // Notification only — no state mutation. The event fires once the
-            // distribute has completed (top/bottom repositioned, graveyard items
-            // scheduled), so triggers can observe it ([CR#701.22d]).
-            GameEvent::Distributed { .. } => event,
             // Notification only — no state mutation. Fired once the keyword
             // action's body has completed ([CR#701.22d]), so triggers observe it.
             GameEvent::KeywordActionPerformed { .. } => event,
@@ -1506,28 +1493,6 @@ impl GameState {
     /// scheduled. An instruction to discard more cards than the hand holds
     /// discards the whole hand (the excess is impossible and ignored,
     /// [CR#101.3]); an empty hand (count 0) surfaces nothing.
-    /// [CR#701.22a]: surfaces a `Distribute` decision so the player can sort the
-    /// looked-at `window` into ordered `bins`. `name` (e.g. "Scry") is stashed
-    /// for the Task-8 event via [`ChoiceContinuation::Distribute`].
-    fn open_distribute(
-        &mut self,
-        player: PlayerId,
-        window: Vec<ObjectId>,
-        bins: Vec<deckmaste_core::Bin>,
-        name: deckmaste_core::Ident,
-    ) -> Progress {
-        for &object in &window {
-            self.look_grants.insert((player, object));
-        }
-        self.pending = Some(PendingDecision::Distribute {
-            player,
-            window,
-            bins,
-        });
-        self.choice = Some(crate::state::ChoiceContinuation::Distribute { name });
-        Progress::DistributeOpened
-    }
-
     /// [CR#401.7]: reposition a card ALREADY in its owner's library to `end` of
     /// that library, `offset` cards in — direct `VecDeque` surgery keeping the
     /// `ObjectId` (no remint, no `ZoneChanged`, no zone-change trigger; scry
@@ -2326,44 +2291,6 @@ mod tests {
         assert_eq!(top.x, Some(3));
         // The returned pending lets callers run their own debug-asserts.
         assert_eq!(pending.id, id);
-    }
-
-    /// `open_distribute` grants the DECIDER (looker) visibility over every
-    /// object in the window, not the owner. This is the invariant Fateseal
-    /// relies on: player 0 distributes cards owned/controlled by player 1, but
-    /// the `look_grant` goes to player 0, not player 1.
-    #[test]
-    fn distribute_grants_looker_visibility() {
-        let mut state = game();
-        // Mint two objects into player 1's library (owner is player 1).
-        let x = state.objects.mint(
-            ObjectSource::Player(PlayerId(1)),
-            PlayerId(1),
-            Some(Zone::Library),
-        );
-        let y = state.objects.mint(
-            ObjectSource::Player(PlayerId(1)),
-            PlayerId(1),
-            Some(Zone::Library),
-        );
-        let window = vec![x, y];
-        let bins = vec![deckmaste_core::Bin::Top, deckmaste_core::Bin::Bottom];
-        // Player 0 is the looker/decider (fateseal scenario).
-        state.open_distribute(PlayerId(0), window, bins, "Fateseal".into());
-        // Looker (player 0) gets grants for both objects.
-        assert!(
-            state.look_grants.contains(&(PlayerId(0), x)),
-            "looker gets grant for x"
-        );
-        assert!(
-            state.look_grants.contains(&(PlayerId(0), y)),
-            "looker gets grant for y"
-        );
-        // Owner (player 1) does NOT get a grant from player 0's look.
-        assert!(
-            !state.look_grants.contains(&(PlayerId(1), x)),
-            "owner is NOT granted by looker's distribute"
-        );
     }
 
     /// Applying `GotDesignation` writes the player-scope designation store, and

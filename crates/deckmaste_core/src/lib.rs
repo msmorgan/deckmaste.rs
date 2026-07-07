@@ -14,7 +14,6 @@ mod action;
 pub use action::Action;
 pub use action::Anchor;
 pub use action::Arrangement;
-pub use action::Bin;
 pub use action::Destination;
 pub use action::EnterRider;
 pub use action::PlayerAction;

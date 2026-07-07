@@ -1,25 +1,11 @@
-use serde::Deserialize;
-use serde::Serialize;
-
 use crate::Count;
 use crate::CounterRef;
-use crate::Expand;
 use crate::Expansion;
 use crate::Reference;
 use crate::Selection;
 use crate::SupportsMacros;
 use crate::TokenSpec;
 use crate::mana::ManaProduction;
-
-/// A destination pile for `Distribute` ([CR#701.22a]). `Top`/`Bottom` are the
-/// looked-at library's ends (the cards' owner's library — so Fateseal returns
-/// to the opponent's library automatically); `Graveyard` is the owner's.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Bin {
-    Top,
-    Bottom,
-    Graveyard,
-}
 
 /// A position within a library ([CR#401.7]): an offset counted from the top or
 /// from the bottom. `FromTop(0)` is the very top, `FromBottom(0)` the very
@@ -354,15 +340,6 @@ pub enum PlayerAction {
     /// Remove counters of the named kind ([CR#122.1]; cost-eligible —
     /// "Remove a +1/+1 counter from this creature:").
     RemoveCounters(Reference, crate::CounterRef, Count),
-    /// Look at `group`, then partition the peeked cards into ordered `bins`
-    /// ([CR#701.22a]). One resolution decision; the peek is implicit (surfacing
-    /// the decision IS the look). `name` is the printed keyword carried for
-    /// trigger-matching, exactly like `KeywordAbility::Composite { name, .. }`.
-    Distribute {
-        group: crate::Selection,
-        bins: Vec<Bin>,
-        name: crate::Ident,
-    },
     /// "[Player] wins the game" ([CR#104.2b]) — immediate on resolution,
     /// suppressed by a matching `CantWin` outcome gate ([CR#101.1]
     /// precedence; the last-player-standing win [CR#104.2a] never rides
@@ -888,23 +865,25 @@ mod tests {
         assert_eq!(read(&write(&all)), all);
     }
 
+    /// `Composite name body` ([CR#701]) reads flat (the `Act` compartment is
+    /// transparent) and round-trips — the keyword-action verb the
+    /// scry/surveil/fateseal macros desugar to.
     #[test]
-    fn distribute_round_trips() {
-        let v = PlayerAction::Distribute {
-            group: Selection::They,
-            bins: vec![Bin::Top, Bin::Bottom],
+    fn composite_round_trips() {
+        let scry = Action::Composite {
             name: crate::Ident::new("Scry"),
+            body: Box::new(crate::Effect::Each(crate::Each {
+                binder: crate::Binder::Existing(Selection::TopOfLibrary {
+                    count: Count::Literal(2),
+                    of: Reference::You,
+                }),
+                effect: Box::new(crate::Effect::Act(Action::Move(
+                    Reference::It,
+                    Destination::Library(Anchor::FromTop(Count::Literal(0))),
+                    vec![],
+                ))),
+            })),
         };
-        assert_eq!(read_action(&write_action(&v)), v);
-        // Round-trip via programmatic construction is the oracle
-        let written = write_action(&v);
-        assert_eq!(read_action(&written), v);
-    }
-
-    fn read_action(source: &str) -> PlayerAction {
-        crate::ron::options().from_str(source).unwrap()
-    }
-    fn write_action(action: &PlayerAction) -> String {
-        crate::ron::options().to_string(action).unwrap()
+        assert_eq!(read(&write(&scry)), scry);
     }
 }

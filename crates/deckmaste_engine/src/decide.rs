@@ -111,7 +111,6 @@ impl PendingDecision {
             | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. }
             | PendingDecision::LegendRule { player, .. }
-            | PendingDecision::Distribute { player, .. }
             | PendingDecision::ArrangePile { player, .. } => *player,
             PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
         }
@@ -287,17 +286,6 @@ pub enum PendingDecision {
         player: PlayerId,
         candidates: Vec<ObjectId>,
     },
-    /// [CR#701.22a]: distribute the looked-at cards among the destination
-    /// `bins` — the controlling player orders each bin's pile (top to bottom
-    /// for library destinations, any order for Graveyard). `window` is the
-    /// ordered set of looked-at cards; `bins` is the ordered list of
-    /// destinations. The answer ([`Decision::Distribution`]) is one ordered
-    /// `Vec<ObjectId>` per bin, forming a total partition of `window`.
-    Distribute {
-        player: PlayerId,
-        window: Vec<ObjectId>,
-        bins: Vec<deckmaste_core::Bin>,
-    },
     /// [CR#401.4]: `player` orders a pile of more than one card that came to
     /// rest at one end of a library — scry's "on top … in any order" and
     /// Brainstorm's "in any order". `objects` is the pile in its current
@@ -348,9 +336,6 @@ pub enum Decision {
     Assignment(Vec<(ObjectId, Uint)>),
     /// Answers `ChooseObjects`: the chosen objects ([CR#608.2d]).
     Chosen(Vec<ObjectId>),
-    /// Answers `Distribute`: one ordered list of objects per bin, forming a
-    /// total partition of the looked-at `window` ([CR#701.22a]).
-    Distribution(Vec<Vec<ObjectId>>),
     /// Answers `ArrangePile` ([CR#401.4]): the pile's cards in the chosen order
     /// (top → down) — a permutation of the offered pile.
     Arranged(Vec<ObjectId>),
@@ -552,34 +537,6 @@ use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::state::GameState;
-
-/// [CR#701.22a]: validate that `lists` is a total partition of `window` —
-/// every card in `window` appears exactly once across all bins, no foreign
-/// cards, no duplicates. Factored as a free function so tests can call it
-/// directly with fabricated `ObjectId`s, without a live `GameState`.
-///
-/// # Errors
-///
-/// Returns `DecisionError::Illegal` when a card is missing, duplicated, or
-/// foreign, or when `lists` and `window` have differing total card counts.
-fn validate_partition(window: &[ObjectId], lists: &[Vec<ObjectId>]) -> Result<(), DecisionError> {
-    let mut seen: std::collections::HashSet<ObjectId> = std::collections::HashSet::new();
-    let mut total = 0usize;
-    for o in lists.iter().flatten() {
-        if !window.contains(o) || !seen.insert(*o) {
-            return Err(DecisionError::Illegal {
-                reason: "distribution must be a partition of the looked-at cards".into(),
-            });
-        }
-        total += 1;
-    }
-    if total != window.len() {
-        return Err(DecisionError::Illegal {
-            reason: format!("distribute all {} looked-at cards", window.len()),
-        });
-    }
-    Ok(())
-}
 
 impl GameState {
     /// Answers the pending decision: validates, does the decision's
@@ -1317,17 +1274,6 @@ impl GameState {
                 ]);
                 Ok(())
             }
-            (
-                PendingDecision::Distribute {
-                    player,
-                    window,
-                    bins,
-                },
-                Decision::Distribution(lists),
-            ) => {
-                let (player, window, bins) = (*player, window.clone(), bins.clone());
-                self.submit_distribution(player, &window, &bins, &lists)
-            }
             (PendingDecision::ArrangePile { player, .. }, Decision::Arranged(order)) => {
                 // [CR#401.4]: the order must be a permutation of the offered
                 // pile. Take the walk state, reorder that pile, then surface the
@@ -1576,155 +1522,6 @@ impl GameState {
         cd.queue.remove(0);
         self.open_next_assignment();
         Ok(())
-    }
-
-    /// [CR#701.22a]: apply a `Distribute` answer — validate the bin count and
-    /// partition, clear `pending`, and call the move-scheduling stub.
-    ///
-    /// # Errors
-    ///
-    /// `Illegal` when `lists.len() != bins.len()` or `lists` is not a total
-    /// partition of `window` (missing card, duplicate, foreign card).
-    fn submit_distribution(
-        &mut self,
-        player: PlayerId,
-        window: &[ObjectId],
-        bins: &[deckmaste_core::Bin],
-        lists: &[Vec<ObjectId>],
-    ) -> Result<(), DecisionError> {
-        if lists.len() != bins.len() {
-            return Err(DecisionError::Illegal {
-                reason: "one ordered list per bin".into(),
-            });
-        }
-        validate_partition(window, lists)?;
-        self.pending = None;
-        // Consume the continuation and extract the keyword name for the event.
-        let name = match self
-            .choice
-            .take()
-            .expect("a Distribute decision stashed its continuation")
-        {
-            crate::state::ChoiceContinuation::Distribute { name } => name,
-            other => unreachable!("distribute resume expected Distribute, got {other:?}"),
-        };
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "a distribution window is a handful of cards from one library — never near u32::MAX"
-        )]
-        let count = window.len() as Uint;
-        // `apply_distribution` returns any graveyard-move work items it built;
-        // we then schedule those BEFORE the Distributed emit so that the event
-        // fires once all cards have moved ([CR#701.22d]).
-        let mut work = self.apply_distribution(player, bins, lists);
-        work.push(WorkItem::Emit(Occurrence::single(GameEvent::Distributed {
-            player,
-            name,
-            count,
-        })));
-        self.schedule_front(work);
-        Ok(())
-    }
-
-    /// [CR#701.22a]: Apply the player's distribution answer.
-    ///
-    /// Top/Bottom bins are repositioned by direct `VecDeque` surgery (no
-    /// remint, `ObjectIds` preserved). Graveyard bins go through
-    /// `ZoneWillChange` (Library→Graveyard), a genuine zone change that
-    /// remints normally.
-    ///
-    /// **Order reasoning for the Top bin** (`list` = authored top→down):
-    /// The library `VecDeque` has FRONT = TOP. To place `list[0]` at the very
-    /// front, we iterate *in reverse* and call `push_front` each time:
-    /// the last element pushed becomes the new front, so iterating `rev()`
-    /// and pushing front yields `list[0]` as the final front element — correct
-    /// authored order. For the Bottom bin we `push_back` in forward order.
-    ///
-    /// Returns the graveyard `ZoneWillChange` work items (if any) rather than
-    /// scheduling them directly, so the caller can append the `Distributed`
-    /// event after them and schedule the combined list in one
-    /// `schedule_front` call — preserving the correct ordering:
-    /// graveyard moves execute before the `Distributed` notification
-    /// ([CR#701.22d]).
-    fn apply_distribution(
-        &mut self,
-        _player: PlayerId,
-        bins: &[deckmaste_core::Bin],
-        lists: &[Vec<ObjectId>],
-    ) -> Vec<WorkItem> {
-        use deckmaste_core::Bin;
-
-        // Collect graveyard items as ZoneWillChange work before touching the library.
-        // They are still in the library at this point; ZoneWillChange will remove them.
-        let mut graveyard_items: Vec<WorkItem> = Vec::new();
-        for (bin, list) in bins.iter().zip(lists) {
-            if *bin == Bin::Graveyard {
-                for &object in list {
-                    graveyard_items.push(WorkItem::Emit(Occurrence::single(
-                        GameEvent::ZoneWillChange {
-                            object,
-                            from: Some(deckmaste_core::Zone::Library),
-                            to: deckmaste_core::Zone::Graveyard,
-                            enters: None,
-                            position: None,
-                            face: None,
-                            cause: None,
-                        },
-                    )));
-                }
-            }
-        }
-
-        // Remove Top/Bottom window cards from the library now (in the order they
-        // appear in the answer, via remove_from_library which searches by id).
-        // Graveyard cards are left in the library for ZoneWillChange to handle.
-        for (bin, list) in bins.iter().zip(lists) {
-            match bin {
-                Bin::Top | Bin::Bottom => {
-                    for &object in list {
-                        let owner = self.owner_of(object);
-                        self.remove_from_library(owner, object);
-                    }
-                }
-                Bin::Graveyard => {}
-            }
-        }
-
-        // Reinsert Top cards: iterate in reverse and push_front so list[0] ends
-        // up at the front of the VecDeque (= top of library).
-        // Reinsert Bottom cards: iterate forward and push_back.
-        for (bin, list) in bins.iter().zip(lists) {
-            match bin {
-                Bin::Top => {
-                    let owner = self.owner_of_list_first(list);
-                    let lib = &mut self.zones.libraries[owner.index()];
-                    for &object in list.iter().rev() {
-                        lib.push_front(object);
-                    }
-                }
-                Bin::Bottom => {
-                    let owner = self.owner_of_list_first(list);
-                    let lib = &mut self.zones.libraries[owner.index()];
-                    for &object in list {
-                        lib.push_back(object);
-                    }
-                }
-                Bin::Graveyard => {}
-            }
-        }
-
-        graveyard_items
-    }
-
-    /// Returns the owner of the first object in `list`, panicking if the list
-    /// is empty. Helper used when all objects in a bin share an owner (library
-    /// cards are always owned by their deck's controller).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `list` is empty — callers only call this for non-empty bins.
-    fn owner_of_list_first(&self, list: &[ObjectId]) -> PlayerId {
-        self.owner_of(*list.first().expect("non-empty bin"))
     }
 
     /// [CR#702.19b]: how much damage `source` must assign to the creature
@@ -1991,28 +1788,3 @@ impl GameState {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::validate_partition;
-    use crate::object::ObjectId;
-
-    #[test]
-    fn distribution_must_be_a_total_partition() {
-        let a = ObjectId::from_raw(1);
-        let b = ObjectId::from_raw(2);
-        let c = ObjectId::from_raw(3);
-        let x = ObjectId::from_raw(99);
-
-        // valid partition: top=[a, c], other=[b]
-        assert!(validate_partition(&[a, b, c], &[vec![a, c], vec![b]]).is_ok());
-        // missing c — total < window.len():
-        assert!(validate_partition(&[a, b, c], &[vec![a], vec![b]]).is_err());
-        // duplicate a — seen check rejects the second occurrence:
-        assert!(validate_partition(&[a, b, c], &[vec![a, c], vec![a, b]]).is_err());
-        // foreign card x — not in window:
-        assert!(validate_partition(&[a, b, c], &[vec![a, c, x], vec![b]]).is_err());
-        // 1 list holding all 3 cards is a valid total partition; bin-count
-        // mismatch (lists.len() != bins.len()) is enforced by submit_distribution.
-        assert!(validate_partition(&[a, b, c], &[vec![a, b, c]]).is_ok());
-    }
-}

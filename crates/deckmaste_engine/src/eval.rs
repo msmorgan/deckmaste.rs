@@ -490,7 +490,6 @@ impl<'a> FactView<'a> {
             | GameEvent::ManaAdded { .. }
             | GameEvent::ManaEmptied { .. }
             | GameEvent::Revealed { .. }
-            | GameEvent::Distributed { .. }
             | GameEvent::KeywordActionPerformed { .. }
             | GameEvent::Shuffled(_)
             | GameEvent::Unattached { .. }

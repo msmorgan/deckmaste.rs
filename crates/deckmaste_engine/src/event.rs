@@ -362,16 +362,6 @@ pub enum GameEvent {
         objects: Vec<ObjectId>,
         to: Option<Vec<PlayerId>>,
     },
-    /// A look-and-distribute completed ([CR#701.22a]). `name` is the printed
-    /// keyword ("Scry"/"Surveil"/"Fateseal"), carried like
-    /// `KeywordAbility::Composite { name, .. }` so "whenever you scry/surveil"
-    /// triggers match on the name via `as_str()` — the engine never
-    /// special-cases the keyword. Never emitted for N=0 ([CR#701.22b]).
-    Distributed {
-        player: PlayerId,
-        name: deckmaste_core::Ident,
-        count: deckmaste_core::Uint,
-    },
     /// A named keyword action ([CR#701]) completed — the trigger hook for
     /// "whenever you scry/surveil/…". `name` is the printed keyword
     /// ("Scry"/"Surveil"/"Fateseal"/"Mill"/…), carried like

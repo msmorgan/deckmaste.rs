@@ -1419,7 +1419,6 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         | PlayerAction::CopySpell(_)
         | PlayerAction::FlipCoins(_)
         | PlayerAction::RollDice(..)
-        | PlayerAction::Distribute { .. }
         | PlayerAction::RestartGame => Err(gap(format!(
             "{pa:?} not yet mapped (no Idris counterpart or not implemented)"
         ))),

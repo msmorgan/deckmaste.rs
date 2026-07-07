@@ -189,10 +189,6 @@ pub enum ChoiceContinuation {
         or_else: Option<Box<deckmaste_core::Effect>>,
         frame: crate::stack::Frame,
     },
-    /// A `Distribute` answer ([CR#701.22a]): stashes the effect `name`
-    /// (e.g. "Scry") for the event emitted in Task 8. Consumed in
-    /// `submit_distribution`; Task 8 reads `name` before taking it.
-    Distribute { name: deckmaste_core::Ident },
     /// [CR#401.4]: walking the post-pick arrange decisions — `current` is the
     /// pile whose order choice is open, `remaining` the piles still to arrange.
     /// An `Arranged` answer reorders `current` in its library, then surfaces
