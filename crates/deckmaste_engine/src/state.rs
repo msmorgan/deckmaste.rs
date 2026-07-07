@@ -528,6 +528,21 @@ impl GameState {
         p == q
     }
 
+    /// [CR#102.1]: how many opponents player `p` has — the live players NOT on
+    /// `p`'s team ([CR#102.4,810.1]). The reader behind
+    /// [`Count::Opponents`](deckmaste_core::Count::Opponents); routes through
+    /// [`same_team`](Self::same_team) so it follows team grouping once modeled.
+    #[must_use]
+    pub(crate) fn opponent_count(&self, p: PlayerId) -> Uint {
+        Uint::try_from(
+            self.players
+                .iter()
+                .filter(|q| !q.lost && !self.same_team(p, q.id))
+                .count(),
+        )
+        .expect("opponent count fits Uint")
+    }
+
     /// The card behind an object (card-backed objects only).
     ///
     /// # Panics

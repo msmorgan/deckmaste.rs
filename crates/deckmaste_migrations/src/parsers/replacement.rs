@@ -146,6 +146,15 @@ fn parse_tapped_if(line: &str) -> Option<String> {
 /// RON, or `None` when the controller phrase or the object description isn't
 /// one this grammar grounds.
 fn parse_board_condition(clause: &str) -> Option<String> {
+    // "you have <count> opponents" ([CR#102.1]) — a player-count comparison
+    // over the opponent-count `Count` primitive, not a board census: "you have
+    // two or more opponents" → `Compare(Opponents(You), AtLeast, 2)`.
+    if let Some(rest) = clause.strip_prefix("you have ")
+        && let Some((cmp, n, subject)) = strip_count(rest)
+        && matches!(subject, "opponents" | "opponent")
+    {
+        return Some(format!("Compare(Opponents(You), {cmp}, {n})"));
+    }
     let (controller, object) = strip_controller(clause)?;
     // A leading count word ("two or more …", "eight or more …") makes this a
     // Compare; otherwise a determiner ("a …") makes it an Exists.
@@ -588,10 +597,22 @@ mod tests {
     }
 
     #[test]
-    fn declines_unbuilt_count_conditions() {
-        // "two or more opponents" needs an opponent-count Count primitive (unbuilt).
-        assert!(rep("~ enters tapped unless you have two or more opponents.").is_none());
-        // "a player has 13 or less life" needs a player-life Count primitive (unbuilt).
+    fn unless_opponent_count() {
+        // "you have two or more opponents" → Compare over the opponent-count
+        // `Count` primitive ([CR#102.1]).
+        assert_eq!(
+            rep("~ enters tapped unless you have two or more opponents.").as_deref(),
+            Some(tapped_unless("Compare(Opponents(You), AtLeast, 2)").as_str())
+        );
+    }
+
+    #[test]
+    fn declines_existential_player_life() {
+        // "a player has 13 or less life" is EXISTENTIAL over players (∃ a
+        // player with life ≤ 13). That needs a player-life FILTER predicate
+        // (`Exists(<a player with life ≤ N>)`), not a `Count` — the
+        // `PlayerStatOf` Count reads ONE named player's life, so the census
+        // grammar still declines this form.
         assert!(rep("~ enters tapped unless a player has 13 or less life.").is_none());
     }
 

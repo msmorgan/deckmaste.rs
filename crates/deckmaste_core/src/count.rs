@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::Expand;
 use crate::Expansion;
+use crate::PlayerAttr;
 use crate::Predicate;
 use crate::Reference;
 use crate::SupportsMacros;
@@ -102,6 +103,20 @@ pub enum Count {
     CountDistinct(Characteristic, Box<Predicate>),
     /// A referenced object's stat ([CR#107.3], "equal to its power").
     StatOf(Reference, Stat),
+    /// A referenced player's numeric attribute ([CR#119.1] life,
+    /// [CR#402.2] hand size) — the player-side twin of
+    /// [`StatOf`](Count::StatOf), mirroring the Idris `PlayerStatOf`. "a
+    /// player's life total" = `PlayerStatOf(<player>, Life)`. The
+    /// `Reference` resolves to a player proxy; a non-player reference
+    /// fizzles to 0 (never-crash). Held unboxed, like its `StatOf` peer
+    /// (`Reference` + a `Copy` [`PlayerAttr`]).
+    PlayerStatOf(Reference, PlayerAttr),
+    /// How many opponents a referenced player has ([CR#102.1]) — "the number
+    /// of opponents you have" = `Opponents(You)`. The count of the live
+    /// players NOT on the referenced player's team ([CR#102.4,810.1]); the
+    /// Idris twin is `CountOf (Players OpponentOf)`. The `Reference` resolves
+    /// to a player proxy; a non-player reference fizzles to 0 (never-crash).
+    Opponents(Reference),
     /// How many counters of the named kind sit on a referenced object or
     /// player proxy ([CR#122.1]) — "for each +1/+1 counter on ~", and the
     /// magnitude a counter's own conferred effect scales by (a +1/+1 counter
@@ -324,6 +339,28 @@ mod tests {
         assert_eq!(v, Count::TimesPaid(crate::CostTag::from("Kicker")));
         assert_eq!(write(&v), "TimesPaid(Kicker)");
         assert_eq!(read(&write(&v)), v);
+    }
+
+    /// `PlayerStatOf(Reference, PlayerAttr)` — a player's numeric attribute
+    /// (the player-side twin of `StatOf`) — reads named and round-trips.
+    #[test]
+    fn player_stat_of_reads_and_round_trips() {
+        use crate::PlayerAttr;
+        assert_eq!(
+            read("PlayerStatOf(You, Life)"),
+            Count::PlayerStatOf(Reference::You, PlayerAttr::Life),
+        );
+        let value = Count::PlayerStatOf(Reference::You, PlayerAttr::Life);
+        assert_eq!(read(&write(&value)), value);
+    }
+
+    /// `Opponents(Reference)` — the opponent-count read — parses and
+    /// round-trips ([CR#102.1]).
+    #[test]
+    fn opponents_reads_and_round_trips() {
+        assert_eq!(read("Opponents(You)"), Count::Opponents(Reference::You));
+        let value = Count::Opponents(Reference::You);
+        assert_eq!(read(&write(&value)), value);
     }
 
     /// `EventSum(EventFilter, Lookback)` parses and round-trips — the

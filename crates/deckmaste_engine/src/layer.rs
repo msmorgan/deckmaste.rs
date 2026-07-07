@@ -902,6 +902,28 @@ fn eval_count(
             // [CR#107.1b,613]: a stat used as a magnitude clamps negative to 0.
             value.max(0)
         }
+        // [CR#119.1,402.2]: a player's numeric attribute — read straight off
+        // state (players have no [CR#613] layers). A non-player or unresolved
+        // reference contributes 0.
+        Count::PlayerStatOf(reference, attr) => resolve_count_ref(state, reference, watcher)
+            .and_then(|id| state.objects.get(id))
+            .and_then(|o| match o.source {
+                ObjectSource::Player(p) => Some(p),
+                ObjectSource::Card(_) => None,
+            })
+            .map_or(0, |p| {
+                Int::try_from(state.player_attr(p, *attr)).expect("player attr fits Int")
+            }),
+        // [CR#102.1]: how many opponents the referenced player has.
+        Count::Opponents(reference) => resolve_count_ref(state, reference, watcher)
+            .and_then(|id| state.objects.get(id))
+            .and_then(|o| match o.source {
+                ObjectSource::Player(p) => Some(p),
+                ObjectSource::Card(_) => None,
+            })
+            .map_or(0, |p| {
+                Int::try_from(state.opponent_count(p)).expect("opponent count fits Int")
+            }),
         // [CR#122.1]: the count of a counter kind on the resolved object, read
         // off the raw counter map (base state — no derived/recursion). An absent
         // object or kind is `0`.

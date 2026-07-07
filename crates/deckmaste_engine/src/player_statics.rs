@@ -133,6 +133,26 @@ impl GameState {
             .unwrap_or(Int::MAX);
         Uint::try_from(v.max(0)).unwrap_or(0)
     }
+
+    /// A player's numeric attribute as a `Count` magnitude ([CR#119.1] life,
+    /// [CR#402.2] hand size) — the reader behind
+    /// [`Count::PlayerStatOf`](deckmaste_core::Count::PlayerStatOf). `Life`
+    /// ([CR#119.1]) reads the raw total; `HandSize` counts the cards currently
+    /// in the player's hand; `HandSizeLimit`/`LandPlaysPerTurn` fold the
+    /// player-static caps (an unbounded `NoMax` cap reads as `Uint::MAX`). A
+    /// count is a non-negative magnitude ([CR#107.1b]), so a negative life
+    /// total clamps to `0`.
+    #[must_use]
+    pub fn player_attr(&self, player: PlayerId, attr: PlayerAttr) -> Uint {
+        match attr {
+            PlayerAttr::Life => Uint::try_from(self.player(player).life.max(0)).unwrap_or(0),
+            PlayerAttr::HandSize => {
+                Uint::try_from(self.zones.hands[player.index()].len()).unwrap_or(Uint::MAX)
+            }
+            PlayerAttr::HandSizeLimit => self.effective_max_hand_size(player).unwrap_or(Uint::MAX),
+            PlayerAttr::LandPlaysPerTurn => self.effective_land_plays_per_turn(player),
+        }
+    }
 }
 
 #[cfg(test)]

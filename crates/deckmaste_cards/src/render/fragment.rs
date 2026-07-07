@@ -7,6 +7,7 @@ use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::Extremum;
 use deckmaste_core::ObjectKind;
+use deckmaste_core::PlayerAttr;
 use deckmaste_core::Predicate;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
@@ -85,6 +86,39 @@ pub(super) fn count(c: &Count) -> String {
                 ),
             }
         }
+        // [CR#119.1,402.2]: a player's numeric attribute — "your life total",
+        // "the number of cards in that player's hand".
+        Count::PlayerStatOf(r, attr) => {
+            let who = reference(
+                r,
+                &Ctx {
+                    subject: "that player",
+                    targets: &[],
+                    that: None,
+                },
+            );
+            match attr {
+                PlayerAttr::Life => format!("{who}'s life total"),
+                PlayerAttr::HandSize => format!("the number of cards in {who}'s hand"),
+                PlayerAttr::HandSizeLimit => format!("{who}'s maximum hand size"),
+                PlayerAttr::LandPlaysPerTurn => format!("the number of lands {who} can play"),
+            }
+        }
+        // [CR#102.1]: opponent count — "the number of opponents you have".
+        Count::Opponents(r) => match r {
+            Reference::You => "the number of opponents you have".to_string(),
+            other => format!(
+                "the number of opponents {} has",
+                reference(
+                    other,
+                    &Ctx {
+                        subject: "that player",
+                        targets: &[],
+                        that: None,
+                    }
+                )
+            ),
+        },
         // [CR#107.1] value arithmetic.
         Count::Plus(a, b) => format!("{} plus {}", count(a), count(b)),
         Count::Minus(a, b) => format!("{} minus {}", count(a), count(b)),

@@ -2093,6 +2093,25 @@ impl GameState {
         }
     }
 
+    /// Resolve a `Reference` to the `PlayerId` of the player proxy it names, or
+    /// `None` when it names a non-player object — the graceful (never-crash)
+    /// twin of [`acting_player`](Self::acting_player), used by the player-side
+    /// `Count` reads
+    /// ([`Count::PlayerStatOf`](deckmaste_core::Count::PlayerStatOf)
+    /// / [`Count::Opponents`](deckmaste_core::Count::Opponents)), where a
+    /// non-player reference is an authoring mistake that fizzles to 0.
+    pub(crate) fn eval_player_ref(
+        &self,
+        reference: &Reference,
+        frame: &Frame,
+    ) -> Option<crate::player::PlayerId> {
+        let id = self.eval_reference(reference, frame);
+        match self.objects.get(id).map(|o| o.source) {
+            Some(ObjectSource::Player(p)) => Some(p),
+            Some(ObjectSource::Card(_)) | None => None,
+        }
+    }
+
     /// (min, max) objects to choose for `quantity`, clamped to `n` available —
     /// choose as many as able when fewer exist ([CR#608.2d]). Also used by the
     /// cost-payability gate (`can_pay_verbs`) to read a selection's required
@@ -2603,6 +2622,17 @@ impl GameState {
                 };
                 Uint::try_from(value.max(0)).expect("clamped stat fits Uint")
             }
+            // [CR#119.1,402.2]: a player's numeric attribute — resolve to a
+            // player proxy, then read the folded attribute ([CR#611] player
+            // statics). A non-player reference fizzles to 0 (never-crash).
+            Count::PlayerStatOf(reference, attr) => self
+                .eval_player_ref(reference, frame)
+                .map_or(0, |p| self.player_attr(p, *attr)),
+            // [CR#102.1]: how many opponents the referenced player has — the
+            // live players not on that player's team ([CR#102.4]).
+            Count::Opponents(reference) => self
+                .eval_player_ref(reference, frame)
+                .map_or(0, |p| self.opponent_count(p)),
             // [CR#122.1]: the count of a counter kind on the resolved
             // object/player proxy, read off the raw counter map (not the
             // derived view — counter quantities are base state, so no layers

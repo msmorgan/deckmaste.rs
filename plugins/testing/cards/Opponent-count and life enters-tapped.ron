@@ -1,0 +1,25 @@
+// Fixtures for the player-relative `Count` primitives ([CR#102.1] opponent
+// count, [CR#119.1] life total) — the reads a board-state condition makes over
+// how many opponents a player has and a player's life total. No canon-slice
+// card exercises either primitive yet, so this carrier isolates them in a
+// pair of `AsEnters` self-replacements ([CR#614.1c]).
+Normal(
+  name: "Opponent Sanctum",
+  types: [
+    Land,
+  ],
+  abilities: [
+    // [CR#102.1]: "~ enters tapped unless you have two or more opponents." —
+    // the opponent-count `Count::Opponents` read.
+    Static(Replacement(AsEnters(If(
+      condition: Not(Compare(Opponents(You), AtLeast, 2)),
+      then: Tap(This),
+    )))),
+    // [CR#119.1]: "~ enters tapped if your life total is 5 or less." — the
+    // player-life `Count::PlayerStatOf` read.
+    Static(Replacement(AsEnters(If(
+      condition: Compare(PlayerStatOf(You, Life), AtMost, 5),
+      then: Tap(This),
+    )))),
+  ],
+)

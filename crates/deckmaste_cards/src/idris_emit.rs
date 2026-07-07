@@ -886,6 +886,25 @@ fn emit_count(c: &Count) -> R {
             let k = counter_ref_idris(kind.as_str())?;
             app("CountersOn", vec![k, emit_reference(r)?])
         }
+        // [CR#119.1,402.2]: a player's numeric attribute — the Idris
+        // `PlayerStatOf` (the player-side twin of `StatOf`).
+        Count::PlayerStatOf(r, attr) => app(
+            "PlayerStatOf",
+            vec![emit_reference(r)?, emit_player_attr(*attr)],
+        ),
+        // [CR#102.1]: opponent count. Idris has no dedicated constructor — it
+        // is the cardinality of the opponent PLAYERS (`CountOf (Players
+        // OpponentOf)`). Idris's `OpponentOf` is relative to `You`, so an
+        // opponent count of any other player has no counterpart.
+        Count::Opponents(r) => match r {
+            deckmaste_core::Reference::You => "(CountOf (Players OpponentOf))".to_string(),
+            other => {
+                return Err(gap(format!(
+                    "Count::Opponents({other:?}) has no Idris counterpart \
+                     (Idris OpponentOf is relative to You)"
+                )));
+            }
+        },
         Count::Min(a, b) => app("Min", vec![emit_count(a)?, emit_count(b)?]),
         Count::Max(a, b) => app("Max", vec![emit_count(a)?, emit_count(b)?]),
         Count::Plus(a, b) => app("Plus", vec![emit_count(a)?, emit_count(b)?]),
