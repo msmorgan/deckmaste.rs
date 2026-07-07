@@ -132,6 +132,7 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Boast | 39 | once-per-turn activation if attacked |
 | Sunburst | 38 | colors-spent memory |
 | Transmute | 37 | discard: tutor same mana value |
+| Power-up | 37 | (MSH) one-time activated ability; cost reduced by its own mana cost if it entered this turn — rides cost modification (`engine-alt-costs`) + activate-once |
 | Miracle | 36 | first-draw reveal window + alt cost |
 | Bargain | 36 | extra sacrifice cost + condition |
 | Awaken | 36 | alt cost: land animation rider |
@@ -169,6 +170,7 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | For Mirrodin! | 20 | ETB token + attach |
 | Enlist | 19 | tap helper to add power |
 | Prowl | 18 | type-conditional alt cost |
+| Teamwork | 17 | (MSH) additional cost: tap creatures with total power N+; "using teamwork" memory gates conditional targets (`engine-alt-costs`) |
 | Haunt | 17 | exile haunting + linked trigger |
 | Harmonize | 17 | (TDM) graveyard cast, tap-creature reduction |
 | Tribute | 15 | opponent choice: counters or trigger |
@@ -230,6 +232,7 @@ Mostly macros over engine primitives plus a few dedicated subsystems. Slug:
 | Support | 37 | counters spread |
 | Clash | 37 | reveal-compare-reorder |
 | Behold | 36 | (TLA) reveal-or-have choice |
+| Heal | 33 | (MSH) remove marked damage from a permanent — new marked-damage-removal primitive |
 | Airbend | 30 | (TLA) |
 | Detain | 26 | until-next-turn restriction |
 | Meld | 24 | `shape-meld` |

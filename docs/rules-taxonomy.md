@@ -192,7 +192,7 @@ participants + the bindings it exports. The anatomy from [CR#603]:
 | time | beginning of upkeep (7.9%), end step (4.9%), beginning of combat (1.8%), draw step, precombat main, end of combat (the 5xx turn-based structure) |
 | combat | attacks (10.5%), blocks (1.5%), becomes blocked ([CR#509.3c]), deals combat damage to a player (4.4%), deals damage (10.7%), attacks alone ([CR#506.5]), isn't blocked ([CR#509.1h]) |
 | player actions | you cast a spell (6.1%), draws (9.5%), discards (4.3%), sacrifices (6.9%), gains life (1.2%), loses life, plays a land (landfall — 166 ability-word lines), taps a land for mana, searches, mills, scries |
-| object state | becomes tapped, becomes the target (0.7%), is turned face up, transforms, becomes paired ([CR#702.95b]) / crewed ([CR#702.122d]), counters put on / "Nth counter put on" ([CR#122.7]), unlocked / fully unlocked ([CR#709.5h..709.5i]) |
+| object state | becomes tapped, becomes the target (0.7%), is turned face up, transforms, becomes paired ([CR#702.95b]) / crewed ([CR#702.122e]), counters put on / "Nth counter put on" ([CR#122.7]), unlocked / fully unlocked ([CR#709.5h..709.5i]) |
 | game state / designations | becomes monstrous/renowned, day becomes night ([CR#731.1a]), becomes the monarch / takes the initiative ([CR#725.2,726.2]), you get the city's blessing, completes a dungeon |
 | meta | "for the first time each turn", "if it's the Nth time this ability has resolved this turn" ([CR#603.7h]) |
 
@@ -529,7 +529,7 @@ derived predicates as freely as stored ones.
 
 - **Cast/creation memory** — kicked ([CR#702.33]), "warped this turn" ([CR#702.185c]),
   bargained, "cost paid as it entered/was cast" ([CR#607.2g,607.2j]), mana spent
-  ([CR#609.4b]), crewed-this-turn ([CR#702.122d]): per-object/per-turn memory
+  ([CR#609.4b]), crewed-this-turn ([CR#702.122e]): per-object/per-turn memory
   surfaced through References (§2) and Conditions (§6), not markers.
   (Derived designations may *consult* such memory — descended does — but
   the memory itself is keyed to events and linked abilities, not names in
