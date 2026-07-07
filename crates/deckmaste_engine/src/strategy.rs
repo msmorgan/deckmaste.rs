@@ -370,6 +370,9 @@ impl StrategyEvaluator {
             }
             PendingDecision::Vote { .. } => Decision::VoteFor(0),
             PendingDecision::YesNo { .. } => Decision::Answer(false),
+            // [CR#401.4]: any permutation of the pile is legal; keep the
+            // offered order (a total, always-legal default).
+            PendingDecision::ArrangePile { objects, .. } => Decision::Arranged(objects.clone()),
             PendingDecision::ChooseReplacement { applicable, .. } => Decision::ReplacementChoice(
                 *applicable
                     .first()

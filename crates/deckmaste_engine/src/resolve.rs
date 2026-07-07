@@ -648,6 +648,28 @@ impl GameState {
                     return;
                 }
                 let matches = self.resolve_binder(&each.binder, frame);
+                // [CR#701.22a] look-visibility: the controller sees the cards a
+                // top-of-library PEEK binds (scry/surveil/fateseal look before
+                // they arrange), keyed by object identity (expires free on the
+                // next remint/shuffle).
+                if Self::is_top_of_library_peek(&each.binder) {
+                    for &obj in &matches {
+                        self.look_grants.insert((frame.controller, obj));
+                    }
+                }
+                // [CR#401.4]: if the body puts cards into ordered library
+                // positions (scry's top/bottom picks), arm the post-pick arrange
+                // collector and schedule the finalizer AFTER the elements so it
+                // orders each pile once every pick has landed. The arranger is
+                // the effect's controller (for fateseal, over the opponent's
+                // library).
+                let can_reposition = Self::body_repositions_ordered(&each.effect);
+                if can_reposition {
+                    self.arrange_scope = Some(crate::state::ArrangeScope {
+                        arranger: frame.controller,
+                        landings: Vec::new(),
+                    });
+                }
                 // `bind_it` per element: set `It`, clear the allotment, and open a
                 // fresh choice scope so a nested chooser doesn't read this node's
                 // picks.
@@ -688,23 +710,36 @@ impl GameState {
                                     }
                                 }
                             }
+                            let mut items = Vec::new();
                             if !events.is_empty() {
-                                self.schedule_front(vec![WorkItem::Emit(occurrence_of(events))]);
+                                items.push(WorkItem::Emit(occurrence_of(events)));
                             }
+                            if can_reposition {
+                                items.push(WorkItem::ArrangePiles);
+                            }
+                            self.schedule_front(items);
                         } else {
                             // Not batchable — schedule each element's items in
                             // order so the choice-bearing ones actually run.
-                            self.schedule_front(per_element.into_iter().flatten().collect());
+                            let mut items: Vec<WorkItem> =
+                                per_element.into_iter().flatten().collect();
+                            if can_reposition {
+                                items.push(WorkItem::ArrangePiles);
+                            }
+                            self.schedule_front(items);
                         }
                     }
                     _ => {
-                        let items: Vec<WorkItem> = matches
+                        let mut items: Vec<WorkItem> = matches
                             .into_iter()
                             .map(|obj| WorkItem::RunEffect {
                                 effect: each.effect.clone(),
                                 frame: bind_it(self, obj),
                             })
                             .collect();
+                        if can_reposition {
+                            items.push(WorkItem::ArrangePiles);
+                        }
                         self.schedule_front(items);
                     }
                 }
@@ -1044,6 +1079,57 @@ impl GameState {
         }
     }
 
+    /// Whether `binder` peeks the top of a library ([CR#701.22a]) — the peek
+    /// whose cards the controller is granted visibility over.
+    fn is_top_of_library_peek(binder: &deckmaste_core::Binder) -> bool {
+        matches!(
+            peel_binder(binder),
+            deckmaste_core::Binder::Existing(Selection::TopOfLibrary { .. })
+        )
+    }
+
+    /// Whether an `Each`/distributor body puts cards into ORDERED library
+    /// positions ([CR#401.7]) — the signal to arm the post-pick arrange
+    /// collector ([CR#401.4]). True when any reachable move verb targets a
+    /// [`Destination::Library`] anchor (scry/surveil's top pick, fateseal);
+    /// false for a graveyard-only body (mill — the graveyard is unordered).
+    fn body_repositions_ordered(effect: &Effect) -> bool {
+        match peel_effect(effect) {
+            Effect::Act(a) => Self::action_moves_to_library(a),
+            Effect::Sequence(v) | Effect::Simultaneous(v) => {
+                v.iter().any(Self::body_repositions_ordered)
+            }
+            Effect::Modal(m) => m
+                .modes
+                .iter()
+                .any(|mode| Self::body_repositions_ordered(&mode.effect)),
+            Effect::With(w) => Self::body_repositions_ordered(&w.body),
+            Effect::Each(e) => Self::body_repositions_ordered(&e.effect),
+            Effect::DivideAmong(d) => Self::body_repositions_ordered(&d.body),
+            Effect::If(i) => {
+                Self::body_repositions_ordered(&i.then)
+                    || i.otherwise
+                        .as_ref()
+                        .is_some_and(|o| Self::body_repositions_ordered(o))
+            }
+            Effect::Targeted(t) => Self::body_repositions_ordered(&t.effect),
+            Effect::Label(l) => Self::body_repositions_ordered(&l.effect),
+            Effect::Expanded(e) => Self::body_repositions_ordered(&e.value),
+            _ => false,
+        }
+    }
+
+    /// Whether a move verb (source- or player-agent) relocates to an ordered
+    /// [`Destination::Library`] position; `Composite` looks through to its body.
+    fn action_moves_to_library(a: &Action) -> bool {
+        match a {
+            Action::Move(_, Destination::Library(_), _)
+            | Action::By(_, PlayerAction::Move(_, Destination::Library(_), _)) => true,
+            Action::Composite { body, .. } => Self::body_repositions_ordered(body),
+            _ => false,
+        }
+    }
+
     /// The `Emit` work item(s) a single-instruction `Action` produces. The
     /// source verbs (`DealDamage`, …) act with the source object as agent; the
     /// player verbs live under `By(who, …)`, where `who` resolves to the acting
@@ -1253,32 +1339,7 @@ impl GameState {
                          with-counters) execute with the ETB machinery"
                     );
                 }
-                let to = match destination {
-                    Destination::Zone(z) => *z,
-                    Destination::Library(_) => Zone::Library,
-                };
-                let events: Vec<GameEvent> = self
-                    .eval_reference_set(sel, frame)
-                    .into_iter()
-                    .map(|object| {
-                        let position = match destination {
-                            Destination::Zone(_) => None,
-                            Destination::Library(anchor) => {
-                                Some(self.library_index(object, anchor, frame))
-                            }
-                        };
-                        GameEvent::ZoneWillChange {
-                            object,
-                            from: Some(self.objects.obj(object).zone.expect("move a zoned object")),
-                            to,
-                            enters: None,
-                            position,
-                            face: None,
-                            cause: None,
-                        }
-                    })
-                    .collect();
-                vec![WorkItem::Emit(occurrence_of(events))]
+                self.move_items(sel, destination, frame)
             }
             // [CR#122]: move counters object→object — a remove from `from` plus
             // a place on `to`, emitted as one simultaneous batch (the apply
@@ -1344,15 +1405,69 @@ impl GameState {
                     "CreateReplacement is handled in run_effect before action_items is called"
                 )
             }
-            // ----- core-action-riders-cost-modes: shapes landed, execution
-            // seams. The batch machinery `MoveGroup` needs now exists (a
-            // batch of intents evolves as one occurrence); what remains is
-            // the ARRANGEMENT decision — a group landing in an ordered
-            // position surfaces its order choice ([CR#401.4]).
-            Action::MoveGroup { .. } => todo!(
-                "engine seam: MoveGroup's ordered landing needs the Arrangement \
-                 decision surface ([CR#401.4]); the simultaneous batch itself is built"
-            ),
+            // [CR#400.7,401.4]: relocate a GROUP as one simultaneous batch,
+            // then arrange its landing when the destination is an ORDERED
+            // library position — the cards arrive reminted, and
+            // `ArrangeGroupLanding` orders the freshly-landed pile per the
+            // `Arrangement` (Brainstorm's "on top … in any order"). A
+            // non-library destination (unordered zone) needs no arrangement.
+            Action::MoveGroup {
+                group,
+                arrangement,
+                to,
+                riders,
+            } => {
+                if !riders.is_empty() {
+                    todo!(
+                        "core-action-riders-cost-modes seam: MoveGroup enter riders execute \
+                         with the ETB machinery"
+                    );
+                }
+                let objects = self.eval_selection_set(group, frame);
+                if objects.is_empty() {
+                    return vec![];
+                }
+                let (to_zone, anchor) = match to {
+                    Destination::Zone(z) => (*z, None),
+                    Destination::Library(a) => (Zone::Library, Some(a)),
+                };
+                let events: Vec<GameEvent> = objects
+                    .iter()
+                    .map(|&object| GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(self.objects.obj(object).zone.expect("move a zoned object")),
+                        to: to_zone,
+                        enters: None,
+                        position: anchor.map(|a| self.library_index(object, a, frame)),
+                        face: None,
+                        cause: None,
+                    })
+                    .collect();
+                let mut items = vec![WorkItem::Emit(occurrence_of(events))];
+                if let Some(anchor) = anchor {
+                    let (end, _) = self.anchor_end_offset(anchor, frame);
+                    let library_owner = self.owner_of(objects[0]);
+                    let arranger = match arrangement {
+                        // [CR#401.4]: "any order" = the cards' owner arranges.
+                        deckmaste_core::Arrangement::AnyOrder => library_owner,
+                        deckmaste_core::Arrangement::ChosenOrder(r) => {
+                            self.acting_player(r, frame)
+                        }
+                        deckmaste_core::Arrangement::RandomOrder
+                        | deckmaste_core::Arrangement::SameOrder => library_owner,
+                    };
+                    let count =
+                        Uint::try_from(objects.len()).expect("group size fits Uint");
+                    items.push(WorkItem::ArrangeGroupLanding {
+                        arranger,
+                        arrangement: arrangement.clone(),
+                        library_owner,
+                        end,
+                        count,
+                    });
+                }
+                items
+            }
             // [CR#701.12b]: the patient comes under the referenced player's
             // control — a TRANSITION ([CR#603.2e]): a same-controller grant
             // emits nothing ("the exchange effect does nothing"), and a gone
@@ -1431,6 +1546,75 @@ impl GameState {
             }
             Action::TheRingTempts(_) => {
                 todo!("engine seam: the Ring tempts you ([CR#701.54a]) — Ring machinery unbuilt")
+            }
+        }
+    }
+
+    /// The work item(s) a plain relocation ([CR#400.7]) produces — shared by
+    /// the source-agent [`Action::Move`] and the player-agent
+    /// [`PlayerAction::Move`] (both cause-free). A card moving to a
+    /// [`Destination::Library`] anchor that it ALREADY occupies is a same-zone
+    /// REPOSITION ([CR#401.7]) — a `RepositionLibrary` work item that keeps the
+    /// `ObjectId` and fires no zone change (scry never removes a card from the
+    /// library, [CR#701.22a]). Every other move is a genuine `ZoneWillChange`
+    /// (remint); the zone-change intents batch as one occurrence.
+    fn move_items(
+        &self,
+        sel: &Reference,
+        destination: &Destination,
+        frame: &Frame,
+    ) -> Vec<WorkItem> {
+        let mut items: Vec<WorkItem> = Vec::new();
+        let mut zone_events: Vec<GameEvent> = Vec::new();
+        for object in self.eval_reference_set(sel, frame) {
+            let from = self.objects.obj(object).zone.expect("move a zoned object");
+            match destination {
+                Destination::Library(anchor) if from == Zone::Library => {
+                    let (end, offset) = self.anchor_end_offset(anchor, frame);
+                    items.push(WorkItem::RepositionLibrary {
+                        object,
+                        end,
+                        offset,
+                    });
+                }
+                _ => {
+                    let to = match destination {
+                        Destination::Zone(z) => *z,
+                        Destination::Library(_) => Zone::Library,
+                    };
+                    let position = match destination {
+                        Destination::Zone(_) => None,
+                        Destination::Library(anchor) => {
+                            Some(self.library_index(object, anchor, frame))
+                        }
+                    };
+                    zone_events.push(GameEvent::ZoneWillChange {
+                        object,
+                        from: Some(from),
+                        to,
+                        enters: None,
+                        position,
+                        face: None,
+                        cause: None,
+                    });
+                }
+            }
+        }
+        if !zone_events.is_empty() {
+            items.push(WorkItem::Emit(occurrence_of(zone_events)));
+        }
+        items
+    }
+
+    /// The (end, offset) a library [`Anchor`] names ([CR#401.7]) — the pile axis
+    /// and count-from-that-end for a same-library reposition, resolved robustly
+    /// to the card being pulled out first (unlike [`Self::library_index`], which
+    /// pre-resolves a from-bottom anchor against the current size).
+    fn anchor_end_offset(&self, anchor: &Anchor, frame: &Frame) -> (crate::agenda::LibraryEnd, Uint) {
+        match anchor {
+            Anchor::FromTop(c) => (crate::agenda::LibraryEnd::Top, self.eval_count(c, frame)),
+            Anchor::FromBottom(c) => {
+                (crate::agenda::LibraryEnd::Bottom, self.eval_count(c, frame))
             }
         }
     }
@@ -1567,37 +1751,7 @@ impl GameState {
                 // Exile)`, e.g. a self-exile cost (Scavenge); a tuck rides the
                 // same verb via a library anchor. The player-agent twin of
                 // `Action::Move`.
-                let to = match destination {
-                    Destination::Zone(z) => *z,
-                    Destination::Library(_) => Zone::Library,
-                };
-                let events: Vec<GameEvent> = self
-                    .eval_reference_set(reference, frame)
-                    .into_iter()
-                    .map(|object| {
-                        let position = match destination {
-                            Destination::Zone(_) => None,
-                            Destination::Library(anchor) => {
-                                Some(self.library_index(object, anchor, frame))
-                            }
-                        };
-                        GameEvent::ZoneWillChange {
-                            object,
-                            from: Some(
-                                self.objects
-                                    .obj(object)
-                                    .zone
-                                    .expect("relocate a zoned object"),
-                            ),
-                            to,
-                            enters: None,
-                            position,
-                            face: None,
-                            cause: None,
-                        }
-                    })
-                    .collect();
-                vec![WorkItem::Emit(occurrence_of(events))]
+                self.move_items(reference, destination, frame)
             }
             // P0.W5 seam: emblem minting into the command zone.
             PlayerAction::GetEmblem(..) => todo!("P0.W5: emblems ([CR#114.1])"),

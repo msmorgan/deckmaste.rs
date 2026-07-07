@@ -193,6 +193,45 @@ pub enum ChoiceContinuation {
     /// (e.g. "Scry") for the event emitted in Task 8. Consumed in
     /// `submit_distribution`; Task 8 reads `name` before taking it.
     Distribute { name: deckmaste_core::Ident },
+    /// [CR#401.4]: walking the post-pick arrange decisions — `current` is the
+    /// pile whose order choice is open, `remaining` the piles still to arrange.
+    /// An `Arranged` answer reorders `current` in its library, then surfaces
+    /// the next `remaining` pile (or finishes).
+    ArrangePiles {
+        current: ArrangePile,
+        remaining: Vec<ArrangePile>,
+    },
+}
+
+/// The resolution-scoped collector for a post-pick arrangement ([CR#401.4]):
+/// each ordered-library landing an armed `Each`/`MoveGroup` batch produces
+/// records here; the `ArrangePiles` finalizer groups them into piles and
+/// clears it. `arranger` is the player who orders the piles (the effect's
+/// controller — for fateseal, the fatesealing player over the opponent's
+/// library).
+#[derive(Debug, Clone)]
+pub struct ArrangeScope {
+    pub arranger: crate::player::PlayerId,
+    pub landings: Vec<ArrangeLanding>,
+}
+
+/// One ordered-library landing recorded during an armed arrange scope: the
+/// `object` came to rest at `end` of `library_owner`'s library.
+#[derive(Debug, Clone)]
+pub struct ArrangeLanding {
+    pub library_owner: crate::player::PlayerId,
+    pub end: crate::agenda::LibraryEnd,
+    pub object: crate::object::ObjectId,
+}
+
+/// A pile of more than one card landing at one library end, awaiting its
+/// arrange decision ([CR#401.4]). `objects` is the pile in its current library
+/// order; the `Arranged` answer is a permutation of it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArrangePile {
+    pub library_owner: crate::player::PlayerId,
+    pub end: crate::agenda::LibraryEnd,
+    pub objects: Vec<crate::object::ObjectId>,
 }
 
 /// Suspended replacement-loop state ([CR#616.1]) — preserved across a
@@ -332,6 +371,13 @@ pub struct GameState {
     /// pushes, `EndNote` pops; while non-empty, every enacted `ZoneChanged`
     /// fact appends to each open key's group.
     pub(crate) noting: Vec<deckmaste_core::Ident>,
+    /// [CR#401.4]: the armed post-pick arrange collector. `Some` while an
+    /// `Each`/`MoveGroup` whose body repositions cards into ordered library
+    /// positions is resolving; each landing records here, and the `ArrangePiles`
+    /// finalizer drains it. `None` at all other times, so a lone
+    /// `Move(_, Library(_))` reposition (a definite position, no order choice)
+    /// records nothing.
+    pub(crate) arrange_scope: Option<crate::state::ArrangeScope>,
 }
 
 /// One member of a noted product group ([CR#607.2a]): the enacted
@@ -434,6 +480,7 @@ impl GameState {
             evolving_batch: None,
             noted: std::collections::HashMap::new(),
             noting: Vec::new(),
+            arrange_scope: None,
         }
     }
 

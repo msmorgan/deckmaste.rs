@@ -113,6 +113,13 @@ pub enum Progress {
     /// [CR#701.22a]: a `Distribute` decision was surfaced (or skipped for an
     /// empty window — scry/surveil 0 no-op per [CR#701.22b]).
     DistributeOpened,
+    /// [CR#401.7]: a card was repositioned within its own library (no zone
+    /// change — `ObjectId` preserved).
+    Repositioned(crate::object::ObjectId),
+    /// [CR#401.4]: the post-pick arrange finalizer ran; `deciding` is how many
+    /// piles of more than one card still need an arrange decision (0 = every
+    /// pile was ≤1 card, nothing surfaced).
+    PilesArranged { deciding: Uint },
 }
 
 impl GameState {
@@ -225,6 +232,19 @@ impl GameState {
                 bins,
                 name,
             } => self.open_distribute(player, window, bins, name),
+            WorkItem::RepositionLibrary {
+                object,
+                end,
+                offset,
+            } => self.reposition_library(object, end, offset),
+            WorkItem::ArrangePiles => self.arrange_piles(),
+            WorkItem::ArrangeGroupLanding {
+                arranger,
+                arrangement,
+                library_owner,
+                end,
+                count,
+            } => self.arrange_group_landing(arranger, &arrangement, library_owner, end, count),
         };
         StepOutcome::Progress(progress)
     }
@@ -1506,6 +1526,173 @@ impl GameState {
         });
         self.choice = Some(crate::state::ChoiceContinuation::Distribute { name });
         Progress::DistributeOpened
+    }
+
+    /// [CR#401.7]: reposition a card ALREADY in its owner's library to `end` of
+    /// that library, `offset` cards in — direct `VecDeque` surgery keeping the
+    /// `ObjectId` (no remint, no `ZoneChanged`, no zone-change trigger; scry
+    /// never removes a card from the library, [CR#701.22a]). The offset is
+    /// resolved against the library AFTER the card is pulled out, so a
+    /// same-library move lands where the anchor names it. When a post-pick
+    /// arrange scope is armed the landing is recorded for the finalizer.
+    fn reposition_library(
+        &mut self,
+        object: ObjectId,
+        end: crate::agenda::LibraryEnd,
+        offset: Uint,
+    ) -> Progress {
+        use crate::agenda::LibraryEnd;
+        let owner = self.owner_of(object);
+        self.remove_from_library(owner, object);
+        let lib = &mut self.zones.libraries[owner.index()];
+        let offset = offset as usize;
+        let index = match end {
+            LibraryEnd::Top => offset.min(lib.len()),
+            LibraryEnd::Bottom => lib.len().saturating_sub(offset),
+        };
+        lib.insert(index, object);
+        if let Some(scope) = self.arrange_scope.as_mut() {
+            scope.landings.push(crate::state::ArrangeLanding {
+                library_owner: owner,
+                end,
+                object,
+            });
+        }
+        Progress::Repositioned(object)
+    }
+
+    /// [CR#401.4]: the post-pick arrange finalizer. Drains the armed arrange
+    /// scope, groups its landings into piles by (library, end), and for each
+    /// pile of more than one card surfaces one arrange decision (the arranger
+    /// orders it) — walked one pile at a time via
+    /// [`ChoiceContinuation::ArrangePiles`]. Piles of ≤1 card need no order and
+    /// surface nothing (the reposition already placed them).
+    fn arrange_piles(&mut self) -> Progress {
+        let Some(scope) = self.arrange_scope.take() else {
+            return Progress::PilesArranged { deciding: 0 };
+        };
+        let arranger = scope.arranger;
+        // Group landings into piles preserving first-seen order, keyed by the
+        // (library owner, end) axis.
+        let mut piles: Vec<crate::state::ArrangePile> = Vec::new();
+        for landing in scope.landings {
+            if let Some(pile) = piles.iter_mut().find(|p| {
+                p.library_owner == landing.library_owner && p.end == landing.end
+            }) {
+                pile.objects.push(landing.object);
+            } else {
+                piles.push(crate::state::ArrangePile {
+                    library_owner: landing.library_owner,
+                    end: landing.end,
+                    objects: vec![landing.object],
+                });
+            }
+        }
+        // Only piles of more than one card carry an order choice ([CR#401.4]).
+        let deciding: Vec<crate::state::ArrangePile> =
+            piles.into_iter().filter(|p| p.objects.len() > 1).collect();
+        let count = Uint::try_from(deciding.len()).unwrap_or(Uint::MAX);
+        self.open_next_arrange(arranger, deciding);
+        Progress::PilesArranged { deciding: count }
+    }
+
+    /// [CR#401.4]: arrange a `MoveGroup`'s ordered landing — the `count` cards
+    /// now at `end` of `library_owner`'s library. `AnyOrder`/`ChosenOrder`
+    /// surface one arrange decision for `arranger`; `RandomOrder` shuffles the
+    /// pile in place ([MTR 3.10] — no decision, no reveal); `SameOrder` leaves
+    /// the group's landed order untouched (a minor seam: the reminted order is
+    /// the batch's, not re-projected to selection order).
+    fn arrange_group_landing(
+        &mut self,
+        arranger: PlayerId,
+        arrangement: &deckmaste_core::Arrangement,
+        library_owner: PlayerId,
+        end: crate::agenda::LibraryEnd,
+        count: Uint,
+    ) -> Progress {
+        use crate::agenda::LibraryEnd;
+        let count = count as usize;
+        if count <= 1 {
+            return Progress::PilesArranged { deciding: 0 };
+        }
+        let lib = &self.zones.libraries[library_owner.index()];
+        let pile_objects: Vec<ObjectId> = match end {
+            LibraryEnd::Top => lib.iter().take(count).copied().collect(),
+            LibraryEnd::Bottom => lib.iter().skip(lib.len().saturating_sub(count)).copied().collect(),
+        };
+        let pile = crate::state::ArrangePile {
+            library_owner,
+            end,
+            objects: pile_objects,
+        };
+        match arrangement {
+            deckmaste_core::Arrangement::AnyOrder | deckmaste_core::Arrangement::ChosenOrder(_) => {
+                self.open_next_arrange(arranger, vec![pile]);
+                Progress::PilesArranged { deciding: 1 }
+            }
+            deckmaste_core::Arrangement::RandomOrder => {
+                let mut order = pile.objects.clone();
+                use rand::seq::SliceRandom;
+                order.shuffle(&mut self.rng);
+                self.apply_arranged(&pile, &order);
+                Progress::PilesArranged { deciding: 0 }
+            }
+            deckmaste_core::Arrangement::SameOrder => Progress::PilesArranged { deciding: 0 },
+        }
+    }
+
+    /// Surface the next pending pile's arrange decision (or nothing when the
+    /// walk is done), stashing the walk state in
+    /// [`ChoiceContinuation::ArrangePiles`]. `arranger` is the ordering player.
+    pub(crate) fn open_next_arrange(
+        &mut self,
+        arranger: PlayerId,
+        mut piles: Vec<crate::state::ArrangePile>,
+    ) {
+        if piles.is_empty() {
+            return;
+        }
+        let current = piles.remove(0);
+        self.pending = Some(PendingDecision::ArrangePile {
+            player: arranger,
+            objects: current.objects.clone(),
+        });
+        self.choice = Some(crate::state::ChoiceContinuation::ArrangePiles {
+            current,
+            remaining: piles,
+        });
+    }
+
+    /// [CR#401.4]: apply an `Arranged` answer — reorder the pile's cards within
+    /// their library (removed then re-inserted contiguously at their end, top →
+    /// down in the chosen order) keeping every `ObjectId`.
+    pub(crate) fn apply_arranged(
+        &mut self,
+        pile: &crate::state::ArrangePile,
+        order: &[ObjectId],
+    ) {
+        use crate::agenda::LibraryEnd;
+        let owner = pile.library_owner;
+        for &object in order {
+            self.remove_from_library(owner, object);
+        }
+        let lib = &mut self.zones.libraries[owner.index()];
+        match pile.end {
+            // Top pile: `order[0]` is the very top. Re-insert front-most last so
+            // it ends up at the front of the deque (= top of library).
+            LibraryEnd::Top => {
+                for &object in order.iter().rev() {
+                    lib.push_front(object);
+                }
+            }
+            // Bottom pile: `order[0]` sits above the rest of the bottom cards;
+            // push_back in order lands them bottom-most, top → down.
+            LibraryEnd::Bottom => {
+                for &object in order {
+                    lib.push_back(object);
+                }
+            }
+        }
     }
 
     fn open_discard_cards(&mut self, player: PlayerId, count: Uint) -> Progress {

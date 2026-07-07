@@ -3,6 +3,16 @@ use deckmaste_core::PhaseStep;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 
+/// Which end of a library an [`crate::action::Anchor`]-placed card sits at —
+/// the pile axis a post-pick arrangement groups by ([CR#401.4]). Derived from
+/// the [`deckmaste_core::Anchor`] variant (`FromTop`→`Top`, `FromBottom`→
+/// `Bottom`); the numeric offset rides alongside.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LibraryEnd {
+    Top,
+    Bottom,
+}
+
 /// One unit of engine work. `step()` pops exactly one; handlers schedule
 /// follow-ups at the agenda *front*, ahead of previously queued work.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,5 +142,34 @@ pub enum WorkItem {
         window: Vec<crate::object::ObjectId>,
         bins: Vec<deckmaste_core::Bin>,
         name: deckmaste_core::Ident,
+    },
+    /// [CR#401.7]: reposition a card ALREADY in its owner's library to an
+    /// anchored end of that same library — a same-zone move that is NOT a zone
+    /// change ([CR#400.7]): the `ObjectId` is preserved, no `ZoneChanged` fires
+    /// and no zone-change trigger sees it (scry never removes a card from the
+    /// library, [CR#701.22a]). `offset` is the count from `end`. When a
+    /// post-pick arrange scope is armed the landing is recorded so the finalizer
+    /// can order the pile ([CR#401.4]).
+    RepositionLibrary {
+        object: crate::object::ObjectId,
+        end: LibraryEnd,
+        offset: deckmaste_core::Uint,
+    },
+    /// [CR#401.4]: after an `Each`/`MoveGroup` batch of ordered-library
+    /// landings, surface one arrange decision per pile of more than one card
+    /// (owner/controller orders it), then reorder those cards in the library.
+    ArrangePiles,
+    /// [CR#401.4]: arrange a `MoveGroup`'s landing in an ordered library
+    /// position — the `count` cards now at `end` of `library_owner`'s library
+    /// (freshly reminted by the group move). `ChosenOrder`/`AnyOrder` surface an
+    /// arrange decision (`arranger` orders them); `RandomOrder` shuffles the
+    /// pile ([MTR 3.10]); `SameOrder` leaves it. Scheduled directly after the
+    /// group's move batch.
+    ArrangeGroupLanding {
+        arranger: crate::player::PlayerId,
+        arrangement: deckmaste_core::Arrangement,
+        library_owner: crate::player::PlayerId,
+        end: LibraryEnd,
+        count: deckmaste_core::Uint,
     },
 }

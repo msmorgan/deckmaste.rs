@@ -111,7 +111,8 @@ impl PendingDecision {
             | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. }
             | PendingDecision::LegendRule { player, .. }
-            | PendingDecision::Distribute { player, .. } => *player,
+            | PendingDecision::Distribute { player, .. }
+            | PendingDecision::ArrangePile { player, .. } => *player,
             PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
         }
     }
@@ -297,6 +298,15 @@ pub enum PendingDecision {
         window: Vec<ObjectId>,
         bins: Vec<deckmaste_core::Bin>,
     },
+    /// [CR#401.4]: `player` orders a pile of more than one card that came to
+    /// rest at one end of a library — scry's "on top … in any order" and
+    /// Brainstorm's "in any order". `objects` is the pile in its current
+    /// library order; the answer ([`Decision::Arranged`]) is a permutation of
+    /// it (top → down).
+    ArrangePile {
+        player: PlayerId,
+        objects: Vec<ObjectId>,
+    },
 }
 
 /// An answer to the pending decision.
@@ -341,6 +351,9 @@ pub enum Decision {
     /// Answers `Distribute`: one ordered list of objects per bin, forming a
     /// total partition of the looked-at `window` ([CR#701.22a]).
     Distribution(Vec<Vec<ObjectId>>),
+    /// Answers `ArrangePile` ([CR#401.4]): the pile's cards in the chosen order
+    /// (top → down) — a permutation of the offered pile.
+    Arranged(Vec<ObjectId>),
     /// Answers `ChooseXValue`: the chosen value of X ([CR#601.2b]).
     XValue(Uint),
     /// Answers `ChooseReplacement` ([CR#616.1]): which replacement the affected
@@ -1314,6 +1327,36 @@ impl GameState {
             ) => {
                 let (player, window, bins) = (*player, window.clone(), bins.clone());
                 self.submit_distribution(player, &window, &bins, &lists)
+            }
+            (PendingDecision::ArrangePile { player, .. }, Decision::Arranged(order)) => {
+                // [CR#401.4]: the order must be a permutation of the offered
+                // pile. Take the walk state, reorder that pile, then surface the
+                // next pending pile (or finish).
+                let arranger = *player;
+                let crate::state::ChoiceContinuation::ArrangePiles { current, remaining } = self
+                    .choice
+                    .take()
+                    .expect("an ArrangePile decision stashed its continuation")
+                else {
+                    unreachable!("an ArrangePile decision stashes an ArrangePiles continuation");
+                };
+                let want: HashSet<ObjectId> = current.objects.iter().copied().collect();
+                let got: HashSet<ObjectId> = order.iter().copied().collect();
+                if order.len() != current.objects.len() || want != got {
+                    // Restore the continuation so the (idempotent) decision can be
+                    // re-answered.
+                    self.choice = Some(crate::state::ChoiceContinuation::ArrangePiles {
+                        current,
+                        remaining,
+                    });
+                    return Err(DecisionError::Illegal {
+                        reason: "an arrangement is a permutation of the offered pile".into(),
+                    });
+                }
+                self.pending = None;
+                self.apply_arranged(&current, &order);
+                self.open_next_arrange(arranger, remaining);
+                Ok(())
             }
             (
                 PendingDecision::Division { .. }
