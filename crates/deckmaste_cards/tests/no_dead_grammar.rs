@@ -25,7 +25,7 @@
 //!    behind.
 //!
 //! The load-time elaborator this sweep's reject-fixture half depended on
-//! ([CR#-tagged binding-context walk] — `deckmaste_cards::elaborate`) was
+//! (a CR-tagged binding-context walk — `deckmaste_cards::elaborate`) was
 //! deleted; anaphora/binding resolution now happens purely at engine eval
 //! time, so there is no load-time gate left to demonstrate REJECT fixtures
 //! against. The reject-side requirement and `tests/reject/` corpus are gone
