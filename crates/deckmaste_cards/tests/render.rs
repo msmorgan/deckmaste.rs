@@ -416,8 +416,8 @@ fn renders_synthesized_lose_life_and_destroy() {
     use deckmaste_core::CardFace;
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
-    use deckmaste_core::Filter;
     use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
@@ -448,7 +448,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
-                vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
                 Effect::Act(Action::Destroy(Reference::It)),
             )),
         })],
@@ -634,8 +634,8 @@ fn renders_continuously_pump_until_eot() {
     use deckmaste_core::Count;
     use deckmaste_core::Duration;
     use deckmaste_core::Effect;
-    use deckmaste_core::Filter;
     use deckmaste_core::Modification;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
@@ -649,7 +649,7 @@ fn renders_continuously_pump_until_eot() {
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: Effect::Targeted(deckmaste_core::Targeted::new(
-                vec![TargetSpec::Target(Quantity::one(), Filter::creature())],
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
                 Effect::Continuously(Continuously {
                     effect: Box::new(StaticEffect::Modify(
                         Reference::It,
@@ -825,12 +825,12 @@ fn renders_graveyard_static_from_zone() {
     use deckmaste_core::CardFace;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
-    use deckmaste_core::Filter;
     use deckmaste_core::Modification;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::RelationFilter;
+    use deckmaste_core::RelationPredicate;
     use deckmaste_core::Selection;
-    use deckmaste_core::StateFilter;
+    use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Zone;
     let face = CardFace {
@@ -839,12 +839,12 @@ fn renders_graveyard_static_from_zone() {
         abilities: vec![Ability::Static(StaticEffect::Conditionally(
             Condition::Is(
                 Reference::This,
-                Filter::State(StateFilter::InZone(Zone::Graveyard)),
+                Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
             ),
             Box::new(StaticEffect::Each(
-                Selection::SelectAll(Filter::AllOf(vec![
-                    Filter::type_(Type::Creature),
-                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                Selection::SelectAll(Predicate::AllOf(vec![
+                    Predicate::type_(Type::Creature),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ])),
@@ -879,10 +879,10 @@ fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::Filter;
     use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::RelationFilter;
+    use deckmaste_core::RelationPredicate;
     use deckmaste_core::TriggeredAbility;
     use deckmaste_core::Zone;
     let face = CardFace {
@@ -892,14 +892,14 @@ fn renders_trigger_with_turnof_intervening_if() {
             ability_word: None,
             where_x: None,
             event: EventFilter::ZoneChange {
-                what: Filter::type_(Type::Creature),
+                what: Predicate::type_(Type::Creature),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,
             },
             from: None,
-            condition: Some(Condition::TurnOf(Filter::Relation(
-                RelationFilter::OpponentOf(Box::new(Filter::Ref(Reference::You))),
+            condition: Some(Condition::TurnOf(Predicate::Relation(
+                RelationPredicate::OpponentOf(Box::new(Predicate::Ref(Reference::You))),
             ))),
             limits: vec![],
             effect: Effect::Act(Action::By(

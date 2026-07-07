@@ -21,12 +21,12 @@ import Macros
 -- `public export` so the resolve proofs REDUCE through them; Capitalized —
 -- an arg-free lowercase name in a type position would be implicitly bound.
 public export
-creatureSlotAnte : Ante
-creatureSlotAnte = MkAnte (OfType Creature) AnObject One TargetSlot Nothing Nothing
+creatureSlotAnte : Ant
+creatureSlotAnte = MkAnt (OfType Creature) AnObject One TargetSlot Nothing Nothing
 
 public export
-playerSlotAnte : Ante
-playerSlotAnte = MkAnte Player APlayer One TargetSlot Nothing Nothing
+playerSlotAnte : Ant
+playerSlotAnte = MkAnt Player APlayer One TargetSlot Nothing Nothing
 
 public export
 CtxCreatureTarget : Ctx
@@ -81,12 +81,12 @@ tZoneSorts = Refl
 -- anaphors are deliberately NOT weakenable by a COMPATIBLE push: that
 -- instability IS the R2 ambiguity gate (see tBadAmbiguousThat).
 tWeaken : resolveStack (Just Card) One
-            (MkAnte Player APlayer One EventRole Nothing Nothing
-              :: [MkAnte Card AnObject One Product Nothing Nothing])
-        = resolveStack (Just Card) One [MkAnte Card AnObject One Product Nothing Nothing]
+            (MkAnt Player APlayer One EventRole Nothing Nothing
+              :: [MkAnt Card AnObject One Product Nothing Nothing])
+        = resolveStack (Just Card) One [MkAnt Card AnObject One Product Nothing Nothing]
 tWeaken = weakenResolve {w = Just Card} {cd = One}
-                        {s = [MkAnte Card AnObject One Product Nothing Nothing]}
-                        (MkAnte Player APlayer One EventRole Nothing Nothing) Refl
+                        {s = [MkAnt Card AnObject One Product Nothing Nothing]}
+                        (MkAnt Player APlayer One EventRole Nothing Nothing) Refl
 
 -- an announced slot's antecedent is read back as an anaphor — the wildcard
 -- `It` (Lightning Bolt's `DealDamage(It, 3)`) and the sorted `That`.
@@ -225,25 +225,25 @@ tForEach = Each (Existing (SelectAll (creature)))
 tClosedTypeCond : Condition Base
 tClosedTypeCond = Matches This (hasType Creature)
 
--- ...and a filter is just a `Filter` — the candidate is implicit, no `Subject`.
-tSubjectFilter : Filter Base AnObject
+-- ...and a filter is just a `Predicate` — the candidate is implicit, no `Subject`.
+tSubjectFilter : Predicate Base AnObject
 tSubjectFilter = hasType Creature
 
 -- new filter atoms (close the audit's #1 hole): a numeric STAT comparison ("creature with power ≤
--- 2") and runtime OBJECT STATE ("an attacking creature") — both now `Filter`s, not just `Condition`s.
-tStatFilter : Filter Base AnObject
+-- 2") and runtime OBJECT STATE ("an attacking creature") — both now `Predicate`s, not just `Condition`s.
+tStatFilter : Predicate Base AnObject
 tStatFilter = And [creature, StatCmp Power AtMost (^2)]
 
 -- DURATIVE aspect of the relation spine (`Holds r role`): "an attacking creature" (cf the retired
 -- `HasState Attacking`).
-tStateFilter : Filter Base AnObject
+tStateFilter : Predicate Base AnObject
 tStateFilter = And [creature, Holds Attack Agent, Not (HasState Tapped)]
 
 -- filter atoms: multicolored / colorless objects; stack-object filters (a spell targeting you, a single-
 -- target spell); and the COMBAT states via the spine — `Blocking`/`Blocked` are the two SLOTS of one Block
 -- relation, and "unblocked" is DERIVED (an attacker that is no block's patient). `Controls` is the
 -- `ControlledBy` inverse (a player).
-tFilterAtoms : List (Filter Base AnObject)
+tFilterAtoms : List (Predicate Base AnObject)
 tFilterAtoms =
   [ Multicolored
   , IsColorless
@@ -253,7 +253,7 @@ tFilterAtoms =
   , Holds Block Patient                                             -- "a blocked creature"
   , And [creature, Holds Attack Agent, Not (Holds Block Patient)] ]  -- "an unblocked attacker" (derived, no state)
 
-tControlsPlayer : Filter Base APlayer
+tControlsPlayer : Predicate Base APlayer
 tControlsPlayer = Controls creature
 
 -- INCHOATIVE aspect (`Begins r`): ONE onset event per attack/block; a FACET picks the side. `Begins Attack`
@@ -270,7 +270,7 @@ tBecomesAttacked = MkEventQuery [Begins Attack] [Patient (SameAs This)]
 
 --   * the durative filter "the attacked planeswalker" — `Holds` is object-only (only objects bear durative
 --     state; a player defender has none, and rides the event's `Patient` facet instead):
-tAttackedFilter : Filter Base AnObject
+tAttackedFilter : Predicate Base AnObject
 tAttackedFilter = And [hasType Planeswalker, Holds Attack Patient]
 
 --   * PLAYER defender — "whenever you're attacked" (the kind-poly patient of an Attack onset):
@@ -284,12 +284,12 @@ tAttacksOrBlocks = MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs Thi
 
 -- designations: ONE predicate, scope by type — `HasDesignation Monarch` is a PLAYER test (you're the
 -- monarch), `HasDesignation Monstrous` an OBJECT test. The carrier follows `designationScope`.
-tMonarchTest : Filter Base APlayer
+tMonarchTest : Predicate Base APlayer
 tMonarchTest = HasDesignation Monarch
 
 -- an as-enters value choice in scope: `OfChosen` reads "the chosen color" under a `bindChosen AColor`
 -- binding (Iona: "spells of the chosen color"). The card-level `AsEnters AColor` opens this binding.
-tOfChosen : Filter (bindChosen AColor Base) AnObject
+tOfChosen : Predicate (bindChosen AColor Base) AnObject
 tOfChosen = And [IsKind Spell, OfChosen]
 
 -- a MODAL as-enters choice: `ChosenIs i` reads the chosen mode, bounded by the mode count (Citadel/
@@ -410,7 +410,7 @@ tAttacksObject : Deed Base
 tAttacksObject = Enact Attack (hasType Creature) (SameAs This)
 
 -- note read-back: a chosen card NAME is read by `OfChosen` (Meddling Mage), a chosen NUMBER by `ChosenNumber`.
-tChosenName : Filter (bindChosen AName Base) AnObject
+tChosenName : Predicate (bindChosen AName Base) AnObject
 tChosenName = And [IsKind Spell, OfChosen]
 
 tChosenNumber : Count (bindChosen ANumber Base)
@@ -430,7 +430,7 @@ tSacrificeCost : Cost Base
 tSacrificeCost = Do (Sacrifice creature)
 
 -- phasing: the `PhasedOut` state filters a phased permanent; `PhaseOut` is the verb.
-tPhasedFilter : Filter Base AnObject
+tPhasedFilter : Predicate Base AnObject
 tPhasedFilter = And [creature, HasState PhasedOut]
 
 -- morph: the `morph` macro = CastFaceDown ({3}) + TurnFaceUp ([cost]); `FaceDown` filters a morphed
@@ -438,7 +438,7 @@ tPhasedFilter = And [creature, HasState PhasedOut]
 tMorph : Ability Base
 tMorph = morph (Mana [^1, ^Blue])
 
-tFaceDownFilter : Filter Base AnObject
+tFaceDownFilter : Predicate Base AnObject
 tFaceDownFilter = And [creature, HasState FaceDown]
 
 -- copy (minimal): a permanent BECOMES a copy of a reference (layer-1 Modification); a token COPY of a
@@ -668,12 +668,12 @@ tMixedTargets =
 
 -- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.
-tOneOfKinds : (Filter Base AnObject, Filter Base Anything)
+tOneOfKinds : (Predicate Base AnObject, Predicate Base Anything)
 tOneOfKinds = (Or [creature, permanent], Or [creature, Anyone])
 
 -- the join identity: an EMPTY `Or` folds to `Empty` (a vacuous union — matches nothing).
 -- `Empty` is a distinct bottom kind, unusable where a real `AnObject`/`APlayer` is wanted.
-tEmptyOneOf : Filter Base Empty
+tEmptyOneOf : Predicate Base Empty
 tEmptyOneOf = Or []
 
 -- a deontic toll (`Priced Downstream`): Propaganda — creatures can't attack you UNLESS {2} is paid (cost FIRST). A toll is
@@ -1003,7 +1003,7 @@ failing "NonZeroQ"
 
 -- `OfChosen` with no as-enters choice in scope — `IsCharDomain Nothing = Void` denies the anaphor
 failing "IsCharDomain (Base .chosenKind)"
-  tBadOfChosenNoChoice : Filter Base AnObject
+  tBadOfChosenNoChoice : Predicate Base AnObject
   tBadOfChosenNoChoice = OfChosen
 
 -- `ChosenIs` past the mode count is rejected — `LT 2 2` is uninhabited (a 2-mode card, index 2)
@@ -1013,14 +1013,14 @@ failing "LTE 3 2"
 
 -- `OfChosen` on a MODE choice is rejected — a mode isn't a characteristic (`IsCharDomain (AMode _) = Void`)
 failing "IsCharDomain ((bindChosen (AMode 2)"
-  tBadOfChosenMode : Filter (bindChosen (AMode 2) Base) AnObject
+  tBadOfChosenMode : Predicate (bindChosen (AMode 2) Base) AnObject
   tBadOfChosenMode = OfChosen
 
 -- `OfChosen` on an as-enters ENTITY choice is rejected — an object is identity, not a characteristic, and
 -- it binds `chosenRefKind` (NOT `chosenKind`), so `OfChosen`'s `IsCharDomain (chosenKind b)` finds
 -- `Nothing` → `Void`. Read a chosen object with `ChosenObject`/`SameAs`, never `OfChosen`.
 failing "bindChosenRef AnObject"
-  tBadOfChosenObject : Filter (bindChosenRef AnObject Base) AnObject
+  tBadOfChosenObject : Predicate (bindChosenRef AnObject Base) AnObject
   tBadOfChosenObject = OfChosen
 
 -- a subtype whose category isn't among the card's types [CR#205.3d]
@@ -1030,7 +1030,7 @@ failing "Elem (subtypeCategory"
     { name := Just "Bad", types := [Creature], subtypes := [^Aura] }
 
 -- the split makes the old `CountOf (During …)` category error ILL-TYPED: `CountOf`
--- takes a `Filter`, but `During` (a game-state test) is a `Condition`.
+-- takes a `Predicate`, but `During` (a game-state test) is a `Condition`.
 failing "and Countable"
   tBadCountOfCondition : Count Base
   tBadCountOfCondition = CountOf (During (MainPhase PreCombat))

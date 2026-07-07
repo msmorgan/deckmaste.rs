@@ -164,7 +164,7 @@ fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffec
 enum PlayerSubject {
     /// The `TargetSpec` RON to declare — the body reads it back as `It`.
     Target(String),
-    /// The player `Filter` RON an `Each` iterates.
+    /// The player `Predicate` RON an `Each` iterates.
     Each(String),
 }
 
@@ -792,7 +792,7 @@ fn parse_tap_untap(line: &str) -> Option<ParsedEffect> {
     })
 }
 
-/// An object-target subject phrase -> its `Filter` RON. First the shared
+/// An object-target subject phrase -> its `Predicate` RON. First the shared
 /// [`filter`] phrase grammar (single head noun with adjectives), then a
 /// type-noun disjunction fallback for "<type> or <type>[ or <type>]" subjects
 /// (`OneOf([…])`) the single-head grammar can't carry — "artifact or
@@ -844,7 +844,7 @@ fn type_disjunction(subject: &str) -> Option<String> {
 }
 
 /// A bare type-noun phrase (a determiner-led single card type / `permanent`) ->
-/// its head `Filter`, declining a bare-subtype fallthrough. Guards
+/// its head `Predicate`, declining a bare-subtype fallthrough. Guards
 /// [`type_disjunction`] so a disjunction member is a real type noun, never a
 /// silently-minted `Subtype`. Strips a leading determiner ("a"/"an") the way
 /// the shared phrase grammar does.
@@ -859,7 +859,7 @@ fn type_noun_phrase(phrase: &str) -> Option<String> {
     (!filter.contains("Subtype(")).then_some(filter)
 }
 
-/// A combat-status adjective -> its `Filter` status atom. The disjoinable
+/// A combat-status adjective -> its `Predicate` status atom. The disjoinable
 /// adjectives a shared-head target disjunction admits ("attacking or
 /// blocking").
 fn status_atom(word: &str) -> Option<String> {
@@ -871,7 +871,7 @@ fn status_atom(word: &str) -> Option<String> {
 }
 
 /// A graveyard-card subject (the noun before " card" in "<subject> card from
-/// your graveyard") -> the `Filter` for a card you own in your graveyard:
+/// your graveyard") -> the `Predicate` for a card you own in your graveyard:
 /// `AllOf([<type>, InZone(Graveyard), Owner(Ref(You))])`. The type is the
 /// card-type spelling (`Type(Creature)`, `OneOf([Type(Instant),
 /// Type(Sorcery)])` for "instant or sorcery") — NOT the battlefield-scoped
@@ -891,7 +891,7 @@ fn graveyard_card_filter(subject: &str) -> Option<String> {
     Some(format!("AllOf([{}])", atoms.join(", ")))
 }
 
-/// A graveyard-card type phrase -> its card-type `Filter` (`Type(Creature)`,
+/// A graveyard-card type phrase -> its card-type `Predicate` (`Type(Creature)`,
 /// `OneOf([Type(Instant), Type(Sorcery)])`), or `None` for a bare "card" (no
 /// type qualifier) or an unmodeled phrase. Card-type spelling via
 /// [`filter::type_filter`], so the live matcher reads the printed card type,
@@ -1418,7 +1418,7 @@ mod tests {
     fn deal_damage_each_shapes() {
         // A "to each" shape wraps the verb in `Each` over the many-`Binder`
         // `Existing(<filter>)`, binding the iteration anaphor `It` per member
-        // ([CR#608.2d]) — a verb takes a single `Reference`, never a `Filter`.
+        // ([CR#608.2d]) — a verb takes a single `Reference`, never a `Predicate`.
         assert_eq!(
             parsed("~ deals 2 damage to each creature."),
             Some((

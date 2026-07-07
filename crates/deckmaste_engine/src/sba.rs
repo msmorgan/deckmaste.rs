@@ -358,7 +358,7 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::Card;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -430,7 +430,7 @@ mod tests {
                 obj_matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         Type::Creature,
                     )),
                 )
@@ -468,7 +468,7 @@ mod tests {
                 obj_matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         Type::Creature,
                     )),
                 )
@@ -842,7 +842,7 @@ mod tests {
 
     use deckmaste_core::Ability;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Condition;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
@@ -903,9 +903,9 @@ mod tests {
     fn equipment_host_rule() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
             Deontic::Cant(DeonticAction::Attach {
-                what: Filter::Ref(Reference::This),
-                to: Filter::Not(Box::new(Filter::Characteristic(
-                    CharacteristicFilter::Type(Type::Creature),
+                what: Predicate::Ref(Reference::This),
+                to: Predicate::Not(Box::new(Predicate::Characteristic(
+                    CharacteristicPredicate::Type(Type::Creature),
                 ))),
             }),
         ))))
@@ -1064,8 +1064,8 @@ mod tests {
             vec![Type::Creature],
             vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
-                    what: Filter::Any,
-                    to: Filter::Ref(Reference::This),
+                    what: Predicate::Any,
+                    to: Predicate::Ref(Reference::This),
                 },
             )))],
         );
@@ -1092,8 +1092,8 @@ mod tests {
         use deckmaste_core::Cmp;
         use deckmaste_core::Count;
         use deckmaste_core::PlayerAction;
-        use deckmaste_core::RelationFilter;
-        use deckmaste_core::StateFilter;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
 
         let mut state = game();
         let name: deckmaste_core::Ident = "CitysBlessing".into();
@@ -1102,9 +1102,9 @@ mod tests {
         // The Ascend static, built typed (mirrors the builtin macro's expansion).
         let gate = Condition::AllOf(vec![
             Condition::Compare(
-                Count::CountOf(Box::new(Filter::AllOf(vec![
-                    Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                Count::CountOf(Box::new(Predicate::AllOf(vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ]))),
@@ -1113,7 +1113,7 @@ mod tests {
             ),
             Condition::Not(Box::new(Condition::Is(
                 Reference::You,
-                Filter::State(StateFilter::Designated(name)),
+                Predicate::State(StatePredicate::Designated(name)),
             ))),
         ]);
         let ascend = Ability::Static(StaticEffect::Sba {
@@ -1178,8 +1178,8 @@ mod tests {
         use deckmaste_core::Cmp;
         use deckmaste_core::Count;
         use deckmaste_core::PlayerAction;
-        use deckmaste_core::RelationFilter;
-        use deckmaste_core::StateFilter;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
 
         let name: deckmaste_core::Ident = "CitysBlessing".into();
         let p0 = PlayerId(0);
@@ -1193,18 +1193,18 @@ mod tests {
             Ability::Static(StaticEffect::Sba {
                 when: Box::new(Condition::AllOf(vec![
                     Condition::Compare(
-                        Count::CountOf(Box::new(Filter::AllOf(vec![
-                            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
-                                Reference::You,
-                            )))),
+                        Count::CountOf(Box::new(Predicate::AllOf(vec![
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+                                Predicate::Ref(Reference::You),
+                            ))),
                         ]))),
                         Cmp::AtLeast,
                         Count::Literal(10),
                     ),
                     Condition::Not(Box::new(Condition::Is(
                         Reference::You,
-                        Filter::State(StateFilter::Designated(name)),
+                        Predicate::State(StatePredicate::Designated(name)),
                     ))),
                 ])),
                 then: Box::new(Effect::Act(Action::By(

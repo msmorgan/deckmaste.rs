@@ -1,6 +1,6 @@
 (
     name: "Battle",
     template: "battle",
-    kinds: [Filter],
+    kinds: [Predicate],
     body: AllOf([Permanent, Type(Battle)]),
 )

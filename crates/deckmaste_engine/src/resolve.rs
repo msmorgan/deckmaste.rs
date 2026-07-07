@@ -479,10 +479,7 @@ impl GameState {
                 let mut member_events: Vec<Vec<GameEvent>> = Vec::new();
                 for child in &children {
                     let Effect::Act(action) = peel_effect(child) else {
-                        todo!(
-                            "load-capped (E-POS-SIMULTANEOUS): a non-verb Simultaneous \
-                             member: {child:?}"
-                        )
+                        todo!("a non-verb Simultaneous member is not yet supported: {child:?}")
                     };
                     let mut events = Vec::new();
                     for item in self.action_items(action, frame) {
@@ -492,8 +489,7 @@ impl GameState {
                                 events.extend(es);
                             }
                             other => todo!(
-                                "load-capped (E-POS-SIMULTANEOUS): a choice-bearing \
-                                 Simultaneous member scheduled {other:?}"
+                                "a choice-bearing Simultaneous member is not yet supported: scheduled {other:?}"
                             ),
                         }
                     }
@@ -631,7 +627,7 @@ impl GameState {
             // pauses for a choice, a single-`Act` body resolves for EVERY element
             // at once — one `Occurrence::Batch`, so death triggers / SBAs / the
             // loss-is-a-draw check see them together (the simultaneity the old
-            // verb-over-`Filter` carried). A body that can pause (Sequence/With/If,
+            // verb-over-`Predicate` carried). A body that can pause (Sequence/With/If,
             // or `CreateReplacement` which bypasses `action_items`) keeps
             // per-element scheduling, where each element runs and pauses
             // independently.
@@ -1890,10 +1886,11 @@ impl GameState {
     }
 
     /// A selection (a GROUP) resolved to its full set ([CR#608.2d]) — the
-    /// home of plurality now that verbs take a single [`Reference`]. `Filter`
-    /// enumerates the matching set; `They`/`TheGroup`/`TopOfLibrary` name an
-    /// already-bound group. A per-object instruction runs over this set via an
-    /// enclosing `Each`/`DivideAmong`/`With`, never the verb itself.
+    /// home of plurality now that verbs take a single [`Reference`].
+    /// `Predicate` enumerates the matching set;
+    /// `They`/`TheGroup`/`TopOfLibrary` name an already-bound group. A
+    /// per-object instruction runs over this set via an enclosing `Each`/
+    /// `DivideAmong`/`With`, never the verb itself.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             Selection::SelectAll(f) => crate::target::candidates(self, f),
@@ -2094,7 +2091,7 @@ impl GameState {
             }
             // The current iteration / projection element — "it" ([CR#608.2]).
             // Bound per element by an enclosing `Each`/`DivideAmong` loop, and by
-            // `Filter::Where` / `Selection::Pick` while testing a candidate (the
+            // `Predicate::Where` / `Selection::Pick` while testing a candidate (the
             // role the old `Subject` named). Kind-poly ([CR#120.3]): a card/token
             // element resolves to its (last-known) id, a player element to its
             // proxy. Referenced at a frameless position it is a malformed read.
@@ -2589,10 +2586,7 @@ impl GameState {
             | GameEvent::CounterPlaced { amount, .. }
             | GameEvent::CounterRemoved { amount, .. } => *amount,
             GameEvent::WillDraw { .. } | GameEvent::ZoneChanged { .. } => 1,
-            other => unreachable!(
-                "load-capped (E-CAPS-AMOUNT): EventSum reached a fact kind with no \
-                 amount channel: {other:?}"
-            ),
+            other => unreachable!("EventSum reached a fact kind with no amount channel: {other:?}"),
         }
     }
 
@@ -2875,18 +2869,18 @@ fn occurrence_of(mut events: Vec<GameEvent>) -> crate::event::Occurrence {
     }
 }
 
-/// Extracts the `Filter` from a `TargetSpec`. Stage 3 only handles
+/// Extracts the `Predicate` from a `TargetSpec`. Stage 3 only handles
 /// `TargetSpec::Target(Exactly(Literal(1)), filter)` (and `Expanded` wrappers
 /// around it).
 ///
-/// This is the single authoritative site for TargetSpec→Filter extraction;
+/// This is the single authoritative site for TargetSpec→Predicate extraction;
 /// both `cast::legal_targets` (announce time) and `targets_still_legal`
 /// (resolution time) funnel through here so they stay in sync.
 ///
 /// # Panics
 ///
 /// Panics on `TargetSpec` quantities not wired for Stage 3.
-pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Filter {
+pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Predicate {
     match spec {
         TargetSpec::Target(_quantity, f) => {
             // TODO(stage-4): enforce quantity; for now, Stage 3 only exercises
@@ -2913,16 +2907,16 @@ mod tests {
     use deckmaste_core::Action;
     use deckmaste_core::Binder;
     use deckmaste_core::Card;
-    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Count;
     use deckmaste_core::Effect;
-    use deckmaste_core::Filter;
     use deckmaste_core::Lookback;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
-    use deckmaste_core::StateFilter;
+    use deckmaste_core::StatePredicate;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -2985,7 +2979,7 @@ mod tests {
     fn second_bear_to_player_1(state: &mut GameState) -> ObjectId {
         let theirs = *state.zones.hands[0]
             .iter()
-            .find(|&&o| obj_matches(state, o, &Filter::creature()))
+            .find(|&&o| obj_matches(state, o, &Predicate::creature()))
             .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != theirs);
         state.objects.obj_mut(theirs).zone = Some(Zone::Battlefield);
@@ -3047,7 +3041,7 @@ mod tests {
         use deckmaste_core::Agency;
         use deckmaste_core::Count;
         use deckmaste_core::EventFilter;
-        use deckmaste_core::Filter;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
 
         use crate::event::Cause;
@@ -3072,8 +3066,8 @@ mod tests {
         state.record_history_fact(1, None, GameEvent::SpellCast(sp2));
         state.record_history_fact(1, None, GameEvent::SpellCast(sp3));
         let cast_event = EventFilter::Cast {
-            who: Filter::Any,
-            what: Filter::Any,
+            who: Predicate::Any,
+            what: Predicate::Any,
         };
         assert_eq!(
             state.eval_count(
@@ -3102,7 +3096,7 @@ mod tests {
             },
         );
         let draw_event = EventFilter::Drawn {
-            who: Filter::Ref(Reference::You),
+            who: Predicate::Ref(Reference::You),
             amount: None,
         };
         assert_eq!(
@@ -3141,8 +3135,8 @@ mod tests {
             "lands played by p this turn (direct helper)"
         );
         let play_event = EventFilter::Played {
-            who: Filter::Ref(Reference::You),
-            what: Filter::Any,
+            who: Predicate::Ref(Reference::You),
+            what: Predicate::Any,
         };
         assert_eq!(
             state.eval_count(
@@ -3181,11 +3175,11 @@ mod tests {
             },
         );
         let lose_event = EventFilter::LifeLost {
-            who: Filter::Ref(Reference::You),
+            who: Predicate::Ref(Reference::You),
             amount: None,
         };
         let gain_event = EventFilter::LifeGained {
-            who: Filter::Ref(Reference::You),
+            who: Predicate::Ref(Reference::You),
             amount: None,
         };
         assert_eq!(
@@ -3208,11 +3202,11 @@ mod tests {
         // Prior-turn entries are excluded once the turn advances.
         state.turn.turn_number = 2;
         let cast_event2 = EventFilter::Cast {
-            who: Filter::Any,
-            what: Filter::Any,
+            who: Predicate::Any,
+            what: Predicate::Any,
         };
         let draw_event2 = EventFilter::Drawn {
-            who: Filter::Ref(Reference::You),
+            who: Predicate::Ref(Reference::You),
             amount: None,
         };
         assert_eq!(
@@ -3319,7 +3313,7 @@ mod tests {
                 obj_matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         Type::Creature,
                     )),
                 )
@@ -3354,7 +3348,7 @@ mod tests {
         });
         let m = *state.zones.hands[0]
             .iter()
-            .find(|&&o| obj_matches(&state, o, &Filter::creature()))
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
             .expect("a Darksteel Myr in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
         state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
@@ -3370,7 +3364,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         let b = *state.zones.hands[0]
             .iter()
-            .find(|&&o| obj_matches(&state, o, &Filter::creature()))
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
             .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
@@ -3515,9 +3509,9 @@ mod tests {
             types: vec![Type::Artifact],
             abilities: vec![Ability::Innate(Box::new(Ability::Static(
                 StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attach {
-                    what: Filter::Ref(Reference::This),
-                    to: Filter::Not(Box::new(Filter::Characteristic(
-                        CharacteristicFilter::Type(Type::Creature),
+                    what: Predicate::Ref(Reference::This),
+                    to: Predicate::Not(Box::new(Predicate::Characteristic(
+                        CharacteristicPredicate::Type(Type::Creature),
                     ))),
                 })),
             )))],
@@ -3631,9 +3625,9 @@ mod tests {
         use deckmaste_core::Quantity;
 
         let (state, bear) = bear_on_field();
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let frame = Frame {
             anaphora: Anaphora {
@@ -3662,9 +3656,9 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
 
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         // The RNG's pick is bound into the frame before the group is read.
         let mut frame = frame_src(bear);
@@ -3719,9 +3713,9 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let frame = frame_src(bear);
         state.run_effect(
@@ -3764,9 +3758,9 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
 
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let frame = frame_src(bear);
         state.run_effect(
@@ -4109,9 +4103,9 @@ mod tests {
         let _ = second_bear_to_player_1(&mut state);
 
         let frame = frame_src(bear);
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         assert_eq!(
             state.eval_count(&Count::CountOf(Box::new(creatures.clone())), &frame),
@@ -4119,10 +4113,10 @@ mod tests {
         );
 
         // "Creatures you control": only the frame side's bear.
-        let yours = Filter::AllOf(vec![
+        let yours = Predicate::AllOf(vec![
             creatures,
-            Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(Box::new(
-                Filter::Ref(Reference::You),
+            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
+                Predicate::Ref(Reference::You),
             ))),
         ]);
         assert_eq!(
@@ -4212,8 +4206,10 @@ mod tests {
     /// ([CR#115.1,601.2c]).
     #[test]
     fn top_targets_reads_wrapper_and_peels_expanded() {
-        let spec =
-            deckmaste_core::TargetSpec::Target(deckmaste_core::Quantity::one(), Filter::creature());
+        let spec = deckmaste_core::TargetSpec::Target(
+            deckmaste_core::Quantity::one(),
+            Predicate::creature(),
+        );
         let wrapped = Effect::Targeted(deckmaste_core::Targeted::new(
             vec![spec.clone()],
             Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
@@ -4246,7 +4242,7 @@ mod tests {
                 obj_matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         Type::Creature,
                     )),
                 )
@@ -4257,9 +4253,9 @@ mod tests {
         state.zones.battlefield.push(b);
 
         let frame = frame_src(a);
-        let filter = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let filter = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let mut got = state.eval_selection_set(&Selection::SelectAll(filter), &frame);
         got.sort();
@@ -4279,7 +4275,7 @@ mod tests {
         let frame = frame_src(src);
 
         let effect = Effect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Filter::Kind(ObjectKind::Player))),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
             effect: Box::new(Effect::Act(Action::deal_damage(
                 Reference::It,
                 Count::Literal(20),
@@ -4311,7 +4307,7 @@ mod tests {
                 obj_matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         Type::Creature,
                     )),
                 )
@@ -4323,9 +4319,9 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = Effect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Filter::AllOf(vec![
-                Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::creature(),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::AllOf(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
             ]))),
             effect: Box::new(Effect::Act(Action::deal_damage(
                 Reference::It,
@@ -4337,7 +4333,7 @@ mod tests {
         // Simultaneity ([CR#700.1]): a single-verb `Each` body resolves for
         // every element at once — both `DamageDealt`s ride ONE `Occurrence::Batch`
         // (not two sequential singles), so death triggers / SBAs see them
-        // together. This is the "to each" simultaneity the old verb-over-`Filter`
+        // together. This is the "to each" simultaneity the old verb-over-`Predicate`
         // carried, restored after the verb→`Reference` split.
         match state.agenda.front() {
             Some(WorkItem::Emit(crate::event::Occurrence::Batch(evs))) => {
@@ -4370,7 +4366,7 @@ mod tests {
                 obj_matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         Type::Creature,
                     )),
                 )
@@ -4382,9 +4378,9 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = Effect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Filter::AllOf(vec![
-                Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::creature(),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::AllOf(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
             ]))),
             effect: Box::new(Effect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(1),
@@ -4437,10 +4433,10 @@ mod tests {
         let effect = Effect::Noting(deckmaste_core::Noting {
             key: "destroyed".into(),
             effect: Box::new(Effect::Each(deckmaste_core::Each {
-                binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Filter::AllOf(
+                binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Predicate::AllOf(
                     vec![
-                        Filter::State(deckmaste_core::StateFilter::InZone(Zone::Battlefield)),
-                        Filter::creature(),
+                        Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::creature(),
                     ],
                 ))),
                 effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
@@ -4720,9 +4716,9 @@ mod tests {
         use deckmaste_core::Count;
         use deckmaste_core::Duration;
         use deckmaste_core::Effect;
-        use deckmaste_core::Filter;
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
         use deckmaste_core::Selection;
         use deckmaste_core::StaticEffect;
@@ -4732,7 +4728,7 @@ mod tests {
 
         assert!(state.continuous.is_empty(), "no effects before resolve");
 
-        let filter = Filter::creature();
+        let filter = Predicate::creature();
         let effect = Effect::Continuously(Continuously {
             effect: Box::new(StaticEffect::Each(
                 Selection::SelectAll(filter.clone()),
@@ -5383,9 +5379,9 @@ mod tests {
         let frame = frame_src(a);
         let effect = Effect::DivideAmong(DivideAmong {
             amount: Count::Literal(3),
-            binder: Binder::Existing(Selection::SelectAll(Filter::AllOf(vec![
-                Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::creature(),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::AllOf(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
             ]))),
             body: Box::new(Effect::Act(Action::deal_damage(
                 Reference::It,
@@ -5467,7 +5463,7 @@ mod tests {
         let frame = frame_src(bear);
         state.run_effect(
             Effect::Each(Each {
-                binder: Binder::Existing(Selection::SelectAll(Filter::Kind(ObjectKind::Player))),
+                binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
                 effect: Box::new(Effect::Act(Action::deal_damage(
                     Reference::It,
                     Count::Literal(1),
@@ -5530,9 +5526,9 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let frame = frame_src(bear);
         state.run_effect(
@@ -5590,9 +5586,9 @@ mod tests {
     fn nested_each_clears_outer_divide_among_allotment() {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src(a);
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let effect = Effect::DivideAmong(deckmaste_core::DivideAmong {
             amount: Count::Literal(2),
@@ -5676,15 +5672,15 @@ mod tests {
     fn add_mana_with_riders_lands_unit_carrying_riders() {
         use deckmaste_core::Color;
         use deckmaste_core::ColorOrColorless;
-        use deckmaste_core::Filter;
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaRider;
         use deckmaste_core::ManaSpec;
+        use deckmaste_core::Predicate;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
         let red = ColorOrColorless::Color(Color::Red);
-        let rider = ManaRider::SpendOnly(Filter::Any);
+        let rider = ManaRider::SpendOnly(Predicate::Any);
         state.run_effect(
             Effect::act_by_you(PlayerAction::AddMana(
                 Count::Literal(1),
@@ -5860,7 +5856,7 @@ mod tests {
             assert_eq!(state.objects.obj(t).controller, PlayerId(0));
             assert!(state.objects.obj(t).summoning_sick, "[CR#302.6]");
             assert!(
-                obj_matches(&state, t, &Filter::type_(Type::Artifact)),
+                obj_matches(&state, t, &Predicate::type_(Type::Artifact)),
                 "the creating effect's characteristics stick ([CR#111.3])"
             );
         }
@@ -5932,7 +5928,7 @@ mod tests {
                     .objects
                     .mint(ObjectSource::Card(src_card), PlayerId(0), Some(Zone::Stack));
 
-            let parsed: Filter = builtin().macros.read_str(filter).unwrap();
+            let parsed: Predicate = builtin().macros.read_str(filter).unwrap();
             let frame = frame_src(source);
             let before = state.zones.battlefield.len();
             state.run_effect(
@@ -6035,7 +6031,7 @@ mod tests {
             .expect("the Treasure token on the battlefield");
         assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
         let card = state.objects.obj(t).card_id().expect("card-backed");
-        // Subtype asserted on the card entry directly — `Filter::Subtype`
+        // Subtype asserted on the card entry directly — `Predicate::Subtype`
         // evaluation is the `engine-filter-breadth` item.
         assert!(
             state
@@ -6297,8 +6293,10 @@ mod tests {
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
                 abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attach {
-                        what: Filter::Characteristic(CharacteristicFilter::ColorIs(Color::Red)),
-                        to: Filter::Ref(Reference::This),
+                        what: Predicate::Characteristic(CharacteristicPredicate::ColorIs(
+                            Color::Red,
+                        )),
+                        to: Predicate::Ref(Reference::This),
                     },
                 )))],
                 ..CardFace::default()
@@ -6562,9 +6560,9 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let frame = frame_src(bear);
         state.run_effect(
@@ -6589,9 +6587,9 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
-        let creatures = Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+        let creatures = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ]);
         let frame = frame_src(bear);
         let life0 = state.player(PlayerId(0)).life;
@@ -6939,13 +6937,13 @@ mod tests {
     fn ascend_gate() -> deckmaste_core::Condition {
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
-        use deckmaste_core::RelationFilter;
+        use deckmaste_core::RelationPredicate;
 
         Condition::AllOf(vec![
             Condition::Compare(
-                Count::CountOf(Box::new(Filter::AllOf(vec![
-                    Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                Count::CountOf(Box::new(Predicate::AllOf(vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ]))),
@@ -6954,7 +6952,7 @@ mod tests {
             ),
             Condition::Not(Box::new(Condition::Is(
                 Reference::You,
-                Filter::State(StateFilter::Designated("CitysBlessing".into())),
+                Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
             ))),
         ])
     }
@@ -6984,7 +6982,7 @@ mod tests {
             Effect::If(If {
                 condition: Condition::Is(
                     Reference::You,
-                    Filter::State(StateFilter::Designated("CitysBlessing".into())),
+                    Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                 ),
                 then: Box::new(Effect::act_by_you(PlayerAction::Draw(Count::Literal(3)))),
                 otherwise: Some(Box::new(Effect::act_by_you(PlayerAction::Draw(
@@ -7306,7 +7304,7 @@ mod tests {
 
         // The creature-death event pattern (same as morbid Condition::Happened).
         let death_pattern = EventFilter::ZoneChange {
-            what: Filter::creature(),
+            what: Predicate::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: None,
@@ -7314,7 +7312,7 @@ mod tests {
 
         // A non-matching pattern: creatures entering the battlefield.
         let enter_pattern = EventFilter::ZoneChange {
-            what: Filter::creature(),
+            what: Predicate::creature(),
             from: None,
             to: Some(Zone::Battlefield),
             cause: None,
@@ -7401,7 +7399,7 @@ mod tests {
         let frame = frame_for(&state, PlayerId(0));
 
         let lose_life_pattern = EventFilter::LifeLost {
-            who: deckmaste_core::Filter::Ref(deckmaste_core::Reference::You),
+            who: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::You),
             amount: None,
         };
 
@@ -8309,10 +8307,10 @@ mod tests {
     /// A battlefield-scoped creature filter (canonical card filters carry
     /// their own zone narrowing) — keeps the deck's hand/library bears out of
     /// the matched set.
-    fn creatures_in_play() -> Filter {
-        Filter::AllOf(vec![
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
-            Filter::creature(),
+    fn creatures_in_play() -> Predicate {
+        Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
         ])
     }
 

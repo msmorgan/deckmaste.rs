@@ -25,14 +25,14 @@ use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::Effect;
-use deckmaste_core::Filter;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
-use deckmaste_core::StateFilter;
+use deckmaste_core::StatePredicate;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -1003,9 +1003,9 @@ fn activated_ability_pays_life_cost() {
 fn activated_ability_pays_choose_sacrifice_cost() {
     const ARTIFACT_NAME: &str = "Choose-sacrifice test artifact";
     // Creature filter: battlefield creatures (zone check + type check).
-    let creature_filter = Filter::AllOf(vec![
-        Filter::State(StateFilter::InZone(Zone::Battlefield)),
-        Filter::creature(),
+    let creature_filter = Predicate::AllOf(vec![
+        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+        Predicate::creature(),
     ]);
     let card = artifact_with_cost(
         ARTIFACT_NAME,

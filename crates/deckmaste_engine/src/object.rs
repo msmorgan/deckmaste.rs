@@ -51,8 +51,9 @@ pub struct CardInstance {
     pub def: Arc<Card>,
     pub owner: PlayerId,
     /// [CR#111.6]: a token isn't a card. Set for entries synthesized by
-    /// `TokenCreated`; `object_kind` reports `Token` (so `Filter::Kind(Card)`
-    /// excludes them) and the ceases-to-exist SBA ([CR#704.5d]) keys on it.
+    /// `TokenCreated`; `object_kind` reports `Token` (so
+    /// `Predicate::Kind(Card)` excludes them) and the ceases-to-exist SBA
+    /// ([CR#704.5d]) keys on it.
     pub is_token: bool,
     /// The face's printed + subtype-conferred abilities, precomputed at setup
     /// so the layer pipeline's base values are an `Arc` bump per rebuild

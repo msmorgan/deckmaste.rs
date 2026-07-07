@@ -126,9 +126,7 @@ impl GameState {
             // crossing satisfies both a threshold of 1 and of 2.
             Condition::Crossed { threshold, .. } => {
                 let Some((before, after)) = frame.anaphora.crossed else {
-                    todo!(
-                        "checker-gated (E-BIND-EVENT/E-CAPS-AMOUNT): Crossed with no                          before/after channel in the frame"
-                    )
+                    todo!("Crossed with no before/after channel in the frame is not yet supported")
                 };
                 !threshold.satisfied_by(before, |c| self.eval_count(c, frame))
                     && threshold.satisfied_by(after, |c| self.eval_count(c, frame))
@@ -225,11 +223,11 @@ mod tests {
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::Filter;
     use deckmaste_core::Lookback;
     use deckmaste_core::PhaseStep;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::StateFilter;
+    use deckmaste_core::StatePredicate;
     use deckmaste_core::Type;
     use deckmaste_core::Uint;
     use deckmaste_core::Zone;
@@ -312,7 +310,7 @@ mod tests {
         };
 
         let morbid_pattern = EventFilter::ZoneChange {
-            what: Filter::creature(),
+            what: Predicate::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: None,
@@ -401,8 +399,8 @@ mod tests {
             },
         };
 
-        let creature = Filter::creature();
-        let land = Filter::type_(Type::Land);
+        let creature = Predicate::creature();
+        let land = Predicate::type_(Type::Land);
 
         // Is(This, …): the bear is a creature …
         assert!(
@@ -423,7 +421,7 @@ mod tests {
         // self-reference inside the filter anchors and matches.
         assert!(
             state.condition_holds(
-                &Condition::Is(Reference::This, Filter::Ref(Reference::This)),
+                &Condition::Is(Reference::This, Predicate::Ref(Reference::This)),
                 &frame
             ),
             "the resolved object is the frame's own source"
@@ -444,7 +442,7 @@ mod tests {
         use deckmaste_core::Ability;
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
-        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Effect;
         use deckmaste_core::EventFilter;
         use deckmaste_core::TriggeredAbility;
@@ -471,8 +469,8 @@ mod tests {
                     where_x: None,
                     from: None,
                     event: EventFilter::OneOf(Vec::new()),
-                    condition: Some(Condition::Exists(Filter::Characteristic(
-                        CharacteristicFilter::Type(Type::Creature),
+                    condition: Some(Condition::Exists(Predicate::Characteristic(
+                        CharacteristicPredicate::Type(Type::Creature),
                     ))),
                     limits: Vec::new(),
                     effect: Effect::Sequence(Vec::new()),
@@ -594,7 +592,7 @@ mod tests {
             };
             let cond = Condition::Is(
                 Reference::This,
-                Filter::State(StateFilter::HasCounter(CounterRef::from(kind))),
+                Predicate::State(StatePredicate::HasCounter(CounterRef::from(kind))),
             );
             state.condition_holds(&cond, &frame)
         };
@@ -678,12 +676,12 @@ mod tests {
     /// turn" ([CR#603.4]).
     #[test]
     fn turn_of_generalizes_your_turn() {
-        use deckmaste_core::RelationFilter;
+        use deckmaste_core::RelationPredicate;
 
         let your_turn = Condition::YourTurn;
-        let turn_of_you = Condition::TurnOf(Filter::Ref(Reference::You));
-        let turn_of_opp = Condition::TurnOf(Filter::Relation(RelationFilter::OpponentOf(
-            Box::new(Filter::Ref(Reference::You)),
+        let turn_of_you = Condition::TurnOf(Predicate::Ref(Reference::You));
+        let turn_of_opp = Condition::TurnOf(Predicate::Relation(RelationPredicate::OpponentOf(
+            Box::new(Predicate::Ref(Reference::You)),
         )));
 
         for active in [PlayerId(0), PlayerId(1)] {
@@ -717,7 +715,9 @@ mod tests {
     fn compare_counts_stack_census() {
         let mut state = game();
         let cond = Condition::Compare(
-            Count::CountOf(Box::new(Filter::State(StateFilter::InZone(Zone::Stack)))),
+            Count::CountOf(Box::new(Predicate::State(StatePredicate::InZone(
+                Zone::Stack,
+            )))),
             Cmp::Eq,
             Count::Literal(0),
         );
@@ -759,7 +759,7 @@ mod tests {
     /// then the only creature.
     #[test]
     fn compare_counts_nonstack_filter() {
-        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::CharacteristicPredicate;
 
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
@@ -787,8 +787,8 @@ mod tests {
         );
         state.zones.battlefield.push(bear);
 
-        let creatures = Count::CountOf(Box::new(Filter::Characteristic(
-            CharacteristicFilter::Type(Type::Creature),
+        let creatures = Count::CountOf(Box::new(Predicate::Characteristic(
+            CharacteristicPredicate::Type(Type::Creature),
         )));
         assert!(
             state.condition_holds(
@@ -927,8 +927,8 @@ mod tests {
     /// fooled by damage dealt to the carrier's own controller.
     #[test]
     fn bloodthirst_opponent_damaged_this_turn() {
-        use deckmaste_core::Filter;
-        use deckmaste_core::RelationFilter;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::RelationPredicate;
 
         use crate::event::GameEvent;
 
@@ -938,8 +938,8 @@ mod tests {
         // The Bloodthirst gate, evaluated from player 0's seat (You = P0).
         let gate = Condition::Happened {
             event: EventFilter::Damage {
-                source: Filter::any(),
-                to: Filter::Relation(RelationFilter::OpponentOf(Box::new(Filter::Ref(
+                source: Predicate::any(),
+                to: Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Ref(
                     Reference::You,
                 )))),
                 combat: None,
@@ -1008,8 +1008,8 @@ mod tests {
     /// answers correctly.
     #[test]
     fn happened_damage_to_a_departed_creature_reads_its_snapshot() {
-        use deckmaste_core::CharacteristicFilter;
-        use deckmaste_core::Filter;
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::Predicate;
 
         use crate::event::GameEvent;
 
@@ -1043,9 +1043,9 @@ mod tests {
         state.objects.remove(id);
         assert!(state.objects.get(id).is_none(), "the recipient is gone");
 
-        let damaged = |filter: Filter| Condition::Happened {
+        let damaged = |filter: Predicate| Condition::Happened {
             event: EventFilter::Damage {
-                source: Filter::any(),
+                source: Predicate::any(),
                 to: filter,
                 combat: None,
                 amount: None,
@@ -1054,7 +1054,7 @@ mod tests {
         };
         assert!(
             state.condition_holds(
-                &damaged(Filter::Characteristic(CharacteristicFilter::Type(
+                &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
                     Type::Creature
                 ))),
                 &frame_for(&state, PlayerId(0)),
@@ -1063,7 +1063,7 @@ mod tests {
         );
         assert!(
             !state.condition_holds(
-                &damaged(Filter::Characteristic(CharacteristicFilter::Type(
+                &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
                     Type::Land
                 ))),
                 &frame_for(&state, PlayerId(0)),
@@ -1144,7 +1144,7 @@ mod tests {
         let gained_this_turn = Condition::Happened {
             event: EventFilter::Within(
                 Box::new(EventFilter::LifeGained {
-                    who: deckmaste_core::Filter::any(),
+                    who: deckmaste_core::Predicate::any(),
                     amount: None,
                 }),
                 Lookback::ThisTurn,
@@ -1191,7 +1191,7 @@ mod tests {
         let p0 = PlayerId(0);
         let cond = Condition::Is(
             Reference::You,
-            Filter::State(StateFilter::Designated("CitysBlessing".into())),
+            Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
         );
         assert!(
             !state.condition_holds(&cond, &frame_for(&state, p0)),

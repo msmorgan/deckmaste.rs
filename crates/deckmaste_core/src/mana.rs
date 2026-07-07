@@ -161,7 +161,7 @@ pub enum SymbolPred {
 pub enum ManaRider {
     /// Spend restriction — "Spend this mana only to cast creature spells"
     /// ([CR#106.6]); the filter judges the spell/ability being paid.
-    SpendOnly(crate::Filter),
+    SpendOnly(crate::Predicate),
     /// An effect granted to the spell or ability the mana is spent on
     /// ("If that mana is spent on a creature spell, it gains riot").
     GrantOnSpend(Box<crate::Effect>),

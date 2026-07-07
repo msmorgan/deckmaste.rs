@@ -995,7 +995,7 @@ impl GameState {
                 }
             }
             Occurrence::Batch(events) => {
-                // Filter out suppressed events first (cant pass borrows self
+                // Predicate out suppressed events first (cant pass borrows self
                 // immutably), then run the replacement loop + apply on each —
                 // each member is replaceable ON ITS OWN ([CR#616.1]);
                 // replacing one member never unapplies the others. Member
@@ -2212,7 +2212,7 @@ mod tests {
 
         use deckmaste_cards::plugin::Plugin;
         use deckmaste_core::Card;
-        use deckmaste_core::Filter;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Type;
         use deckmaste_core::Zone;
 
@@ -2268,7 +2268,7 @@ mod tests {
                     obj_matches(
                         &state,
                         o,
-                        &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                        &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                             Type::Creature,
                         )),
                     )

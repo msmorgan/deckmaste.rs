@@ -45,7 +45,7 @@ use deckmaste_core::Anchor;
 use deckmaste_core::Arrangement;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
-use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Cmp;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
@@ -62,7 +62,6 @@ use deckmaste_core::Destination;
 use deckmaste_core::Effect;
 use deckmaste_core::EnterRider;
 use deckmaste_core::EventFilter;
-use deckmaste_core::Filter;
 use deckmaste_core::Ident;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::ManaCost;
@@ -76,14 +75,15 @@ use deckmaste_core::PhaseStep;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
+use deckmaste_core::Predicate;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
-use deckmaste_core::RelationFilter;
+use deckmaste_core::RelationPredicate;
 use deckmaste_core::Selection;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Sort;
 use deckmaste_core::StatValue;
-use deckmaste_core::StateFilter;
+use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
@@ -440,7 +440,7 @@ fn emit_reference_anykind(r: &Reference) -> R {
     })
 }
 
-/// Convert a `Reference` used where Idris wants a `Filter` (Idris's
+/// Convert a `Reference` used where Idris wants a `Predicate` (Idris's
 /// `Sacrifice`/`ChooseOne`/… bake the choice INTO the predicate rather than
 /// pre-resolving it via a binder, unlike Rust's newer split). Every reference
 /// becomes `SameAs <ref>` (an already-resolved reference IS a predicate:
@@ -450,12 +450,12 @@ fn reference_as_predicate(r: &Reference) -> R {
 }
 
 // ===========================================================================
-// Rust Filter -> Idris Filter
+// Rust Predicate -> Idris Predicate
 // ===========================================================================
 
-fn emit_filter(f: &Filter) -> R {
+fn emit_filter(f: &Predicate) -> R {
     Ok(match f {
-        Filter::Kind(k) => {
+        Predicate::Kind(k) => {
             use deckmaste_core::ObjectKind as K;
             match k {
                 K::Ability => "(IsKind Ability)".to_string(),
@@ -473,32 +473,36 @@ fn emit_filter(f: &Filter) -> R {
                 }
             }
         }
-        Filter::Characteristic(cf) => emit_characteristic_filter(cf)?,
-        Filter::State(sf) => emit_state_filter(sf)?,
-        Filter::Relation(rf) => emit_relation_filter(rf)?,
-        Filter::Ref(r) => app("SameAs", vec![emit_reference(r)?]),
-        Filter::FromSource(_) => {
-            return Err(gap("Filter::FromSource has no Idris Filter counterpart"));
-        }
-        Filter::AllOf(fs) => app("And", vec![map_list(fs, emit_filter)?]),
-        Filter::OneOf(fs) => app("Or", vec![map_list(fs, emit_filter)?]),
-        Filter::Not(inner) => app("Not", vec![emit_filter(inner)?]),
-        Filter::Where(cond) => app("Where", vec![emit_condition(cond)?]),
-        // The vacuous conjunction is universally (if trivially) true at any
-        // kind — the one "matches anything" Filter Idris has.
-        Filter::Any => "(And [])".to_string(),
-        Filter::Expanded(_) => {
+        Predicate::Characteristic(cf) => emit_characteristic_filter(cf)?,
+        Predicate::State(sf) => emit_state_filter(sf)?,
+        Predicate::Relation(rf) => emit_relation_filter(rf)?,
+        Predicate::Ref(r) => app("SameAs", vec![emit_reference(r)?]),
+        Predicate::FromSource(_) => {
             return Err(gap(
-                "unexpanded Filter macro invocation remained after expand_all",
+                "Predicate::FromSource has no Idris Predicate counterpart",
+            ));
+        }
+        Predicate::AllOf(fs) => app("And", vec![map_list(fs, emit_filter)?]),
+        Predicate::OneOf(fs) => app("Or", vec![map_list(fs, emit_filter)?]),
+        Predicate::Not(inner) => app("Not", vec![emit_filter(inner)?]),
+        Predicate::Where(cond) => app("Where", vec![emit_condition(cond)?]),
+        // The vacuous conjunction is universally (if trivially) true at any
+        // kind — the one "matches anything" Predicate Idris has.
+        Predicate::Any => "(And [])".to_string(),
+        Predicate::Expanded(_) => {
+            return Err(gap(
+                "unexpanded Predicate macro invocation remained after expand_all",
             ));
         }
     })
 }
 
-fn emit_characteristic_filter(cf: &CharacteristicFilter) -> R {
+fn emit_characteristic_filter(cf: &CharacteristicPredicate) -> R {
     Ok(match cf {
-        CharacteristicFilter::Type(t) => app("HasChar", vec!["Types".to_string(), emit_type(*t)?]),
-        CharacteristicFilter::Subtype(name) => app(
+        CharacteristicPredicate::Type(t) => {
+            app("HasChar", vec!["Types".to_string(), emit_type(*t)?])
+        }
+        CharacteristicPredicate::Subtype(name) => app(
             "HasChar",
             vec![
                 "Subtypes".to_string(),
@@ -507,24 +511,24 @@ fn emit_characteristic_filter(cf: &CharacteristicFilter) -> R {
                     .to_string(),
             ],
         ),
-        CharacteristicFilter::Supertype(s) => app(
+        CharacteristicPredicate::Supertype(s) => app(
             "HasChar",
             vec!["Supertypes".to_string(), emit_supertype(*s)],
         ),
-        CharacteristicFilter::ColorIs(c) => {
+        CharacteristicPredicate::ColorIs(c) => {
             app("HasChar", vec!["Colors".to_string(), emit_color(*c)])
         }
-        CharacteristicFilter::Named(name) => app("HasName", vec![ilit(name.as_str())]),
-        CharacteristicFilter::Stat(stat, cmp, count) => {
+        CharacteristicPredicate::Named(name) => app("HasName", vec![ilit(name.as_str())]),
+        CharacteristicPredicate::Stat(stat, cmp, count) => {
             let characteristic = numeric_characteristic(*stat)?;
             app(
                 "StatCmp",
                 vec![characteristic, emit_cmp(*cmp), emit_count(count)?],
             )
         }
-        CharacteristicFilter::Multicolored => "Multicolored".to_string(),
-        CharacteristicFilter::Colorless => "IsColorless".to_string(),
-        CharacteristicFilter::Has(kw) => {
+        CharacteristicPredicate::Multicolored => "Multicolored".to_string(),
+        CharacteristicPredicate::Colorless => "IsColorless".to_string(),
+        CharacteristicPredicate::Has(kw) => {
             let spec = keywordspec_idris(kw.as_str())
                 .ok_or_else(|| gap(format!("unmapped keyword in Has(): {}", kw.as_str())))?;
             app("HasKeyword", vec![spec])
@@ -557,10 +561,10 @@ fn emit_cmp(c: Cmp) -> String {
     .to_string()
 }
 
-fn emit_state_filter(sf: &StateFilter) -> R {
+fn emit_state_filter(sf: &StatePredicate) -> R {
     Ok(match sf {
-        StateFilter::InZone(z) => app("InZone", vec![emit_zone(*z)]),
-        StateFilter::Status(status) => {
+        StatePredicate::InZone(z) => app("InZone", vec![emit_zone(*z)]),
+        StatePredicate::Status(status) => {
             use deckmaste_core::Status as S;
             match status {
                 S::Tapped => "(HasState Tapped)".to_string(),
@@ -576,7 +580,7 @@ fn emit_state_filter(sf: &StateFilter) -> R {
                 }
             }
         }
-        StateFilter::HasCounter(c) => {
+        StatePredicate::HasCounter(c) => {
             let kind = counterkind_idris(c.as_str()).ok_or_else(|| {
                 gap(format!(
                     "unmapped counter kind in HasCounter: {}",
@@ -585,29 +589,29 @@ fn emit_state_filter(sf: &StateFilter) -> R {
             })?;
             app("HasCounter", vec![kind.to_string()])
         }
-        StateFilter::Designated(name) => {
+        StatePredicate::Designated(name) => {
             let d = designation_idris(name.as_str())
                 .ok_or_else(|| gap(format!("unmapped designation: {}", name.as_str())))?;
             app("HasDesignation", vec![d.to_string()])
         }
-        StateFilter::RelatedBy(..) => {
+        StatePredicate::RelatedBy(..) => {
             return Err(gap(
-                "StateFilter::RelatedBy has no Idris Filter counterpart",
+                "StatePredicate::RelatedBy has no Idris Predicate counterpart",
             ));
         }
-        StateFilter::Attacking => "(Holds Attack Agent)".to_string(),
-        StateFilter::Blocking => "(Holds Block Agent)".to_string(),
+        StatePredicate::Attacking => "(Holds Attack Agent)".to_string(),
+        StatePredicate::Blocking => "(Holds Block Agent)".to_string(),
         // "attacking and unblocked": approximated as attacking AND not filling
         // the blocked-patient role.
-        StateFilter::Unblocked => {
+        StatePredicate::Unblocked => {
             "(And [Holds Attack Agent, Not (Holds Block Patient)])".to_string()
         }
-        StateFilter::Targets(inner) => app("Targets", vec![emit_filter(inner)?]),
-        StateFilter::TargetCount(bound) => {
+        StatePredicate::Targets(inner) => app("Targets", vec![emit_filter(inner)?]),
+        StatePredicate::TargetCount(bound) => {
             let (cmp, count) = bound.split();
             app("TargetCount", vec![emit_cmp(cmp), emit_count(count)?])
         }
-        StateFilter::WasPaidWith(tag) => app("WasPaidWith", vec![ilit(tag.as_str())]),
+        StatePredicate::WasPaidWith(tag) => app("WasPaidWith", vec![ilit(tag.as_str())]),
     })
 }
 
@@ -626,13 +630,13 @@ fn designation_idris(name: &str) -> Option<&'static str> {
     })
 }
 
-fn emit_relation_filter(rf: &RelationFilter) -> R {
+fn emit_relation_filter(rf: &RelationPredicate) -> R {
     Ok(match rf {
-        RelationFilter::ControlledBy(f) => app("ControlledBy", vec![emit_filter(f)?]),
-        RelationFilter::Controls(f) => app("Controls", vec![emit_filter(f)?]),
-        RelationFilter::Owner(f) => app("OwnedBy", vec![emit_filter(f)?]),
-        RelationFilter::OpponentOf(f) => {
-            if matches!(f.as_ref(), Filter::Ref(Reference::You)) {
+        RelationPredicate::ControlledBy(f) => app("ControlledBy", vec![emit_filter(f)?]),
+        RelationPredicate::Controls(f) => app("Controls", vec![emit_filter(f)?]),
+        RelationPredicate::Owner(f) => app("OwnedBy", vec![emit_filter(f)?]),
+        RelationPredicate::OpponentOf(f) => {
+            if matches!(f.as_ref(), Predicate::Ref(Reference::You)) {
                 "OpponentOf".to_string()
             } else {
                 return Err(gap(
@@ -640,21 +644,21 @@ fn emit_relation_filter(rf: &RelationFilter) -> R {
                 ));
             }
         }
-        RelationFilter::TeammateOf(f) => {
-            if matches!(f.as_ref(), Filter::Ref(Reference::You)) {
+        RelationPredicate::TeammateOf(f) => {
+            if matches!(f.as_ref(), Predicate::Ref(Reference::You)) {
                 "TeammateOf".to_string()
             } else {
                 return Err(gap("TeammateOf(<non-You>) has no Idris counterpart"));
             }
         }
-        RelationFilter::AttachedTo(_) => {
+        RelationPredicate::AttachedTo(_) => {
             return Err(gap(
-                "Filter RelationFilter::AttachedTo has no Idris Filter counterpart",
+                "Predicate RelationPredicate::AttachedTo has no Idris Predicate counterpart",
             ));
         }
-        RelationFilter::Attachment(_) => {
+        RelationPredicate::Attachment(_) => {
             return Err(gap(
-                "RelationFilter::Attachment has no Idris Filter counterpart",
+                "RelationPredicate::Attachment has no Idris Predicate counterpart",
             ));
         }
     })
@@ -941,7 +945,7 @@ fn emit_selection(s: &Selection) -> R {
     })
 }
 
-/// `TargetSpec.Target`'s filter is a `Filter b k` with `k` free (like the
+/// `TargetSpec.Target`'s filter is a `Predicate b k` with `k` free (like the
 /// `Deed` patient), so a bare "any target" filter needs a concretely-kinded
 /// value too — reproduced here (sugar-free) from `Macros.idr`'s own
 /// `anyTarget` ([CR#115.4]: creature/planeswalker/battle permanent OR any
@@ -957,8 +961,11 @@ Anyone])"
 fn emit_target_spec(t: &TargetSpec) -> R {
     Ok(match t {
         TargetSpec::Target(q, f) => {
-            let pred =
-                if matches!(f, Filter::Any) { any_target_predicate() } else { emit_filter(f)? };
+            let pred = if matches!(f, Predicate::Any) {
+                any_target_predicate()
+            } else {
+                emit_filter(f)?
+            };
             app("Target", vec![emit_quantity(q)?, pred])
         }
         TargetSpec::Distinct(idxs, inner) => app(
@@ -1056,7 +1063,7 @@ fn emit_cost_component(c: &CostComponent) -> R {
         CostComponent::With { binder, body } => {
             // The common "sacrifice/tap a chosen one" cost shape: a
             // ChooseOne binder whose body pays with the bound choice. Idris's
-            // verbs already bake the choice into a Filter, so this
+            // verbs already bake the choice into a Predicate, so this
             // desugars to a single Cost component naming the filter — no
             // Binder needed on the Idris side.
             emit_with_cost_as_predicate_verb(binder, body)?
@@ -1726,12 +1733,12 @@ fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
     })
 }
 
-fn damage_facets(from: &Filter, to: &Filter) -> Result<Vec<String>, Gap> {
+fn damage_facets(from: &Predicate, to: &Predicate) -> Result<Vec<String>, Gap> {
     let mut facets = Vec::new();
-    if !matches!(from, Filter::Any) {
+    if !matches!(from, Predicate::Any) {
         facets.push(app("Agent", vec![emit_filter(from)?]));
     }
-    if !matches!(to, Filter::Any) {
+    if !matches!(to, Predicate::Any) {
         facets.push(app("Patient", vec![emit_filter(to)?]));
     }
     Ok(facets)
@@ -1871,7 +1878,7 @@ fn emit_can(action: &DeonticAction) -> R {
     } = action
     {
         if let Some(alt) = cost {
-            if !matches!(what, Filter::Ref(Reference::This)) || !matches!(by, Filter::Any) {
+            if !matches!(what, Predicate::Ref(Reference::This)) || !matches!(by, Predicate::Any) {
                 return Err(gap(
                     "May(Cast) with a non-default what/by has no Idris MayCastFor counterpart",
                 ));
@@ -1898,12 +1905,12 @@ fn emit_can(action: &DeonticAction) -> R {
             return Ok(app("mayCastForFrom", vec![costs, from_zones]));
         }
         // No alternative cost: a plain cast permission (flash-shaped).
-        let by_pred = if matches!(by, Filter::Any) {
+        let by_pred = if matches!(by, Predicate::Any) {
             "(SameAs You)".to_string()
         } else {
             emit_filter(by)?
         };
-        let what_pred = if matches!(what, Filter::Any) {
+        let what_pred = if matches!(what, Predicate::Any) {
             "(SameAs This)".to_string()
         } else {
             emit_filter(what)?
@@ -1924,17 +1931,21 @@ fn emit_can(action: &DeonticAction) -> R {
     Ok(app("Can", vec![emit_deed(action)?]))
 }
 
-/// `Deed.Enact`'s `patient : Filter b k` carries a totally FREE `k` (no
+/// `Deed.Enact`'s `patient : Predicate b k` carries a totally FREE `k` (no
 /// function ties it to `patientScope r`, unlike `agent`'s `agentScope r`,
 /// which reduces to a concrete kind since `r` is always a literal
-/// constructor here) — so a default `Filter::Any` patient can't elaborate as
+/// constructor here) — so a default `Predicate::Any` patient can't elaborate as
 /// the kind-polymorphic-empty `And []` (Idris is left with an unsolved `k`
 /// hole). `Anyone` is Core.idr's own precedent for this
 /// (`Defender = cant (Enact Attack (SameAs This) Anyone)`): a concretely
 /// `APlayer`-kinded "no restriction" stand-in, since `Enact`'s `k` isn't
 /// actually forced to match `patientScope` at the type level.
-fn deed_patient(f: &Filter) -> R {
-    if matches!(f, Filter::Any) { Ok("Anyone".to_string()) } else { emit_filter(f) }
+fn deed_patient(f: &Predicate) -> R {
+    if matches!(f, Predicate::Any) {
+        Ok("Anyone".to_string())
+    } else {
+        emit_filter(f)
+    }
 }
 
 fn emit_deed(action: &DeonticAction) -> R {
@@ -1949,7 +1960,7 @@ fn emit_deed(action: &DeonticAction) -> R {
                 vec!["Block".to_string(), emit_filter(by)?, deed_patient(on)?],
             ),
             Some(bound) => {
-                let attacker = if matches!(on, Filter::Any) { by } else { on };
+                let attacker = if matches!(on, Predicate::Any) { by } else { on };
                 app(
                     "BlockedBy",
                     vec![emit_filter(attacker)?, count_bound_as_quantity(bound)?],
@@ -1958,7 +1969,7 @@ fn emit_deed(action: &DeonticAction) -> R {
         },
         DeonticAction::Target { by, on } => {
             // A `source` of `Any` (plain `Hexproof()` — its `from` param
-            // defaults to `Filter::Any`) is NO source restriction, so it drops
+            // defaults to `Predicate::Any`) is NO source restriction, so it drops
             // cleanly: the agent is fully captured by `stack_object`. Only a
             // CONCRETE quality source (hexproof-/protection-from-[quality],
             // [CR#702.11d,702.16b]) needs an Idris counterpart it doesn't yet
@@ -1967,7 +1978,7 @@ fn emit_deed(action: &DeonticAction) -> R {
             if by
                 .source
                 .as_ref()
-                .is_some_and(|f| !matches!(f, Filter::Any))
+                .is_some_and(|f| !matches!(f, Predicate::Any))
             {
                 return Err(gap(
                     "DeedAgent.source (a CONCRETE ability-source quality, e.g. hexproof-from-[quality]) has no Idris Enact-Target counterpart",
@@ -2063,7 +2074,7 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             }
             let kind = format!("(ZoneChanged {} {})", opt_zone(*from), opt_zone(*to));
             let mut facets = Vec::new();
-            if !matches!(what, Filter::Any) {
+            if !matches!(what, Predicate::Any) {
                 facets.push(app("Agent", vec![emit_filter(what)?]));
             }
             (vec![kind], facets)
@@ -2081,10 +2092,10 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             }
             let kind = format!("(DealDamage {})", opt_bool(*combat));
             let mut facets = Vec::new();
-            if !matches!(source, Filter::Any) {
+            if !matches!(source, Predicate::Any) {
                 facets.push(app("Agent", vec![emit_filter(source)?]));
             }
-            if !matches!(to, Filter::Any) {
+            if !matches!(to, Predicate::Any) {
                 facets.push(app("Patient", vec![emit_filter(to)?]));
             }
             (vec![kind], facets)
@@ -2130,7 +2141,7 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             actor_agent_facets(who, what)?,
         ),
         EventFilter::AttackDeclared { by, against } => {
-            if !matches!(against, Filter::Any) {
+            if !matches!(against, Predicate::Any) {
                 return Err(gap(
                     "AttackDeclared{against} not yet mapped (no Idris facet for the defending player)",
                 ));
@@ -2138,13 +2149,13 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             (vec!["(Begins Attack)".to_string()], agent_facet(by)?)
         }
         EventFilter::BlockDeclared { by, of } => {
-            if !matches!(of, Filter::Any) {
+            if !matches!(of, Predicate::Any) {
                 return Err(gap("BlockDeclared{of} not yet mapped"));
             }
             (vec!["(Begins Block)".to_string()], agent_facet(by)?)
         }
         EventFilter::Attached { what, to } => {
-            if !matches!(to, Filter::Any) {
+            if !matches!(to, Predicate::Any) {
                 return Err(gap(
                     "Attached{to} not yet mapped (no Idris patient facet for Begins Attach)",
                 ));
@@ -2194,10 +2205,10 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         }
         EventFilter::ControlChanged { of, to } => {
             let mut facets = Vec::new();
-            if !matches!(of, Filter::Any) {
+            if !matches!(of, Predicate::Any) {
                 facets.push(app("Agent", vec![emit_filter(of)?]));
             }
-            if !matches!(to, Filter::Any) {
+            if !matches!(to, Predicate::Any) {
                 facets.push(app("Actor", vec![emit_filter(to)?]));
             }
             (vec!["GainControl".to_string()], facets)
@@ -2209,10 +2220,10 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         }
         EventFilter::TokenCreated { what, by } => {
             let mut facets = Vec::new();
-            if !matches!(what, Filter::Any) {
+            if !matches!(what, Predicate::Any) {
                 facets.push(app("Agent", vec![emit_filter(what)?]));
             }
-            if !matches!(by, Filter::Any) {
+            if !matches!(by, Predicate::Any) {
                 facets.push(app("Actor", vec![emit_filter(by)?]));
             }
             (vec!["CreateToken".to_string()], facets)
@@ -2281,23 +2292,23 @@ fn opt_bool(b: Option<bool>) -> String {
     }
 }
 
-fn actor_facet(who: &Filter) -> Result<Vec<String>, Gap> {
-    if matches!(who, Filter::Any) {
+fn actor_facet(who: &Predicate) -> Result<Vec<String>, Gap> {
+    if matches!(who, Predicate::Any) {
         Ok(vec![])
     } else {
         Ok(vec![app("Actor", vec![emit_filter(who)?])])
     }
 }
 
-fn agent_facet(what: &Filter) -> Result<Vec<String>, Gap> {
-    if matches!(what, Filter::Any) {
+fn agent_facet(what: &Predicate) -> Result<Vec<String>, Gap> {
+    if matches!(what, Predicate::Any) {
         Ok(vec![])
     } else {
         Ok(vec![app("Agent", vec![emit_filter(what)?])])
     }
 }
 
-fn actor_agent_facets(who: &Filter, what: &Filter) -> Result<Vec<String>, Gap> {
+fn actor_agent_facets(who: &Predicate, what: &Predicate) -> Result<Vec<String>, Gap> {
     let mut facets = actor_facet(who)?;
     facets.extend(agent_facet(what)?);
     Ok(facets)

@@ -9,10 +9,10 @@ use deckmaste_core::ActivatedAbility;
 use deckmaste_core::Cmp;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
-use deckmaste_core::Filter;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Stat;
 use deckmaste_core::Type;
@@ -88,7 +88,7 @@ pub(crate) struct TapTotalReq {
     pub stat: Stat,
     pub cmp: Cmp,
     pub count: Count,
-    pub filter: Filter,
+    pub filter: Predicate,
 }
 
 /// Summarize `cost` in one walk (so the `can_activate` gate and the pay step
@@ -875,7 +875,7 @@ mod tests {
                 stat: Stat::Power,
                 cmp: Cmp::AtLeast,
                 count: Count::Literal(3),
-                filter: Box::new(Filter::creature()),
+                filter: Box::new(Predicate::creature()),
             },
         ];
         let summary = cost_summary(&cost).expect("a TapTotal cost summarizes");
@@ -981,7 +981,7 @@ mod tests {
         // out of the crew set is the battlefield zone guard, not an incidental
         // filter/stat mismatch (this is what makes the assertions below a real
         // regression test of the guard).
-        let raw = crate::target::candidates_with(&state, &Filter::creature(), None);
+        let raw = crate::target::candidates_with(&state, &Predicate::creature(), None);
         assert!(
             raw.contains(&in_library) && raw.contains(&on_field),
             "both creatures match the zone-agnostic creature filter"
@@ -997,13 +997,13 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(4),
-            filter: Filter::creature(),
+            filter: Predicate::creature(),
         };
         let crew_2 = TapTotalReq {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(2),
-            filter: Filter::creature(),
+            filter: Predicate::creature(),
         };
 
         // Crew 4: the lone battlefield power-2 can't reach 4, and the library

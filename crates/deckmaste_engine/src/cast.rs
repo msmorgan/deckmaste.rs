@@ -1548,7 +1548,7 @@ impl GameState {
     /// matching objects, in id order). `carrier` is the targeting object's
     /// `ObjectSource` (the spell, or the source of an activated/triggered
     /// ability), anchoring a target filter's carrier-relative self-references
-    /// (`Ref(This)`, and the `StatOf(This, …)` a `Filter::Where` reaches) —
+    /// (`Ref(This)`, and the `StatOf(This, …)` a `Predicate::Where` reaches) —
     /// e.g. Mentor's "attacking creature with power less than this
     /// creature's power" ([CR#702.134a]). Filters that never reference the
     /// carrier ignore it.
@@ -1970,12 +1970,12 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::CostChange;
     use deckmaste_core::Count;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::StateFilter;
+    use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -2048,14 +2048,14 @@ mod tests {
             mana_cost: printed.parse().unwrap(),
             types: vec![Type::Artifact],
             abilities: vec![Ability::Static(StaticEffect::CostModifier {
-                of: Filter::Ref(Reference::This),
+                of: Predicate::Ref(Reference::This),
                 change: CostChange::Scaled {
                     change: Box::new(CostChange::Reduce(vec![CostComponent::Mana(
                         "{1}".parse().unwrap(),
                     )])),
-                    times: Count::CountOf(Box::new(Filter::AllOf(vec![
-                        Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                        Filter::Characteristic(CharacteristicFilter::Type(Type::Artifact)),
+                    times: Count::CountOf(Box::new(Predicate::AllOf(vec![
+                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Artifact)),
                     ]))),
                 },
             })],
@@ -2125,7 +2125,7 @@ mod tests {
             name: "Thorn Totem".into(),
             types: vec![Type::Artifact],
             abilities: vec![Ability::Static(StaticEffect::CostModifier {
-                of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                of: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
                 change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
             })],
             ..CardFace::default()

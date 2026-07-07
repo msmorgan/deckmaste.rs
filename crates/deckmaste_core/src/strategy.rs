@@ -2,7 +2,7 @@
 //! core's own expression vocabulary.
 //!
 //! A strategy is RON *data*, not a macro (the macro language has no control
-//! flow): its "sensing" half reuses [`Condition`] / [`Filter`] / [`Count`] /
+//! flow): its "sensing" half reuses [`Condition`] / [`Predicate`] / [`Count`] /
 //! `Reference` verbatim, and its branching is an ordered rule list an evaluator
 //! walks — the same way the engine walks `Vec<Ability>`. The types here are
 //! pure data; the evaluator that turns a strategy + game state into a decision
@@ -13,7 +13,7 @@
 //! separate from play policy (`deckmaste_core::strategy::Strategy`, …).
 //!
 //! [`Condition`]: crate::Condition
-//! [`Filter`]: crate::Filter
+//! [`Predicate`]: crate::Predicate
 //! [`Count`]: crate::Count
 
 use serde::Deserialize;
@@ -23,7 +23,7 @@ use crate::Condition;
 use crate::Count;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
+use crate::Predicate;
 use crate::SupportsMacros;
 
 /// Which end of a ranked candidate set a selector picks.
@@ -52,7 +52,7 @@ pub struct Selector {
     pub by: Count,
     /// Narrowing of the legal set; `None` (omitted) = the whole legal set.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub among: Option<Filter>,
+    pub among: Option<Predicate>,
 }
 
 /// How a strategy declares blocks. Coarse for v1; grows as block math matures.
@@ -69,9 +69,9 @@ pub enum BlockPolicy {
 /// A chosen play at a decision point — the genuinely new "choose a play" half
 /// of the strategy language. Cards never choose their controller's plays, so
 /// this has no card analog; but every option it carries reuses [`Selector`]
-/// (and through it core's `Count`/`Filter`). `Preference` is itself a macroable
-/// kind, so choose-a-play vocabulary (`AttackAll`, `Mulligan`, …) can be
-/// authored as macros that expand to these literal variants.
+/// (and through it core's `Count`/`Predicate`). `Preference` is itself a
+/// macroable kind, so choose-a-play vocabulary (`AttackAll`, `Mulligan`, …) can
+/// be authored as macros that expand to these literal variants.
 #[derive(Debug, Clone, PartialEq, Eq, SupportsMacros)]
 pub enum Preference {
     /// Pass priority.
@@ -155,8 +155,9 @@ mod tests {
         assert_eq!(read::<Extremum>("First"), Extremum::First);
     }
 
-    /// The central thesis: a strategy type embeds core's `Count` and `Filter`
-    /// verbatim — the "sensing" vocabulary is reused, not re-invented.
+    /// The central thesis: a strategy type embeds core's `Count` and
+    /// `Predicate` verbatim — the "sensing" vocabulary is reused, not
+    /// re-invented.
     #[test]
     fn selector_embeds_core_count_and_filter() {
         use crate::Reference;
@@ -164,7 +165,7 @@ mod tests {
         let s: Selector = read("(pick: Max, by: StatOf(This, Power), among: Any)");
         assert_eq!(s.pick, Extremum::Max);
         assert_eq!(s.by, Count::StatOf(Reference::This, Stat::Power));
-        assert_eq!(s.among, Some(Filter::Any));
+        assert_eq!(s.among, Some(Predicate::Any));
     }
 
     /// `among` is optional — omitting it means "the whole legal set".

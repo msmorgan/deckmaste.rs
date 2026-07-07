@@ -46,7 +46,7 @@ pub enum ObjectKind {
 /// object. `Subtype`/`Named`/`Has` filter by *name* — validating that
 /// the name is declared is a lint, not a parse concern.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum CharacteristicFilter {
+pub enum CharacteristicPredicate {
     Type(Type),
     Subtype(Ident),
     Supertype(Supertype),
@@ -72,7 +72,7 @@ pub enum CharacteristicFilter {
 /// State atoms: where the object is and what's on it — not
 /// characteristics ([CR#110.5a,122.1]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum StateFilter {
+pub enum StatePredicate {
     InZone(Zone),
     /// The object's status ([CR#110.5]).
     Status(Status),
@@ -84,8 +84,9 @@ pub enum StateFilter {
     /// designations (`Designated(Modified)`) work with no special casing.
     Designated(Ident),
     /// The object is related to a matching object by a named, declared
-    /// relation ([CR#607] family). Box because the inner predicate is a Filter.
-    RelatedBy(Ident, Box<Filter>),
+    /// relation ([CR#607] family). Box because the inner predicate is a
+    /// Predicate.
+    RelatedBy(Ident, Box<Predicate>),
     /// Declared as an attacker, still in combat ([CR#508.1a]).
     Attacking,
     /// Declared as a blocker, still in combat ([CR#509.1a]).
@@ -95,8 +96,8 @@ pub enum StateFilter {
     /// "that targets [desc]" ([CR#115.9b]): a stack object one of whose
     /// chosen targets CURRENTLY matches — departed targets are ignored,
     /// never read through LKI (the one value read with no LKI fallback).
-    /// Box breaks the `Filter` size cycle.
-    Targets(Box<Filter>),
+    /// Box breaks the `Predicate` size cycle.
+    Targets(Box<Predicate>),
     /// "with [N] target(s)" ([CR#115.9a]): counts the target instances
     /// chosen at stack-put; "targets only …" counts distinct chosen
     /// targets, then checks current state ([CR#115.9c]).
@@ -112,57 +113,57 @@ pub enum StateFilter {
 /// implicitly existential: `ControlledBy(IsOpponent-shaped)` means "whose
 /// controller matches".
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum RelationFilter {
+pub enum RelationPredicate {
     /// The object's controller matches ([CR#109.5]).
-    ControlledBy(Box<Filter>),
+    ControlledBy(Box<Predicate>),
     /// The object is a player who controls a matching object — the inverse
-    /// of [`ControlledBy`](RelationFilter::ControlledBy) ([CR#109.5]).
+    /// of [`ControlledBy`](RelationPredicate::ControlledBy) ([CR#109.5]).
     /// Zone-agnostic: control spans the battlefield, the stack (spells and
     /// abilities), and the command zone, so the inner filter carries any
     /// zone restriction it needs (e.g. `Controls(AllOf([Permanent, …]))`
     /// for "controls a permanent").
-    Controls(Box<Filter>),
+    Controls(Box<Predicate>),
     /// The object's owner matches ([CR#108.3]).
-    Owner(Box<Filter>),
+    Owner(Box<Predicate>),
     /// The object is an opponent of a matching player ([CR#102.2,102.3]) — a
     /// player NOT on the matching player's team.
-    OpponentOf(Box<Filter>),
+    OpponentOf(Box<Predicate>),
     /// The object is a teammate of a matching player ([CR#102.3,810.1]) —
     /// ANOTHER player on the matching player's team (never that player itself).
     /// PRIMITIVE, not `Not(OpponentOf …)`: in Two-Headed Giant a teammate is
     /// neither you nor an opponent ([CR#810]). "your team" ([CR#102.4]) is
     /// `OneOf([Ref(You), TeammateOf(Ref(You))])`.
-    TeammateOf(Box<Filter>),
+    TeammateOf(Box<Predicate>),
     /// The object is attached to a matching object ([CR#301.5,303.4]).
-    AttachedTo(Box<Filter>),
+    AttachedTo(Box<Predicate>),
     /// The object has a matching attachment ([CR#301.5,303.4]).
-    Attachment(Box<Filter>),
+    Attachment(Box<Predicate>),
 }
 
 /// A predicate over game objects, players included. Compartmentalized in
 /// Rust; flat in RON (`Type(Creature)`, never
 /// `Characteristic(Type(Creature))`) via the `#[macro_ron(flatten)]`
-/// markers: each compartment's variant names lift into `Filter`'s dispatch
+/// markers: each compartment's variant names lift into `Predicate`'s dispatch
 /// and the compartment tag never appears in text.
 ///
 /// Generated dispatch, not `#[serde(untagged)]` wrappers: untagged variants
 /// deserialize through `deserialize_any`, which never reaches the macro
-/// layer's `deserialize_enum` interception — a `Filter` macro would stop
-/// expanding at Filter positions. Dispatching by name over one combined
+/// layer's `deserialize_enum` interception — a `Predicate` macro would stop
+/// expanding at Predicate positions. Dispatching by name over one combined
 /// variant list keeps the RON flat *and* the positions macro-aware.
 ///
 /// Conjunction is explicit (`AllOf`) — an enum position never carries a
 /// bare list. Canonical filters are context-free-correct: state the whole
 /// predicate even where engine context would make parts redundant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum Filter {
+pub enum Predicate {
     Kind(ObjectKind),
     #[macro_ron(flatten)]
-    Characteristic(CharacteristicFilter),
+    Characteristic(CharacteristicPredicate),
     #[macro_ron(flatten)]
-    State(StateFilter),
+    State(StatePredicate),
     #[macro_ron(flatten)]
-    Relation(RelationFilter),
+    Relation(RelationPredicate),
     Ref(Reference),
     /// Lifts a quality to a stack ABILITY's source ([CR#702.11d] "abilities
     /// … from [quality] sources"): matches an activated/triggered ability on
@@ -171,63 +172,63 @@ pub enum Filter {
     /// spell carries its qualities itself, so "red spells or abilities from
     /// red sources" is `OneOf([AllOf([Kind(Spell), ColorIs(Red)]),
     /// FromSource(ColorIs(Red))])`. Boxed like the other one-child atoms.
-    FromSource(Box<Filter>),
-    AllOf(Vec<Filter>),
-    OneOf(Vec<Filter>),
-    Not(Box<Filter>),
+    FromSource(Box<Predicate>),
+    AllOf(Vec<Predicate>),
+    OneOf(Vec<Predicate>),
+    Not(Box<Predicate>),
     /// The candidate matches iff a [`Condition`] holds with `It` bound to
     /// it — the bridge that lets a per-object filter slot reach the whole
     /// condition language ([CR#603.4] predicates) against the object being
     /// matched. [`Reference::It`](crate::Reference::It) inside the condition
     /// resolves to that candidate; `Ref(This)`/`Ref(You)` still anchor to the
-    /// carrier. Boxed to break the `Filter` → `Condition` → `Filter` size
+    /// carrier. Boxed to break the `Predicate` → `Condition` → `Predicate` size
     /// cycle. The one candidate-relative escape hatch: "shares a color with ~",
     /// "has the same name as ~", etc., expressed as
     /// `Where(SharesColor(It, This))` and kin.
     Where(Box<Condition>),
-    /// Matches every object — the bare-Filter default for event participant
+    /// Matches every object — the bare-Predicate default for event participant
     /// slots (an `EventFilter` master form's `who`/`what`).
     Any,
-    /// A remembered `Filter` macro invocation (evasion sets, protection
+    /// A remembered `Predicate` macro invocation (evasion sets, protection
     /// qualities, …). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
-    Expanded(Expansion<Filter>),
+    Expanded(Expansion<Predicate>),
 }
 
-impl Filter {
+impl Predicate {
     /// The match-anything filter, as a serde `default` for fields like an
     /// `EventFilter` master form's `who`/`what`.
     #[must_use]
-    pub fn any() -> Filter {
-        Filter::Any
+    pub fn any() -> Predicate {
+        Predicate::Any
     }
 
     /// Matches objects of a single card type ([CR#109.3]) — the flat
     /// `Type(t)` atom, spelled without its `Characteristic` compartment.
     #[must_use]
-    pub fn type_(t: Type) -> Filter {
-        Filter::Characteristic(CharacteristicFilter::Type(t))
+    pub fn type_(t: Type) -> Predicate {
+        Predicate::Characteristic(CharacteristicPredicate::Type(t))
     }
 
-    /// Matches creatures — [`Filter::type_`] for [`Type::Creature`], the most
-    /// common typed filter across the card base.
+    /// Matches creatures — [`Predicate::type_`] for [`Type::Creature`], the
+    /// most common typed filter across the card base.
     #[must_use]
-    pub fn creature() -> Filter {
-        Filter::type_(Type::Creature)
+    pub fn creature() -> Predicate {
+        Predicate::type_(Type::Creature)
     }
 
     /// Whether this filter is exactly the self-reference (`Ref(This)`) — the
     /// "~ itself" predicate rendering and the replacement layer test for.
     #[must_use]
     pub fn is_this(&self) -> bool {
-        matches!(self, Filter::Ref(Reference::This))
+        matches!(self, Predicate::Ref(Reference::This))
     }
 }
 
-impl Normalize for RelationFilter {
+impl Normalize for RelationPredicate {
     /// Recurse into the related-object filter each relation carries.
     fn normalize(self) -> Self {
-        use RelationFilter as R;
+        use RelationPredicate as R;
         match self {
             R::ControlledBy(f) => R::ControlledBy(f.normalize()),
             R::Controls(f) => R::Controls(f.normalize()),
@@ -240,11 +241,11 @@ impl Normalize for RelationFilter {
     }
 }
 
-impl Normalize for StateFilter {
+impl Normalize for StatePredicate {
     /// Recurse into the inner filter the relation/target state atoms carry;
     /// every other state atom is a leaf for normalization.
     fn normalize(self) -> Self {
-        use StateFilter as S;
+        use StatePredicate as S;
         match self {
             S::RelatedBy(rel, f) => S::RelatedBy(rel, f.normalize()),
             S::Targets(f) => S::Targets(f.normalize()),
@@ -253,7 +254,7 @@ impl Normalize for StateFilter {
     }
 }
 
-impl Normalize for Filter {
+impl Normalize for Predicate {
     /// Normalize a predicate (bottom-up): recurse into child filters, then
     /// collapse the boolean combinators. `AllOf`/`OneOf` are flattened by
     /// associativity (a nested `AllOf` inside an `AllOf` splices in — same for
@@ -267,17 +268,17 @@ impl Normalize for Filter {
     fn normalize(self) -> Self {
         match self {
             // Recurse into compartments that hold child filters.
-            Filter::Relation(r) => Filter::Relation(r.normalize()),
-            Filter::State(s) => Filter::State(s.normalize()),
-            Filter::Not(inner) => Filter::Not(inner.normalize()),
-            Filter::FromSource(inner) => Filter::FromSource(inner.normalize()),
+            Predicate::Relation(r) => Predicate::Relation(r.normalize()),
+            Predicate::State(s) => Predicate::State(s.normalize()),
+            Predicate::Not(inner) => Predicate::Not(inner.normalize()),
+            Predicate::FromSource(inner) => Predicate::FromSource(inner.normalize()),
 
-            Filter::AllOf(children) => {
+            Predicate::AllOf(children) => {
                 let mut flat = Vec::with_capacity(children.len());
                 for child in children {
                     match child.normalize() {
                         // Associativity: splice a nested AllOf in.
-                        Filter::AllOf(inner) => flat.extend(inner),
+                        Predicate::AllOf(inner) => flat.extend(inner),
                         other => flat.push(other),
                     }
                 }
@@ -285,21 +286,21 @@ impl Normalize for Filter {
                 if flat.len() == 1 {
                     flat.pop().expect("len checked")
                 } else {
-                    Filter::AllOf(flat)
+                    Predicate::AllOf(flat)
                 }
             }
-            Filter::OneOf(children) => {
+            Predicate::OneOf(children) => {
                 let mut flat = Vec::with_capacity(children.len());
                 for child in children {
                     match child.normalize() {
-                        Filter::OneOf(inner) => flat.extend(inner),
+                        Predicate::OneOf(inner) => flat.extend(inner),
                         other => flat.push(other),
                     }
                 }
                 if flat.len() == 1 {
                     flat.pop().expect("len checked")
                 } else {
-                    Filter::OneOf(flat)
+                    Predicate::OneOf(flat)
                 }
             }
 
@@ -317,7 +318,7 @@ mod tests {
     use crate::Type;
     use crate::Zone;
 
-    fn read(source: &str) -> Filter {
+    fn read(source: &str) -> Predicate {
         crate::ron::options().from_str(source).unwrap()
     }
 
@@ -325,23 +326,23 @@ mod tests {
     fn atoms_read_flat() {
         assert_eq!(
             read("Type(Creature)"),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
         );
         assert_eq!(
             read(r#"Subtype("Forest")"#),
-            Filter::Characteristic(CharacteristicFilter::Subtype("Forest".into())),
+            Predicate::Characteristic(CharacteristicPredicate::Subtype("Forest".into())),
         );
         assert_eq!(
             read("Supertype(Basic)"),
-            Filter::Characteristic(CharacteristicFilter::Supertype(Supertype::Basic)),
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
         );
         assert_eq!(
             read("InZone(Battlefield)"),
-            Filter::State(StateFilter::InZone(Zone::Battlefield)),
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
         );
-        assert_eq!(read("Kind(Player)"), Filter::Kind(ObjectKind::Player));
-        assert_eq!(read("Kind(Ability)"), Filter::Kind(ObjectKind::Ability));
-        assert_eq!(read("Any"), Filter::Any);
+        assert_eq!(read("Kind(Player)"), Predicate::Kind(ObjectKind::Player));
+        assert_eq!(read("Kind(Ability)"), Predicate::Kind(ObjectKind::Ability));
+        assert_eq!(read("Any"), Predicate::Any);
     }
 
     /// The team-relative player relation `TeammateOf` reads flat alongside its
@@ -352,7 +353,7 @@ mod tests {
         let v = read("TeammateOf(Ref(You))");
         assert_eq!(
             v,
-            Filter::Relation(RelationFilter::TeammateOf(Box::new(Filter::Ref(
+            Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
                 Reference::You
             )))),
         );
@@ -362,9 +363,9 @@ mod tests {
         // "your team" ([CR#102.4]) composes from the two primitives.
         assert_eq!(
             read("OneOf([Ref(You), TeammateOf(Ref(You))])"),
-            Filter::OneOf(vec![
-                Filter::Ref(Reference::You),
-                Filter::Relation(RelationFilter::TeammateOf(Box::new(Filter::Ref(
+            Predicate::OneOf(vec![
+                Predicate::Ref(Reference::You),
+                Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
                     Reference::You
                 )))),
             ]),
@@ -376,15 +377,15 @@ mod tests {
     fn new_atoms_read_flat() {
         assert_eq!(
             read("ColorIs(Red)"),
-            Filter::Characteristic(CharacteristicFilter::ColorIs(Color::Red)),
+            Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::Red)),
         );
         assert_eq!(
             read(r#"Named("Forest")"#),
-            Filter::Characteristic(CharacteristicFilter::Named("Forest".into())),
+            Predicate::Characteristic(CharacteristicPredicate::Named("Forest".into())),
         );
         assert_eq!(
             read("Stat(Power, AtLeast, Literal(3))"),
-            Filter::Characteristic(CharacteristicFilter::Stat(
+            Predicate::Characteristic(CharacteristicPredicate::Stat(
                 Stat::Power,
                 Cmp::AtLeast,
                 Count::Literal(3),
@@ -392,45 +393,45 @@ mod tests {
         );
         assert_eq!(
             read("Has(Flying)"),
-            Filter::Characteristic(CharacteristicFilter::Has("Flying".into())),
+            Predicate::Characteristic(CharacteristicPredicate::Has("Flying".into())),
         );
         assert_eq!(
             read("Status(Tapped)"),
-            Filter::State(StateFilter::Status(Status::Tapped)),
+            Predicate::State(StatePredicate::Status(Status::Tapped)),
         );
         assert_eq!(
             // The counter kind is a bare ident (`CounterRef`), not a string.
             read("HasCounter(P1P1Counter)"),
-            Filter::State(StateFilter::HasCounter("P1P1Counter".into())),
+            Predicate::State(StatePredicate::HasCounter("P1P1Counter".into())),
         );
         assert_eq!(
             read(r#"Designated("Monstrous")"#),
-            Filter::State(StateFilter::Designated("Monstrous".into())),
+            Predicate::State(StatePredicate::Designated("Monstrous".into())),
         );
         assert_eq!(
             // The paid-cost tag is a bare ident (`CostTag`), not a string.
             read("WasPaidWith(Kicker)"),
-            Filter::State(StateFilter::WasPaidWith("Kicker".into())),
+            Predicate::State(StatePredicate::WasPaidWith("Kicker".into())),
         );
         assert_eq!(
             read(r#"RelatedBy("PairedWith", Type(Creature))"#),
-            Filter::State(StateFilter::RelatedBy(
+            Predicate::State(StatePredicate::RelatedBy(
                 "PairedWith".into(),
-                Box::new(Filter::Characteristic(CharacteristicFilter::Type(
+                Box::new(Predicate::Characteristic(CharacteristicPredicate::Type(
                     Type::Creature
                 ))),
             )),
         );
         assert_eq!(
             read("AttachedTo(Type(Creature))"),
-            Filter::Relation(RelationFilter::AttachedTo(Box::new(
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature),)
+            Predicate::Relation(RelationPredicate::AttachedTo(Box::new(
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature),)
             ))),
         );
         assert_eq!(
             read("Attachment(Type(Enchantment))"),
-            Filter::Relation(RelationFilter::Attachment(Box::new(
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Enchantment),)
+            Predicate::Relation(RelationPredicate::Attachment(Box::new(
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Enchantment),)
             ))),
         );
     }
@@ -442,8 +443,8 @@ mod tests {
         let v = read("FromSource(ColorIs(Red))");
         assert_eq!(
             v,
-            Filter::FromSource(Box::new(Filter::Characteristic(
-                CharacteristicFilter::ColorIs(Color::Red)
+            Predicate::FromSource(Box::new(Predicate::Characteristic(
+                CharacteristicPredicate::ColorIs(Color::Red)
             ))),
         );
         let written = crate::ron::options().to_string(&v).unwrap();
@@ -451,7 +452,7 @@ mod tests {
         // The hexproof-from-red agent shape: red spells, or abilities from
         // red sources ([CR#702.11d]).
         let agent = read("OneOf([AllOf([Kind(Spell), ColorIs(Red)]), FromSource(ColorIs(Red))])");
-        assert!(matches!(agent, Filter::OneOf(_)));
+        assert!(matches!(agent, Predicate::OneOf(_)));
         // Normalize recurses through FromSource.
         assert_eq!(
             read("FromSource(AllOf([ColorIs(Red)]))").normalize(),
@@ -463,14 +464,14 @@ mod tests {
     fn combinators_nest() {
         assert_eq!(
             read("AllOf([InZone(Battlefield), Type(Creature)])"),
-            Filter::AllOf(vec![
-                Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Predicate::AllOf(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
             ]),
         );
         assert_eq!(
             read("Not(Kind(Player))"),
-            Filter::Not(Box::new(Filter::Kind(ObjectKind::Player))),
+            Predicate::Not(Box::new(Predicate::Kind(ObjectKind::Player))),
         );
     }
 
@@ -479,15 +480,15 @@ mod tests {
         use crate::Reference;
         assert_eq!(
             read("ControlledBy(Ref(You))"),
-            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                 Reference::You
             )))),
         );
         assert_eq!(
             read("Controls(Type(Land))"),
-            Filter::Relation(RelationFilter::Controls(Box::new(Filter::Characteristic(
-                CharacteristicFilter::Type(Type::Land)
-            )))),
+            Predicate::Relation(RelationPredicate::Controls(Box::new(
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land))
+            ))),
         );
     }
 
@@ -495,7 +496,7 @@ mod tests {
     /// RON stays flat.
     #[test]
     fn serialization_stays_flat() {
-        let filter = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let filter = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
         assert_eq!(
             crate::ron::options().to_string(&filter).unwrap(),
             "Type(Creature)"
@@ -506,7 +507,7 @@ mod tests {
     fn unknown_names_error() {
         assert!(
             crate::ron::options()
-                .from_str::<Filter>("Bogus(1)")
+                .from_str::<Predicate>("Bogus(1)")
                 .is_err()
         );
     }

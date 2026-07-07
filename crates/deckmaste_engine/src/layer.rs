@@ -16,12 +16,12 @@ use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::Duration;
-use deckmaste_core::Filter;
 use deckmaste_core::Ident;
 use deckmaste_core::Int;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
+use deckmaste_core::Predicate;
 use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
@@ -47,7 +47,7 @@ use crate::state::GameState;
 #[derive(Debug, Clone)]
 pub enum ScopeResolved {
     Locked(Vec<ObjectId>),
-    Floating(Filter),
+    Floating(Predicate),
 }
 
 /// A floating one-shot continuous effect ([CR#611.2]). Lives in
@@ -342,12 +342,12 @@ struct ActiveEffect {
     scope: ScopeResolved,
     changes: Vec<Modification>,
     /// The effect's carrier ([CR#611.2c]) — the object whose `Ref(This)`/
-    /// `Ref(You)` a matching-set static resolves against. The source permanent for
-    /// a static ability; `Player(controller)` for a spell-built floating effect
-    /// (its source spell has left the stack, so `You` anchors on the locked
-    /// controller's proxy, which is always live). Threaded into `resolve_scope`
-    /// → `matches_derived` so a tribal-lord scope resolves instead of
-    /// panicking.
+    /// `Ref(You)` a matching-set static resolves against. The source permanent
+    /// for a static ability; `Player(controller)` for a spell-built
+    /// floating effect (its source spell has left the stack, so `You`
+    /// anchors on the locked controller's proxy, which is always live).
+    /// Threaded into `resolve_scope` → `matches_derived` so a tribal-lord
+    /// scope resolves instead of panicking.
     watcher: Option<ObjectSource>,
     /// Locked target set: `None` until first applied layer resolves the scope
     /// ([CR#613.6] — scope is locked at first layer of application).
@@ -607,11 +607,11 @@ fn static_effect_scope(
 }
 
 /// Resolve a `Reference` inside a static ability's effect (its `Modify`/`Each`
-/// references) to concrete object ids, SOURCE-RELATIVE: `This` is the static's source object
-/// `source` (the carrying permanent), and `gather` has **no** [`Frame`], so
-/// only the references whose value is fixed by the source's own relations are
-/// resolvable here. The rest are a documented seam (see below) and resolve to
-/// the empty set.
+/// references) to concrete object ids, SOURCE-RELATIVE: `This` is the static's
+/// source object `source` (the carrying permanent), and `gather` has **no**
+/// [`Frame`], so only the references whose value is fixed by the source's own
+/// relations are resolvable here. The rest are a documented seam (see below)
+/// and resolve to the empty set.
 ///
 /// Returns a (possibly empty) vec — the empty set both for a Frame-dependent
 /// reference and for a relation that isn't established (an unattached
@@ -651,7 +651,7 @@ fn resolve_source_relative(
 // Scope resolution
 // ---------------------------------------------------------------------------
 
-/// Evaluate a `Filter` against a single object's DERIVED characteristics in
+/// Evaluate a `Predicate` against a single object's DERIVED characteristics in
 /// `working`, delegating non-characteristic leaves to the printed matcher.
 ///
 /// This is the working-aware sibling of `target::matches` that realizes
@@ -673,41 +673,43 @@ fn matches_derived(
     state: &GameState,
     working: &BTreeMap<ObjectId, DerivedObject>,
     id: ObjectId,
-    filter: &deckmaste_core::Filter,
+    filter: &deckmaste_core::Predicate,
     watcher: Option<ObjectSource>,
 ) -> bool {
-    use deckmaste_core::CharacteristicFilter;
-    use deckmaste_core::Filter;
+    use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::Predicate;
     // `Any` is a wildcard sentinel — it must always match, even for ids that
     // aren't in `working` (e.g. player proxies). Checked before the map lookup.
-    if let Filter::Any = filter {
+    if let Predicate::Any = filter {
         return true;
     }
     let Some(c) = working.get(&id).map(|d| &d.characteristics) else {
         return false;
     };
     match filter {
-        Filter::Any => unreachable!("handled above"),
-        Filter::Characteristic(CharacteristicFilter::Type(t)) => c.card_types.contains(t),
-        Filter::Characteristic(CharacteristicFilter::Supertype(s)) => c.supertypes.contains(s),
-        Filter::Characteristic(CharacteristicFilter::ColorIs(col)) => c.colors.contains(col),
-        Filter::Characteristic(CharacteristicFilter::Multicolored) => c.colors.len() >= 2,
-        Filter::Characteristic(CharacteristicFilter::Colorless) => c.colors.is_empty(),
+        Predicate::Any => unreachable!("handled above"),
+        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => c.card_types.contains(t),
+        Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
+            c.supertypes.contains(s)
+        }
+        Predicate::Characteristic(CharacteristicPredicate::ColorIs(col)) => c.colors.contains(col),
+        Predicate::Characteristic(CharacteristicPredicate::Multicolored) => c.colors.len() >= 2,
+        Predicate::Characteristic(CharacteristicPredicate::Colorless) => c.colors.is_empty(),
         // Subtype matching against derived: `working[id].subtypes` are Subtype
         // structs; the filter carries an Ident name. Match by name.
-        Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
             c.subtypes.iter().any(|s| &s.name == name)
         }
         // `Has` is derivable from the working map — check the derived
         // ability list.
-        Filter::Characteristic(CharacteristicFilter::Has(name)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Has(name)) => {
             c.abilities.iter().any(|a| ability_is_named(a, &name.0))
         }
         // Stat over DERIVED P/T (in the working map); mana value is printed
         // (layer-stable), read without the layer view. Evaluated HERE rather
         // than delegated so the derived matcher never re-enters `state.layers()`
         // mid-build via `target::matches`'s layers-reading Stat arm.
-        Filter::Characteristic(CharacteristicFilter::Stat(stat, cmp, count)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Stat(stat, cmp, count)) => {
             use deckmaste_core::Stat;
             let value = match stat {
                 Stat::Power => c.power,
@@ -748,14 +750,14 @@ fn matches_derived(
         // Combinators: recurse through matches_derived so characteristic leaves
         // see the derived map, carrying the same `watcher` so a nested
         // `Ref(This)`/`Ref(You)` still anchors against the host.
-        Filter::AllOf(fs) => fs
+        Predicate::AllOf(fs) => fs
             .iter()
             .all(|f| matches_derived(state, working, id, f, watcher)),
-        Filter::OneOf(fs) => fs
+        Predicate::OneOf(fs) => fs
             .iter()
             .any(|f| matches_derived(state, working, id, f, watcher)),
-        Filter::Not(f) => !matches_derived(state, working, id, f, watcher),
-        Filter::Expanded(e) => matches_derived(state, working, id, &e.value, watcher),
+        Predicate::Not(f) => !matches_derived(state, working, id, f, watcher),
+        Predicate::Expanded(e) => matches_derived(state, working, id, &e.value, watcher),
         // `Named` and everything non-characteristic (zone, status, kind,
         // combat, relations, refs …): delegate to the printed matcher, threading
         // the carrier `watcher` so a scope's `Ref(This)`/`Ref(You)` (and the
@@ -1405,7 +1407,7 @@ type EffectSignature = Vec<(Timestamp, bool, PlayerId, ScopeSig, Vec<Modificatio
 #[derive(Clone, PartialEq, Eq)]
 enum ScopeSig {
     Locked(Vec<ObjectId>),
-    Floating(Filter),
+    Floating(Predicate),
 }
 
 fn effect_signature(effects: &[ActiveEffect]) -> EffectSignature {
@@ -1591,14 +1593,14 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_core::Ability;
-    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::CollectionOp;
     use deckmaste_core::Count;
     use deckmaste_core::Duration;
-    use deckmaste_core::Filter;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::Modification;
     use deckmaste_core::NumericOp;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
     use deckmaste_core::StatValue;
@@ -1633,7 +1635,7 @@ mod tests {
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
         let s = Ability::Static(StaticEffect::Each(
-            Selection::SelectAll(Filter::Characteristic(CharacteristicFilter::Type(
+            Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Creature,
             ))),
             Box::new(StaticEffect::Modify(
@@ -2191,13 +2193,13 @@ mod tests {
     /// path must anchor against the host permanent.
     fn goblin_lord_static() -> Ability {
         use deckmaste_core::Reference;
-        use deckmaste_core::RelationFilter;
+        use deckmaste_core::RelationPredicate;
         Ability::Static(StaticEffect::Each(
-            Selection::SelectAll(Filter::AllOf(vec![
-                Filter::creature(),
-                Filter::Not(Box::new(Filter::Ref(Reference::This))),
-                Filter::Characteristic(CharacteristicFilter::Subtype("Goblin".into())),
-                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+            Selection::SelectAll(Predicate::AllOf(vec![
+                Predicate::creature(),
+                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+                Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
+                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])),
@@ -2256,7 +2258,7 @@ mod tests {
     #[test]
     fn floating_controlled_by_you_scope_resolves() {
         use deckmaste_core::Reference;
-        use deckmaste_core::RelationFilter;
+        use deckmaste_core::RelationPredicate;
 
         // Two plain creatures: one player 0 controls, one player 1 controls.
         let (state, mine) = typed_creature(game(), "Beast", PlayerId(0), vec![]);
@@ -2267,9 +2269,9 @@ mod tests {
         state.continuous.push(ContinuousEffect {
             timestamp,
             controller: PlayerId(0),
-            scope: ScopeResolved::Floating(Filter::AllOf(vec![
-                Filter::creature(),
-                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+            scope: ScopeResolved::Floating(Predicate::AllOf(vec![
+                Predicate::creature(),
+                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])),
@@ -2309,7 +2311,7 @@ mod tests {
     /// gather, not of the layer number.
     fn creature_count_cda() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Box::new(Filter::creature()));
+        let count = Count::CountOf(Box::new(Predicate::creature()));
         Ability::Static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
@@ -2351,7 +2353,7 @@ mod tests {
     /// `Of(This)`.
     fn creature_count_pump() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Box::new(Filter::creature()));
+        let count = Count::CountOf(Box::new(Predicate::creature()));
         Ability::Static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
@@ -2600,9 +2602,9 @@ mod tests {
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticEffect::Each(
-            Selection::SelectAll(Filter::AllOf(vec![
-                Filter::creature(),
-                Filter::Not(Box::new(Filter::Ref(Reference::This))),
+            Selection::SelectAll(Predicate::AllOf(vec![
+                Predicate::creature(),
+                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
             ])),
             Box::new(StaticEffect::Modify(
                 Reference::It,

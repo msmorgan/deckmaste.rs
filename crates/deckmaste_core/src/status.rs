@@ -5,7 +5,7 @@ use crate::Expand;
 
 /// An object's status ([CR#110.5]): four categories, each with two values —
 /// tapped/untapped, flipped/unflipped, face up/face down, phased in/phased
-/// out. Filtered via `Filter`'s `Status` atom; matched as a transition via
+/// out. Filtered via `Predicate`'s `Status` atom; matched as a transition via
 /// `Event::StateBecomes`. Permanents enter untapped, unflipped, face up,
 /// and phased in unless something says otherwise ([CR#110.5b]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

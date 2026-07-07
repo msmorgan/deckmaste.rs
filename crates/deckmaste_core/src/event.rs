@@ -6,9 +6,9 @@ use crate::CountBound;
 use crate::CounterRef;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
 use crate::Ident;
 use crate::Lookback;
+use crate::Predicate;
 use crate::Reference;
 use crate::SupportsMacros;
 use crate::Uint;
@@ -210,7 +210,7 @@ pub struct CausePattern {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agency: Option<Agency>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent: Option<Filter>,
+    pub agent: Option<Predicate>,
 }
 
 /// The cause-narrowing position on an event pattern. One variant today —
@@ -262,8 +262,8 @@ pub enum EventFilter {
     /// cause ("dies", [CR#700.4]). Each [`CauseVerb`]'s entailed fact form
     /// is an emitted entailment-table row.
     ZoneChange {
-        #[serde(default = "Filter::any")]
-        what: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -276,10 +276,10 @@ pub enum EventFilter {
     /// patient). `combat` narrows combat vs noncombat damage ([CR#510.1]);
     /// `amount` bounds the dealt amount.
     Damage {
-        #[serde(default = "Filter::any")]
-        source: Filter,
-        #[serde(default = "Filter::any")]
-        to: Filter,
+        #[serde(default = "Predicate::any")]
+        source: Predicate,
+        #[serde(default = "Predicate::any")]
+        to: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         combat: Option<bool>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -287,15 +287,15 @@ pub enum EventFilter {
     },
     /// A player gained life ([CR#119.3]).
     LifeGained {
-        #[serde(default = "Filter::any")]
-        who: Filter,
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
     /// A player lost life ([CR#119.3]).
     LifeLost {
-        #[serde(default = "Filter::any")]
-        who: Filter,
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
@@ -305,8 +305,8 @@ pub enum EventFilter {
     /// ("for each card drawn"), while a multi-card `amount` BOUND stays
     /// bridge-capped (`Drawn:amount`).
     Drawn {
-        #[serde(default = "Filter::any")]
-        who: Filter,
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
@@ -315,8 +315,8 @@ pub enum EventFilter {
     CounterPlaced {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         kind: Option<CounterRef>,
-        #[serde(default = "Filter::any")]
-        on: Filter,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
@@ -324,67 +324,67 @@ pub enum EventFilter {
     CounterRemoved {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         kind: Option<CounterRef>,
-        #[serde(default = "Filter::any")]
-        on: Filter,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
     /// A spell became cast ([CR#601.2i]) — the onset family ([CR#603.2]).
     /// `who` is the casting player, `what` the spell on the stack.
     Cast {
-        #[serde(default = "Filter::any")]
-        who: Filter,
-        #[serde(default = "Filter::any")]
-        what: Filter,
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
     },
     /// A card was played — the land drop ([CR#701.18a]; a special action,
     /// [CR#116.2a]).
     Played {
-        #[serde(default = "Filter::any")]
-        who: Filter,
-        #[serde(default = "Filter::any")]
-        what: Filter,
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
     },
     /// An activated ability was activated ([CR#602.2a]). `what` matches
     /// the ability's SOURCE object.
     ActivatedAb {
-        #[serde(default = "Filter::any")]
-        who: Filter,
-        #[serde(default = "Filter::any")]
-        what: Filter,
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
     },
     /// A creature was declared as an attacker ([CR#508.1k] — it becomes an
     /// attacking creature). `against` matches the DEFENDING player
     /// ([CR#506.2,508.5]).
     AttackDeclared {
-        #[serde(default = "Filter::any")]
-        by: Filter,
-        #[serde(default = "Filter::any")]
-        against: Filter,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+        #[serde(default = "Predicate::any")]
+        against: Predicate,
     },
     /// A block was declared — one fact, two views ([CR#509.1g..509.1h]):
     /// `by` is the BLOCKER ("whenever ~ blocks", [CR#509.3a]), `of` the
     /// blocked ATTACKER ("becomes blocked", [CR#509.3c]). Bushido
     /// ([CR#702.45a]) unions the two spellings.
     BlockDeclared {
-        #[serde(default = "Filter::any")]
-        by: Filter,
-        #[serde(default = "Filter::any")]
-        of: Filter,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+        #[serde(default = "Predicate::any")]
+        of: Predicate,
     },
     /// An Aura/Equipment/Fortification became attached ([CR#701.3a];
     /// "becomes attached", [CR#603.2e]). `what` is the attachment, `to`
     /// the host.
     Attached {
-        #[serde(default = "Filter::any")]
-        what: Filter,
-        #[serde(default = "Filter::any")]
-        to: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        to: Predicate,
     },
     /// An object's own status changed — transitions only ([CR#603.2e]).
     StateBecame {
-        #[serde(default = "Filter::any")]
-        of: Filter,
+        #[serde(default = "Predicate::any")]
+        of: Predicate,
         becomes: StateChange,
     },
     /// An object became the target of a spell/ability ([CR#601.2c]
@@ -392,12 +392,12 @@ pub enum EventFilter {
     /// ARMS: `by` narrows the targeting STACK OBJECT (shroud), `source`
     /// narrows its SOURCE (hexproof-from) [CR#702.11d,702.16b].
     BecomesTarget {
-        #[serde(default = "Filter::any")]
-        what: Filter,
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        source: Option<Filter>,
+        source: Option<Predicate>,
     },
     /// A step or phase began ([CR#603.2b], "at the beginning of …"). The
     /// `whose` coordinate ([CR#503.1] "your upkeep") narrows by whose turn
@@ -407,10 +407,10 @@ pub enum EventFilter {
     /// transitions-only; a control change is never a zone change — the
     /// object keeps its identity, [CR#613.1b]).
     ControlChanged {
-        #[serde(default = "Filter::any")]
-        of: Filter,
-        #[serde(default = "Filter::any")]
-        to: Filter,
+        #[serde(default = "Predicate::any")]
+        of: Predicate,
+        #[serde(default = "Predicate::any")]
+        to: Predicate,
     },
     /// A named designation changed hands ([CR#109.3]): "becomes the
     /// monarch" / "becomes goaded" — `of` matches the gaining carrier
@@ -420,16 +420,16 @@ pub enum EventFilter {
     /// [`BecameNight`](EventFilter::BecameNight) instead.
     DesignationChanged {
         name: Ident,
-        #[serde(default = "Filter::any")]
-        of: Filter,
+        #[serde(default = "Predicate::any")]
+        of: Predicate,
     },
     /// A token was created ([CR#701.7a,111.2]). `what` matches the created
     /// token, `by` its creator.
     TokenCreated {
-        #[serde(default = "Filter::any")]
-        what: Filter,
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
     },
     /// An ability of `of` was used — a triggered ability fired ([CR#603.2])
     /// or an activated ability was activated ([CR#602.2a]). Matches the
@@ -439,15 +439,15 @@ pub enum EventFilter {
     /// A coin was flipped ([CR#705.1]). `won` narrows by the flipper
     /// winning/losing the flip ([CR#705.2]).
     CoinFlipped {
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         won: Option<bool>,
     },
     /// A die was rolled ([CR#706.1]).
     DiceRolled {
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
     },
     /// "It becomes day" — the game gained the day designation
     /// ([CR#731.1,731.1a]; an expletive-"it" verb, no participants).
@@ -496,29 +496,29 @@ pub enum EventFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CharacteristicFilter;
+    use crate::CharacteristicPredicate;
     use crate::Type;
 
     fn read(source: &str) -> EventFilter {
         crate::ron::options().from_str(source).unwrap()
     }
 
-    /// Filter fields default to match-anything when omitted — `Cast()`
+    /// Predicate fields default to match-anything when omitted — `Cast()`
     /// reads as any-caster/any-spell.
     #[test]
     fn filter_fields_default_to_any() {
         assert_eq!(
             read("Cast(who: Ref(You))"),
             EventFilter::Cast {
-                who: Filter::Ref(crate::Reference::You),
-                what: Filter::Any,
+                who: Predicate::Ref(crate::Reference::You),
+                what: Predicate::Any,
             },
         );
         assert_eq!(
             read("AttackDeclared(by: Ref(This))"),
             EventFilter::AttackDeclared {
-                by: Filter::Ref(crate::Reference::This),
-                against: Filter::Any,
+                by: Predicate::Ref(crate::Reference::This),
+                against: Predicate::Any,
             },
         );
     }
@@ -535,7 +535,7 @@ mod tests {
                 "ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy))"
             ),
             EventFilter::ZoneChange {
-                what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                what: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: Some(Cause::Cause(CausePattern {
@@ -558,7 +558,7 @@ mod tests {
         assert_eq!(
             read("ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard)"),
             EventFilter::ZoneChange {
-                what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                what: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,
@@ -567,7 +567,7 @@ mod tests {
         assert_eq!(
             read("ZoneChange(what: Type(Creature))"),
             EventFilter::ZoneChange {
-                what: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+                what: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
                 from: None,
                 to: None,
                 cause: None,
@@ -612,8 +612,8 @@ mod tests {
         assert_eq!(
             read("Damage(source: Ref(This), amount: AtLeast(3))"),
             EventFilter::Damage {
-                source: Filter::Ref(crate::Reference::This),
-                to: Filter::Any,
+                source: Predicate::Ref(crate::Reference::This),
+                to: Predicate::Any,
                 combat: None,
                 amount: Some(CountBound::AtLeast(Count::Literal(3))),
             },

@@ -30,7 +30,7 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::Zone::kind());
     kinds.add(crate::Effect::kind());
     kinds.add(crate::EventFilter::kind());
-    kinds.add(crate::Filter::kind());
+    kinds.add(crate::Predicate::kind());
     kinds.add(crate::KeywordAbility::kind());
     kinds.add(crate::ManaRider::kind());
     // Change-bundling macros (`AddPowerToughness`, …) expand at `changes: [...]`

@@ -1,6 +1,6 @@
 (
     name: "Permanent",
     template: "permanent",
-    kinds: [Filter],
+    kinds: [Predicate],
     body: InZone(Battlefield),
 )

@@ -173,7 +173,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "BLOCKED: 'for each nontoken creature destroyed this way' (Blood \
             Money) needs a way to re-read a noted PRODUCT group filtered further; \
             Selection::AmongNoted is a CHOICE primitive (wrong shape for an unconditional \
-            'for each'), and no Count/Filter combinator reads a noted object set at all — a \
+            'for each'), and no Count/Predicate combinator reads a noted object set at all — a \
             genuine missing-grammar finding, not built. See the ticket's completion notes.",
         ),
         (

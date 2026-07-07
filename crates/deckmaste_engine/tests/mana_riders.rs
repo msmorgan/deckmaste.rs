@@ -11,9 +11,9 @@ use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
-use deckmaste_core::Filter;
 use deckmaste_core::ManaRider;
 use deckmaste_core::PhaseStep;
+use deckmaste_core::Predicate;
 use deckmaste_core::Supertype;
 use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
@@ -187,7 +187,7 @@ fn spend_only_creature_funds_a_creature_spell() {
     state.player_mut(PlayerId(0)).mana_pool.add_riders(
         green(),
         1,
-        &[ManaRider::SpendOnly(Filter::creature())],
+        &[ManaRider::SpendOnly(Predicate::creature())],
     );
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
     // Re-derive the frozen priority list with the freshly floated pool.
@@ -382,7 +382,7 @@ fn spend_only_instant_cannot_fund_a_creature_spell() {
     state.player_mut(PlayerId(0)).mana_pool.add_riders(
         green(),
         1,
-        &[ManaRider::SpendOnly(Filter::type_(Type::Instant))],
+        &[ManaRider::SpendOnly(Predicate::type_(Type::Instant))],
     );
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
     // Re-derive the frozen priority list with the freshly floated pool.

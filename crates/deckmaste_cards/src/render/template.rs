@@ -130,18 +130,18 @@ fn lookup_arg<'a>(args: &'a ExpansionArgs, key: &str) -> Option<&'a String> {
 }
 
 /// Render one raw-RON-source positional arg back to English (the `show`
-/// direction): bare integers pass through; a `Filter` arg renders as its noun
-/// (`ColorIs(Black)` → "black", `Type(Creature)` → "creature"); a `Cost` arg
-/// renders as its symbols (`[Mana([Generic(2)])]` → "{2}"). Each is parsed with
-/// the bare core reader, so the arg's type is recovered without a `MacroSet`.
-/// Anything else (a filter with no clean noun, a verb-cost) returns `None`, so
-/// the caller falls back to structural rendering.
+/// direction): bare integers pass through; a `Predicate` arg renders as its
+/// noun (`ColorIs(Black)` → "black", `Type(Creature)` → "creature"); a `Cost`
+/// arg renders as its symbols (`[Mana([Generic(2)])]` → "{2}"). Each is parsed
+/// with the bare core reader, so the arg's type is recovered without a
+/// `MacroSet`. Anything else (a filter with no clean noun, a verb-cost) returns
+/// `None`, so the caller falls back to structural rendering.
 fn render_arg(raw: &str) -> Option<String> {
     let t = raw.trim();
     if t.parse::<i64>().is_ok() {
         return Some(t.to_string());
     }
-    if let Ok(filter) = deckmaste_core::ron::options().from_str::<deckmaste_core::Filter>(t) {
+    if let Ok(filter) = deckmaste_core::ron::options().from_str::<deckmaste_core::Predicate>(t) {
         let noun = super::fragment::filter_noun(&filter);
         if !noun.contains("[unrendered") {
             return Some(noun);
@@ -254,13 +254,13 @@ mod tests {
     /// A dynamic (non-literal) count declines to the structural fallback.
     #[test]
     fn render_cost_renders_tap_total_crew() {
-        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Cmp;
         use deckmaste_core::CostComponent;
         use deckmaste_core::Count;
-        use deckmaste_core::Filter;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
-        use deckmaste_core::RelationFilter;
+        use deckmaste_core::RelationPredicate;
         use deckmaste_core::Stat;
         use deckmaste_core::Type;
 
@@ -270,10 +270,10 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
-            filter: Box::new(Filter::AllOf(vec![
-                Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                Filter::Not(Box::new(Filter::Ref(Reference::This))),
-                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+            filter: Box::new(Predicate::AllOf(vec![
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])),
@@ -288,7 +288,7 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::X,
-            filter: Box::new(Filter::creature()),
+            filter: Box::new(Predicate::creature()),
         };
         assert_eq!(render_cost(&[dynamic]), None);
     }

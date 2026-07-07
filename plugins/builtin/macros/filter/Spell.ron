@@ -1,6 +1,6 @@
 (
     name: "Spell",
     template: "spell",
-    kinds: [Filter],
+    kinds: [Predicate],
     body: Kind(Spell),
 )

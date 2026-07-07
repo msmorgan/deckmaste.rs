@@ -10,7 +10,7 @@ use crate::CostComponent;
 use crate::Count;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
+use crate::Predicate;
 use crate::SupportsMacros;
 use crate::Timing;
 use crate::Zone;
@@ -46,7 +46,7 @@ pub enum AsThough {
 
 /// A cardinality bound on a matched set — comparator-headed so it reads as
 /// prose (`Less(Literal(2))` = "fewer than two"). A set-level predicate,
-/// deliberately NOT a `Filter` atom: filters judge one object at a time,
+/// deliberately NOT a `Predicate` atom: filters judge one object at a time,
 /// bounds judge the arrangement ([CR#702.111b] menace; deontics set-level
 /// evaluation).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -108,9 +108,9 @@ impl CountBound {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct DeedAgent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stack_object: Option<Filter>,
+    pub stack_object: Option<Predicate>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub source: Option<Filter>,
+    pub source: Option<Predicate>,
 }
 
 impl Default for DeedAgent {
@@ -118,7 +118,7 @@ impl Default for DeedAgent {
     /// `stack_object` arm present and match-anything.
     fn default() -> Self {
         DeedAgent {
-            stack_object: Some(Filter::Any),
+            stack_object: Some(Predicate::Any),
             source: None,
         }
     }
@@ -154,10 +154,10 @@ pub enum DeonticAction {
     /// `by` attacks `on` — a player/planeswalker/battle set
     /// ([CR#508.1a..508.1d]).
     Attack {
-        #[serde(default = "Filter::any")]
-        by: Filter,
-        #[serde(default = "Filter::any")]
-        on: Filter,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
     },
     /// `by` blocks `on`. `count` bounds the matched blocking arrangement,
     /// and which slot carries `Ref(This)` decides the reading: anchored on
@@ -166,10 +166,10 @@ pub enum DeonticAction {
     /// while anchored on `by` it bounds how many creatures the blocker
     /// blocks ([CR#509.1a..509.1c]).
     Block {
-        #[serde(default = "Filter::any")]
-        by: Filter,
-        #[serde(default = "Filter::any")]
-        on: Filter,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         count: Option<CountBound>,
     },
@@ -179,8 +179,8 @@ pub enum DeonticAction {
     Target {
         #[serde(default, skip_serializing_if = "DeedAgent::is_default")]
         by: DeedAgent,
-        #[serde(default = "Filter::any")]
-        on: Filter,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
     },
     /// `what` is attached to `to` ([CR#701.3a] legality — "can't be
     /// attached" rows; protection's can't-be-enchanted/equipped clauses
@@ -188,18 +188,18 @@ pub enum DeonticAction {
     /// illegal existing attachment is the SBA's business
     /// ([CR#704.5m..704.5n]), not this row's.
     Attach {
-        #[serde(default = "Filter::any")]
-        what: Filter,
-        #[serde(default = "Filter::any")]
-        to: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        to: Predicate,
     },
     /// `by` casts `what`, optionally from a zone / in a window
     /// ([CR#601.3,701.5]).
     Cast {
-        #[serde(default = "Filter::any")]
-        what: Filter,
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -212,19 +212,19 @@ pub enum DeonticAction {
     /// `by` plays `what` — land plays / play-a-card permissions
     /// ([CR#701.18]).
     Play {
-        #[serde(default = "Filter::any")]
-        what: Filter,
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
     },
     /// `by` activates abilities of `what` ([CR#602.1]).
     Activate {
-        #[serde(default = "Filter::any")]
-        what: Filter,
-        #[serde(default = "Filter::any")]
-        by: Filter,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
     },
     /// `by` regenerates `on` ([CR#701.19]) — the deed behind "can't be
     /// regenerated": a `Cant` row over it causes regeneration shields not
@@ -234,10 +234,10 @@ pub enum DeonticAction {
     /// own destroy event via `Duration::ForThisEvent`; engine enforcement
     /// (the shield-application pass consulting deontic rows) is a seam.
     Regenerate {
-        #[serde(default = "Filter::any")]
-        by: Filter,
-        #[serde(default = "Filter::any")]
-        on: Filter,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
     },
     /// A remembered `DeonticAction` macro invocation. Serialized as the
     /// invocation, not the struct.
@@ -282,8 +282,8 @@ mod tests {
         assert_eq!(
             read("Cant(Attack(by: Ref(This)))"),
             Deontic::Cant(DeonticAction::Attack {
-                by: Filter::Ref(Reference::This),
-                on: Filter::Any,
+                by: Predicate::Ref(Reference::This),
+                on: Predicate::Any,
             }),
         );
     }
@@ -319,8 +319,8 @@ mod tests {
         assert_eq!(
             read("Cant(Block(on: Ref(This), count: Less(Literal(2))))"),
             Deontic::Cant(DeonticAction::Block {
-                by: Filter::Any,
-                on: Filter::Ref(Reference::This),
+                by: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
                 count: Some(CountBound::Less(Count::Literal(2))),
             }),
         );
@@ -332,8 +332,8 @@ mod tests {
         assert_eq!(
             read("May(Cast(what: Ref(This), window: InstantSpeed))"),
             Deontic::May(DeonticAction::Cast {
-                what: Filter::Ref(Reference::This),
-                by: Filter::Any,
+                what: Predicate::Ref(Reference::This),
+                by: Predicate::Any,
                 from: None,
                 window: Some(Timing::InstantSpeed),
                 cost: None,
@@ -347,8 +347,8 @@ mod tests {
         assert_eq!(
             read("May(Cast(what: Ref(This), from: Graveyard))"),
             Deontic::May(DeonticAction::Cast {
-                what: Filter::Ref(Reference::This),
-                by: Filter::Any,
+                what: Predicate::Ref(Reference::This),
+                by: Predicate::Any,
                 from: Some(Zone::Graveyard),
                 window: None,
                 cost: None,
@@ -362,7 +362,7 @@ mod tests {
     /// agent is spellable (the Idris re-emit gate rejects it, not serde).
     #[test]
     fn deed_agent_two_slots_read_and_round_trip() {
-        use crate::CharacteristicFilter;
+        use crate::CharacteristicPredicate;
         use crate::Color;
 
         // Shroud: `by` omitted → the any-stack-object default, not written.
@@ -371,7 +371,7 @@ mod tests {
             shroud,
             Deontic::Cant(DeonticAction::Target {
                 by: DeedAgent::default(),
-                on: Filter::Ref(Reference::This),
+                on: Predicate::Ref(Reference::This),
             }),
         );
         let written = crate::ron::options().to_string(&shroud).unwrap();
@@ -389,7 +389,7 @@ mod tests {
         assert!(by.stack_object.is_some() && by.source.is_some());
         assert_eq!(
             by.source,
-            Some(Filter::Characteristic(CharacteristicFilter::ColorIs(
+            Some(Predicate::Characteristic(CharacteristicPredicate::ColorIs(
                 Color::Red
             ))),
         );
@@ -412,8 +412,8 @@ mod tests {
             read("Gate(Attack(on: Ref(You)), [Tap])"),
             Deontic::Gate(
                 DeonticAction::Attack {
-                    by: Filter::Any,
-                    on: Filter::Ref(Reference::You),
+                    by: Predicate::Any,
+                    on: Predicate::Ref(Reference::You),
                 },
                 vec![CostComponent::Tap],
             ),
@@ -439,16 +439,16 @@ mod tests {
         assert_eq!(
             read("Cant(Block(on: Ref(This), count: Greater(1)))"),
             Deontic::Cant(DeonticAction::Block {
-                by: Filter::Any,
-                on: Filter::Ref(Reference::This),
+                by: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
                 count: Some(CountBound::Greater(Count::Literal(1))),
             }),
         );
         assert_eq!(
             read("May(Block(by: Ref(This), count: AtMost(2)))"),
             Deontic::May(DeonticAction::Block {
-                by: Filter::Ref(Reference::This),
-                on: Filter::Any,
+                by: Predicate::Ref(Reference::This),
+                on: Predicate::Any,
                 count: Some(CountBound::AtMost(Count::Literal(2))),
             }),
         );

@@ -5,7 +5,7 @@ use crate::Count;
 use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
+use crate::Predicate;
 use crate::Reference;
 use crate::SupportsMacros;
 
@@ -51,9 +51,9 @@ pub enum Condition {
     /// Compare two scalar counts ([CR#107.1]).
     Compare(Count, Cmp, Count),
     /// At least one object matches ([CR#603.4], "if you control a …").
-    Exists(Filter),
+    Exists(Predicate),
     /// A referenced object matches a filter ([CR#603.4], "if it is a …").
-    Is(Reference, Filter),
+    Is(Reference, Predicate),
     /// The referenced attachment is LEGALLY attached ([CR#701.3b,303.4d]): it
     /// has a host AND that (attachment, host) pair passes the attachment
     /// legality predicate (host-type / protection / `Cant(Attach)`). False when
@@ -102,9 +102,9 @@ pub enum Condition {
     /// satisfies the player predicate. Generalizes
     /// [`YourTurn`](Condition::YourTurn) (which is `TurnOf(Ref(You))`):
     /// "during an opponent's turn" is `TurnOf(OpponentOf(Ref(You)))`. The
-    /// `Filter` is a player predicate (`Ref(You)`, `OpponentOf(Ref(You))`,
+    /// `Predicate` is a player predicate (`Ref(You)`, `OpponentOf(Ref(You))`,
     /// `Kind(Player)`, …).
-    TurnOf(Filter),
+    TurnOf(Predicate),
     /// The current phase/step is exactly the given one. Main phases are
     /// single-step bare variants, so `DuringPhase(PrecombatMain)` works
     /// today; phase-class matching (any combat step) accretes when a card
@@ -149,14 +149,14 @@ mod tests {
     fn turn_of_reads_and_round_trips() {
         assert_eq!(
             read("TurnOf(Ref(You))"),
-            Condition::TurnOf(Filter::Ref(Reference::You)),
+            Condition::TurnOf(Predicate::Ref(Reference::You)),
         );
         // "during an opponent's turn".
         let opp = read("TurnOf(OpponentOf(Ref(You)))");
         assert_eq!(
             opp,
-            Condition::TurnOf(Filter::Relation(crate::RelationFilter::OpponentOf(
-                Box::new(Filter::Ref(Reference::You))
+            Condition::TurnOf(Predicate::Relation(crate::RelationPredicate::OpponentOf(
+                Box::new(Predicate::Ref(Reference::You))
             ))),
         );
         let written = crate::ron::options().to_string(&opp).unwrap();
@@ -207,7 +207,7 @@ mod tests {
             ),
             Condition::Happened {
                 event: EventFilter::ZoneChange {
-                    what: Filter::Any,
+                    what: Predicate::Any,
                     from: Some(Zone::Battlefield),
                     to: Some(Zone::Graveyard),
                     cause: Some(Cause::Cause(CausePattern {

@@ -13,7 +13,7 @@
     name: "Protection",
     template: "protection from ${0}",
     kinds: [KeywordAbility],
-    params: [Filter],
+    params: [Predicate],
     body: Composite(
         name: "Protection",
         abilities: [

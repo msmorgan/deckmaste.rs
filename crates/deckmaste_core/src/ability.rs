@@ -463,14 +463,14 @@ mod tests {
     fn innate_round_trips_and_peels() {
         use crate::Deontic;
         use crate::DeonticAction;
-        use crate::Filter;
+        use crate::Predicate;
         use crate::StaticEffect;
 
         let inner = Ability::Static(StaticEffect::Deontic(Deontic::Cant(
             DeonticAction::Attach {
-                what: Filter::Ref(Reference::This),
-                to: Filter::Not(Box::new(Filter::Characteristic(
-                    crate::CharacteristicFilter::Type(crate::Type::Creature),
+                what: Predicate::Ref(Reference::This),
+                to: Predicate::Not(Box::new(Predicate::Characteristic(
+                    crate::CharacteristicPredicate::Type(crate::Type::Creature),
                 ))),
             },
         )));

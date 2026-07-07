@@ -3,8 +3,8 @@
 use deckmaste_core::Action;
 use deckmaste_core::Effect;
 use deckmaste_core::EventFilter;
-use deckmaste_core::Filter;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
 use deckmaste_core::Zone;
@@ -63,7 +63,7 @@ fn is_this_enters(e: &EventFilter) -> bool {
             ..
         } => matches!(
             super::fragment::strip_expanded(what),
-            Filter::Ref(Reference::This)
+            Predicate::Ref(Reference::This)
         ),
         _ => false,
     }

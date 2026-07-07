@@ -2,19 +2,19 @@
 
 use deckmaste_core::Anchor;
 use deckmaste_core::Characteristic;
-use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::Extremum;
-use deckmaste_core::Filter;
 use deckmaste_core::ObjectKind;
+use deckmaste_core::Predicate;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
-use deckmaste_core::RelationFilter;
+use deckmaste_core::RelationPredicate;
 use deckmaste_core::RoundMode;
 use deckmaste_core::Selection;
 use deckmaste_core::Stat;
-use deckmaste_core::StateFilter;
+use deckmaste_core::StatePredicate;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Zone;
 
@@ -309,8 +309,8 @@ pub(super) fn announced_group_phrase(spec: &TargetSpec) -> Option<String> {
 /// selection phrases.  Prefers a filter macro's own noun template ("creature",
 /// "player", ...); falls back to structural derivation ([`find_card_type`] /
 /// [`strip_expanded`]) for hand-built (un-wrapped) filters.
-pub(super) fn filter_noun(filter: &Filter) -> String {
-    if let Filter::Expanded(exp) = filter
+pub(super) fn filter_noun(filter: &Predicate) -> String {
+    if let Predicate::Expanded(exp) = filter
         && let Some(noun) = super::template::expanded(exp, "")
     {
         return noun;
@@ -326,21 +326,21 @@ pub(super) fn filter_noun(filter: &Filter) -> String {
         };
     }
     match strip_expanded(filter) {
-        Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
+        Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
             super::effect::color_word(*c).to_string()
         }
-        Filter::Kind(ObjectKind::Player) => "player".to_string(),
+        Predicate::Kind(ObjectKind::Player) => "player".to_string(),
         // An ability on the stack ([CR#602.2a,603.3]): "counter target ability".
-        Filter::Kind(ObjectKind::Ability) => "ability".to_string(),
+        Predicate::Kind(ObjectKind::Ability) => "ability".to_string(),
         // Team-relative player nouns ([CR#102.3]): "target opponent" /
         // "target teammate" (relative to the carrier's controller).
-        Filter::Relation(RelationFilter::OpponentOf(inner))
-            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        Predicate::Relation(RelationPredicate::OpponentOf(inner))
+            if matches!(strip_expanded(inner), Predicate::Ref(Reference::You)) =>
         {
             "opponent".to_string()
         }
-        Filter::Relation(RelationFilter::TeammateOf(inner))
-            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        Predicate::Relation(RelationPredicate::TeammateOf(inner))
+            if matches!(strip_expanded(inner), Predicate::Ref(Reference::You)) =>
         {
             "teammate".to_string()
         }
@@ -352,24 +352,24 @@ pub(super) fn filter_noun(filter: &Filter) -> String {
 /// `ControlledBy(You)` → "you control"; `Not(ControlledBy(You))` → "you
 /// don't control"; `ControlledBy(OpponentOf(You))` → "an opponent controls".
 /// `None` when the filter carries no controller part.
-fn controller_suffix(filter: &Filter) -> Option<&'static str> {
+fn controller_suffix(filter: &Predicate) -> Option<&'static str> {
     for part in flatten_all_of(filter) {
         match strip_expanded(part) {
-            Filter::Relation(RelationFilter::ControlledBy(inner)) => {
+            Predicate::Relation(RelationPredicate::ControlledBy(inner)) => {
                 return match strip_expanded(inner) {
-                    Filter::Ref(Reference::You) => Some("you control"),
-                    Filter::Relation(RelationFilter::OpponentOf(who))
-                        if matches!(strip_expanded(who), Filter::Ref(Reference::You)) =>
+                    Predicate::Ref(Reference::You) => Some("you control"),
+                    Predicate::Relation(RelationPredicate::OpponentOf(who))
+                        if matches!(strip_expanded(who), Predicate::Ref(Reference::You)) =>
                     {
                         Some("an opponent controls")
                     }
                     _ => None,
                 };
             }
-            Filter::Not(negated) => {
-                if let Filter::Relation(RelationFilter::ControlledBy(inner)) =
+            Predicate::Not(negated) => {
+                if let Predicate::Relation(RelationPredicate::ControlledBy(inner)) =
                     strip_expanded(negated)
-                    && matches!(strip_expanded(inner), Filter::Ref(Reference::You))
+                    && matches!(strip_expanded(inner), Predicate::Ref(Reference::You))
                 {
                     return Some("you don't control");
                 }
@@ -395,10 +395,10 @@ pub(super) fn zone_word(z: Zone) -> &'static str {
     }
 }
 
-/// See through macro-provenance wrappers on a `Filter`.
-pub(super) fn strip_expanded(f: &Filter) -> &Filter {
+/// See through macro-provenance wrappers on a `Predicate`.
+pub(super) fn strip_expanded(f: &Predicate) -> &Predicate {
     match f {
-        Filter::Expanded(e) => strip_expanded(&e.value),
+        Predicate::Expanded(e) => strip_expanded(&e.value),
         other => other,
     }
 }
@@ -454,14 +454,14 @@ pub(super) fn capitalize(s: &str) -> String {
     }
 }
 
-/// A `Filter` as a plural subject noun phrase: "Creatures you control",
+/// A `Predicate` as a plural subject noun phrase: "Creatures you control",
 /// "Other creatures you control", "Creatures your opponents control".
 ///
 /// The Creature filter macro expands as
 /// `Expanded(value=AllOf([Expanded(Permanent),
 /// Characteristic(Type(Creature))]))`. `flatten_all_of` and `find_card_type`
 /// see through both layers.
-pub(super) fn filter_subject(f: &Filter) -> String {
+pub(super) fn filter_subject(f: &Predicate) -> String {
     let parts = flatten_all_of(f);
     let mut other = false;
     let mut base = "Permanents".to_string();
@@ -470,17 +470,17 @@ pub(super) fn filter_subject(f: &Filter) -> String {
     let mut control: Option<String> = None;
     for p in parts {
         match strip_expanded(p) {
-            Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+            Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
                 base = format!("{}s", super::card::type_str(*t));
                 typed = true;
             }
-            Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
+            Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
                 color = Some(*c);
             }
-            Filter::Not(inner) if strip_expanded(inner).is_this() => {
+            Predicate::Not(inner) if strip_expanded(inner).is_this() => {
                 other = true;
             }
-            Filter::Relation(RelationFilter::ControlledBy(inner)) => {
+            Predicate::Relation(RelationPredicate::ControlledBy(inner)) => {
                 control = Some(controller_phrase(inner));
             }
             // The Creature macro expands to AllOf([Expanded(Permanent),
@@ -526,24 +526,24 @@ pub(super) fn filter_subject(f: &Filter) -> String {
 /// Recursively search a stripped filter for a `Characteristic(Type(t))`.
 /// Used to find the type name inside a macro-expanded Creature/Land/etc.
 /// filter.
-pub(super) fn find_card_type(f: &Filter) -> Option<deckmaste_core::Type> {
+pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Type> {
     match strip_expanded(f) {
-        Filter::Characteristic(CharacteristicFilter::Type(t)) => Some(*t),
-        Filter::AllOf(vs) => vs.iter().find_map(find_card_type),
+        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(*t),
+        Predicate::AllOf(vs) => vs.iter().find_map(find_card_type),
         _ => None,
     }
 }
 
-fn controller_phrase(f: &Filter) -> String {
+fn controller_phrase(f: &Predicate) -> String {
     match strip_expanded(f) {
-        Filter::Ref(Reference::You) => "you control".to_string(),
-        Filter::Relation(RelationFilter::OpponentOf(inner))
-            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        Predicate::Ref(Reference::You) => "you control".to_string(),
+        Predicate::Relation(RelationPredicate::OpponentOf(inner))
+            if matches!(strip_expanded(inner), Predicate::Ref(Reference::You)) =>
         {
             "your opponents control".to_string()
         }
-        Filter::Relation(RelationFilter::TeammateOf(inner))
-            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        Predicate::Relation(RelationPredicate::TeammateOf(inner))
+            if matches!(strip_expanded(inner), Predicate::Ref(Reference::You)) =>
         {
             "your teammates control".to_string()
         }
@@ -551,9 +551,9 @@ fn controller_phrase(f: &Filter) -> String {
     }
 }
 
-fn flatten_all_of(f: &Filter) -> Vec<&Filter> {
+fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
     match strip_expanded(f) {
-        Filter::AllOf(v) => v.iter().collect(),
+        Predicate::AllOf(v) => v.iter().collect(),
         single => vec![single],
     }
 }
@@ -575,11 +575,11 @@ pub(super) fn quantity(q: &Quantity) -> String {
     }
 }
 
-/// A `Filter` as the object noun for cards: "cards from your hand", or a bare
-/// "cards" for the unqualified card kind.
-pub(super) fn filter_object(f: &Filter) -> String {
+/// A `Predicate` as the object noun for cards: "cards from your hand", or a
+/// bare "cards" for the unqualified card kind.
+pub(super) fn filter_object(f: &Predicate) -> String {
     // A bare card kind ([CR#108.2]) reads as the plain plural "cards".
-    if matches!(strip_expanded(f), Filter::Kind(ObjectKind::Card)) {
+    if matches!(strip_expanded(f), Predicate::Kind(ObjectKind::Card)) {
         return "cards".to_string();
     }
     let parts = flatten_all_of(f);
@@ -587,9 +587,9 @@ pub(super) fn filter_object(f: &Filter) -> String {
     let mut yours = false;
     for p in parts {
         match strip_expanded(p) {
-            Filter::State(StateFilter::InZone(Zone::Hand)) => zone = "hand",
-            Filter::Relation(RelationFilter::Owner(inner))
-                if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+            Predicate::State(StatePredicate::InZone(Zone::Hand)) => zone = "hand",
+            Predicate::Relation(RelationPredicate::Owner(inner))
+                if matches!(strip_expanded(inner), Predicate::Ref(Reference::You)) =>
             {
                 yours = true;
             }
@@ -661,14 +661,17 @@ mod tests {
     /// player relations relative to "you".
     #[test]
     fn filter_noun_renders_ability_and_team_relative_players() {
-        let you = || Box::new(Filter::Ref(Reference::You));
-        assert_eq!(filter_noun(&Filter::Kind(ObjectKind::Ability)), "ability");
+        let you = || Box::new(Predicate::Ref(Reference::You));
         assert_eq!(
-            filter_noun(&Filter::Relation(RelationFilter::OpponentOf(you()))),
+            filter_noun(&Predicate::Kind(ObjectKind::Ability)),
+            "ability"
+        );
+        assert_eq!(
+            filter_noun(&Predicate::Relation(RelationPredicate::OpponentOf(you()))),
             "opponent"
         );
         assert_eq!(
-            filter_noun(&Filter::Relation(RelationFilter::TeammateOf(you()))),
+            filter_noun(&Predicate::Relation(RelationPredicate::TeammateOf(you()))),
             "teammate"
         );
     }
@@ -677,11 +680,15 @@ mod tests {
     /// inside a plural subject ([CR#102.3]).
     #[test]
     fn filter_subject_renders_teammate_controller_phrase() {
-        let f = Filter::AllOf(vec![
-            Filter::Characteristic(CharacteristicFilter::Type(deckmaste_core::Type::Creature)),
-            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Relation(
-                RelationFilter::TeammateOf(Box::new(Filter::Ref(Reference::You))),
-            )))),
+        let f = Predicate::AllOf(vec![
+            Predicate::Characteristic(CharacteristicPredicate::Type(
+                deckmaste_core::Type::Creature,
+            )),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+                Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ))),
         ]);
         assert_eq!(filter_subject(&f), "Creatures your teammates control");
     }

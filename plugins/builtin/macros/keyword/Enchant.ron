@@ -23,7 +23,7 @@
     name: "Enchant",
     template: "enchant ${0}",
     kinds: [KeywordAbility],
-    params: [Filter],
+    params: [Predicate],
     body: Composite(
         name: "Enchant",
         abilities: [

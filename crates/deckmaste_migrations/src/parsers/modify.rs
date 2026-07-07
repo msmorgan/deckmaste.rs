@@ -19,7 +19,7 @@ pub(super) fn split_marker<'a>(body: &'a str, markers: &[&str]) -> Option<(&'a s
         .map(|(i, mlen)| (body[..i].trim(), body[i + mlen..].trim()))
 }
 
-/// Subject phrase → `Filter` RON, or `None` to decline. `~`/"this …" are the
+/// Subject phrase → `Predicate` RON, or `None` to decline. `~`/"this …" are the
 /// self-ref; "enchanted …" the attach host; a class phrase parses via
 /// [`filter::parse_phrase`]. "target …" declines here — a targeted subject is
 /// the caller's concern (it declares a `TargetSpec` and scopes
@@ -54,7 +54,7 @@ pub(super) enum Target {
     /// A bare `Reference` string (`This`, `AttachHostOf(This)`, `It`, …).
     Ref(String),
     /// A class filter.
-    Filter(String),
+    Predicate(String),
 }
 
 impl Target {
@@ -63,20 +63,20 @@ impl Target {
     pub(super) fn wrap(&self, change: &str) -> String {
         match self {
             Target::Ref(r) => format!("Modify({r}, {change})"),
-            Target::Filter(f) => format!("Each(SelectAll({f}), Modify(It, {change}))"),
+            Target::Predicate(f) => format!("Each(SelectAll({f}), Modify(It, {change}))"),
         }
     }
 }
 
 /// `Ref(r)` filter → a bare-reference `Target::Ref(r)`; any class filter →
-/// `Target::Filter(filter)`. `parse_phrase` always leads with a head-noun
+/// `Target::Predicate(filter)`. `parse_phrase` always leads with a head-noun
 /// atom, so a top-level `Ref(` here can only be our own `subject_to_filter`
-/// self-refs (`~`/enchanted); class subjects take the `Filter` branch.
+/// self-refs (`~`/enchanted); class subjects take the `Predicate` branch.
 pub(super) fn filter_to_target(f: &str) -> Target {
     if let Some(inner) = f.strip_prefix("Ref(").and_then(|x| x.strip_suffix(')')) {
         Target::Ref(inner.to_owned())
     } else {
-        Target::Filter(f.to_owned())
+        Target::Predicate(f.to_owned())
     }
 }
 

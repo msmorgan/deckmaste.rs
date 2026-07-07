@@ -9,8 +9,8 @@
 //
 // Usage: ExchangeControl(a, b) — e.g. ExchangeControl(Target(0), Target(1)).
 //
-// `Simultaneous`/`GainControl` are load-capped (`E-POS-SIMULTANEOUS`) to
-// THIS macro family's bodies until the engine's batch wiring generalizes.
+// `Simultaneous`/`GainControl` are restricted to THIS macro family's bodies
+// until the engine's batch wiring generalizes.
 (
     name: "ExchangeControl",
     template: "exchange control of ${0} and ${1}",

@@ -314,10 +314,10 @@ struct Inherited {
 
 /// The [`ParamShape`] a keyword macro's typed parameter signature spells
 /// ([CR#702] keyword one-liners): nothing, a `Count`, a `Cost`, `Count` then
-/// `Cost` (suspend/awaken), a `Filter` (landwalk, hexproof-from), `Filter`
-/// then `Cost` (splice), or a `String` name (partner-with). `None` = the
-/// signature fits no shape — a load error, keeping the arg vocabulary
-/// closed. Named single-param signatures (`{"from": Default(Filter, Any)}`)
+/// `Cost` (suspend/awaken), a `Predicate` (landwalk, hexproof-from),
+/// `Predicate` then `Cost` (splice), or a `String` name (partner-with). `None`
+/// = the signature fits no shape — a load error, keeping the arg vocabulary
+/// closed. Named single-param signatures (`{"from": Default(Predicate, Any)}`)
 /// map by their one value type.
 fn keyword_shape(params: &crate::macros::Params) -> Option<ParamShape> {
     use crate::macros::Params;
@@ -335,8 +335,8 @@ fn keyword_shape(params: &crate::macros::Params) -> Option<ParamShape> {
         ["Count"] => ParamShape::Counted,
         ["Cost"] => ParamShape::Costed,
         ["Count", "Cost"] | ["Cost", "Count"] => ParamShape::CountedCost,
-        ["Filter"] => ParamShape::Predicated,
-        ["Filter", "Cost"] | ["Cost", "Filter"] => ParamShape::PredicatedCosted,
+        ["Predicate"] => ParamShape::Predicated,
+        ["Predicate", "Cost"] | ["Cost", "Predicate"] => ParamShape::PredicatedCosted,
         ["String"] => ParamShape::Named,
         _ => return Option::None,
     })

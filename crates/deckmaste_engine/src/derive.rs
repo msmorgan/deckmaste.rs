@@ -256,7 +256,7 @@ mod tests {
             where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
-                what: deckmaste_core::Filter::Ref(Reference::This),
+                what: deckmaste_core::Predicate::Ref(Reference::This),
                 from: None,
                 to: Some(Zone::Graveyard),
                 cause: None,

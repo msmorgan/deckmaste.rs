@@ -1,6 +1,6 @@
 use crate::Action;
 use crate::Expansion;
-use crate::Filter;
+use crate::Predicate;
 use crate::Quantity;
 use crate::Reference;
 use crate::Selection;
@@ -36,8 +36,8 @@ pub enum Binder {
     /// sacrifices a creature of their choice", [CR#608.2d,701.21a]) overrides
     /// it.
     ChooseOne {
-        /// What may be picked (the Idris `Filter`).
-        filter: Filter,
+        /// What may be picked (the Idris `Predicate`).
+        filter: Predicate,
         /// Who chooses (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
@@ -54,8 +54,8 @@ pub enum Binder {
     /// `by`/`whose` default to `You`, `from` to `[Library]` (each omitted on
     /// write when default).
     SearchOne {
-        /// The card sought (the Idris `Filter`).
-        filter: Filter,
+        /// The card sought (the Idris `Predicate`).
+        filter: Predicate,
         /// Who performs the search (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
@@ -82,8 +82,8 @@ pub enum Binder {
     Choose {
         /// How many to pick (the Idris `Quantity`).
         quantity: Quantity,
-        /// What may be picked (the Idris `Filter`).
-        filter: Filter,
+        /// What may be picked (the Idris `Predicate`).
+        filter: Predicate,
         /// Who chooses (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
@@ -98,8 +98,8 @@ pub enum Binder {
     Search {
         /// How many cards to find (the Idris `Quantity`).
         quantity: Quantity,
-        /// The cards sought (the Idris `Filter`).
-        filter: Filter,
+        /// The cards sought (the Idris `Predicate`).
+        filter: Predicate,
         /// Who performs the search (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
@@ -147,7 +147,7 @@ fn is_from_library(zones: &[Zone]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CharacteristicFilter;
+    use crate::CharacteristicPredicate;
     use crate::Destination;
     use crate::Type;
 
@@ -164,7 +164,7 @@ mod tests {
     /// defaults (both omitted-default and explicit-override forms).
     #[test]
     fn binder_variants_round_trip() {
-        let one_filter = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let one_filter = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
         for v in [
             Binder::TheRef(Reference::This),
             Binder::ChooseOne {
@@ -241,7 +241,7 @@ mod tests {
     /// back — the common written form carries only the filter (and quantity).
     #[test]
     fn choose_binders_omit_default_by() {
-        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
         let one = Binder::ChooseOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -270,7 +270,7 @@ mod tests {
     /// back to the defaults — the bare written form carries only the filter.
     #[test]
     fn search_one_omits_default_resolver_inputs() {
-        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
         let bare = Binder::SearchOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -294,7 +294,7 @@ mod tests {
         use crate::Effect;
         use crate::PlayerAction;
 
-        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
         let bare = Binder::SearchOne {
             filter: creature.clone(),
             by: Reference::You,

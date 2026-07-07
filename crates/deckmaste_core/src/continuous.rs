@@ -11,10 +11,10 @@ use crate::Deontic;
 use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
 use crate::Ident;
+use crate::Predicate;
 use crate::Reference;
-use crate::RelationFilter;
+use crate::RelationPredicate;
 use crate::Supertype;
 use crate::SupportsMacros;
 use crate::TurnMarker;
@@ -117,12 +117,13 @@ impl<T: Expand> Expand for CollectionOp<T> {
 /// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
 /// in a `changes: [...]` slot — the keystone being `AddPowerToughness(p, t)`,
 /// which expands to `Several([Power(Up(p)), Toughness(Up(t))])`. `Several` is
-/// the `Modification` analog of `Filter::AllOf`: a macro expands to ONE value,
-/// so a macro that must contribute several ops bundles them into a `Several`.
-/// Unlike `Filter::AllOf` (a conjunction the engine evaluates), `Several` is
-/// semantically inert — `changes` is already a flat, layer-spanning list
-/// ([CR#613.6]) — so it is flattened away once, at the engine boundary
-/// ([`Modification::flatten`]), and the engine layer loops never see it.
+/// the `Modification` analog of `Predicate::AllOf`: a macro expands to ONE
+/// value, so a macro that must contribute several ops bundles them into a
+/// `Several`. Unlike `Predicate::AllOf` (a conjunction the engine evaluates),
+/// `Several` is semantically inert — `changes` is already a flat,
+/// layer-spanning list ([CR#613.6]) — so it is flattened away once, at the
+/// engine boundary ([`Modification::flatten`]), and the engine layer loops
+/// never see it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Modification {
     /// Power ([CR#613.4]): `Set` base (7a/7b), `Up`/`Down` (7c).
@@ -169,12 +170,12 @@ pub enum Modification {
     /// reachable from the plain `Set*` ops.
     BecomeBasicLandType(Vec<Ident>),
     /// A bundle of ops contributed by one macro invocation — the analog of
-    /// `Filter::AllOf`. A macro expands to a single value, so a change-bundling
-    /// macro (`AddPowerToughness(p, t)`) produces `Several([Power(Up(p)),
-    /// Toughness(Up(t))])`. Semantically inert: `changes` is already a flat,
-    /// layer-spanning list ([CR#613.6]), so [`Modification::flatten`] splices a
-    /// `Several` into its parent list at the engine boundary and the engine
-    /// never sees this variant.
+    /// `Predicate::AllOf`. A macro expands to a single value, so a
+    /// change-bundling macro (`AddPowerToughness(p, t)`) produces
+    /// `Several([Power(Up(p)), Toughness(Up(t))])`. Semantically inert:
+    /// `changes` is already a flat, layer-spanning list ([CR#613.6]), so
+    /// [`Modification::flatten`] splices a `Several` into its parent list
+    /// at the engine boundary and the engine never sees this variant.
     Several(Vec<Modification>),
     /// A remembered `Modification` macro invocation. Serialized as the
     /// invocation, not the struct; `expand_all` strips it to the bundled value.
@@ -242,15 +243,15 @@ pub enum CostChange {
 /// The default `affected` for a [`StaticEffect::TriggerMultiplier`]: "you
 /// control" — the source permanent's controller ([CR#603.2c]). The common case
 /// (Panharmonicon / Yarok), so it is the serde default and is omitted from RON.
-fn affected_you_control() -> Filter {
-    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+fn affected_you_control() -> Predicate {
+    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
         Reference::You,
     ))))
 }
 
 /// Whether an `affected` filter equals the "you control" default — skips it on
 /// write so the common case stays flat.
-fn is_affected_you_control(f: &Filter) -> bool {
+fn is_affected_you_control(f: &Predicate) -> bool {
     *f == affected_you_control()
 }
 
@@ -294,12 +295,12 @@ pub enum StaticEffect {
     #[macro_ron(flatten)]
     Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
-    CostModifier { of: Filter, change: CostChange },
+    CostModifier { of: Predicate, change: CostChange },
     /// A declared OPTIONAL cost on this object's own casting
     /// ([CR#118.8b,601.2b]) — the kicker/multikicker/buyback identity
     /// ([`OptionalCost`](crate::OptionalCost)): "you may pay an additional
     /// [cost] as you cast this spell", read back through the tag by
-    /// `Condition::PaidCost` / `Count::TimesPaid` / `Filter::WasPaidWith`
+    /// `Condition::PaidCost` / `Count::TimesPaid` / `Predicate::WasPaidWith`
     /// ([CR#702.33d..702.33e,607.2]).
     CostOption(crate::OptionalCost),
     /// A trigger multiplier ([CR#603.2d] — "triggers additional times"):
@@ -321,7 +322,7 @@ pub enum StaticEffect {
             default = "affected_you_control",
             skip_serializing_if = "is_affected_you_control"
         )]
-        affected: Filter,
+        affected: Predicate,
     },
     /// A continuous modification to a player's numeric attribute ([CR#611]):
     /// extra land plays (Exploration = `ModifyPlayer(Ref(You),
@@ -344,14 +345,14 @@ pub enum StaticEffect {
     /// prevention is its own marked class, so the gate never touches
     /// generic replacements ([CR#614] Instead/Skip/Also — which still apply
     /// their non-prevention riders per [CR#615.12], an engine concern).
-    CantPrevent { from: Filter, to: Filter },
+    CantPrevent { from: Predicate, to: Predicate },
     /// The mana counterfactual channel ([CR#609.4b] payment freedom): mana
     /// matching `mana_from` (a filter over its PRODUCER — "mana produced by
     /// Smokebraider") "may be spent as though it were mana of any
     /// [color/type]" (`as_`). Changes only HOW a cost may be paid — never
     /// the cost, the pool, or what was actually spent.
     SpendAsThough {
-        mana_from: Filter,
+        mana_from: Predicate,
         as_: crate::SymbolPred,
     },
     /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
@@ -382,7 +383,10 @@ pub enum StaticEffect {
     /// ([CR#704.5b]) lapses with its window. Concession pierces every gate
     /// ([CR#101.1,104.3a]); the last-player-standing win pierces `CantWin`
     /// ([CR#104.2a]); simultaneous win∧lose = lose ([CR#104.3f]).
-    OutcomeGate { who: Filter, gate: OutcomeGateKind },
+    OutcomeGate {
+        who: Predicate,
+        gate: OutcomeGateKind,
+    },
     /// An event-side "can't happen" ([CR#614.17,702.12b]): the matching event
     /// can't occur. Distinct from `Deontic::Cant`, which is over player ACTIONS
     /// ([CR#101.2] action legality); destruction is an EVENT. Indestructible is
@@ -441,15 +445,15 @@ pub enum PipClass {
 
 /// The per-pip alternative-payment action a [`StaticEffect::PayPips`] performs
 /// "rather than pay that mana" ([CR#702.51a,702.66a,702.126a]). The object is
-/// chosen at payment time ([CR#601.2g]); `Filter` is open (plugin-safe).
+/// chosen at payment time ([CR#601.2g]); `Predicate` is open (plugin-safe).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PayAct {
     /// Tap an untapped permanent matching the filter you control
     /// ([CR#107.5]): convoke taps a creature ([CR#702.51a]), improvise an
     /// artifact ([CR#702.126a]).
-    TapToPay(Filter),
+    TapToPay(Predicate),
     /// Exile a matching card from your graveyard: delve ([CR#702.66a]).
-    ExileToPay(Filter),
+    ExileToPay(Predicate),
 }
 
 /// A player's numeric attribute a [`StaticEffect::ModifyPlayer`] adjusts — the
@@ -504,8 +508,8 @@ mod tests {
         assert_eq!(
             parsed,
             StaticEffect::Each(
-                crate::Selection::SelectAll(Filter::Characteristic(
-                    crate::CharacteristicFilter::Type(Type::Creature)
+                crate::Selection::SelectAll(Predicate::Characteristic(
+                    crate::CharacteristicPredicate::Type(Type::Creature)
                 )),
                 Box::new(StaticEffect::Modify(
                     Reference::It,
@@ -529,8 +533,8 @@ mod tests {
         assert_eq!(
             parsed,
             StaticEffect::Each(
-                crate::Selection::SelectAll(Filter::Characteristic(
-                    crate::CharacteristicFilter::Type(Type::Creature)
+                crate::Selection::SelectAll(Predicate::Characteristic(
+                    crate::CharacteristicPredicate::Type(Type::Creature)
                 )),
                 Box::new(StaticEffect::Modify(
                     Reference::It,
@@ -555,8 +559,8 @@ mod tests {
         assert_eq!(
             parsed,
             StaticEffect::Each(
-                crate::Selection::SelectAll(Filter::Characteristic(
-                    crate::CharacteristicFilter::Type(Type::Creature)
+                crate::Selection::SelectAll(Predicate::Characteristic(
+                    crate::CharacteristicPredicate::Type(Type::Creature)
                 )),
                 Box::new(StaticEffect::Modify(
                     Reference::It,
@@ -719,12 +723,12 @@ mod tests {
     /// `PayPips` reads flat and round-trips: convoke's colored clause
     /// (`Colored(White)` + tap a white creature you control, [CR#702.51a]) and
     /// delve's generic clause (`Generic` + exile a graveyard card,
-    /// [CR#702.66a]). The `Filter` fields are open and read flat.
+    /// [CR#702.66a]). The `Predicate` fields are open and read flat.
     #[test]
     fn pay_pips_round_trips() {
-        use crate::CharacteristicFilter;
-        use crate::RelationFilter;
-        use crate::StateFilter;
+        use crate::CharacteristicPredicate;
+        use crate::RelationPredicate;
+        use crate::StatePredicate;
         use crate::Zone;
 
         // Convoke's colored clause: tap a white creature you control rather
@@ -736,10 +740,10 @@ mod tests {
             convoke,
             StaticEffect::PayPips(
                 PipClass::Colored(Color::White),
-                PayAct::TapToPay(Filter::AllOf(vec![
-                    Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
-                    Filter::Characteristic(CharacteristicFilter::ColorIs(Color::White)),
-                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                PayAct::TapToPay(Predicate::AllOf(vec![
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                    Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You
                     )))),
                 ])),
@@ -755,7 +759,7 @@ mod tests {
             delve,
             StaticEffect::PayPips(
                 PipClass::Generic,
-                PayAct::ExileToPay(Filter::State(StateFilter::InZone(Zone::Graveyard))),
+                PayAct::ExileToPay(Predicate::State(StatePredicate::InZone(Zone::Graveyard))),
             ),
         );
         let written = crate::ron::options().to_string(&delve).unwrap();
@@ -770,8 +774,8 @@ mod tests {
         assert_eq!(
             parsed,
             StaticEffect::CantPrevent {
-                from: Filter::Ref(Reference::This),
-                to: Filter::Any,
+                from: Predicate::Ref(Reference::This),
+                to: Predicate::Any,
             },
         );
         let written = crate::ron::options().to_string(&parsed).unwrap();
@@ -786,7 +790,7 @@ mod tests {
         assert_eq!(
             parsed,
             StaticEffect::SpendAsThough {
-                mana_from: Filter::Ref(Reference::This),
+                mana_from: Predicate::Ref(Reference::This),
                 as_: crate::SymbolPred::AnyColor,
             },
         );
@@ -810,8 +814,8 @@ mod tests {
         assert_eq!(
             parsed,
             StaticEffect::Deontic(Deontic::Cant(crate::DeonticAction::Attack {
-                by: Filter::Ref(crate::Reference::This),
-                on: Filter::Any,
+                by: Predicate::Ref(crate::Reference::This),
+                on: Predicate::Any,
             })),
         );
         let written = crate::ron::options().to_string(&parsed).unwrap();

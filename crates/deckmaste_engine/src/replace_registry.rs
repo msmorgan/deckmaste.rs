@@ -869,7 +869,7 @@ mod tests {
     use deckmaste_core::Agency;
     use deckmaste_core::CausePattern;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Zone;
 
@@ -883,7 +883,7 @@ mod tests {
     fn destroyed_would_watches_will_destroy_of_self() {
         let (state, _view, id) = super::tests_support::lone_creature();
         let would = EventFilter::ZoneChange {
-            what: Filter::Ref(Reference::This),
+            what: Predicate::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
@@ -905,7 +905,7 @@ mod tests {
     fn destroyed_would_does_not_watch_sacrifice() {
         let (state, _view, id) = super::tests_support::lone_creature();
         let would = EventFilter::ZoneChange {
-            what: Filter::Ref(Reference::This),
+            what: Predicate::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
@@ -932,7 +932,7 @@ mod tests {
     fn cant_happen_suppresses_own_destruction() {
         let (state, id) = super::tests_support::creature_with_static(
             deckmaste_core::StaticEffect::CantHappen(EventFilter::ZoneChange {
-                what: Filter::Ref(Reference::This),
+                what: Predicate::Ref(Reference::This),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,
@@ -953,13 +953,13 @@ mod tests {
     fn would_cause_agent_narrows_by_the_live_agent() {
         let (state, _view, id) = super::tests_support::lone_creature();
         let would = EventFilter::ZoneChange {
-            what: Filter::Any,
+            what: Predicate::Any,
             from: None,
             to: None,
             cause: Some(deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
                 verb: None,
                 agency: None,
-                agent: Some(Filter::creature()),
+                agent: Some(Predicate::creature()),
             })),
         };
         let intent = |agent| GameEvent::WillDestroy {
@@ -991,8 +991,8 @@ mod tests {
     fn cant_happen_cast_suppresses_matching_casts() {
         let (mut state, _watcher) = super::tests_support::creature_with_static(
             deckmaste_core::StaticEffect::CantHappen(EventFilter::Cast {
-                who: Filter::Ref(Reference::You),
-                what: Filter::Any,
+                who: Predicate::Ref(Reference::You),
+                what: Predicate::Any,
             }),
         );
         // A spell object per caster (the fact record's actor is its
@@ -1066,8 +1066,8 @@ mod tests {
 
         // "damage dealt BY this creature" — keyed to the watching object.
         let would = EventFilter::Damage {
-            source: Filter::Ref(Reference::This),
-            to: Filter::Any,
+            source: Predicate::Ref(Reference::This),
+            to: Predicate::Any,
             combat: None,
             amount: None,
         };
@@ -1096,8 +1096,8 @@ mod tests {
 
         // A bare `source: Any` watches both (the default, source-agnostic).
         let any = EventFilter::Damage {
-            source: Filter::Any,
-            to: Filter::Any,
+            source: Predicate::Any,
+            to: Predicate::Any,
             combat: None,
             amount: None,
         };
@@ -1109,7 +1109,7 @@ mod tests {
     /// fields.
     fn destroyed_self() -> EventFilter {
         EventFilter::ZoneChange {
-            what: Filter::Ref(Reference::This),
+            what: Predicate::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
@@ -1123,14 +1123,14 @@ mod tests {
     /// A damage-prevention static effect prevents damage dealt to the creature.
     #[test]
     fn prevention_effect_prevents_damage() {
-        use deckmaste_core::Filter;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Prevention;
         use deckmaste_core::Reference;
 
         let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
             Box::new(Prevention::PreventAll {
-                from: Filter::Any,
-                to: Filter::Ref(Reference::This),
+                from: Predicate::Any,
+                to: Predicate::Ref(Reference::This),
                 duration: None,
             }),
         ));
@@ -1155,15 +1155,15 @@ mod tests {
     #[test]
     fn prevention_effect_prevents_next_n_damage() {
         use deckmaste_core::Count;
-        use deckmaste_core::Filter;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Prevention;
         use deckmaste_core::Reference;
 
         let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
             Box::new(Prevention::PreventNext {
                 n: Count::Literal(2),
-                from: Filter::Any,
-                to: Filter::Ref(Reference::This),
+                from: Predicate::Any,
+                to: Predicate::Ref(Reference::This),
                 duration: None,
             }),
         ));
@@ -1194,7 +1194,7 @@ mod tests {
     fn graveyard_would_intercepts_a_sacrifice() {
         let (state, _view, id) = super::tests_support::lone_creature();
         let would = EventFilter::ZoneChange {
-            what: Filter::Any,
+            what: Predicate::Any,
             from: None,
             to: Some(Zone::Graveyard),
             cause: None,
@@ -1214,7 +1214,7 @@ mod tests {
         );
         // And the SACRIFICE-narrowed would matches it too, by its verb.
         let sacrifice_would = EventFilter::ZoneChange {
-            what: Filter::Any,
+            what: Predicate::Any,
             from: None,
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {

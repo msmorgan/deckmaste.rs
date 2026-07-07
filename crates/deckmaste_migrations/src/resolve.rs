@@ -485,10 +485,10 @@ mod tests {
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
         use deckmaste_core::Count;
-        use deckmaste_core::Filter;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
-        use deckmaste_core::RelationFilter;
-        use deckmaste_core::StateFilter;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
         use deckmaste_core::Zone;
 
         // Read through the literal-aware core reader — the one the graduation
@@ -500,9 +500,9 @@ mod tests {
 
         let canonical = Condition::AllOf(vec![
             Condition::Compare(
-                Count::CountOf(Box::new(Filter::AllOf(vec![
-                    Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                    Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+                Count::CountOf(Box::new(Predicate::AllOf(vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ]))),
@@ -511,7 +511,7 @@ mod tests {
             ),
             Condition::Not(Box::new(Condition::Is(
                 Reference::You,
-                Filter::State(StateFilter::Designated("CitysBlessing".into())),
+                Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
             ))),
         ]);
 

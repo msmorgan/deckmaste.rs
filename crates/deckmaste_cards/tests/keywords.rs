@@ -329,10 +329,10 @@ fn ascend_macro_expands_to_static_sba() {
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::RelationFilter;
-    use deckmaste_core::StateFilter;
+    use deckmaste_core::RelationPredicate;
+    use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Zone;
 
@@ -380,9 +380,9 @@ fn ascend_macro_expands_to_static_sba() {
     // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
     let canonical = Condition::AllOf(vec![
         Condition::Compare(
-            Count::CountOf(Box::new(Filter::AllOf(vec![
-                Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+            Count::CountOf(Box::new(Predicate::AllOf(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ]))),
@@ -391,7 +391,7 @@ fn ascend_macro_expands_to_static_sba() {
         ),
         Condition::Not(Box::new(Condition::Is(
             Reference::You,
-            Filter::State(StateFilter::Designated("CitysBlessing".into())),
+            Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
         ))),
     ]);
     assert_eq!(
@@ -469,8 +469,8 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
     use deckmaste_core::Effect;
-    use deckmaste_core::Filter;
     use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
@@ -524,7 +524,9 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     };
     assert_eq!(
         filter,
-        &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+            Type::Creature
+        )),
         "reinforce targets a creature; got {filter:?}"
     );
     // Inner effect places N (= Param(0) = 2) +1/+1 counters on the target.
@@ -674,17 +676,17 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
 fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Cmp;
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
     use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::RelationFilter;
+    use deckmaste_core::RelationPredicate;
     use deckmaste_core::Stat;
-    use deckmaste_core::StateFilter;
+    use deckmaste_core::StatePredicate;
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Zone;
 
@@ -726,31 +728,31 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     let TargetSpec::Target(_, filter) = &t.targets[0] else {
         panic!("expected a Target spec; got {:?}", t.targets[0]);
     };
-    let Filter::AllOf(clauses) = filter else {
+    let Predicate::AllOf(clauses) = filter else {
         panic!("soulshift target is an AllOf; got {filter:?}");
     };
     assert!(
         clauses
             .iter()
-            .any(|f| matches!(f, Filter::Characteristic(CharacteristicFilter::Subtype(s)) if s.as_str() == "Spirit")),
+            .any(|f| matches!(f, Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) if s.as_str() == "Spirit")),
         "soulshift target filters Spirit ([CR#702.46a]); got {clauses:?}"
     );
     assert!(
         clauses
             .iter()
-            .any(|f| matches!(f, Filter::State(StateFilter::InZone(Zone::Graveyard)))),
+            .any(|f| matches!(f, Predicate::State(StatePredicate::InZone(Zone::Graveyard)))),
         "soulshift target is in a graveyard; got {clauses:?}"
     );
     assert!(
         clauses
             .iter()
-            .any(|f| matches!(f, Filter::Relation(RelationFilter::Owner(o)) if matches!(&**o, Filter::Ref(Reference::You)))),
+            .any(|f| matches!(f, Predicate::Relation(RelationPredicate::Owner(o)) if matches!(&**o, Predicate::Ref(Reference::You)))),
         "soulshift target is owned by you (your graveyard); got {clauses:?}"
     );
     assert!(
         clauses.iter().any(|f| matches!(
             f,
-            Filter::Characteristic(CharacteristicFilter::Stat(
+            Predicate::Characteristic(CharacteristicPredicate::Stat(
                 Stat::ManaValue,
                 Cmp::AtMost,
                 Count::Literal(3)

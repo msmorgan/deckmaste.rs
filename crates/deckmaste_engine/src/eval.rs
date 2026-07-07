@@ -21,10 +21,10 @@
 use std::borrow::Cow;
 
 use deckmaste_core::EventFilter;
-use deckmaste_core::Filter;
 use deckmaste_core::Ident;
 use deckmaste_core::Lookback;
 use deckmaste_core::PhaseStep;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::StateChange;
 use deckmaste_core::Uint;
@@ -65,7 +65,7 @@ pub(crate) enum Lane {
     /// `Happened`/`EventCount`/`EventSum` — a recorded fact, matched against
     /// its per-fact LKI view ([CR#608.2i]).
     History,
-    /// `Filter::Where(Happened…)`'s candidate-relative history read — the
+    /// `Predicate::Where(Happened…)`'s candidate-relative history read — the
     /// snapshot lane ([CR#603.10a]); history semantics with the candidate
     /// bound as `It` by the filter layer. Declared to the normative eval
     /// signature; today those reads route through `condition_holds` →
@@ -554,7 +554,7 @@ pub(crate) fn window_contains(within: Lookback, time: Uint, current_turn: Uint) 
         Lookback::ThisGame => true,
         Lookback::LastTurn => time + 1 == current_turn,
         Lookback::ThisCombat | Lookback::ThisStep | Lookback::SinceYour(_) => unreachable!(
-            "load-capped (E-BRIDGE-CAP, Lookback:*): sub-turn history windows await \
+            "sub-turn history windows are not yet supported: awaiting \
              engine-history-windows"
         ),
     }
@@ -569,10 +569,10 @@ pub(crate) fn zone_ok(constraint: Option<Zone>, actual: Option<Zone>) -> bool {
     }
 }
 
-/// Looks through remembered `Filter` macros to the structural filter.
-pub(crate) fn deref_filter(f: &Filter) -> &Filter {
+/// Looks through remembered `Predicate` macros to the structural filter.
+pub(crate) fn deref_filter(f: &Predicate) -> &Predicate {
     match f {
-        Filter::Expanded(e) => deref_filter(&e.value),
+        Predicate::Expanded(e) => deref_filter(&e.value),
         other => other,
     }
 }
@@ -591,7 +591,7 @@ impl GameState {
     ///
     /// Master forms map onto [`FactKind`]s; verb-view forms (`Played`) match
     /// through their emitted entailment row; object-valued atoms evaluate
-    /// their embedded `Filter` against the participant's [`Part`] candidate
+    /// their embedded `Predicate` against the participant's [`Part`] candidate
     /// view (live object, player proxy, or LKI snapshot) — snapshot
     /// semantics are a participant value, not a second matcher. Coordinates
     /// the fact record cannot supply (`TokenCreated:what` pre-mint specs,
@@ -805,7 +805,7 @@ impl GameState {
             // and matches nothing.
             EventFilter::TokenCreated { what, by } => {
                 fact.kind == FactKind::TokenCreated
-                    && matches!(deref_filter(what), Filter::Any)
+                    && matches!(deref_filter(what), Predicate::Any)
                     && self.actor_matches(by, fact.actor, bindings)
             }
 
@@ -997,7 +997,7 @@ impl GameState {
     /// match-anything default — never a panic through the live store.
     fn part_matches(
         &self,
-        filter: &Filter,
+        filter: &Predicate,
         part: Option<&Part<'_>>,
         bindings: &Bindings<'_>,
     ) -> bool {
@@ -1005,12 +1005,12 @@ impl GameState {
             return true;
         }
         match part {
-            None => matches!(deref_filter(filter), Filter::Any),
+            None => matches!(deref_filter(filter), Predicate::Any),
             Some(Part::Obj(id)) => {
                 if self.objects.get(*id).is_some() {
                     self.filter_matches_live(filter, *id, bindings.watcher)
                 } else {
-                    matches!(deref_filter(filter), Filter::Any)
+                    matches!(deref_filter(filter), Predicate::Any)
                 }
             }
             Some(Part::Player(p)) => {
@@ -1026,7 +1026,7 @@ impl GameState {
     /// actor, via their live proxy.
     fn actor_matches(
         &self,
-        filter: &Filter,
+        filter: &Predicate,
         actor: Option<PlayerId>,
         bindings: &Bindings<'_>,
     ) -> bool {
@@ -1054,7 +1054,7 @@ impl GameState {
     /// A minimal condition frame anchored on the watcher's LIVE carrier —
     /// what a frameless lane evaluates a [`EventFilter::When`] condition in.
     /// `None` when the carrier is gone (`This`/`You` would be unresolvable;
-    /// the pattern then matches nothing, mirroring the live `Filter::Where`
+    /// the pattern then matches nothing, mirroring the live `Predicate::Where`
     /// discipline).
     fn watcher_frame(&self, watcher: ObjectSource) -> Option<Frame> {
         self.objects

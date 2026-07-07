@@ -112,7 +112,7 @@ pub enum Reference {
     /// [`Each`](crate::Each) / [`DivideAmong`](crate::DivideAmong), a
     /// [`With`](crate::With) binder's choice, the per-subject candidate a
     /// continuous modifier reads, the candidate a per-object filter
-    /// ([`Filter::Where`](crate::Filter::Where)) or extremal projection
+    /// ([`Predicate::Where`](crate::Predicate::Where)) or extremal projection
     /// ([`Selection::Pick`](crate::Selection::Pick)) is currently testing —
     /// subsuming the old `Subject` role (candidate-relative predicates spell
     /// as `SharesColor(It, This)`, "with the same name as ~"). OUTSIDE every

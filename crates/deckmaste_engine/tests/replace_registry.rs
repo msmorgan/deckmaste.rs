@@ -20,8 +20,8 @@ use deckmaste_core::CausePattern;
 use deckmaste_core::Duration;
 use deckmaste_core::Effect;
 use deckmaste_core::EventFilter;
-use deckmaste_core::Filter;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
 use deckmaste_core::StatValue;
@@ -65,7 +65,7 @@ fn builtin_counter_decls()
 /// (BF→GY with verb "Destroy").
 fn destroyed_self() -> EventFilter {
     EventFilter::ZoneChange {
-        what: Filter::Ref(Reference::This),
+        what: Predicate::Ref(Reference::This),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
@@ -271,7 +271,7 @@ fn indestructible_still_survives_via_cant_pass() {
         1,
         vec![Ability::Static(StaticEffect::CantHappen(
             EventFilter::ZoneChange {
-                what: Filter::Ref(Reference::This),
+                what: Predicate::Ref(Reference::This),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,
@@ -451,7 +451,7 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
     // `That`; the watch and body refer to that captured permanent as
     // `ThatObject` (NOT `This` — `This` stays the source ability).
     let would = EventFilter::ZoneChange {
-        what: Filter::Ref(Reference::EventObject),
+        what: Predicate::Ref(Reference::EventObject),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
@@ -699,9 +699,9 @@ fn regeneration_shield_expires_end_of_turn() {
 /// are both live on the battlefield; `aura.attached_to == Some(creature)`.
 fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // The `would.what` for "the enchanted permanent":
-    // `Filter::Ref(Reference::AttachHostOf(Box::new(Reference::This)))` —
+    // `Predicate::Ref(Reference::AttachHostOf(Box::new(Reference::This)))` —
     // "the object THIS (the Aura) is attached to" ([CR#702.89a]).
-    let enchanted_perm = Filter::Ref(Reference::AttachHostOf(Box::new(Reference::This)));
+    let enchanted_perm = Predicate::Ref(Reference::AttachHostOf(Box::new(Reference::This)));
 
     let instead_body = Effect::Sequence(vec![
         // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
@@ -891,8 +891,8 @@ fn creature_with_non_destroy_replacement(replacement: Replacement) -> (GameState
 /// instead of gaining 3. This exercises the `Affected::Player` arm of
 /// `event_pattern_matches` and proves the registry is not destroy-only.
 ///
-/// `who: Filter::Any` matches any object, which in the `Affected::Player` case
-/// resolves against the player's proxy object (`matches_with` with `Any`
+/// `who: Predicate::Any` matches any object, which in the `Affected::Player`
+/// case resolves against the player's proxy object (`matches_with` with `Any`
 /// always returns true).
 #[test]
 fn lifegain_replaced_by_draw() {
@@ -901,7 +901,7 @@ fn lifegain_replaced_by_draw() {
     // and an empty-library draw would silently set `drew_from_empty` rather than
     // adding a card. LoseLife(1) is directly observable as a life-total change.
     let would = EventFilter::LifeGained {
-        who: Filter::Any,
+        who: Predicate::Any,
         amount: None,
     };
     let instead_body = Effect::Act(deckmaste_core::Action::By(
@@ -989,8 +989,8 @@ fn double_damage_lineage_terminates() {
     // The `would`: "this creature would be dealt damage"
     //   Damage(to: Ref(This))
     let would = EventFilter::Damage {
-        source: Filter::Any,
-        to: Filter::Ref(Reference::This),
+        source: Predicate::Any,
+        to: Predicate::Ref(Reference::This),
         combat: None,
         amount: None,
     };
@@ -1071,10 +1071,10 @@ fn double_damage_lineage_terminates() {
 /// instead" replacement — the shape both Wither and Infect expand to. The
 /// recipient is read as `recipient` (`ThatObject` for a creature, `ThatPlayer`
 /// for a player — the proxy is zoneless and binds as the player).
-fn damage_as_counters_static(on: Filter, recipient: Reference, kind: &str) -> Ability {
+fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) -> Ability {
     use deckmaste_core::Count;
     let would = EventFilter::Damage {
-        source: Filter::Ref(Reference::This),
+        source: Predicate::Ref(Reference::This),
         to: on,
         combat: None,
         amount: None,
@@ -1154,7 +1154,9 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
 #[test]
 fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
     let wither = damage_as_counters_static(
-        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+            Type::Creature,
+        )),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1256,7 +1258,9 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
 #[test]
 fn wither_source_puts_minus_counters_not_marked_damage() {
     let wither = damage_as_counters_static(
-        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+            Type::Creature,
+        )),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1282,7 +1286,9 @@ fn wither_source_puts_minus_counters_not_marked_damage() {
 #[test]
 fn infect_source_puts_minus_counters_on_a_creature() {
     let infect_creature = damage_as_counters_static(
-        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+            Type::Creature,
+        )),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1308,7 +1314,7 @@ fn infect_source_puts_minus_counters_on_a_creature() {
 #[test]
 fn infect_source_gives_player_poison_not_life_loss() {
     let infect_player = damage_as_counters_static(
-        Filter::Kind(deckmaste_core::ObjectKind::Player),
+        Predicate::Kind(deckmaste_core::ObjectKind::Player),
         Reference::EventActor,
         "Poison",
     );
@@ -1342,7 +1348,7 @@ fn infect_source_gives_player_poison_not_life_loss() {
 #[test]
 fn ten_poison_counters_lose_the_game() {
     let infect_player = damage_as_counters_static(
-        Filter::Kind(deckmaste_core::ObjectKind::Player),
+        Predicate::Kind(deckmaste_core::ObjectKind::Player),
         Reference::EventActor,
         "Poison",
     );
@@ -1380,7 +1386,9 @@ fn ten_poison_counters_lose_the_game() {
 #[test]
 fn by_matcher_fires_only_for_damage_from_its_own_source() {
     let wither = damage_as_counters_static(
-        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+            Type::Creature,
+        )),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1427,7 +1435,9 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
 #[test]
 fn event_patient_object_reads_the_damage_recipient_creature() {
     let wither = damage_as_counters_static(
-        Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+            Type::Creature,
+        )),
         Reference::EventPatient,
         "M1M1Counter",
     );
@@ -1454,7 +1464,7 @@ fn event_patient_object_reads_the_damage_recipient_creature() {
 #[test]
 fn event_patient_player_reads_the_damage_recipient_player() {
     let infect_player = damage_as_counters_static(
-        Filter::Kind(deckmaste_core::ObjectKind::Player),
+        Predicate::Kind(deckmaste_core::ObjectKind::Player),
         Reference::EventPatient,
         "Poison",
     );

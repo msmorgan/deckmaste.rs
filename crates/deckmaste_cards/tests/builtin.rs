@@ -187,7 +187,7 @@ fn subtype_confers_round_trips_and_omits_empty() {
 /// The `Regenerate` macro types its param as a `Reference` (not `Any`), and the
 /// one reference value splices into BOTH slot kinds: bare into the `Reference`
 /// slots (`subject`, the heal/tap) and wrapped `Ref(...)` into the event
-/// `would`'s `Filter` slot. Both the self form (`This`) and the bound-target
+/// `would`'s `Predicate` slot. Both the self form (`This`) and the bound-target
 /// form (`Target(0)`) parse — the corpus's only two regeneration shapes
 /// ([CR#701.19]: "regenerate this creature" / "regenerate target creature").
 #[test]

@@ -1,6 +1,6 @@
 (
     name: "TargetOne",
     kinds: [TargetSpec],
-    params: [Filter],
+    params: [Predicate],
     body: Target(Exactly(1), Param(0)),
 )

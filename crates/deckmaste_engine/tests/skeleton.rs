@@ -10,8 +10,8 @@ use deckmaste_core::BeginningStep;
 use deckmaste_core::Card;
 use deckmaste_core::Color;
 use deckmaste_core::EndingStep;
-use deckmaste_core::Filter;
 use deckmaste_core::PhaseStep;
+use deckmaste_core::Predicate;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
@@ -706,7 +706,9 @@ fn bear_on_field() -> (GameState, ObjectId) {
             deckmaste_engine::matches(
                 &state,
                 o,
-                &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(Type::Creature)),
+                &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+                    Type::Creature,
+                )),
             )
         })
         .expect("a Grizzly Bears in the opening hand (10-card mono deck)");

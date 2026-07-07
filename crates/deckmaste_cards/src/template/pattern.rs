@@ -224,7 +224,7 @@ mod tests {
         let p = compile(
             "Protection".into(),
             "protection from ${0}",
-            &pos(&["Filter"]),
+            &pos(&["Predicate"]),
         );
         assert_eq!(
             p.segments,
@@ -232,7 +232,7 @@ mod tests {
                 Segment::Literal("protection from ".into()),
                 Segment::Slot(Slot {
                     key: SlotKey::Index(0),
-                    ty: "Filter".into(),
+                    ty: "Predicate".into(),
                     modifier: None,
                 }),
             ]
@@ -285,7 +285,7 @@ mod tests {
             "Hexproof".into(),
             "hexproof${ from #from#}",
             &Params::Named(
-                [("from".into(), ParamType::plain("Filter"))]
+                [("from".into(), ParamType::plain("Predicate"))]
                     .into_iter()
                     .collect(),
             ),
@@ -298,7 +298,7 @@ mod tests {
                     prefix: " from ".into(),
                     slot: Slot {
                         key: SlotKey::Name("from".into()),
-                        ty: "Filter".into(),
+                        ty: "Predicate".into(),
                         modifier: None,
                     },
                     suffix: String::new(),

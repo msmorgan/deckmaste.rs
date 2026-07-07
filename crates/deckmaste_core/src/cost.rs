@@ -6,8 +6,8 @@ use crate::Cmp;
 use crate::Count;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
 use crate::Normalize;
+use crate::Predicate;
 use crate::Stat;
 use crate::SupportsMacros;
 use crate::action::PlayerAction;
@@ -59,7 +59,7 @@ pub enum CostComponent {
     /// flagged it should subsume. The payer chooses which qualifying
     /// permanents to tap; the engine taps a subset whose summed `stat`
     /// meets the bound. `stat` is a numeric axis (power/toughness/defense).
-    /// `filter` is an open [`Filter`], so it stays plugin-safe; it is boxed
+    /// `filter` is an open [`Predicate`], so it stays plugin-safe; it is boxed
     /// because an open filter is large and `CostComponent` rides in
     /// `Vec<CostComponent>` cost lists, so an unboxed field would size
     /// every element to it (`clippy::large_enum_variant`).
@@ -72,7 +72,7 @@ pub enum CostComponent {
         stat: Stat,
         cmp: Cmp,
         count: Count,
-        filter: Box<Filter>,
+        filter: Box<Predicate>,
     },
     /// A choice/bind step made BEFORE the cost actions it scopes
     /// ([CR#601.2b]) — the cost-level twin of [`Effect::With`](crate::Effect).
@@ -236,7 +236,7 @@ impl<'de> Deserialize<'de> for CostTag {
 /// `StaticEffect::CostOption`. One `tag`, three read channels:
 /// `Condition::PaidCost(tag)` (was it paid — kicked, [CR#702.33d]),
 /// `Count::TimesPaid(tag)` (how many times — multikicker, [CR#702.33c]), and
-/// `Filter::WasPaidWith(tag)` (an object whose cost was paid with it,
+/// `Predicate::WasPaidWith(tag)` (an object whose cost was paid with it,
 /// [CR#702.33e,607.2]). `repeatable: true` is multikicker's "any number of
 /// times" ([CR#702.33c]); buyback is one more tag ([CR#702.27a]). Intentions
 /// are announced at [CR#601.2b]; the total locks at [CR#601.2f].
@@ -289,14 +289,14 @@ mod tests {
     #[test]
     fn with_choice_step_and_move_are_cost_forms() {
         use crate::Binder;
-        use crate::CharacteristicFilter;
-        use crate::Filter;
+        use crate::CharacteristicPredicate;
+        use crate::Predicate;
         use crate::Type;
         use crate::action::Destination;
         use crate::action::PlayerAction;
 
         // "sacrifice a creature": choose one creature, then Sacrifice(That(Creature)).
-        let creature = Filter::Characteristic(CharacteristicFilter::Type(Type::Creature));
+        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
         let with = CostComponent::With {
             binder: Box::new(Binder::ChooseOne {
                 filter: creature,
@@ -414,13 +414,13 @@ mod tests {
 
     /// `TapTotal(stat, cmp, count, filter)` reads flat and round-trips — the
     /// aggregate-stat (Crew) cost shape ([CR#702.122a]). The `filter` field is
-    /// a boxed open [`Filter`], so a bare `Type(Creature)` reads into it
+    /// a boxed open [`Predicate`], so a bare `Type(Creature)` reads into it
     /// transparently.
     #[test]
     fn tap_total_reads_and_round_trips() {
         use crate::Cmp;
         use crate::Count;
-        use crate::Filter;
+        use crate::Predicate;
         use crate::Stat;
 
         // The Crew shape: "tap any number of creatures with total power 3 or
@@ -429,7 +429,7 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
-            filter: Box::new(Filter::creature()),
+            filter: Box::new(Predicate::creature()),
         };
         assert_eq!(
             read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Type(Creature))"),

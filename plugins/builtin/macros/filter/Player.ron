@@ -1,6 +1,6 @@
 (
     name: "Player",
     template: "player",
-    kinds: [Filter],
+    kinds: [Predicate],
     body: Kind(Player),
 )

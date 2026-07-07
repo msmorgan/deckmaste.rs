@@ -2,9 +2,9 @@
 //! clauses around triggered and activated abilities ([CR#603.4,602.5b]).
 
 use deckmaste_core::Condition;
-use deckmaste_core::Filter;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
-use deckmaste_core::RelationFilter;
+use deckmaste_core::RelationPredicate;
 
 use super::Ctx;
 use super::fragment::strip_expanded;
@@ -34,16 +34,16 @@ pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
 /// The possessive turn-owner phrase for `TurnOf(<player predicate>)`:
 /// `Ref(You)` → "your turn", `OpponentOf(Ref(You))` → "an opponent's turn",
 /// `TeammateOf(Ref(You))` → "a teammate's turn".
-fn turn_owner(filter: &Filter) -> String {
+fn turn_owner(filter: &Predicate) -> String {
     match strip_expanded(filter) {
-        Filter::Ref(Reference::You) => "your turn".to_string(),
-        Filter::Relation(RelationFilter::OpponentOf(inner))
-            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        Predicate::Ref(Reference::You) => "your turn".to_string(),
+        Predicate::Relation(RelationPredicate::OpponentOf(inner))
+            if matches!(strip_expanded(inner), Predicate::Ref(Reference::You)) =>
         {
             "an opponent's turn".to_string()
         }
-        Filter::Relation(RelationFilter::TeammateOf(inner))
-            if matches!(strip_expanded(inner), Filter::Ref(Reference::You)) =>
+        Predicate::Relation(RelationPredicate::TeammateOf(inner))
+            if matches!(strip_expanded(inner), Predicate::Ref(Reference::You)) =>
         {
             "a teammate's turn".to_string()
         }
@@ -69,23 +69,23 @@ mod tests {
     fn renders_turn_of_and_your_turn() {
         assert_eq!(condition(&Condition::YourTurn, &ctx()), "it's your turn");
         assert_eq!(
-            condition(&Condition::TurnOf(Filter::Ref(Reference::You)), &ctx()),
+            condition(&Condition::TurnOf(Predicate::Ref(Reference::You)), &ctx()),
             "it's your turn"
         );
         assert_eq!(
             condition(
-                &Condition::TurnOf(Filter::Relation(RelationFilter::OpponentOf(Box::new(
-                    Filter::Ref(Reference::You)
-                )))),
+                &Condition::TurnOf(Predicate::Relation(RelationPredicate::OpponentOf(
+                    Box::new(Predicate::Ref(Reference::You))
+                ))),
                 &ctx()
             ),
             "it's an opponent's turn"
         );
         assert_eq!(
             condition(
-                &Condition::TurnOf(Filter::Relation(RelationFilter::TeammateOf(Box::new(
-                    Filter::Ref(Reference::You)
-                )))),
+                &Condition::TurnOf(Predicate::Relation(RelationPredicate::TeammateOf(
+                    Box::new(Predicate::Ref(Reference::You))
+                ))),
                 &ctx()
             ),
             "it's a teammate's turn"

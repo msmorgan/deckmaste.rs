@@ -256,7 +256,7 @@ fn delayed(t: &deckmaste_core::TriggeredAbility, ctx: &Ctx) -> String {
 }
 
 /// See through a macro invocation to its expanded value — the effect-side
-/// twin of `fragment::strip_expanded` (which does the same for `Filter`).
+/// twin of `fragment::strip_expanded` (which does the same for `Predicate`).
 fn peel_expanded(e: &Effect) -> &Effect {
     match e {
         Effect::Expanded(exp) => peel_expanded(&exp.value),
@@ -319,23 +319,23 @@ fn separate_piles(piles: &deckmaste_core::SeparatePiles, ctx: &Ctx) -> String {
 /// Die's shape: a `Type` + a `ControlledBy(<dynamic reference>)` restrictor
 /// the shared `fragment::filter_noun` doesn't cover, since it only prints
 /// the fixed you/opponent controller phrases).
-fn plural_group_noun(f: &deckmaste_core::Filter, ctx: &Ctx) -> String {
-    use deckmaste_core::CharacteristicFilter;
-    use deckmaste_core::Filter;
-    use deckmaste_core::RelationFilter;
-    let parts: Vec<&Filter> = match f {
-        Filter::AllOf(members) => members.iter().collect(),
+fn plural_group_noun(f: &deckmaste_core::Predicate, ctx: &Ctx) -> String {
+    use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::RelationPredicate;
+    let parts: Vec<&Predicate> = match f {
+        Predicate::AllOf(members) => members.iter().collect(),
         other => vec![other],
     };
     let mut noun = None;
     let mut controller = None;
     for part in parts {
         match part {
-            Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+            Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
                 noun = Some(format!("{}s", super::card::type_str(*t).to_lowercase()));
             }
-            Filter::Relation(RelationFilter::ControlledBy(who)) => {
-                if let Filter::Ref(r) = who.as_ref() {
+            Predicate::Relation(RelationPredicate::ControlledBy(who)) => {
+                if let Predicate::Ref(r) = who.as_ref() {
                     controller = Some(format!("{} controls", fragment::reference(r, ctx)));
                 }
             }
@@ -1196,7 +1196,7 @@ mod tests {
     use deckmaste_core::Destination;
     use deckmaste_core::Each;
     use deckmaste_core::Effect;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
@@ -1295,7 +1295,7 @@ mod tests {
     /// source names the dealer (the fight / redirected-damage surface).
     #[test]
     fn deal_damage_source_renders_dealer_phrase() {
-        let target = TargetSpec::Target(Quantity::one(), Filter::creature());
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = Ctx {
             subject: "Pouncer",
             targets: std::slice::from_ref(&target),
@@ -1349,7 +1349,7 @@ mod tests {
         use deckmaste_core::CounterRef;
         use deckmaste_core::CounterSpec;
 
-        let slot = || TargetSpec::Target(Quantity::one(), Filter::creature());
+        let slot = || TargetSpec::Target(Quantity::one(), Predicate::creature());
         let targets = [slot(), slot()];
         let ctx = Ctx {
             subject: "it",
@@ -1381,7 +1381,7 @@ mod tests {
     #[test]
     fn divide_among_renders_divided_damage() {
         use deckmaste_core::DivideAmong;
-        use deckmaste_core::Filter;
+        use deckmaste_core::Predicate;
         let ctx = Ctx {
             subject: "it",
             targets: &[],
@@ -1390,7 +1390,7 @@ mod tests {
         let divide = super::effect(
             &deckmaste_core::Effect::DivideAmong(DivideAmong {
                 amount: Count::Literal(3),
-                binder: Binder::Existing(Selection::SelectAll(Filter::creature())),
+                binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
                 body: Box::new(deckmaste_core::Effect::Act(Action::deal_damage(
                     Reference::It,
                     Count::Allotment,
@@ -1425,7 +1425,7 @@ mod tests {
                 // step: ChooseOne(Creature) binds `That`, then `Sacrifice(That)`.
                 pay: Cost(vec![CostComponent::With {
                     binder: Box::new(Binder::ChooseOne {
-                        filter: Filter::creature(),
+                        filter: Predicate::creature(),
                         by: Reference::You,
                     }),
                     body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
@@ -1460,7 +1460,7 @@ mod tests {
         };
         let with = Effect::With(With {
             binder: Binder::ChooseOne {
-                filter: Filter::creature(),
+                filter: Predicate::creature(),
                 by: Reference::You,
             },
             body: Box::new(Effect::act_by_you(PlayerAction::Sacrifice(
@@ -1485,7 +1485,7 @@ mod tests {
         let with = Effect::With(With {
             binder: Binder::Choose {
                 quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
-                filter: Filter::Kind(ObjectKind::Card),
+                filter: Predicate::Kind(ObjectKind::Card),
                 by: Reference::You,
             },
             body: Box::new(Effect::act_by_you(PlayerAction::Discard {
@@ -1513,13 +1513,13 @@ mod tests {
         };
         // A group verb on the per-element `It` → the collective sentence.
         let destroy = Effect::Each(Each {
-            binder: Binder::Existing(Selection::SelectAll(Filter::creature())),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
             effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
         });
         assert_eq!(effect(&destroy, &ctx), "Destroy each creature.");
         // A body the collapse does not recognise → the per-element form.
         let gain = Effect::Each(Each {
-            binder: Binder::Existing(Selection::SelectAll(Filter::creature())),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
             effect: Box::new(Effect::act_by_you(PlayerAction::GainLife(Count::Literal(
                 1,
             )))),

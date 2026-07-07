@@ -2,21 +2,21 @@
 //! effect).
 
 use deckmaste_core::Ability;
-use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Condition;
 use deckmaste_core::Count;
 use deckmaste_core::EventFilter;
-use deckmaste_core::Filter;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
 use deckmaste_core::PayAct;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::StateChange;
-use deckmaste_core::StateFilter;
+use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TriggeredAbility;
 use deckmaste_core::Type;
@@ -102,7 +102,8 @@ fn conditionally_qualified(cond: &Condition, ctx: &Ctx, text: String) -> String 
         other => other,
     };
     if let Condition::Is(reference, filter) = cond
-        && let Filter::State(StateFilter::InZone(zone)) = super::fragment::strip_expanded(filter)
+        && let Predicate::State(StatePredicate::InZone(zone)) =
+            super::fragment::strip_expanded(filter)
     {
         return from_zone_qualified(
             Some(*zone),
@@ -142,7 +143,7 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
         // `by` reads from the blocker side, a narrowed `of` from the
         // blocked attacker's.
         EventFilter::BlockDeclared {
-            by: Filter::Any,
+            by: Predicate::Any,
             of,
         } => (
             "Whenever",
@@ -158,7 +159,7 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
         // unconstrained agent reads as the printed "a spell or ability".
         EventFilter::BecomesTarget {
             what,
-            by: Filter::Any,
+            by: Predicate::Any,
             source: None,
         } => (
             lead_for(what),
@@ -173,10 +174,10 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
 
 /// One-shot enters/dies of THIS → "When"; a filtered (non-self) subject →
 /// "Whenever".
-fn lead_for(what: &Filter) -> &'static str {
+fn lead_for(what: &Predicate) -> &'static str {
     if matches!(
         super::fragment::strip_expanded(what),
-        Filter::Ref(Reference::This)
+        Predicate::Ref(Reference::This)
     ) {
         "When"
     } else {
@@ -186,7 +187,7 @@ fn lead_for(what: &Filter) -> &'static str {
 
 /// A subject filter as a noun ("Baleful Strix" for the self filter,
 /// "a creature" for a Creature macro filter).
-fn subject_of(f: &Filter, ctx: &Ctx) -> String {
+fn subject_of(f: &Predicate, ctx: &Ctx) -> String {
     let f = super::fragment::strip_expanded(f);
     if f.is_this() {
         return ctx.subject.to_string();
@@ -521,7 +522,7 @@ fn literal_count(c: &Count) -> Option<i64> {
 /// a permanent you control to trigger, that ability triggers an additional
 /// time." The canonical enter-cause and you-control affected shapes render
 /// faithfully; other shapes fall through to generic phrasing.
-fn trigger_multiplier(cause: &EventFilter, extra: &Count, affected: &Filter) -> String {
+fn trigger_multiplier(cause: &EventFilter, extra: &Count, affected: &Predicate) -> String {
     let times = match literal_count(extra) {
         Some(1) => "an additional time".to_string(),
         Some(n) => format!("{n} additional times"),
@@ -552,12 +553,12 @@ fn cause_phrase(cause: &EventFilter) -> String {
 
 /// The affected-source clause: the "you control" default renders as "a
 /// permanent you control"; anything else as a generic "an affected permanent".
-fn affected_phrase(affected: &Filter) -> String {
-    use deckmaste_core::RelationFilter;
+fn affected_phrase(affected: &Predicate) -> String {
+    use deckmaste_core::RelationPredicate;
     if matches!(
         affected,
-        Filter::Relation(RelationFilter::ControlledBy(inner))
-            if matches!(&**inner, Filter::Ref(Reference::You))
+        Predicate::Relation(RelationPredicate::ControlledBy(inner))
+            if matches!(&**inner, Predicate::Ref(Reference::You))
     ) {
         return "a permanent you control".to_string();
     }
@@ -566,15 +567,15 @@ fn affected_phrase(affected: &Filter) -> String {
 
 /// A type filter as an indefinite noun: a single `Type` → "a creature"; a
 /// `OneOf` of types → "an artifact or creature"; anything else → "an object".
-fn types_noun(what: &Filter) -> String {
+fn types_noun(what: &Predicate) -> String {
     let names: Vec<String> = match what {
-        Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
             vec![super::card::type_str(*t).to_lowercase()]
         }
-        Filter::OneOf(items) => items
+        Predicate::OneOf(items) => items
             .iter()
             .filter_map(|f| match f {
-                Filter::Characteristic(CharacteristicFilter::Type(t)) => {
+                Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
                     Some(super::card::type_str(*t).to_lowercase())
                 }
                 _ => None,
@@ -682,11 +683,11 @@ mod tests {
     /// this is the fallback arm for a directly written static.)
     #[test]
     fn pay_pips_renders_its_keyword_name() {
-        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::PayAct;
         use deckmaste_core::PipClass;
-        use deckmaste_core::RelationFilter;
-        use deckmaste_core::StateFilter;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
 
         let ctx = Ctx {
             subject: "Test",
@@ -694,21 +695,21 @@ mod tests {
             that: None,
         };
         let you = || {
-            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                 Reference::You,
             ))))
         };
-        let ty = |t| Filter::Characteristic(CharacteristicFilter::Type(t));
+        let ty = |t| Predicate::Characteristic(CharacteristicPredicate::Type(t));
 
         let convoke = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Filter::AllOf(vec![ty(Type::Creature), you()])),
+            PayAct::TapToPay(Predicate::AllOf(vec![ty(Type::Creature), you()])),
         );
         assert_eq!(static_effect(&convoke, &ctx).as_deref(), Some("Convoke"));
 
         let improvise = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Filter::AllOf(vec![ty(Type::Artifact), you()])),
+            PayAct::TapToPay(Predicate::AllOf(vec![ty(Type::Artifact), you()])),
         );
         assert_eq!(
             static_effect(&improvise, &ctx).as_deref(),
@@ -717,7 +718,7 @@ mod tests {
 
         let delve = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::ExileToPay(Filter::State(StateFilter::InZone(Zone::Graveyard))),
+            PayAct::ExileToPay(Predicate::State(StatePredicate::InZone(Zone::Graveyard))),
         );
         assert_eq!(static_effect(&delve, &ctx).as_deref(), Some("Delve"));
     }

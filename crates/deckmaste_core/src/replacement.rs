@@ -6,8 +6,8 @@ use crate::Effect;
 use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
 use crate::PhaseStep;
+use crate::Predicate;
 use crate::SupportsMacros;
 use crate::continuous::Duration;
 
@@ -39,20 +39,20 @@ pub enum Prevention {
     /// theirs ([CR#615.3]).
     PreventNext {
         n: Count,
-        from: Filter,
-        to: Filter,
+        from: Predicate,
+        to: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         duration: Option<Duration>,
     },
     /// Prevent the next instance of damage ([CR#615.8]).
-    PreventNextInstance { from: Filter, to: Filter },
+    PreventNextInstance { from: Predicate, to: Predicate },
     /// Prevent all damage from `from` to `to` ([CR#615.1,615.3] —
     /// Fog-style shields; no dedicated prevent-all rule). `duration: None`
     /// = the carrier's implicit duration (statics: while it functions,
     /// [CR#611.3] — protection's [CR#702.16e] clause rides this).
     PreventAll {
-        from: Filter,
-        to: Filter,
+        from: Predicate,
+        to: Predicate,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         duration: Option<Duration>,
     },

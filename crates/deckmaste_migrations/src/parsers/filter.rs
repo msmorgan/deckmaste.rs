@@ -1,7 +1,7 @@
-//! English object description → `Filter` RON string (the shared subject parser
-//! used by `static_ability`, and the home of future target/selection filter
-//! parsing). Strict: an unrecognized head noun or any unconsumed token declines
-//! (`None`) — a wrong filter would graduate a wrong card.
+//! English object description → `Predicate` RON string (the shared subject
+//! parser used by `static_ability`, and the home of future target/selection
+//! filter parsing). Strict: an unrecognized head noun or any unconsumed token
+//! declines (`None`) — a wrong filter would graduate a wrong card.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -36,7 +36,7 @@ static SUBTYPES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     set
 });
 
-/// Parse an object-description phrase into a `Filter` RON string, or `None`.
+/// Parse an object-description phrase into a `Predicate` RON string, or `None`.
 pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     let mut rest = phrase.trim();
     let mut prefix_atoms: Vec<String> = Vec::new();

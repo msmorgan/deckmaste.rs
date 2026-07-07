@@ -6,6 +6,6 @@
     name: "Attacks",
     template: "${0} attacks",
     kinds: [EventFilter],
-    params: [Filter],
+    params: [Predicate],
     body: AttackDeclared(by: Param(0)),
 )

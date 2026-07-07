@@ -332,11 +332,11 @@ mod tests {
 
     #[test]
     fn fills_a_typed_slot_via_reader() {
-        // Protection is now `params: [Filter]`; the slot reader is handed the
+        // Protection is now `params: [Predicate]`; the slot reader is handed the
         // declared type and the remaining input, and returns the arg RON.
         let m = builtin()
             .match_with("KeywordAbility", "protection from black", |ty, rest| {
-                assert_eq!(ty, "Filter");
+                assert_eq!(ty, "Predicate");
                 Some((format!("ColorIs({})", rest.trim()), rest.len()))
             })
             .expect("protection from <x> matches");
@@ -349,7 +349,7 @@ mod tests {
         let idx = builtin();
         let present = idx
             .match_with("KeywordAbility", "hexproof from blue", |ty, rest| {
-                assert_eq!(ty, "Filter");
+                assert_eq!(ty, "Predicate");
                 Some((format!("ColorIs({})", rest.trim()), rest.len()))
             })
             .expect("hexproof from <x> matches");

@@ -2,7 +2,7 @@
 (
     name: "AnyTarget",
     template: "any target",
-    kinds: [Filter],
+    kinds: [Predicate],
     body: OneOf([
         Battle,
         Creature,

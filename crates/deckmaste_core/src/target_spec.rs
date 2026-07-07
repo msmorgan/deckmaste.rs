@@ -1,5 +1,5 @@
 use crate::Expansion;
-use crate::Filter;
+use crate::Predicate;
 use crate::Quantity;
 use crate::SupportsMacros;
 
@@ -23,7 +23,7 @@ pub enum TargetSpec {
     /// Some(n))` for "up to N", and `Quantity::Range(None, None)` for "any
     /// number of targets" (or the `Exactly`/`AtMost`/`AnyNumber` macros at the
     /// RON surface).
-    Target(Quantity, Filter),
+    Target(Quantity, Predicate),
     /// A co-target set-distinctness constraint ([CR#115.7e], Arc Trail's
     /// "any *other* target"): this spec's final picks must not overlap the
     /// sibling specs at the given indices. Evaluated on the FINAL target
@@ -39,7 +39,7 @@ pub enum TargetSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CharacteristicFilter;
+    use crate::CharacteristicPredicate;
     use crate::Count;
     use crate::Quantity;
     use crate::Type;
@@ -48,11 +48,11 @@ mod tests {
         crate::ron::options().from_str(source).unwrap()
     }
 
-    fn creature_filter() -> Filter {
-        Filter::Characteristic(CharacteristicFilter::Type(Type::Creature))
+    fn creature_filter() -> Predicate {
+        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature))
     }
 
-    /// The announce-list grammar: `Target(Quantity, Filter)`, distinct from
+    /// The announce-list grammar: `Target(Quantity, Predicate)`, distinct from
     /// `Selection`'s resolution choices. The core reader carries no macros, so
     /// these spell the underlying `Range` primitive directly (the named
     /// `Exactly`/`AtMost`/`AnyNumber` forms are exercised at the cards layer,

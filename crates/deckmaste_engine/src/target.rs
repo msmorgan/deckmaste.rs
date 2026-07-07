@@ -1,12 +1,12 @@
-//! Targeting ([CR#115]): which objects a `Filter` admits. Stage 2 wires only
+//! Targeting ([CR#115]): which objects a `Predicate` admits. Stage 2 wires only
 //! the arms the corpus's `AnyTarget` reaches; the rest are `todo!`.
 
-use deckmaste_core::CharacteristicFilter;
-use deckmaste_core::Filter;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::ObjectKind;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
-use deckmaste_core::RelationFilter;
-use deckmaste_core::StateFilter;
+use deckmaste_core::RelationPredicate;
+use deckmaste_core::StatePredicate;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -53,7 +53,7 @@ pub fn object_kind(state: &GameState, id: ObjectId) -> ObjectKind {
 /// watcher; filters needing a carrier (`Ref(This)`/`Ref(You)`) are unreachable
 /// here (targeting threads no frame) and `todo!`.
 #[must_use]
-pub fn matches(state: &GameState, id: ObjectId, filter: &Filter) -> bool {
+pub fn matches(state: &GameState, id: ObjectId, filter: &Predicate) -> bool {
     matches_with(state, id, filter, None)
 }
 
@@ -87,27 +87,27 @@ pub(crate) fn source_of(state: &GameState, id: ObjectId) -> Option<ObjectId> {
 /// trigger lane's `filter_matches_live` passes `Some(watcher)`. The LKI sibling
 /// for moved/gone objects is `GameState::filter_matches_snapshot`.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "flat per-variant Filter dispatch")]
+#[expect(clippy::too_many_lines, reason = "flat per-variant Predicate dispatch")]
 pub fn matches_with(
     state: &GameState,
     id: ObjectId,
-    filter: &Filter,
+    filter: &Predicate,
     watcher: Option<ObjectSource>,
 ) -> bool {
     match filter {
-        Filter::Kind(k) => object_kind(state, id) == *k,
-        Filter::Characteristic(CharacteristicFilter::Type(t)) => has_type(state, id, *t),
+        Predicate::Kind(k) => object_kind(state, id) == *k,
+        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => has_type(state, id, *t),
         // [CR#110.5a]: state, not characteristic — card/token objects only, so a
         // player proxy (zone None) never matches InZone.
-        Filter::State(StateFilter::InZone(z)) => state.objects.obj(id).zone == Some(*z),
-        Filter::AllOf(fs) => fs.iter().all(|f| matches_with(state, id, f, watcher)),
-        Filter::OneOf(fs) => fs.iter().any(|f| matches_with(state, id, f, watcher)),
-        Filter::Not(f) => !matches_with(state, id, f, watcher),
+        Predicate::State(StatePredicate::InZone(z)) => state.objects.obj(id).zone == Some(*z),
+        Predicate::AllOf(fs) => fs.iter().all(|f| matches_with(state, id, f, watcher)),
+        Predicate::OneOf(fs) => fs.iter().any(|f| matches_with(state, id, f, watcher)),
+        Predicate::Not(f) => !matches_with(state, id, f, watcher),
         // [CR#702.11d] "abilities … from [quality] sources": strict to stack
         // ABILITIES by construction — the candidate is an activated/triggered
         // ability on the stack whose SOURCE (the generating object,
         // [CR#113.7]) matches the inner filter.
-        Filter::FromSource(inner) => {
+        Predicate::FromSource(inner) => {
             object_kind(state, id) == ObjectKind::Ability
                 && source_of(state, id).is_some_and(|src| matches_with(state, src, inner, watcher))
         }
@@ -118,9 +118,9 @@ pub fn matches_with(
         // relation filters is automatic: those arms recurse with a new `id`, so
         // a nested `Where` sees the related object as `It`. A frameless caller
         // (no watcher) or a gone carrier leaves `This` unresolvable — no match.
-        Filter::Where(cond) => match watcher {
+        Predicate::Where(cond) => match watcher {
             None => todo!(
-                "Filter::Where at a frameless position — the matcher holds no carrier for This/You"
+                "Predicate::Where at a frameless position — the matcher holds no carrier for This/You"
             ),
             Some(w) => {
                 match state
@@ -143,18 +143,18 @@ pub fn matches_with(
                 }
             }
         },
-        Filter::Any => true,
-        // A filter-position macro (`kinds: [Filter]` — `Self`, evasion sets,
-        // protection qualities) survives expansion as `Filter::Expanded`;
+        Predicate::Any => true,
+        // A filter-position macro (`kinds: [Predicate]` — `Self`, evasion sets,
+        // protection qualities) survives expansion as `Predicate::Expanded`;
         // evaluate it transparently through the remembered body. (Target-position
         // macros like `AnyTarget` are looked through earlier, in
         // `resolve::target_spec_filter`, so they never reach here.)
-        Filter::Expanded(e) => matches_with(state, id, &e.value, watcher),
+        Predicate::Expanded(e) => matches_with(state, id, &e.value, watcher),
         // [CR#702]: keyword presence by NAME against the DERIVED abilities
         // (granted keywords count; the carried Composite name survives
         // expansion). Per-call layers() rebuild — a perf seam if a hot path
         // ever evaluates Has in bulk.
-        Filter::Characteristic(CharacteristicFilter::Has(kw)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Has(kw)) => {
             let view = state.layers();
             view.get(id)
                 .abilities
@@ -164,7 +164,7 @@ pub fn matches_with(
         // Subtype presence by NAME against the DERIVED subtype list
         // ([CR#205.3] — layer-4 type changes count); a player proxy has
         // none. Same per-call layers() perf seam as `Has`.
-        Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
             state.objects.obj(id).card_id().is_some()
                 && state
                     .layers()
@@ -175,7 +175,7 @@ pub fn matches_with(
         }
         // [CR#122.1] counters go on objects AND players — player counters
         // live on the player's proxy object, so one LIVE read serves both.
-        Filter::State(StateFilter::HasCounter(kind)) => state
+        Predicate::State(StatePredicate::HasCounter(kind)) => state
             .objects
             .obj(id)
             .counters
@@ -183,7 +183,7 @@ pub fn matches_with(
             .is_some_and(|&n| n > 0),
         // [CR#109.3] designations are non-characteristic state: a LIVE read
         // against the registry (object entry, or the player's for proxies).
-        Filter::State(StateFilter::Designated(name)) => {
+        Predicate::State(StatePredicate::Designated(name)) => {
             state
                 .designations
                 .objects
@@ -197,12 +197,12 @@ pub fn matches_with(
 
         // "this object" ([CR#603.10a]): match only when `id` is the watching
         // object. Unreachable without a carrier (frameless targeting).
-        Filter::Ref(Reference::This) => match watcher {
+        Predicate::Ref(Reference::This) => match watcher {
             Some(w) => state.objects.obj(id).source == w,
             None => todo!("Ref(This) at a frameless position — targeting threads no carrier"),
         },
         // "you" ([CR#109.5]): `id` is the watcher's controller's proxy.
-        Filter::Ref(Reference::You) => match watcher {
+        Predicate::Ref(Reference::You) => match watcher {
             Some(w) => {
                 let controller = state.controller_of_source(w);
                 matches!(state.objects.obj(id).source,
@@ -218,7 +218,7 @@ pub fn matches_with(
         // Only `inner = This` is resolvable from the carrier alone (no Frame).
         // The general `AttachHostOf(inner)` case needs `eval_reference` and is
         // therefore left as a seam.
-        Filter::Ref(Reference::AttachHostOf(inner))
+        Predicate::Ref(Reference::AttachHostOf(inner))
             if matches!(inner.as_ref(), Reference::This) =>
         {
             match watcher {
@@ -240,27 +240,27 @@ pub fn matches_with(
         }
 
         // "named X" ([CR#201]): printed face name; a player proxy has no card.
-        Filter::Characteristic(CharacteristicFilter::Named(name)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Named(name)) => {
             state.objects.obj(id).card_id().is_some()
                 && crate::derive::face(state.def(id)).name.as_str() == name.as_str()
         }
         // Color predicates over the DERIVED colors ([CR#105.2,202.2]) — a
         // layer-5 color change counts. Same per-call layers() perf seam as
         // `Has`. A player proxy is not a colored object.
-        Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
+        Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
             state.objects.obj(id).card_id().is_some() && state.layers().get(id).colors.contains(c)
         }
         // [CR#105.2b]: two or more colors.
-        Filter::Characteristic(CharacteristicFilter::Multicolored) => {
+        Predicate::Characteristic(CharacteristicPredicate::Multicolored) => {
             state.objects.obj(id).card_id().is_some() && state.layers().get(id).colors.len() >= 2
         }
         // [CR#105.2c]: colorless is the ABSENCE of color, not a color itself.
-        Filter::Characteristic(CharacteristicFilter::Colorless) => {
+        Predicate::Characteristic(CharacteristicPredicate::Colorless) => {
             state.objects.obj(id).card_id().is_some() && state.layers().get(id).colors.is_empty()
         }
         // Supertype presence over the DERIVED list ([CR#205.4a]); player proxy
         // has none.
-        Filter::Characteristic(CharacteristicFilter::Supertype(s)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
             state.objects.obj(id).card_id().is_some()
                 && state.layers().get(id).supertypes.contains(s)
         }
@@ -268,14 +268,14 @@ pub fn matches_with(
         // a `Count`; only a literal evaluates here (a dynamic bound needs a
         // carrier frame the matcher does not carry — see `const_count`). A
         // missing stat (a land has no power) never satisfies the predicate.
-        Filter::Characteristic(CharacteristicFilter::Stat(stat, cmp, count)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Stat(stat, cmp, count)) => {
             state.objects.obj(id).card_id().is_some()
                 && stat_satisfies(derived_stat(state, id, *stat), *cmp, count)
         }
 
         // The object's controller, as a player proxy ([CR#109.5]). Recurses
         // with the SAME watcher so a nested `Ref(You)` still anchors right.
-        Filter::Relation(RelationFilter::ControlledBy(f)) => {
+        Predicate::Relation(RelationPredicate::ControlledBy(f)) => {
             let c = state.objects.obj(id).controller;
             let proxy = state.player(c).object;
             matches_with(state, proxy, f, watcher)
@@ -285,20 +285,22 @@ pub fn matches_with(
         // `same_team` so it stays sound when team play (Two-Headed Giant) is
         // modeled — today, with singleton teams, "different team" == "different
         // player", the prior behavior.
-        Filter::Relation(RelationFilter::OpponentOf(f)) => match state.objects.obj(id).source {
-            ObjectSource::Player(p) => state
-                .players
-                .iter()
-                .any(|q| !state.same_team(p, q.id) && matches_with(state, q.object, f, watcher)),
-            ObjectSource::Card(_) => false,
-        },
+        Predicate::Relation(RelationPredicate::OpponentOf(f)) => {
+            match state.objects.obj(id).source {
+                ObjectSource::Player(p) => state.players.iter().any(|q| {
+                    !state.same_team(p, q.id) && matches_with(state, q.object, f, watcher)
+                }),
+                ObjectSource::Card(_) => false,
+            }
+        }
         // `id` is a player who is a teammate of a matching player
         // ([CR#102.3,810.1]): ANOTHER player (never `q` itself) on the SAME
         // team. Team membership isn't modeled yet (singleton teams), so this
         // matches nobody outside a team game — the correct answer for 1v1 and
         // free-for-all, where no two players share a team. See
         // `GameState::same_team`.
-        Filter::Relation(RelationFilter::TeammateOf(f)) => match state.objects.obj(id).source {
+        Predicate::Relation(RelationPredicate::TeammateOf(f)) => match state.objects.obj(id).source
+        {
             ObjectSource::Player(p) => state.players.iter().any(|q| {
                 q.id != p && state.same_team(p, q.id) && matches_with(state, q.object, f, watcher)
             }),
@@ -306,7 +308,7 @@ pub fn matches_with(
         },
         // The object's owner, as a player proxy ([CR#108.3]); a player proxy
         // has no owner.
-        Filter::Relation(RelationFilter::Owner(f)) => {
+        Predicate::Relation(RelationPredicate::Owner(f)) => {
             state.objects.obj(id).card_id().is_some()
                 && matches_with(state, state.player(state.owner_of(id)).object, f, watcher)
         }
@@ -314,7 +316,7 @@ pub fn matches_with(
         // `ControlledBy` ([CR#109.5]). Zone-agnostic: the inner filter carries
         // any zone restriction (proxies, zone `None`, fall out of e.g.
         // `Permanent`). A card is never a controlling player.
-        Filter::Relation(RelationFilter::Controls(f)) => match state.objects.obj(id).source {
+        Predicate::Relation(RelationPredicate::Controls(f)) => match state.objects.obj(id).source {
             ObjectSource::Player(p) => state
                 .objects
                 .iter()
@@ -325,7 +327,7 @@ pub fn matches_with(
         // [CR#110.5]: status. Tap state is stored; flip/face/phasing are not
         // (P0.W6) — a filter over one trips rather than silently read a
         // default. A player proxy has no status.
-        Filter::State(StateFilter::Status(status)) => {
+        Predicate::State(StatePredicate::Status(status)) => {
             use deckmaste_core::Status;
             if state.objects.obj(id).card_id().is_none() {
                 return false;
@@ -346,11 +348,11 @@ pub fn matches_with(
             }
         }
         // [CR#508.1a]: declared as an attacker, still in combat.
-        Filter::State(StateFilter::Attacking) => state.combat.is_attacking(id),
+        Predicate::State(StatePredicate::Attacking) => state.combat.is_attacking(id),
         // [CR#509.1a]: declared as a blocker (blocking some attacker).
-        Filter::State(StateFilter::Blocking) => state.combat.attacker_of(id).is_some(),
+        Predicate::State(StatePredicate::Blocking) => state.combat.attacker_of(id).is_some(),
         // [CR#509.1h]: attacking and not (stickily) blocked.
-        Filter::State(StateFilter::Unblocked) => {
+        Predicate::State(StatePredicate::Unblocked) => {
             state.combat.is_attacking(id) && !state.combat.is_blocked(id)
         }
 
@@ -358,7 +360,7 @@ pub fn matches_with(
         // whose chosen targets CURRENTLY matches. A departed target (its id no
         // longer live) is ignored, never read through LKI. A non-stack object
         // has no targets.
-        Filter::State(StateFilter::Targets(f)) => {
+        Predicate::State(StatePredicate::Targets(f)) => {
             state.stack.iter().find(|e| e.id == id).is_some_and(|e| {
                 e.targets
                     .iter()
@@ -367,7 +369,7 @@ pub fn matches_with(
         }
         // [CR#115.9a]: "with [N] target(s)" — the count of target instances
         // chosen at stack-put. Bound is a literal (frameless). Non-stack → none.
-        Filter::State(StateFilter::TargetCount(bound)) => {
+        Predicate::State(StatePredicate::TargetCount(bound)) => {
             state.stack.iter().find(|e| e.id == id).is_some_and(|e| {
                 bound.satisfied_by(
                     Uint::try_from(e.targets.len()).expect("target count fits Uint"),
@@ -380,7 +382,7 @@ pub fn matches_with(
         // `inner` — read the attachment→host relation (engine-attach's
         // `attached_to`), then match the host, threading the watcher so a nested
         // `Ref` resolves against the carrier.
-        Filter::Relation(RelationFilter::AttachedTo(inner)) => state
+        Predicate::Relation(RelationPredicate::AttachedTo(inner)) => state
             .objects
             .obj(id)
             .attached_to
@@ -388,19 +390,19 @@ pub fn matches_with(
         // The inverse ([CR#301.5,303.4]): `id` is a host with some attachment
         // matching `inner` (existential — `Attachment(Any)` = "has any
         // attachment").
-        Filter::Relation(RelationFilter::Attachment(inner)) => state
+        Predicate::Relation(RelationPredicate::Attachment(inner)) => state
             .objects
             .iter()
             .any(|o| o.attached_to == Some(id) && matches_with(state, o.id, inner, watcher)),
         // ----- Seams: backed by subsystems not yet built -----
         // [CR#702.33d..702.33e]: the paid-cost linkage has no announce
         // record yet (engine-alt-costs).
-        Filter::State(StateFilter::WasPaidWith(tag)) => todo!(
+        Predicate::State(StatePredicate::WasPaidWith(tag)) => todo!(
             "engine-alt-costs: WasPaidWith({tag:?}) needs the [CR#601.2b] optional-cost \
              announce record"
         ),
         // [CR#607]: linked-ability relations have no registry yet.
-        Filter::State(StateFilter::RelatedBy(..)) => todo!(
+        Predicate::State(StatePredicate::RelatedBy(..)) => todo!(
             "engine-filter-breadth: RelatedBy needs a CR#607 linked-ability relation registry \
              (unbuilt)"
         ),
@@ -408,7 +410,7 @@ pub fn matches_with(
         // `Frame` with announced targets / trigger bindings. `This`/`You` are
         // handled above; the rest resolve only where a Frame exists
         // (`resolve::eval_reference`).
-        Filter::Ref(r) => todo!(
+        Predicate::Ref(r) => todo!(
             "engine-filter-breadth: Ref({r:?}) needs a carrier Frame (matcher holds only a watcher)"
         ),
     }
@@ -511,22 +513,23 @@ fn const_count(count: &deckmaste_core::Count) -> Uint {
 /// the resolution-time selection sites (`Exists`, `Each`, `Selection`) whose
 /// filters never carry a carrier-relative self-reference.
 #[must_use]
-pub fn candidates(state: &GameState, filter: &Filter) -> Vec<ObjectId> {
+pub fn candidates(state: &GameState, filter: &Predicate) -> Vec<ObjectId> {
     candidates_with(state, filter, None)
 }
 
 /// Every object matching `filter`, with `watcher` anchoring carrier-relative
 /// self-references (`Ref(This)`/`Ref(You)`, and the `StatOf(This, …)` reads a
-/// `Filter::Where` reaches via [`GameState::condition_holds`]). The targeting
-/// path passes the targeting object's `ObjectSource` so a target filter can
-/// compare each candidate to the ability's source — "attacking creature with
-/// power less than this creature's power" (Mentor, [CR#702.134a]) is a
-/// `Where(Compare(StatOf(Subject, Power), Less, StatOf(This, Power)))` over
-/// this carrier. Frameless callers pass `None` (the [`candidates`] shorthand).
+/// `Predicate::Where` reaches via [`GameState::condition_holds`]). The
+/// targeting path passes the targeting object's `ObjectSource` so a target
+/// filter can compare each candidate to the ability's source — "attacking
+/// creature with power less than this creature's power" (Mentor, [CR#702.134a])
+/// is a `Where(Compare(StatOf(Subject, Power), Less, StatOf(This, Power)))`
+/// over this carrier. Frameless callers pass `None` (the [`candidates`]
+/// shorthand).
 #[must_use]
 pub fn candidates_with(
     state: &GameState,
-    filter: &Filter,
+    filter: &Predicate,
     watcher: Option<ObjectSource>,
 ) -> Vec<ObjectId> {
     state
@@ -543,7 +546,7 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Zone;
 
@@ -594,7 +597,7 @@ mod tests {
                 matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         deckmaste_core::Type::Creature,
                     )),
                 )
@@ -635,7 +638,7 @@ mod tests {
                 matches(
                     &state,
                     o,
-                    &Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
                         deckmaste_core::Type::Land,
                     )),
                 )
@@ -647,12 +650,12 @@ mod tests {
         (state, land)
     }
 
-    /// Regression ([CR#613.1d]): `Filter::Type` reads the DERIVED type, not the
-    /// printed face. A battlefield land animated into a creature by a layer-4
-    /// continuous effect matches `Type(Creature)` — the view says Creature, so
-    /// the matcher must agree. (Before the fix `has_type` read the printed face
-    /// and reported the land was not a creature, mis-typing every `candidates`
-    /// / targeting caller.)
+    /// Regression ([CR#613.1d]): `Predicate::Type` reads the DERIVED type, not
+    /// the printed face. A battlefield land animated into a creature by a
+    /// layer-4 continuous effect matches `Type(Creature)` — the view says
+    /// Creature, so the matcher must agree. (Before the fix `has_type` read
+    /// the printed face and reported the land was not a creature,
+    /// mis-typing every `candidates` / targeting caller.)
     #[test]
     fn type_filter_reads_derived_type_for_animated_land() {
         use deckmaste_core::Duration;
@@ -663,7 +666,7 @@ mod tests {
         use crate::object::Timestamp;
 
         let (mut state, land) = game_with_a_forest_on_the_field();
-        let creature = Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+        let creature = Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
             deckmaste_core::Type::Creature,
         ));
         // Sanity: a plain Forest is not a creature.
@@ -696,14 +699,14 @@ mod tests {
         // ...and the Type filter must agree ([CR#613.1d]).
         assert!(
             matches(&state, land, &creature),
-            "Filter::Type reads the derived type — the animated land matches Type(Creature)"
+            "Predicate::Type reads the derived type — the animated land matches Type(Creature)"
         );
     }
 
     #[test]
     fn any_target_is_creatures_and_players_not_lands() {
         // `read_str` returns the remembered `TargetSpec::Expanded(AnyTarget)`.
-        // `resolve::target_spec_filter` is the engine's own TargetSpec→Filter
+        // `resolve::target_spec_filter` is the engine's own TargetSpec→Predicate
         // extraction — the path real targeting funnels through — so the test
         // exercises it rather than hand-unwrapping the expansion.
         let any_target: TargetSpec = builtin().macros.read_str("AnyTarget").unwrap();
@@ -718,17 +721,17 @@ mod tests {
         assert_eq!(targets.len(), 3);
     }
 
-    /// A filter-position macro (`kinds: [Filter]`) survives expansion as
-    /// `Filter::Expanded`; `matches` must look through it transparently.
+    /// A filter-position macro (`kinds: [Predicate]`) survives expansion as
+    /// `Predicate::Expanded`; `matches` must look through it transparently.
     /// Guards the delegation arm against being mistaken for dead code.
     #[test]
     fn matches_looks_through_a_filter_macro() {
-        // `CreatureOrPlayer` reads as `Filter::Expanded(.., value: OneOf([..]))`:
+        // `CreatureOrPlayer` reads as `Predicate::Expanded(.., value: OneOf([..]))`:
         // the invocation survives, wrapping its expanded body.
-        let wrapped: Filter = builtin().macros.read_str("CreatureOrPlayer").unwrap();
+        let wrapped: Predicate = builtin().macros.read_str("CreatureOrPlayer").unwrap();
         assert!(
-            matches!(wrapped, Filter::Expanded(_)),
-            "a filter macro should survive as Filter::Expanded, got {wrapped:?}"
+            matches!(wrapped, Predicate::Expanded(_)),
+            "a filter macro should survive as Predicate::Expanded, got {wrapped:?}"
         );
         let (state, bear) = game_with_a_bear_on_the_field();
         // Evaluating the wrapped macro reaches the battlefield creature through
@@ -741,10 +744,10 @@ mod tests {
     // Supertype / Stat
     // -------------------------------------------------------------------------
 
-    use deckmaste_core::CharacteristicFilter as CF;
+    use deckmaste_core::CharacteristicPredicate as CF;
 
-    fn cf(c: CF) -> Filter {
-        Filter::Characteristic(c)
+    fn cf(c: CF) -> Predicate {
+        Predicate::Characteristic(c)
     }
 
     /// `Named` matches a card by its printed name ([CR#201]); a player proxy
@@ -877,23 +880,23 @@ mod tests {
         assert!(matches(
             &state,
             bear,
-            &Filter::State(StateFilter::Status(Status::Untapped))
+            &Predicate::State(StatePredicate::Status(Status::Untapped))
         ));
         assert!(!matches(
             &state,
             bear,
-            &Filter::State(StateFilter::Status(Status::Tapped))
+            &Predicate::State(StatePredicate::Status(Status::Tapped))
         ));
         state.objects.obj_mut(bear).tapped = true;
         assert!(matches(
             &state,
             bear,
-            &Filter::State(StateFilter::Status(Status::Tapped))
+            &Predicate::State(StatePredicate::Status(Status::Tapped))
         ));
         assert!(!matches(
             &state,
             bear,
-            &Filter::State(StateFilter::Status(Status::Untapped))
+            &Predicate::State(StatePredicate::Status(Status::Untapped))
         ));
     }
 
@@ -919,12 +922,12 @@ mod tests {
         assert!(!matches(
             &state,
             attacker,
-            &Filter::State(StateFilter::Attacking)
+            &Predicate::State(StatePredicate::Attacking)
         ));
         assert!(!matches(
             &state,
             blocker,
-            &Filter::State(StateFilter::Blocking)
+            &Predicate::State(StatePredicate::Blocking)
         ));
 
         // Declare the attacker — attacking and (no blocker yet) unblocked.
@@ -932,17 +935,17 @@ mod tests {
         assert!(matches(
             &state,
             attacker,
-            &Filter::State(StateFilter::Attacking)
+            &Predicate::State(StatePredicate::Attacking)
         ));
         assert!(matches(
             &state,
             attacker,
-            &Filter::State(StateFilter::Unblocked)
+            &Predicate::State(StatePredicate::Unblocked)
         ));
         assert!(!matches(
             &state,
             blocker,
-            &Filter::State(StateFilter::Blocking)
+            &Predicate::State(StatePredicate::Blocking)
         ));
 
         // Declare the block — blocker is blocking, attacker no longer unblocked.
@@ -950,17 +953,17 @@ mod tests {
         assert!(matches(
             &state,
             blocker,
-            &Filter::State(StateFilter::Blocking)
+            &Predicate::State(StatePredicate::Blocking)
         ));
         assert!(matches(
             &state,
             attacker,
-            &Filter::State(StateFilter::Attacking)
+            &Predicate::State(StatePredicate::Attacking)
         ));
         assert!(!matches(
             &state,
             attacker,
-            &Filter::State(StateFilter::Unblocked)
+            &Predicate::State(StatePredicate::Unblocked)
         ));
     }
 
@@ -990,8 +993,8 @@ mod tests {
         (state, bear, p1_card)
     }
 
-    fn marked() -> Filter {
-        Filter::State(StateFilter::HasCounter("mark".into()))
+    fn marked() -> Predicate {
+        Predicate::State(StatePredicate::HasCounter("mark".into()))
     }
 
     /// `ControlledBy` matches when the object's controller's proxy matches
@@ -999,7 +1002,7 @@ mod tests {
     #[test]
     fn controlled_by_matches_controllers_proxy() {
         let (state, bear, p1_card) = marked_p0_game();
-        let f = Filter::Relation(RelationFilter::ControlledBy(Box::new(marked())));
+        let f = Predicate::Relation(RelationPredicate::ControlledBy(Box::new(marked())));
         assert!(matches(&state, bear, &f)); // controlled by marked P0
         assert!(!matches(&state, p1_card, &f)); // controlled by un-marked P1
     }
@@ -1011,7 +1014,7 @@ mod tests {
         let (state, _bear, _p1_card) = marked_p0_game();
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
-        let f = Filter::Relation(RelationFilter::OpponentOf(Box::new(marked())));
+        let f = Predicate::Relation(RelationPredicate::OpponentOf(Box::new(marked())));
         assert!(matches(&state, p1, &f)); // P1 is an opponent of marked P0
         assert!(!matches(&state, p0, &f)); // P0's only opponent (P1) is un-marked
     }
@@ -1021,7 +1024,7 @@ mod tests {
     #[test]
     fn owner_matches_owning_player() {
         let (state, bear, p1_card) = marked_p0_game();
-        let f = Filter::Relation(RelationFilter::Owner(Box::new(marked())));
+        let f = Predicate::Relation(RelationPredicate::Owner(Box::new(marked())));
         assert!(matches(&state, bear, &f)); // owned by marked P0
         assert!(!matches(&state, p1_card, &f)); // owned by un-marked P1
         assert!(!matches(&state, state.players[0].object, &f)); // a player has no owner
@@ -1034,7 +1037,7 @@ mod tests {
         let (state, bear, _p1_card) = marked_p0_game();
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
-        let f = Filter::Relation(RelationFilter::Controls(Box::new(cf(CF::Type(
+        let f = Predicate::Relation(RelationPredicate::Controls(Box::new(cf(CF::Type(
             Type::Creature,
         )))));
         assert!(matches(&state, p0, &f)); // P0 controls the bear
@@ -1051,7 +1054,7 @@ mod tests {
         let (state, _bear, _p1_card) = marked_p0_game();
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
-        let teammate = Filter::Relation(RelationFilter::TeammateOf(Box::new(marked())));
+        let teammate = Predicate::Relation(RelationPredicate::TeammateOf(Box::new(marked())));
         assert!(
             !matches(&state, p0, &teammate),
             "a player is never their own teammate"
@@ -1061,7 +1064,7 @@ mod tests {
             "no teammates exist in a 1v1 game (singleton teams)"
         );
         // The opponent relation still resolves (P1 is an opponent of marked P0).
-        let opponent = Filter::Relation(RelationFilter::OpponentOf(Box::new(marked())));
+        let opponent = Predicate::Relation(RelationPredicate::OpponentOf(Box::new(marked())));
         assert!(matches(&state, p1, &opponent));
     }
 
@@ -1115,24 +1118,28 @@ mod tests {
         assert!(matches(
             &state,
             ability_id,
-            &Filter::Kind(ObjectKind::Ability)
+            &Predicate::Kind(ObjectKind::Ability)
         ));
         assert!(!matches(
             &state,
             ability_id,
-            &Filter::Kind(ObjectKind::Spell)
+            &Predicate::Kind(ObjectKind::Spell)
         ));
 
         assert_eq!(object_kind(&state, spell_id), ObjectKind::Spell);
-        assert!(matches(&state, spell_id, &Filter::Kind(ObjectKind::Spell)));
+        assert!(matches(
+            &state,
+            spell_id,
+            &Predicate::Kind(ObjectKind::Spell)
+        ));
         assert!(!matches(
             &state,
             spell_id,
-            &Filter::Kind(ObjectKind::Ability)
+            &Predicate::Kind(ObjectKind::Ability)
         ));
 
         // "counter target ability": the ability is a candidate, the spell isn't.
-        let abilities = candidates(&state, &Filter::Kind(ObjectKind::Ability));
+        let abilities = candidates(&state, &Predicate::Kind(ObjectKind::Ability));
         assert!(abilities.contains(&ability_id));
         assert!(!abilities.contains(&spell_id));
     }
@@ -1170,9 +1177,11 @@ mod tests {
     #[test]
     fn targets_reads_a_stack_objects_chosen_targets() {
         let (state, spell, bear) = spell_targeting_bear();
-        let targets_creature =
-            Filter::State(StateFilter::Targets(Box::new(cf(CF::Type(Type::Creature)))));
-        let targets_land = Filter::State(StateFilter::Targets(Box::new(cf(CF::Type(Type::Land)))));
+        let targets_creature = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
+            Type::Creature,
+        )))));
+        let targets_land =
+            Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(Type::Land)))));
         assert!(matches(&state, spell, &targets_creature));
         assert!(!matches(&state, spell, &targets_land));
         // A non-stack object (the bear itself) has no targets.
@@ -1184,8 +1193,9 @@ mod tests {
     #[test]
     fn targets_ignores_a_departed_target() {
         let (mut state, spell, bear) = spell_targeting_bear();
-        let targets_creature =
-            Filter::State(StateFilter::Targets(Box::new(cf(CF::Type(Type::Creature)))));
+        let targets_creature = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
+            Type::Creature,
+        )))));
         assert!(matches(&state, spell, &targets_creature));
         // The bear leaves — its id is now stale on the stack entry.
         state.objects.remove(bear);
@@ -1202,17 +1212,21 @@ mod tests {
         assert!(matches(
             &state,
             spell,
-            &Filter::State(StateFilter::TargetCount(CountBound::Eq(Count::Literal(1)))),
+            &Predicate::State(StatePredicate::TargetCount(CountBound::Eq(Count::Literal(
+                1
+            )))),
         ));
         assert!(!matches(
             &state,
             spell,
-            &Filter::State(StateFilter::TargetCount(CountBound::Eq(Count::Literal(2)))),
+            &Predicate::State(StatePredicate::TargetCount(CountBound::Eq(Count::Literal(
+                2
+            )))),
         ));
         assert!(matches(
             &state,
             spell,
-            &Filter::State(StateFilter::TargetCount(CountBound::AtLeast(
+            &Predicate::State(StatePredicate::TargetCount(CountBound::AtLeast(
                 Count::Literal(1)
             ))),
         ));
@@ -1220,7 +1234,7 @@ mod tests {
         assert!(!matches(
             &state,
             bear,
-            &Filter::State(StateFilter::TargetCount(CountBound::AtLeast(
+            &Predicate::State(StatePredicate::TargetCount(CountBound::AtLeast(
                 Count::Literal(1)
             ))),
         ));
@@ -1246,11 +1260,11 @@ mod tests {
         state.zones.battlefield.push(a);
         state.objects.obj_mut(a).attached_to = Some(b);
 
-        let attached_to_creature = Filter::Relation(RelationFilter::AttachedTo(Box::new(cf(
-            CF::Type(Type::Creature),
-        ))));
+        let attached_to_creature = Predicate::Relation(RelationPredicate::AttachedTo(Box::new(
+            cf(CF::Type(Type::Creature)),
+        )));
         let has_any_attachment =
-            Filter::Relation(RelationFilter::Attachment(Box::new(Filter::Any)));
+            Predicate::Relation(RelationPredicate::Attachment(Box::new(Predicate::Any)));
 
         assert!(
             matches(&state, a, &attached_to_creature),
@@ -1292,7 +1306,7 @@ mod tests {
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         });
-        let creature = Filter::Characteristic(deckmaste_core::CharacteristicFilter::Type(
+        let creature = Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
             deckmaste_core::Type::Creature,
         ));
         let bear = *state.zones.hands[0]
@@ -1312,17 +1326,17 @@ mod tests {
         (state, bear, ghoul)
     }
 
-    fn where_is_subject_color(c: deckmaste_core::Color) -> Filter {
-        Filter::Where(Box::new(deckmaste_core::Condition::Is(
+    fn where_is_subject_color(c: deckmaste_core::Color) -> Predicate {
+        Predicate::Where(Box::new(deckmaste_core::Condition::Is(
             deckmaste_core::Reference::It,
-            Filter::Characteristic(deckmaste_core::CharacteristicFilter::ColorIs(c)),
+            Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::ColorIs(c)),
         )))
     }
 
     /// `Where(SharesColor(Subject, This))` spelled out: the candidate shares a
     /// color with the carrier (`This`).
-    fn where_shares_color_with_carrier() -> Filter {
-        use deckmaste_core::CharacteristicFilter::ColorIs;
+    fn where_shares_color_with_carrier() -> Predicate {
+        use deckmaste_core::CharacteristicPredicate::ColorIs;
         use deckmaste_core::Color::Black;
         use deckmaste_core::Color::Blue;
         use deckmaste_core::Color::Green;
@@ -1332,11 +1346,11 @@ mod tests {
         use deckmaste_core::Reference;
         let branch = |c| {
             Condition::AllOf(vec![
-                Condition::Is(Reference::It, Filter::Characteristic(ColorIs(c))),
-                Condition::Is(Reference::This, Filter::Characteristic(ColorIs(c))),
+                Condition::Is(Reference::It, Predicate::Characteristic(ColorIs(c))),
+                Condition::Is(Reference::This, Predicate::Characteristic(ColorIs(c))),
             ])
         };
-        Filter::Where(Box::new(Condition::OneOf(vec![
+        Predicate::Where(Box::new(Condition::OneOf(vec![
             branch(White),
             branch(Blue),
             branch(Black),
@@ -1441,15 +1455,15 @@ mod tests {
     /// The Mentor target filter: an attacking creature whose power is less than
     /// the carrier's power ([CR#702.134a]) — the `Where`/`Subject`/`This`
     /// cross-object stat comparison the keyword macro emits.
-    fn mentor_target_filter() -> Filter {
+    fn mentor_target_filter() -> Predicate {
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
         use deckmaste_core::Count;
         use deckmaste_core::Reference;
         use deckmaste_core::Stat;
-        Filter::AllOf(vec![
-            Filter::State(StateFilter::Attacking),
-            Filter::Where(Box::new(Condition::Compare(
+        Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::Attacking),
+            Predicate::Where(Box::new(Condition::Compare(
                 Count::StatOf(Reference::It, Stat::Power),
                 Cmp::Less,
                 Count::StatOf(Reference::This, Stat::Power),

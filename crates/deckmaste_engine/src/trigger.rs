@@ -9,12 +9,12 @@
 //! functions.
 
 use deckmaste_core::Ability;
-use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Count;
 use deckmaste_core::EventFilter;
-use deckmaste_core::Filter;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
-use deckmaste_core::StateFilter;
+use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
@@ -154,7 +154,7 @@ impl GameState {
     /// threads into nested relations/combinators.
     pub(crate) fn filter_matches_live(
         &self,
-        filter: &Filter,
+        filter: &Predicate,
         o: ObjectId,
         watcher: ObjectSource,
     ) -> bool {
@@ -182,50 +182,50 @@ impl GameState {
     #[allow(clippy::match_same_arms)] // distinct `=> false` reasons; seam arms diverge as later tasks land
     pub(crate) fn filter_matches_snapshot(
         &self,
-        filter: &Filter,
+        filter: &Predicate,
         snapshot: &LkiSnapshot,
         watcher: ObjectSource,
     ) -> bool {
         match filter {
             // "this object": match only when the snapshot is the watching object
             // ([CR#603.10a] — self-dies / self-enters).
-            Filter::Ref(Reference::This) => snapshot.source == watcher,
+            Predicate::Ref(Reference::This) => snapshot.source == watcher,
 
             // "a creature" — check the snapshot's printed card types.
-            Filter::Characteristic(CharacteristicFilter::Type(ty)) => {
+            Predicate::Characteristic(CharacteristicPredicate::Type(ty)) => {
                 snapshot_has_type(self, snapshot, *ty)
             }
 
             // "on the battlefield" (the `Permanent` macro and friends): the
             // snapshot is the object as it last existed in the zone it left
             // ([CR#603.10a]), so it matches the zone the event removed it from.
-            Filter::State(StateFilter::InZone(zone)) => snapshot.left == *zone,
+            Predicate::State(StatePredicate::InZone(zone)) => snapshot.left == *zone,
 
             // Characteristics read the PRINTED face (no layer view over a gone
             // object; LKI-derived characteristics are not captured — see the
             // snapshot-stat seam note). A player-proxy snapshot has no face.
-            Filter::Characteristic(CharacteristicFilter::Named(n)) => {
+            Predicate::Characteristic(CharacteristicPredicate::Named(n)) => {
                 snapshot_face(self, snapshot).is_some_and(|f| f.name.as_str() == n.as_str())
             }
-            Filter::Characteristic(CharacteristicFilter::Supertype(s)) => {
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
                 snapshot_face(self, snapshot).is_some_and(|f| f.supertypes.contains(s))
             }
-            Filter::Characteristic(CharacteristicFilter::ColorIs(c)) => {
+            Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
                 snapshot_face(self, snapshot)
                     .is_some_and(|f| crate::layer::base_colors(f).contains(c))
             }
-            Filter::Characteristic(CharacteristicFilter::Multicolored) => {
+            Predicate::Characteristic(CharacteristicPredicate::Multicolored) => {
                 snapshot_face(self, snapshot)
                     .is_some_and(|f| crate::layer::base_colors(f).len() >= 2)
             }
-            Filter::Characteristic(CharacteristicFilter::Colorless) => {
+            Predicate::Characteristic(CharacteristicPredicate::Colorless) => {
                 snapshot_face(self, snapshot)
                     .is_some_and(|f| crate::layer::base_colors(f).is_empty())
             }
             // [CR#208,202.3]: the PRINTED stat. (LKI-derived P/T — a pumped
             // creature that died "with power 3" — is a capture seam: the
             // snapshot stores no P/T, so this reads the printed face for now.)
-            Filter::Characteristic(CharacteristicFilter::Stat(stat, cmp, count)) => {
+            Predicate::Characteristic(CharacteristicPredicate::Stat(stat, cmp, count)) => {
                 crate::target::stat_satisfies(snapshot_stat(self, snapshot, *stat), *cmp, count)
             }
 
@@ -234,13 +234,13 @@ impl GameState {
             // ([CR#603.10a]) — the intervening-if of Undying/Persist
             // ([CR#702.93a,702.79a]). Mirrors the live `HasCounter` arm
             // (`target::matches_with`): present and positive.
-            Filter::State(StateFilter::HasCounter(kind)) => {
+            Predicate::State(StatePredicate::HasCounter(kind)) => {
                 snapshot.counters.get(kind.as_str()).is_some_and(|&n| n > 0)
             }
 
             // [CR#110.5]: tap state is captured on the snapshot; flip/face/
             // phasing are not (P0.W6).
-            Filter::State(StateFilter::Status(status)) => {
+            Predicate::State(StatePredicate::Status(status)) => {
                 use deckmaste_core::Status;
                 match status {
                     Status::Tapped => snapshot.tapped,
@@ -254,30 +254,32 @@ impl GameState {
 
             // The captured controller / the card owner, resolved to their LIVE
             // player proxies ([CR#108.3,109.5]); the inner filter runs live.
-            Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(f)) => {
+            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(f)) => {
                 self.filter_matches_live(f, self.player(snapshot.controller).object, watcher)
             }
-            Filter::Relation(deckmaste_core::RelationFilter::Owner(f)) => match snapshot.source {
-                ObjectSource::Card(c) => {
-                    let owner = self.cards.get(c).owner;
-                    self.filter_matches_live(f, self.player(owner).object, watcher)
+            Predicate::Relation(deckmaste_core::RelationPredicate::Owner(f)) => {
+                match snapshot.source {
+                    ObjectSource::Card(c) => {
+                        let owner = self.cards.get(c).owner;
+                        self.filter_matches_live(f, self.player(owner).object, watcher)
+                    }
+                    ObjectSource::Player(_) => false,
                 }
-                ObjectSource::Player(_) => false,
-            },
+            }
             // A snapshot subject is a card, never a player proxy — the
             // player-side relations never match.
-            Filter::Relation(
-                deckmaste_core::RelationFilter::OpponentOf(_)
-                | deckmaste_core::RelationFilter::Controls(_),
+            Predicate::Relation(
+                deckmaste_core::RelationPredicate::OpponentOf(_)
+                | deckmaste_core::RelationPredicate::Controls(_),
             ) => false,
             // Attachment relations over a snapshot: engine-attach tracks
             // `attached_to` on the LIVE object, but `LkiSnapshot` does not
             // capture it, so a gone object's last attachment is unknown. Reading
             // the live store by the stale id would be wrong; a loud seam beats a
             // silently-wrong `false` until the snapshot captures the relation.
-            Filter::Relation(
-                deckmaste_core::RelationFilter::AttachedTo(_)
-                | deckmaste_core::RelationFilter::Attachment(_),
+            Predicate::Relation(
+                deckmaste_core::RelationPredicate::AttachedTo(_)
+                | deckmaste_core::RelationPredicate::Attachment(_),
             ) => todo!(
                 "engine-filter-breadth: snapshot attachment relations need LkiSnapshot to capture \
                  attached_to (engine-attach tracks it only on the live object)"
@@ -285,9 +287,9 @@ impl GameState {
 
             // A gone object has no live stack entry, so it currently targets
             // nothing ([CR#115.9b] — departed objects are not read through LKI).
-            Filter::State(StateFilter::Targets(_) | StateFilter::TargetCount(_)) => false,
+            Predicate::State(StatePredicate::Targets(_) | StatePredicate::TargetCount(_)) => false,
             // [CR#607]: no linked-ability relation registry yet.
-            Filter::State(StateFilter::RelatedBy(..)) => {
+            Predicate::State(StatePredicate::RelatedBy(..)) => {
                 todo!("engine-filter-breadth: snapshot RelatedBy needs a CR#607 relation registry")
             }
 
@@ -295,10 +297,10 @@ impl GameState {
             // GONE candidate binds as `It` (its snapshot), `This`/`You`
             // anchor to the watcher's LIVE carrier, and the condition
             // evaluates as the read occurs (the Where-in-snapshot lift,
-            // engine-one-evaluator; mirrors the live `Filter::Where` arm of
+            // engine-one-evaluator; mirrors the live `Predicate::Where` arm of
             // `target::matches_with`, including its gone-carrier-no-match
             // discipline).
-            Filter::Where(cond) => match self
+            Predicate::Where(cond) => match self
                 .objects
                 .iter()
                 .find(|ob| ob.source == watcher)
@@ -318,19 +320,19 @@ impl GameState {
             },
 
             // Logical combinators: recurse.
-            Filter::AllOf(fs) => fs
+            Predicate::AllOf(fs) => fs
                 .iter()
                 .all(|f| self.filter_matches_snapshot(f, snapshot, watcher)),
-            Filter::OneOf(fs) => fs
+            Predicate::OneOf(fs) => fs
                 .iter()
                 .any(|f| self.filter_matches_snapshot(f, snapshot, watcher)),
-            Filter::Not(f) => !self.filter_matches_snapshot(f, snapshot, watcher),
+            Predicate::Not(f) => !self.filter_matches_snapshot(f, snapshot, watcher),
 
             // Match-anything.
-            Filter::Any => true,
+            Predicate::Any => true,
 
             // Look through a remembered filter macro.
-            Filter::Expanded(e) => self.filter_matches_snapshot(&e.value, snapshot, watcher),
+            Predicate::Expanded(e) => self.filter_matches_snapshot(&e.value, snapshot, watcher),
 
             other => todo!("stage 3 does not evaluate snapshot filter {other:?}"),
         }
@@ -635,7 +637,7 @@ impl GameState {
     /// Effect sources are read from PRINTED abilities (cycle-safe, like the
     /// object-layer and player-attribute scans). Seam: a fired trigger whose
     /// source is leaving the battlefield carries a stale `trig_object`, so a
-    /// `Filter`-based `affected` can't re-find it and contributes 0 — the
+    /// `Predicate`-based `affected` can't re-find it and contributes 0 — the
     /// canonical doublers act on ENTER triggers, whose source stays live.
     fn trigger_multiplier_extra(&self, event: &GameEvent, trig_object: ObjectId) -> Uint {
         let mut extra: Uint = 0;
@@ -973,10 +975,10 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_cards::plugin::Plugin;
-    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Condition;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::Filter;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -1035,7 +1037,7 @@ mod tests {
         });
         let bear = *state.zones.hands[0]
             .iter()
-            .find(|&&o| matches(&state, o, &Filter::creature()))
+            .find(|&&o| matches(&state, o, &Predicate::creature()))
             .expect("a Grizzly Bears in the opening hand");
         state.zones.hands[0].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
@@ -1261,7 +1263,7 @@ mod tests {
         // The pattern from Dies(Type(Creature)) — built directly.
         let pattern = EventFilter::ZoneChange {
             cause: None,
-            what: Filter::creature(),
+            what: Predicate::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1296,7 +1298,7 @@ mod tests {
         });
         let bear = *state.zones.hands[0]
             .iter()
-            .find(|&&o| matches(&state, o, &Filter::creature()))
+            .find(|&&o| matches(&state, o, &Predicate::creature()))
             .unwrap();
         state.zones.hands[0].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
@@ -1323,7 +1325,7 @@ mod tests {
 
         let dies_pattern = EventFilter::ZoneChange {
             cause: None,
-            what: Filter::creature(),
+            what: Predicate::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1368,7 +1370,7 @@ mod tests {
 
         let dies_pattern = EventFilter::ZoneChange {
             cause: None,
-            what: Filter::creature(),
+            what: Predicate::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1410,7 +1412,7 @@ mod tests {
         // Place the dies-trigger creature on the battlefield.
         let trigger_obj = *state.zones.hands[0]
             .iter()
-            .find(|&&o| matches(&state, o, &Filter::creature()))
+            .find(|&&o| matches(&state, o, &Predicate::creature()))
             .expect("trigger creature in hand");
         state.zones.hands[0].retain(|&o| o != trigger_obj);
         state.objects.obj_mut(trigger_obj).zone = Some(Zone::Battlefield);
@@ -1430,7 +1432,7 @@ mod tests {
         // Pattern: Dies(Ref(This))
         let self_dies = EventFilter::ZoneChange {
             cause: None,
-            what: Filter::Ref(Reference::This),
+            what: Predicate::Ref(Reference::This),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1489,14 +1491,14 @@ mod tests {
         // The ETB creature starts in hand; we want to simulate it entering.
         let etb_obj = *state.zones.hands[0]
             .iter()
-            .find(|&&o| matches(&state, o, &Filter::creature()))
+            .find(|&&o| matches(&state, o, &Predicate::creature()))
             .expect("ETB creature in hand");
         let etb_source = state.objects.obj(etb_obj).source;
 
         // Pattern: Enters(Ref(This))
         let self_enters = EventFilter::ZoneChange {
             cause: None,
-            what: Filter::Ref(Reference::This),
+            what: Predicate::Ref(Reference::This),
             from: None,
             to: Some(Zone::Battlefield),
         };
@@ -1559,7 +1561,7 @@ mod tests {
     #[test]
     fn condition_holds_exists_creature_true_when_creature_present() {
         let (state, _bear) = bear_on_field();
-        let cond = Condition::Exists(Filter::Characteristic(CharacteristicFilter::Type(
+        let cond = Condition::Exists(Predicate::Characteristic(CharacteristicPredicate::Type(
             Type::Creature,
         )));
         assert!(
@@ -1587,7 +1589,7 @@ mod tests {
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         });
-        let cond = Condition::Exists(Filter::Characteristic(CharacteristicFilter::Type(
+        let cond = Condition::Exists(Predicate::Characteristic(CharacteristicPredicate::Type(
             Type::Creature,
         )));
         assert!(
@@ -1661,13 +1663,13 @@ mod tests {
         use deckmaste_core::Count;
         use deckmaste_core::Reference;
         use deckmaste_core::Stat;
-        use deckmaste_core::StateFilter;
+        use deckmaste_core::StatePredicate;
         Condition::Compare(
-            Count::CountOf(Box::new(Filter::AllOf(vec![
-                Filter::creature(),
-                Filter::State(StateFilter::Attacking),
-                Filter::Not(Box::new(Filter::Ref(Reference::This))),
-                Filter::Where(Box::new(Condition::Compare(
+            Count::CountOf(Box::new(Predicate::AllOf(vec![
+                Predicate::creature(),
+                Predicate::State(StatePredicate::Attacking),
+                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+                Predicate::Where(Box::new(Condition::Compare(
                     Count::StatOf(Reference::It, Stat::Power),
                     Cmp::Greater,
                     Count::StatOf(Reference::This, Stat::Power),
@@ -1721,7 +1723,7 @@ mod tests {
             *expanded.value,
             EventFilter::ZoneChange {
                 cause: None,
-                what: Filter::creature(),
+                what: Predicate::creature(),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
             }
@@ -1743,7 +1745,7 @@ mod tests {
             *expanded.value,
             EventFilter::ZoneChange {
                 cause: None,
-                what: Filter::Ref(Reference::This),
+                what: Predicate::Ref(Reference::This),
                 from: None,
                 to: Some(Zone::Battlefield),
             }
@@ -1771,7 +1773,7 @@ mod tests {
         assert_eq!(
             *expanded.value,
             EventFilter::ZoneChange {
-                what: Filter::creature(),
+                what: Predicate::creature(),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: Some(Cause::Cause(CausePattern {
@@ -1900,7 +1902,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::ZoneChange {
             cause: None,
-            what: Filter::creature(),
+            what: Predicate::creature(),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1932,7 +1934,7 @@ mod tests {
                 agency: Some(deckmaste_core::Agency::StateBasedAction),
                 agent: None,
             })),
-            what: Filter::Any,
+            what: Predicate::Any,
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -1984,11 +1986,11 @@ mod tests {
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
                 verb: Some(deckmaste_core::CauseVerb::Destroy),
                 agency: None,
-                agent: Some(Filter::Characteristic(CharacteristicFilter::Type(
+                agent: Some(Predicate::Characteristic(CharacteristicPredicate::Type(
                     Type::Creature,
                 ))),
             })),
-            what: Filter::Any,
+            what: Predicate::Any,
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -2044,7 +2046,7 @@ mod tests {
             id
         };
         let pattern = EventFilter::StateBecame {
-            of: Filter::Ref(Reference::This),
+            of: Predicate::Ref(Reference::This),
             becomes: StateChange::Tapped,
         };
         let own_tap = GameEvent::Tapped {
@@ -2078,7 +2080,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::StateBecame {
-            of: Filter::creature(),
+            of: Predicate::creature(),
             becomes: StateChange::Untapped,
         };
         assert!(state.event_matches(&pattern, &GameEvent::Untapped(bear), watcher_source));
@@ -2103,7 +2105,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::StateBecame {
-            of: Filter::Any,
+            of: Predicate::Any,
             becomes: StateChange::Tapped,
         };
         let cost_tap = GameEvent::Tapped {
@@ -2150,8 +2152,8 @@ mod tests {
         };
         let blocker_source = state.objects.obj(blocker).source;
         let pattern = EventFilter::BlockDeclared {
-            by: Filter::Any,
-            of: Filter::Ref(Reference::This),
+            by: Predicate::Any,
+            of: Predicate::Ref(Reference::This),
         };
         let event = GameEvent::Blocked { blocker, attacker };
         assert!(
@@ -2285,8 +2287,8 @@ mod tests {
                 .mint(ObjectSource::Card(card), PlayerId(1), Some(Zone::Stack))
         };
         let pattern = EventFilter::BecomesTarget {
-            what: Filter::Ref(Reference::This),
-            by: Filter::Any,
+            what: Predicate::Ref(Reference::This),
+            by: Predicate::Any,
             source: None,
         };
         let event = GameEvent::BecameTarget {
@@ -2309,10 +2311,10 @@ mod tests {
         // Ward's by-narrowing: an opponent-controlled stack object matches;
         // one the watcher's own controller controls does not.
         let by_opponent = EventFilter::BecomesTarget {
-            what: Filter::Ref(Reference::This),
-            by: Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(Box::new(
-                Filter::Relation(deckmaste_core::RelationFilter::OpponentOf(Box::new(
-                    Filter::Ref(Reference::You),
+            what: Predicate::Ref(Reference::This),
+            by: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
+                Predicate::Relation(deckmaste_core::RelationPredicate::OpponentOf(Box::new(
+                    Predicate::Ref(Reference::You),
                 ))),
             ))),
             source: None,
@@ -2352,11 +2354,11 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Cast {
-            who: Filter::Ref(Reference::You),
-            what: Filter::AllOf(vec![
-                Filter::Kind(ObjectKind::Spell),
-                Filter::Not(Box::new(Filter::Characteristic(
-                    CharacteristicFilter::Type(Type::Creature),
+            who: Predicate::Ref(Reference::You),
+            what: Predicate::AllOf(vec![
+                Predicate::Kind(ObjectKind::Spell),
+                Predicate::Not(Box::new(Predicate::Characteristic(
+                    CharacteristicPredicate::Type(Type::Creature),
                 ))),
             ]),
         };
@@ -2406,8 +2408,8 @@ mod tests {
             id
         };
         let pattern = EventFilter::Damage {
-            source: Filter::Ref(Reference::This),
-            to: Filter::Any,
+            source: Predicate::Ref(Reference::This),
+            to: Predicate::Any,
             combat: None,
             amount: None,
         };
@@ -2441,8 +2443,8 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::ZoneChange {
-            what: Filter::Relation(deckmaste_core::RelationFilter::ControlledBy(Box::new(
-                Filter::Ref(Reference::You),
+            what: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
+                Predicate::Ref(Reference::You),
             ))),
             from: None,
             to: None,
@@ -2517,8 +2519,8 @@ mod tests {
             id
         };
         let pattern = EventFilter::ControlChanged {
-            of: Filter::creature(),
-            to: Filter::Ref(Reference::You),
+            of: Predicate::creature(),
+            to: Predicate::Ref(Reference::You),
         };
         let to_you = GameEvent::ControlChanged {
             object: other,
@@ -2568,15 +2570,15 @@ mod tests {
         // against the gaining player's proxy.
         let named_any = EventFilter::DesignationChanged {
             name: "DayNight".into(),
-            of: Filter::Any,
+            of: Predicate::Any,
         };
         let named_narrowed = EventFilter::DesignationChanged {
             name: "DayNight".into(),
-            of: Filter::Ref(Reference::You),
+            of: Predicate::Ref(Reference::You),
         };
         let wrong_name = EventFilter::DesignationChanged {
             name: "Monarch".into(),
-            of: Filter::Any,
+            of: Predicate::Any,
         };
         assert!(state.event_matches(&named_any, &to_night, watcher_source));
         assert!(!state.event_matches(&named_narrowed, &to_night, watcher_source));
@@ -2587,7 +2589,7 @@ mod tests {
         };
         let monarch_you = EventFilter::DesignationChanged {
             name: "Monarch".into(),
-            of: Filter::Ref(Reference::You),
+            of: Predicate::Ref(Reference::You),
         };
         assert!(
             state.event_matches(&monarch_you, &got, watcher_source),
@@ -2617,7 +2619,7 @@ mod tests {
     fn one_of_matches_any_branch() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let creature = Filter::creature();
+        let creature = Predicate::creature();
         let pattern = EventFilter::OneOf(vec![
             EventFilter::ZoneChange {
                 cause: None,
@@ -2651,7 +2653,7 @@ mod tests {
     }
 
     /// Confirm that reading `Dies(Ref(This))` yields
-    /// `Filter::Ref(Reference::This)` in the `what` position — the "this
+    /// `Predicate::Ref(Reference::This)` in the `what` position — the "this
     /// object" form.
     #[test]
     fn dies_this_filter_ref_reference_this() {
@@ -2666,8 +2668,8 @@ mod tests {
         };
         assert_eq!(
             what,
-            &Filter::Ref(Reference::This),
-            "Dies(Ref(This)) must use Filter::Ref(Reference::This)"
+            &Predicate::Ref(Reference::This),
+            "Dies(Ref(This)) must use Predicate::Ref(Reference::This)"
         );
     }
 
@@ -3523,8 +3525,8 @@ mod tests {
         (state, snap, watcher)
     }
 
-    fn snap_cf(c: CharacteristicFilter) -> Filter {
-        Filter::Characteristic(c)
+    fn snap_cf(c: CharacteristicPredicate) -> Predicate {
+        Predicate::Characteristic(c)
     }
 
     /// `Named` over a snapshot reads the printed face name ([CR#201]).
@@ -3532,12 +3534,12 @@ mod tests {
     fn snapshot_named_matches_printed_name() {
         let (state, snap, w) = bear_snapshot();
         assert!(state.filter_matches_snapshot(
-            &snap_cf(CharacteristicFilter::Named("Grizzly Bears".into())),
+            &snap_cf(CharacteristicPredicate::Named("Grizzly Bears".into())),
             &snap,
             w
         ));
         assert!(!state.filter_matches_snapshot(
-            &snap_cf(CharacteristicFilter::Named("Forest".into())),
+            &snap_cf(CharacteristicPredicate::Named("Forest".into())),
             &snap,
             w
         ));
@@ -3550,28 +3552,28 @@ mod tests {
         use deckmaste_core::Supertype;
         let (state, snap, w) = bear_snapshot();
         assert!(state.filter_matches_snapshot(
-            &snap_cf(CharacteristicFilter::ColorIs(Color::Green)),
+            &snap_cf(CharacteristicPredicate::ColorIs(Color::Green)),
             &snap,
             w
         ));
         assert!(!state.filter_matches_snapshot(
-            &snap_cf(CharacteristicFilter::ColorIs(Color::Red)),
+            &snap_cf(CharacteristicPredicate::ColorIs(Color::Red)),
             &snap,
             w
         ));
         assert!(!state.filter_matches_snapshot(
-            &snap_cf(CharacteristicFilter::Multicolored),
+            &snap_cf(CharacteristicPredicate::Multicolored),
             &snap,
             w
         ));
         assert!(!state.filter_matches_snapshot(
-            &snap_cf(CharacteristicFilter::Colorless),
+            &snap_cf(CharacteristicPredicate::Colorless),
             &snap,
             w
         ));
         // A Grizzly Bears is not a Basic.
         assert!(!state.filter_matches_snapshot(
-            &snap_cf(CharacteristicFilter::Supertype(Supertype::Basic)),
+            &snap_cf(CharacteristicPredicate::Supertype(Supertype::Basic)),
             &snap,
             w
         ));
@@ -3584,7 +3586,7 @@ mod tests {
         use deckmaste_core::Count;
         use deckmaste_core::Stat;
         let (state, snap, w) = bear_snapshot();
-        let f = |s, c, n| snap_cf(CharacteristicFilter::Stat(s, c, Count::Literal(n)));
+        let f = |s, c, n| snap_cf(CharacteristicPredicate::Stat(s, c, Count::Literal(n)));
         assert!(state.filter_matches_snapshot(&f(Stat::Power, Cmp::Eq, 2), &snap, w));
         assert!(state.filter_matches_snapshot(&f(Stat::Toughness, Cmp::AtLeast, 2), &snap, w));
         assert!(state.filter_matches_snapshot(&f(Stat::ManaValue, Cmp::Eq, 2), &snap, w));
@@ -3594,19 +3596,19 @@ mod tests {
     /// `Status(Tapped)`/`Status(Untapped)` read the snapshot's tap flag.
     #[test]
     fn snapshot_status_reads_tap_flag() {
-        use deckmaste_core::StateFilter;
+        use deckmaste_core::StatePredicate;
         use deckmaste_core::Status;
         let (mut state, bear) = bear_on_field();
         state.objects.obj_mut(bear).tapped = true;
         let snap = LkiSnapshot::capture(&state, bear);
         let w = state.objects.obj(bear).source;
         assert!(state.filter_matches_snapshot(
-            &Filter::State(StateFilter::Status(Status::Tapped)),
+            &Predicate::State(StatePredicate::Status(Status::Tapped)),
             &snap,
             w
         ));
         assert!(!state.filter_matches_snapshot(
-            &Filter::State(StateFilter::Status(Status::Untapped)),
+            &Predicate::State(StatePredicate::Status(Status::Untapped)),
             &snap,
             w
         ));
@@ -3617,8 +3619,8 @@ mod tests {
     /// never match (a snapshot subject is a card, not a player).
     #[test]
     fn snapshot_relations_resolve_to_live_players() {
-        use deckmaste_core::RelationFilter;
-        use deckmaste_core::StateFilter;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
         let (mut state, bear) = bear_on_field();
         state
             .objects
@@ -3627,19 +3629,19 @@ mod tests {
             .insert("mark".into(), 1);
         let snap = LkiSnapshot::capture(&state, bear);
         let w = state.objects.obj(bear).source;
-        let marked = || Box::new(Filter::State(StateFilter::HasCounter("mark".into())));
+        let marked = || Box::new(Predicate::State(StatePredicate::HasCounter("mark".into())));
         assert!(state.filter_matches_snapshot(
-            &Filter::Relation(RelationFilter::ControlledBy(marked())),
+            &Predicate::Relation(RelationPredicate::ControlledBy(marked())),
             &snap,
             w
         ));
         assert!(state.filter_matches_snapshot(
-            &Filter::Relation(RelationFilter::Owner(marked())),
+            &Predicate::Relation(RelationPredicate::Owner(marked())),
             &snap,
             w
         ));
         assert!(!state.filter_matches_snapshot(
-            &Filter::Relation(RelationFilter::OpponentOf(Box::new(Filter::Any))),
+            &Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Any))),
             &snap,
             w
         ));
@@ -3725,7 +3727,7 @@ mod tests {
                 where_x: None,
                 from: None,
                 event: EventFilter::ZoneChange {
-                    what: Filter::creature(),
+                    what: Predicate::creature(),
                     from: Some(Zone::Battlefield),
                     to: Some(Zone::Graveyard),
                     cause: None,
@@ -3814,8 +3816,8 @@ mod tests {
                 where_x: None,
                 from: None,
                 event: EventFilter::Damage {
-                    source: Filter::Any,
-                    to: Filter::creature(),
+                    source: Predicate::Any,
+                    to: Predicate::creature(),
                     combat: None,
                     amount: None,
                 },
@@ -4014,7 +4016,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Drawn {
-            who: Filter::Ref(Reference::You),
+            who: Predicate::Ref(Reference::You),
             amount: None,
         };
         let you_draw = GameEvent::WillDraw {
@@ -4042,7 +4044,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::LifeLost {
-            who: Filter::Ref(Reference::You),
+            who: Predicate::Ref(Reference::You),
             amount: None,
         };
         let you_lose = GameEvent::LifeLost {
@@ -4070,7 +4072,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::LifeGained {
-            who: Filter::Ref(Reference::You),
+            who: Predicate::Ref(Reference::You),
             amount: None,
         };
         let you_gain = GameEvent::LifeGained {

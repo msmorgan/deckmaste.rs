@@ -239,7 +239,7 @@ pub struct Anaphora {
     pub where_x: Option<deckmaste_core::Count>,
     /// The current iteration / projection element — the `It` anaphor
     /// ([CR#608.2]). Bound per element by an enclosing `Each`/`DivideAmong`
-    /// loop, and by `Filter::Where` / `Selection::Pick` while they test a
+    /// loop, and by `Predicate::Where` / `Selection::Pick` while they test a
     /// candidate (the role the old `Subject` named). `None` at every frameless
     /// position. Mirrors the Idris `itKind` + its `It` value.
     pub it: Option<ItBinding>,

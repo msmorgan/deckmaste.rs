@@ -4,6 +4,6 @@
     name: "Enters",
     template: "${0} enters",
     kinds: [EventFilter],
-    params: [Filter],
+    params: [Predicate],
     body: ZoneChange(what: Param(0), to: Battlefield),
 )

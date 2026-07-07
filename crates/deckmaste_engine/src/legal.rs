@@ -9,8 +9,8 @@ use deckmaste_core::Ability;
 use deckmaste_core::DeedAgent;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
-use deckmaste_core::Filter;
 use deckmaste_core::KeywordAbility;
+use deckmaste_core::Predicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Type;
 
@@ -295,7 +295,7 @@ fn attack_rows(
     state: &GameState,
     view: &LayeredView,
     pick: fn(&Deontic) -> Option<&DeonticAction>,
-) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
@@ -316,7 +316,7 @@ fn attack_rows(
 fn cant_attack_rows(
     state: &GameState,
     view: &LayeredView,
-) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
     attack_rows(state, view, cant_action)
 }
 
@@ -326,7 +326,7 @@ fn cant_attack_rows(
 pub(crate) fn must_attack_rows(
     state: &GameState,
     view: &LayeredView,
-) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
     attack_rows(state, view, must_action)
 }
 
@@ -372,8 +372,8 @@ pub(crate) struct BlockRow {
     /// The carrier's live object id — anchors `Ref(This)`/`StatOf(This)` in a
     /// `count` bound (frame source) when an arrangement bound is non-literal.
     pub carrier_id: ObjectId,
-    pub by: Filter,
-    pub on: Filter,
+    pub by: Predicate,
+    pub on: Predicate,
     pub count: Option<deckmaste_core::CountBound>,
 }
 
@@ -604,7 +604,7 @@ fn target_rows(
     state: &GameState,
     view: &LayeredView,
     pick: fn(&Deontic) -> Option<&DeonticAction>,
-) -> Vec<(crate::object::ObjectSource, DeedAgent, Filter)> {
+) -> Vec<(crate::object::ObjectSource, DeedAgent, Predicate)> {
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
@@ -652,7 +652,7 @@ pub(crate) fn deed_agent_matches(
 pub(crate) fn cant_target_rows(
     state: &GameState,
     view: &LayeredView,
-) -> Vec<(crate::object::ObjectSource, DeedAgent, Filter)> {
+) -> Vec<(crate::object::ObjectSource, DeedAgent, Predicate)> {
     target_rows(state, view, cant_action)
 }
 
@@ -663,7 +663,7 @@ pub(crate) fn cant_target_rows(
 pub(crate) fn must_target_rows(
     state: &GameState,
     view: &LayeredView,
-) -> Vec<(crate::object::ObjectSource, DeedAgent, Filter)> {
+) -> Vec<(crate::object::ObjectSource, DeedAgent, Predicate)> {
     target_rows(state, view, must_action)
 }
 
@@ -672,7 +672,7 @@ pub(crate) fn must_target_rows(
 #[must_use]
 pub(crate) fn target_forbidden_by(
     state: &GameState,
-    rows: &[(crate::object::ObjectSource, DeedAgent, Filter)],
+    rows: &[(crate::object::ObjectSource, DeedAgent, Predicate)],
     spell: ObjectId,
     target: ObjectId,
 ) -> Option<crate::object::ObjectSource> {
@@ -695,7 +695,7 @@ pub(crate) fn target_forbidden_by(
 fn cant_attach_rows(
     state: &GameState,
     view: &LayeredView,
-) -> Vec<(crate::object::ObjectSource, Filter, Filter)> {
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
@@ -753,8 +753,8 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
 /// evaluate yet.
 pub(crate) struct MayCastRow {
     pub carrier: crate::object::ObjectSource,
-    pub what: Filter,
-    pub by: Filter,
+    pub what: Predicate,
+    pub by: Predicate,
     pub from: Option<deckmaste_core::Zone>,
     pub window: Option<deckmaste_core::Timing>,
     pub cost: Option<deckmaste_core::AlternativeCost>,
@@ -813,10 +813,10 @@ mod tests {
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Expansion;
-    use deckmaste_core::Filter;
     use deckmaste_core::Ident;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::OutcomeGateKind;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Type;
@@ -836,7 +836,7 @@ mod tests {
     /// collected sequence is order-checkable.
     fn gate(gate: OutcomeGateKind) -> StaticEffect {
         StaticEffect::OutcomeGate {
-            who: Filter::Any,
+            who: Predicate::Any,
             gate,
         }
     }
@@ -980,14 +980,14 @@ mod tests {
 
     /// An `Innate` static carrying a single `Cant(Attach(what, to))` row — the
     /// conferred host-restriction shape (Equipment/Fortification subtype rule).
-    fn innate_cant_attach(what: Filter, to: Filter) -> Ability {
+    fn innate_cant_attach(what: Predicate, to: Predicate) -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
             Deontic::Cant(DeonticAction::Attach { what, to }),
         ))))
     }
 
-    fn creature() -> Filter {
-        Filter::creature()
+    fn creature() -> Predicate {
+        Predicate::creature()
     }
 
     /// [CR#701.3b,301.5]: an attachment with `Innate(Cant(Attach(what: Ref(This),
@@ -1001,8 +1001,8 @@ mod tests {
             "Test Equipment",
             vec![Type::Artifact],
             vec![innate_cant_attach(
-                Filter::Ref(Reference::This),
-                Filter::Not(Box::new(creature())),
+                Predicate::Ref(Reference::This),
+                Predicate::Not(Box::new(creature())),
             )],
         );
         let creature_host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
@@ -1051,8 +1051,8 @@ mod tests {
             vec![Type::Creature],
             vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
-                    what: Filter::Any,
-                    to: Filter::Ref(Reference::This),
+                    what: Predicate::Any,
+                    to: Predicate::Ref(Reference::This),
                 },
             )))],
         );
@@ -1104,8 +1104,8 @@ mod tests {
     fn innate_static() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
             Deontic::Cant(DeonticAction::Attach {
-                what: Filter::Ref(Reference::This),
-                to: Filter::Not(Box::new(creature())),
+                what: Predicate::Ref(Reference::This),
+                to: Predicate::Not(Box::new(creature())),
             }),
         ))))
     }
@@ -1188,8 +1188,8 @@ mod tests {
             name: "Enchant".into(),
             abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
-                    what: Filter::Ref(Reference::This),
-                    to: Filter::Not(Box::new(creature())),
+                    what: Predicate::Ref(Reference::This),
+                    to: Predicate::Not(Box::new(creature())),
                 },
             )))],
         });

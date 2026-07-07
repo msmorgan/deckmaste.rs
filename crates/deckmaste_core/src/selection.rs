@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::Count;
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
+use crate::Predicate;
 use crate::Quantity;
 use crate::Reference;
 use crate::SupportsMacros;
@@ -39,14 +39,14 @@ pub enum Extremum {
 pub enum Selection {
     /// All matching objects as one set ("every creature you control") — the
     /// group a distributor ([`Each`](crate::Each) / `StaticEffect::Each`)
-    /// iterates. Mirrors Idris `SelectAll : Filter -> Selection`.
-    SelectAll(Filter),
+    /// iterates. Mirrors Idris `SelectAll : Predicate -> Selection`.
+    SelectAll(Predicate),
     /// Several selections combined as ONE group ("each X and each Y") — the
     /// Idris `Union`. Order-preserving concatenation of the member groups; an
     /// object in more than one member appears once (first position wins).
     Union(Vec<Selection>),
     /// A random selection of a quantity of matching objects.
-    Random(Quantity, Filter),
+    Random(Quantity, Predicate),
     /// A choice from among a PREVIOUSLY COMPUTED set ("exile two of them",
     /// "…from among them" — the among-restriction, queries.md §2): the
     /// domain is whatever `Effect::Noting{key, …}` recorded under the
@@ -97,7 +97,7 @@ pub enum Selection {
     /// downstream).
     Pick {
         op: Extremum,
-        of: Filter,
+        of: Predicate,
         by: Box<Count>,
     },
     /// A remembered `Selection` macro invocation.
@@ -120,7 +120,7 @@ fn ref_is_you(r: &Reference) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CharacteristicFilter;
+    use crate::CharacteristicPredicate;
     use crate::Count;
     use crate::ObjectKind;
     use crate::Quantity;
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn filter_variant_round_trip() {
-        let v = Selection::SelectAll(Filter::Kind(ObjectKind::Player));
+        let v = Selection::SelectAll(Predicate::Kind(ObjectKind::Player));
         assert_eq!(read(&to_string(&v)), v);
     }
 
@@ -144,7 +144,7 @@ mod tests {
     fn random_round_trips() {
         let v = Selection::Random(
             Quantity::one(),
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
         );
         assert_eq!(read(&to_string(&v)), v);
     }
@@ -177,10 +177,10 @@ mod tests {
     #[test]
     fn union_round_trips() {
         let v = Selection::Union(vec![
-            Selection::SelectAll(Filter::Characteristic(CharacteristicFilter::Type(
+            Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Creature,
             ))),
-            Selection::SelectAll(Filter::Kind(ObjectKind::Player)),
+            Selection::SelectAll(Predicate::Kind(ObjectKind::Player)),
         ]);
         assert_eq!(read(&to_string(&v)), v);
     }
@@ -217,7 +217,7 @@ mod tests {
     fn pick_round_trips() {
         let v = Selection::Pick {
             op: Extremum::Greatest,
-            of: Filter::Characteristic(CharacteristicFilter::Type(Type::Creature)),
+            of: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
             by: Box::new(Count::StatOf(crate::Reference::This, crate::Stat::Power)),
         };
         assert_eq!(read(&to_string(&v)), v);

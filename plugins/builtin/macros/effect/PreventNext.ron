@@ -8,7 +8,7 @@
     name: "PreventNext",
     template: "prevent the next ${n} damage that would be dealt to ${to} this turn",
     kinds: [Effect],
-    params: { "n": Count, "to": Filter },
+    params: { "n": Count, "to": Predicate },
     body: Continuously(
         effect: Prevention(PreventNext(n: Param(n), from: Any, to: Param(to))),
         duration: FixedUntil(EndOfTurn),

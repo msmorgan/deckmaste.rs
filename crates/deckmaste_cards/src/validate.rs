@@ -358,9 +358,9 @@ mod tests {
     use deckmaste_core::Effect;
     use deckmaste_core::Expansion;
     use deckmaste_core::ExpansionArgs;
-    use deckmaste_core::Filter;
     use deckmaste_core::ManaSpec;
     use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
@@ -487,8 +487,8 @@ mod tests {
             subtypes: vec![],
             abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attack {
-                    by: Filter::Ref(Reference::This),
-                    on: Filter::Any,
+                    by: Predicate::Ref(Reference::This),
+                    on: Predicate::Any,
                 },
             )))],
             power: None,

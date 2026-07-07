@@ -1,11 +1,11 @@
 //! Permissions/prohibitions/requirements as sentences.
 
-use deckmaste_core::CharacteristicFilter;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
-use deckmaste_core::Filter;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
-use deckmaste_core::RelationFilter;
+use deckmaste_core::RelationPredicate;
 use deckmaste_core::StaticEffect;
 
 use super::Ctx;
@@ -128,39 +128,43 @@ fn unwrap_action(a: &DeonticAction) -> &DeonticAction {
     }
 }
 
-fn is_this(f: &Filter) -> bool {
-    matches!(fragment::strip_expanded(f), Filter::Ref(Reference::This))
+fn is_this(f: &Predicate) -> bool {
+    matches!(fragment::strip_expanded(f), Predicate::Ref(Reference::This))
 }
 
 /// `ControlledBy(OpponentOf(You))` — the "an opponent controls" agent.
-fn is_opponent_controlled(f: &Filter) -> bool {
-    if let Filter::Relation(RelationFilter::ControlledBy(inner)) = fragment::strip_expanded(f)
-        && let Filter::Relation(RelationFilter::OpponentOf(who)) = fragment::strip_expanded(inner)
+fn is_opponent_controlled(f: &Predicate) -> bool {
+    if let Predicate::Relation(RelationPredicate::ControlledBy(inner)) = fragment::strip_expanded(f)
+        && let Predicate::Relation(RelationPredicate::OpponentOf(who)) =
+            fragment::strip_expanded(inner)
     {
-        return matches!(fragment::strip_expanded(who), Filter::Ref(Reference::You));
+        return matches!(
+            fragment::strip_expanded(who),
+            Predicate::Ref(Reference::You)
+        );
     }
     false
 }
 
 /// The subtype name among a filter's parts ("Flagbearer"), for deontics
 /// keyed on a subtype noun.
-fn find_subtype_noun(f: &Filter) -> Option<String> {
+fn find_subtype_noun(f: &Predicate) -> Option<String> {
     match fragment::strip_expanded(f) {
-        Filter::Characteristic(CharacteristicFilter::Subtype(name)) => {
+        Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
             Some(name.as_str().to_string())
         }
-        Filter::AllOf(parts) => parts.iter().find_map(find_subtype_noun),
+        Predicate::AllOf(parts) => parts.iter().find_map(find_subtype_noun),
         _ => None,
     }
 }
 
-/// A `Filter` as the singular subject of a deontic. `subject` is the host's
+/// A `Predicate` as the singular subject of a deontic. `subject` is the host's
 /// name. `Ref(This)` -> the host's name; `Ref(AttachHostOf(This))` ->
 /// "Enchanted creature".
-fn deontic_subject(f: &Filter, subject: &str) -> String {
+fn deontic_subject(f: &Predicate, subject: &str) -> String {
     match f {
-        Filter::Ref(Reference::This) => subject.to_string(),
-        Filter::Ref(Reference::AttachHostOf(inner)) if matches!(**inner, Reference::This) => {
+        Predicate::Ref(Reference::This) => subject.to_string(),
+        Predicate::Ref(Reference::AttachHostOf(inner)) if matches!(**inner, Reference::This) => {
             "Enchanted creature".to_string()
         }
         other => format!("[unrendered: {other:?}]"),

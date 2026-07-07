@@ -1,4 +1,4 @@
-// SharesColorWith(ref): a Filter matching objects that share a color with
+// SharesColorWith(ref): a Predicate matching objects that share a color with
 // `ref` [CR#702.13b] — the candidate-relative predicate Intimidate needs, built
 // on the general It/Where bridge. The matched candidate is `It`, so
 // "shares a color with ref" is "for some color, both It and ref are that
@@ -10,7 +10,7 @@
 // (which would compose) waits on a color-set value language.
 (
     name: "SharesColorWith",
-    kinds: [Filter],
+    kinds: [Predicate],
     params: [Reference],
     body: Where(OneOf([
         AllOf([Is(It, ColorIs(White)), Is(Param(0), ColorIs(White))]),

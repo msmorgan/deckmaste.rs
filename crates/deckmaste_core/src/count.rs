@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::Expand;
 use crate::Expansion;
-use crate::Filter;
+use crate::Predicate;
 use crate::Reference;
 use crate::SupportsMacros;
 
@@ -91,15 +91,15 @@ pub enum Count {
     /// stack ([CR#107.3]).
     X,
     /// How many objects match a filter ([CR#107.3], "for each"). Boxed to
-    /// break the `Filter` → `Stat` → `Count` → `Filter` size cycle.
-    CountOf(Box<Filter>),
+    /// break the `Predicate` → `Stat` → `Count` → `Predicate` size cycle.
+    CountOf(Box<Predicate>),
     /// The size of the DISTINCT union of a characteristic across the objects
     /// matching a filter ([CR#107.3]): Domain = `CountDistinct(Subtypes, <your
     /// lands>)` (distinct land subtypes), Coven = `CountDistinct(Power, <your
     /// creatures>)` (distinct powers), Tarmogoyf = `CountDistinct(Types, <cards
     /// in graveyards>)`. The granularity comes from the source filter; the
-    /// axis from the [`Characteristic`]. Boxed `Filter`, like `CountOf`.
-    CountDistinct(Characteristic, Box<Filter>),
+    /// axis from the [`Characteristic`]. Boxed `Predicate`, like `CountOf`.
+    CountDistinct(Characteristic, Box<Predicate>),
     /// A referenced object's stat ([CR#107.3], "equal to its power").
     StatOf(Reference, Stat),
     /// How many counters of the named kind sit on a referenced object or
@@ -150,7 +150,7 @@ pub enum Count {
     /// count-valued twin of `Condition::Happened`. The window is a required
     /// field: history counting never gets a silent default. The pattern is
     /// boxed (it is large) to keep `Count` from growing, mirroring
-    /// `CountOf(Box<Filter>)`.
+    /// `CountOf(Box<Predicate>)`.
     EventCount(Box<crate::EventFilter>, crate::Lookback),
     /// The summed AMOUNT of history facts matching the pattern within the
     /// [`Lookback`](crate::Lookback) ([CR#608.2i,119.3]) — e.g. total life
@@ -246,12 +246,12 @@ mod tests {
     #[test]
     fn event_count_round_trips() {
         use crate::EventFilter;
-        use crate::Filter;
         use crate::Lookback;
+        use crate::Predicate;
 
         let event = EventFilter::Cast {
-            who: Filter::Ref(crate::Reference::You),
-            what: Filter::Any,
+            who: Predicate::Ref(crate::Reference::You),
+            what: Predicate::Any,
         };
         // Parse from RON — `what` defaults to Any.
         let parsed = read("EventCount(Cast(who: Ref(You)), ThisTurn)");
@@ -299,15 +299,15 @@ mod tests {
         }
     }
 
-    /// `CountDistinct(Characteristic, Filter)` — the distinct-union count
+    /// `CountDistinct(Characteristic, Predicate)` — the distinct-union count
     /// (Domain / Coven / Tarmogoyf) parses and round-trips.
     #[test]
     fn count_distinct_round_trips() {
         let value = Count::CountDistinct(
             Characteristic::Subtypes,
-            Box::new(Filter::Characteristic(crate::CharacteristicFilter::Type(
-                crate::Type::Land,
-            ))),
+            Box::new(Predicate::Characteristic(
+                crate::CharacteristicPredicate::Type(crate::Type::Land),
+            )),
         );
         assert_eq!(read(&write(&value)), value);
         assert!(matches!(
@@ -332,11 +332,11 @@ mod tests {
     #[test]
     fn event_sum_round_trips() {
         use crate::EventFilter;
-        use crate::Filter;
         use crate::Lookback;
+        use crate::Predicate;
 
         let event = EventFilter::LifeLost {
-            who: Filter::Any,
+            who: Predicate::Any,
             amount: None,
         };
         // Parse from RON — `who` defaults to Any.

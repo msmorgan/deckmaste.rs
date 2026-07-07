@@ -157,15 +157,15 @@ mod tests {
     use deckmaste_core::BeginningStep;
     use deckmaste_core::Color;
     use deckmaste_core::EndingStep;
-    use deckmaste_core::Filter;
     use deckmaste_core::ManaRider;
     use deckmaste_core::PhaseStep;
+    use deckmaste_core::Predicate;
     use deckmaste_core::TurnMarker;
 
     use super::*;
 
     fn some_rider() -> ManaRider {
-        ManaRider::SpendOnly(Filter::Any)
+        ManaRider::SpendOnly(Predicate::Any)
     }
 
     #[test]

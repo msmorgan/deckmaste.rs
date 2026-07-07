@@ -40,7 +40,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
 /// so a successful read consumes all of `input`.
 fn slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
     let arg = match ty {
-        "Filter" => super::keyword_ability::quality_filter(input.trim())?,
+        "Predicate" => super::keyword_ability::quality_filter(input.trim())?,
         "Cost" => super::keyword_ability::cost_arg(input).ok().flatten()?,
         _ => return None,
     };
@@ -114,7 +114,7 @@ mod tests {
 
     #[test]
     fn routes_parameterized_keyword_through_slots() {
-        // The `${0}` slot is filled by the declared-type reader: Filter for
+        // The `${0}` slot is filled by the declared-type reader: Predicate for
         // Protection, Cost for Ward — same invocations the bespoke parser emits.
         let idx = builtin_index();
         assert_eq!(

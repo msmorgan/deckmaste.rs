@@ -165,7 +165,7 @@ pub(crate) fn match_keyword_invocation(phrase: &str) -> Option<String> {
 fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
     // Keyword-specific word-argument shapes first — the parser owns the
     // authored macros' spelling conventions (a quality word renders as the
-    // Filter the macro's param expects).
+    // Predicate the macro's param expects).
     match ident {
         // An all-defaulted invocation still needs its parens — bare `Hexproof`
         // doesn't read. The "hexproof from [quality]" oracle line is now claimed
@@ -177,7 +177,7 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
                 return Ok(None);
             };
             // "from everything" = protection regardless of qualities
-            // [CR#702.16j]: the match-all Filter in every row of the bundle.
+            // [CR#702.16j]: the match-all Predicate in every row of the bundle.
             if q == "everything" {
                 return Ok(Some("Protection(Any)".to_owned()));
             }
@@ -231,7 +231,7 @@ pub(crate) fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
     Ok(Some(format!("[{}]", components.join(", "))))
 }
 
-/// A single quality word -> its `Filter` RON: the five colors, or a simple
+/// A single quality word -> its `Predicate` RON: the five colors, or a simple
 /// type noun (plural tolerated). `None` declines — compound qualities
 /// ("artifact creatures", "monocolored") stay todo. "From everything" is the
 /// `Protection` arm's special case, and multi-quality lines ("from red and
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn protection_from_everything() {
         // [CR#702.16j]: protection regardless of qualities — the match-all
-        // Filter in every row of the Protection bundle.
+        // Predicate in every row of the Protection bundle.
         assert_eq!(
             bare("Protection from everything").as_deref(),
             Some("Keyword(Protection(Any))")

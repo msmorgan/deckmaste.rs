@@ -256,7 +256,7 @@ fn arc_lightning_targets_any_target() {
     let TargetSpec::Target(_, filter) = &te.targets[0] else {
         panic!("expected Target variant, got {:?}", te.targets[0]);
     };
-    let deckmaste_core::Filter::Expanded(exp) = filter else {
+    let deckmaste_core::Predicate::Expanded(exp) = filter else {
         panic!("expected Expanded filter, got {filter:?}");
     };
     assert_eq!(

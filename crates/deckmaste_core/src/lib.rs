@@ -130,11 +130,11 @@ pub use event::StateChange;
 pub use event::WhoseTurn;
 
 mod filter;
-pub use filter::CharacteristicFilter;
-pub use filter::Filter;
+pub use filter::CharacteristicPredicate;
 pub use filter::ObjectKind;
-pub use filter::RelationFilter;
-pub use filter::StateFilter;
+pub use filter::Predicate;
+pub use filter::RelationPredicate;
+pub use filter::StatePredicate;
 pub use macro_ron::Expand;
 pub use macro_ron::Expansion;
 pub use macro_ron::ExpansionArgs;

@@ -1,6 +1,6 @@
 (
     name: "Planeswalker",
     template: "planeswalker",
-    kinds: [Filter],
+    kinds: [Predicate],
     body: AllOf([Permanent, Type(Planeswalker)]),
 )

@@ -211,7 +211,7 @@ namespace IsExtremal
 -- a small predicate algebra over MANA SYMBOLS, for filtering a printed/spent cost ([CR#107.4]). `CountsAs c`
 -- = the symbol counts as colour c (hybrid {W/U} counts as both; Phyrexian {W/P} as white; a generic symbol
 -- as none) — the one home for "counts as colour" identity. Its own namespace: `And`/`Or`/`Not` are shared
--- combinator names (Filter/Condition/EventQuery each carry their own), disambiguated by expected type.
+-- combinator names (Predicate/Condition/EventQuery each carry their own), disambiguated by expected type.
 namespace SymbolPred
   public export
   data SymbolPred : Type where
@@ -794,8 +794,8 @@ sameCard _ _ = False
 -- vestigial (see `labelFresh`) — no live constructor sets it since
 -- positional `Target n` replaced the labeled-read mechanism ([CR#608.2d]).
 public export
-record Ante where
-  constructor MkAnte
+record Ant where
+  constructor MkAnt
   sort : Sort
   kind : RefKind
   card : Cardinality
@@ -820,11 +820,11 @@ isBound _ = False
 -- `Allot` share (that is `Allotment`'s alone), its cardinality matches
 -- (`It`/`That` = One, `They`/`Them` = Many), and its sort is reachable (R1).
 public export
-candidate : Maybe Sort -> Cardinality -> Ante -> Bool
+candidate : Maybe Sort -> Cardinality -> Ant -> Bool
 candidate w cd a = not (isAllotSite a.site) && sameCard cd a.card && reaches w a.sort
 
 public export
-candidates : Maybe Sort -> Cardinality -> List Ante -> List Ante
+candidates : Maybe Sort -> Cardinality -> List Ant -> List Ant
 candidates w cd [] = []
 candidates w cd (a :: as) = case candidate w cd a of
   True => a :: candidates w cd as
@@ -835,14 +835,14 @@ candidates w cd (a :: as) = case candidate w cd a of
 -- per the corpus dry-run freeze — an insertion flips "resolves" to a load
 -- error, never to a silent re-point).
 public export
-classifyCandidates : List Ante -> Bind
+classifyCandidates : List Ant -> Bind
 classifyCandidates [] = Unbound
 classifyCandidates [a] = Bound a.kind
 classifyCandidates (_ :: _ :: _) = Ambiguous
 
 -- R1 + R2 over the stack (nearest FIRST).
 public export
-resolveStack : Maybe Sort -> Cardinality -> List Ante -> Bind
+resolveStack : Maybe Sort -> Cardinality -> List Ant -> Bind
 resolveStack w cd s = classifyCandidates (candidates w cd s)
 
 -- THE stack-weakening lemma ([type-theory#4] — one lemma over the one
@@ -852,8 +852,8 @@ resolveStack w cd s = classifyCandidates (candidates w cd s)
 -- a COMPATIBLE push — R2 flips them to `Ambiguous` (the ambiguity gate is
 -- the design); a positional `Target n` read is the escape hatch.
 export
-weakenResolve : {w : Maybe Sort} -> {cd : Cardinality} -> {s : List Ante}
-             -> (a : Ante) -> (off : candidate w cd a = False)
+weakenResolve : {w : Maybe Sort} -> {cd : Cardinality} -> {s : List Ant}
+             -> (a : Ant) -> (off : candidate w cd a = False)
              -> resolveStack w cd (a :: s) = resolveStack w cd s
 weakenResolve a off = rewrite off in Refl
 
@@ -861,21 +861,21 @@ weakenResolve a off = rewrite off in Refl
 -- `It`'s deterministic antecedent: inside a binder, `It` is ALWAYS the
 -- bound thing, never gated ([CR#608.2]; the pre-stack semantics, kept).
 public export
-innermostBinder : List Ante -> Maybe Ante
+innermostBinder : List Ant -> Maybe Ant
 innermostBinder [] = Nothing
 innermostBinder (a :: as) = if isBinderSite a.site then Just a else innermostBinder as
 
 -- the innermost choice FRAME — the sorted/plural anaphors' deterministic
 -- scope ([CR#608.2d]; never R2-gated).
 public export
-innermostFrame : List Ante -> Maybe Ante
+innermostFrame : List Ant -> Maybe Ant
 innermostFrame [] = Nothing
 innermostFrame (a :: as) = if isFrameSite a.site then Just a else innermostFrame as
 
 -- `It` — the wildcard singular anaphor: the innermost binder when one
 -- encloses, else R1+R2 over the stack.
 public export
-resolveIt : List Ante -> Bind
+resolveIt : List Ant -> Bind
 resolveIt s = case innermostBinder s of
   Just a => Bound a.kind
   Nothing => resolveStack Nothing One s
@@ -883,14 +883,14 @@ resolveIt s = case innermostBinder s of
 -- `That (w)` — the sorted singular anaphor: the innermost choice frame when
 -- one encloses (it must be a single object of a reachable sort), else R1+R2.
 public export
-resolveThat : Sort -> List Ante -> Bind
+resolveThat : Sort -> List Ant -> Bind
 resolveThat w s = case innermostFrame s of
   Just a => if sameCard One a.card && compat w a.sort then Bound a.kind else Unbound
   Nothing => resolveStack (Just w) One s
 
 -- `They` / `Them (w)` — the plural anaphors (`Nothing` = the wildcard).
 public export
-resolveThey : Maybe Sort -> List Ante -> Bind
+resolveThey : Maybe Sort -> List Ant -> Bind
 resolveThey w s = case innermostFrame s of
   Just a => if sameCard Many a.card && reaches w a.sort then Bound a.kind else Unbound
   Nothing => resolveStack w Many s
@@ -898,7 +898,7 @@ resolveThey w s = case innermostFrame s of
 -- `ThatMany`/`ThatMuch` — the value anaphor over `Amount` antecedents
 -- ([CR#608.2i]).
 public export
-resolveAmount : List Ante -> Bind
+resolveAmount : List Ant -> Bind
 resolveAmount = resolveStack (Just Amount) One
 
 public export
@@ -907,25 +907,25 @@ sameLabel (Just a) (Just b) = a == b
 sameLabel _ _ = False
 
 public export
-hasAllot : List Ante -> Bool
+hasAllot : List Ant -> Bool
 hasAllot [] = False
 hasAllot (a :: as) = isAllotSite a.site || hasAllot as
 
 -- the chosen-pile FRAME a `DivideAndChoose` body binds ([CR#700.3,608.2d]).
 public export
-PileFrame : Ante
-PileFrame = MkAnte Pile AnObject Many Frame Nothing Nothing
+PileFrame : Ant
+PileFrame = MkAnt Pile AnObject Many Frame Nothing Nothing
 
 -- the value antecedent an amount-bearing clause pushes ("that much",
 -- [CR#608.2i]).
 public export
-amountAnte : Ante
-amountAnte = MkAnte Amount AnObject One Product Nothing Nothing
+amountAnte : Ant
+amountAnte = MkAnt Amount AnObject One Product Nothing Nothing
 
 -- the paid-for SPELL a mana rider binds as its loop element ([CR#106.6a]).
 public export
-PaidSpellAnte : Ante
-PaidSpellAnte = MkAnte Spell AnObject One Loop Nothing Nothing
+PaidSpellAnte : Ant
+PaidSpellAnte = MkAnt Spell AnObject One Loop Nothing Nothing
 
 -- the noun an object answers to once it sits in a zone (`Spec.tZoneSorts`
 -- pins this function's full valuation) ([CR#110.1,112.1,108.2]). This
@@ -1017,20 +1017,20 @@ eventKindObjectSort GainControl = Permanent                -- the "of" permanent
 -- by its kind), actor, amount, defending player. Push order mirrors the
 -- Rust walker (later pushes land nearer).
 public export
-roleAntes : EventCaps -> (objectSort : Sort) -> List Ante
+roleAntes : EventCaps -> (objectSort : Sort) -> List Ant
 roleAntes (MkEventCaps o a m p d) objSort =
-  (if o then [MkAnte objSort AnObject One EventRole Nothing Nothing] else [])
+  (if o then [MkAnt objSort AnObject One EventRole Nothing Nothing] else [])
   ++ (case p of
-        Just k => [MkAnte (kindSort k) k One EventRole Nothing Nothing]
+        Just k => [MkAnt (kindSort k) k One EventRole Nothing Nothing]
         Nothing => [])
-  ++ (if a then [MkAnte Player APlayer One EventRole Nothing Nothing] else [])
-  ++ (if m then [MkAnte Amount Anything One EventRole Nothing Nothing] else [])
-  ++ (if d then [MkAnte Player APlayer One EventRole Nothing Nothing] else [])
+  ++ (if a then [MkAnt Player APlayer One EventRole Nothing Nothing] else [])
+  ++ (if m then [MkAnt Amount Anything One EventRole Nothing Nothing] else [])
+  ++ (if d then [MkAnt Player APlayer One EventRole Nothing Nothing] else [])
 
 -- a COST payment's roles ([CR#601.2f]): payment objects leave for another
 -- zone, so the object noun is `Card`.
 public export
-costRoles : EventCaps -> List Ante
+costRoles : EventCaps -> List Ant
 costRoles caps = roleAntes caps Card
 
 -- The binding CONTEXT: the ordered antecedent stack (nearest FIRST) plus
@@ -1040,7 +1040,7 @@ costRoles caps = roleAntes caps Card
 public export
 record Ctx where
   constructor MkCtx
-  stack : List Ante
+  stack : List Ant
   eventCaps : EventCaps          -- `NoCaps` outside an event body
   chosenKind : Maybe ChooseDomain    -- an as-enters VALUE choice in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`)
   chosenRefKind : Maybe RefKind      -- an as-enters ENTITY choice in scope (`ChosenObject`/`ChosenPlayer`)
@@ -1057,25 +1057,25 @@ Base = MkCtx [] NoCaps Nothing Nothing
 -- push antecedents, listed in PUSH ORDER (the last pushed lands nearest —
 -- the stack is nearest-first, so the list is reversed on).
 public export
-pushAntes : List Ante -> Ctx -> Ctx
+pushAntes : List Ant -> Ctx -> Ctx
 pushAntes as b = MkCtx (reverse as ++ stack b) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 public export
-notTargetSlotA : Ante -> Bool
+notTargetSlotA : Ant -> Bool
 notTargetSlotA a = not (isTargetSlot a.site)
 
 public export
-notEventRoleA : Ante -> Bool
+notEventRoleA : Ant -> Bool
 notEventRoleA a = not (isEventRole a.site)
 
 public export
-notAllotA : Ante -> Bool
+notAllotA : Ant -> Bool
 notAllotA a = not (isAllotSite a.site)
 
 -- announce the target slots ([CR#115.3,601.2c]): the slot antecedents
 -- REPLACE any outer ones (a nested announce list is its own).
 public export
-bindTargets : List Ante -> Ctx -> Ctx
+bindTargets : List Ant -> Ctx -> Ctx
 bindTargets slots b = MkCtx (reverse slots ++ filter notTargetSlotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 -- a `Delayed` body drops the announced targets ([CR#603.7c]); `Product`
@@ -1087,27 +1087,27 @@ unbindTargets b = MkCtx (filter notTargetSlotA (stack b)) (eventCaps b) (chosenK
 -- a `With` binder's antecedent ([CR#608.2d]): a choice binds a `Frame`, a
 -- search/produce binder a whiffable `Product` — the ante's own site stands.
 public export
-bindThat : Ante -> Ctx -> Ctx
+bindThat : Ant -> Ctx -> Ctx
 bindThat a = pushAntes [a]
 
 -- a loop element ([CR#608.2]): re-sited at `Loop`, one element at a time;
 -- clears any `Allot` share (it was indexed to a DIFFERENT element, so it
 -- must not leak into a nested loop).
 public export
-bindIt : Ante -> Ctx -> Ctx
-bindIt a b = MkCtx (MkAnte a.sort a.kind One Loop a.expectedZone a.label :: filter notAllotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
+bindIt : Ant -> Ctx -> Ctx
+bindIt a b = MkCtx (MkAnt a.sort a.kind One Loop a.expectedZone a.label :: filter notAllotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 -- a `Distribute` body ([CR#601.2d]): the loop element plus its `Allot`
 -- share (read back only by `Allotment`).
 public export
-bindAllot : Ante -> Ctx -> Ctx
-bindAllot a b = MkCtx (MkAnte Amount Anything One Allot Nothing Nothing :: MkAnte a.sort a.kind One Loop a.expectedZone a.label :: stack b) (eventCaps b) (chosenKind b) (chosenRefKind b)
+bindAllot : Ant -> Ctx -> Ctx
+bindAllot a b = MkCtx (MkAnt Amount Anything One Allot Nothing Nothing :: MkAnt a.sort a.kind One Loop a.expectedZone a.label :: stack b) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 -- entering a trigger/replacement/delayed/payment body: carry the event's
 -- CAPS and push one role antecedent per guarantee; an inner event's roles
 -- SHADOW an outer's ([CR#603.2e] — one antecedent set per body).
 public export
-bindEvent : EventCaps -> List Ante -> Ctx -> Ctx
+bindEvent : EventCaps -> List Ant -> Ctx -> Ctx
 bindEvent caps roles b = MkCtx (reverse roles ++ filter notEventRoleA (stack b)) caps (chosenKind b) (chosenRefKind b)
 
 -- the as-enters VALUE choice ([CR#614.12]): binds `chosenKind` (a color/
@@ -1123,12 +1123,12 @@ bindChosenRef : RefKind -> Ctx -> Ctx
 bindChosenRef k b = MkCtx (stack b) (eventCaps b) (chosenKind b) (Just k)
 
 
--- KeywordSpec / Reference / Count / Filter / Condition / EventQuery are one mutually
+-- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
 -- is a closed/game-state test reaching objects via `Matches`/`exists`/`unique`.
 mutual
   -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
-  -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Filter` (which may name
+  -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
   -- an anaphor — "from the CHOSEN color"). `keyword` (Macros) desugars a spec into its full `Ability`
   -- (a `Composite`): the deontic ones (Flying/Defender/Shroud/Hexproof/Menace) get a `cant` (Menace's
   -- is the SET-level `BlockedBy`); the rest (FirstStrike/Deathtouch/Trample = damage; Vigilance =
@@ -1149,7 +1149,7 @@ mutual
       Defender : KeywordSpec b
       Shroud : KeywordSpec b
       Menace : KeywordSpec b
-      Hexproof : Maybe (Filter b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
+      Hexproof : Maybe (Predicate b AnObject) -> KeywordSpec b   -- "from [filter]" — a SOURCE predicate (objects); "from a player" = ControlledBy that player
       Morph : KeywordSpec b   -- the tag for the `morph` macro ([CR#702.37]); the face-up cost rides its desugared `TurnFaceUp` (bare here — `KeywordSpec` precedes `Cost`)
       Flashback : KeywordSpec b -- the tag for the `flashback` macro ([CR#702.34]); the cost rides its desugared `MayCastFor` (bare — `KeywordSpec` precedes `Cost`). Engine applies the [CR#702.34a] exile-instead-of-graveyard off this tag.
       -- ALTERNATIVE-COST tags: each is `MayCastFor [altCost] {tag = Just X}` + a rider keyed on `WasCastWith X`
@@ -1162,11 +1162,11 @@ mutual
       Prowl : KeywordSpec b
       Spectacle : KeywordSpec b
       Devoid : KeywordSpec b  -- "this object is colorless" ([CR#702.114]) — a CDA; desugars to `Set Colors []` on This
-      Protection : Filter b AnObject -> KeywordSpec b   -- "protection from [quality]" ([CR#702.16]) — the tag carries q; desugars to the DEBT bundle (`protection` macro)
+      Protection : Predicate b AnObject -> KeywordSpec b   -- "protection from [quality]" ([CR#702.16]) — the tag carries q; desugars to the DEBT bundle (`protection` macro)
       -- INTRINSIC combat keyword ([CR#702.22]): the band-attacking + damage-assignment-delegation rules are
       -- engine-baked (not composable data, like Deathtouch). `Nothing` = plain banding; `Just q` = "bands with
       -- other [q]" ([CR#702.22b], the quality-restricted band). Bare — `keyword (Banding mq) = Bare (Banding mq)`.
-      Banding : Maybe (Filter b AnObject) -> KeywordSpec b
+      Banding : Maybe (Predicate b AnObject) -> KeywordSpec b
       -- the tag for the `mutate <cost>` macro ([CR#702.140]): an ALTERNATIVE cost (rides `MayCastFor {tag = Just
       -- Mutate}`, like Dash) whose intrinsic MERGE ([CR#730]) the engine bakes off this tag. Bare here (the cost
       -- rides the macro); degenerate in `keyword`, like Flashback/Morph.
@@ -1247,8 +1247,8 @@ mutual
   namespace Countable
     public export
     data Countable : Ctx -> Type where
-      Objects     : Filter b AnObject -> Countable b
-      Players     : Filter b APlayer -> Countable b
+      Objects     : Predicate b AnObject -> Countable b
+      Players     : Predicate b APlayer -> Countable b
       Events      : EventQuery b -> Countable b
       ManaSymbols : Reference b AnObject -> SymbolPred -> Countable b
       ManaSpent   : {default This forObj : Reference b AnObject} -> Countable b   -- mana SPENT to cast/activate `forObj` (default `This`)
@@ -1324,86 +1324,86 @@ mutual
       ChosenNumber : {auto 0 prf : chosenKind b = Just ANumber} -> Count b   -- the as-enters chosen NUMBER (the value-anaphor twin of OfChosen/ChosenIs)
 
   -- A PREDICATE / filter atom testing a candidate. Gated by candidate kind (`RefKind`).
-  namespace Filter
+  namespace Predicate
     public export
-    data Filter : Ctx -> RefKind -> Type where
+    data Predicate : Ctx -> RefKind -> Type where
       -- the candidate's collection axis `c` CONTAINS this element — the read mirror of
       -- `Alter c (Add …)`. Gated by `Collection` (the 4 set-kinded axes); `ElemOf c` is the
       -- element type. Terse sugar: `hasType`/`hasColor`/`hasSubtype`/`hasSupertype`.
-      HasChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> ElemOf c -> Filter b AnObject
-      IsKind : ObjectKind -> Filter b AnObject
-      InZone : Zone -> Filter b AnObject
-      HasKeyword : KeywordSpec b -> Filter b AnObject
-      SameAs : Reference b k -> Filter b k    -- the candidate IS r (same kind; "another" = Not (SameAs This))
-      SameName : Reference b AnObject -> Filter b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
-      SharesChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> Reference b AnObject -> Filter b AnObject   -- shares ≥1 element of collection axis c with r (Coat of Arms: `SharesChar Subtypes It`); `SharesColor`/`SharesType` are just `SharesChar Colors`/`SharesChar Types`. Sugar: `sharesSubtype`.
-      WasCastFrom : Zone -> Filter b AnObject -- the object was cast from this zone (cast provenance)
-      WasCastWith : KeywordSpec b -> Filter b AnObject  -- cast using the keyword's ALTERNATIVE cost ("if its dash cost was paid",
+      HasChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> ElemOf c -> Predicate b AnObject
+      IsKind : ObjectKind -> Predicate b AnObject
+      InZone : Zone -> Predicate b AnObject
+      HasKeyword : KeywordSpec b -> Predicate b AnObject
+      SameAs : Reference b k -> Predicate b k    -- the candidate IS r (same kind; "another" = Not (SameAs This))
+      SameName : Reference b AnObject -> Predicate b AnObject   -- shares a name with r ("named [its own name]" = SameName This)
+      SharesChar : (c : Characteristic) -> {auto 0 _ : Collection c} -> Reference b AnObject -> Predicate b AnObject   -- shares ≥1 element of collection axis c with r (Coat of Arms: `SharesChar Subtypes It`); `SharesColor`/`SharesType` are just `SharesChar Colors`/`SharesChar Types`. Sugar: `sharesSubtype`.
+      WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
+      WasCastWith : KeywordSpec b -> Predicate b AnObject  -- cast using the keyword's ALTERNATIVE cost ("if its dash cost was paid",
                                                  -- [CR#702.109a] etc.) — the alt-cost twin of `WasCastFrom`; engine records the `MayCastFor` tag used
-      ExiledBy : Reference b AnObject -> Filter b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
+      ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
-      DamagedBy : Reference b AnObject -> Filter b AnObject  -- was dealt damage by r THIS TURN ("a creature dealt damage
+      DamagedBy : Reference b AnObject -> Predicate b AnObject  -- was dealt damage by r THIS TURN ("a creature dealt damage
                                                  -- by ~ this turn" = And [creature, DamagedBy This]); engine-held, like ExiledBy. Turn-scoped reset is the engine's.
-      HasName : String -> Filter b AnObject   -- named a specific card (tutors / token names)
-      HasCounter : (c : CounterKind) -> Filter b (counterScope c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
-      HasState : ObjectState -> Filter b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
+      HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
+      HasCounter : (c : CounterKind) -> Predicate b (counterScope c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
+      HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
       -- the DURATIVE aspect of the relation spine: "the candidate currently fills [role] of [r]" — object-only
       -- (only objects bear durative state; a player defender has none). `Holds Attack Agent` = an attacker,
       -- `Holds Block Patient` = a blocked creature. Unifies the legacy `Attacking`/`Blocking`/`Blocked` states.
-      Holds : Relation -> Role -> Filter b AnObject
+      Holds : Relation -> Role -> Predicate b AnObject
       -- carries a DESIGNATION; the candidate's kind follows `designationScope` ("you're the monarch" =
       -- `HasDesignation Monarch` is a player test, "while ~ is monstrous" an object test).
-      HasDesignation : (d : Designation) -> Filter b (designationScope d)
+      HasDesignation : (d : Designation) -> Predicate b (designationScope d)
       -- a numeric-characteristic comparison on the candidate — "target creature with power ≤ 2" =
       -- `And [creature, StatCmp Power AtMost (^2)]`. (Closes the "no stat filter" hole — stat
-      -- comparison was a `Condition` only; this lifts it into the `Filter`/filter language.)
-      StatCmp : (c : Characteristic) -> {auto 0 _ : Numeric c} -> Cmp -> Count b -> Filter b AnObject
+      -- comparison was a `Condition` only; this lifts it into the `Predicate`/filter language.)
+      StatCmp : (c : Characteristic) -> {auto 0 _ : Numeric c} -> Cmp -> Count b -> Predicate b AnObject
       -- the PLAYER-side stat filter — "an opponent has 10 or less life" = `And [opponent, PlayerStatCmp Life AtMost (^10)]`.
       -- The player twin of `StatCmp`; reads the SUBJECT player's `PlayerAttr`.
-      PlayerStatCmp : PlayerAttr -> Cmp -> Count b -> Filter b APlayer
-      ControlledBy : Filter b APlayer -> Filter b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
-      OwnedBy : Filter b APlayer -> Filter b AnObject
-      Controls : Filter b AnObject -> Filter b APlayer   -- the INVERSE: a PLAYER who controls a [pred] ("each player who controls a creature")
-      Multicolored : Filter b AnObject   -- ≥2 colors ([CR#105.2b])
-      IsColorless : Filter b AnObject    -- 0 colors (named to avoid the `Colorless : Maybe Color` value)
+      PlayerStatCmp : PlayerAttr -> Cmp -> Count b -> Predicate b APlayer
+      ControlledBy : Predicate b APlayer -> Predicate b AnObject   -- controller MATCHES a player-pred: "you control" = ControlledBy you, "an opponent controls" = ControlledBy opponent
+      OwnedBy : Predicate b APlayer -> Predicate b AnObject
+      Controls : Predicate b AnObject -> Predicate b APlayer   -- the INVERSE: a PLAYER who controls a [pred] ("each player who controls a creature")
+      Multicolored : Predicate b AnObject   -- ≥2 colors ([CR#105.2b])
+      IsColorless : Predicate b AnObject    -- 0 colors (named to avoid the `Colorless : Maybe Color` value)
       -- STACK-object filters: a spell/ability BY its targets ([CR#115]). "Spell that targets you" =
       -- `And [IsKind Spell, Targets (SameAs You)]`; "single-target spell" = `TargetCount Eq (^1)`.
-      Targets : Filter b k -> Filter b AnObject
-      TargetCount : Cmp -> Count b -> Filter b AnObject
+      Targets : Predicate b k -> Predicate b AnObject
+      TargetCount : Cmp -> Count b -> Predicate b AnObject
       -- the candidate's TAGGED optional cost (`CostOption`) was paid ("a kicked spell",
       -- [CR#702.33d..702.33e]) — the cost-mode read that retires the old `WasKicked` boolean flag.
-      -- Rust: Filter::WasPaidWith(CostTag).
-      WasPaidWith : (tag : String) -> Filter b AnObject
+      -- Rust: Predicate::WasPaidWith(CostTag).
+      WasPaidWith : (tag : String) -> Predicate b AnObject
       -- ANAPHOR: "the candidate has the chosen characteristic" — the chosen color (Iona: "spells of the
       -- chosen color") or creature type (Cavern: "a creature spell of the chosen type"). Gated on an
       -- as-enters CHARACTERISTIC choice being in scope (`IsCharDomain (chosenKind b)`); the engine
       -- resolves which characteristic to test from the domain. No per-color/-type literal anaphor needed.
-      OfChosen : {auto 0 prf : IsCharDomain (chosenKind b)} -> Filter b AnObject
+      OfChosen : {auto 0 prf : IsCharDomain (chosenKind b)} -> Predicate b AnObject
       -- `Anyone` is the player top-predicate ("any player" — a person, hence `APlayer`).
-      Anyone : Filter b APlayer
+      Anyone : Predicate b APlayer
       -- team-relative player predicates ([CR#102.3]): `OpponentOf` = a player NOT on your team; `TeammateOf` = another
       -- player ON your team. PRIMITIVE — the engine resolves team membership; they are NOT `Not (SameAs You)`, which
       -- wrongly counts a teammate as an opponent in Two-Headed Giant ([CR#810]) and other team games. ("you" stays
       -- the derived `SameAs You`; "your team" [CR#102.4] = `Or [SameAs You, TeammateOf]`.)
-      OpponentOf : Filter b APlayer
-      TeammateOf : Filter b APlayer
-      -- combinators (`Filter.And/Or/Not`, sharing names with `Condition`/`EventQuery`). `And`
+      OpponentOf : Predicate b APlayer
+      TeammateOf : Predicate b APlayer
+      -- combinators (`Predicate.And/Or/Not`, sharing names with `Condition`/`EventQuery`). `And`
       -- is same-kind — a candidate is ONE kind, so all conjuncts share it. `Or` (the union) is
       -- HETEROGENEOUS: its arms may differ in kind and the result kind is their JOIN
       -- (`foldr (\/) Empty` over the arms' kinds), so an `Or` mixing object and player predicates is
       -- `Anything` — no `Widen`. "Any target" = `Or [creature…, Anyone]`; an empty `Or` is `Empty`.
-      And : List (Filter b k) -> Filter b k
-      Or : {ks : List RefKind} -> All (Filter b) ks -> Filter b (foldr (\/) Empty ks)
-      Not : Filter b k -> Filter b k     -- negation
+      And : List (Predicate b k) -> Predicate b k
+      Or : {ks : List RefKind} -> All (Predicate b) ks -> Predicate b (foldr (\/) Empty ks)
+      Not : Predicate b k -> Predicate b k     -- negation
 
   -- A CLOSED / game-state test ([CR#603.4]); reaches objects only via `Matches`
-  -- (apply a `Filter` to a named `Reference`) or `exists`/`unique` (below).
+  -- (apply a `Predicate` to a named `Reference`) or `exists`/`unique` (below).
   namespace Condition
     public export
     data Condition : Ctx -> Type where
-      Matches : Reference b k -> Filter b k -> Condition b   -- does r satisfy the (same-kind) predicate
+      Matches : Reference b k -> Predicate b k -> Condition b   -- does r satisfy the (same-kind) predicate
       Compare : Count b -> Cmp -> Count b -> Condition b
-      TurnOf : Filter b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
+      TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
       During : PhaseStep -> Condition b
       -- "[r] is LEGALLY attached" ([CR#701.3b,303.4d]): has a host that passes the attach-legality
       -- predicate. The Aura graveyard SBA reads its negation (`Not (LegallyAttached This)`).
@@ -1422,7 +1422,7 @@ mutual
 
   -- The kind-free EVENT-FACET language: conditions refining WHICH event (never its kind, which lives in
   -- the `EventQuery` record's `kinds` slot). Facets conjoin via `And`; `Or` disjoins, `Not` negates (same
-  -- combinator names as Filter/Condition, in this namespace). The THEMATIC-ROLE facets embed the object/
+  -- combinator names as Predicate/Condition, in this namespace). The THEMATIC-ROLE facets embed the object/
   -- player language; `Within` and `Whenever` (over `During`/`TurnOf`) are the timing facets ("not during your turn" = `Not (Whenever (TurnOf You))`).
   namespace Facet
     public export
@@ -1430,15 +1430,15 @@ mutual
       -- ACTOR: the responsible PLAYER matches a player-pred (you / opponent) — the player AXIS, orthogonal to
       -- the agent→patient relation, NOT a third role. Double duty: the direct doer of a player-event
       -- (`[Begins Cast] [Actor you]`) and the CONTROLLER behind an object-`Agent` (`[DealDamage] [Agent ~, Actor you]`).
-      Actor   : Filter b APlayer -> Facet b
+      Actor   : Predicate b APlayer -> Facet b
       -- AGENT: the event's DOER/INITIATOR object matches — the moving object of a zone-change, or the
       -- SOURCE of damage (the object dealing it; protection's D leg). The two feed the SAME role.
-      Agent   : Filter b AnObject -> Facet b
+      Agent   : Predicate b AnObject -> Facet b
       -- PATIENT: the ACTED-UPON thing matches — a damage recipient, a destroyed/countered object, the spell
       -- being cast, the object gaining counters, OR the DEFENDER of an attack ([CR#508.1]). KIND-POLY (the
       -- defender, like a damage recipient, may be a PLAYER): "whenever YOU are attacked" = `[Begins Attack]
       -- [Patient you]`; "deals damage to you" = `Patient you`. Distinct from the `Agent` (the doer).
-      Patient : Filter b k -> Facet b
+      Patient : Predicate b k -> Facet b
       Within        : Window -> Facet b
       -- BRIDGE: any game-state `Condition` (timing or otherwise) as an event facet — "the event matches when
       -- [cond] holds". Subsumes the former `DuringStep`/`DuringTurn` (now `Whenever (During …)` / `Whenever
@@ -1478,7 +1478,7 @@ mutual
   namespace Selection
     public export
     data Selection : Ctx -> RefKind -> Type where
-      SelectAll : Filter b k -> Selection b k                  -- every match (a group)
+      SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
       Union : List (Selection b k) -> Selection b k              -- groups combined ("each X and each Y"); a fixed set = `Union` of `SameAs` singletons
       -- the PLURAL anaphors ([CR#608.2d]): `They` (any noun) / `Them w` ("those
       -- tokens") read the nearest Many antecedent — a plural target slot
@@ -1486,7 +1486,7 @@ mutual
       -- haste", [CR#111.2]), a many-binder — under the same R1/R2 rules.
       They : {auto 0 prf : resolveThey Nothing (stack b) = Bound k} -> Selection b k
       Them : (w : Sort) -> {auto 0 prf : resolveThey (Just w) (stack b) = Bound k} -> Selection b k
-      Random : Quantity b -> Filter b k -> Selection b k
+      Random : Quantity b -> Predicate b k -> Selection b k
       TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
       BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
       -- the extremal ELEMENT(s) of a `Projection` ("the creature with the greatest power" = `Pick MaxOf (eachOf
@@ -1495,12 +1495,12 @@ mutual
       -- group, narrowed by the usual `Single`/choice path.
       Pick : (op : AggregateOp) -> {auto 0 ext : IsExtremal op} -> Projection b -> Selection b AnObject
 
-  -- conjunctive PINS off a `Filter` (the object-kind / zone / card-type
+  -- conjunctive PINS off a `Predicate` (the object-kind / zone / card-type
   -- atoms a conjunction fixes) — `sortFromPins` turns them into the noun the
   -- filter's objects answer to. Only pinning atoms contribute; a disjunction
   -- pins nothing (the conservative direction).
   public export
-  pins : Filter b k -> Pins
+  pins : Predicate b k -> Pins
   pins (IsKind o) = MkPins (Just o) Nothing Nothing
   pins (InZone z) = MkPins Nothing (Just z) Nothing
   pins (HasChar Types t) = MkPins Nothing Nothing (Just t)
@@ -1508,7 +1508,7 @@ mutual
   pins _ = noPins
 
   public export
-  pinsAll : List (Filter b k) -> Pins
+  pinsAll : List (Predicate b k) -> Pins
   pinsAll [] = noPins
   pinsAll (p :: ps) = mergePins (pins p) (pinsAll ps)
 
@@ -1517,21 +1517,21 @@ mutual
   -- from its pins — this is what an announced slot / binder stamps on the
   -- antecedent it pushes.
   public export
-  filterSort : {k : RefKind} -> Filter b k -> Sort
+  filterSort : {k : RefKind} -> Predicate b k -> Sort
   filterSort {k = APlayer} _ = Player
   filterSort p = sortFromPins (pins p)
 
   -- the loop-element antecedent of a per-element construct over a filter.
   public export
-  loopOf : {k : RefKind} -> Filter b k -> Ante
-  loopOf p = MkAnte (filterSort p) k One Loop Nothing Nothing
+  loopOf : {k : RefKind} -> Predicate b k -> Ant
+  loopOf p = MkAnt (filterSort p) k One Loop Nothing Nothing
 
   -- the element antecedent a `Projection` binds (`It` = each counted
   -- object); total over `Countable`, though only `Objects` is projectable.
   public export
-  projElemAnte : Countable b -> Ante
+  projElemAnte : Countable b -> Ant
   projElemAnte (Objects p) = loopOf p
-  projElemAnte _ = MkAnte Permanent AnObject One Loop Nothing Nothing
+  projElemAnte _ = MkAnt Permanent AnObject One Loop Nothing Nothing
 
 
 -- the patient kind survives a cap-combine only when BOTH sources agree on it (a disjunction's body can
@@ -1577,7 +1577,7 @@ queryObjectSort q = case map eventKindObjectSort q.kinds of
 -- the role antecedents an event body pushes ([CR#603.2e,608.2k]): one per
 -- caps guarantee, the object's noun derived from the query's kinds.
 public export
-queryRoles : EventQuery b -> List Ante
+queryRoles : EventQuery b -> List Ant
 queryRoles q = roleAntes (eventQueryCaps q) (queryObjectSort q)
 
 -- "it's your turn" — the common specialization of `TurnOf`.
@@ -1586,12 +1586,12 @@ yourTurn : Condition b
 yourTurn = TurnOf (SameAs You)
 
 -- Sugar over the `Countable` core — readable common cases, no redundant constructors. `CountMatching`/
--- `CountEvents` are the old `CountOf (Filter)` / `EventCount`; `eachOf` builds a `Projection` without
+-- `CountEvents` are the old `CountOf (Predicate)` / `EventCount`; `eachOf` builds a `Projection` without
 -- spelling `Objects` (so devotion reads `Aggregate SumOf (eachOf yourPermanents …)`). These are the canonical
 -- object/event spellings; raw `CountOf (Objects …)` / `Project (Objects …)` are reserved for the negative
 -- tests, and raw `CountOf (ManaSymbols …)` / `CountOf (Players …)` are the only spelling for those sources.
 public export
-CountMatching : Filter b AnObject -> Count b
+CountMatching : Predicate b AnObject -> Count b
 CountMatching p = CountOf (Objects p)
 
 public export
@@ -1599,18 +1599,18 @@ CountEvents : EventQuery b -> Count b
 CountEvents q = CountOf (Events q)
 
 public export
-eachOf : (p : Filter b AnObject) -> Count (bindIt (loopOf p) b) -> Projection b
+eachOf : (p : Predicate b AnObject) -> Count (bindIt (loopOf p) b) -> Projection b
 eachOf p acc = Project (Objects p) acc
 
 -- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from `CountOf` + `Compare`, not
 -- primitive constructors. `CountOf` takes a `Countable`, so `exists (During …)` is a TYPE error (a
 -- `Condition` is not a `Countable`), not a degenerate term.
 public export
-exists : Filter b AnObject -> Condition b
+exists : Predicate b AnObject -> Condition b
 exists p = Compare (CountMatching p) Greater (Literal 0)
 
 public export
-unique : Filter b AnObject -> Condition b
+unique : Predicate b AnObject -> Condition b
 unique p = Compare (CountMatching p) Eq (Literal 1)
 
 public export
@@ -1740,7 +1740,7 @@ namespace TargetSpec
     -- may read back as an anaphor (`It` / `That w` / `They`), or read POSITIONALLY by its index in
     -- the `Targeted` list (`Reference.Target n`, this constructor's namesake in a different
     -- namespace) — the context-free escape hatch for same-sort/ambiguous slots.
-    Target : (q : Quantity b) -> {auto 0 prf : NonZeroQ q} -> Filter b k -> TargetSpec b k
+    Target : (q : Quantity b) -> {auto 0 prf : NonZeroQ q} -> Predicate b k -> TargetSpec b k
     -- a co-target set-DISTINCTNESS constraint ([CR#115.7e], "any OTHER target"): this spec's picks
     -- must not overlap the sibling slots at these indices; `Targeted` bounds the indices.
     Distinct : (siblings : List Nat) -> TargetSpec b k -> TargetSpec b k
@@ -1755,12 +1755,12 @@ quantityCard _ = Many
 -- the antecedent an announced slot pushes ([CR#115.3,601.2c]): noun from its
 -- filter, kind from its slot, cardinality from its quantity.
 public export
-slotAnte : {k : RefKind} -> TargetSpec b k -> Ante
-slotAnte (Target q p) = MkAnte (filterSort p) k (quantityCard q) TargetSlot Nothing Nothing
+slotAnte : {k : RefKind} -> TargetSpec b k -> Ant
+slotAnte (Target q p) = MkAnt (filterSort p) k (quantityCard q) TargetSlot Nothing Nothing
 slotAnte (Distinct _ t) = slotAnte t
 
 public export
-slotAntes : {ks : List RefKind} -> All (TargetSpec b) ks -> List Ante
+slotAntes : {ks : List RefKind} -> All (TargetSpec b) ks -> List Ant
 slotAntes [] = []
 slotAntes {ks = k :: ks'} (t :: ts) = slotAnte t :: slotAntes ts
 
@@ -1770,12 +1770,12 @@ slotAntes {ks = k :: ks'} (t :: ts) = slotAnte t :: slotAntes ts
 -- because `Targeted`'s `lbl` obligation below still names it — a home for
 -- labeled disambiguation should it ever return.
 public export
-labelFresh : Maybe String -> List Ante -> Bool
+labelFresh : Maybe String -> List Ant -> Bool
 labelFresh _ [] = True
 labelFresh l (a :: as) = not (sameLabel l a.label) && labelFresh l as
 
 public export
-labelsOk : List Ante -> Bool
+labelsOk : List Ant -> Bool
 labelsOk [] = True
 labelsOk (a :: as) = labelFresh a.label as && labelsOk as
 
@@ -1793,7 +1793,7 @@ distinctOk (t :: ts) n = specDistinctOk t n && distinctOk ts n
 
 -- "the unique object matching a predicate" — sugar: the sole element of `SelectAll p`.
 public export
-Only : Filter b AnObject -> Reference b AnObject
+Only : Predicate b AnObject -> Reference b AnObject
 Only p = Single (SelectAll p)
 
 -- a use-LIMIT on a `Replaces` — how many times it fires before it's CONSUMED (a shield). `Unlimited` =
@@ -1869,13 +1869,13 @@ namespace Deed
     --   "can't be countered" = `cant (Enact Counter spellOrAbility (SameAs This))`
     --   flash                = `Can  (Enact Cast you (SameAs This)) {window = AsInstant}`  ([CR#702.8a])
     -- (Subsumed the old Attacks/Blocks/Attaches/BeTargeted/Casts/Activates/Plays/Countered verbs.)
-    Enact      : (r : Relation) -> (agent : Filter b (agentScope r)) -> (patient : Filter b k) -> Deed b
+    Enact      : (r : Relation) -> (agent : Predicate b (agentScope r)) -> (patient : Predicate b k) -> Deed b
     -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
     -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `cant (BlockedBy This …)` constrains the
     -- WHOLE blocker set, not one blocker at a time — Menace = `cant (BlockedBy (SameAs This) (^1))`
     -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). The one combat constraint the identity
     -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
-    BlockedBy  : (attacker : Filter b AnObject) -> (size : Quantity b) -> {auto 0 prf : NonZeroQ size} -> Deed b
+    BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto 0 prf : NonZeroQ size} -> Deed b
 
 -- the value class of each `Characteristic` axis (defined far above, before the mutual block) — the type a
 -- `Set` op overwrites it with. Lives HERE, apart from the enum, because the numeric axes' value is a `Count`
@@ -1964,7 +1964,7 @@ mutual
       -- AGGREGATE cost: tap a chosen subset of [of_] whose summed numeric characteristic [c] satisfies [cmp] [n].
       -- ONE shape for Crew ("tap creatures, total power ≥ N" = `TapTotal Power GreaterEq (^n) creature`) — and the
       -- Convoke/devotion-scaling family the engine's authors flagged it should subsume.
-      TapTotal  : (c : Characteristic) -> {auto 0 _ : Numeric c} -> Cmp -> Count b -> (of_ : Filter b AnObject) -> Cost b
+      TapTotal  : (c : Characteristic) -> {auto 0 _ : Numeric c} -> Cmp -> Count b -> (of_ : Predicate b AnObject) -> Cost b
 
   -- A continuous CHANGE to a spell/ability cost ([CR#118.7]), carried by `StaticEffect::CostModifier`.
   -- Borrowed from the Rust engine's key split: this MODIFIES an existing base — it is NOT an alternative
@@ -1987,8 +1987,8 @@ mutual
   namespace PayAct
     public export
     data PayAct : Ctx -> Type where
-      TapToPay   : Filter b AnObject -> PayAct b   -- tap an untapped matching permanent you control (convoke creatures / improvise artifacts / waterbend artifacts-or-creatures)
-      ExileToPay : Filter b AnObject -> PayAct b   -- exile a matching card from your graveyard (delve)
+      TapToPay   : Predicate b AnObject -> PayAct b   -- tap an untapped matching permanent you control (convoke creatures / improvise artifacts / waterbend artifacts-or-creatures)
+      ExileToPay : Predicate b AnObject -> PayAct b   -- exile a matching card from your graveyard (delve)
 
   -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
   -- (`Characteristics Base`) and a created token (`Characteristics b`, so a token's P/T can be a
@@ -2024,7 +2024,7 @@ mutual
   namespace ManaRider
     public export
     data ManaRider : Ctx -> Type where
-      SpendOnly      : Filter b AnObject -> ManaRider b               -- (1) "spend only to cast/activate a [pred]" (Cavern's creature spell of the chosen type)
+      SpendOnly      : Predicate b AnObject -> ManaRider b               -- (1) "spend only to cast/activate a [pred]" (Cavern's creature spell of the chosen type)
       GrantOnSpend   : StaticEffect (bindIt PaidSpellAnte b) -> ManaRider b   -- (2) the object it's spent on (`It`) gains [static] (Cavern's "that spell can't be countered")
       TriggerOnSpend : OneShotEffect (bindIt PaidSpellAnte b) -> ManaRider b  -- (3) a delayed trigger when the mana is spent ([CR#603.7a]); `It` = the object paid for
 
@@ -2096,7 +2096,7 @@ mutual
       -- SET a player's life to N ([CR#119.5] — the player GAINS or LOSES the difference to reach N, so this DOES
       -- fire life-change triggers; it's distinct from `GainLife`/`LoseLife` only in naming the target total). Biorhythm.
       SetLifeTo : {default You actor : Reference b APlayer} -> Count b -> Action b
-      Sacrifice : {default You actor : Reference b APlayer} -> Filter b AnObject -> Action b   -- "sacrifices a [pred]" (the actor chooses which; defaults to You)
+      Sacrifice : {default You actor : Reference b APlayer} -> Predicate b AnObject -> Action b   -- "sacrifices a [pred]" (the actor chooses which; defaults to You)
       -- further keyword-action verbs ([CR#701]). The interactive bits (reorder, search choice, copy
       -- characteristics) are the engine's; the grammar names the verb. Scry/Surveil/Mill/Fight are NOT
       -- primitive verbs — they COMPOSITE over these primitives (`Each`/`With`/`Modal`/`Move`/`DealDamage`)
@@ -2203,19 +2203,19 @@ mutual
     data Bindable : Ctx -> Cardinality -> RefKind -> Type where
       -- ONE-binders → `That : Reference b k` (a single object):
       Produce : Action b -> Bindable b One AnObject  -- run the action, bind its product (the moved object) as `That`
-      ChooseOne : {default You by : Reference b APlayer} -> Filter b k -> Bindable b One k  -- `by` chooses exactly ONE match (interactive, so here not in `Selection`)
-      SearchOne : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Filter b k -> Bindable b One k  -- search `whose`'s `from`-zones for exactly ONE
+      ChooseOne : {default You by : Reference b APlayer} -> Predicate b k -> Bindable b One k  -- `by` chooses exactly ONE match (interactive, so here not in `Selection`)
+      SearchOne : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Predicate b k -> Bindable b One k  -- search `whose`'s `from`-zones for exactly ONE
       TheRef : Reference b k -> Bindable b One k  -- bind an EXISTING single reference (a captured target / `This`)
       -- MANY-binders → `That : Selection b k` (a group, `Each`-iterated):
       Existing : Selection b k -> Bindable b Many k  -- bind existing entities (a plain selection / group)
       -- `by` chooses a `Quantity` of entities matching the filter; the chosen are bound as
       -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
-      Choose : {default You by : Reference b APlayer} -> Quantity b -> Filter b k -> Bindable b Many k
+      Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b k -> Bindable b Many k
       -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
       -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
       -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
       -- is a following owner-routed `Move That …`. Rust: Selection::Search.
-      Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Filter b k -> Bindable b Many k
+      Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b Many k
 
   -- the antecedent a `With`/`Each`/`Distribute` binder introduces for its
   -- body ([CR#608.2d]): a CHOICE binder is a deterministic `Frame` (the
@@ -2223,14 +2223,14 @@ mutual
   -- never R2-gated); a search/produce binder pushes a whiffable `Product`
   -- ([CR#701.23,400.7j]) that resolves like any other stack antecedent.
   public export
-  binderAnte : {k : RefKind} -> {cd : Cardinality} -> Bindable b cd k -> Ante
-  binderAnte (Produce act) = MkAnte (produceSort act) k cd Product Nothing Nothing
-  binderAnte (ChooseOne p) = MkAnte (filterSort p) k cd Frame Nothing Nothing
-  binderAnte (SearchOne p) = MkAnte Card k cd Product Nothing Nothing
-  binderAnte (TheRef r) = MkAnte (kindSort k) k cd Frame Nothing Nothing
-  binderAnte (Existing g) = MkAnte (selectionSort g) k cd Frame Nothing Nothing
-  binderAnte (Choose q p) = MkAnte (filterSort p) k cd Frame Nothing Nothing
-  binderAnte (Search q p) = MkAnte Card k cd Product Nothing Nothing
+  binderAnte : {k : RefKind} -> {cd : Cardinality} -> Bindable b cd k -> Ant
+  binderAnte (Produce act) = MkAnt (produceSort act) k cd Product Nothing Nothing
+  binderAnte (ChooseOne p) = MkAnt (filterSort p) k cd Frame Nothing Nothing
+  binderAnte (SearchOne p) = MkAnt Card k cd Product Nothing Nothing
+  binderAnte (TheRef r) = MkAnt (kindSort k) k cd Frame Nothing Nothing
+  binderAnte (Existing g) = MkAnt (selectionSort g) k cd Frame Nothing Nothing
+  binderAnte (Choose q p) = MkAnt (filterSort p) k cd Frame Nothing Nothing
+  binderAnte (Search q p) = MkAnt Card k cd Product Nothing Nothing
 
   -- a produced (moved) object's noun follows its destination ([CR#400.7e]);
   -- a non-move producer is conservatively a `Permanent`.
@@ -2347,7 +2347,7 @@ mutual
   -- the recursion/catch-all, so this is always `[]`. Kept as the hook for a
   -- reference that should introduce something for its siblings again.
   public export
-  refIntro : {k : RefKind} -> Reference b k -> List Ante
+  refIntro : {k : RefKind} -> Reference b k -> List Ant
   refIntro (ControllerOf r) = refIntro r
   refIntro (OwnerOf r) = refIntro r
   refIntro (AttachHostOf r) = refIntro r
@@ -2365,12 +2365,12 @@ mutual
   -- much", [CR#608.2i]). TOTAL-BY-ENUMERATION: a verb that introduces
   -- nothing says so in its own arm.
   public export
-  actionIntro : Action b -> List Ante
-  actionIntro (Action.Move r d) = refIntro r ++ [MkAnte (destSort d) AnObject One Product (Just (destZone d)) Nothing]
-  actionIntro (Action.MoveArranged g _ d) = [MkAnte (destSort d) AnObject Many Product (Just (destZone d)) Nothing]
-  actionIntro (Action.CreateToken n c) = [MkAnte Token AnObject (countCard n) Product (Just Battlefield) Nothing]
-  actionIntro (Action.Draw n) = [MkAnte Card AnObject (countCard n) Product (Just Hand) Nothing, amountAnte]
-  actionIntro (Action.Discard n) = [MkAnte Card AnObject (countCard n) Product (Just Graveyard) Nothing, amountAnte]
+  actionIntro : Action b -> List Ant
+  actionIntro (Action.Move r d) = refIntro r ++ [MkAnt (destSort d) AnObject One Product (Just (destZone d)) Nothing]
+  actionIntro (Action.MoveArranged g _ d) = [MkAnt (destSort d) AnObject Many Product (Just (destZone d)) Nothing]
+  actionIntro (Action.CreateToken n c) = [MkAnt Token AnObject (countCard n) Product (Just Battlefield) Nothing]
+  actionIntro (Action.Draw n) = [MkAnt Card AnObject (countCard n) Product (Just Hand) Nothing, amountAnte]
+  actionIntro (Action.Discard n) = [MkAnt Card AnObject (countCard n) Product (Just Graveyard) Nothing, amountAnte]
   -- (the DealDamage recipient's kind is an erased index — no `A` push there;
   -- damage recipients are targets or loop elements, never indefinites)
   actionIntro (Action.DealDamage r n) = [amountAnte]
@@ -2407,7 +2407,7 @@ mutual
   -- `With`/`Targeted` body's escape. Loop bodies (`Each`/`Distribute`)
   -- introduce nothing — their elements pop with the body.
   public export
-  introduces : OneShotEffect b -> List Ante
+  introduces : OneShotEffect b -> List Ant
   introduces (Act a) = actionIntro a
   introduces (Sequence es) = seqIntro es
   introduces (Targeted ts e) = introduces e
@@ -2416,7 +2416,7 @@ mutual
   introduces _ = []
 
   public export
-  seqIntro : SeqList b -> List Ante
+  seqIntro : SeqList b -> List Ant
   seqIntro [] = []
   seqIntro (e :: es) = introduces e ++ seqIntro es
 
@@ -2448,7 +2448,7 @@ mutual
   namespace Ballot
     public export
     data Ballot : Ctx -> Type where
-      OverMatching : (p : Filter b AnObject) -> OneShotEffect (bindIt (loopOf p) b) -> Ballot b
+      OverMatching : (p : Predicate b AnObject) -> OneShotEffect (bindIt (loopOf p) b) -> Ballot b
       Outcomes : (options : List (VoteOption b)) -> {auto 0 ne : NonEmpty options} -> {default 0 tiebreak : Nat} -> Ballot b
 
   -- a continuous modification to a PLAYER attribute — the player-side twin of `ModificationOp`. `Raise`/`Lower`/
@@ -2519,7 +2519,7 @@ mutual
       -- continuous COST modification ([CR#118.7]): spells/abilities matching `of_` get the `change`.
       -- "Instant/sorcery spells you cast cost {1} less" = `CostModifier (And […, ControlledBy you]) (Reduce
       -- [^1])`; affinity is a SELF modifier `CostModifier (SameAs This) (ScaledBy (Reduce …) (CountOf …))`.
-      CostModifier : Filter b AnObject -> CostChange b -> StaticEffect b
+      CostModifier : Predicate b AnObject -> CostChange b -> StaticEffect b
       -- a DECLARED OPTIONAL COST on this object's own casting ([CR#118.8b,601.2b]) — the kicker/
       -- multikicker/buyback identity: one tag, read back by `PaidCost`/`TimesPaid`/`WasPaidWith`
       -- ([CR#702.33d..702.33e,607]). `repeatable` = multikicker's "any number of times"
@@ -2550,7 +2550,7 @@ mutual
       -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
       -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
       -- game-loss isn't a replaceable event — and from a deontic `cant` — it's not a player action.)
-      OutcomeGate : OutcomeGateKind -> Filter b APlayer -> StaticEffect b
+      OutcomeGate : OutcomeGateKind -> Predicate b APlayer -> StaticEffect b
       -- ADDITIVE replacement ([CR#614.13] "as well as"): when [event] happens it STILL happens, but
       -- [effect] also runs. An Aura enters attached via `Also thisEnters (Act (Attach This host))`.
       Also : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) b) -> StaticEffect b
@@ -2560,7 +2560,7 @@ mutual
       -- multiplied (an artifact/creature ETB); `affected` filters the affected ability's SOURCE permanent,
       -- defaulting to "you control" (Panharmonicon/Teysa) — override for any/opponent doublers. Panharmonicon
       -- = `TriggerMultiplier (MkEventQuery [ZoneChanged Nothing (Just Battlefield)] [Agent (Or [artifact, creature])]) (^1)`.
-      TriggerMultiplier : (cause : EventQuery b) -> (extra : Count b) -> {default (ControlledBy (SameAs You)) affected : Filter b AnObject} -> StaticEffect b
+      TriggerMultiplier : (cause : EventQuery b) -> (extra : Count b) -> {default (ControlledBy (SameAs You)) affected : Predicate b AnObject} -> StaticEffect b
       -- a STATE-BASED ACTION as data ([CR#704]): whenever [when] holds (with `This` = the carrier), do
       -- [then] in the SBA sweep. ONE primitive for the Aura graveyard rule (`Sba (Not (LegallyAttached
       -- This)) (Act (Move This (ToZone Graveyard)))`, [CR#704.5m]) AND a Saga's final-chapter sacrifice — the
@@ -2570,7 +2570,7 @@ mutual
       -- "[who]'s unspent mana doesn't empty" ([CR#106.4] exception) — Kruphix/Omnath. A pool-policy
       -- static over ALL your mana — which is WHY "doesn't empty" is NOT a per-mana `ManaRider` (that would
       -- double-represent this blanket form); the `ManaRider` set is exactly the [CR#106.6] trio. Engine resolves.
-      ManaPersists : Filter b APlayer -> StaticEffect b
+      ManaPersists : Predicate b APlayer -> StaticEffect b
       -- "you may cast THIS for [costs] from [from]" ([CR#118.9]) — the alternative-cost permission (a base SWAP,
       -- distinct from `CostModifier`'s base modify; that distinction is carried HERE, by the consumer, so the
       -- cost list needs no `AltCost` wrapper). `costs` is the swapped-in cost ([] = "without paying its mana
@@ -2673,10 +2673,10 @@ mutual
       -- at `b`, untouched. `d` is value-only now; a chosen ENTITY goes through `AsEntersChoosing`.
       AsEnters : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> List (Ability (bindChosen d b)) -> Ability b
       -- "As ~ enters, choose a [filtered ENTITY]" ([CR#614.12]) — the game-entity twin of `AsEnters`. The
-      -- `Filter b k` is the choosable set (Clone's "a creature", lost when this was the unconstrained
+      -- `Predicate b k` is the choosable set (Clone's "a creature", lost when this was the unconstrained
       -- `AnObjectChoice`); `k` is gated to object/player by `ChoiceRefKindOk`. The chosen entity binds
       -- `chosenRefKind k`, read back by `ChosenObject`/`ChosenPlayer` in the nested abilities.
-      AsEntersChoosing : (k : RefKind) -> {auto 0 ok : ChoiceRefKindOk k} -> Filter b k -> List (Ability (bindChosenRef k b)) -> Ability b
+      AsEntersChoosing : (k : RefKind) -> {auto 0 ok : ChoiceRefKindOk k} -> Predicate b k -> List (Ability (bindChosenRef k b)) -> Ability b
 
 -- A card's printed face is just `Characteristics` at the empty bindings.
 public export
@@ -2688,13 +2688,13 @@ Face = Characteristics Base
 -- falls-off rule). `scope` is the binding domain for `This` (checked first — what makes a rule that lives
 -- on no card range over objects, exactly the Rust `SbaRule { scope, when, then }`); `when` fires it (with
 -- `This` = the scoped object); `thenDo` is the sweep action. This is a factoring of existing pieces
--- (`Filter`/`Condition`/`OneShotEffect`), not a new primitive. INTRINSIC-keyword SBAs do NOT live here:
+-- (`Predicate`/`Condition`/`OneShotEffect`), not a new primitive. INTRINSIC-keyword SBAs do NOT live here:
 -- deathtouch's [CR#704.5h] rides the `Deathtouch` keyword (intrinsic — its prospective lethality rewrite
 -- [CR#702.2c] can't be composed), so it is engine-baked, not a data rule.
 public export
 record SbaRule where
   constructor MkSbaRule
-  scope  : Filter Base AnObject  -- the domain `This` ranges over (e.g. a creature on the battlefield)
+  scope  : Predicate Base AnObject  -- the domain `This` ranges over (e.g. a creature on the battlefield)
   when   : Condition Base           -- fires when this holds, with `This` = the scoped object
   thenDo : OneShotEffect Base       -- the sweep action (`then` is a reserved word, hence `thenDo`)
 
@@ -2807,11 +2807,11 @@ bottomFrom : Count b -> Reference b APlayer -> Selection b AnObject
 bottomFrom c w = BottomOfLibrary c {whose = w}
 
 public export
-chooseOneBy : Reference b APlayer -> Filter b k -> Bindable b One k
+chooseOneBy : Reference b APlayer -> Predicate b k -> Bindable b One k
 chooseOneBy by p = ChooseOne {by} p
 
 public export
-chooseBy : Reference b APlayer -> Quantity b -> Filter b k -> Bindable b Many k
+chooseBy : Reference b APlayer -> Quantity b -> Predicate b k -> Bindable b Many k
 chooseBy by q p = Choose {by} q p
 
 public export
@@ -2853,7 +2853,7 @@ setLifeToBy : Reference b APlayer -> Count b -> Action b
 setLifeToBy a c = SetLifeTo {actor = a} c
 
 public export
-sacrificeBy : Reference b APlayer -> Filter b AnObject -> Action b
+sacrificeBy : Reference b APlayer -> Predicate b AnObject -> Action b
 sacrificeBy a p = Sacrifice {actor = a} p
 
 public export
@@ -2874,7 +2874,7 @@ costOptionRep : String -> List (Cost b) -> Bool -> StaticEffect b
 costOptionRep t cs r = CostOption t cs {repeatable = r}
 
 public export
-triggerMultiplierFor : (cause : EventQuery b) -> Count b -> Filter b AnObject -> StaticEffect b
+triggerMultiplierFor : (cause : EventQuery b) -> Count b -> Predicate b AnObject -> StaticEffect b
 triggerMultiplierFor c e a = TriggerMultiplier c e {affected = a}
 
 public export

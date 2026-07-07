@@ -14,7 +14,7 @@
     name: "Hexproof",
     template: "hexproof${ from #from#}",
     kinds: [KeywordAbility],
-    params: { "from": Default(Filter, Any) },
+    params: { "from": Default(Predicate, Any) },
     body: Composite(
         name: "Hexproof",
         abilities: [Static(Cant(Target(

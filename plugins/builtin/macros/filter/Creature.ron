@@ -1,6 +1,6 @@
 (
     name: "Creature",
     template: "creature",
-    kinds: [Filter],
+    kinds: [Predicate],
     body: AllOf([Permanent, Type(Creature)])
 )

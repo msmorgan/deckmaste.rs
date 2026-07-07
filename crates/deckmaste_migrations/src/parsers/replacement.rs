@@ -213,7 +213,7 @@ fn count_word(word: &str) -> Option<u32> {
     })
 }
 
-/// Build the object `Filter` RON for a dual-land subject phrase plus its
+/// Build the object `Predicate` RON for a dual-land subject phrase plus its
 /// controller atom. Covers the descriptions the shared [`filter::parse_phrase`]
 /// doesn't: the `basic`/`legendary` supertype adjectives and subtype
 /// disjunctions ("a Swamp or a Mountain", "a Mount or Vehicle"). A single

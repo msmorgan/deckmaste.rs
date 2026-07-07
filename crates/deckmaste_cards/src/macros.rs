@@ -49,10 +49,10 @@ pub fn kinds() -> KindSet {
 /// grammar kind — the [typed-holes delta 1] retype, so a `params: [Any]` slot
 /// is the deliberate escape hatch, not the default. A validator reads the
 /// argument as its Rust type with macros in scope, so the check and the real
-/// grammar are one path (a bad `Color`, `Effect`, `Filter`, … fails at the
+/// grammar are one path (a bad `Color`, `Effect`, `Predicate`, … fails at the
 /// call site exactly as it would at a real position).
 ///
-/// The registered name is the type's own serde name (`Filter`, `Effect`,
+/// The registered name is the type's own serde name (`Predicate`, `Effect`,
 /// `Reference`), with three shaped exceptions carrying their own spelling:
 /// `Color` (a characteristic, not a macro kind), `Cost` (the *list* form
 /// `Vec<CostComponent>`, the bracketed keyword-cost argument), and `Abilities`
@@ -80,7 +80,7 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::Destination>("Destination");
     param_types.add_typed::<dc::Effect>("Effect");
     param_types.add_typed::<dc::EventFilter>("EventFilter");
-    param_types.add_typed::<dc::Filter>("Filter");
+    param_types.add_typed::<dc::Predicate>("Predicate");
     param_types.add_typed::<dc::KeywordAbility>("KeywordAbility");
     param_types.add_typed::<dc::ManaRider>("ManaRider");
     param_types.add_typed::<dc::Modification>("Modification");
@@ -115,7 +115,7 @@ mod tests {
     use deckmaste_core::Action;
     use deckmaste_core::AsThough;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicFilter;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Condition;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Count;
@@ -123,17 +123,17 @@ mod tests {
     use deckmaste_core::Destination;
     use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::Filter;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::ManaRider;
     use deckmaste_core::Modification;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
     use deckmaste_core::Replacement;
     use deckmaste_core::Selection;
-    use deckmaste_core::StateFilter;
+    use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
     use deckmaste_core::TargetSpec;
@@ -174,7 +174,7 @@ mod tests {
             name_of::<Zone>(),
             name_of::<Effect>(),
             name_of::<EventFilter>(),
-            name_of::<Filter>(),
+            name_of::<Predicate>(),
             name_of::<KeywordAbility>(),
             name_of::<ManaRider>(),
             name_of::<Modification>(),
@@ -198,9 +198,9 @@ mod tests {
         assert_eq!(kinds.len(), names.len());
     }
 
-    /// Filter's generated Deserialize calls `deserialize_enum` with the
+    /// Predicate's generated Deserialize calls `deserialize_enum` with the
     /// full flattened variant list (its own names plus the compartments'):
-    /// that is what lets unknown names at Filter positions fall through to
+    /// that is what lets unknown names at Predicate positions fall through to
     /// the macro namespace.
     #[test]
     fn filter_positions_expand_macros() {
@@ -208,27 +208,27 @@ mod tests {
         macros
             .insert(&def(r#"(
                     name: "AnyTargetish",
-                    kinds: [Filter],
+                    kinds: [Predicate],
                     body: OneOf([Kind(Player), AllOf([InZone(Battlefield), Type(Creature)])]),
                 )"#))
             .unwrap();
-        let filter: Filter = macros.read_str("AnyTargetish").unwrap();
+        let filter: Predicate = macros.read_str("AnyTargetish").unwrap();
         // The invocation is remembered; the expansion lives under `.value`.
-        let Filter::Expanded(expanded) = filter else {
+        let Predicate::Expanded(expanded) = filter else {
             panic!("expected a remembered filter, got {filter:?}");
         };
         assert_eq!(expanded.name, "AnyTargetish");
-        let Filter::OneOf(arms) = *expanded.value else {
+        let Predicate::OneOf(arms) = *expanded.value else {
             panic!("expected OneOf, got {:?}", expanded.value);
         };
-        assert_eq!(arms[0], Filter::Kind(ObjectKind::Player));
-        // The nested arm proves Filter positions *inside* an expansion stay
+        assert_eq!(arms[0], Predicate::Kind(ObjectKind::Player));
+        // The nested arm proves Predicate positions *inside* an expansion stay
         // macro-aware too.
         assert_eq!(
             arms[1],
-            Filter::AllOf(vec![
-                Filter::State(StateFilter::InZone(Zone::Battlefield)),
-                Filter::creature(),
+            Predicate::AllOf(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
             ])
         );
         assert_eq!(arms.len(), 2);
@@ -332,7 +332,7 @@ mod tests {
         assert_eq!(expanded.name, "EachCreature");
         assert_eq!(
             *expanded.value,
-            Selection::SelectAll(Filter::Characteristic(CharacteristicFilter::Type(
+            Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Creature
             )))
         );
@@ -464,7 +464,7 @@ mod tests {
         assert_eq!(expanded.name, "TargetCreature");
         assert_eq!(
             *expanded.value,
-            TargetSpec::Target(Quantity::one(), Filter::creature(),)
+            TargetSpec::Target(Quantity::one(), Predicate::creature(),)
         );
     }
 
@@ -515,7 +515,7 @@ mod tests {
 
     /// A remembered invocation round-trips as the invocation through the
     /// real core types' `Serialize` impls: a nullary Ability
-    /// macro serializes back to its bare name, a parameterized Filter macro
+    /// macro serializes back to its bare name, a parameterized Predicate macro
     /// to the original call text — not the expansion.
     #[test]
     fn remembered_invocations_round_trip_as_invocations() {
@@ -530,7 +530,7 @@ mod tests {
         macros
             .insert(&def(r#"(
                     name: "OfType",
-                    kinds: [Filter],
+                    kinds: [Predicate],
                     params: [Any],
                     body: Type(Param(0)),
                 )"#))
@@ -542,7 +542,7 @@ mod tests {
             "Flying"
         );
 
-        let filter: Filter = macros.read_str("OfType(Creature)").unwrap();
+        let filter: Predicate = macros.read_str("OfType(Creature)").unwrap();
         assert_eq!(
             deckmaste_core::ron::options().to_string(&filter).unwrap(),
             "OfType(Creature)"
@@ -655,7 +655,7 @@ mod tests {
             "Count",
             "Destination",
             "EventFilter",
-            "Filter",
+            "Predicate",
             "KeywordAbility",
             "ManaRider",
             "Modification",
@@ -723,7 +723,7 @@ mod tests {
         macros
             .insert(&def(r#"(
                     name: "IsThat",
-                    kinds: [Filter],
+                    kinds: [Predicate],
                     params: [Reference],
                     body: Ref(Param(0)),
                 )"#))

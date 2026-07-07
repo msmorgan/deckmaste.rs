@@ -8,6 +8,6 @@
     name: "Sacrificed",
     template: "${0} is sacrificed",
     kinds: [EventFilter],
-    params: [Filter],
+    params: [Predicate],
     body: ZoneChange(what: Param(0), from: Battlefield, to: Graveyard, cause: Cause(verb: Sacrifice)),
 )

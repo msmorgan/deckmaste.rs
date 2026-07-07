@@ -7,8 +7,8 @@ use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Effect;
 use deckmaste_core::EventFilter;
-use deckmaste_core::Filter;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
 use deckmaste_core::StaticEffect;
@@ -139,7 +139,7 @@ impl GameState {
     fn enters_attached_host(
         &self,
         entering: crate::object::ObjectId,
-        filter: &Filter,
+        filter: &Predicate,
     ) -> Option<crate::object::ObjectId> {
         crate::target::candidates(self, filter)
             .into_iter()
@@ -150,11 +150,11 @@ impl GameState {
     }
 }
 
-/// The host-quality `Filter` of an enters-attached self-replacement —
+/// The host-quality `Predicate` of an enters-attached self-replacement —
 /// `With(ChooseOne(quality), Attach(This, It))` ([CR#303.4f]: as it enters,
 /// the controller chooses a legal host matching the Aura's enchant quality),
 /// looked through `Expanded`. `None` for any other shape.
-fn enters_attached_quality(effect: &Effect) -> Option<&Filter> {
+fn enters_attached_quality(effect: &Effect) -> Option<&Predicate> {
     match effect {
         Effect::With(with) => {
             let body_is_self_attach = matches!(
@@ -169,9 +169,9 @@ fn enters_attached_quality(effect: &Effect) -> Option<&Filter> {
     }
 }
 
-/// The `Filter` a `ChooseOne` binder chooses among (the host quality), through
-/// a remembered macro invocation.
-fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Filter> {
+/// The `Predicate` a `ChooseOne` binder chooses among (the host quality),
+/// through a remembered macro invocation.
+fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Predicate> {
     match binder {
         deckmaste_core::Binder::ChooseOne { filter, .. } => Some(filter),
         deckmaste_core::Binder::Expanded(e) => host_quality(&e.value),
@@ -217,7 +217,7 @@ fn would_is_self_enter(would: &EventFilter) -> bool {
         // A move *to* the battlefield, of this object (or match-anything).
         EventFilter::ZoneChange { what, to, .. } => {
             *to == Some(Zone::Battlefield)
-                && matches!(what, Filter::Ref(Reference::This) | Filter::Any)
+                && matches!(what, Predicate::Ref(Reference::This) | Predicate::Any)
         }
         _ => false,
     }
@@ -277,18 +277,18 @@ mod tests {
             abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Filter::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::This),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
                     also: Effect::With(deckmaste_core::With {
                         binder: deckmaste_core::Binder::ChooseOne {
-                            filter: Filter::AllOf(vec![
-                                Filter::State(deckmaste_core::StateFilter::InZone(
+                            filter: Predicate::AllOf(vec![
+                                Predicate::State(deckmaste_core::StatePredicate::InZone(
                                     Zone::Battlefield,
                                 )),
-                                Filter::creature(),
+                                Predicate::creature(),
                             ]),
                             by: Reference::You,
                         },
@@ -408,7 +408,7 @@ mod tests {
             abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Filter::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::This),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
@@ -472,17 +472,17 @@ mod tests {
     /// lands you control), AtLeast, 1)), then: Tap(This)))` — "~ enters
     /// tapped unless you control one or more other lands" ([CR#614.1d]).
     fn tapped_unless_land() -> Card {
-        use deckmaste_core::CharacteristicFilter;
+        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
         use deckmaste_core::Count;
         use deckmaste_core::If;
-        use deckmaste_core::RelationFilter;
+        use deckmaste_core::RelationPredicate;
 
-        let other_lands_you_control = Filter::AllOf(vec![
-            Filter::Characteristic(CharacteristicFilter::Type(Type::Land)),
-            Filter::Not(Box::new(Filter::Ref(Reference::This))),
-            Filter::Relation(RelationFilter::ControlledBy(Box::new(Filter::Ref(
+        let other_lands_you_control = Predicate::AllOf(vec![
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land)),
+            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
@@ -497,7 +497,7 @@ mod tests {
             abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Filter::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::This),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
