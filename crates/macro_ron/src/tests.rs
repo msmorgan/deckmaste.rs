@@ -1752,6 +1752,49 @@ mod derived {
         );
     }
 
+    /// Exclude fixtures, mirroring `Destination::Zone` with
+    /// `exclude(Library, Stack)`: `Spot` is the flattened payload, `Nook`
+    /// narrows the compartment so `Cellar` and `Vault` do not lift. `Nook`
+    /// reclaims `Cellar` with its OWN variant (as `Destination::Library`
+    /// reclaims `Library` for the anchored form); `Vault` is excluded with no
+    /// reclaim (as `Stack` is never a destination).
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Spot {
+        Attic,
+        Cellar,
+        Vault,
+    }
+
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Nook {
+        #[macro_ron(flatten, exclude(Cellar, Vault))]
+        Spot(Spot),
+        Cellar(u32),
+    }
+
+    /// `exclude(...)` narrows a `flatten`: excluded payload names do not lift
+    /// (a reclaimed one routes to the parent's OWN variant; an unreclaimed one
+    /// is rejected on read), while un-excluded names still flatten and
+    /// round-trip.
+    #[test]
+    fn flatten_exclude_narrows_the_compartment() {
+        // An un-excluded payload name still lifts and round-trips.
+        let read: Nook = super::options().from_str("Attic").unwrap();
+        assert_eq!(read, Nook::Spot(Spot::Attic));
+        assert_eq!(super::options().to_string(&read).unwrap(), "Attic");
+
+        // A reclaimed name routes to the parent's OWN variant, not the payload.
+        let read: Nook = super::options().from_str("Cellar(7)").unwrap();
+        assert_eq!(read, Nook::Cellar(7));
+
+        // An excluded, unreclaimed name is rejected (mirrors bare `Stack`).
+        assert!(super::options().from_str::<Nook>("Vault").is_err());
+
+        // ALL_VARIANTS: OWN (["Cellar"]) ++ Spot's set minus the excluded
+        // names — so "Vault" is absent and "Cellar" appears once (the OWN one).
+        assert_eq!(<Nook as SupportsMacros>::ALL_VARIANTS, &["Cellar", "Attic"]);
+    }
+
     /// Flatten lifts *names*, not macro namespaces: Step has no embed
     /// variant, so its kind has `embeds_untagged = false` and an unknown
     /// ident at a Step position is looked up among *Step* macros only. A

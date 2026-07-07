@@ -92,6 +92,23 @@ fn flatten_payloads(input: &Input) -> Vec<&Type> {
         .collect()
 }
 
+/// The payload variant names every `flatten` compartment must NOT lift, as
+/// string literals (`#[macro_ron(flatten, exclude(A, B))]`). Empty for a type
+/// with no `exclude(...)`.
+fn flatten_excludes(input: &Input) -> Vec<String> {
+    input
+        .variants
+        .iter()
+        .flat_map(|v| v.flatten_exclude.iter())
+        .map(ToString::to_string)
+        .collect()
+}
+
+/// The `&["A", "B"]` token for an exclude list.
+fn exclude_lit(excludes: &[String]) -> TokenStream {
+    quote!(&[#(#excludes),*])
+}
+
 /// The constructor mapping a deserialized payload into a newtype variant:
 /// the bare path constructor `#ty::#v_ident` (a tuple-struct fn), or — when the
 /// payload is `Box`ed — a closure that re-boxes it. Shared by
@@ -191,7 +208,7 @@ fn gen_support(input: &Input) -> Result<TokenStream> {
     if let Some(v) = input.embed() {
         tails.push(peeled(&v.embed_payload().ty).0);
     }
-    let all = concat_lists(ty, &tails);
+    let all = concat_lists(ty, &tails, &flatten_excludes(input));
 
     let kind = gen_kind(input, &ty_name);
 
@@ -244,19 +261,37 @@ fn gen_support(input: &Input) -> Result<TokenStream> {
 }
 
 /// `<T>::OWN_VARIANTS` alone, or a `concat_variants` of it with each tail
-/// type's `ALL_VARIANTS` when there are tails.
-fn concat_lists(ty: &Ident, tails: &[&Type]) -> TokenStream {
+/// type's `ALL_VARIANTS` when there are tails. With `excludes`, the tails'
+/// contribution drops those names (the parent's OWN names are never filtered)
+/// via `concat_variants_excluding`.
+fn concat_lists(ty: &Ident, tails: &[&Type], excludes: &[String]) -> TokenStream {
     if tails.is_empty() {
         return quote!(<#ty as ::macro_ron::SupportsMacros>::OWN_VARIANTS);
     }
+    if excludes.is_empty() {
+        return quote! {
+            &::macro_ron::concat_variants::<{
+                <#ty as ::macro_ron::SupportsMacros>::OWN_VARIANTS.len()
+                    #(+ <#tails as ::macro_ron::SupportsMacros>::ALL_VARIANTS.len())*
+            }>(&[
+                <#ty as ::macro_ron::SupportsMacros>::OWN_VARIANTS,
+                #(<#tails as ::macro_ron::SupportsMacros>::ALL_VARIANTS,)*
+            ])
+        };
+    }
+    let exclude = exclude_lit(excludes);
     quote! {
-        &::macro_ron::concat_variants::<{
+        &::macro_ron::concat_variants_excluding::<{
             <#ty as ::macro_ron::SupportsMacros>::OWN_VARIANTS.len()
-                #(+ <#tails as ::macro_ron::SupportsMacros>::ALL_VARIANTS.len())*
-        }>(&[
+                + ::macro_ron::count_kept(
+                    &[#(<#tails as ::macro_ron::SupportsMacros>::ALL_VARIANTS),*],
+                    #exclude,
+                )
+        }>(
             <#ty as ::macro_ron::SupportsMacros>::OWN_VARIANTS,
-            #(<#tails as ::macro_ron::SupportsMacros>::ALL_VARIANTS,)*
-        ])
+            &[#(<#tails as ::macro_ron::SupportsMacros>::ALL_VARIANTS),*],
+            #exclude,
+        )
     }
 }
 
@@ -376,18 +411,27 @@ fn fall_throughs(input: &Input) -> Vec<TokenStream> {
         };
         let (inner, boxed) = peeled(&f.ty);
         let construct = newtype_construct(ty, &v.ident, boxed);
-        falls.push(fall_through(inner, &construct));
+        falls.push(fall_through(inner, &construct, &v.flatten_exclude));
     }
     if let Some(v) = input.embed() {
         let inner = peeled(&v.embed_payload().ty).0;
-        falls.push(fall_through(inner, &embed_construct(ty, v)));
+        falls.push(fall_through(inner, &embed_construct(ty, v), &[]));
     }
     falls
 }
 
-fn fall_through(inner: &Type, construct: &TokenStream) -> TokenStream {
+fn fall_through(inner: &Type, construct: &TokenStream, exclude: &[Ident]) -> TokenStream {
+    // An excluded payload name never dispatches here — `from_variant` returns
+    // `None` for it (a bare `Library` is not a `Destination::Zone`), so the
+    // caller reports it as unknown, mirroring the Idris `DestinationOk` gate.
+    let guard = if exclude.is_empty() {
+        quote!()
+    } else {
+        let names = exclude.iter().map(ToString::to_string);
+        quote!(&& !&[#(#names),*].contains(&ident))
+    };
     quote! {
-        if <#inner as ::macro_ron::SupportsMacros>::ALL_VARIANTS.contains(&ident) {
+        if <#inner as ::macro_ron::SupportsMacros>::ALL_VARIANTS.contains(&ident) #guard {
             return <#inner as ::macro_ron::SupportsMacros>::from_variant(ident, access)
                 .map(|__r| __r.map(#construct));
         }
@@ -526,7 +570,7 @@ fn gen_deserialize(input: &Input) -> TokenStream {
     // flattened compartments' — NEVER the embed payload's, so the macro
     // layer's `embeds_untagged` hook routes those identifiers to
     // `visit_newtype_struct` and the embedded type's macros work here.
-    let native = concat_lists(ty, &flatten_payloads(input));
+    let native = concat_lists(ty, &flatten_payloads(input), &flatten_excludes(input));
 
     let visit_newtype = input.embed().map(|v| {
         let inner = peeled(&v.embed_payload().ty).0;

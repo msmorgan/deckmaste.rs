@@ -52,6 +52,12 @@ pub struct Variant {
     pub ident: Ident,
     pub marker: Option<Marker>,
     pub shape: Shape,
+    /// `#[macro_ron(flatten, exclude(A, B))]` — payload variant names the
+    /// compartment must NOT lift into the parent, so a name the parent
+    /// forbids (e.g. `Destination` excludes `Library`/`Stack`, mirroring the
+    /// Idris `DestinationOk` gate) is rejected on read instead of read as a
+    /// `Zone`. Empty unless the variant is a `flatten` carrying `exclude(...)`.
+    pub flatten_exclude: Vec<Ident>,
 }
 
 pub struct Input {
@@ -139,7 +145,7 @@ pub fn parse(input: &DeriveInput) -> Result<Input> {
     }
     let mut variants = Vec::new();
     for v in &data.variants {
-        let marker = variant_marker(&v.attrs)?;
+        let (marker, flatten_exclude) = variant_marker(&v.attrs)?;
         let shape = match &v.fields {
             Fields::Unit => Shape::Unit,
             Fields::Unnamed(fs) if fs.unnamed.len() == 1 => {
@@ -151,10 +157,17 @@ pub fn parse(input: &DeriveInput) -> Result<Input> {
             Fields::Named(fs) => Shape::Struct(fs.named.iter().map(field).collect::<Result<_>>()?),
         };
         validate(&v.ident, marker, &shape)?;
+        if !flatten_exclude.is_empty() && marker != Some(Marker::Flatten) {
+            return Err(Error::new(
+                v.ident.span(),
+                "exclude(...) is only valid on a `flatten` variant",
+            ));
+        }
         variants.push(Variant {
             ident: v.ident.clone(),
             marker,
             shape,
+            flatten_exclude,
         });
     }
     Ok(Input {
@@ -163,7 +176,7 @@ pub fn parse(input: &DeriveInput) -> Result<Input> {
     })
 }
 
-fn variant_marker(attrs: &[Attribute]) -> Result<Option<Marker>> {
+fn variant_marker(attrs: &[Attribute]) -> Result<(Option<Marker>, Vec<Ident>)> {
     // Serde attrs on a variant are not forwarded.
     if let Some(attr) = attrs.iter().find(|a| a.path().is_ident("serde")) {
         return Err(Error::new_spanned(
@@ -172,8 +185,18 @@ fn variant_marker(attrs: &[Attribute]) -> Result<Option<Marker>> {
         ));
     }
     let mut marker = None;
+    let mut exclude = Vec::new();
     for attr in attrs.iter().filter(|a| a.path().is_ident("macro_ron")) {
         attr.parse_nested_meta(|meta| {
+            // `exclude(A, B)` is a modifier, not a marker: collect the named
+            // payload variants this `flatten` must not lift.
+            if meta.path.is_ident("exclude") {
+                return meta.parse_nested_meta(|inner| {
+                    let ident = inner.path.require_ident()?.clone();
+                    exclude.push(ident);
+                    Ok(())
+                });
+            }
             let m = if meta.path.is_ident("expanded") {
                 Marker::Expanded
             } else if meta.path.is_ident("embed") {
@@ -183,7 +206,9 @@ fn variant_marker(attrs: &[Attribute]) -> Result<Option<Marker>> {
             } else if meta.path.is_ident("literal") {
                 Marker::Literal
             } else {
-                return Err(meta.error("expected one of: expanded, embed, flatten, literal"));
+                return Err(
+                    meta.error("expected one of: expanded, embed, flatten, literal, exclude(...)")
+                );
             };
             if marker.replace(m).is_some() {
                 return Err(meta.error("at most one macro_ron marker per variant"));
@@ -191,7 +216,7 @@ fn variant_marker(attrs: &[Attribute]) -> Result<Option<Marker>> {
             Ok(())
         })?;
     }
-    Ok(marker)
+    Ok((marker, exclude))
 }
 
 fn field(f: &syn::Field) -> Result<Field> {

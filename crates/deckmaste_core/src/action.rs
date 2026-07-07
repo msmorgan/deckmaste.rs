@@ -31,10 +31,21 @@ pub enum Anchor {
 /// `#[macro_ron(flatten)]` marker lifts [`Zone`](crate::Zone)'s variant names
 /// into `Destination`'s dispatch — so `Move(This, Graveyard)` is unchanged; the
 /// library form is `Move(This, Library(FromTop(0)))`.
+///
+/// `exclude(Library, Stack)` narrows the flattened set: the library is an
+/// ORDERED zone, so it is a destination only AT a position (the dedicated
+/// `Library(Anchor)` form is the single canonical spelling — a bare `Library`
+/// is not a valid destination), and the stack is never a `Move` destination
+/// ([CR#401.7,405.1]). Both are rejected on read, mirroring the Idris
+/// `DestinationOk` gate (`ToZone Library` / `ToZone Stack` = `Void`); without
+/// the exclusion a library destination would be expressible two ways
+/// (`Destination::Zone(Zone::Library)` vs `Destination::Library(_)`), a
+/// dual-representation smell.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Destination {
-    /// A plain zone change ([CR#400.7]) — written as the bare zone name.
-    #[macro_ron(flatten)]
+    /// A plain zone change ([CR#400.7]) — written as the bare zone name. The
+    /// ordered library and the stack are excluded (see the type docs).
+    #[macro_ron(flatten, exclude(Library, Stack))]
     Zone(crate::Zone),
     /// The library at an anchored position ([CR#401.7]).
     Library(Anchor),
@@ -696,6 +707,53 @@ mod tests {
         );
         assert_eq!(read("Move(This, Library(FromBottom(0)))"), bottom);
         assert_eq!(read(&write(&bottom)), bottom);
+    }
+
+    /// The library and the stack are excluded from `Destination`'s flattened
+    /// zone set (`exclude(Library, Stack)`), mirroring the Idris
+    /// `DestinationOk` gate: the library is a destination only at an
+    /// [`Anchor`] (the anchored `Library(Anchor)` is canonical — a bare
+    /// `Library` is not a `Move` destination, so a library destination has
+    /// ONE spelling), and the stack is never a `Move` target
+    /// ([CR#401.7,405.1]). The other zones still flatten.
+    #[test]
+    fn library_and_stack_are_not_flattened_destinations() {
+        use crate::Zone;
+        // Bare `Library` is rejected — the anchored form is the only spelling.
+        assert!(
+            crate::ron::options()
+                .from_str::<Action>("Move(This, Library)")
+                .is_err(),
+            "bare `Library` must not be a valid Move destination"
+        );
+        // The stack is never a Move destination.
+        assert!(
+            crate::ron::options()
+                .from_str::<Action>("Move(This, Stack)")
+                .is_err(),
+            "the stack is never a Move destination"
+        );
+        // Neither name lifts into `Destination`'s dispatch set.
+        assert!(!Destination::ALL_VARIANTS.contains(&"Stack"));
+        assert_eq!(
+            Destination::ALL_VARIANTS
+                .iter()
+                .filter(|n| **n == "Library")
+                .count(),
+            1,
+            "`Library` is Destination's OWN (anchored) variant only, not also a flattened Zone",
+        );
+        // The remaining zones still flatten and round-trip.
+        for zone in [
+            Zone::Battlefield,
+            Zone::Command,
+            Zone::Exile,
+            Zone::Graveyard,
+            Zone::Hand,
+        ] {
+            let mv = Action::move_to(Reference::This, zone);
+            assert_eq!(read(&write(&mv)), mv, "zone {zone:?} should still flatten");
+        }
     }
 
     /// A `Move` to the battlefield may carry entry riders ([CR#614.12]): the

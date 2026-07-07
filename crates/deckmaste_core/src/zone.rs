@@ -5,7 +5,10 @@ use crate::SupportsMacros;
 /// `SupportsMacros` (rather than a plain serde derive) so a zone name can be
 /// `#[macro_ron(flatten)]`-lifted into [`Destination`](crate::Destination): a
 /// bare `Graveyard` reads as `Destination::Zone(Zone::Graveyard)`, keeping
-/// `Move(This, Graveyard)` spelled as-is.
+/// `Move(This, Graveyard)` spelled as-is. `Destination` excludes `Library` and
+/// `Stack` from that lift (`exclude(Library, Stack)`) — the library is a
+/// destination only at an [`Anchor`](crate::Anchor), the stack never a `Move`
+/// target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Zone {
     Battlefield,

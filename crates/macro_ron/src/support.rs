@@ -92,6 +92,99 @@ pub const fn concat_variants<const N: usize>(
     out
 }
 
+/// `const`-context string equality (`str`'s `PartialEq` is not `const`).
+const fn str_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < a.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+/// Whether `name` appears in `exclude` (a `#[macro_ron(flatten, exclude(...))]`
+/// list), in `const` context.
+const fn is_excluded(name: &str, exclude: &[&str]) -> bool {
+    let mut i = 0;
+    while i < exclude.len() {
+        if str_eq(name, exclude[i]) {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Counts the entries across `lists` NOT in `exclude` — the length a
+/// [`concat_variants_excluding`] call yields for those tail lists. Generated
+/// code uses it to compute the const-generic `N`.
+#[must_use]
+pub const fn count_kept(lists: &[&[&'static str]], exclude: &[&'static str]) -> usize {
+    let mut n = 0;
+    let mut l = 0;
+    while l < lists.len() {
+        let list = lists[l];
+        let mut j = 0;
+        while j < list.len() {
+            if !is_excluded(list[j], exclude) {
+                n += 1;
+            }
+            j += 1;
+        }
+        l += 1;
+    }
+    n
+}
+
+/// Like [`concat_variants`] but for a `flatten` with `exclude(...)`: `keep`
+/// (the parent's OWN names) is copied verbatim, then each `filtered` tail
+/// list's entries are appended EXCEPT those in `exclude`. `N` must equal
+/// `keep.len() + count_kept(filtered, exclude)` (an out-of-bounds write or the
+/// trailing `assert!` catches a mismatch at compile time).
+///
+/// # Panics
+///
+/// If `N` does not equal the kept length — a compile error in const context.
+#[must_use]
+pub const fn concat_variants_excluding<const N: usize>(
+    keep: &'static [&'static str],
+    filtered: &[&'static [&'static str]],
+    exclude: &[&'static str],
+) -> [&'static str; N] {
+    let mut out = [""; N];
+    let mut i = 0;
+    let mut k = 0;
+    while k < keep.len() {
+        out[i] = keep[k];
+        i += 1;
+        k += 1;
+    }
+    let mut l = 0;
+    while l < filtered.len() {
+        let list = filtered[l];
+        let mut j = 0;
+        while j < list.len() {
+            if !is_excluded(list[j], exclude) {
+                out[i] = list[j];
+                i += 1;
+            }
+            j += 1;
+        }
+        l += 1;
+    }
+    assert!(
+        i == N,
+        "concat_variants_excluding: N must equal keep.len() + count_kept(filtered, exclude)"
+    );
+    out
+}
+
 /// Seq visitor for 2-field tuple variants used by generated `SupportsMacros`
 /// impls.
 pub struct Pair<A, B>(PhantomData<(A, B)>);

@@ -54,5 +54,7 @@ pub use support::PairPlusDefault;
 pub use support::SupportsMacros;
 pub use support::Triple;
 pub use support::concat_variants;
+pub use support::concat_variants_excluding;
+pub use support::count_kept;
 pub use traverse::Expand;
 pub use traverse::Normalize;
