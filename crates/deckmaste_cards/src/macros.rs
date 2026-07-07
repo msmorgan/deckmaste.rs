@@ -420,8 +420,10 @@ mod tests {
     fn source_verb_reads_natively_at_action_slot() {
         let macros = macro_set();
         assert_eq!(
-            macros.read_str::<Action>("DealDamage(This, 3)").unwrap(),
-            Action::deal_damage(Reference::This, Count::Literal(3)),
+            macros
+                .read_str::<Action>("DealDamage(This, 3, It)")
+                .unwrap(),
+            Action::deal_damage(Reference::It, Count::Literal(3)),
         );
     }
 

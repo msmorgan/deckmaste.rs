@@ -962,9 +962,9 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     // to-each), with the verb taking that anaphor. A targeted shape's patient
     // is a `Reference` (`It`) and rides the verb unchanged.
     let effect = if selection.starts_with("SelectAll(") {
-        format!("Each(binder: Existing({selection}), effect: DealDamage(It, {amount}))")
+        format!("Each(binder: Existing({selection}), effect: DealDamage(This, {amount}, It))")
     } else {
-        format!("DealDamage({selection}, {amount})")
+        format!("DealDamage(This, {amount}, {selection})")
     };
     Some(ParsedEffect { targets, effect })
 }
@@ -1387,20 +1387,20 @@ mod tests {
     fn deal_damage_targeted_shapes() {
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(It, 3)".to_owned()))
+            Some(("AnyTarget".to_owned(), "DealDamage(This, 3, It)".to_owned()))
         );
         assert_eq!(
             parsed("~ deals 2 damage to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(It, 2)".to_owned()
+                "DealDamage(This, 2, It)".to_owned()
             ))
         );
         assert_eq!(
             parsed("~ deals 4 damage to target player."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(It, 4)".to_owned()
+                "DealDamage(This, 4, It)".to_owned()
             ))
         );
         // Lava Spike's restricted target: player-or-planeswalker (can't hit
@@ -1409,7 +1409,7 @@ mod tests {
             parsed("~ deals 3 damage to target player or planeswalker."),
             Some((
                 "TargetOne(OneOf([Player, Planeswalker]))".to_owned(),
-                "DealDamage(It, 3)".to_owned()
+                "DealDamage(This, 3, It)".to_owned()
             ))
         );
     }
@@ -1423,14 +1423,16 @@ mod tests {
             parsed("~ deals 2 damage to each creature."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(It, 2))".to_owned()
+                "Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(This, 2, It))"
+                    .to_owned()
             ))
         );
         assert_eq!(
             parsed("~ deals 20 damage to each player."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(Player)), effect: DealDamage(It, 20))".to_owned()
+                "Each(binder: Existing(SelectAll(Player)), effect: DealDamage(This, 20, It))"
+                    .to_owned()
             ))
         );
         // "each opponent" -> the player set "opponents of you".
@@ -1438,7 +1440,7 @@ mod tests {
             parsed("~ deals 1 damage to each opponent."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: DealDamage(It, 1))"
+                "Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: DealDamage(This, 1, It))"
                     .to_owned()
             ))
         );
@@ -1592,14 +1594,14 @@ mod tests {
         // Trigger surface: "it deals …" (the source), same RON as "~ deals …".
         assert_eq!(
             parsed("it deals 1 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(It, 1)".to_owned()))
+            Some(("AnyTarget".to_owned(), "DealDamage(This, 1, It)".to_owned()))
         );
         // Activated surface: clause-initial "It deals …" after a cost colon.
         assert_eq!(
             parsed("It deals 2 damage to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(It, 2)".to_owned()
+                "DealDamage(This, 2, It)".to_owned()
             ))
         );
     }
@@ -1618,7 +1620,7 @@ mod tests {
         // Regression: the spell forms must keep working after generalization.
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(It, 3)".to_owned()))
+            Some(("AnyTarget".to_owned(), "DealDamage(This, 3, It)".to_owned()))
         );
         assert_eq!(
             parsed("Draw two cards."),
@@ -1856,7 +1858,7 @@ mod tests {
             parsed("~ deals damage to any target equal to the number of Goblins you control."),
             Some((
                 "AnyTarget".to_owned(),
-                "DealDamage(It, CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+                "DealDamage(This, CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])), It)".to_owned()
             ))
         );
     }
@@ -1867,7 +1869,7 @@ mod tests {
             parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(It, CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))".to_owned()
+                "DealDamage(This, CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])), It)".to_owned()
             ))
         );
     }
@@ -1877,7 +1879,7 @@ mod tests {
         // Regression: the literal path keeps emitting a bare numeral.
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(It, 3)".to_owned()))
+            Some(("AnyTarget".to_owned(), "DealDamage(This, 3, It)".to_owned()))
         );
     }
 
@@ -2421,7 +2423,7 @@ mod tests {
             parsed("~ deals 1 damage to target opponent."),
             Some((
                 "TargetOne(OpponentOf(Ref(You)))".to_owned(),
-                "DealDamage(It, 1)".to_owned()
+                "DealDamage(This, 1, It)".to_owned()
             ))
         );
         // "target attacking or blocking creature" — a shared-head status
@@ -2430,7 +2432,7 @@ mod tests {
             parsed("~ deals 4 damage to target attacking or blocking creature."),
             Some((
                 "TargetOne(AllOf([Creature, OneOf([Attacking, Blocking])]))".to_owned(),
-                "DealDamage(It, 4)".to_owned()
+                "DealDamage(This, 4, It)".to_owned()
             ))
         );
         // "target creature or planeswalker" — disjoined object target.
@@ -2438,7 +2440,7 @@ mod tests {
             parsed("~ deals 5 damage to target creature or planeswalker."),
             Some((
                 "TargetOne(OneOf([Creature, Planeswalker]))".to_owned(),
-                "DealDamage(It, 5)".to_owned()
+                "DealDamage(This, 5, It)".to_owned()
             ))
         );
         // "each creature and each player" — the unioned distributive sweep,
@@ -2447,7 +2449,7 @@ mod tests {
             parsed("~ deals 2 damage to each creature and each player."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(OneOf([Creature, Player]))), effect: DealDamage(It, 2))"
+                "Each(binder: Existing(SelectAll(OneOf([Creature, Player]))), effect: DealDamage(This, 2, It))"
                     .to_owned()
             ))
         );

@@ -20,7 +20,7 @@ Normal(
         targets: [AnyTarget],
         effect: AdditionalCost(
           pay: [With(binder: ChooseOne(filter: Type(Creature)), body: [Do(Sacrifice(That(Creature)))])],
-          body: DealDamage(Target(0), StatOf(EventObject, Power)),
+          body: DealDamage(This, StatOf(EventObject, Power), Target(0)),
         ),
       ),
     ),

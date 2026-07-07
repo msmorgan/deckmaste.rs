@@ -222,7 +222,7 @@ fn render_effect(production: &Production, rider: Option<&Rider>) -> anyhow::Resu
     let add = render_production(production)?;
     Ok(match rider {
         None => add,
-        Some(Rider::DamageToYou(n)) => format!("Sequence([{add}, DealDamage(You, {n})])"),
+        Some(Rider::DamageToYou(n)) => format!("Sequence([{add}, DealDamage(This, {n}, You)])"),
     })
 }
 
@@ -367,7 +367,7 @@ mod tests {
             ability("{T}: Add {W} or {B}. ~ deals 1 damage to you."),
             Some(
                 "Activated(cost: [Tap], effect: \
-                 Sequence([AddMana(1, OneOf([White, Black])), DealDamage(You, 1)]))"
+                 Sequence([AddMana(1, OneOf([White, Black])), DealDamage(This, 1, You)]))"
                     .to_owned()
             )
         );

@@ -527,7 +527,7 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
     match act {
         // "<source> deals N damage to each <group>." — damage names its
         // source; the default `This` reads as the carrier itself.
-        Action::DealDamage(Reference::It, amount, source) => {
+        Action::DealDamage(source, amount, Reference::It) => {
             let dealer = match source {
                 Reference::This => ctx.subject.to_string(),
                 other => fragment::reference(other, ctx),
@@ -624,7 +624,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // body — "<source> deals N damage to <target>". A dynamic amount
         // prints the oracle X-form with its "where X is …" definition
         // clause.
-        Action::DealDamage(target, amount, source) => {
+        Action::DealDamage(source, amount, target) => {
             let dealer = match source {
                 Reference::This => ctx.subject.to_string(),
                 other => fragment::reference(other, ctx),
@@ -839,7 +839,7 @@ fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
     let amount = fragment::count(&d.amount);
     let group = divided_group_phrase(&d.binder, ctx);
     match &*d.body {
-        Effect::Act(Action::DealDamage(_, _, source)) => {
+        Effect::Act(Action::DealDamage(source, _, _)) => {
             let dealer = match source {
                 Reference::This => ctx.subject.to_string(),
                 other => fragment::reference(other, ctx),

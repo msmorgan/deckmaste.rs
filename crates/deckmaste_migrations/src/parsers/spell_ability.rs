@@ -82,7 +82,7 @@ mod tests {
     fn frames_targeted_damage_like_lightning_bolt() {
         assert_eq!(
             spell("~ deals 3 damage to any target.").as_deref(),
-            Some("Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(It, 3)))")
+            Some("Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 3, It)))")
         );
     }
 
@@ -91,7 +91,7 @@ mod tests {
         assert_eq!(
             spell("~ deals 3 damage to target player or planeswalker.").as_deref(),
             Some(
-                "Spell(effect: Targeted(targets: [TargetOne(OneOf([Player, Planeswalker]))], effect: DealDamage(It, 3)))"
+                "Spell(effect: Targeted(targets: [TargetOne(OneOf([Player, Planeswalker]))], effect: DealDamage(This, 3, It)))"
             )
         );
     }
@@ -101,7 +101,7 @@ mod tests {
         assert_eq!(
             spell("~ deals 2 damage to each creature.").as_deref(),
             Some(
-                "Spell(effect: Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(It, 2)))"
+                "Spell(effect: Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(This, 2, It)))"
             )
         );
         assert_eq!(

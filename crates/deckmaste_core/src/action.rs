@@ -108,17 +108,14 @@ pub enum Arrangement {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Action {
     /// Deal an amount of damage to the patient object or player ([CR#120.1]).
-    /// `source` is the **dealer** — the object whose damage this is. It
-    /// defaults to `This` (the ability's source object / the resolving spell,
-    /// the implicit agent) and is omitted on write when default, so the common
-    /// case stays `DealDamage(It, 3)`. An explicit source expresses
+    /// Fields read in printed-sentence order: `source` deals `amount` to
+    /// `target` — `DealDamage(This, 3, It)` for Lightning Bolt. `source` is the
+    /// **dealer** — the object whose damage this is; it is **required** and
+    /// always spelled (`This` for the ability's source object / the resolving
+    /// spell, the implicit agent). An explicit non-`This` source expresses
     /// redirected/arbitrary-source damage — e.g. each half of a fight, where a
     /// creature deals damage equal to its power to the other ([CR#701.14a]).
-    DealDamage(
-        Reference,
-        Count,
-        #[macro_ron(default = "Reference::This")] Reference,
-    ),
+    DealDamage(Reference, Count, Reference),
     /// Destroy the referenced permanent ([CR#701.8]).
     Destroy(Reference),
     /// Return the referenced object to its owner's hand.
@@ -389,10 +386,12 @@ impl Action {
     }
 
     /// `DealDamage` from the implicit source (`This`) — the common case, where
-    /// the dealer is the ability's source object / the resolving spell.
+    /// the dealer is the ability's source object / the resolving spell. The
+    /// enum form spells `source` explicitly (`DealDamage(This, amount,
+    /// target)`); this ctor fills it in.
     #[must_use]
     pub fn deal_damage(target: Reference, amount: Count) -> Action {
-        Action::DealDamage(target, amount, Reference::This)
+        Action::DealDamage(Reference::This, amount, target)
     }
 
     /// `Move` to a plain zone — the common relocation (`Move(This,
@@ -558,47 +557,47 @@ mod tests {
         );
     }
 
-    /// The source-agent verbs read natively. A bare `DealDamage(sel, n)` reads
-    /// with the implicit `This` source — the common case is unchanged.
+    /// The source-agent verbs read natively. `DealDamage(source, n, target)`
+    /// spells its source first — the common case names `This`.
     #[test]
     fn source_verbs_read_natively() {
         assert_eq!(
-            read("DealDamage(It, Literal(3))"),
-            Action::DealDamage(Reference::It, Count::Literal(3), Reference::This,),
+            read("DealDamage(This, Literal(3), It)"),
+            Action::DealDamage(Reference::This, Count::Literal(3), Reference::It,),
         );
         assert_eq!(read("Destroy(This)"), Action::Destroy(Reference::This),);
     }
 
-    /// `DealDamage`'s optional `source` defaults to `This` and is omitted on
-    /// write; an explicit non-`This` source (the "fight" / redirected-damage
-    /// case) reads via the third positional slot and round-trips.
+    /// `DealDamage`'s `source` is required and always spelled first; the common
+    /// `This`-source case round-trips, and an explicit non-`This` source (the
+    /// "fight" / redirected-damage case) round-trips the same way.
     #[test]
-    fn deal_damage_source_defaults_and_round_trips() {
-        // Default source: written bare (two-element form), no third slot.
-        let default = Action::deal_damage(Reference::It, Count::Literal(3));
-        let written = write(&default);
-        assert_eq!(written, "DealDamage(It,3)", "default source omitted");
-        assert_eq!(read(&written), default);
+    fn deal_damage_source_required_and_round_trips() {
+        // Common source: `This` is spelled, not omitted.
+        let common = Action::deal_damage(Reference::It, Count::Literal(3));
+        let written = write(&common);
+        assert_eq!(written, "DealDamage(This,3,It)", "source spelled first");
+        assert_eq!(read(&written), common);
 
-        // Explicit source: the redirected-damage shape — the sorted anaphor
-        // deals damage to This, and the dealer is that same anaphor.
+        // Explicit source: the redirected-damage shape — the sorted anaphor is
+        // both the dealer (first slot) and the recipient (last slot).
         let sourced = Action::DealDamage(
-            Reference::This,
+            Reference::That(crate::Sort::OfType(crate::Type::Creature)),
             Count::StatOf(
                 Reference::That(crate::Sort::OfType(crate::Type::Creature)),
                 crate::count::Stat::Power,
             ),
-            Reference::That(crate::Sort::OfType(crate::Type::Creature)),
+            Reference::This,
         );
         let written = write(&sourced);
         assert!(
-            written.contains("That(Creature)") && written.ends_with(')'),
-            "explicit source written in the third slot: {written}"
+            written.starts_with("DealDamage(That(Creature),") && written.ends_with("This)"),
+            "source written in the first slot, target last: {written}"
         );
         assert_eq!(read(&written), sourced);
-        // Long-form read with an explicit source.
+        // Long-form read: source, amount, target.
         assert_eq!(
-            read("DealDamage(This, StatOf(That(Creature), Power), That(Creature))"),
+            read("DealDamage(That(Creature), StatOf(That(Creature), Power), This)"),
             sourced,
         );
     }

@@ -5,7 +5,7 @@
 // ([CR#601.2d]) reads that announced set back as the plural anaphor `They`
 // (the one Many antecedent in scope). 3 is split across
 // the targets, each element bound in turn as `It` with its `Allotment`
-// share, which the body (`DealDamage(It, Allotment)`) reads. One
+// share, which the body (`DealDamage(This, Allotment, It)`) reads. One
 // primitive expresses divided damage; the same shape with a `PutCounters` body
 // is divided counters.
 Normal(
@@ -24,7 +24,7 @@ Normal(
         effect: Distribute(
           amount: 3,
           binder: Existing(They),
-          body: DealDamage(It, Allotment),
+          body: DealDamage(This, Allotment, It),
         ),
       ),
     ),

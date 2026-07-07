@@ -89,7 +89,7 @@ tWeaken = weakenResolve {w = Just Card} {cd = One}
                         (MkAnt Player APlayer One EventRole Nothing Nothing) Refl
 
 -- an announced slot's antecedent is read back as an anaphor — the wildcard
--- `It` (Lightning Bolt's `DealDamage(It, 3)`) and the sorted `That`.
+-- `It` (Lightning Bolt's `DealDamage(This, 3, It)`) and the sorted `That`.
 tTargetInScope : OneShotEffect Base
 tTargetInScope = Targeted [Target (^1) creature] (Act (Destroy It))
 
@@ -165,8 +165,8 @@ tIndefiniteMay =
 tLabeledSlots : OneShotEffect Base
 tLabeledSlots =
   Targeted [ anyTarget, Distinct [0] anyTarget ]
-    (Sequence [ Act (DealDamage (Target {k = Anything} 0) (^2))
-              , Act (DealDamage (Target {k = Anything} 1) (^1)) ])
+    (Sequence [ Act (DealDamage (^2) (Target {k = Anything} 0))
+              , Act (DealDamage (^1) (Target {k = Anything} 1)) ])
 
 -- an event-role antecedent serves the SORTED anaphor (the stack side of the
 -- caps machinery): a discard trigger's object went to a graveyard, so its
@@ -180,7 +180,7 @@ tEventRoleThat = Triggered (MkEventQuery [Discard] [Actor opponent])
 -- canon shape — mirror of `plugins/canon/cards/Goblin Medics.ron`).
 tTriggerTargetLabel : Ability Base
 tTriggerTargetLabel = Triggered (MkEventQuery [Becomes Tapped] [Agent (SameAs This)])
-  (Targeted [anyTarget] (Act (DealDamage (Target {k = Anything} 0) (^1))))
+  (Targeted [anyTarget] (Act (DealDamage (^1) (Target {k = Anything} 0))))
 
 -- branching effects typecheck
 tMay : OneShotEffect Base
@@ -198,7 +198,7 @@ tContinuously = Continuously UntilEndOfTurn (Modify This (ApplyAll (modifyPT (Up
 tModal : OneShotEffect Base
 tModal = Modal (MkChooseSpec (^1))
   [ MkMode (Act (Draw (^1)))
-  , MkMode (Each (Existing (SelectAll creature)) (Act (DealDamage It (^2)))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
+  , MkMode (Each (Existing (SelectAll creature)) (Act (DealDamage (^2) It))) {cost = Just (Do (LoseLife (Literal 2)))}  -- mode cost is now a full Cost
   ]
 
 -- VARIABLE-count modals: the choose-count is a `Quantity`. "Choose one or both" = `between (^1) (^2)`;
@@ -218,7 +218,7 @@ tReflexiveSeesThat =
 -- `Each` binds `It` per element; the body references `It`
 tForEach : OneShotEffect Base
 tForEach = Each (Existing (SelectAll (creature)))
-  (Act (DealDamage It (^1)))
+  (Act (DealDamage (^1) It))
 
 -- a CLOSED condition reaches a named object via `Matches` (apply a predicate to a
 -- reference) — "if ~ is a creature".
@@ -738,7 +738,7 @@ tSingle = Single (SelectAll creature)
 -- the group, each element dealt its `Allotment` (the Arc Lightning canon shape).
 tPluralTarget : OneShotEffect Base
 tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
-  (Distribute (^2) (Existing They) (Act (DealDamage It Allotment)))
+  (Distribute (^2) (Existing They) (Act (DealDamage Allotment It)))
 
 -- the SAME `Distribute` over a different body: "distribute three +1/+1 counters among any number of target
 -- creatures" (Hunting Triad) — `PutCounters` per element, each getting its `Allotment`. Carrier-typed.
@@ -778,7 +778,7 @@ failing "unbindTargets"
 -- ([CR#115.7e,601.2c]).
 failing "distinctOk"
   tBadDistinctSibling : OneShotEffect Base
-  tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage It (^1)))
+  tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage (^1) It))
 
 -- THE R2 UNIQUENESS GATE: a second same-sort antecedent makes the sorted
 -- anaphor a guess — refused; the positional `Target n` read is the
@@ -944,7 +944,7 @@ failing ".hasObject = True"
 -- `EventAmount` (the amount) in a `Begins Cast` body — a cast carries no amount.
 failing ".hasAmount = True"
   tBadThatMuchNoAmount : StaticEffect Base
-  tBadThatMuchNoAmount = Replaces (MkEventQuery [Begins Cast] []) (Act (DealDamage This EventAmount))
+  tBadThatMuchNoAmount = Replaces (MkEventQuery [Begins Cast] []) (Act (DealDamage EventAmount This))
 
 -- `EventActor` ("that player") in a Destroy body — a destruction has no actor.
 failing ".hasActor = True"

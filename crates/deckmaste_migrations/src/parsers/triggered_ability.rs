@@ -320,7 +320,7 @@ mod tests {
         assert_eq!(
             trig("When ~ dies, it deals 1 damage to any target.").as_deref(),
             Some(
-                "Triggered(event: ThisDies, effect: Targeted(targets: [AnyTarget], effect: DealDamage(Target(0), 1)))"
+                "Triggered(event: ThisDies, effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, Target(0))))"
             )
         );
     }
@@ -381,7 +381,7 @@ mod tests {
             Some(
                 "Triggered(event: Enters(AllOf([Creature, ControlledBy(Ref(You))])), \
                  effect: Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: \
-                 DealDamage(It, 1)))"
+                 DealDamage(This, 1, It)))"
             )
         );
     }

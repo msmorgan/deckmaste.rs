@@ -2027,9 +2027,11 @@ mutual
     data Action : Ctx -> Type where
       -- deal damage to ONE recipient ([CR#120.1] — damage is to a single object/player per event);
       -- `source` object is the agent. "Deals N to EACH …" is a `Each` over the recipients.
-      DealDamage : {default This source : Reference b AnObject} -> Reference b k -> Count b -> Action b
+      -- fields in printed-sentence order: `source` deals `amount` to `recipient`
+      -- (`source, amount, target`, matching the RON `DealDamage` verb).
+      DealDamage : {default This source : Reference b AnObject} -> Count b -> Reference b k -> Action b
       -- (divided damage — "N damage divided as you choose among [a group]" — is the general `Distribute`
-      --  effect: `Distribute (^n) group (Act (DealDamage It Allotment))`, not a bespoke action.)
+      --  effect: `Distribute (^n) group (Act (DealDamage Allotment It))`, not a bespoke action.)
       -- a plain zone change [CR#400.7]; owner-relative, control implicit. `enteringAttacking` ([CR#508.4],
       -- default `Nothing`): on a battlefield destination, put the object on ATTACKING the named player
       -- (Ninjutsu's "tapped and attacking", Encore) — senseless (no-op) for any non-battlefield destination.
@@ -2306,7 +2308,7 @@ mutual
       Each : (dom : Bindable b Many k) -> OneShotEffect (bindIt (binderAnte dom) b) -> OneShotEffect b
       -- "[amount] divided as you choose among [a group]" ([CR#601.2d]): bind each element as `It` with its
       -- `Allotment` (the split is engine-resolved, ≥1 each summing to amount), then apply `body`. GENERAL over
-      -- the per-element effect — subsumes divided damage (`Act (DealDamage It Allotment)`) and divided
+      -- the per-element effect — subsumes divided damage (`Act (DealDamage Allotment It)`) and divided
       -- counters (`Act (PutCounters c Allotment It)`); replaced the bespoke `DealDamageDivided`. (`amount`,
       -- not `total` — the latter is a reserved totality keyword.)
       Distribute : (amount : Count b) -> (among : Bindable b Many k) -> OneShotEffect (bindAllot (binderAnte among) b) -> OneShotEffect b
@@ -2362,7 +2364,7 @@ mutual
   actionIntro (Action.Discard n) = [MkAnt Card AnObject (countCard n) Product (Just Graveyard) Nothing, amountAnte]
   -- (the DealDamage recipient's kind is an erased index — no `A` push there;
   -- damage recipients are targets or loop elements, never indefinites)
-  actionIntro (Action.DealDamage r n) = [amountAnte]
+  actionIntro (Action.DealDamage n r) = [amountAnte]
   actionIntro (Action.GainLife n) = [amountAnte]
   actionIntro (Action.LoseLife n) = [amountAnte]
   actionIntro (Action.Destroy r) = refIntro r
@@ -2920,7 +2922,7 @@ chooseBy by q p = Choose {by} q p
 
 public export
 dealDamageFrom : Reference b AnObject -> Reference b k -> Count b -> Action b
-dealDamageFrom src r c = DealDamage {source = src} r c
+dealDamageFrom src r c = DealDamage {source = src} c r
 
 -- `Target n` at the kind-poly `Anything` — the honest reading of an
 -- unconstrained announced slot read into a kind-poly position (`DealDamage`'s

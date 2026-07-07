@@ -131,9 +131,8 @@ impl<'de, A: Deserialize<'de>, B: Deserialize<'de>> Visitor<'de> for Pair<A, B> 
 /// reads two required elements then an optional third, falling back to the
 /// `default_c` value the generated code supplies when the third is absent.
 /// Backs a non-embed tuple variant with one trailing `#[macro_ron(default =
-/// "…")]` field (e.g. `DealDamage(Selection, Count, source)` with `source`
-/// defaulting to `This`) — the short form `DealDamage(sel, n)` reads here, the
-/// long form `DealDamage(sel, n, src)` supplies the third.
+/// "…")]` field (e.g. `Verb(A, B, c)` with `c` defaulting) — the short form
+/// `Verb(a, b)` reads here, the long form `Verb(a, b, c)` supplies the third.
 pub struct PairPlusDefault<A, B, C> {
     default_c: C,
     _p: PhantomData<(A, B)>,

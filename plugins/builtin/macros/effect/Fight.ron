@@ -12,8 +12,8 @@
 //   the engine coalesces (same source+target in one batch) into ONE 2x instance.
 // - [CR#701.14d] fight damage is never combat damage (`DealDamage`'s default).
 //
-// Each half spells its source explicitly (`DealDamage(target, amount, source)`),
-// so the dealer is the OTHER creature (deathtouch/lifelink attribution, Pounce
+// Each half spells its source explicitly (`DealDamage(source, amount, target)`),
+// so the dealer is that same creature (deathtouch/lifelink attribution, Pounce
 // redirect). `Creature` inlined as `AllOf([Permanent, Type(Creature)])` to avoid
 // a nested macro in a macro body.
 //
@@ -31,8 +31,8 @@
                 Is(Param(1), AllOf([Permanent, Type(Creature)])),
             ]),
             then: Simultaneous([
-                DealDamage(Param(1), StatOf(Param(0), Power), Param(0)),
-                DealDamage(Param(0), StatOf(Param(1), Power), Param(1)),
+                DealDamage(Param(0), StatOf(Param(0), Power), Param(1)),
+                DealDamage(Param(1), StatOf(Param(1), Power), Param(0)),
             ]),
         ),
     ),

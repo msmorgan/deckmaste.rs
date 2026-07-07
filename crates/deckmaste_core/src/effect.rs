@@ -23,7 +23,7 @@ use crate::reference::Reference;
 /// so a bare player verb (`Draw(1)`) reads at an effect slot as the
 /// implicit-`You` default `Act(By(You, …))` — and the write is transparent.
 ///
-/// A single instruction stands bare (`effect: DealDamage(It, 3)`); the
+/// A single instruction stands bare (`effect: DealDamage(This, 3, It)`); the
 /// structural forms (`Sequence`, `May`, `If`, …) are the corpus's connective
 /// tissue — data the engine interprets, never seen by the macro layer as
 /// control flow. The struct-carrying forms delegate to inner derived structs
@@ -140,7 +140,7 @@ pub enum Effect {
     /// resolution-time (≥1 each, summing to `amount`). "Divide" and
     /// "distribute" are ONE mechanic, not two — [CR#115.7f] quotes both words
     /// for the same effect — so one primitive subsumes divided damage
-    /// (`body: DealDamage(It, Allotment)`) AND distributed counters
+    /// (`body: DealDamage(This, Allotment, It)`) AND distributed counters
     /// (`body: PutCounters(It, <kind>, Allotment)`); the body reads the
     /// allotment anaphor. Named for the Idris north-star `Distribute : Count b
     /// -> Bindable b Many k -> …`, the general divide-or-distribute primitive.
@@ -421,7 +421,7 @@ mod tests {
             act_by_you(PlayerAction::Sacrifice(Reference::This)),
         );
         assert_eq!(
-            read("DealDamage(It, Literal(3))"),
+            read("DealDamage(This, Literal(3), It)"),
             Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
         );
         assert_eq!(
@@ -522,7 +522,7 @@ mod tests {
             "GainLife(Literal(3))",
             "Sacrifice(This)",
             "By(It,Draw(Literal(3)))",
-            "DealDamage(It,Literal(3))",
+            "DealDamage(This,Literal(3),It)",
             "AddMana(Literal(1),AnyColor)",
             // Verb patients are a single bare `Reference` now.
             "Destroy(This)",
@@ -605,7 +605,7 @@ mod tests {
     /// its power", over the core primitives — no card-layer macros).
     #[test]
     fn additional_cost_reads_and_round_trips() {
-        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(It,StatOf(EventObject,Power)))";
+        let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(This,StatOf(EventObject,Power),It))";
         let parsed = read(src);
         let Effect::AdditionalCost(ac) = &parsed else {
             panic!("expected AdditionalCost, got {parsed:?}");
@@ -641,7 +641,7 @@ mod tests {
     /// round-trips ([CR#115.1,601.2c]).
     #[test]
     fn targeted_effect_reads_and_round_trips() {
-        let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(Creature))],effect:DealDamage(It,Literal(3)))";
+        let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(Creature))],effect:DealDamage(This,Literal(3),It))";
         let parsed = read(src);
         let Effect::Targeted(te) = &parsed else {
             panic!("expected Targeted, got {parsed:?}");
@@ -671,13 +671,13 @@ mod tests {
 
     /// `Distribute` reads flat through the newtype variant; its body reads the
     /// `Allotment` anaphor over the per-element `It` — divided damage
-    /// (`DealDamage(It, Allotment)`) and divided counters round-trip
+    /// (`DealDamage(This, Allotment, It)`) and divided counters round-trip
     /// ([CR#601.2d]). `binder` is a many-`Binder`.
     #[test]
     fn divide_among_reads_and_round_trips() {
         let damage = read(
             "Distribute(amount: 3, binder: Existing(SelectAll(Type(Creature))), \
-             body: DealDamage(It, Allotment))",
+             body: DealDamage(This, Allotment, It))",
         );
         let Effect::Distribute(d) = &damage else {
             panic!("expected Distribute, got {damage:?}");

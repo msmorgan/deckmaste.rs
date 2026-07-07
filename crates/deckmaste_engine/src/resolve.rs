@@ -1189,7 +1189,7 @@ impl GameState {
             // ability's source object / resolving spell, so the common case is
             // unchanged; an explicit source carries non-self-source damage and
             // "fight" ([CR#120.1,701.14a]).
-            Action::DealDamage(sel, qty, source) => {
+            Action::DealDamage(source, qty, sel) => {
                 let amount = self.eval_count(qty, frame);
                 let dealer = self.eval_reference(source, frame);
                 let targets = self.eval_reference_set(sel, frame);
@@ -4461,7 +4461,7 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    /// `Each(Kind(Player), DealDamage(It, 20))` deals 20 damage to
+    /// `Each(Kind(Player), DealDamage(This, 20, It))` deals 20 damage to
     /// each of the two players. A verb's patient is a single `Reference`, so
     /// the spread over the player set is the enclosing `Each` — one
     /// `DamageDealt` per element rather than the old single multi-target
@@ -4818,9 +4818,9 @@ mod tests {
         };
         let half = |tgt: &Reference, src: &Reference| {
             Effect::Act(Action::DealDamage(
-                tgt.clone(),
-                Count::StatOf(src.clone(), Stat::Power),
                 src.clone(),
+                Count::StatOf(src.clone(), Stat::Power),
+                tgt.clone(),
             ))
         };
         Effect::Act(Action::Composite {
@@ -4946,9 +4946,9 @@ mod tests {
         let frame = frame_src_targets(a, vec![a, b]);
         state.run_effect(
             Effect::Act(Action::DealDamage(
-                Reference::Target(0),
-                Count::StatOf(Reference::Target(1), deckmaste_core::Stat::Power),
                 Reference::Target(1),
+                Count::StatOf(Reference::Target(1), deckmaste_core::Stat::Power),
+                Reference::Target(0),
             )),
             &frame,
         );
@@ -5709,9 +5709,9 @@ mod tests {
     }
 
     /// [CR#608.2,120.3]: `Each` over the players binds each zoneless player
-    /// proxy as the iteration anaphor `It` — the body's `DealDamage(It, 1)`
-    /// resolves to the player and each loses 1 life, with no panic on the
-    /// snapshotless element.
+    /// proxy as the iteration anaphor `It` — the body's `DealDamage(This, 1,
+    /// It)` resolves to the player and each loses 1 life, with no panic on
+    /// the snapshotless element.
     #[test]
     fn foreach_over_players_binds_each_player_as_it() {
         use deckmaste_core::Each;
@@ -7344,7 +7344,7 @@ mod tests {
 
     /// Pump up to `n` steps, collecting every `(target, amount)` of the
     /// `DamageDealt` events applied along the way — the per-element emissions a
-    /// `Each(.., DealDamage(It, ..))` produces (a verb deals to a
+    /// `Each(.., DealDamage(This, .., It))` produces (a verb deals to a
     /// single `Reference`, so the spread is the iterator).
     fn collect_damage_dealt(state: &mut GameState, n: usize) -> Vec<(ObjectId, u32)> {
         let mut got = Vec::new();

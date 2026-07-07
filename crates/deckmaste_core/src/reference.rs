@@ -120,7 +120,7 @@ pub enum Reference {
     /// antecedent of ANY sort (R1), refused when a second compatible
     /// antecedent makes it a guess (the R2 uniqueness gate; both are
     /// soundness invariants proven by the Idris re-emit gate): Lightning
-    /// Bolt's `DealDamage(It, 3)` reads its one announced target.
+    /// Bolt's `DealDamage(This, 3, It)` reads its one announced target.
     It,
     /// The nth announced target ([CR#115.3,601.2c]); out-of-range degrades
     /// to the null id (never-crash).

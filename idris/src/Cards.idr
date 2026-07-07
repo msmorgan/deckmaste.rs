@@ -23,7 +23,7 @@ card_LightningBolt = Normal $ ^:
   , abilities :=
       [ Spell $
           Targeted [anyTarget] $
-          (Act (DealDamage It (^3)))       -- the one announced slot, read as "it" (canon: DealDamage(It, 3))
+          (Act (DealDamage (^3) It))       -- the one announced slot, read as "it" (canon: DealDamage(This, 3, It))
       ]
   }
 
@@ -35,7 +35,7 @@ card_Pyroclasm = Normal $ ^:
   , manaCost := [^1, ^Red]
   , types := [Sorcery]
   , abilities :=
-      [ Spell (Each (Existing (SelectAll creature)) (Act (DealDamage It (^2))))
+      [ Spell (Each (Existing (SelectAll creature)) (Act (DealDamage (^2) It)))
       ]
   }
 
@@ -536,7 +536,7 @@ card_Electrolyze = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
           (Sequence
-            [ Distribute (^2) (Existing They) (Act (DealDamage It Allotment))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
+            [ Distribute (^2) (Existing They) (Act (DealDamage Allotment It))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
             , Act (Draw (^1)) ]))
       ]
   }
@@ -692,7 +692,7 @@ card_OutpostSiege = Normal $ ^:
             Triggered (MkEventQuery [ZoneChanged (Just Battlefield) Nothing]
                            [Agent (And [creature, ControlledBy you])])
               (If (ChosenIs 1)
-                  (Targeted [anyTarget] (Act (DealDamage (Target {k = Anything} 0) (^1)))))
+                  (Targeted [anyTarget] (Act (DealDamage (^1) (Target {k = Anything} 0)))))
           ]
       ]
   }
@@ -1064,7 +1064,7 @@ card_Skred = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Act (DealDamage It (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you]))))) ]
+          (Act (DealDamage (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you])) It))) ]
   }
 
 -- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (saga)`

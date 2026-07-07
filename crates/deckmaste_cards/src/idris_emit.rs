@@ -1257,8 +1257,8 @@ fn emit_counter_spec(c: &CounterSpec) -> R {
 
 fn emit_action(a: &Action) -> R {
     Ok(match a {
-        // `dealDamageFrom` exposes the (default-`This`) `source` positionally.
-        Action::DealDamage(patient, count, source) => app(
+        // `dealDamageFrom` exposes the required `source` positionally.
+        Action::DealDamage(source, count, patient) => app(
             "dealDamageFrom",
             vec![
                 emit_reference(source)?,

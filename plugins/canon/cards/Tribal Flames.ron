@@ -12,7 +12,7 @@ Normal(
       // "Domain —" is render metadata ([CR#207.2c]); the Domain macro counts
       // basic land types ([CR#205.3i]).
       ability_word: "Domain",
-      effect: Targeted(targets: [AnyTarget], effect: DealDamage(It, Domain)),
+      effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, Domain, It)),
     ),
   ],
 )
