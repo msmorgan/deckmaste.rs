@@ -7,7 +7,7 @@
 ||| static-classes, checker-rules, event-lanes) and the per-card resolution
 ||| fixtures (`Resolutions.idr`, also deleted). Anaphora/binding resolution
 ||| now happens purely at engine eval time
-||| (`deckmaste_engine::stack::{Frame,Endophora}` + `resolve.rs`), so there is
+||| (`deckmaste_engine::stack::{Frame,Anaphora}` + `resolve.rs`), so there is
 ||| no load-time gate left for those tables to feed. Run via
 ||| `idris/scripts/emit-tables`
 ||| (`idris2 --find-ipkg --exec emitTables src/EmitTables.idr` from `idris/`).

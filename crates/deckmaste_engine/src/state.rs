@@ -149,7 +149,7 @@ pub enum ChoiceContinuation {
         index: usize,
     },
     /// A `ChooseObjects` answer ([CR#608.2d]): bind the picks into
-    /// `frame.endophora.chosen`, then re-run `effect` (the action whose
+    /// `frame.anaphora.chosen`, then re-run `effect` (the action whose
     /// `Choose`/`Random` selection produced the decision).
     BindChoice {
         effect: Box<deckmaste_core::Effect>,

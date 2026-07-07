@@ -29,7 +29,7 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::stack::Endophora;
+use crate::stack::Anaphora;
 use crate::stack::Frame;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
@@ -307,9 +307,9 @@ impl GameState {
                 None => false,
                 Some((carrier, controller)) => {
                     let frame = Frame {
-                        endophora: Endophora {
+                        anaphora: Anaphora {
                             it: Some(crate::stack::ItBinding::Object(snapshot.clone())),
-                            ..Endophora::empty()
+                            ..Anaphora::empty()
                         },
                         ..Frame::bare(carrier, controller)
                     };
@@ -592,12 +592,12 @@ impl GameState {
                         this: Some(this.clone()),
                         defending_player: bindings.defending_player,
                         // Endophoric event roles (no targets chosen at the gate).
-                        endophora: Endophora {
+                        anaphora: Anaphora {
                             that_object: bindings.that_object.clone(),
                             that_player: bindings.that_player,
                             that_patient: bindings.that_patient.clone(),
                             crossed: bindings.crossed,
-                            ..Endophora::empty()
+                            ..Anaphora::empty()
                         },
                     };
                     if !self.condition_holds(c, &frame) {

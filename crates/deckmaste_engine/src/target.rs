@@ -132,9 +132,9 @@ pub fn matches_with(
                     None => false,
                     Some((carrier, controller)) => {
                         let frame = crate::stack::Frame {
-                            endophora: crate::stack::Endophora {
+                            anaphora: crate::stack::Anaphora {
                                 it: Some(state.it_binding(id)),
-                                ..crate::stack::Endophora::empty()
+                                ..crate::stack::Anaphora::empty()
                             },
                             ..crate::stack::Frame::bare(carrier, controller)
                         };

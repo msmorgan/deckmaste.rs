@@ -125,7 +125,7 @@ impl GameState {
             // antecedent). A doubled 0→2 placement is ONE fact whose
             // crossing satisfies both a threshold of 1 and of 2.
             Condition::Crossed { threshold, .. } => {
-                let Some((before, after)) = frame.endophora.crossed else {
+                let Some((before, after)) = frame.anaphora.crossed else {
                     todo!(
                         "checker-gated (E-BIND-EVENT/E-CAPS-AMOUNT): Crossed with no                          before/after channel in the frame"
                     )
@@ -179,7 +179,7 @@ impl GameState {
         // The iteration/projection element ([CR#608.2]): a card element carries
         // a snapshot; a player element is zoneless and has none.
         if let Reference::It = reference {
-            return match frame.endophora.it.as_ref()? {
+            return match frame.anaphora.it.as_ref()? {
                 crate::stack::ItBinding::Object(s) => Some(s),
                 crate::stack::ItBinding::Player(_) => None,
             };
@@ -187,9 +187,9 @@ impl GameState {
         match reference {
             Reference::This => frame.this.as_ref(),
             // The event OBJECT — the moved object's snapshot ([CR#603.2e]).
-            Reference::EventObject => frame.endophora.that_object.as_ref(),
+            Reference::EventObject => frame.anaphora.that_object.as_ref(),
             // An OBJECT patient carries a snapshot; a player patient has none.
-            Reference::EventPatient => match frame.endophora.that_patient.as_ref()? {
+            Reference::EventPatient => match frame.anaphora.that_patient.as_ref()? {
                 crate::trigger::EventPatient::Object(s) => Some(s),
                 crate::trigger::EventPatient::Player(_) => None,
             },
@@ -238,7 +238,7 @@ mod tests {
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::stack::Endophora;
+    use crate::stack::Anaphora;
     use crate::stack::Frame;
     use crate::state::GameConfig;
     use crate::state::GameState;
@@ -395,9 +395,9 @@ mod tests {
             controller: PlayerId(0),
             this: Some(LkiSnapshot::capture(&state, bear)),
             defending_player: None,
-            endophora: Endophora {
+            anaphora: Anaphora {
                 targets: vec![bear],
-                ..Endophora::empty()
+                ..Anaphora::empty()
             },
         };
 
@@ -872,9 +872,9 @@ mod tests {
         // `EventObject` is the just-entered creature `entrant`.
         let frame_for_entrant = |state: &GameState, entrant| Frame {
             this: Some(LkiSnapshot::capture(state, carrier)),
-            endophora: Endophora {
+            anaphora: Anaphora {
                 that_object: Some(LkiSnapshot::capture(state, entrant)),
-                ..Endophora::empty()
+                ..Anaphora::empty()
             },
             ..Frame::bare(carrier, PlayerId(0))
         };

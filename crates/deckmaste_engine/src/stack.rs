@@ -218,7 +218,7 @@ pub struct ThatBinding {
 /// game *situation*, are never bound by an operator, and so live on the
 /// [`Frame`] OUTSIDE this record.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Endophora {
+pub struct Anaphora {
     /// Chosen at announce ([CR#601.2c]) or trigger placement ([CR#603.3d]);
     /// read back by the slot-bound anaphors (`It`/`They`, or by position via
     /// `Reference::Target(n)`).
@@ -272,14 +272,14 @@ pub struct Endophora {
     pub crossed: Option<(deckmaste_core::Uint, deckmaste_core::Uint)>,
 }
 
-impl Endophora {
+impl Anaphora {
     /// An empty binding environment: no targets, no anaphor bound, no event
     /// role. The starting point every fresh `Frame` builds from (combine with
-    /// functional-record-update — `Endophora { targets, ..Endophora::empty()
+    /// functional-record-update — `Anaphora { targets, ..Anaphora::empty()
     /// }`).
     #[must_use]
     pub const fn empty() -> Self {
-        Endophora {
+        Anaphora {
             targets: Vec::new(),
             chosen: None,
             x: None,
@@ -296,11 +296,11 @@ impl Endophora {
 }
 
 /// The binding environment a resolving effect reads ([CR#608.2]), split along
-/// the endophora/exophora line. The always-available **exophoric** refs that
+/// the anaphora/exophora line. The always-available **exophoric** refs that
 /// name the game *situation* stay here — `source`/`controller` (read by
 /// `This`/`You`/`Opponent`), the firing object's last-known self (`this`), and
 /// the combat `defending_player` — while everything an operator binds for a
-/// sub-scope lives in the nested [`Endophora`] record.
+/// sub-scope lives in the nested [`Anaphora`] record.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
     pub source: ObjectId,
@@ -315,16 +315,16 @@ pub struct Frame {
     pub defending_player: Option<PlayerId>,
     /// The text-internal binding environment — targets, the `It`/`That`
     /// anaphors, the `DivideAmong` allotment, the chosen value, X, and the
-    /// firing event's roles. See [`Endophora`].
-    pub endophora: Endophora,
+    /// firing event's roles. See [`Anaphora`].
+    pub anaphora: Anaphora,
 }
 
 impl Frame {
     /// A bare resolution frame: the exophoric `source`/`controller`, no trigger
     /// snapshot (a spell frame — `Reference::This` reads the live `source`), no
-    /// combat defender, and an empty [`Endophora`]. The common starting shape
+    /// combat defender, and an empty [`Anaphora`]. The common starting shape
     /// for gate/payability/instant frames; add targets, X, or an anaphor by
-    /// populating `.endophora`.
+    /// populating `.anaphora`.
     #[must_use]
     pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
         Frame {
@@ -332,7 +332,7 @@ impl Frame {
             controller,
             this: None,
             defending_player: None,
-            endophora: Endophora::empty(),
+            anaphora: Anaphora::empty(),
         }
     }
 }

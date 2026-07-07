@@ -153,7 +153,7 @@ fn characteristic_word(axis: Characteristic) -> &'static str {
 pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
         // Look through a macro-provenance wrapper (a Selection-position
-        // macro like `OtherCreatureYouControl` expands the WHOLE selection,
+        // macro like `OtherCreaturesYouControl` expands the WHOLE selection,
         // not just an inner filter) — recompute from the expanded value,
         // same as every other `Expanded` arm in this renderer.
         Selection::Expanded(e) => selection(&e.value, ctx),

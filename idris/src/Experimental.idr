@@ -52,7 +52,7 @@ Args None        b = ()
 Args Counted     b = Count b
 Args Costed      b = Cost b
 Args CountedCost b = (Count b, Cost b)
-Args Predicated  b = Predicate b AnObject
+Args Predicated  b = Filter b AnObject
 Args Named       b = String
 
 -- ===== Keywords =====
@@ -117,7 +117,7 @@ namespace KeywordUse
   ||| `KA Deathtouch (Mana [^2])` has no type.
   |||
   ||| Contrast Core's `KeywordSpec`/`KeywordAbility`: there the enum is flat,
-  ||| parameters ride ad-hoc per constructor (`Hexproof (Maybe (Predicate b
+  ||| parameters ride ad-hoc per constructor (`Hexproof (Maybe (Filter b
   ||| AnObject))`), and costs cannot ride the spec at all ("`KeywordSpec`
   ||| precedes `Cost`" — Morph/Flashback are bare tags whose costs live in
   ||| their desugared abilities). The shape index removes both weaknesses:
@@ -187,7 +187,7 @@ failing "Cost Base"
 
 -- A counted keyword cannot take a predicate.
 -- @twin idris-only: a shape cross-application - the same one ParamShape check; the RON spelling fails at the declared-shape read
-failing "Mismatch between: Predicate ?b AnObject and Count ?b"
+failing "Mismatch between: Filter ?b AnObject and Count ?b"
   bad : KeywordUse Base
   bad = KA Toxic creature
 

@@ -28,9 +28,9 @@ pub(crate) fn frame_src_targets(
     targets: Vec<crate::object::ObjectId>,
 ) -> Frame {
     Frame {
-        endophora: crate::stack::Endophora {
+        anaphora: crate::stack::Anaphora {
             targets,
-            ..crate::stack::Endophora::empty()
+            ..crate::stack::Anaphora::empty()
         },
         ..Frame::bare(source, PlayerId(0))
     }

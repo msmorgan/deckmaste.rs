@@ -1022,7 +1022,7 @@ impl GameState {
                 else {
                     unreachable!("a ChooseObjects decision stashes a BindChoice continuation");
                 };
-                frame.endophora.chosen = Some(chosen);
+                frame.anaphora.chosen = Some(chosen);
                 self.schedule_front(vec![WorkItem::RunEffect { effect, frame }]);
                 Ok(())
             }

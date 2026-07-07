@@ -90,8 +90,8 @@ fn split_ability_word(line: &str) -> (Option<&str>, &str) {
 /// spell/activated parsers use: several trigger events push their OWN role
 /// antecedents onto the resolving frame alongside the announced target — a
 /// dies/enters `ZoneChanged`, an attacks `Attacking`, a becomes-tapped
-/// `Tapped` all bind `endophora.that_object` on the very frame that also
-/// carries `endophora.targets` ([CR#608.2d]; see `resolve.rs`'s
+/// `Tapped` all bind `anaphora.that_object` on the very frame that also
+/// carries `anaphora.targets` ([CR#608.2d]; see `resolve.rs`'s
 /// `StackObject::Triggered` frame build). The engine's `Reference::It`
 /// read refuses to guess between an event role and the announced target
 /// when both are bound, so it degrades to the null id — a silent fizzle,

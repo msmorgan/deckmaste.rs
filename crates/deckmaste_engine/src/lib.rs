@@ -101,7 +101,7 @@ pub use runner::Runner;
 mod sba;
 
 mod stack;
-pub use stack::Endophora;
+pub use stack::Anaphora;
 pub use stack::Frame;
 pub use stack::PendingStackEntry;
 pub use stack::StackEntry;

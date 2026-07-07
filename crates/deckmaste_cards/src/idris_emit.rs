@@ -440,7 +440,7 @@ fn emit_reference_anykind(r: &Reference) -> R {
     })
 }
 
-/// Convert a `Reference` used where Idris wants a `Predicate` (Idris's
+/// Convert a `Reference` used where Idris wants a `Filter` (Idris's
 /// `Sacrifice`/`ChooseOne`/… bake the choice INTO the predicate rather than
 /// pre-resolving it via a binder, unlike Rust's newer split). Every reference
 /// becomes `SameAs <ref>` (an already-resolved reference IS a predicate:
@@ -450,7 +450,7 @@ fn reference_as_predicate(r: &Reference) -> R {
 }
 
 // ===========================================================================
-// Filter -> Predicate
+// Rust Filter -> Idris Filter
 // ===========================================================================
 
 fn emit_filter(f: &Filter) -> R {
@@ -478,14 +478,14 @@ fn emit_filter(f: &Filter) -> R {
         Filter::Relation(rf) => emit_relation_filter(rf)?,
         Filter::Ref(r) => app("SameAs", vec![emit_reference(r)?]),
         Filter::FromSource(_) => {
-            return Err(gap("Filter::FromSource has no Idris Predicate counterpart"));
+            return Err(gap("Filter::FromSource has no Idris Filter counterpart"));
         }
         Filter::AllOf(fs) => app("And", vec![map_list(fs, emit_filter)?]),
         Filter::OneOf(fs) => app("Or", vec![map_list(fs, emit_filter)?]),
         Filter::Not(inner) => app("Not", vec![emit_filter(inner)?]),
         Filter::Where(cond) => app("Where", vec![emit_condition(cond)?]),
         // The vacuous conjunction is universally (if trivially) true at any
-        // kind — the one "matches anything" Predicate Idris has.
+        // kind — the one "matches anything" Filter Idris has.
         Filter::Any => "(And [])".to_string(),
         Filter::Expanded(_) => {
             return Err(gap(
@@ -592,7 +592,7 @@ fn emit_state_filter(sf: &StateFilter) -> R {
         }
         StateFilter::RelatedBy(..) => {
             return Err(gap(
-                "StateFilter::RelatedBy has no Idris Predicate counterpart",
+                "StateFilter::RelatedBy has no Idris Filter counterpart",
             ));
         }
         StateFilter::Attacking => "(Holds Attack Agent)".to_string(),
@@ -649,12 +649,12 @@ fn emit_relation_filter(rf: &RelationFilter) -> R {
         }
         RelationFilter::AttachedTo(_) => {
             return Err(gap(
-                "Filter RelationFilter::AttachedTo has no Idris Predicate counterpart",
+                "Filter RelationFilter::AttachedTo has no Idris Filter counterpart",
             ));
         }
         RelationFilter::Attachment(_) => {
             return Err(gap(
-                "RelationFilter::Attachment has no Idris Predicate counterpart",
+                "RelationFilter::Attachment has no Idris Filter counterpart",
             ));
         }
     })
@@ -941,7 +941,7 @@ fn emit_selection(s: &Selection) -> R {
     })
 }
 
-/// `TargetSpec.Target`'s filter is a `Predicate b k` with `k` free (like the
+/// `TargetSpec.Target`'s filter is a `Filter b k` with `k` free (like the
 /// `Deed` patient), so a bare "any target" filter needs a concretely-kinded
 /// value too — reproduced here (sugar-free) from `Macros.idr`'s own
 /// `anyTarget` ([CR#115.4]: creature/planeswalker/battle permanent OR any
@@ -1056,7 +1056,7 @@ fn emit_cost_component(c: &CostComponent) -> R {
         CostComponent::With { binder, body } => {
             // The common "sacrifice/tap a chosen one" cost shape: a
             // ChooseOne binder whose body pays with the bound choice. Idris's
-            // verbs already bake the choice into a Predicate, so this
+            // verbs already bake the choice into a Filter, so this
             // desugars to a single Cost component naming the filter — no
             // Binder needed on the Idris side.
             emit_with_cost_as_predicate_verb(binder, body)?
@@ -1924,7 +1924,7 @@ fn emit_can(action: &DeonticAction) -> R {
     Ok(app("Can", vec![emit_deed(action)?]))
 }
 
-/// `Deed.Enact`'s `patient : Predicate b k` carries a totally FREE `k` (no
+/// `Deed.Enact`'s `patient : Filter b k` carries a totally FREE `k` (no
 /// function ties it to `patientScope r`, unlike `agent`'s `agentScope r`,
 /// which reduces to a concrete kind since `r` is always a literal
 /// constructor here) — so a default `Filter::Any` patient can't elaborate as

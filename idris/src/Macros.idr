@@ -1,5 +1,5 @@
 ||| Reusable named filters — the Idris analogue of the deckmaste plugin macros:
-||| a `Predicate` given a domain name, so cards read `SelectAll creature`. The
+||| a `Filter` given a domain name, so cards read `SelectAll creature`. The
 ||| combinators (`And`/`Or`/`Not`) and identity test (`SameAs`) are `Core`
 ||| constructors used directly — no redundant `allF`/`notF`/`isRef` aliases.
 module Macros
@@ -11,23 +11,23 @@ import public Core
 -- terse read sugar over the unified `HasChar`/`SharesChar`/`PlayerStatOf` primitives,
 -- so card source stays readable (the primitive is what the RON serializes).
 public export
-hasType : Type_ -> Predicate b AnObject
+hasType : Type_ -> Filter b AnObject
 hasType t = HasChar Types t
 
 public export
-hasColor : Color -> Predicate b AnObject
+hasColor : Color -> Filter b AnObject
 hasColor c = HasChar Colors c
 
 public export
-hasSubtype : Subtype -> Predicate b AnObject
+hasSubtype : Subtype -> Filter b AnObject
 hasSubtype s = HasChar Subtypes s
 
 public export
-hasSupertype : Supertype -> Predicate b AnObject
+hasSupertype : Supertype -> Filter b AnObject
 hasSupertype s = HasChar Supertypes s
 
 public export
-sharesSubtype : Reference b AnObject -> Predicate b AnObject
+sharesSubtype : Reference b AnObject -> Filter b AnObject
 sharesSubtype r = SharesChar Subtypes r
 
 public export
@@ -39,15 +39,15 @@ handSize : Reference b APlayer -> Count b
 handSize r = PlayerStatOf r HandSize
 
 public export
-permanent : Predicate b AnObject
+permanent : Filter b AnObject
 permanent = InZone Battlefield
 
 public export
-creature : Predicate b AnObject
+creature : Filter b AnObject
 creature = hasType Creature
 
 public export
-inHand : Predicate b AnObject
+inHand : Filter b AnObject
 inHand = InZone Hand
 
 -- player-predicates: `you` is the controller; `opponent`/`teammate` are TEAM-relative ([CR#102.3]) — an
@@ -55,15 +55,15 @@ inHand = InZone Hand
 -- a teammate another player ON your team. Lowercase sugar for the `OpponentOf`/`TeammateOf` engine primitives.
 -- Feed `ControlledBy`/`Actor`/`Target (^1)`/`SelectAll`.
 public export
-you : Predicate b APlayer
+you : Filter b APlayer
 you = SameAs You
 
 public export
-opponent : Predicate b APlayer
+opponent : Filter b APlayer
 opponent = OpponentOf
 
 public export
-teammate : Predicate b APlayer
+teammate : Filter b APlayer
 teammate = TeammateOf
 
 -- "at the beginning of the next end step" — the common delayed-trigger event.
@@ -99,7 +99,7 @@ eachPlayer = SelectAll Anyone
 
 -- "any spell or ability" — the universal targeting SOURCE.
 public export
-spellOrAbility : Predicate b AnObject
+spellOrAbility : Filter b AnObject
 spellOrAbility = Or [IsKind Spell, IsKind Ability]
 
 -- the two COMPULSION aliases over the single polarized `Constrain` ([CR#508.1c] restriction /
@@ -136,7 +136,7 @@ hexproof = Keyword (Composite (Hexproof Nothing) [Static (cant (Enact Target (Co
 -- "hexproof from [f]": can't be targeted by an opponent's source matching `f`. `f` may be an
 -- ANAPHOR ("from the CHOSEN color") — the reason `Ability` is `Ctx`-indexed.
 public export
-hexproofFrom : Predicate b AnObject -> Ability b
+hexproofFrom : Filter b AnObject -> Ability b
 hexproofFrom f = Keyword (Composite (Hexproof (Just f)) [Static (cant (Enact Target (And [ControlledBy opponent, f]) (SameAs This)))])
 
 -- Flash ([CR#702.8a]): a deontic `Can` to cast THIS at instant speed — a widened cast window, not
@@ -248,7 +248,7 @@ fight x y = Act (Composite Fight
 -- `q` sources, Enchanted/equipped by `q`, Blocked by `q`, or Targeted by `q`. ONE construct over the
 -- existing `cant`/`ReplaceAmount` parts (the `Agent` facet — the damage source — for the D leg).
 public export
-protection : Predicate b AnObject -> Ability b
+protection : Filter b AnObject -> Ability b
 protection q = Keyword (Composite (Protection q)
   [ Static (ReplaceAmount (MkEventQuery [DealDamage Nothing] [Patient (SameAs This), Agent q]) (^0))   -- D
   , Static (cant (Enact Attach q (SameAs This)))        -- E
@@ -269,7 +269,7 @@ protection q = Keyword (Composite (Protection q)
 -- (`subtypeConfers`), not here. MONOMORPHIC at `Base`: an anaphor read under an ABSTRACT context cannot
 -- reduce its resolve proof, so the macro pins the printed-face context (its one kind of use site).
 public export
-enchant : ({0 c : Ctx} -> Predicate c AnObject) -> List (Ability Base)
+enchant : ({0 c : Ctx} -> Filter c AnObject) -> List (Ability Base)
 enchant hosts =
   [ Static (Can (Enact Attach (SameAs This) hosts))                                  -- (1) permission: the aura ENABLES attaching
   , Static (Also thisEnters (If (Not (LegallyAttached This))                         -- (2) [CR#303.4f] non-cast entry only (cast path is already attached):

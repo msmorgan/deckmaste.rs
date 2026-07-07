@@ -17,9 +17,9 @@ Normal(
   ],
   abilities: [
     Keyword(Vigilance),
-    Static(Each(OtherCreatureYouControl, Modify(It, PowerAndToughness(Up(2))))),
-    Static(Each(CreatureOpponentControls, Modify(It, PowerAndToughness(Down(2))))),
-    // OtherCreatureYouControl, PowerAndToughness, and CreatureOpponentControls are macros.
+    Static(Each(OtherCreaturesYouControl, Modify(It, PowerAndToughness(Up(2))))),
+    Static(Each(CreaturesOpponentControls, Modify(It, PowerAndToughness(Down(2))))),
+    // OtherCreaturesYouControl, PowerAndToughness, and CreaturesOpponentControls are macros.
   ],
   power: 4,
   toughness: 7,

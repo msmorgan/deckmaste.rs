@@ -36,7 +36,7 @@ pub enum Binder {
     /// sacrifices a creature of their choice", [CR#608.2d,701.21a]) overrides
     /// it.
     ChooseOne {
-        /// What may be picked (the Idris `Predicate`).
+        /// What may be picked (the Idris `Filter`).
         filter: Filter,
         /// Who chooses (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
@@ -54,7 +54,7 @@ pub enum Binder {
     /// `by`/`whose` default to `You`, `from` to `[Library]` (each omitted on
     /// write when default).
     SearchOne {
-        /// The card sought (the Idris `Predicate`).
+        /// The card sought (the Idris `Filter`).
         filter: Filter,
         /// Who performs the search (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
@@ -81,7 +81,7 @@ pub enum Binder {
     Choose {
         /// How many to pick (the Idris `Quantity`).
         quantity: Quantity,
-        /// What may be picked (the Idris `Predicate`).
+        /// What may be picked (the Idris `Filter`).
         filter: Filter,
         /// Who chooses (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
@@ -97,7 +97,7 @@ pub enum Binder {
     Search {
         /// How many cards to find (the Idris `Quantity`).
         quantity: Quantity,
-        /// The cards sought (the Idris `Predicate`).
+        /// The cards sought (the Idris `Filter`).
         filter: Filter,
         /// Who performs the search (default `You`).
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]

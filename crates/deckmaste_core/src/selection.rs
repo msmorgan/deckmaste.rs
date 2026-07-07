@@ -39,7 +39,7 @@ pub enum Extremum {
 pub enum Selection {
     /// All matching objects as one set ("every creature you control") — the
     /// group a distributor ([`Each`](crate::Each) / `StaticEffect::Each`)
-    /// iterates. Mirrors Idris `SelectAll : Predicate -> Selection`.
+    /// iterates. Mirrors Idris `SelectAll : Filter -> Selection`.
     SelectAll(Filter),
     /// Several selections combined as ONE group ("each X and each Y") — the
     /// Idris `Union`. Order-preserving concatenation of the member groups; an

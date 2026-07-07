@@ -21,7 +21,7 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::stack::Endophora;
+use crate::stack::Anaphora;
 use crate::state::GameState;
 use crate::trigger::EventPatient;
 
@@ -572,23 +572,23 @@ fn schedule_body(
     // reading it (a player proxy is zoneless, so it has no LKI snapshot — it
     // binds as the player patient; a card/token recipient binds as the object
     // patient).
-    let endophora = that.map_or_else(Endophora::empty, |id| match state.objects.obj(id).source {
-        ObjectSource::Player(p) => Endophora {
+    let anaphora = that.map_or_else(Anaphora::empty, |id| match state.objects.obj(id).source {
+        ObjectSource::Player(p) => Anaphora {
             that_player: Some(p),
             that_patient: Some(EventPatient::Player(p)),
-            ..Endophora::empty()
+            ..Anaphora::empty()
         },
         ObjectSource::Card(_) => {
             let snapshot = LkiSnapshot::capture(state, id);
-            Endophora {
+            Anaphora {
                 that_object: Some(snapshot.clone()),
                 that_patient: Some(EventPatient::Object(snapshot)),
-                ..Endophora::empty()
+                ..Anaphora::empty()
             }
         }
     });
     let frame = crate::stack::Frame {
-        endophora,
+        anaphora,
         ..crate::stack::Frame::bare(source, controller)
     };
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {

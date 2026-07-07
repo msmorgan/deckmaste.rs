@@ -1,10 +1,10 @@
-// OtherCreatureYouControl = the anthem-family distribution set: "each other
+// OtherCreaturesYouControl = the anthem-family distribution set: "each other
 // creature you control" ([CR#613.6] anthem shape). A Selection-kind macro —
 // the whole `SelectAll(...)` IS the macro body, so a card spells the anthem
-// as `Each(OtherCreatureYouControl, Modify(It, <boost>))` directly, no
+// as `Each(OtherCreaturesYouControl, Modify(It, <boost>))` directly, no
 // nested `SelectAll` at the call site.
 (
-    name: "OtherCreatureYouControl",
+    name: "OtherCreaturesYouControl",
     template: "each other creature you control",
     kinds: [Selection],
     body: SelectAll(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])),
