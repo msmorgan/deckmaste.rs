@@ -1120,7 +1120,8 @@ impl GameState {
     }
 
     /// Whether a move verb (source- or player-agent) relocates to an ordered
-    /// [`Destination::Library`] position; `Composite` looks through to its body.
+    /// [`Destination::Library`] position; `Composite` looks through to its
+    /// body.
     fn action_moves_to_library(a: &Action) -> bool {
         match a {
             Action::Move(_, Destination::Library(_), _)
@@ -1157,7 +1158,7 @@ impl GameState {
                     items.push(WorkItem::Emit(Occurrence::single(
                         GameEvent::KeywordActionPerformed {
                             player: frame.controller,
-                            name: name.clone(),
+                            name: *name,
                         },
                     )));
                 }
@@ -1448,16 +1449,15 @@ impl GameState {
                     let (end, _) = self.anchor_end_offset(anchor, frame);
                     let library_owner = self.owner_of(objects[0]);
                     let arranger = match arrangement {
-                        // [CR#401.4]: "any order" = the cards' owner arranges.
-                        deckmaste_core::Arrangement::AnyOrder => library_owner,
-                        deckmaste_core::Arrangement::ChosenOrder(r) => {
-                            self.acting_player(r, frame)
-                        }
-                        deckmaste_core::Arrangement::RandomOrder
+                        // [CR#401.4]: "any order" is arranged by the cards'
+                        // owner; RandomOrder/SameOrder carry no arranger (unused,
+                        // defaulted to the owner).
+                        deckmaste_core::Arrangement::ChosenOrder(r) => self.acting_player(r, frame),
+                        deckmaste_core::Arrangement::AnyOrder
+                        | deckmaste_core::Arrangement::RandomOrder
                         | deckmaste_core::Arrangement::SameOrder => library_owner,
                     };
-                    let count =
-                        Uint::try_from(objects.len()).expect("group size fits Uint");
+                    let count = Uint::try_from(objects.len()).expect("group size fits Uint");
                     items.push(WorkItem::ArrangeGroupLanding {
                         arranger,
                         arrangement: arrangement.clone(),
@@ -1606,16 +1606,19 @@ impl GameState {
         items
     }
 
-    /// The (end, offset) a library [`Anchor`] names ([CR#401.7]) — the pile axis
-    /// and count-from-that-end for a same-library reposition, resolved robustly
-    /// to the card being pulled out first (unlike [`Self::library_index`], which
-    /// pre-resolves a from-bottom anchor against the current size).
-    fn anchor_end_offset(&self, anchor: &Anchor, frame: &Frame) -> (crate::agenda::LibraryEnd, Uint) {
+    /// The (end, offset) a library [`Anchor`] names ([CR#401.7]) — the pile
+    /// axis and count-from-that-end for a same-library reposition, resolved
+    /// robustly to the card being pulled out first (unlike
+    /// [`Self::library_index`], which pre-resolves a from-bottom anchor
+    /// against the current size).
+    fn anchor_end_offset(
+        &self,
+        anchor: &Anchor,
+        frame: &Frame,
+    ) -> (crate::agenda::LibraryEnd, Uint) {
         match anchor {
             Anchor::FromTop(c) => (crate::agenda::LibraryEnd::Top, self.eval_count(c, frame)),
-            Anchor::FromBottom(c) => {
-                (crate::agenda::LibraryEnd::Bottom, self.eval_count(c, frame))
-            }
+            Anchor::FromBottom(c) => (crate::agenda::LibraryEnd::Bottom, self.eval_count(c, frame)),
         }
     }
 
@@ -7958,11 +7961,12 @@ mod tests {
     }
 
     // ---- scry / arrange (the recomposed keyword-action path) ----------------
-    use crate::decide::Decision;
-    use crate::decide::PendingDecision;
     use deckmaste_core::Anchor;
     use deckmaste_core::Destination;
     use deckmaste_core::Uint;
+
+    use crate::decide::Decision;
+    use crate::decide::PendingDecision;
 
     /// Mint a fresh card-backed object into `owner`'s library at the BOTTOM
     /// (`push_back`; the front is the top). Returns its id.
@@ -8038,8 +8042,8 @@ mod tests {
 
     /// [CR#701.22a,401.7]: scry-1 to the BOTTOM repositions the peeked card
     /// within the SAME library — the `ObjectId` is preserved, no `ZoneChanged`
-    /// fires (a pile of one surfaces no arrange decision), and the keyword-action
-    /// event fires once the pick lands ([CR#701.22d]).
+    /// fires (a pile of one surfaces no arrange decision), and the
+    /// keyword-action event fires once the pick lands ([CR#701.22d]).
     #[test]
     fn scry_reposition_keeps_id_and_fires_no_zone_change() {
         let p0 = PlayerId(0);
@@ -8063,7 +8067,10 @@ mod tests {
         let events = drain_events(&mut state, 60);
         // `a` moved to the bottom, SAME id, no zone change.
         assert_eq!(
-            state.zones.libraries[p0.index()].iter().copied().collect::<Vec<_>>(),
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
             vec![b, c, a],
             "a repositioned to the bottom, keeping its id"
         );
@@ -8117,17 +8124,19 @@ mod tests {
         let events = drain_events(&mut state, 60);
         let scries = events
             .iter()
-            .filter(|e| matches!(
-                e,
-                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
-            ))
+            .filter(|e| {
+                matches!(
+                    e,
+                    GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+                )
+            })
             .count();
         assert_eq!(scries, 1, "scry 1 fires exactly one keyword event");
     }
 
     /// [CR#401.4]: a pile of MORE THAN ONE card at a library end surfaces one
-    /// arrange decision (both-on-top), while a scry whose picks split one card to
-    /// each end surfaces NONE (every pile is a single card).
+    /// arrange decision (both-on-top), while a scry whose picks split one card
+    /// to each end surfaces NONE (every pile is a single card).
     #[test]
     fn scry_arrange_surfaces_only_for_multi_card_piles() {
         let p0 = PlayerId(0);
@@ -8149,7 +8158,10 @@ mod tests {
         };
         assert_eq!(player, p0, "the scrying player arranges");
         assert_eq!(
-            objects.iter().copied().collect::<std::collections::HashSet<_>>(),
+            objects
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>(),
             [a, b].into_iter().collect(),
             "the top pile holds both peeked cards"
         );
@@ -8181,8 +8193,8 @@ mod tests {
     }
 
     /// [CR#701.22a]: a full scry-2 both-on-top round trip — the arrange decision
-    /// orders the top pile, and the library ends up in the chosen order above the
-    /// untouched rest, every id preserved.
+    /// orders the top pile, and the library ends up in the chosen order above
+    /// the untouched rest, every id preserved.
     #[test]
     fn scry_two_both_top_round_trip() {
         let p0 = PlayerId(0);
@@ -8200,10 +8212,15 @@ mod tests {
         state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
         drain_events(&mut state, 60);
         // Arrange the top pile as b, then a (top → down).
-        state.submit_decision(Decision::Arranged(vec![b, a])).unwrap();
+        state
+            .submit_decision(Decision::Arranged(vec![b, a]))
+            .unwrap();
         drain_events(&mut state, 60);
         assert_eq!(
-            state.zones.libraries[p0.index()].iter().copied().collect::<Vec<_>>(),
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
             vec![b, a, c, d],
             "the chosen order sits on top, the rest untouched, ids preserved"
         );
@@ -8240,9 +8257,9 @@ mod tests {
         mint_in_hand(&mut state, p0, "H2");
         let frame = frame_for(&state, p0);
         let effect = Effect::Act(Action::MoveGroup {
-            group: Selection::SelectAll(Predicate::State(
-                deckmaste_core::StatePredicate::InZone(Zone::Hand),
-            )),
+            group: Selection::SelectAll(Predicate::State(deckmaste_core::StatePredicate::InZone(
+                Zone::Hand,
+            ))),
             arrangement: deckmaste_core::Arrangement::AnyOrder,
             to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
             riders: vec![],

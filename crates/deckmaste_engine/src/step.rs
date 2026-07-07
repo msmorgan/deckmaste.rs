@@ -1541,9 +1541,10 @@ impl GameState {
         // (library owner, end) axis.
         let mut piles: Vec<crate::state::ArrangePile> = Vec::new();
         for landing in scope.landings {
-            if let Some(pile) = piles.iter_mut().find(|p| {
-                p.library_owner == landing.library_owner && p.end == landing.end
-            }) {
+            if let Some(pile) = piles
+                .iter_mut()
+                .find(|p| p.library_owner == landing.library_owner && p.end == landing.end)
+            {
                 pile.objects.push(landing.object);
             } else {
                 piles.push(crate::state::ArrangePile {
@@ -1583,7 +1584,11 @@ impl GameState {
         let lib = &self.zones.libraries[library_owner.index()];
         let pile_objects: Vec<ObjectId> = match end {
             LibraryEnd::Top => lib.iter().take(count).copied().collect(),
-            LibraryEnd::Bottom => lib.iter().skip(lib.len().saturating_sub(count)).copied().collect(),
+            LibraryEnd::Bottom => lib
+                .iter()
+                .skip(lib.len().saturating_sub(count))
+                .copied()
+                .collect(),
         };
         let pile = crate::state::ArrangePile {
             library_owner,
@@ -1596,8 +1601,8 @@ impl GameState {
                 Progress::PilesArranged { deciding: 1 }
             }
             deckmaste_core::Arrangement::RandomOrder => {
-                let mut order = pile.objects.clone();
                 use rand::seq::SliceRandom;
+                let mut order = pile.objects.clone();
                 order.shuffle(&mut self.rng);
                 self.apply_arranged(&pile, &order);
                 Progress::PilesArranged { deciding: 0 }
@@ -1631,11 +1636,7 @@ impl GameState {
     /// [CR#401.4]: apply an `Arranged` answer — reorder the pile's cards within
     /// their library (removed then re-inserted contiguously at their end, top →
     /// down in the chosen order) keeping every `ObjectId`.
-    pub(crate) fn apply_arranged(
-        &mut self,
-        pile: &crate::state::ArrangePile,
-        order: &[ObjectId],
-    ) {
+    pub(crate) fn apply_arranged(&mut self, pile: &crate::state::ArrangePile, order: &[ObjectId]) {
         use crate::agenda::LibraryEnd;
         let owner = pile.library_owner;
         for &object in order {

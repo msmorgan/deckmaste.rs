@@ -1291,10 +1291,8 @@ impl GameState {
                 if order.len() != current.objects.len() || want != got {
                     // Restore the continuation so the (idempotent) decision can be
                     // re-answered.
-                    self.choice = Some(crate::state::ChoiceContinuation::ArrangePiles {
-                        current,
-                        remaining,
-                    });
+                    self.choice =
+                        Some(crate::state::ChoiceContinuation::ArrangePiles { current, remaining });
                     return Err(DecisionError::Illegal {
                         reason: "an arrangement is a permutation of the offered pile".into(),
                     });
@@ -1787,4 +1785,3 @@ impl GameState {
             .consecutive_passes = 0;
     }
 }
-

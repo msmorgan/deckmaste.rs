@@ -671,6 +671,32 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             fragment::reference(r, ctx),
             fragment::library_position(anchor),
         ),
+        // [CR#401.4]: a GROUP move to an ordered library position — Brainstorm's
+        // "Put <group> on top of your library in any order." The "any order"
+        // rider prints for the arranged arrangements ([CR#401.4]); a fixed
+        // `SameOrder`/`RandomOrder` group carries no such rider.
+        Action::MoveGroup {
+            group,
+            arrangement,
+            to: Destination::Library(anchor),
+            riders,
+        } if riders.is_empty() => format!(
+            "Put {} on {} of your library{}.",
+            fragment::selection(group, ctx),
+            fragment::library_position(anchor),
+            if matches!(
+                arrangement,
+                deckmaste_core::Arrangement::AnyOrder | deckmaste_core::Arrangement::ChosenOrder(_)
+            ) {
+                " in any order"
+            } else {
+                ""
+            },
+        ),
+        // [CR#701]: a named keyword action is transparent to structural
+        // rendering — its meaning IS its body (the printed keyword name rides
+        // the macro template when authored via a macro).
+        Action::Composite { body, .. } => effect(body, ctx),
         // Exiling is a pure zone move ([CR#701.13]) — "Exile <r>." (the
         // source-agent twin of `PlayerAction::Move`'s identical exile arm).
         Action::Move(r, Destination::Zone(Zone::Exile), riders) if riders.is_empty() => {

@@ -139,8 +139,8 @@ pub enum WorkItem {
     /// change ([CR#400.7]): the `ObjectId` is preserved, no `ZoneChanged` fires
     /// and no zone-change trigger sees it (scry never removes a card from the
     /// library, [CR#701.22a]). `offset` is the count from `end`. When a
-    /// post-pick arrange scope is armed the landing is recorded so the finalizer
-    /// can order the pile ([CR#401.4]).
+    /// post-pick arrange scope is armed the landing is recorded so the
+    /// finalizer can order the pile ([CR#401.4]).
     RepositionLibrary {
         object: crate::object::ObjectId,
         end: LibraryEnd,
@@ -152,10 +152,10 @@ pub enum WorkItem {
     ArrangePiles,
     /// [CR#401.4]: arrange a `MoveGroup`'s landing in an ordered library
     /// position — the `count` cards now at `end` of `library_owner`'s library
-    /// (freshly reminted by the group move). `ChosenOrder`/`AnyOrder` surface an
-    /// arrange decision (`arranger` orders them); `RandomOrder` shuffles the
-    /// pile ([MTR 3.10]); `SameOrder` leaves it. Scheduled directly after the
-    /// group's move batch.
+    /// (freshly reminted by the group move). `ChosenOrder`/`AnyOrder` surface
+    /// an arrange decision (`arranger` orders them); `RandomOrder` shuffles
+    /// the pile ([MTR 3.10]); `SameOrder` leaves it. Scheduled directly
+    /// after the group's move batch.
     ArrangeGroupLanding {
         arranger: crate::player::PlayerId,
         arrangement: deckmaste_core::Arrangement,

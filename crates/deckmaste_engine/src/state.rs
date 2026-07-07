@@ -369,10 +369,10 @@ pub struct GameState {
     pub(crate) noting: Vec<deckmaste_core::Ident>,
     /// [CR#401.4]: the armed post-pick arrange collector. `Some` while an
     /// `Each`/`MoveGroup` whose body repositions cards into ordered library
-    /// positions is resolving; each landing records here, and the `ArrangePiles`
-    /// finalizer drains it. `None` at all other times, so a lone
-    /// `Move(_, Library(_))` reposition (a definite position, no order choice)
-    /// records nothing.
+    /// positions is resolving; each landing records here, and the
+    /// `ArrangePiles` finalizer drains it. `None` at all other times, so a
+    /// lone `Move(_, Library(_))` reposition (a definite position, no order
+    /// choice) records nothing.
     pub(crate) arrange_scope: Option<crate::state::ArrangeScope>,
 }
 
