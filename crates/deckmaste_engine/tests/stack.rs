@@ -2774,3 +2774,130 @@ fn nonflash_creature_not_castable_at_instant_timing() {
         "a non-flash creature must not be castable at upkeep"
     );
 }
+
+/// An inline "Blink" instant: "Exile target creature, then return that card
+/// to the battlefield." Built in-test (not a canon card) because the
+/// return-to-battlefield oracle wording needs enter-rider rendering/execution
+/// (a separate ticket); this exercises the find-moved-object mechanism
+/// ([CR#400.7j]) through the full cast path. The exile records old→new in the
+/// resolution-scoped move record; the product-sited `That(Card)` reads the
+/// exile product (a NEW object, [CR#400.7]) and returns it — all in one
+/// resolution.
+fn inline_blink() -> Card {
+    use deckmaste_core::Action;
+    use deckmaste_core::Destination;
+    use deckmaste_core::Effect;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Sort;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Targeted;
+
+    Card::Normal(deckmaste_core::CardFace {
+        name: "Blink".into(),
+        mana_cost: "{W}".parse().unwrap(),
+        types: vec![deckmaste_core::Type::Instant],
+        abilities: vec![deckmaste_core::Ability::Spell(
+            deckmaste_core::SpellAbility {
+                ability_word: None,
+                effect: Effect::Targeted(Targeted::new(
+                    vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
+                    Effect::Sequence(vec![
+                        Effect::Act(Action::Move(
+                            Reference::It,
+                            Destination::Zone(Zone::Exile),
+                            vec![],
+                        )),
+                        Effect::Act(Action::Move(
+                            Reference::That(Sort::Card),
+                            Destination::Zone(Zone::Battlefield),
+                            vec![],
+                        )),
+                    ]),
+                )),
+            },
+        )],
+        ..deckmaste_core::CardFace::default()
+    })
+}
+
+/// Blink end-to-end ([CR#400.7j]): cast through the full stack, exile the
+/// targeted creature and return THAT CARD in one resolution. The original id
+/// is gone; a NEW object is on the battlefield ([CR#400.7]).
+#[test]
+fn blink_exiles_and_returns_the_target_in_one_resolution() {
+    let blink = Arc::new(inline_blink());
+    let bears = card("Grizzly Bears");
+    let plains = Arc::new(builtin().card("Plains").unwrap());
+    let mut p0 = vec![Arc::clone(&blink); 5];
+    p0.extend(vec![Arc::clone(&bears); 5]);
+    p0.extend(vec![Arc::clone(&plains); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&plains); 10],
+            },
+        ],
+        seed: 5,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    let before = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    force_onto_battlefield(&mut state, PlayerId(0), "Plains");
+    let blink = find_in_hand(&state, PlayerId(0), "Blink");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1); // {W}
+
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: blink }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert!(legal[0].contains(&before), "the creature is a legal target");
+    state
+        .submit_decision(Decision::Targets(vec![before]))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "Blink sits on the stack");
+    assert_eq!(state.stack[0].object, StackObject::Spell(blink));
+
+    // Both players pass: Blink resolves — exile then return, one resolution.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    assert!(
+        state.objects.get(before).is_none(),
+        "pre-exile object is gone ([CR#400.7])"
+    );
+    assert!(
+        state.zones.exile.is_empty(),
+        "the exile leg is transient within this one resolution"
+    );
+    let after = *state
+        .zones
+        .battlefield
+        .iter()
+        .find(|&&o| is_card(&state, o, "Grizzly Bears"))
+        .expect("the returned creature is on the battlefield");
+    assert_ne!(after, before, "a NEW object returned ([CR#400.7])");
+    assert_eq!(state.objects.obj(after).zone, Some(Zone::Battlefield));
+    assert_eq!(state.objects.obj(after).controller, PlayerId(0));
+    assert_eq!(
+        printed_pt(&state, after),
+        Some((2, 2)),
+        "still Grizzly Bears"
+    );
+    assert!(state.stack.is_empty());
+}

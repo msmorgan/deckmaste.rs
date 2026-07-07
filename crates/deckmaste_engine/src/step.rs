@@ -816,9 +816,10 @@ impl GameState {
                 let owner = self.owner_of(object);
                 self.remove_from_graveyard(owner, object);
             }
+            Some(Zone::Exile) => self.remove_from_exile(object),
             other => unreachable!(
                 "zone-change source {other:?} is not wired \
-                 (Stack/Battlefield/Hand/Library/Graveyard only)"
+                 (Stack/Battlefield/Hand/Library/Graveyard/Exile only)"
             ),
         }
         self.objects.remove(object);
@@ -831,6 +832,12 @@ impl GameState {
         // the object is controlled by its owner.
         let controller = if to == Zone::Battlefield { snapshot.controller } else { owner };
         let new = self.objects.mint(snapshot.source, controller, Some(to));
+        // [CR#400.7j,400.7e]: the same effect (and a zone-change trigger) can
+        // find the object it became — but only in a PUBLIC zone. Hidden
+        // destinations record nothing: the old id simply goes stale.
+        if !to.is_hidden() {
+            self.moved_chain.push((object, new));
+        }
         // [CR#614.12]: how it enters — emitted status (Stage 4 replacements) plus
         // the object's own AsEnters self-replacement (enters tapped / attached).
         let mut entering = enters.unwrap_or_default();
@@ -1953,6 +1960,7 @@ mod tests {
     use crate::agenda::WorkItem;
     use crate::event::GameEvent;
     use crate::event::Occurrence;
+    use crate::object::ObjectId;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::state::GameConfig;
@@ -2019,6 +2027,54 @@ mod tests {
                 .count(),
             2,
             "TurnBegan is skipped"
+        );
+    }
+
+    /// Mints a card-backed object onto the battlefield — the idiom
+    /// `apply_zone_will_change` requires, since it reads the card's owner
+    /// ([CR#108.3]) via `ObjectSource::Card` on the way out.
+    fn mint_card_backed(state: &mut GameState, controller: PlayerId) -> ObjectId {
+        let card = std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: "Test Card".into(),
+            ..deckmaste_core::CardFace::default()
+        }));
+        let card_id = state.cards.push(card, controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// [CR#400.7j]: applying a zone change to a PUBLIC destination records
+    /// old→new in the move record; a HIDDEN destination records nothing
+    /// ([CR#400.7] — the object is lost).
+    #[test]
+    fn apply_zone_change_records_public_moves_only() {
+        let mut state = game();
+        let old = mint_card_backed(&mut state, PlayerId(0));
+
+        state.apply_zone_will_change(
+            old,
+            Some(Zone::Battlefield),
+            Zone::Exile,
+            None,
+            None,
+            None,
+            None,
+        );
+        let new = state.chase_moved(old);
+        assert_ne!(new, old, "public move recorded");
+        assert_eq!(state.objects.get(new).unwrap().zone, Some(Zone::Exile));
+
+        // Move the NEW object to a hidden zone: no entry — chase dead-ends at `new`.
+        state.apply_zone_will_change(new, Some(Zone::Exile), Zone::Hand, None, None, None, None);
+        assert_eq!(state.chase_moved(old), new, "hidden move NOT recorded");
+        assert!(
+            state.objects.get(new).is_none(),
+            "new id is stale after leaving"
         );
     }
 

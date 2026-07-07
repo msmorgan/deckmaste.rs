@@ -78,6 +78,10 @@ impl GameState {
             StackObject::Triggered { bindings, .. } => bindings.that_much,
             _ => None,
         };
+        // [CR#400.7j] is scoped to ONE effect: a fresh resolution starts with
+        // an empty move record, so a later effect can never find (or follow)
+        // an earlier effect's moves.
+        self.moved_chain.clear();
         match &entry.object {
             StackObject::Spell(spell) => {
                 let spell = *spell;
@@ -310,6 +314,36 @@ impl GameState {
         }
     }
 
+    /// Follow the resolution-scoped move record ([CR#400.7j]) to the id the
+    /// object became: `a→b→c` chases `a` to `c`. Identity on unrecorded ids.
+    /// Remint never reuses a live id, so the walk terminates.
+    ///
+    /// SEAM (engine-delayed-reflexive-triggers): a delayed trigger created
+    /// mid-resolution captures bound roles as ids; that registry must
+    /// FINALIZE its captured ids via this chase before the resolution ends
+    /// (the record clears when the next resolution begins).
+    pub(crate) fn chase_moved(&self, id: ObjectId) -> ObjectId {
+        let mut cur = id;
+        while let Some(&(_, new)) = self.moved_chain.iter().find(|&&(old, _)| old == cur) {
+            cur = new;
+        }
+        cur
+    }
+
+    /// The product-sited `That(Sort)` antecedent ([CR#400.7j] — "exile it,
+    /// then return THAT CARD"): the NEWEST object this resolution moved to a
+    /// public zone (recency = the R1-nearest antecedent; the sort was proven
+    /// compatible by the Idris re-emit gate, so runtime takes the binding).
+    /// Chased through any later same-resolution moves; `None` when nothing
+    /// moved, or when the product has since left its public zone
+    /// ([CR#400.7] — a gone product is NOT found, never replaced by an older
+    /// antecedent).
+    fn newest_move_product(&self) -> Option<ObjectId> {
+        let &(_, new) = self.moved_chain.last()?;
+        let chased = self.chase_moved(new);
+        self.objects.get(chased).is_some().then_some(chased)
+    }
+
     /// Resolve a [`Binder`](deckmaste_core::Binder) to its bound group of
     /// element ids ([CR#608.2]) — the shared spine of `With`/`Each`/
     /// `Distribute`. `TheRef` is a singleton, `Existing` evaluates its
@@ -325,17 +359,15 @@ impl GameState {
                 .chosen
                 .clone()
                 .expect("a chooser binder re-runs with its picks bound"),
-            // SEAM: producer binder ([CR#608.2]). `Produce` must run its
-            // `Action` for effect and bind the moved/created object as `That`,
-            // but the binder-resolution spine is read-only (`&self`, resolving
-            // to existing ids) — there is no produce-and-capture primitive that
-            // executes an `Action` and yields its product object. Wiring this
-            // needs a mutating run-action-and-capture step feeding the `That`
-            // binding; until then this is an explicit labeled seam, not a
-            // fabricated default.
+            // SEAM: `Effect::With` special-cases `Binder::Produce` directly
+            // (before this spine runs) — it needs a mutating run-action-and-
+            // capture step this read-only (`&self`) resolver can't provide.
+            // Unreachable from `With`; still hit if `Each`/`Distribute` ever
+            // took a `Produce` binder (they don't — `Produce`/`SearchOne` are
+            // One-binders, not the many-binder those expect).
             Binder::Produce(_) => unimplemented!(
-                "Binder::Produce: no produce-and-capture primitive — running an Action for its \
-                 product and binding the moved/created object as `That` is not yet wired"
+                "Binder::Produce: resolved outside Effect::With, which is the only binder \
+                 consumer wired to run a producer's Action and capture its product"
             ),
             // SEAM: search/tutor binders ([CR#701.23a]). Selecting from hidden
             // zones (library/graveyard) with the reveal + shuffle (and
@@ -765,6 +797,34 @@ impl GameState {
             // ([CR#608.2d]) and re-runs this node with the picks in
             // `frame.anaphora.chosen`.
             Effect::With(with) => {
+                // [CR#400.7j]: a producer binder runs its action and binds the
+                // PRE-move id as a One `That`; the bound-role reads chase the
+                // move record, so after the action's zone change applies the
+                // body's `That` resolves to the product. Only `Move` produces
+                // in this cut — other actions stay a labeled seam.
+                if let deckmaste_core::Binder::Produce(action) = peel_binder(&with.binder) {
+                    let deckmaste_core::Action::Move(subject, _, _) = action.as_ref() else {
+                        unimplemented!(
+                            "Binder::Produce over a non-Move action: only zone-moves \
+                             produce-and-capture in this cut ({action:?})"
+                        );
+                    };
+                    let id = self.eval_reference(subject, frame);
+                    let mut next = frame.clone();
+                    next.anaphora.that = Some(crate::stack::ThatBinding {
+                        cardinality: crate::stack::Cardinality::One,
+                        kind: crate::stack::RefKind::Object,
+                        group: vec![id],
+                    });
+                    next.anaphora.chosen = None;
+                    let mut items = self.action_items(action, frame);
+                    items.push(WorkItem::RunEffect {
+                        effect: with.body,
+                        frame: next,
+                    });
+                    self.schedule_front(items);
+                    return;
+                }
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&with.binder, frame)
                 {
@@ -1542,6 +1602,12 @@ impl GameState {
         let mut items: Vec<WorkItem> = Vec::new();
         let mut zone_events: Vec<GameEvent> = Vec::new();
         for object in self.eval_reference_set(sel, frame) {
+            // [CR#400.7,603.7c]: a bound role that resolved to a GONE object
+            // (hidden destination, stale id) is skipped — the instruction
+            // no-ops for it.
+            if self.objects.get(object).is_none() {
+                continue;
+            }
             let from = self.objects.obj(object).zone.expect("move a zoned object");
             match destination {
                 Destination::Library(anchor) if from == Zone::Library => {
@@ -2127,7 +2193,9 @@ impl GameState {
                     "They/Them reads a group, but the bound choice is a single object \
                      (a one-binder) — read it as That(Sort)",
                 );
-                that.group.clone()
+                // [CR#400.7j]: chase each element through the same-resolution
+                // move record — order-preserved.
+                that.group.iter().map(|&id| self.chase_moved(id)).collect()
             }
             Selection::PilesOf { .. } => {
                 todo!(
@@ -2254,7 +2322,10 @@ impl GameState {
             Reference::It => {
                 if let Some(binding) = frame.anaphora.it.as_ref() {
                     return match binding {
-                        crate::stack::ItBinding::Object(snap) => snap.object,
+                        // [CR#400.7j]: chase the same-resolution move record —
+                        // the bound object may have been reminted by THIS
+                        // effect's moves.
+                        crate::stack::ItBinding::Object(snap) => self.chase_moved(snap.object),
                         crate::stack::ItBinding::Player(p) => self.player(*p).object,
                     };
                 }
@@ -2271,7 +2342,9 @@ impl GameState {
                     && frame.anaphora.that_patient.is_none()
                     && frame.anaphora.that_player.is_none();
                 if no_other_singular && frame.anaphora.targets.len() == 1 {
-                    return frame.anaphora.targets[0];
+                    // [CR#400.7j]: "exile target creature, … return IT" — the
+                    // lone-target antecedent chases to the object it became.
+                    return self.chase_moved(frame.anaphora.targets[0]);
                 }
                 Self::unbound_ref(
                     reference,
@@ -2287,14 +2360,19 @@ impl GameState {
             // many. Panics outside an enclosing one-binder `With` — always a bug.
             Reference::That(_) => {
                 // The sort is verified by the Idris re-emit gate; at runtime
-                // the frame's binding is the value. A PRODUCT-sited `That(Sort)`
-                // (the exile-and-return chain) has no frame binding — its
-                // runtime backing (GameState.noted product groups) lands
-                // with [[engine-bound-references]]; loud until then.
+                // the frame's binding is the value. A PRODUCT-sited
+                // `That(Sort)` (the exile-and-return chain, [CR#400.7j]) has
+                // no frame binding — it reads the newest object THIS
+                // resolution moved to a public zone; a product that has since
+                // left is NOT found ([CR#400.7]) and the read no-ops.
                 let Some(that) = frame.anaphora.that.as_ref() else {
+                    if let Some(product) = self.newest_move_product() {
+                        return product;
+                    }
                     return Self::unbound_ref(
                         reference,
-                        "That(Sort) with no enclosing With binding",
+                        "That(Sort) with no enclosing With binding and no live \
+                         same-resolution move product",
                     );
                 };
                 if that.cardinality != crate::stack::Cardinality::One {
@@ -2303,9 +2381,12 @@ impl GameState {
                         "That(Sort) bound to a group — read as They and iterate with Each",
                     );
                 }
-                that.group.first().copied().unwrap_or_else(|| {
-                    Self::unbound_ref(reference, "That(Sort) bound to an empty group")
-                })
+                // [CR#400.7j]: chase the same-resolution move record — the
+                // bound object may have been reminted by THIS effect's moves.
+                that.group.first().map_or_else(
+                    || Self::unbound_ref(reference, "That(Sort) bound to an empty group"),
+                    |&id| self.chase_moved(id),
+                )
             }
             // The nth announced target ([CR#115.3,601.2c]) — a direct
             // positional index into the frame's announced-target list.
@@ -3604,6 +3685,254 @@ mod tests {
             }
             let _ = state.step();
         }
+    }
+
+    /// `chase_moved` follows the resolution-scoped old→new move record
+    /// transitively ([CR#400.7j]) and is the identity on unrecorded ids.
+    #[test]
+    fn chase_moved_follows_chain_transitively() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // Unrecorded: identity.
+        assert_eq!(state.chase_moved(a), a);
+        // a -> b -> a2. The third id MUST come from the SAME state: a fresh
+        // GameState mints in the same order, so its ids numerically collide
+        // with this state's and a cross-state id would close the chain into a
+        // cycle — chase_moved's termination leans on the within-state
+        // ids-never-repeat invariant.
+        let a2 = state.objects.mint(
+            crate::object::ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Battlefield),
+        );
+        state.moved_chain.push((a, b));
+        assert_eq!(state.chase_moved(a), b, "one hop");
+        state.moved_chain.push((b, a2));
+        assert_eq!(state.chase_moved(a), a2, "two hops");
+        assert_eq!(state.chase_moved(b), a2, "mid-chain entry");
+    }
+
+    /// A fresh resolution clears the record ([CR#400.7j] is per-effect): ids
+    /// recorded by resolution 1 must not chase in resolution 2 (Ephemerate
+    /// safety at the mechanism level).
+    #[test]
+    fn moved_chain_resets_when_a_resolution_begins() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.moved_chain.push((a, b));
+
+        // Drive a REAL resolution: mint a vanilla creature spell object and
+        // push its `StackEntry` by hand, then resolve it.
+        let card = Card::Normal(CardFace {
+            name: "Test Bear".into(),
+            types: vec![Type::Creature],
+            power: Some(deckmaste_core::StatValue::Number(2)),
+            toughness: Some(deckmaste_core::StatValue::Number(2)),
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+            paid_costs: vec![],
+        });
+
+        state.resolve_object(spell);
+
+        assert!(
+            state.moved_chain.is_empty(),
+            "a fresh resolution clears the move record ([CR#400.7j] is per-effect)"
+        );
+    }
+
+    /// Bound-role reads chase the move record ([CR#400.7j]): a One `that`
+    /// binding, the `It` bindings, and the lone-target `It` fallback resolve
+    /// to the object's latest same-resolution incarnation; `Target(n)` never
+    /// chases (the announced slot stays positional).
+    #[test]
+    fn bound_role_reads_chase_the_move_record() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.moved_chain.push((a, b));
+
+        // That(Sort) over a One binding chases a -> b.
+        let mut frame = frame_src(a);
+        frame.anaphora.that = Some(crate::stack::ThatBinding {
+            cardinality: crate::stack::Cardinality::One,
+            kind: crate::stack::RefKind::Object,
+            group: vec![a],
+        });
+        assert_eq!(
+            state.eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame),
+            b
+        );
+
+        // Target(n) does NOT chase.
+        frame.anaphora.targets = vec![a];
+        assert_eq!(state.eval_reference(&Reference::Target(0), &frame), a);
+
+        // The `It` Object binding chases.
+        let snap = crate::lki::LkiSnapshot::capture(&state, a);
+        frame.anaphora.it = Some(crate::stack::ItBinding::Object(snap));
+        assert_eq!(state.eval_reference(&Reference::It, &frame), b);
+
+        // The lone-target `It` fallback chases too ("exile target creature,
+        // … return IT").
+        let lone = frame_src_targets(a, vec![a]);
+        assert_eq!(state.eval_reference(&Reference::It, &lone), b);
+    }
+
+    /// A Many `that` group chases per element via `Selection::They`.
+    #[test]
+    fn group_read_chases_per_element() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // `c` MUST come from the SAME state (see
+        // `chase_moved_follows_chain_transitively` on cross-state id
+        // collision).
+        let c = state.objects.mint(
+            crate::object::ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Battlefield),
+        );
+        state.moved_chain.push((a, c));
+        let mut frame = frame_src(a);
+        frame.anaphora.that = Some(crate::stack::ThatBinding {
+            cardinality: crate::stack::Cardinality::Many,
+            kind: crate::stack::RefKind::Object,
+            group: vec![a, b],
+        });
+        assert_eq!(
+            state.eval_selection_set(&Selection::They, &frame),
+            vec![c, b],
+            "a chases to c; b unrecorded stays b"
+        );
+    }
+
+    /// [CR#400.7,603.7c]: an object-op whose bound role resolved to a GONE id
+    /// (hidden destination / stale) is a NO-OP, not a panic.
+    #[test]
+    fn move_of_a_gone_bound_role_is_a_noop() {
+        use deckmaste_core::Destination;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let mut frame = frame_src(a);
+        frame.anaphora.that = Some(crate::stack::ThatBinding {
+            cardinality: crate::stack::Cardinality::One,
+            kind: crate::stack::RefKind::Object,
+            group: vec![a],
+        });
+        // Kill `a` outright (no record entry — e.g. it bounced to hand).
+        state.objects.remove(a);
+        let items = state.move_items(
+            &Reference::That(deckmaste_core::Sort::Card),
+            &Destination::Zone(Zone::Exile),
+            &frame,
+        );
+        assert!(
+            items.iter().all(|item| match item {
+                WorkItem::Emit(Occurrence::Batch(v)) => v.is_empty(),
+                WorkItem::Emit(Occurrence::Single(_)) => false,
+                _ => true,
+            }),
+            "a gone bound role produces no zone-change emit",
+        );
+    }
+
+    /// The product-sited `That(Sort)` ([CR#400.7j] — "exile it, then return
+    /// THAT CARD"): with no `that` binding, the read resolves to the newest
+    /// same-resolution move product; once that product leaves for a hidden
+    /// zone it is NOT found and the read degrades to null (never an older
+    /// antecedent).
+    #[test]
+    fn product_sited_that_reads_the_newest_live_move_product() {
+        use slotmap::Key;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let frame = frame_src(a);
+
+        // Nothing moved yet: unbound.
+        assert!(
+            state
+                .eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame)
+                .is_null()
+        );
+
+        // Exile `a` through the real effect machinery: the apply records the
+        // public move.
+        state.run_effect(
+            Effect::Act(Action::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Exile),
+                vec![],
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        let product = state.chase_moved(a);
+        assert_ne!(product, a, "the exile reminted a new object");
+        assert_eq!(
+            state.eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame),
+            product,
+            "the product-sited That reads the exile product"
+        );
+
+        // Send the product to a HIDDEN zone: not found, and no fallback to an
+        // older antecedent.
+        let pframe = frame_src(product);
+        state.run_effect(
+            Effect::Act(Action::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Hand),
+                vec![],
+            )),
+            &pframe,
+        );
+        run_injected(&mut state);
+        assert!(
+            state
+                .eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame)
+                .is_null(),
+            "a product that left its public zone is NOT found ([CR#400.7])"
+        );
+    }
+
+    /// `With(Produce(Move(...)), body)` binds the move's PRE-move id as a One
+    /// `That`; after the move applies, the body's `That` chases to the
+    /// product ([CR#400.7j]).
+    #[test]
+    fn with_produce_binds_the_moved_objects_product() {
+        use deckmaste_core::Destination;
+        use deckmaste_core::With;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            Effect::With(With {
+                binder: Binder::Produce(Box::new(Action::Move(
+                    Reference::This,
+                    Destination::Zone(Zone::Exile),
+                    vec![],
+                ))),
+                body: Box::new(Effect::Act(Action::Move(
+                    Reference::That(deckmaste_core::Sort::Card),
+                    Destination::Zone(Zone::Battlefield),
+                    vec![],
+                ))),
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+        // The original id is gone; a NEW object is back on the battlefield.
+        assert!(state.objects.get(a).is_none(), "original exiled (stale)");
+        let back = state.chase_moved(a);
+        assert_ne!(back, a);
+        assert_eq!(
+            state.objects.get(back).unwrap().zone,
+            Some(Zone::Battlefield)
+        );
     }
 
     /// Whether the history log holds a fact matching `pred` (game-wide).
