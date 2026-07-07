@@ -6,6 +6,10 @@ use crate::event::Occurrence;
 /// One unit of engine work. `step()` pops exactly one; handlers schedule
 /// follow-ups at the agenda *front*, ahead of previously queued work.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "agenda work items are consumed one-at-a-time, not stored in bulk; boxing the effect payload would add allocation churn on the hot step() path"
+)]
 pub enum WorkItem {
     /// The interception seam: cant → replacements → apply → trigger-match.
     /// A `Single` event or a simultaneous `Batch`, applied together.

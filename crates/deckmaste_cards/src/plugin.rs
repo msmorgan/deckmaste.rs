@@ -462,12 +462,6 @@ mod tests {
         use deckmaste_core::Modification;
         use deckmaste_core::Property;
 
-        let builtin = Plugin::load_with_sibling_prelude(plugins().join("builtin")).unwrap();
-        let counter = builtin
-            .counters
-            .get("P1P1Counter")
-            .expect("P1P1Counter registered");
-        assert_eq!(counter.name, Ident::from("P1P1Counter"));
         fn contains_power(m: &Modification) -> bool {
             match m {
                 Modification::Power(_) => true,
@@ -476,6 +470,13 @@ mod tests {
                 _ => false,
             }
         }
+
+        let builtin = Plugin::load_with_sibling_prelude(plugins().join("builtin")).unwrap();
+        let counter = builtin
+            .counters
+            .get("P1P1Counter")
+            .expect("P1P1Counter registered");
+        assert_eq!(counter.name, Ident::from("P1P1Counter"));
         assert!(
             counter
                 .confers

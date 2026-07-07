@@ -110,9 +110,9 @@ impl PendingDecision {
             | PendingDecision::ChooseXValue { player, .. }
             | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. }
-            | PendingDecision::LegendRule { player, .. } => *player,
+            | PendingDecision::LegendRule { player, .. }
+            | PendingDecision::Distribute { player, .. } => *player,
             PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
-            PendingDecision::Distribute { player, .. } => *player,
         }
     }
 
@@ -1313,7 +1313,7 @@ impl GameState {
                 Decision::Distribution(lists),
             ) => {
                 let (player, window, bins) = (*player, window.clone(), bins.clone());
-                self.submit_distribution(player, window, bins, lists)
+                self.submit_distribution(player, &window, &bins, &lists)
             }
             (
                 PendingDecision::Division { .. }
@@ -1545,16 +1545,16 @@ impl GameState {
     fn submit_distribution(
         &mut self,
         player: PlayerId,
-        window: Vec<ObjectId>,
-        bins: Vec<deckmaste_core::Bin>,
-        lists: Vec<Vec<ObjectId>>,
+        window: &[ObjectId],
+        bins: &[deckmaste_core::Bin],
+        lists: &[Vec<ObjectId>],
     ) -> Result<(), DecisionError> {
         if lists.len() != bins.len() {
             return Err(DecisionError::Illegal {
                 reason: "one ordered list per bin".into(),
             });
         }
-        validate_partition(&window, &lists)?;
+        validate_partition(window, lists)?;
         self.pending = None;
         // Consume the continuation and extract the keyword name for the event.
         let name = match self
@@ -1565,11 +1565,15 @@ impl GameState {
             crate::state::ChoiceContinuation::Distribute { name } => name,
             other => unreachable!("distribute resume expected Distribute, got {other:?}"),
         };
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a distribution window is a handful of cards from one library — never near u32::MAX"
+        )]
         let count = window.len() as Uint;
         // `apply_distribution` returns any graveyard-move work items it built;
         // we then schedule those BEFORE the Distributed emit so that the event
         // fires once all cards have moved ([CR#701.22d]).
-        let mut work = self.apply_distribution(player, &bins, &lists);
+        let mut work = self.apply_distribution(player, bins, lists);
         work.push(WorkItem::Emit(Occurrence::single(GameEvent::Distributed {
             player,
             name,
@@ -1581,12 +1585,13 @@ impl GameState {
 
     /// [CR#701.22a]: Apply the player's distribution answer.
     ///
-    /// Top/Bottom bins are repositioned by direct VecDeque surgery (no remint,
-    /// ObjectIds preserved). Graveyard bins go through `ZoneWillChange`
-    /// (Library→Graveyard), a genuine zone change that remints normally.
+    /// Top/Bottom bins are repositioned by direct `VecDeque` surgery (no
+    /// remint, `ObjectIds` preserved). Graveyard bins go through
+    /// `ZoneWillChange` (Library→Graveyard), a genuine zone change that
+    /// remints normally.
     ///
     /// **Order reasoning for the Top bin** (`list` = authored top→down):
-    /// The library VecDeque has FRONT = TOP. To place `list[0]` at the very
+    /// The library `VecDeque` has FRONT = TOP. To place `list[0]` at the very
     /// front, we iterate *in reverse* and call `push_front` each time:
     /// the last element pushed becomes the new front, so iterating `rev()`
     /// and pushing front yields `list[0]` as the final front element — correct

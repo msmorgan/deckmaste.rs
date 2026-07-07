@@ -740,6 +740,15 @@ impl GameState {
     /// for covering THIS cost.
     #[must_use]
     pub fn autotap_for_cast(&self, player: PlayerId, object: ObjectId) -> Option<Vec<Action>> {
+        // The player's untapped fixed-mana land sources, each recorded with the
+        // ability index `legal_actions`/`ActivateAbility` uses (into the
+        // Innate-peeled `usable_abilities` list — see legal.rs).
+        struct Src {
+            object: ObjectId,
+            ability: usize,
+            color: ColorOrColorless,
+            amount: Uint,
+        }
         let view = self.layers();
         // Legal but for the mana? Also yields the concrete cost to cover.
         let cost = self.castable_cost_ignoring_mana(&view, player, object)?;
@@ -751,19 +760,10 @@ impl GameState {
             match sym {
                 ManaSymbol::Simple(SimpleManaSymbol::Specific(c)) => colored.push(*c),
                 ManaSymbol::Simple(SimpleManaSymbol::Generic(n)) => {
-                    generic = generic.checked_add(*n)?
+                    generic = generic.checked_add(*n)?;
                 }
                 _ => return None,
             }
-        }
-        // The player's untapped fixed-mana land sources, each recorded with the
-        // ability index `legal_actions`/`ActivateAbility` uses (into the
-        // Innate-peeled `usable_abilities` list — see legal.rs).
-        struct Src {
-            object: ObjectId,
-            ability: usize,
-            color: ColorOrColorless,
-            amount: Uint,
         }
         let mut sources: Vec<Src> = Vec::new();
         for &land in &self.zones.battlefield {

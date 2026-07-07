@@ -539,6 +539,10 @@ impl GameState {
     /// Whether one cost-eligible verb can be paid in full ([CR#601.2h]). Looks
     /// through `Expanded` macro wrappers.
     fn verb_cost_payable(&self, verb: &PlayerAction, player: PlayerId, frame: &Frame) -> bool {
+        #[expect(
+            clippy::match_same_arms,
+            reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the out-of-scope RemoveCounters/Reveal seam)"
+        )]
         match verb {
             // [CR#119.4]: pay-life needs life ≥ the amount; [CR#119.4b]: paying
             // 0 is always allowed (and `life >= 0` holds trivially).

@@ -476,6 +476,10 @@ pub(crate) fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
         e: &StaticEffect,
         visit: &mut F,
     ) -> ControlFlow<B> {
+        #[expect(
+            clippy::match_same_arms,
+            reason = "`Each` and `Conditionally` are looked through the same way but kept as separate arms to carry their distinct explanatory comments"
+        )]
         match e {
             StaticEffect::Expanded(x) => in_static(&x.value, visit),
             // Distributed statics ([`StaticEffect::Each`]) are looked through to

@@ -31,6 +31,10 @@ use crate::turn::successor;
 
 /// What one `step()` call produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "per-step return value, produced and matched immediately; boxing `Progress` would add allocation churn to the hot step() loop for no gain"
+)]
 pub enum StepOutcome {
     /// One unit of work happened.
     Progress(Progress),
@@ -41,6 +45,10 @@ pub enum StepOutcome {
 
 /// One unit of engine work, observed.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the `Applied(Occurrence)` payload dominates but is the common case; boxing it would allocate on every progressing step"
+)]
 pub enum Progress {
     /// One or more events mutated the state (apply-time bindings filled in).
     Applied(Occurrence),
@@ -246,6 +254,10 @@ impl GameState {
             GameEvent::WillDraw { .. } => self.that_much = Some(1),
             _ => {}
         }
+        #[expect(
+            clippy::match_same_arms,
+            reason = "large apply dispatch; the pure-fact arms and the `Distributed` arm both return `event` unchanged but sit hundreds of lines apart with distinct explanatory comments — merging would wreck the structure"
+        )]
         match event {
             // Pure facts: nothing to mutate. `BecameTarget` ([CR#601.2c])
             // exists for the trigger scan (ward, [CR#702.21a]); the
@@ -673,7 +685,6 @@ impl GameState {
             // remove its stack entry and discard the minted token. No zone move; the
             // source (already gone for a dies-trigger) is untouched.
             GameEvent::AbilityCountered { id, .. } => {
-                let id = id;
                 self.remove_stack_entry(id);
                 self.objects.remove(id);
                 event
@@ -2130,7 +2141,7 @@ mod tests {
     /// `open_distribute` grants the DECIDER (looker) visibility over every
     /// object in the window, not the owner. This is the invariant Fateseal
     /// relies on: player 0 distributes cards owned/controlled by player 1, but
-    /// the look_grant goes to player 0, not player 1.
+    /// the `look_grant` goes to player 0, not player 1.
     #[test]
     fn distribute_grants_looker_visibility() {
         let mut state = game();
@@ -2284,12 +2295,9 @@ mod tests {
             // If it hasn't settled in 50, it's the infinite loop.
             let mut settled = false;
             for _ in 0..50 {
-                match state.step() {
-                    StepOutcome::NeedsDecision(_) => {
-                        settled = true;
-                        break;
-                    }
-                    _ => {}
+                if let StepOutcome::NeedsDecision(_) = state.step() {
+                    settled = true;
+                    break;
                 }
             }
             assert!(
@@ -2375,7 +2383,7 @@ mod tests {
         /// `check_sbas` surfaces `NeedsDecision(LegendRule)` before the
         /// mechanical sweep. The decision surfaces on the call after
         /// `CheckSbas` sets pending (the runner's step loop pattern:
-        /// Progress* then NeedsDecision).
+        /// Progress* then `NeedsDecision`).
         #[test]
         fn legend_rule_surfaces_a_choice() {
             let mut state = empty_game();

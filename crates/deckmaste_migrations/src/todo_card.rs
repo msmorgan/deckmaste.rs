@@ -120,6 +120,13 @@ pub struct TodoCardFace {
 /// byte-identical to core's (`Normal` / `TwoFaced { layout, front, back }`),
 /// so `TwoFaced.layout` reuses core's [`FaceLayout`] directly.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+// Mirrors core `Card`'s shape (see the `large_enum_variant` note there): the
+// `TwoFaced` variant is inherently larger and boxing buys nothing on an
+// authoring value.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "mirrors core Card; boxing a face buys nothing"
+)]
 pub enum TodoCard {
     Normal(TodoCardFace),
     TwoFaced {

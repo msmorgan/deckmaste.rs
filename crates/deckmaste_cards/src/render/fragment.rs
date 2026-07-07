@@ -561,7 +561,6 @@ fn flatten_all_of(f: &Filter) -> Vec<&Filter> {
 // ── PutInLibrary helpers ─────────────────────────────────────────────────────
 
 /// A `Selection` GROUP as the object of "put __": "them" for a bound group.
-
 pub(super) fn quantity(q: &Quantity) -> String {
     // `Quantity` is one `Range(lo, hi)` primitive (seen through a remembered
     // macro by `bounds`). An exactly-N range renders as the object-count

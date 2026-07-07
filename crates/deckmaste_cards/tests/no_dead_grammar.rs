@@ -32,6 +32,7 @@
 //! with it — this sweep now only checks the accept side.
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -149,6 +150,10 @@ fn structurally_untagged() -> BTreeSet<Node> {
 /// or `testing`-mock card (a candidate is usually named), nothing structural
 /// blocks it, it simply wasn't reached in this session's batch. Treat every
 /// `DEFERRED` entry as a to-do, not a soundness claim.
+#[expect(
+    clippy::too_many_lines,
+    reason = "a flat data table of reviewed allowlist entries with per-entry justification comments; it is one cohesive literal, not logic to decompose"
+)]
 fn accept_allowlist() -> Vec<(Node, &'static str)> {
     vec![
         (
@@ -739,15 +744,18 @@ fn collect_ron_texts(dir: &Path, out: &mut Vec<String>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
-    let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+    let mut paths: Vec<PathBuf> = entries
+        .filter_map(std::result::Result::ok)
+        .map(|e| e.path())
+        .collect();
     paths.sort();
     for path in paths {
         if path.is_dir() {
             collect_ron_texts(&path, out);
-        } else if path.extension().is_some_and(|ext| ext == "ron") {
-            if let Ok(text) = std::fs::read_to_string(&path) {
-                out.push(text);
-            }
+        } else if path.extension().is_some_and(|ext| ext == "ron")
+            && let Ok(text) = std::fs::read_to_string(&path)
+        {
+            out.push(text);
         }
     }
 }
@@ -890,13 +898,14 @@ fn no_dead_grammar_nodes() {
 
     if !uncovered_accept.is_empty() {
         let mut msg = String::new();
-        msg.push_str(&format!(
+        let _ = write!(
+            msg,
             "\n{} node(s) with NO accept fixture under plugins/{{canon,testing,builtin}} \
              (add a card, or a reviewed accept_allowlist() entry):\n",
             uncovered_accept.len()
-        ));
+        );
         for (enum_name, variant) in &uncovered_accept {
-            msg.push_str(&format!("  - {enum_name}::{variant}\n"));
+            let _ = writeln!(msg, "  - {enum_name}::{variant}");
         }
         panic!("{msg}");
     }

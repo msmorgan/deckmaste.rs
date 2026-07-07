@@ -582,6 +582,10 @@ fn static_effect_scope(
     obj: ObjectId,
     effect: &StaticEffect,
 ) -> Option<(ScopeResolved, Vec<Modification>)> {
+    #[expect(
+        clippy::match_same_arms,
+        reason = "the explicit `Conditionally` arm documents the unwired condition-gating seam ([CR#611.3a]); it coincidentally returns None like the catch-all but is kept distinct as a named TODO site"
+    )]
     match effect {
         StaticEffect::Modify(reference, change) => Some((
             ScopeResolved::Locked(resolve_source_relative(state, obj, reference)),

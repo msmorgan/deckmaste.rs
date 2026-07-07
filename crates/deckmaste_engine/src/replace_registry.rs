@@ -184,6 +184,10 @@ pub enum ReplacementKey {
 }
 
 #[derive(Debug, Clone)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "short-lived per-event applicability scratch value, not stored in bulk; boxing would only churn allocations"
+)]
 pub(crate) enum ApplicableEffect {
     Replacement(Replacement),
     Prevention(Prevention),
@@ -304,9 +308,9 @@ fn prevention_watches(
 ) -> bool {
     let watcher = Some(state.objects.obj(obj).source);
     let (from, to) = match p {
-        Prevention::PreventAll { from, to, .. } => (from, to),
-        Prevention::PreventNext { from, to, .. } => (from, to),
-        Prevention::PreventNextInstance { from, to } => (from, to),
+        Prevention::PreventAll { from, to, .. }
+        | Prevention::PreventNext { from, to, .. }
+        | Prevention::PreventNextInstance { from, to } => (from, to),
     };
     crate::target::matches_with(state, source, from, watcher)
         && crate::target::matches_with(state, target, to, watcher)
@@ -354,6 +358,10 @@ fn floating_watches(
 
 /// The outcome of running the [CR#616.1] replacement loop for one event.
 #[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "one-shot return value carrying the (unboxed) event through the replacement loop; boxing would allocate on the common Pass path"
+)]
 pub(crate) enum ReplaceOutcome {
     /// No applicable replacement rewrote the event — apply `e` as-is.
     Pass(GameEvent),
@@ -719,6 +727,10 @@ pub(crate) fn resume_replacements(
 
 /// Outcome of re-entering the replacement loop on an already-partially-applied
 /// event during a `resume_replacements` call.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "one-shot resume-loop return carrying the unboxed event; boxing would allocate on the common Fact path"
+)]
 enum ResumeOutcome {
     /// The event survived the loop — apply it.
     Fact(GameEvent),
@@ -1169,7 +1181,7 @@ mod tests {
         if let ReplaceOutcome::Pass(GameEvent::DamageDealt { amount, .. }) = outcome {
             assert_eq!(amount, 1, "3 damage is reduced by 2 to 1");
         } else {
-            panic!("expected Pass with reduced amount, got {:?}", outcome);
+            panic!("expected Pass with reduced amount, got {outcome:?}");
         }
     }
 

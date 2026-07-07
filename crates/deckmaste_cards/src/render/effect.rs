@@ -446,6 +446,10 @@ fn choose_line(spec: &deckmaste_core::ChooseSpec) -> String {
 /// shared fragment renderers.
 fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     use deckmaste_core::Binder;
+    #[expect(
+        clippy::match_same_arms,
+        reason = "the chooser binders (ChooseOne/Choose) and the search binders (SearchOne/Search) are distinct grammar categories kept separate for the documented reasons above; they coincidentally render the same noun phrase"
+    )]
     match binder {
         // The chooser (`by`) does not surface in the noun phrase — the body's
         // verb rendering carries the acting player; a foreign chooser has no
@@ -485,10 +489,10 @@ fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
 fn a_an(noun: &str) -> String {
     let lowercase = noun.to_lowercase();
     let is_vowel = |c: char| "aeiou".contains(c);
-    if let Some(first_char) = lowercase.chars().next() {
-        if is_vowel(first_char) {
-            return format!("an {noun}");
-        }
+    if let Some(first_char) = lowercase.chars().next()
+        && is_vowel(first_char)
+    {
+        return format!("an {noun}");
     }
     format!("a {noun}")
 }
@@ -862,7 +866,7 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
             CostComponent::With { binder, body } => {
                 let phrase = binder_phrase(binder, ctx);
                 let inner = ctx.with_that(&phrase);
-                for inner_comp in body.iter() {
+                for inner_comp in body {
                     match inner_comp {
                         CostComponent::Do(pa) => {
                             let p = trim_period(&player_action(pa, &inner));

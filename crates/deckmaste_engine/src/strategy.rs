@@ -653,7 +653,7 @@ mod tests {
         assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
     }
 
-    /// ChooseTargets: the applicable `Cast` preference's `target` selector
+    /// `ChooseTargets`: the applicable `Cast` preference's `target` selector
     /// picks the biggest creature among a slot's legal candidates.
     #[test]
     fn choose_targets_applies_the_target_selector_per_slot() {
@@ -689,7 +689,7 @@ mod tests {
         );
     }
 
-    /// ChooseTargets with no `target` rule falls back to the first legal
+    /// `ChooseTargets` with no `target` rule falls back to the first legal
     /// candidate per slot (still total/legal).
     #[test]
     fn choose_targets_without_a_rule_takes_first_legal() {
@@ -706,7 +706,7 @@ mod tests {
         assert_eq!(eval.decide(&state, &pending), Decision::Targets(vec![a]));
     }
 
-    /// DeclareAttackers: an `Attack` preference declares the whole legal set
+    /// `DeclareAttackers`: an `Attack` preference declares the whole legal set
     /// (no `among`); no `Attack` rule declares none.
     #[test]
     fn declare_attackers_attacks_all_legal_then_none() {
@@ -741,7 +741,7 @@ mod tests {
         );
     }
 
-    /// DeclareBlockers: `Block(NoBlocks)` declares no blocks even with legal
+    /// `DeclareBlockers`: `Block(NoBlocks)` declares no blocks even with legal
     /// blockers available.
     #[test]
     fn declare_blockers_no_blocks_policy_blocks_nothing() {

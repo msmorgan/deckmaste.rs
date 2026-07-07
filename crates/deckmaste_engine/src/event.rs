@@ -511,6 +511,10 @@ impl GameEvent {
 /// A scheduled occurrence: one event, or a set of simultaneous events applied
 /// and matched together ([CR#603.3b], [CR#700.1]).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the common `Single` case would pay an allocation on every event if boxed; `Batch` already indirects through its Vec"
+)]
 pub enum Occurrence {
     Single(GameEvent),
     Batch(Vec<GameEvent>),

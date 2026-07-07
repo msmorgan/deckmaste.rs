@@ -57,6 +57,10 @@ impl GameState {
     /// # Panics
     ///
     /// Panics if no entry has that id — engine invariant, not caller input.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "single resolution dispatch kept as one match over stack-entry kinds; splitting would scatter the cohesive per-kind arms"
+    )]
     pub(crate) fn resolve_object(&mut self, id: ObjectId) {
         let entry = self
             .stack
@@ -349,7 +353,7 @@ impl GameState {
     /// A many-binder's [`Cardinality`](crate::stack::Cardinality): `One` for a
     /// one-binder (`TheRef`/`ChooseOne`), `Many` for a many-binder
     /// (`Choose`/`Existing`). The bound-group kind comes from the resolved ids.
-    fn binder_cardinality(&self, binder: &deckmaste_core::Binder) -> crate::stack::Cardinality {
+    fn binder_cardinality(binder: &deckmaste_core::Binder) -> crate::stack::Cardinality {
         use deckmaste_core::Binder;
 
         use crate::stack::Cardinality;
@@ -739,7 +743,7 @@ impl GameState {
                     return;
                 }
                 let group = self.resolve_binder(&with.binder, frame);
-                let cardinality = self.binder_cardinality(&with.binder);
+                let cardinality = Self::binder_cardinality(&with.binder);
                 let kind = group
                     .first()
                     .map_or(crate::stack::RefKind::Object, |&id| self.ref_kind_of(id));
@@ -1033,6 +1037,10 @@ impl GameState {
     /// player and replaces the previously hard-coded `frame.controller`. Damage
     /// to a multi-valued selection is one simultaneous `Batch` (a later task);
     /// drawing N is N sequential `Single`s ([CR#121.2] — drawn one at a time).
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one exhaustive match lowering every Action variant into work items; the per-variant arms are cohesive and better read together than split across helpers"
+    )]
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
             // The dealer is the resolved `source` — `This` (the default) is the
@@ -1840,7 +1848,7 @@ impl GameState {
                     player: actor,
                     window,
                     bins: bins.clone(),
-                    name: name.clone(),
+                    name: *name,
                 }]
             }
         }
@@ -4541,7 +4549,7 @@ mod tests {
 
         let effect: Effect = builtin()
             .macros
-            .read_str(r#"ExchangeControl(Target(0), Target(1))"#)
+            .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
         let frame = frame_src_targets(mine, vec![mine, other]);
         state.run_effect(effect, &frame);
@@ -4585,7 +4593,7 @@ mod tests {
         let (mut state, mine, other) = two_permanents_on_field();
         let effect: Effect = builtin()
             .macros
-            .read_str(r#"ExchangeControl(Target(0), Target(1))"#)
+            .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
         let frame = frame_src_targets(mine, vec![mine, other]);
         state.run_effect(effect, &frame);
@@ -7777,8 +7785,8 @@ mod tests {
     /// [CR#701.22a]: `Distribute` over a 3-card window surfaces a decision,
     /// and submitting the answer repositions the cards in the library in the
     /// exact authored order: top pile `[c, a]` (c on top) and bottom pile
-    /// `[b]` → final library `[c, a, b]` top→down. ObjectIds are preserved
-    /// (no remint) because the reposition is a direct VecDeque surgery.
+    /// `[b]` → final library `[c, a, b]` top→down. `ObjectIds` are preserved
+    /// (no remint) because the reposition is a direct `VecDeque` surgery.
     #[test]
     fn scry_partitions_top_three_in_order() {
         use deckmaste_core::Bin;
@@ -7894,7 +7902,7 @@ mod tests {
 
     /// [CR#701.29a]: Fateseal — controller (player 0) looks at the top N cards
     /// of the opponent's (player 1's) library, then distributes them. The
-    /// look_grant goes to the LOOKER (player 0), not the owner (player 1).
+    /// `look_grant` goes to the LOOKER (player 0), not the owner (player 1).
     /// The distribution applies to PLAYER 1's library, not player 0's.
     #[test]
     fn fateseal_partitions_opponents_library() {

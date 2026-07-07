@@ -396,7 +396,10 @@ mod tests {
         };
         assert!(matches!(effect, StaticEffect::Deontic(_)));
         let written = crate::ron::options().to_string(&ability).unwrap();
-        assert!(written.starts_with("Static(Cant("), "bare positional: {written}");
+        assert!(
+            written.starts_with("Static(Cant("),
+            "bare positional: {written}"
+        );
         assert!(!written.contains("effect"), "no field name: {written}");
         assert_eq!(read_ability(&written), ability, "round-trips");
     }
@@ -463,12 +466,14 @@ mod tests {
         use crate::Filter;
         use crate::StaticEffect;
 
-        let inner = Ability::Static(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attach {
-            what: Filter::Ref(Reference::This),
-            to: Filter::Not(Box::new(Filter::Characteristic(
-                crate::CharacteristicFilter::Type(crate::Type::Creature),
-            ))),
-        })));
+        let inner = Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            DeonticAction::Attach {
+                what: Filter::Ref(Reference::This),
+                to: Filter::Not(Box::new(Filter::Characteristic(
+                    crate::CharacteristicFilter::Type(crate::Type::Creature),
+                ))),
+            },
+        )));
         let innate = Ability::Innate(Box::new(inner.clone()));
         assert!(innate.is_innate());
         assert!(!inner.is_innate());
