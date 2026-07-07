@@ -110,7 +110,7 @@ tLandCreature : Card
 tLandCreature = Normal $ ^:
   { name := Just "Test Land Creature"
   , types := [Land, Creature]
-  , subtypes := [^Island, ^Bear]
+  , subtypes := [landType "Island", creatureType "Bear"]
   }
 
 -- a produced object, bound by a `With (Produce …)`, SURVIVES into a delayed
@@ -137,7 +137,7 @@ tTelescopeCloudshift =
 -- in v1 where `Produce` was One-only).
 tTelescopeTokens : OneShotEffect Base
 tTelescopeTokens =
-  Sequence [ Act (CreateToken (^2) (^: { types := [Creature], subtypes := [^Elemental], colors := [Red], power := Just 1, toughness := Just 1 }))
+  Sequence [ Act (CreateToken (^2) (^: { types := [Creature], subtypes := [creatureType "Elemental"], colors := [Red], power := Just 1, toughness := Just 1 }))
            , Continuously UntilEndOfTurn (Each (Existing (Them Token)) (Modify It (GrantAbility (keyword Haste))))
            , Delayed nextEndStep (Each (Existing They) (Act (Move It (ToZone Graveyard)))) ]
 
@@ -398,7 +398,7 @@ tCounterConfers : List (Ability Base)
 tCounterConfers = counterConfers P1P1
 
 tSubtypeConfers : List (Ability Base)
-tSubtypeConfers = subtypeConfers (^Saga)
+tSubtypeConfers = subtypeConfers (saga)
 
 -- attacking a planeswalker: the TYPE confers a deontic permitting attacks on IT (`typeConfers`), not a
 -- widening of the attacker. `Enact Attack`'s patient is kind-poly, so the permission names the permanent
@@ -526,7 +526,7 @@ tCounters = Sequence [ Each (Existing (SelectAll creature)) (Act (PutCounters P1
 
 -- anthem: a static `Each` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
-tAnthem = Static (Each (Existing (SelectAll (And [hasType Creature, ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (^Bear))])))
+tAnthem = Static (Each (Existing (SelectAll (And [hasType Creature, ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^1)), Alter Toughness (Up (^1)), Alter Subtypes (Add (creatureType "Bear"))])))
 
 -- a loyalty ability: an Activated ability whose cost removes Loyalty counters
 tLoyalty : Ability Base
@@ -1023,11 +1023,11 @@ failing "bindChosenRef AnObject"
   tBadOfChosenObject : Predicate (bindChosenRef AnObject Base) AnObject
   tBadOfChosenObject = OfChosen
 
--- a subtype whose category isn't among the card's types [CR#205.3d]
-failing "Elem (subtypeCategory"
+-- a subtype whose category admits none of the card's types [CR#205.3d]
+failing "categoryTypes (subtypeCategory"
   tBadSubtype : Card
   tBadSubtype = Normal $ ^:
-    { name := Just "Bad", types := [Creature], subtypes := [^Aura] }
+    { name := Just "Bad", types := [Creature], subtypes := [aura] }
 
 -- the split makes the old `CountOf (During …)` category error ILL-TYPED: `CountOf`
 -- takes a `Predicate`, but `During` (a game-state test) is a `Condition`.

@@ -39,6 +39,9 @@
     clippy::unnecessary_wraps
 )]
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Anchor;
@@ -76,6 +79,7 @@ use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Predicate;
+use deckmaste_core::Property;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
@@ -230,68 +234,103 @@ fn emit_supertype(s: Supertype) -> String {
     .to_string()
 }
 
-/// The curated Rust subtype `name` -> the matching `Subtype` Idris
-/// constructor application, e.g. `"Bear"` -> `"(CreatureSub Bear)"`. Idris
-/// keeps a CLOSED, curated subtype enum (`idris/src/Core.idr`); Rust's is
-/// open (name + declared `types`/`confers`), so only the curated names
-/// typecheck — anything else is a genuine coverage gap, not a bug.
-fn subtype_idris(name: &str) -> Option<&'static str> {
-    Some(match name {
-        "Bear" => "(CreatureSub Bear)",
-        "Rat" => "(CreatureSub Rat)",
-        "Spider" => "(CreatureSub Spider)",
-        "Human" => "(CreatureSub Human)",
-        "Knight" => "(CreatureSub Knight)",
-        "Goblin" => "(CreatureSub Goblin)",
-        "Elf" => "(CreatureSub Elf)",
-        "Zombie" => "(CreatureSub Zombie)",
-        "Elemental" => "(CreatureSub Elemental)",
-        "Wall" => "(CreatureSub Wall)",
-        "Spirit" => "(CreatureSub Spirit)",
-        "Rogue" => "(CreatureSub Rogue)",
-        "Warrior" => "(CreatureSub Warrior)",
-        "Merfolk" => "(CreatureSub Merfolk)",
-        "Wizard" => "(CreatureSub Wizard)",
-        "Juggernaut" => "(CreatureSub Juggernaut)",
-        "Angel" => "(CreatureSub Angel)",
-        "Faerie" => "(CreatureSub Faerie)",
-        "Insect" => "(CreatureSub Insect)",
-        "Cat" => "(CreatureSub Cat)",
-        "Vampire" => "(CreatureSub Vampire)",
-        "Noble" => "(CreatureSub Noble)",
-        "Soldier" => "(CreatureSub Soldier)",
-        "Bird" => "(CreatureSub Bird)",
-        "Efreet" => "(CreatureSub Efreet)",
-        "Monk" => "(CreatureSub Monk)",
-        "Centaur" => "(CreatureSub Centaur)",
-        "Myr" => "(CreatureSub Myr)",
-        "Beast" => "(CreatureSub Beast)",
-        "Phyrexian" => "(CreatureSub Phyrexian)",
-        "Praetor" => "(CreatureSub Praetor)",
-        "Shaman" => "(CreatureSub Shaman)",
-        "Devil" => "(CreatureSub Devil)",
-        "Scout" => "(CreatureSub Scout)",
-        "Illusion" => "(CreatureSub Illusion)",
-        "Flagbearer" => "(CreatureSub Flagbearer)",
-        "Dwarf" => "(CreatureSub Dwarf)",
-        "Aura" => "(EnchantmentSub Aura)",
-        "Saga" => "(EnchantmentSub Saga)",
-        "Equipment" => "(ArtifactSub Equipment)",
-        "Vehicle" => "(ArtifactSub Vehicle)",
-        "Plains" => "(LandSub Plains)",
-        "Island" => "(LandSub Island)",
-        "Swamp" => "(LandSub Swamp)",
-        "Mountain" => "(LandSub Mountain)",
-        "Forest" => "(LandSub Forest)",
-        "Siege" => "(BattleSub Siege)",
-        _ => return None,
-    })
+/// The Idris `Category` constructor for a subtype, DERIVED from the open Rust
+/// `Subtype.types` rather than a hand-mirrored `name -> constructor` table:
+/// creature/kindred types → `Creature`, instant/sorcery → `Spell`, the rest
+/// their own category. Because the category falls out of the data, any subtype
+/// the macro layer declares emits with no per-name parity edit. `None` only
+/// when `types` names no card type Idris models (e.g. `Dungeon`) — a genuine
+/// coverage gap, not a bug.
+fn category_idris(types: &[Type]) -> Option<&'static str> {
+    if types
+        .iter()
+        .any(|t| matches!(t, Type::Creature | Type::Kindred))
+    {
+        Some("Creature")
+    } else if types
+        .iter()
+        .any(|t| matches!(t, Type::Instant | Type::Sorcery))
+    {
+        Some("Spell")
+    } else if types.contains(&Type::Enchantment) {
+        Some("Enchantment")
+    } else if types.contains(&Type::Artifact) {
+        Some("Artifact")
+    } else if types.contains(&Type::Land) {
+        Some("Land")
+    } else if types.contains(&Type::Battle) {
+        Some("Battle")
+    } else if types.contains(&Type::Planeswalker) {
+        Some("Planeswalker")
+    } else {
+        None
+    }
 }
 
+/// One subtype conferral, emitted into the Idris `Subtype`'s confers field.
+/// Idris has no `Property` type — "a conferral IS an ability" — so the
+/// `Ability` flavor (the only one any subtype uses today: the
+/// Aura/Equipment/Fortification static rules, the Saga replacement, a basic
+/// land's mana ability) emits as its inner ability. The other `Property`
+/// flavors do not occur on subtypes; they gap if one ever appears.
+fn emit_property(p: &Property) -> R {
+    match p {
+        Property::Ability(a) => emit_ability(a),
+        Property::Continuous(..) => Err(gap("subtype confer Property::Continuous not mapped")),
+        Property::StateBased { .. } => Err(gap("subtype confer Property::StateBased not mapped")),
+        Property::TurnBased { .. } => Err(gap("subtype confer Property::TurnBased not mapped")),
+    }
+}
+
+/// Emit an open `Subtype` value — `(MkSubtype <Category> "<name>" [<confers>])`
+/// — with the category derived from `types` and the conferred abilities sourced
+/// from the RON `confers` list. Used for a card's OWN subtypes, where the full
+/// value is in hand (a name-only reference goes through [`emit_subtype_ref`]).
 fn emit_subtype(s: &Subtype) -> R {
-    subtype_idris(s.name.as_str())
-        .map(str::to_string)
-        .ok_or_else(|| gap(format!("unmapped subtype: {}", s.name.as_str())))
+    let cat = category_idris(&s.types).ok_or_else(|| {
+        gap(format!(
+            "subtype {} has no Idris category (types: {:?})",
+            s.name.as_str(),
+            s.types
+        ))
+    })?;
+    let confers = map_list(&s.confers, emit_property)?;
+    Ok(format!("(MkSubtype {cat} {:?} {confers})", s.name.as_str()))
+}
+
+thread_local! {
+    /// Subtype name -> its Idris `Category` constructor, rebuilt from the loaded
+    /// plugin's subtype registry at each [`emit_card_expr`] entry. A subtype
+    /// REFERENCE (a filter, or an `Alter Subtypes` op) names a subtype without
+    /// carrying its `types`, so it resolves the category here — from the same
+    /// open registry the macro layer declares — instead of a hardcoded table.
+    static SUBTYPE_CATEGORY: RefCell<HashMap<String, &'static str>> = RefCell::new(HashMap::new());
+}
+
+/// Populate [`SUBTYPE_CATEGORY`] from a plugin's subtype registry. Called once
+/// per card at emit entry; subtypes whose `types` map to no category are simply
+/// absent (a reference to one then gaps, like any other coverage gap).
+fn load_subtype_categories<S>(subtypes: &HashMap<Ident, Subtype, S>) {
+    SUBTYPE_CATEGORY.with(|m| {
+        let mut m = m.borrow_mut();
+        m.clear();
+        for (name, sub) in subtypes {
+            if let Some(cat) = category_idris(&sub.types) {
+                m.insert(name.as_str().to_string(), cat);
+            }
+        }
+    });
+}
+
+/// Emit a subtype REFERENCE by name (filter / `Alter Subtypes` position). The
+/// referent is an IDENTITY — `(MkSubtype <Category> "<name>" [])`, no confers
+/// (a filter asks "is it an Aura?", not what an Aura confers) — with the
+/// category resolved from the registry loaded at emit entry.
+fn emit_subtype_ref(name: &str) -> R {
+    let cat = SUBTYPE_CATEGORY
+        .with(|m| m.borrow().get(name).copied())
+        .ok_or_else(|| gap(format!("unmapped subtype in reference: {name}")))?;
+    Ok(format!("(MkSubtype {cat} {name:?} [])"))
 }
 
 /// The curated counter-registry name (`plugins/builtin/macros/counters/*`) ->
@@ -504,12 +543,7 @@ fn emit_characteristic_filter(cf: &CharacteristicPredicate) -> R {
         }
         CharacteristicPredicate::Subtype(name) => app(
             "HasChar",
-            vec![
-                "Subtypes".to_string(),
-                subtype_idris(name.as_str())
-                    .ok_or_else(|| gap(format!("unmapped subtype in filter: {}", name.as_str())))?
-                    .to_string(),
-            ],
+            vec!["Subtypes".to_string(), emit_subtype_ref(name.as_str())?],
         ),
         CharacteristicPredicate::Supertype(s) => app(
             "HasChar",
@@ -1567,11 +1601,7 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
             "Alter",
             vec![
                 "Subtypes".to_string(),
-                emit_collection_op(op, |ident: &Ident| {
-                    subtype_idris(ident.as_str())
-                        .map(str::to_string)
-                        .ok_or_else(|| gap(format!("unmapped subtype: {}", ident.as_str())))
-                })?,
+                emit_collection_op(op, |ident: &Ident| emit_subtype_ref(ident.as_str()))?,
             ],
         )),
         Modification::Supertypes(op) => out.push(app(
@@ -2734,10 +2764,15 @@ fn emit_characteristics_from_face(face: &CardFace) -> R {
 /// mapped yet (Idris's `TwoFaced` needs two full `Face`s and this emitter has
 /// no two-faced canon fixture to validate against).
 ///
+/// `subtypes` is the loaded plugin's subtype registry (`plugin.subtypes`); it
+/// resolves the category of a subtype named by REFERENCE in a filter or
+/// `Alter Subtypes` op (which carry a name without its `types`).
+///
 /// # Errors
 /// A [`Gap`] naming the first Rust grammar shape encountered with no (or
 /// not-yet-implemented) Idris translation.
-pub fn emit_card_expr(card: &Card) -> R {
+pub fn emit_card_expr<S>(card: &Card, subtypes: &HashMap<Ident, Subtype, S>) -> R {
+    load_subtype_categories(subtypes);
     match card {
         Card::Normal(face) => Ok(app("Normal", vec![emit_characteristics_from_face(face)?])),
         Card::TwoFaced { .. } => Err(gap("Card::TwoFaced not yet mapped")),

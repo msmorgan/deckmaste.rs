@@ -121,64 +121,28 @@ namespace Zone
                   -- fetch from here. NOT the CR's nebulous "outside the game": a concrete zone (deck 75 = library 60 + sideboard 15).
     | Stack
 
--- Subtypes are partitioned by card type [CR#205.3g..205.3q]; each belongs to
--- exactly one card type. `subtypeCategory` is that (total) correlation.
-namespace CreatureSubtype
+-- Subtypes are partitioned by card type [CR#205.3g..205.3q]. A subtype's
+-- CATEGORY is the group of card types it may appear on: usually one, but a
+-- creature type sits on both Creature and Kindred cards, and a spell type on
+-- both Instant and Sorcery — so a single `Type_` won't serve. `categoryTypes`
+-- lists that group; `SubtypesOk` demands a card carry at least one of them.
+namespace Category
   public export
-  data CreatureSubtype
-    = Bear | Rat | Spider | Human | Knight | Goblin | Elf | Zombie | Elemental | Wall | Spirit
-    | Rogue | Warrior | Merfolk | Wizard | Juggernaut | Angel | Faerie | Insect | Cat | Vampire | Noble  -- creature types
-    | Soldier | Bird | Efreet | Monk | Centaur | Myr | Beast | Phyrexian | Praetor | Shaman | Devil
-    | Scout | Illusion | Flagbearer | Dwarf
-namespace EnchantmentSubtype
-  public export
-  data EnchantmentSubtype
-    = Aura | Saga
-namespace ArtifactSubtype
-  public export
-  data ArtifactSubtype
-    = Equipment | Vehicle
-namespace LandSubtype
-  public export
-  data LandSubtype
-    = Plains | Island | Swamp | Mountain | Forest   -- the basic land types
-namespace BattleSubtype
-  public export
-  data BattleSubtype
-    = Siege
-
-namespace Subtype
-  public export
-  data Subtype
-    = CreatureSub CreatureSubtype
-    | EnchantmentSub EnchantmentSubtype
-    | ArtifactSub ArtifactSubtype
-    | LandSub LandSubtype
-    | BattleSub BattleSubtype
+  data Category = Creature | Enchantment | Artifact | Land | Battle | Planeswalker | Spell
 
 public export
-implementation Promote CreatureSubtype Subtype where
-  promote = CreatureSub
-public export
-implementation Promote EnchantmentSubtype Subtype where
-  promote = EnchantmentSub
-public export
-implementation Promote ArtifactSubtype Subtype where
-  promote = ArtifactSub
-public export
-implementation Promote LandSubtype Subtype where
-  promote = LandSub
-public export
-implementation Promote BattleSubtype Subtype where
-  promote = BattleSub
+categoryTypes : Category -> List Type_
+categoryTypes Creature     = [Creature, Kindred]
+categoryTypes Enchantment  = [Enchantment]
+categoryTypes Artifact     = [Artifact]
+categoryTypes Land         = [Land]
+categoryTypes Battle       = [Battle]
+categoryTypes Planeswalker = [Planeswalker]
+categoryTypes Spell        = [Instant, Sorcery]
 
-public export
-subtypeCategory : Subtype -> Type_
-subtypeCategory (CreatureSub _) = Creature
-subtypeCategory (EnchantmentSub _) = Enchantment
-subtypeCategory (ArtifactSub _) = Artifact
-subtypeCategory (LandSub _) = Land
-subtypeCategory (BattleSub _) = Battle
+-- NOTE: `Subtype` itself is an OPEN name-carrying type whose third field is
+-- `List (Ability Base)` (the conferred abilities), so its definition (and
+-- `subtypeCategory`) live DOWN in the big mutual block, next to `Ability`.
 
 -- Leaf types used inside the filter/condition language ---------------------
 
@@ -280,13 +244,8 @@ Collection Subtypes   = ()
 Collection Supertypes = ()
 Collection _          = Void
 
-public export
-ElemOf : Characteristic -> Type         -- the element `Add`/`Remove` takes (only consulted under `Collection`)
-ElemOf Colors     = Color
-ElemOf Types  = Type_
-ElemOf Subtypes   = Subtype
-ElemOf Supertypes = Supertype
-ElemOf _          = Unit
+-- NOTE: `ElemOf` moved DOWN into the big mutual block (next to `CharValue`),
+-- because its `Subtypes` clause returns `Subtype`, which now lives there.
 
 -- The word classes a TEXT-CHANGE effect may swap ([CR#612.1]): a color word (white/blue/…) or a basic
 -- land type (Plains/Island/…). Mind Bend allows either; the specific words are a player's choice.
@@ -1127,6 +1086,31 @@ bindChosenRef k b = MkCtx (stack b) (eventCaps b) (chosenKind b) (Just k)
 -- recursive language. A PREDICATE is an object test — its candidate is IMPLICIT. A `Condition`
 -- is a closed/game-state test reaching objects via `Matches`/`exists`/`unique`.
 mutual
+  -- `ElemOf`/`CharValue` — the element type and the settable value-type of each `Characteristic` axis.
+  -- They must be DEFINED EARLY in this block (before `pins`/`Predicate` reduce `ElemOf`), yet they can
+  -- only live in this block at all because their `Subtypes` clause mentions `Subtype`, whose conferral
+  -- field references `Ability` (declared far below in this same mutual block).
+  public export
+  ElemOf : Characteristic -> Type         -- the element `Add`/`Remove` takes (only consulted under `Collection`)
+  ElemOf Colors     = Color
+  ElemOf Types  = Type_
+  ElemOf Subtypes   = Subtype
+  ElemOf Supertypes = Supertype
+  ElemOf _          = Unit
+
+  public export
+  CharValue : Ctx -> Characteristic -> Type
+  CharValue _ Colors     = List Color
+  CharValue _ Types  = List Type_
+  CharValue _ Subtypes   = List Subtype
+  CharValue _ Supertypes = List Supertype
+  CharValue b Power      = Count b        -- specify a (possibly dynamic, CDA "*/*") value in the amount language
+  CharValue b Toughness  = Count b
+  CharValue b Defense    = Count b
+  CharValue _ ManaCost   = ManaCost       -- the symbol list ("no mana cost" = `Set ManaCost []`, eternalize)
+  CharValue _ Name       = Maybe String   -- `Nothing` = "has no name"
+  CharValue _ BasicLandTypes = Void       -- READ-ONLY axis (Domain): unsettable, so `Set`'s argument is uninhabited
+
   -- A KEYWORD's tag + params ([CR#702]) — the "name" side of a keyword. In this block so
   -- `HasKeyword` can read it and `Hexproof`'s "from" filter can be a `Predicate` (which may name
   -- an anaphor — "from the CHOSEN color"). `keyword` (Macros) desugars a spec into its full `Ability`
@@ -1534,384 +1518,366 @@ mutual
   projElemAnte _ = MkAnt Permanent AnObject One Loop Nothing Nothing
 
 
--- the patient kind survives a cap-combine only when BOTH sources agree on it (a disjunction's body can
--- name the patient soundly iff every queried kind fixes the SAME kind); any mismatch or gap collapses to
--- `Nothing`. No `Eq RefKind` needed — matched structurally.
-public export
-sameKind : Maybe RefKind -> Maybe RefKind -> Maybe RefKind
-sameKind (Just AnObject) (Just AnObject) = Just AnObject
-sameKind (Just APlayer)  (Just APlayer)  = Just APlayer
-sameKind (Just Anything) (Just Anything) = Just Anything
-sameKind (Just Empty)    (Just Empty)    = Just Empty
-sameKind _ _ = Nothing
-
-public export
-andCaps : EventCaps -> EventCaps -> EventCaps
-andCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2) (sameKind p1 p2) (d1 && d2)
-
--- the UNION twin of `andCaps`: a body gets an anaphor if ANY combined source supplies it. Used to fold the
--- caps of a composite COST (`Costs […]`) — if one component sacrifices an object, the payment event binds it.
--- The patient kind still needs agreement (`sameKind`), since a kind can't be unioned soundly.
-public export
-orCaps : EventCaps -> EventCaps -> EventCaps
-orCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 || o2) (a1 || a2) (m1 || m2) (sameKind p1 p2) (d1 || d2)
-
--- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
--- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `NoCaps`. So a
--- multi-kind trigger ("attacks or blocks") is sound, and there is no way to union incompatible kinds.
-public export
-eventQueryCaps : EventQuery b -> EventCaps
-eventQueryCaps q = case q.kinds of
-  []        => NoCaps
-  (k :: ks) => foldl andCaps (eventKindCaps k) (map eventKindCaps ks)
-
--- the object-role NOUN a whole query supplies ([CR#400.7e]): its kinds must
--- AGREE on it (the sort mirror of the caps intersection); disagreement falls
--- back to the conservative `Permanent`.
-public export
-queryObjectSort : EventQuery b -> Sort
-queryObjectSort q = case map eventKindObjectSort q.kinds of
-  [] => Permanent
-  (s :: ss) => if all (sameSort s) ss then s else Permanent
-
--- the role antecedents an event body pushes ([CR#603.2e,608.2k]): one per
--- caps guarantee, the object's noun derived from the query's kinds.
-public export
-queryRoles : EventQuery b -> List Ant
-queryRoles q = roleAntes (eventQueryCaps q) (queryObjectSort q)
-
--- "it's your turn" — the common specialization of `TurnOf`.
-public export
-yourTurn : Condition b
-yourTurn = TurnOf (SameAs You)
-
--- Sugar over the `Countable` core — readable common cases, no redundant constructors. `CountMatching`/
--- `CountEvents` are the old `CountOf (Predicate)` / `EventCount`; `eachOf` builds a `Projection` without
--- spelling `Objects` (so devotion reads `Aggregate SumOf (eachOf yourPermanents …)`). These are the canonical
--- object/event spellings; raw `CountOf (Objects …)` / `Project (Objects …)` are reserved for the negative
--- tests, and raw `CountOf (ManaSymbols …)` / `CountOf (Players …)` are the only spelling for those sources.
-public export
-CountMatching : Predicate b AnObject -> Count b
-CountMatching p = CountOf (Objects p)
-
-public export
-CountEvents : EventQuery b -> Count b
-CountEvents q = CountOf (Events q)
-
-public export
-eachOf : (p : Predicate b AnObject) -> Count (bindIt (loopOf p) b) -> Projection b
-eachOf p acc = Project (Objects p) acc
-
--- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from `CountOf` + `Compare`, not
--- primitive constructors. `CountOf` takes a `Countable`, so `exists (During …)` is a TYPE error (a
--- `Condition` is not a `Countable`), not a degenerate term.
-public export
-exists : Predicate b AnObject -> Condition b
-exists p = Compare (CountMatching p) Greater (Literal 0)
-
-public export
-unique : Predicate b AnObject -> Condition b
-unique p = Compare (CountMatching p) Eq (Literal 1)
-
-public export
-implementation Promote Nat (Count b) where
-  promote = Literal
-public export
-implementation Promote Integer (Count b) where
-  promote = Literal . integerToNat
-
--- Integer literals + `+`/`*` sugar for the value language (so `power := Just 2` and
--- `SetPT 1 1` typecheck; `Plus`/`Times` back the operators).
-public export
-implementation Num (Count b) where
-  (+) = Plus
-  (*) = Times
-  fromInteger = Literal . integerToNat
-
--- A game-result effect ([CR#104]). Its own category above `Action` — a game-ender
--- isn't just another verb; `OneShotEffect`'s `Conclude` wraps it.
-namespace Outcome
+  -- the patient kind survives a cap-combine only when BOTH sources agree on it (a disjunction's body can
+  -- name the patient soundly iff every queried kind fixes the SAME kind); any mismatch or gap collapses to
+  -- `Nothing`. No `Eq RefKind` needed — matched structurally.
   public export
-  data Outcome : Ctx -> Type where
-    WinGame  : Reference b APlayer -> Outcome b
-    LoseGame : Reference b APlayer -> Outcome b
+  sameKind : Maybe RefKind -> Maybe RefKind -> Maybe RefKind
+  sameKind (Just AnObject) (Just AnObject) = Just AnObject
+  sameKind (Just APlayer)  (Just APlayer)  = Just APlayer
+  sameKind (Just Anything) (Just Anything) = Just Anything
+  sameKind (Just Empty)    (Just Empty)    = Just Empty
+  sameKind _ _ = Nothing
 
--- A STATIC suppressor of a game outcome ([CR#104.2b,104.3e]) — distinct from the imperative `Outcome`
--- above (Rust's lesson: win/lose-the-game is not a deontic over actions, nor a replaceable event, so
--- it needs its own static channel). `OutcomeGate CantLose you` = Platinum Angel's first clause.
-namespace OutcomeGateKind
   public export
-  data OutcomeGateKind = CantLose | CantWin
+  andCaps : EventCaps -> EventCaps -> EventCaps
+  andCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2) (sameKind p1 p2) (d1 && d2)
 
--- A position in an ORDERED zone ([CR#401]) — an END plus an offset. `FromTop (^0)` = on top. Named
--- `Anchor` (general over ordered zones — currently the library) rather than `LibraryPosition`.
-namespace Anchor
+  -- the UNION twin of `andCaps`: a body gets an anaphor if ANY combined source supplies it. Used to fold the
+  -- caps of a composite COST (`Costs […]`) — if one component sacrifices an object, the payment event binds it.
+  -- The patient kind still needs agreement (`sameKind`), since a kind can't be unioned soundly.
   public export
-  data Anchor : Ctx -> Type where
-    FromTop    : Count b -> Anchor b
-    FromBottom : Count b -> Anchor b
+  orCaps : EventCaps -> EventCaps -> EventCaps
+  orCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 || o2) (a1 || a2) (m1 || m2) (sameKind p1 p2) (d1 || d2)
 
--- WHERE a card goes: a plain (unordered) zone, or an ordered zone at an `Anchor`. ONE notion of a
--- destination — subsumes the old bare-`Zone` `Move` argument AND the single-object `PutIntoLibrary`.
--- Sound by construction: only `ToLibrary` carries a position, so "graveyard at FromBottom 0" is
--- unrepresentable.
-namespace Destination
+  -- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
+  -- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `NoCaps`. So a
+  -- multi-kind trigger ("attacks or blocks") is sound, and there is no way to union incompatible kinds.
   public export
-  data Destination : Ctx -> Type where
-    ToZone    : Zone -> Destination b
-    ToLibrary : Anchor b -> Destination b
+  eventQueryCaps : EventQuery b -> EventCaps
+  eventQueryCaps q = case q.kinds of
+    []        => NoCaps
+    (k :: ks) => foldl andCaps (eventKindCaps k) (map eventKindCaps ks)
 
--- the zone / noun a destination fixes for the moved object — the
--- [CR#603.7c] expected-zone stamp and the [CR#400.7e] product noun.
-public export
-destZone : Destination b -> Zone
-destZone (ToZone z) = z
-destZone (ToLibrary _) = Library
-
-public export
-destSort : Destination b -> Sort
-destSort d = zoneSort (destZone d)
-
--- an ORDERED zone is only a destination AT A POSITION ([CR#401.4] — bare
--- Library is unanchored), and the stack is never a `Move` destination
--- ([CR#405.1] — casting puts a spell there, not a move). Demanded by
--- `Move`/`MoveArranged`.
-public export
-DestinationOk : Destination b -> Type
-DestinationOk (ToZone Library) = Void
-DestinationOk (ToZone Stack) = Void
-DestinationOk _ = ()
-
--- How a SIMULTANEOUS group of cards is ordered as it lands at a position in an ORDERED zone — the
--- order is a property of the PLACEMENT, not the loop. `ChosenOrder` = the owner arranges them, the
--- [CR#401.4] "any order" default; `RandomOrder` = shuffled into place ([MTR 3.10], a randomized pile
--- is the same kind of object as a shuffled library); `SameOrder` = preserve the source order (only
--- meaningful from an already-ordered source). A single object has no internal order, so only
--- `MoveArranged` (a group) carries it. The `…Order` suffix keeps `RandomOrder` distinct from the
--- `Selection.Random` constructor ("N random objects").
-namespace Arrangement
+  -- the object-role NOUN a whole query supplies ([CR#400.7e]): its kinds must
+  -- AGREE on it (the sort mirror of the caps intersection); disagreement falls
+  -- back to the conservative `Permanent`.
   public export
-  data Arrangement = ChosenOrder | RandomOrder | SameOrder
+  queryObjectSort : EventQuery b -> Sort
+  queryObjectSort q = case map eventKindObjectSort q.kinds of
+    [] => Permanent
+    (s :: ss) => if all (sameSort s) ss then s else Permanent
 
--- A continuous effect's lifetime ([CR#611.2]). Rust: Duration. (Above the effect types
--- so `Continuously` can name it.)
-namespace Duration
+  -- the role antecedents an event body pushes ([CR#603.2e,608.2k]): one per
+  -- caps guarantee, the object's noun derived from the query's kinds.
   public export
-  data Duration : Ctx -> Type where
-    UntilEndOfTurn : Duration b
-    UntilEvent : EventQuery b -> Duration b
-    ForAsLongAs : Condition b -> Duration b   -- a resolution effect's duration: affected set FIXED at start, ends when the cond lapses ([CR#611.2b,611.2c]). DISTINCT from the re-evaluated conditional static `StaticEffect.While` ([CR#604.3]) — NOT a redundancy.
-    Forever : Duration b                         -- rest of game (Rust: EndOfGame)
+  queryRoles : EventQuery b -> List Ant
+  queryRoles q = roleAntes (eventQueryCaps q) (queryObjectSort q)
 
--- `Range lo hi`: `Nothing` bound = unbounded that side. A bare numeral is the
--- EXACTLY case (`Range (Just n) (Just n)`); the helpers below name the rest.
-public export
-implementation Promote Integer (Quantity b) where
-  promote n = let k = Literal (integerToNat n) in Range (Just k) (Just k)
-
-public export
-atLeast : Count b -> Quantity b
-atLeast n = Range (Just n) Nothing
-
-public export
-atMost : Count b -> Quantity b
-atMost n = Range Nothing (Just n)
-
-public export
-between : (lo : Count b) -> (hi : Count b) -> {auto 0 prf : OrderedRange (Just lo) (Just hi)} -> Quantity b
-between lo hi = Range (Just lo) (Just hi)
-
-public export
-anyNumber : Quantity b
-anyNumber = Range Nothing Nothing
-
--- A target slot's `Quantity` must permit ≥1 target ([CR#115.1] — a slot can't target nothing).
--- Guards the UPPER bound: a statically-zero max ("up to 0") is rejected; "up to N>0" (lower 0) is fine.
-public export
-NonZeroQ : Quantity b -> Type
-NonZeroQ (Range _ (Just (Literal Z))) = Void
-NonZeroQ _ = ()
-
-namespace TargetSpec
+  -- "it's your turn" — the common specialization of `TurnOf`.
   public export
-  data TargetSpec : Ctx -> RefKind -> Type where
-    -- a target slot: a NON-ZERO `Quantity` of targets matching the predicate (`Target (^1)` = one;
-    -- `Target (between (^1) (^2))` = "one or two"). The announced slot pushes an ANTECEDENT the body
-    -- may read back as an anaphor (`It` / `That w` / `They`), or read POSITIONALLY by its index in
-    -- the `Targeted` list (`Reference.Target n`, this constructor's namesake in a different
-    -- namespace) — the context-free escape hatch for same-sort/ambiguous slots.
-    Target : (q : Quantity b) -> {auto 0 prf : NonZeroQ q} -> Predicate b k -> TargetSpec b k
-    -- a co-target set-DISTINCTNESS constraint ([CR#115.7e], "any OTHER target"): this spec's picks
-    -- must not overlap the sibling slots at these indices; `Targeted` bounds the indices.
-    Distinct : (siblings : List Nat) -> TargetSpec b k -> TargetSpec b k
+  yourTurn : Condition b
+  yourTurn = TurnOf (SameAs You)
 
--- a slot announces ONE target iff its quantity is literally one ([CR#115.3]);
--- anything wider announces a Many group, read back as `They` ([CR#601.2d]).
-public export
-quantityCard : Quantity b -> Cardinality
-quantityCard (Range (Just (Literal 1)) (Just (Literal 1))) = One
-quantityCard _ = Many
-
--- the antecedent an announced slot pushes ([CR#115.3,601.2c]): noun from its
--- filter, kind from its slot, cardinality from its quantity.
-public export
-slotAnte : {k : RefKind} -> TargetSpec b k -> Ant
-slotAnte (Target q p) = MkAnt (filterSort p) k (quantityCard q) TargetSlot Nothing Nothing
-slotAnte (Distinct _ t) = slotAnte t
-
-public export
-slotAntes : {ks : List RefKind} -> All (TargetSpec b) ks -> List Ant
-slotAntes [] = []
-slotAntes {ks = k :: ks'} (t :: ts) = slotAnte t :: slotAntes ts
-
--- VESTIGIAL: no live constructor stamps an antecedent's `label` anymore
--- (`As`/`The`/`TheGroup` retired in favour of positional `Target n` reads),
--- so every `.label` is `Nothing` and this is trivially true. Kept only
--- because `Targeted`'s `lbl` obligation below still names it — a home for
--- labeled disambiguation should it ever return.
-public export
-labelFresh : Maybe String -> List Ant -> Bool
-labelFresh _ [] = True
-labelFresh l (a :: as) = not (sameLabel l a.label) && labelFresh l as
-
-public export
-labelsOk : List Ant -> Bool
-labelsOk [] = True
-labelsOk (a :: as) = labelFresh a.label as && labelsOk as
-
--- a `Distinct` constraint may only name announce siblings that exist
--- ([CR#115.7e,601.2c]).
-public export
-specDistinctOk : TargetSpec b k -> Nat -> Bool
-specDistinctOk (Target _ _) n = True
-specDistinctOk (Distinct sibs t) n = all (\i => i < n) sibs && specDistinctOk t n
-
-public export
-distinctOk : All (TargetSpec b) ks -> Nat -> Bool
-distinctOk [] n = True
-distinctOk (t :: ts) n = specDistinctOk t n && distinctOk ts n
-
--- "the unique object matching a predicate" — sugar: the sole element of `SelectAll p`.
-public export
-Only : Predicate b AnObject -> Reference b AnObject
-Only p = Single (SelectAll p)
-
--- a use-LIMIT on a `Replaces` — how many times it fires before it's CONSUMED (a shield). `Unlimited` =
--- today's continuous replacement; `UpTo n` = "the next n" — n OCCURRENCES for an amountless event
--- (regeneration: the next destroy), n AMOUNT-POINTS for an amount event (prevention: the next n damage).
-namespace ReplaceLimit
+  -- Sugar over the `Countable` core — readable common cases, no redundant constructors. `CountMatching`/
+  -- `CountEvents` are the old `CountOf (Predicate)` / `EventCount`; `eachOf` builds a `Projection` without
+  -- spelling `Objects` (so devotion reads `Aggregate SumOf (eachOf yourPermanents …)`). These are the canonical
+  -- object/event spellings; raw `CountOf (Objects …)` / `Project (Objects …)` are reserved for the negative
+  -- tests, and raw `CountOf (ManaSymbols …)` / `CountOf (Players …)` are the only spelling for those sources.
   public export
-  data ReplaceLimit : Ctx -> Type where
-    Unlimited : ReplaceLimit b
-    UpTo : Count b -> ReplaceLimit b
+  CountMatching : Predicate b AnObject -> Count b
+  CountMatching p = CountOf (Objects p)
 
--- WHICH counters a `MoveCounters` relocates ([CR#122.5]). `Some c n` = n counters of one kind (Power
--- Conduit, Leech Bonder; "all of that kind" = `Some c (CountersOn c from)`, the `RemoveCounters` idiom).
--- `AllKinds` = every counter regardless of kind (Ozolith, Fate Transfer) — the one move case the single-
--- kind form can't reach, since it quantifies over kinds rather than naming one. So move stays ONE verb;
--- the kind/quantity (or "everything") is data, not a second constructor.
-namespace CounterSpec
   public export
-  data CounterSpec : Ctx -> Type where
-    Some : (c : CounterKind) -> Count b -> CounterSpec b
-    AllKinds : CounterSpec b
+  CountEvents : EventQuery b -> Count b
+  CountEvents q = CountOf (Events q)
 
--- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec. The count is a `Quantity`
--- (the same range language as `Target`), so "choose one" = `^1`, "choose one or both" = `between (^1) (^2)`,
--- "choose one or more" = `atLeast (^1)`, "choose up to two" = `atMost (^2)` (subsumes the old `upTo` flag).
-namespace ChooseSpec
   public export
-  data ChooseSpec : Ctx -> Type where
-    MkChooseSpec : (count : Quantity b) -> {default False repeats : Bool} -> ChooseSpec b
+  eachOf : (p : Predicate b AnObject) -> Count (bindIt (loopOf p) b) -> Projection b
+  eachOf p acc = Project (Objects p) acc
 
--- a modal choose-count must not exceed the number of modes ([CR#700.2d]) — checked only when the UPPER
--- bound is a LITERAL and modes can't repeat (a repeating choice, or an unbounded "one or more", is lenient,
--- exactly like `NonZeroQ` guards only a literal bound). An unbounded upper is implicitly the mode count.
--- A BOOL law (gated as `modalCountOk … = True`), not a Type family: a stuck Type-level gate over the
--- mode list is opaque to the strict-positivity checker, a stuck Bool equation is not.
-public export
-modalCountOk : ChooseSpec b -> (modeCount : Nat) -> Bool
-modalCountOk (MkChooseSpec (Range _ (Just (Literal hi))) {repeats = False}) modeCount = hi <= modeCount
-modalCountOk _ _ = True
-
--- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
--- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
--- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
--- polarities `Constrain` (Require/Forbid)/`Priced` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
--- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
--- "can't lose") are `Replaces`/SBA, NOT a `Constrain`.
--- the two COMPULSION polarities of a declaration constraint — the pair the combat solver balances
--- ([CR#508.1c] restriction / [CR#508.1d] requirement): `Forbid` prevents the deed, `Require` forces
--- it if able. `Constrain` (in `StaticEffect`) carries one; `cant`/`must` (Macros) are the aliases.
-namespace Compulsion
+  -- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from `CountOf` + `Compare`, not
+  -- primitive constructors. `CountOf` takes a `Countable`, so `exists (During …)` is a TYPE error (a
+  -- `Condition` is not a `Countable`), not a degenerate term.
   public export
-  data Compulsion = Require | Forbid
+  exists : Predicate b AnObject -> Condition b
+  exists p = Compare (CountMatching p) Greater (Literal 0)
 
--- the two PRICED-deed timings, folded into one `Priced` constructor: `AtDeclaration` = the cost is paid
--- when the deed is declared (the old `Gate`, never compulsory, [CR#508.1d]); `Downstream` = it is punished
--- after the fact (the old `Toll`, ward [CR#702.21a]).
-namespace PricedTiming
   public export
-  data PricedTiming = AtDeclaration | Downstream
+  unique : Predicate b AnObject -> Condition b
+  unique p = Compare (CountMatching p) Eq (Literal 1)
 
-namespace Deed
   public export
-  data Deed : Ctx -> Type where
-    -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Constrain/
-    -- Priced). The AGENT's kind is fixed by `agentScope r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
-    -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
-    -- poly (an attack's defender is a player OR a permanent, [CR#508.1]). The two PASSIVE deeds fold in once
-    -- the source is the explicit agent. Examples:
-    --   Defender             = `cant (Enact Attack (SameAs This) Anyone)`
-    --   "q can't block this" = `cant (Enact Block q (SameAs This))`
-    --   "Enchant creature"   = `Can  (Enact Attach (SameAs This) creature)`  ([CR#701.3a]) — attach is default-FORBIDDEN, Enchant ENABLES it
-    --   Shroud               = `cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the agent)
-    --   "can't be countered" = `cant (Enact Counter spellOrAbility (SameAs This))`
-    --   flash                = `Can  (Enact Cast you (SameAs This)) {window = AsInstant}`  ([CR#702.8a])
-    -- (Subsumed the old Attacks/Blocks/Attaches/BeTargeted/Casts/Activates/Plays/Countered verbs.)
-    Enact      : (r : Relation) -> (agent : Predicate b (agentScope r)) -> (patient : Predicate b k) -> Deed b
-    -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
-    -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `cant (BlockedBy This …)` constrains the
-    -- WHOLE blocker set, not one blocker at a time — Menace = `cant (BlockedBy (SameAs This) (^1))`
-    -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). The one combat constraint the identity
-    -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
-    BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto 0 prf : NonZeroQ size} -> Deed b
-
--- the value class of each `Characteristic` axis (defined far above, before the mutual block) — the type a
--- `Set` op overwrites it with. Lives HERE, apart from the enum, because the numeric axes' value is a `Count`
--- ([CR#613] — a possibly-dynamic CDA "*/*"), and `Count` is defined in the mutual block above. NOT a value-type
--- index, which would tempt a non-RON `valueOf : Ref -> Characteristic t -> t`.
-public export
-CharValue : Ctx -> Characteristic -> Type
-CharValue _ Colors     = List Color
-CharValue _ Types  = List Type_
-CharValue _ Subtypes   = List Subtype
-CharValue _ Supertypes = List Supertype
-CharValue b Power      = Count b        -- specify a (possibly dynamic, CDA "*/*") value in the amount language
-CharValue b Toughness  = Count b
-CharValue b Defense    = Count b
-CharValue _ ManaCost   = ManaCost       -- the symbol list ("no mana cost" = `Set ManaCost []`, eternalize)
-CharValue _ Name       = Maybe String   -- `Nothing` = "has no name"
-CharValue _ BasicLandTypes = Void       -- READ-ONLY axis (Domain): unsettable, so `Set`'s argument is uninhabited
-
--- A modification OPERATION on one characteristic axis `c` ([CR#613]) — the layer/base-vs-current is the
--- OPERATION, not the axis name (so `Power`/`Toughness` drop the "Base"). `Set` overwrites any axis; `Up`/
--- `Down` are the signed numeric deltas (layer 7c); `Add`/`Remove` add/remove one element of a collection
--- axis. The gates make the mismatches unrepresentable: `Up` on `Colors` and `Add` on `Power` are ill-typed.
-namespace ModificationOp
+  implementation Promote Nat (Count b) where
+    promote = Literal
   public export
-  data ModificationOp : Ctx -> Characteristic -> Type where
-    Set    : CharValue b c -> ModificationOp b c                          -- overwrite (any axis)
-    Up     : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "+N" (numeric, layer 7c)
-    Down   : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "−N"
-    Add    : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c   -- add one element (collection)
-    Remove : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c
+  implementation Promote Integer (Count b) where
+    promote = Literal . integerToNat
 
--- a best-effort NOUN for an `Existing` binder's group ([CR#608.2d]): the
--- filter-backed shapes derive from their filter; library windows are cards;
--- a union agrees or falls back; the plural anaphors re-read an existing
--- antecedent, so their group keeps the conservative `Permanent`.
-mutual
+  -- Integer literals + `+`/`*` sugar for the value language (so `power := Just 2` and
+  -- `SetPT 1 1` typecheck; `Plus`/`Times` back the operators).
+  public export
+  implementation Num (Count b) where
+    (+) = Plus
+    (*) = Times
+    fromInteger = Literal . integerToNat
+
+  -- A game-result effect ([CR#104]). Its own category above `Action` — a game-ender
+  -- isn't just another verb; `OneShotEffect`'s `Conclude` wraps it.
+  namespace Outcome
+    public export
+    data Outcome : Ctx -> Type where
+      WinGame  : Reference b APlayer -> Outcome b
+      LoseGame : Reference b APlayer -> Outcome b
+
+  -- A STATIC suppressor of a game outcome ([CR#104.2b,104.3e]) — distinct from the imperative `Outcome`
+  -- above (Rust's lesson: win/lose-the-game is not a deontic over actions, nor a replaceable event, so
+  -- it needs its own static channel). `OutcomeGate CantLose you` = Platinum Angel's first clause.
+  namespace OutcomeGateKind
+    public export
+    data OutcomeGateKind = CantLose | CantWin
+
+  -- A position in an ORDERED zone ([CR#401]) — an END plus an offset. `FromTop (^0)` = on top. Named
+  -- `Anchor` (general over ordered zones — currently the library) rather than `LibraryPosition`.
+  namespace Anchor
+    public export
+    data Anchor : Ctx -> Type where
+      FromTop    : Count b -> Anchor b
+      FromBottom : Count b -> Anchor b
+
+  -- WHERE a card goes: a plain (unordered) zone, or an ordered zone at an `Anchor`. ONE notion of a
+  -- destination — subsumes the old bare-`Zone` `Move` argument AND the single-object `PutIntoLibrary`.
+  -- Sound by construction: only `ToLibrary` carries a position, so "graveyard at FromBottom 0" is
+  -- unrepresentable.
+  namespace Destination
+    public export
+    data Destination : Ctx -> Type where
+      ToZone    : Zone -> Destination b
+      ToLibrary : Anchor b -> Destination b
+
+  -- the zone / noun a destination fixes for the moved object — the
+  -- [CR#603.7c] expected-zone stamp and the [CR#400.7e] product noun.
+  public export
+  destZone : Destination b -> Zone
+  destZone (ToZone z) = z
+  destZone (ToLibrary _) = Library
+
+  public export
+  destSort : Destination b -> Sort
+  destSort d = zoneSort (destZone d)
+
+  -- an ORDERED zone is only a destination AT A POSITION ([CR#401.4] — bare
+  -- Library is unanchored), and the stack is never a `Move` destination
+  -- ([CR#405.1] — casting puts a spell there, not a move). Demanded by
+  -- `Move`/`MoveArranged`.
+  public export
+  DestinationOk : Destination b -> Type
+  DestinationOk (ToZone Library) = Void
+  DestinationOk (ToZone Stack) = Void
+  DestinationOk _ = ()
+
+  -- How a SIMULTANEOUS group of cards is ordered as it lands at a position in an ORDERED zone — the
+  -- order is a property of the PLACEMENT, not the loop. `ChosenOrder` = the owner arranges them, the
+  -- [CR#401.4] "any order" default; `RandomOrder` = shuffled into place ([MTR 3.10], a randomized pile
+  -- is the same kind of object as a shuffled library); `SameOrder` = preserve the source order (only
+  -- meaningful from an already-ordered source). A single object has no internal order, so only
+  -- `MoveArranged` (a group) carries it. The `…Order` suffix keeps `RandomOrder` distinct from the
+  -- `Selection.Random` constructor ("N random objects").
+  namespace Arrangement
+    public export
+    data Arrangement = ChosenOrder | RandomOrder | SameOrder
+
+  -- A continuous effect's lifetime ([CR#611.2]). Rust: Duration. (Above the effect types
+  -- so `Continuously` can name it.)
+  namespace Duration
+    public export
+    data Duration : Ctx -> Type where
+      UntilEndOfTurn : Duration b
+      UntilEvent : EventQuery b -> Duration b
+      ForAsLongAs : Condition b -> Duration b   -- a resolution effect's duration: affected set FIXED at start, ends when the cond lapses ([CR#611.2b,611.2c]). DISTINCT from the re-evaluated conditional static `StaticEffect.While` ([CR#604.3]) — NOT a redundancy.
+      Forever : Duration b                         -- rest of game (Rust: EndOfGame)
+
+  -- `Range lo hi`: `Nothing` bound = unbounded that side. A bare numeral is the
+  -- EXACTLY case (`Range (Just n) (Just n)`); the helpers below name the rest.
+  public export
+  implementation Promote Integer (Quantity b) where
+    promote n = let k = Literal (integerToNat n) in Range (Just k) (Just k)
+
+  public export
+  atLeast : Count b -> Quantity b
+  atLeast n = Range (Just n) Nothing
+
+  public export
+  atMost : Count b -> Quantity b
+  atMost n = Range Nothing (Just n)
+
+  public export
+  between : (lo : Count b) -> (hi : Count b) -> {auto 0 prf : OrderedRange (Just lo) (Just hi)} -> Quantity b
+  between lo hi = Range (Just lo) (Just hi)
+
+  public export
+  anyNumber : Quantity b
+  anyNumber = Range Nothing Nothing
+
+  -- A target slot's `Quantity` must permit ≥1 target ([CR#115.1] — a slot can't target nothing).
+  -- Guards the UPPER bound: a statically-zero max ("up to 0") is rejected; "up to N>0" (lower 0) is fine.
+  public export
+  NonZeroQ : Quantity b -> Type
+  NonZeroQ (Range _ (Just (Literal Z))) = Void
+  NonZeroQ _ = ()
+
+  namespace TargetSpec
+    public export
+    data TargetSpec : Ctx -> RefKind -> Type where
+      -- a target slot: a NON-ZERO `Quantity` of targets matching the predicate (`Target (^1)` = one;
+      -- `Target (between (^1) (^2))` = "one or two"). The announced slot pushes an ANTECEDENT the body
+      -- may read back as an anaphor (`It` / `That w` / `They`), or read POSITIONALLY by its index in
+      -- the `Targeted` list (`Reference.Target n`, this constructor's namesake in a different
+      -- namespace) — the context-free escape hatch for same-sort/ambiguous slots.
+      Target : (q : Quantity b) -> {auto 0 prf : NonZeroQ q} -> Predicate b k -> TargetSpec b k
+      -- a co-target set-DISTINCTNESS constraint ([CR#115.7e], "any OTHER target"): this spec's picks
+      -- must not overlap the sibling slots at these indices; `Targeted` bounds the indices.
+      Distinct : (siblings : List Nat) -> TargetSpec b k -> TargetSpec b k
+
+  -- a slot announces ONE target iff its quantity is literally one ([CR#115.3]);
+  -- anything wider announces a Many group, read back as `They` ([CR#601.2d]).
+  public export
+  quantityCard : Quantity b -> Cardinality
+  quantityCard (Range (Just (Literal 1)) (Just (Literal 1))) = One
+  quantityCard _ = Many
+
+  -- the antecedent an announced slot pushes ([CR#115.3,601.2c]): noun from its
+  -- filter, kind from its slot, cardinality from its quantity.
+  public export
+  slotAnte : {k : RefKind} -> TargetSpec b k -> Ant
+  slotAnte (Target q p) = MkAnt (filterSort p) k (quantityCard q) TargetSlot Nothing Nothing
+  slotAnte (Distinct _ t) = slotAnte t
+
+  public export
+  slotAntes : {ks : List RefKind} -> All (TargetSpec b) ks -> List Ant
+  slotAntes [] = []
+  slotAntes {ks = k :: ks'} (t :: ts) = slotAnte t :: slotAntes ts
+
+  -- VESTIGIAL: no live constructor stamps an antecedent's `label` anymore
+  -- (`As`/`The`/`TheGroup` retired in favour of positional `Target n` reads),
+  -- so every `.label` is `Nothing` and this is trivially true. Kept only
+  -- because `Targeted`'s `lbl` obligation below still names it — a home for
+  -- labeled disambiguation should it ever return.
+  public export
+  labelFresh : Maybe String -> List Ant -> Bool
+  labelFresh _ [] = True
+  labelFresh l (a :: as) = not (sameLabel l a.label) && labelFresh l as
+
+  public export
+  labelsOk : List Ant -> Bool
+  labelsOk [] = True
+  labelsOk (a :: as) = labelFresh a.label as && labelsOk as
+
+  -- a `Distinct` constraint may only name announce siblings that exist
+  -- ([CR#115.7e,601.2c]).
+  public export
+  specDistinctOk : TargetSpec b k -> Nat -> Bool
+  specDistinctOk (Target _ _) n = True
+  specDistinctOk (Distinct sibs t) n = all (\i => i < n) sibs && specDistinctOk t n
+
+  public export
+  distinctOk : All (TargetSpec b) ks -> Nat -> Bool
+  distinctOk [] n = True
+  distinctOk (t :: ts) n = specDistinctOk t n && distinctOk ts n
+
+  -- "the unique object matching a predicate" — sugar: the sole element of `SelectAll p`.
+  public export
+  Only : Predicate b AnObject -> Reference b AnObject
+  Only p = Single (SelectAll p)
+
+  -- a use-LIMIT on a `Replaces` — how many times it fires before it's CONSUMED (a shield). `Unlimited` =
+  -- today's continuous replacement; `UpTo n` = "the next n" — n OCCURRENCES for an amountless event
+  -- (regeneration: the next destroy), n AMOUNT-POINTS for an amount event (prevention: the next n damage).
+  namespace ReplaceLimit
+    public export
+    data ReplaceLimit : Ctx -> Type where
+      Unlimited : ReplaceLimit b
+      UpTo : Count b -> ReplaceLimit b
+
+  -- WHICH counters a `MoveCounters` relocates ([CR#122.5]). `Some c n` = n counters of one kind (Power
+  -- Conduit, Leech Bonder; "all of that kind" = `Some c (CountersOn c from)`, the `RemoveCounters` idiom).
+  -- `AllKinds` = every counter regardless of kind (Ozolith, Fate Transfer) — the one move case the single-
+  -- kind form can't reach, since it quantifies over kinds rather than naming one. So move stays ONE verb;
+  -- the kind/quantity (or "everything") is data, not a second constructor.
+  namespace CounterSpec
+    public export
+    data CounterSpec : Ctx -> Type where
+      Some : (c : CounterKind) -> Count b -> CounterSpec b
+      AllKinds : CounterSpec b
+
+  -- How many modes to choose, for a modal effect ([CR#700.2]). Rust: ChooseSpec. The count is a `Quantity`
+  -- (the same range language as `Target`), so "choose one" = `^1`, "choose one or both" = `between (^1) (^2)`,
+  -- "choose one or more" = `atLeast (^1)`, "choose up to two" = `atMost (^2)` (subsumes the old `upTo` flag).
+  namespace ChooseSpec
+    public export
+    data ChooseSpec : Ctx -> Type where
+      MkChooseSpec : (count : Quantity b) -> {default False repeats : Bool} -> ChooseSpec b
+
+  -- a modal choose-count must not exceed the number of modes ([CR#700.2d]) — checked only when the UPPER
+  -- bound is a LITERAL and modes can't repeat (a repeating choice, or an unbounded "one or more", is lenient,
+  -- exactly like `NonZeroQ` guards only a literal bound). An unbounded upper is implicitly the mode count.
+  -- A BOOL law (gated as `modalCountOk … = True`), not a Type family: a stuck Type-level gate over the
+  -- mode list is opaque to the strict-positivity checker, a stuck Bool equation is not.
+  public export
+  modalCountOk : ChooseSpec b -> (modeCount : Nat) -> Bool
+  modalCountOk (MkChooseSpec (Range _ (Just (Literal hi))) {repeats = False}) modeCount = hi <= modeCount
+  modalCountOk _ _ = True
+
+  -- A DEONTIC clause's carrier: a game ACTION a player may attempt ([CR#101.2,601.3] the deontic
+  -- layer) — distinct from the resolving `Action` verbs. Each names its participants; the CR's
+  -- "where ⟨pred⟩" qualifier rides the variable participant (`who`/`blocker`/`source`). The
+  -- polarities `Constrain` (Require/Forbid)/`Priced` (in `StaticEffect`) wrap a `Deed`. BOUNDARY [CR#614.17]:
+  -- this is choice-LEGALITY ("can't attack"); event-edits ("doesn't tap", "can't be regenerated",
+  -- "can't lose") are `Replaces`/SBA, NOT a `Constrain`.
+  -- the two COMPULSION polarities of a declaration constraint — the pair the combat solver balances
+  -- ([CR#508.1c] restriction / [CR#508.1d] requirement): `Forbid` prevents the deed, `Require` forces
+  -- it if able. `Constrain` (in `StaticEffect`) carries one; `cant`/`must` (Macros) are the aliases.
+  namespace Compulsion
+    public export
+    data Compulsion = Require | Forbid
+
+  -- the two PRICED-deed timings, folded into one `Priced` constructor: `AtDeclaration` = the cost is paid
+  -- when the deed is declared (the old `Gate`, never compulsory, [CR#508.1d]); `Downstream` = it is punished
+  -- after the fact (the old `Toll`, ward [CR#702.21a]).
+  namespace PricedTiming
+    public export
+    data PricedTiming = AtDeclaration | Downstream
+
+  namespace Deed
+    public export
+    data Deed : Ctx -> Type where
+      -- the DEONTIC aspect of the relation spine: "[agent] enacts [r] upon [patient]" (under Can/Constrain/
+      -- Priced). The AGENT's kind is fixed by `agentScope r` (ONE agent slot — no `Agent`/`Actor` split): a PLAYER for
+      -- Cast/Activate/Play, the SOURCE OBJECT for Attack/Block/Attach/Target/Counter. The PATIENT stays kind-
+      -- poly (an attack's defender is a player OR a permanent, [CR#508.1]). The two PASSIVE deeds fold in once
+      -- the source is the explicit agent. Examples:
+      --   Defender             = `cant (Enact Attack (SameAs This) Anyone)`
+      --   "q can't block this" = `cant (Enact Block q (SameAs This))`
+      --   "Enchant creature"   = `Can  (Enact Attach (SameAs This) creature)`  ([CR#701.3a]) — attach is default-FORBIDDEN, Enchant ENABLES it
+      --   Shroud               = `cant (Enact Target spellOrAbility (SameAs This))`  (the source spell/ability is the agent)
+      --   "can't be countered" = `cant (Enact Counter spellOrAbility (SameAs This))`
+      --   flash                = `Can  (Enact Cast you (SameAs This)) {window = AsInstant}`  ([CR#702.8a])
+      -- (Subsumed the old Attacks/Blocks/Attaches/BeTargeted/Casts/Activates/Plays/Countered verbs.)
+      Enact      : (r : Relation) -> (agent : Predicate b (agentScope r)) -> (patient : Predicate b k) -> Deed b
+      -- SET-LEVEL block ([CR#509.1c],[CR#702.111b]): "[attacker] is blocked by a DECLARED set of `size`
+      -- creatures" (a block, so size ≥ 1 — ENFORCED by `NonZeroQ`). `cant (BlockedBy This …)` constrains the
+      -- WHOLE blocker set, not one blocker at a time — Menace = `cant (BlockedBy (SameAs This) (^1))`
+      -- (forbid the lone blocker; 0 = unblocked and 2+ stay legal). The one combat constraint the identity
+      -- spine doesn't subsume: it's about HOW MANY blockers, not WHICH. [CR#509.1c] judges the whole set.
+      BlockedBy  : (attacker : Predicate b AnObject) -> (size : Quantity b) -> {auto 0 prf : NonZeroQ size} -> Deed b
+
+  -- A modification OPERATION on one characteristic axis `c` ([CR#613]) — the layer/base-vs-current is the
+  -- OPERATION, not the axis name (so `Power`/`Toughness` drop the "Base"). `Set` overwrites any axis; `Up`/
+  -- `Down` are the signed numeric deltas (layer 7c); `Add`/`Remove` add/remove one element of a collection
+  -- axis. The gates make the mismatches unrepresentable: `Up` on `Colors` and `Add` on `Power` are ill-typed.
+  namespace ModificationOp
+    public export
+    data ModificationOp : Ctx -> Characteristic -> Type where
+      Set    : CharValue b c -> ModificationOp b c                          -- overwrite (any axis)
+      Up     : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "+N" (numeric, layer 7c)
+      Down   : {auto 0 _ : Numeric c}    -> Count b  -> ModificationOp b c   -- "−N"
+      Add    : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c   -- add one element (collection)
+      Remove : {auto 0 _ : Collection c} -> ElemOf c -> ModificationOp b c
+
+  -- a best-effort NOUN for an `Existing` binder's group ([CR#608.2d]): the
+  -- filter-backed shapes derive from their filter; library windows are cards;
+  -- a union agrees or falls back; the plural anaphors re-read an existing
+  -- antecedent, so their group keeps the conservative `Permanent`.
   public export
   selectionSort : {k : RefKind} -> Selection b k -> Sort
   selectionSort (SelectAll p) = filterSort p
@@ -1938,11 +1904,10 @@ mutual
   unionSort [] = Permanent
   unionSort (g :: gs) = if unionAgrees (selectionSort g) gs then selectionSort g else Permanent
 
--- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
--- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. `Cost` joins
--- too — its `Do` wraps an `Action` ([CR#118.3]) — dragging the Cost-referencing `CostChange`
--- in with it. (The leaf `ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
-mutual
+  -- One big mutual block: `Ability → OneShotEffect → Action → CreateToken → Characteristics` is a
+  -- cycle, so `Characteristics`/`Action`/`Bindable` join the effect/ability block below. `Cost` joins
+  -- too — its `Do` wraps an `Action` ([CR#118.3]) — dragging the Cost-referencing `CostChange`
+  -- in with it. (The leaf `ChooseSpec`/`Deed` stay OUT — they only reach into block 1.)
   -- A cost paid to activate an ability ([CR#118,602]). `Costs` conjoins components. Most costs ARE actions
   -- the payer performs ([CR#118.3]), so they ride `Do` rather than each getting a duplicate cost verb.
   namespace Cost
@@ -1989,6 +1954,14 @@ mutual
     data PayAct : Ctx -> Type where
       TapToPay   : Predicate b AnObject -> PayAct b   -- tap an untapped matching permanent you control (convoke creatures / improvise artifacts / waterbend artifacts-or-creatures)
       ExileToPay : Predicate b AnObject -> PayAct b   -- exile a matching card from your graveyard (delve)
+
+  -- An OPEN subtype ([CR#205.3g..205.3q]): its owning card-type category, its open name, and the
+  -- abilities it CONFERS on its bearer. The conferral field (`List (Ability Base)`) makes this type
+  -- reference `Ability` (declared below in this same mutual block), which is why `Subtype` had to move
+  -- DOWN here. Its terse category helpers + `subtypeCategory` live just after this block.
+  public export
+  data Subtype : Type where
+    MkSubtype : Category -> String -> List (Ability Base) -> Subtype
 
   -- The printable CHARACTERISTICS of an object ([CR#109.3]) — shared by a card `Face`
   -- (`Characteristics Base`) and a created token (`Characteristics b`, so a token's P/T can be a
@@ -2730,12 +2703,19 @@ implementation DefaultValue (Characteristics b) where
     , defense = Nothing
     }
 
--- [CR#205.3d]: every subtype's governing card type must be among the card's
--- types. The proof is demanded at `Normal`, so `types`/`subtypes` stay plain
--- fields the `^ { … := … }` builder can still set.
+-- the (total) card-type category of a subtype ([CR#205.3g..205.3q]) — reads the owning-category field.
+public export
+subtypeCategory : Subtype -> Category
+subtypeCategory (MkSubtype cat _ _) = cat
+
+-- [CR#205.3d]: a subtype's governing card type must be among the card's types.
+-- A category admits a GROUP of types (`categoryTypes` — creature types on
+-- Creature or Kindred, spell types on Instant or Sorcery), so the card need
+-- only carry AT LEAST ONE of them. The proof is demanded at `Normal`, so
+-- `types`/`subtypes` stay plain fields the `^ { … := … }` builder can still set.
 public export
 SubtypesOk : Characteristics Base -> Type
-SubtypesOk c = All (\s => Elem (subtypeCategory s) (types c)) (subtypes c)
+SubtypesOk c = All (\s => Any (\t => Elem t (categoryTypes (subtypeCategory s))) (types c)) (subtypes c)
 
 -- How a multi-faced card's two faces are arranged ([CR#712] transforming/modal DFC, [CR#709] split,
 -- [CR#715] adventurer, [CR#710] flip). The LAYOUT carries the access rules; both faces are full faces.
@@ -2769,14 +2749,46 @@ counterConfers P1P1 = [Static (Modify This (ApplyAll [Alter Power (Up (CountersO
 counterConfers M1M1 = [Static (Modify This (ApplyAll [Alter Power (Down (CountersOn M1M1 This)), Alter Toughness (Down (CountersOn M1M1 This))]))]
 counterConfers _    = []
 
--- what a SUBTYPE confers on its bearer. The Aura falls-off SBA ([CR#704.5m], a `Static (Sba …)`) and the
--- Saga lore-increment ([CR#714.3c], a `TurnBased` action) live here — shared rules, not per-card statics,
--- and never a subtype `if`-branch.
+-- Terse category constructors for the common (non-conferring) subtypes: `creatureType "Bear"`,
+-- `landType "Island"`, etc. build an open subtype name owned by the given category, conferring
+-- nothing. Named `*Type` (not bare `creature`/`land`) so they never collide with the `hasType`
+-- filter helpers (`creature : Predicate …`).
 public export
-subtypeConfers : Subtype -> List (Ability b)
-subtypeConfers (EnchantmentSub Aura) = [Static (Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard))))]
-subtypeConfers (EnchantmentSub Saga) = [TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
-subtypeConfers _                     = []
+creatureType : String -> Subtype
+creatureType n = MkSubtype Creature n []
+public export
+enchantmentType : String -> Subtype
+enchantmentType n = MkSubtype Enchantment n []
+public export
+artifactType : String -> Subtype
+artifactType n = MkSubtype Artifact n []
+public export
+landType : String -> Subtype
+landType n = MkSubtype Land n []
+public export
+battleType : String -> Subtype
+battleType n = MkSubtype Battle n []
+public export
+planeswalkerType : String -> Subtype
+planeswalkerType n = MkSubtype Planeswalker n []
+public export
+spellType : String -> Subtype
+spellType n = MkSubtype Spell n []
+
+-- the two conferring subtypes, with their intrinsic rules baked into the conferral field. The Aura
+-- falls-off SBA ([CR#704.5m], a `Static (Sba …)`) and the Saga lore-increment ([CR#714.3c], a
+-- `TurnBased` action) live here — shared rules, not per-card statics, and never a subtype `if`-branch.
+public export
+aura : Subtype
+aura = MkSubtype Enchantment "Aura" [Static (Sba (Not (LegallyAttached This)) (Act (Move This (ToZone Graveyard))))]
+public export
+saga : Subtype
+saga = MkSubtype Enchantment "Saga" [TurnBased (MainPhase PreCombat) (Act (PutCounters Lore (^1) This))]
+
+-- what a SUBTYPE confers on its bearer — just its conferral field.
+public export
+subtypeConfers : Subtype -> List (Ability Base)
+subtypeConfers (MkSubtype _ _ cs) = cs
 
 -- what a card TYPE confers on its bearer (parallel to `subtypeConfers`). A Planeswalker or Battle CREATES
 -- a deontic permitting creatures to attack IT ([CR#508.1] — attackability is a granted permission, not a

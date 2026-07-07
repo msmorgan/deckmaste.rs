@@ -46,7 +46,7 @@ card_GrizzlyBears = Normal $ ^:
   { name := Just "Grizzly Bears"
   , manaCost := [^1, ^Green]
   , types := [Creature]
-  , subtypes := [^Bear]
+  , subtypes := [creatureType "Bear"]
   , power := Just 2
   , toughness := Just 2
   }
@@ -58,7 +58,7 @@ card_TyphoidRats = Normal $ ^:
   { name := Just "Typhoid Rats"
   , manaCost := [^Black]
   , types := [Creature]
-  , subtypes := [^Rat]
+  , subtypes := [creatureType "Rat"]
   , abilities := [keyword Deathtouch]
   , power := Just 1
   , toughness := Just 1
@@ -70,7 +70,7 @@ card_GiantSpider = Normal $ ^:
   { name := Just "Giant Spider"
   , manaCost := [^3, ^Green]
   , types := [Creature]
-  , subtypes := [^Spider]
+  , subtypes := [creatureType "Spider"]
   , abilities := [keyword Reach]
   , power := Just 2
   , toughness := Just 4
@@ -90,7 +90,7 @@ card_Flickerwisp = Normal $ ^:
   { name := Just "Flickerwisp"
   , manaCost := [^1, ^White, ^White]
   , types := [Creature]
-  , subtypes := [^Elemental]
+  , subtypes := [creatureType "Elemental"]
   , abilities :=
       [ keyword Flying
       , Triggered (thisEnters) $
@@ -132,7 +132,7 @@ card_Rancor = Normal $ ^:
   { name := Just "Rancor"
   , manaCost := [^Green]
   , types := [Enchantment]
-  , subtypes := [^Aura]
+  , subtypes := [aura]
   , abilities := enchant creature ++
       [ Static (Modify (AttachHostOf This)
           (ApplyAll [ Alter Power (Up (^2))
@@ -287,15 +287,15 @@ card_TideShaper = Normal $ ^:
   { name := Just "Tide Shaper"
   , manaCost := [^Blue]
   , types := [Creature]
-  , subtypes := [^Merfolk, ^Wizard]
+  , subtypes := [creatureType "Merfolk", creatureType "Wizard"]
   , abilities :=
       [ Static (CostOption "Kicker" [Mana [^1]])
       , Triggered (thisEnters)
           (If (PaidCost "Kicker")
               (Targeted [Target (^1) (hasType Land)]
                 (Continuously (ForAsLongAs (Matches This (InZone Battlefield)))
-                              (Modify (That (OfType Land)) (Alter Subtypes (Add (^Island)))))))  -- "that land": the SORT skips the ETB event's own (Permanent) antecedent
-      , Static (While (exists (And [InZone Battlefield, hasSubtype (^Island), ControlledBy opponent]))
+                              (Modify (That (OfType Land)) (Alter Subtypes (Add (landType "Island")))))))  -- "that land": the SORT skips the ETB event's own (Permanent) antecedent
+      , Static (While (exists (And [InZone Battlefield, hasSubtype (landType "Island"), ControlledBy opponent]))
                       (Modify This (ApplyAll (modifyPT (Up (^1))))))
       ]
   , power := Just 1
@@ -333,7 +333,7 @@ card_NotionThief = Normal $ ^:
   { name := Just "Notion Thief"
   , manaCost := [^2, ^Blue, ^Black]
   , types := [Creature]
-  , subtypes := [^Human, ^Rogue]
+  , subtypes := [creatureType "Human", creatureType "Rogue"]
   , abilities :=
       [ keyword Flash
       , Static (Replaces (MkEventQuery [Draw]
@@ -414,7 +414,7 @@ card_Pacifism = Normal $ ^:
   { name := Just "Pacifism"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
-  , subtypes := [^Aura]
+  , subtypes := [aura]
   , abilities :=
       enchant creature ++
       [ Static (cant (Enact Attack (SameAs (AttachHostOf This)) Anyone))
@@ -430,12 +430,12 @@ card_Juggernaut = Normal $ ^:
   { name := Just "Juggernaut"
   , manaCost := [^4]
   , types := [Artifact, Creature]
-  , subtypes := [^Juggernaut]
+  , subtypes := [creatureType "Juggernaut"]
   , power := Just 5
   , toughness := Just 3
   , abilities :=
       [ Static (must (Enact Attack (SameAs This) Anyone))
-      , Static (cant (Enact Block (hasSubtype (^Wall)) (SameAs This)))
+      , Static (cant (Enact Block (hasSubtype (creatureType "Wall")) (SameAs This)))
       ]
   }
 
@@ -462,7 +462,7 @@ card_WallOfOmens = Normal $ ^:
   { name := Just "Wall of Omens"
   , manaCost := [^1, ^White]
   , types := [Creature]
-  , subtypes := [^Wall]
+  , subtypes := [creatureType "Wall"]
   , power := Just 0
   , toughness := Just 4
   , abilities :=
@@ -497,7 +497,7 @@ card_InvisibleStalker = Normal $ ^:
   { name := Just "Invisible Stalker"
   , manaCost := [^1, ^Blue]
   , types := [Creature]
-  , subtypes := [^Human, ^Rogue]
+  , subtypes := [creatureType "Human", creatureType "Rogue"]
   , power := Just 1
   , toughness := Just 1
   , abilities :=
@@ -563,7 +563,7 @@ card_BoggartBrute = Normal $ ^:
   { name := Just "Boggart Brute"
   , manaCost := [^2, ^Red]
   , types := [Creature]
-  , subtypes := [^Goblin, ^Warrior]
+  , subtypes := [creatureType "Goblin", creatureType "Warrior"]
   , abilities := [keyword Menace]
   , power := Just 3
   , toughness := Just 2
@@ -579,7 +579,7 @@ card_MidnightHaunting = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Act (CreateToken (^2)
-          (^: { name := Just "Spirit", types := [Creature], subtypes := [^Spirit]
+          (^: { name := Just "Spirit", types := [Creature], subtypes := [creatureType "Spirit"]
               , colors := [White], power := Just 1, toughness := Just 1
               , abilities := [keyword Flying] })))
       ]
@@ -594,7 +594,7 @@ card_StudentOfWarfare = Normal $ ^:
   { name := Just "Student of Warfare"
   , manaCost := [^White]
   , types := [Creature]
-  , subtypes := [^Human, ^Knight]
+  , subtypes := [creatureType "Human", creatureType "Knight"]
   , power := Just 1
   , toughness := Just 1
   , abilities :=
@@ -618,7 +618,7 @@ card_Iona = Normal $ ^:
   , manaCost := [^6, ^White, ^White, ^White]
   , types := [Creature]
   , supertypes := [Legendary]
-  , subtypes := [^Angel]
+  , subtypes := [creatureType "Angel"]
   , abilities :=
       [ keyword Flying
       , AsEnters AColor
@@ -742,7 +742,7 @@ card_BrazenBorrower = TwoFaced Adventure
   (^: { name := Just "Brazen Borrower"
       , manaCost := [^1, ^Blue, ^Blue]
       , types := [Creature]
-      , subtypes := [^Faerie, ^Rogue]
+      , subtypes := [creatureType "Faerie", creatureType "Rogue"]
       , abilities :=
           [ keyword Flash
           , keyword Flying
@@ -766,7 +766,7 @@ card_DelverOfSecrets = TwoFaced Transforming
   (^: { name := Just "Delver of Secrets"
       , manaCost := [^Blue]
       , types := [Creature]
-      , subtypes := [^Human, ^Wizard]
+      , subtypes := [creatureType "Human", creatureType "Wizard"]
       , abilities :=
           [ Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [Whenever (TurnOf you)])
               (If (Matches (Single (TopOfLibrary (^1))) (Or [hasType Instant, hasType Sorcery]))
@@ -778,7 +778,7 @@ card_DelverOfSecrets = TwoFaced Transforming
       })
   (^: { name := Just "Insectile Aberration"
       , types := [Creature]
-      , subtypes := [^Human, ^Insect]
+      , subtypes := [creatureType "Human", creatureType "Insect"]
       , abilities := [ keyword Flying ]
       , power := Just 3
       , toughness := Just 2
@@ -857,7 +857,7 @@ card_FloodedStrand = Normal $ ^:
   , types := [Land]
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice (SameAs This))])
-          (With (SearchOne {from = [Library]} (Or [hasSubtype (^Plains), hasSubtype (^Island)]))
+          (With (SearchOne {from = [Library]} (Or [hasSubtype (landType "Plains"), hasSubtype (landType "Island")]))
             (Sequence [ Act (Move (That Card) (ToZone Battlefield))     -- the found card: a whiffable Product, noun `Card`
                       , Act Shuffle ])) ]
   }
@@ -887,7 +887,7 @@ card_ThornOfTheBlackRose = Normal $ ^:
   { name := Just "Thorn of the Black Rose"
   , manaCost := [^2, ^Black]
   , types := [Creature]
-  , subtypes := [^Human]
+  , subtypes := [creatureType "Human"]
   , abilities :=
       [ keyword Deathtouch
       , Triggered (thisEnters)
@@ -907,7 +907,7 @@ card_FleecemaneLion = Normal $ ^:
   { name := Just "Fleecemane Lion"
   , manaCost := [^Green, ^White]
   , types := [Creature]
-  , subtypes := [^Cat]
+  , subtypes := [creatureType "Cat"]
   , abilities :=
       [ monstrosity (Mana [^3, ^Green, ^White]) (^1)                       -- Monstrosity 1
       , Static (While (Matches This (HasDesignation Monstrous))
@@ -926,7 +926,7 @@ card_GoblinElectromancer = Normal $ ^:
   { name := Just "Goblin Electromancer"
   , manaCost := [^Blue, ^Red]
   , types := [Creature]
-  , subtypes := [^Goblin, ^Wizard]
+  , subtypes := [creatureType "Goblin", creatureType "Wizard"]
   , abilities :=
       [ Static (CostModifier (And [Or [hasType Instant, hasType Sorcery], ControlledBy you])
           (Reduce [^1])) ]
@@ -942,7 +942,7 @@ card_Thalia = Normal $ ^:
   , manaCost := [^1, ^White]
   , types := [Creature]
   , supertypes := [Legendary]
-  , subtypes := [^Human]
+  , subtypes := [creatureType "Human"]
   , abilities :=
       [ keyword FirstStrike
       , Static (CostModifier (And [IsKind Spell, Not (hasType Creature)]) (Increase [^1])) ]
@@ -985,7 +985,7 @@ card_KarametrasAcolyte = Normal $ ^:
   { name := Just "Karametra's Acolyte"
   , manaCost := [^3, ^Green]
   , types := [Creature]
-  , subtypes := [^Human]
+  , subtypes := [creatureType "Human"]
   , abilities :=
       [ Activated (Do (Tap This))
           (Act (AddMana (Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
@@ -1020,7 +1020,7 @@ card_PlatinumAngel = Normal $ ^:
   { name := Just "Platinum Angel"
   , manaCost := [^7]
   , types := [Artifact, Creature]
-  , subtypes := [^Angel]
+  , subtypes := [creatureType "Angel"]
   , abilities :=
       [ keyword Flying
       , Static (OutcomeGate CantLose you)
@@ -1067,7 +1067,7 @@ card_Skred = Normal $ ^:
           (Act (DealDamage It (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you]))))) ]
   }
 
--- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (^Saga)`
+-- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (saga)`
 -- = a `TurnBased` ability adding a Lore counter each precombat main), so the card only spells its
 -- CHAPTERS (triggered on the Lore count) + the final-chapter `Sba` sacrifice.
 export
@@ -1076,19 +1076,19 @@ card_HistoryOfBenalia = Normal $ ^:
   { name := Just "History of Benalia"
   , manaCost := [^1, ^White]
   , types := [Enchantment]
-  , subtypes := [^Saga]
+  , subtypes := [saga]
   , abilities :=
       [ -- I, II — create a 2/2 white Knight
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
           (If (Or [ Compare (CountersOn Lore This) Eq (^1)
                   , Compare (CountersOn Lore This) Eq (^2) ])
               (Act (CreateToken (^1)
-                (^: { name := Just "Knight", types := [Creature], subtypes := [^Knight]
+                (^: { name := Just "Knight", types := [Creature], subtypes := [creatureType "Knight"]
                     , colors := [White], power := Just 2, toughness := Just 2 }))))
       , -- III — Knights you control get +2/+1 until end of turn
         Triggered (MkEventQuery [PutCounters] [Patient (SameAs This)])
           (If (Compare (CountersOn Lore This) Eq (^3))
-              (Continuously UntilEndOfTurn (Each (Existing (SelectAll (And [hasSubtype (^Knight), ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
+              (Continuously UntilEndOfTurn (Each (Existing (SelectAll (And [hasSubtype (creatureType "Knight"), ControlledBy you]))) (Modify It (ApplyAll [Alter Power (Up (^2)), Alter Toughness (Up (^1))])))))
       , -- sacrifice after the final chapter ([CR#714.4])
         Static (Sba (Compare (CountersOn Lore This) AtLeast (^3)) (Act (Move This (ToZone Graveyard))))
       ]
@@ -1103,7 +1103,7 @@ card_MeddlingMage = Normal $ ^:
   { name := Just "Meddling Mage"
   , manaCost := [^White, ^Blue]
   , types := [Creature]
-  , subtypes := [^Human, ^Wizard]
+  , subtypes := [creatureType "Human", creatureType "Wizard"]
   , abilities :=
       [ AsEnters AName
           [ Static (cant (Enact Cast Anyone (And [IsKind Spell, OfChosen]))) ] ]
@@ -1119,7 +1119,7 @@ card_VodalianIllusionist = Normal $ ^:
   { name := Just "Vodalian Illusionist"
   , manaCost := [^1, ^Blue]
   , types := [Creature]
-  , subtypes := [^Merfolk, ^Wizard]
+  , subtypes := [creatureType "Merfolk", creatureType "Wizard"]
   , abilities :=
       [ Activated (Costs [Mana [^2], Do (Tap This)])
           (Targeted [Target (^1) creature] (Act (PhaseOut It))) ]
@@ -1136,7 +1136,7 @@ card_SmugglersCopter = Normal $ ^:
   { name := Just "Smuggler's Copter"
   , manaCost := [^2]
   , types := [Artifact]
-  , subtypes := [^Vehicle]
+  , subtypes := [artifactType "Vehicle"]
   , abilities :=
       [ keyword Flying
       , Triggered (MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs This)])
@@ -1168,7 +1168,7 @@ card_PineWalker = Normal $ ^:
   { name := Just "Pine Walker"
   , manaCost := [^4, ^Green]
   , types := [Creature]
-  , subtypes := [^Elemental]
+  , subtypes := [creatureType "Elemental"]
   , abilities := [ morph (Mana [^4, ^Green]) ]
   , power := Just 5
   , toughness := Just 5
@@ -1224,7 +1224,7 @@ card_WhiteKnight = Normal $ ^:
   { name := Just "White Knight"
   , manaCost := [^White, ^White]
   , types := [Creature]
-  , subtypes := [^Human, ^Knight]
+  , subtypes := [creatureType "Human", creatureType "Knight"]
   , abilities := [ keyword FirstStrike, protection (hasColor Black) ]
   , power := Just 2
   , toughness := Just 2
@@ -1241,7 +1241,7 @@ card_GarzaZol = Normal $ ^:
   , manaCost := [^4, ^Blue, ^Black, ^Red]
   , types := [Creature]
   , supertypes := [Legendary]
-  , subtypes := [^Vampire, ^Noble]
+  , subtypes := [creatureType "Vampire", creatureType "Noble"]
   , abilities :=
       [ keyword Flying
       , haste
@@ -1269,7 +1269,7 @@ card_SnapcasterMage = Normal $ ^:
   { name := Just "Snapcaster Mage"
   , manaCost := [^1, ^Blue]
   , types := [Creature]
-  , subtypes := [^Human, ^Wizard]
+  , subtypes := [creatureType "Human", creatureType "Wizard"]
   , abilities :=
       [ keyword Flash
       , Triggered thisEnters $

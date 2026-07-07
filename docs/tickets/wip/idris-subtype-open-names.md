@@ -1,65 +1,92 @@
 ---
 needs: []
 ---
-**Idris grammar: open subtype *names* so the closed `Subtype` enum and its `idris_emit`
-mirror stop needing parity with the macro layer.** A subtype name is currently spelled in
-three places that must be kept in lockstep; only the macro layer is open, so every new
-subtype forces two hand-edits or the card fails the `idris-check` gate.
+**Idris grammar: open subtype *names* and source subtype conferrals from the RON, so the
+closed `Subtype` enum and its `idris_emit` mirror stop needing parity with the macro layer.**
+A subtype name is currently spelled in three places that must be kept in lockstep, and its
+conferred abilities are hand-mirrored in Idris — both duplicate what the open macro/`Subtype`
+layer already carries. Every new subtype forces hand-edits or the card fails the
+`idris-check` gate.
 
-**Current shape (the triplication).**
+**Current shape (the triplication + the conferral mirror).**
 
 1. `idris/src/Core.idr` (~124-181) models subtypes as five *closed* per-category enums
-   (`CreatureSubtype = Bear | Rat | … | Dwarf`, `EnchantmentSubtype = Aura | Saga`,
-   `ArtifactSubtype`, `LandSubtype`, `BattleSubtype`) wrapped in
-   `data Subtype = CreatureSub … | EnchantmentSub … | …`, plus five `Promote` instances
-   and a total `subtypeCategory : Subtype -> Type_`.
+   (`CreatureSubtype = Bear | … | Dwarf`, `EnchantmentSubtype = Aura | Saga`, `ArtifactSubtype`,
+   `LandSubtype`, `BattleSubtype`) wrapped in `data Subtype = CreatureSub … | EnchantmentSub … | …`,
+   plus five `Promote` instances and a total `subtypeCategory : Subtype -> Type_`.
 2. `crates/deckmaste_cards/src/idris_emit.rs` (~233-289) holds `fn subtype_idris` — a
-   hand-mirrored `match` from each name to its Idris constructor application
-   (`"Bear" => "(CreatureSub Bear)"`, …). It is a verbatim duplicate of the Core.idr enum;
-   an unmapped name returns `gap("unmapped subtype: …")` so the card silently fails to
-   emit and the `cargo xtask idris-check` gate rejects it. Same match feeds the
+   hand-mirrored `match` from each name to its Idris constructor (`"Bear" => "(CreatureSub Bear)"`,
+   …), a verbatim duplicate of the Core.idr enum. An unmapped name returns
+   `gap("unmapped subtype: …")`, so the card silently fails to emit and the
+   `cargo xtask idris-check` gate rejects it. Same match feeds the
    `CharacteristicPredicate::Subtype` (~505) and `Modification::Subtypes` (~1552) emit paths.
-3. `plugins/*/macros/types/**/*.ron` — one open RON file per subtype, auto-generatable from
-   Scryfall catalogs (`crates/deckmaste_migrations/src/stubs/subtypes.rs`). The Rust
-   `deckmaste_core::Subtype` is an *open* struct (`name: Ident`, `types: Vec<Type>`,
-   `confers: Vec<Property>`). This layer already scales to the full MTG subtype set with
-   zero manual parity.
+3. `crates/deckmaste_core/src/type.rs` — the Rust `Subtype` is an *open* struct
+   (`name: Ident`, `types: Vec<Type>`, `confers: Vec<Property>`); one macro RON file per subtype
+   under `plugins/*/macros/types/**/*.ron`, auto-generatable from Scryfall catalogs. This layer
+   scales to the full MTG subtype set with zero manual parity. The Rust **engine already sources
+   conferrals from this data** (`deckmaste_engine/src/derive.rs`: a face's abilities = printed
+   `++ subtypes[].confers`).
+4. Idris `subtypeConfers : Subtype -> List (Ability b)` (~2776) **hand-mirrors** the RON confers
+   for the two conferring subtypes (`EnchantmentSub Aura → Static (Sba …)` falls-off SBA,
+   `EnchantmentSub Saga → TurnBased …` lore increment). It is called from nothing but a spec
+   witness (`Spec.idr:401`) — never wired into card evaluation — and its arms are exactly what
+   the RON `Property` flavors already produce. A second parity mirror.
 
-So adding one creature subtype means editing (1) the closed Idris enum **and** (2) the Rust
-match — steps that duplicate what the open macro/`Subtype`-struct layer already carries. The
-Idris grammar does **no** per-subtype pattern-matching (subtypes are identity tags; conferral
-lives on the Rust data), so the closed enum buys nothing but the parity burden.
+So adding one subtype means editing the closed Idris enum **and** the Rust match; and any
+conferring subtype must be hand-mirrored in `subtypeConfers`. The closed enum buys nothing but
+this burden.
 
-**Fix — open the names, keep the category closed.** Replace the five per-category enums and
-the `Subtype` sum with:
+**Fix — open the names, put conferrals on the value, source both from the RON.**
+
+Idris `Subtype` becomes an open, self-describing value (matching the `type.rs` doctrine that
+"a macro-expanded card describes the entirety of its behavior"). Idris has no `Property` type —
+"a conferral IS an ability" — so confers are a plain ability list on the value:
 
 ```idris
-data Category = Creature | Enchantment | Artifact | Land | Battle | Planeswalker | Spell
-data Subtype  = MkSubtype Category String
+namespace Category
+  data Category = Creature | Enchantment | Artifact | Land | Battle | Planeswalker | Spell
+data Subtype = MkSubtype Category String (List (Ability Base))
 ```
 
-`Category` is the genuinely-closed, small set of card-type categories that own subtypes;
-subtype *names* become open strings. Consequences:
+The first field is a **`Category`, not a `Type_`**: a *creature* subtype is valid on both
+`Creature` and `Kindred` cards and a *spell* subtype on both `Instant` and `Sorcery`, so the
+category groups the card types a subtype may appear on rather than naming one. Names are open
+strings; conferred abilities ride the value.
 
-- `subtypeCategory : Subtype -> Type_` stays total — map the stored `Category` to its
-  `Type_`. The `Promote` instances (per-category → `Subtype`) collapse into per-category
-  constructor helpers (`creature`, `enchantment`, `artifact`, `land`, `battle`,
-  `planeswalker`, `spell` : `String -> Subtype`) so hand-written `idris/src/Cards.idr` reads
-  `subtypes := [creature "Bear"]` / `[creature "Merfolk", creature "Wizard"]` / `[aura]` in
-  place of today's `^Bear` promote sigil. Update every subtype site in `Cards.idr`.
-- `idris_emit`: **delete `subtype_idris` entirely.** Derive the `Category` from the open Rust
-  `Subtype.types` (`Type::Creature`/`Kindred → Creature`, `Land → Land`, etc.) and emit
-  `(MkSubtype Creature "Griffin")`. Any subtype the macro layer can name now typechecks;
-  there is no closed list to fall off. A `Subtype` whose `types` map to no `Category` is the
-  only remaining `gap` (a real modeling error, not a coverage gap).
-- Fold `subtypeCategory` ordering / the `Promote`-order residual noted in
-  `idris-naming-residuals` item 6 into this rewrite (it's obsoleted by the collapse).
+Consequences:
 
-**Verify.** `cargo xtask idris-check` (the re-emit + `idris2 --check` gate) must stay green,
-and a subtype present in the macro corpus but absent from the *old* closed enum (pick one,
-e.g. a creature type with a macro file but no Core.idr constructor) must now emit and
-typecheck end-to-end — demonstrating parity is gone. `idris/` must build; workspace green
-(fmt + clippy + tests); if any `[CR#…]` citations move, run the cite audit.
+- `categoryTypes : Category -> List Type_` — `Creature → [Creature, Kindred]`,
+  `Spell → [Instant, Sorcery]`, the rest singleton. `subtypeCategory (MkSubtype cat _ _) = cat`.
+- `SubtypesOk` (the card well-formedness proof, ~2738) changes from `Elem (subtypeCategory s)
+  (types c)` to **each subtype's category *intersects* the card's `types`** (the card has ≥1 of
+  `categoryTypes (subtypeCategory s)`). Must stay auto-solvable so emitted cards need no explicit
+  proof.
+- `subtypeConfers` collapses to the field projection `subtypeConfers (MkSubtype _ _ cs) = cs`.
+  The old hardcoded Aura/Saga arms are **not deleted** — their conferral data is preserved,
+  relocated into the hand-authoring helpers `aura`/`saga` (curated Cards.idr sugar), so nothing
+  learned is lost while the live/emit source of truth moves to the RON.
+- The `Promote` per-category instances collapse into category helper constructors
+  `creature`/`enchantment`/`artifact`/`land`/`battle`/`planeswalker`/`spell : String -> Subtype`
+  (empty confers) plus `aura`/`saga : Subtype` (confers baked). Hand-written `idris/src/Cards.idr`
+  (and `Spec.idr`/`Macros.idr` sites) move from `^Bear`/`^Saga` to `creature "Bear"`/`saga`.
+- **Structural:** because `Subtype` now references `Ability Base`, it joins the
+  `Subtype ↔ Ability ↔ Characteristics` cycle; the compiler forces the grammar core (the three
+  `mutual` blocks + interstitials, ~lines 1071–2636) to **fuse into one `mutual` block**. Proven
+  to typecheck with identical guarantees; accepted.
+- `idris_emit`: **delete `subtype_idris` entirely.** Emit `MkSubtype <Category> "<name>"
+  [<confers>]`, deriving `Category` from the open Rust `Subtype.types` (Creature/Kindred →
+  `Creature`, Instant/Sorcery → `Spell`, Land → `Land`, …) and emitting the confers from the Rust
+  `Subtype.confers` (`Property::StateBased → Static (Sba …)`, `TurnBased → TurnBased …`,
+  `Continuous → Static (Modify …)`, `Ability → Innate …`). Any subtype the macro layer names now
+  emits and typechecks; the only remaining `gap` is a `Subtype` whose `types` map to no category
+  (a real modeling error). Fold in the `idris-naming-residuals` item 6 `Promote`-order residual
+  (obsoleted by the collapse).
+
+**Verify.** `cargo xtask idris-check` (re-emit + `idris2 --check`) green; `idris/` builds
+(`mtg.ipkg`). Prove parity is gone: a subtype present in the macro corpus but absent from the
+*old* closed enum now emits and typechecks end-to-end, and a card with a conferring subtype
+(Aura/Saga/basic land) emits its conferred abilities from the RON. Workspace green (fmt +
+clippy + tests); run the cite audit if any CR citation moves.
 
 *Serializes with the other `idris-*` grammar tickets — they all rewrite `idris/src/Core.idr`,
 so only one can be in flight at a time. `needs:` is empty because the blocking is file-level,
