@@ -353,6 +353,34 @@ fn strip_negation(s: &str) -> Option<(String, &str)> {
     Some((atom, rest.trim_start()))
 }
 
+/// Resolve a lone head word to its canonical catalog subtype (plural-aware), or
+/// `None` if it names no known subtype. Oracle text writes subtypes Title-Case
+/// and pluralizes irregularly, so the naive `-ies→-y`/trailing-`-s`
+/// singularizer mis-derives (`Elves`→`Elve`, `Zombies`→`Zomby`) and wrongly
+/// strips a bare `-s` singular (`Locus`→`Locu`). Instead, try the word as-is (a
+/// singular subtype, incl. `-s` singulars like `Locus` and the one spaced
+/// subtype via its stem), then depluralized candidates (`-ves→-f`, `-ies→-y`,
+/// trailing `-s`), and return the first that is a real catalog subtype —
+/// validated case-sensitively against [`SUBTYPES`], the same catalog
+/// [`strip_subtype_adjective`] gates on. Candidate order is immaterial to
+/// correctness: only the genuine catalog form is ever contained (e.g. `Faeries`
+/// → `-ies→-y` yields the absent `Faery`, so the trailing-`-s` `Faerie` wins),
+/// so a non-subtype lone word (`It`, `You`, `Token`, a legend name) matches
+/// nothing and declines rather than minting a bogus `Subtype` atom.
+fn subtype_head(word: &str) -> Option<String> {
+    if SUBTYPES.contains(word) {
+        return Some(word.to_string());
+    }
+    [
+        word.strip_suffix("ves").map(|stem| format!("{stem}f")),
+        word.strip_suffix("ies").map(|stem| format!("{stem}y")),
+        word.strip_suffix('s').map(str::to_string),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|candidate| SUBTYPES.contains(candidate))
+}
+
 /// Map a singular/plural type word to its head atom(s): a builtin filter macro
 /// (battlefield-scoped) or `Type(<T>)` for a card type, a `Subtype(<S>)` paired
 /// with a `Permanent` zone scope for a subtype, or a `Designated(<D>)` for a
@@ -372,17 +400,18 @@ fn head_noun(word: &str) -> Option<Vec<String>> {
     if let Some(ident) = designation_ident(w) {
         return Some(vec![format!("Designated(\"{ident}\")")]);
     }
-    let singular = singularize(w).to_ascii_lowercase();
-    if let Some(atom) = type_noun_atom(&singular) {
+    if let Some(atom) = type_noun_atom(&singularize(w).to_ascii_lowercase()) {
         return Some(vec![atom.to_string()]);
     }
-    // Otherwise a single bare token is a subtype; a multi-word or empty
-    // remainder declines. `Permanent` ([CR#109.2]) scopes it to the
+    // Otherwise a lone word is a subtype only if it validates against the
+    // catalog ([`subtype_head`], plural-aware) — a non-subtype (anaphor, object
+    // kind, legend name) declines like an unknown designation, so a wrong filter
+    // never graduates a wrong card. `Permanent` ([CR#109.2]) scopes it to the
     // battlefield, matching the type-noun heads' built-in scope.
-    if !singular.is_empty() && !singular.contains(' ') {
+    if let Some(subtype) = subtype_head(w) {
         return Some(vec![
             "Permanent".to_string(),
-            format!("Subtype(\"{}\")", crate::ident::to_rust_ident(&singular)),
+            format!("Subtype(\"{}\")", crate::ident::to_rust_ident(&subtype)),
         ]);
     }
     None
@@ -581,6 +610,45 @@ mod tests {
     fn declines_unparsable() {
         assert!(parse_phrase("creatures wearing hats").is_none());
         assert!(parse_phrase("xyzzy plover blorp").is_none());
+    }
+
+    #[test]
+    fn subtype_head_is_plural_aware_and_catalog_gated() {
+        // Irregular plurals resolve to the canonical catalog subtype, not the
+        // naive singularizer's mis-derivation (`Elve`/`Zomby`).
+        assert_eq!(
+            parse_phrase("Elves").as_deref(),
+            Some("AllOf([Permanent, Subtype(\"Elf\")])")
+        );
+        assert_eq!(
+            parse_phrase("Zombies").as_deref(),
+            Some("AllOf([Permanent, Subtype(\"Zombie\")])")
+        );
+        // A singular `-s` land type is left intact (not stripped to `Locu`).
+        assert_eq!(
+            parse_phrase("Locus").as_deref(),
+            Some("AllOf([Permanent, Subtype(\"Locus\")])")
+        );
+        // `-ies` that is really `<stem>ie` + `s` (Faerie), and `-ies→-y` (Ally).
+        assert_eq!(
+            parse_phrase("Faeries").as_deref(),
+            Some("AllOf([Permanent, Subtype(\"Faerie\")])")
+        );
+        assert_eq!(
+            parse_phrase("Allies").as_deref(),
+            Some("AllOf([Permanent, Subtype(\"Ally\")])")
+        );
+    }
+
+    #[test]
+    fn non_subtype_lone_words_decline() {
+        // Anaphors, object kinds, and legend names are NOT subtypes — the
+        // catalog gate declines them so a bogus `Subtype("It")` never graduates.
+        assert!(parse_phrase("It").is_none());
+        assert!(parse_phrase("You").is_none());
+        assert!(parse_phrase("Token").is_none());
+        assert!(parse_phrase("Tivadar").is_none());
+        assert!(parse_phrase("Veldrane").is_none());
     }
 
     #[test]
