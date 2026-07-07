@@ -1265,6 +1265,21 @@ fn emit_action(a: &Action) -> R {
         Action::CreateReplacement { .. } => {
             return Err(gap("Action::CreateReplacement has no Idris counterpart"));
         }
+        // `Composite name body` ([CR#701]): the named keyword action —
+        // `Composite Scry (Each …)` etc. The `KeywordActionSpec` is one of
+        // the committed Idris constructors (`Scry | Surveil | Mill | Fight`);
+        // any other keyword (e.g. Fateseal — no Idris spec yet) is a gap.
+        Action::Composite { name, body } => {
+            let spec = match name.as_str() {
+                "Scry" | "Surveil" | "Mill" | "Fight" => name.as_str().to_string(),
+                other => {
+                    return Err(gap(format!(
+                        "Composite keyword action {other:?} has no Idris KeywordActionSpec"
+                    )));
+                }
+            };
+            app("Composite", vec![spec, emit_effect(body)?])
+        }
         Action::By(actor, pa) => emit_player_action(pa, actor)?,
     })
 }

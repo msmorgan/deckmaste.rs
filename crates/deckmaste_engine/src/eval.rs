@@ -491,6 +491,7 @@ impl<'a> FactView<'a> {
             | GameEvent::ManaEmptied { .. }
             | GameEvent::Revealed { .. }
             | GameEvent::Distributed { .. }
+            | GameEvent::KeywordActionPerformed { .. }
             | GameEvent::Shuffled(_)
             | GameEvent::Unattached { .. }
             | GameEvent::DamageRemoved { .. } => return None,

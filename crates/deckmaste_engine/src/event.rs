@@ -372,6 +372,18 @@ pub enum GameEvent {
         name: deckmaste_core::Ident,
         count: deckmaste_core::Uint,
     },
+    /// A named keyword action ([CR#701]) completed — the trigger hook for
+    /// "whenever you scry/surveil/…". `name` is the printed keyword
+    /// ("Scry"/"Surveil"/"Fateseal"/"Mill"/…), carried like
+    /// `KeywordAbility::Composite { name, .. }` so triggers match on the name
+    /// via `as_str()`; the engine never special-cases the keyword. Emitted by
+    /// resolving an [`Action::Composite`](deckmaste_core::Action::Composite)
+    /// AFTER its body acts — never for a body that did nothing (scry 0,
+    /// [CR#701.22b]). A pure fact (no state delta).
+    KeywordActionPerformed {
+        player: PlayerId,
+        name: deckmaste_core::Ident,
+    },
     /// A GAME-scope designation transition in the W5 registry (day/night,
     /// [CR#731.1] — "day becomes night" = losing one designation and
     /// gaining the other, [CR#731.1a]). Shaped, unbuilt: designation

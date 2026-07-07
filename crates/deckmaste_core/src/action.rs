@@ -234,6 +234,21 @@ pub enum Action {
         duration: crate::continuous::Duration,
         one_shot: bool,
     },
+    /// A named keyword action ([CR#701]) — a printed keyword verb
+    /// (`name`, e.g. "Scry"/"Surveil"/"Fateseal") whose meaning IS its
+    /// `body` effect, run when this resolves. Mirrors the Idris `Composite :
+    /// KeywordActionSpec -> OneShotEffect -> Action`: the keyword-action
+    /// macros desugar to a `Composite` so there are no bespoke
+    /// `Scry`/`Surveil` verbs. Resolving it runs `body`, then (when the body
+    /// actually acts — scry 0 does nothing, [CR#701.22b]) emits the named
+    /// keyword-action event a "whenever you scry/surveil" trigger reads,
+    /// exactly like `KeywordAbility::Composite { name, .. }` on the ability
+    /// side. `body` is boxed to break the `Action` → `Effect` → `Action` size
+    /// cycle.
+    Composite {
+        name: crate::Ident,
+        body: Box<crate::Effect>,
+    },
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
     #[macro_ron(embed)]

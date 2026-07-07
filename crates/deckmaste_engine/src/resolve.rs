@@ -1026,6 +1026,24 @@ impl GameState {
         }
     }
 
+    /// Whether an [`Action::Composite`]'s `body` will actually do something
+    /// this resolution — the gate on emitting the keyword-action fact
+    /// ([CR#701.22b]: scry 0 is a no-op and fires no "you scried" trigger). The
+    /// keyword-action macros all wrap an `Each` over a peek selection, so an
+    /// empty peek (count 0, or an empty library) means nothing happened; any
+    /// other body is assumed to act.
+    fn composite_body_acts(&self, body: &Effect, frame: &Frame) -> bool {
+        match peel_effect(body) {
+            Effect::Each(each) => match peel_binder(&each.binder) {
+                deckmaste_core::Binder::Existing(_) | deckmaste_core::Binder::TheRef(_) => {
+                    !self.resolve_binder(&each.binder, frame).is_empty()
+                }
+                _ => true,
+            },
+            _ => true,
+        }
+    }
+
     /// The `Emit` work item(s) a single-instruction `Action` produces. The
     /// source verbs (`DealDamage`, …) act with the source object as agent; the
     /// player verbs live under `By(who, …)`, where `who` resolves to the acting
@@ -1038,6 +1056,27 @@ impl GameState {
     )]
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
+            // [CR#701]: a named keyword action — run `body`, then emit the
+            // keyword-action fact a "whenever you scry/surveil" trigger reads,
+            // gated on the body ACTUALLY acting (scry 0 does nothing and emits
+            // no event, [CR#701.22b]). The body's own items are scheduled ahead
+            // of the fact by `schedule_front`, so the fact lands after the whole
+            // keyword action completes (including any post-pick arrangement).
+            Action::Composite { name, body } => {
+                let mut items = vec![WorkItem::RunEffect {
+                    effect: body.clone(),
+                    frame: frame.clone(),
+                }];
+                if self.composite_body_acts(body, frame) {
+                    items.push(WorkItem::Emit(Occurrence::single(
+                        GameEvent::KeywordActionPerformed {
+                            player: frame.controller,
+                            name: name.clone(),
+                        },
+                    )));
+                }
+                items
+            }
             // The dealer is the resolved `source` — `This` (the default) is the
             // ability's source object / resolving spell, so the common case is
             // unchanged; an explicit source carries non-self-source damage and

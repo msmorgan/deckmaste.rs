@@ -704,6 +704,9 @@ impl GameState {
             // distribute has completed (top/bottom repositioned, graveyard items
             // scheduled), so triggers can observe it ([CR#701.22d]).
             GameEvent::Distributed { .. } => event,
+            // Notification only — no state mutation. Fired once the keyword
+            // action's body has completed ([CR#701.22d]), so triggers observe it.
+            GameEvent::KeywordActionPerformed { .. } => event,
             GameEvent::DesignationChanged { .. } => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
             }
