@@ -1,13 +1,23 @@
 // "Surveil N" [CR#701.25a]: look at the top N cards of your library, then put
 // any number of them into your graveyard and the rest on top of your library
-// in any order.
+// in any order. Scry's shape (`Macros.idr` `surveil`), but the spill mode is
+// the graveyard (a genuine zone change) rather than the library bottom.
 (
     name: "Surveil",
     template: "surveil ${0}",
     kinds: [Effect],
     params: [Count],
-    body: With(
-        binder: Existing(TopOfLibrary(count: Param(0))),
-        body: Distribute(group: They, bins: [Top, Graveyard], name: "Surveil"),
+    body: Composite(
+        name: "Surveil",
+        body: Each(
+            binder: Existing(TopOfLibrary(count: Param(0))),
+            effect: Modal(
+                choose: (count: Range(Literal(1), Literal(1))),
+                modes: [
+                    (effect: Move(It, Library(FromTop(0)))),
+                    (effect: Move(It, Graveyard)),
+                ],
+            ),
+        ),
     ),
 )
