@@ -181,7 +181,7 @@ impl ItBinding {
 
 /// The group bound by an enclosing [`Effect::With`](deckmaste_core::With) /
 /// [`Each`](deckmaste_core::Each) /
-/// [`DivideAmong`](deckmaste_core::DivideAmong) many-binder — the
+/// [`Distribute`](deckmaste_core::Distribute) many-binder — the
 /// [`Reference::That`]/[`Selection::That`] anaphor's value, carrying per-slot
 /// **kind + cardinality** (the Idris `thatKind : Maybe (Cardinality,
 /// RefKind)`). The `group` holds the bound ids, order-preserved (top→down for a
@@ -209,9 +209,9 @@ pub struct ThatBinding {
 /// AND cataphora "deal 2 damage to *each creature*"). Mirrors the single Idris
 /// `Bindings` record. Folds together what `engine-anaphor-threading` landed as
 /// separate `Frame` fields: the announce/event state (`targets`, `chosen`,
-/// `x`), the per-slot anaphor bindings threaded by `With`/`Each`/`DivideAmong`
+/// `x`), the per-slot anaphor bindings threaded by `With`/`Each`/`Distribute`
 /// (the `It` iteration/projection element, the `That` one/many group, the
-/// `DivideAmong` per-element allotment share), and the firing event's
+/// `Distribute` per-element allotment share), and the firing event's
 /// provenance-explicit roles (`that_object`/`that_player`/`that_patient`).
 ///
 /// Exophoric refs — `This`/`~`, `You`, `Opponent`, `DefendingPlayer` — name the
@@ -238,7 +238,7 @@ pub struct Anaphora {
     /// into `Mana([Variable])` cost components by `price_variable_cost`.
     pub where_x: Option<deckmaste_core::Count>,
     /// The current iteration / projection element — the `It` anaphor
-    /// ([CR#608.2]). Bound per element by an enclosing `Each`/`DivideAmong`
+    /// ([CR#608.2]). Bound per element by an enclosing `Each`/`Distribute`
     /// loop, and by `Predicate::Where` / `Selection::Pick` while they test a
     /// candidate (the role the old `Subject` named). `None` at every frameless
     /// position. Mirrors the Idris `itKind` + its `It` value.
@@ -249,12 +249,12 @@ pub struct Anaphora {
     /// outside a `With`. Replaces the old untyped `those` whose dropped
     /// cardinality caused the first-of-many bug.
     pub that: Option<ThatBinding>,
-    /// The per-element share in scope inside a `DivideAmong` body — read by
-    /// `Count::Allotment` ([CR#601.2d]). Set per element when `DivideAmong`
+    /// The per-element share in scope inside a `Distribute` body — read by
+    /// `Count::Allotment` ([CR#601.2d]). Set per element when `Distribute`
     /// binds its loop element (the Idris `bindAllot`), and CLEARED whenever an
-    /// inner `Each`/`DivideAmong` rebinds `It` (the Idris allotment-clearing
+    /// inner `Each`/`Distribute` rebinds `It` (the Idris allotment-clearing
     /// `bindIt`), so an outer share can never leak into a nested loop. `None`
-    /// outside a `DivideAmong` body.
+    /// outside a `Distribute` body.
     pub allotment: Option<deckmaste_core::Uint>,
     /// The event OBJECT ([CR#603.2e,608.2k]) — the moved/acting object a fired
     /// trigger carried, or the object an `AdditionalCost` payment bound. Read
@@ -314,7 +314,7 @@ pub struct Frame {
     /// exophoric. Read by `Reference::DefendingPlayer`; `None` outside combat.
     pub defending_player: Option<PlayerId>,
     /// The text-internal binding environment — targets, the `It`/`That`
-    /// anaphors, the `DivideAmong` allotment, the chosen value, X, and the
+    /// anaphors, the `Distribute` allotment, the chosen value, X, and the
     /// firing event's roles. See [`Anaphora`].
     pub anaphora: Anaphora,
 }

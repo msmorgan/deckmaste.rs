@@ -148,7 +148,7 @@ fn characteristic_word(axis: Characteristic) -> &'static str {
 }
 
 /// A `Selection` GROUP as the noun phrase a combinator divides/iterates over
-/// (`DivideAmong.group`, `Each.over`). Verb patients are single objects now
+/// (`Distribute.group`, `Each.over`). Verb patients are single objects now
 /// and render via [`reference`].
 pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
     match sel {
@@ -206,7 +206,7 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         // The nth announced target ([CR#115.3,601.2c]) prints its slot's
         // target phrase ("target creature you control").
         Reference::Target(n) => target_phrase(*n, ctx),
-        // `It`: an `Each`/`DivideAmong` element reads the binder's noun
+        // `It`: an `Each`/`Distribute` element reads the binder's noun
         // phrase from the shared `ctx.that` slot ([CR#601.2b,608]); at a
         // single-slot announce root it reads the announced target's phrase
         // ("any target", the R1 nearest antecedent); otherwise it is the
@@ -642,7 +642,7 @@ mod tests {
         );
     }
 
-    /// `Reference::It` — the `Each`/`DivideAmong` element — reads the enclosing
+    /// `Reference::It` — the `Each`/`Distribute` element — reads the enclosing
     /// binder's phrase from `ctx.that`; at a frameless position it is the
     /// wildcard stack anaphor and prints the plain pronoun ([CR#608]).
     #[test]

@@ -2471,7 +2471,7 @@ fn emit_effect(e: &Effect) -> R {
             vec![emit_binder(&e.binder)?, emit_effect(&e.effect)?],
         ),
         Effect::With(w) => app("With", vec![emit_binder(&w.binder)?, emit_effect(&w.body)?]),
-        Effect::DivideAmong(d) => app(
+        Effect::Distribute(d) => app(
             "Distribute",
             vec![
                 emit_count(&d.amount)?,

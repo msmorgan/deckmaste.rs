@@ -137,13 +137,14 @@ pub enum Effect {
     /// turn as the iteration anaphor [`Reference::It`](crate::Reference::It)
     /// with its [`Count::Allotment`](crate::Count::Allotment) share, then
     /// running `body` once per element ([CR#601.2d]). The split is
-    /// resolution-time (≥1 each, summing to `amount`). One primitive subsumes
-    /// divided damage (`body: DealDamage(It, Allotment)`) AND divided counters
-    /// (`body: PutCounters(It, <kind>, Allotment)`) — the body reads the
-    /// allotment anaphor. Mirrors the Idris `Distribute : Count b ->
-    /// Bindable b Many k -> …`; named `DivideAmong` to avoid colliding with
-    /// the unrelated scry-partition `PlayerAction::Distribute`.
-    DivideAmong(DivideAmong),
+    /// resolution-time (≥1 each, summing to `amount`). "Divide" and
+    /// "distribute" are ONE mechanic, not two — [CR#115.7f] quotes both words
+    /// for the same effect — so one primitive subsumes divided damage
+    /// (`body: DealDamage(It, Allotment)`) AND distributed counters
+    /// (`body: PutCounters(It, <kind>, Allotment)`); the body reads the
+    /// allotment anaphor. Named for the Idris north-star `Distribute : Count b
+    /// -> Bindable b Many k -> …`, the general divide-or-distribute primitive.
+    Distribute(Distribute),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
     /// Note the object set the inner effect moves/touches under `key`
     /// ([CR#607.2a] exiled-with linkage).
@@ -315,15 +316,15 @@ pub struct With {
     pub body: Box<Effect>,
 }
 
-/// `DivideAmong { amount, binder, body }` — see [`Effect::DivideAmong`].
+/// `Distribute { amount, binder, body }` — see [`Effect::Distribute`].
 /// `amount` is the total to split, `binder` the many-cardinality
 /// [`Binder`](crate::Binder) of recipients (each bound as
 /// [`Reference::It`](crate::Reference::It) in turn), and `body` the per-element
 /// effect that reads [`Count::Allotment`](crate::Count::Allotment) for that
-/// element's share. `body` is boxed to break the `Effect` → `DivideAmong` →
+/// element's share. `body` is boxed to break the `Effect` → `Distribute` →
 /// `Effect` size cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub struct DivideAmong {
+pub struct Distribute {
     pub amount: crate::Count,
     pub binder: crate::Binder,
     pub body: Box<Effect>,
@@ -668,18 +669,18 @@ mod tests {
         assert_eq!(read(&write(&v)), v);
     }
 
-    /// `DivideAmong` reads flat through the newtype variant; its body reads the
+    /// `Distribute` reads flat through the newtype variant; its body reads the
     /// `Allotment` anaphor over the per-element `It` — divided damage
     /// (`DealDamage(It, Allotment)`) and divided counters round-trip
     /// ([CR#601.2d]). `binder` is a many-`Binder`.
     #[test]
     fn divide_among_reads_and_round_trips() {
         let damage = read(
-            "DivideAmong(amount: 3, binder: Existing(SelectAll(Type(Creature))), \
+            "Distribute(amount: 3, binder: Existing(SelectAll(Type(Creature))), \
              body: DealDamage(It, Allotment))",
         );
-        let Effect::DivideAmong(d) = &damage else {
-            panic!("expected DivideAmong, got {damage:?}");
+        let Effect::Distribute(d) = &damage else {
+            panic!("expected Distribute, got {damage:?}");
         };
         assert_eq!(d.amount, Count::Literal(3));
         assert!(matches!(
@@ -695,10 +696,10 @@ mod tests {
         // Divided counters: the same primitive, a different body, iterating the
         // With-bound group (`Existing(They)`).
         let counters = read(
-            "DivideAmong(amount: X, binder: Existing(They), \
+            "Distribute(amount: X, binder: Existing(They), \
              body: PutCounters(It, P1P1Counter, Allotment))",
         );
-        assert!(matches!(counters, Effect::DivideAmong(_)));
+        assert!(matches!(counters, Effect::Distribute(_)));
         assert_eq!(read(&write(&counters)), counters, "round-trip");
     }
 

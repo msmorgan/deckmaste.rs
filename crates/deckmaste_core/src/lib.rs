@@ -99,7 +99,7 @@ mod effect;
 pub use effect::AdditionalCost;
 pub use effect::ChoosePile;
 pub use effect::Continuously;
-pub use effect::DivideAmong;
+pub use effect::Distribute;
 pub use effect::Each;
 pub use effect::Effect;
 pub use effect::If;

@@ -26,7 +26,7 @@ pub enum Extremum {
 /// shape a combinator binds ([CR#608.2d]). This is the pure group/query type:
 /// effect verbs no longer take a `Selection` patient (they take a single
 /// [`Reference`]); plurality and choice live in the
-/// [`Each`](crate::Each) / [`DivideAmong`](crate::DivideAmong)
+/// [`Each`](crate::Each) / [`Distribute`](crate::Distribute)
 /// iterators and the [`With`](crate::With) [`Binder`](crate::Binder).
 ///
 /// Targeting is NOT here — it lives in [`crate::TargetSpec`], the announce
@@ -55,7 +55,8 @@ pub enum Selection {
     AmongNoted(crate::Ident, Quantity),
     /// The top `count` cards of a library, top → down (an ORDERED set —
     /// position is the whole point). `of` names the library's player; the
-    /// default `You` writes bare. Feeds `With`/`Distribute` ([CR#701.22a]).
+    /// default `You` writes bare. Feeds the scry `Each` over the peeked
+    /// top-N ([CR#701.22a]).
     TopOfLibrary {
         count: Count,
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]

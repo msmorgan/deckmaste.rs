@@ -312,7 +312,7 @@ impl GameState {
 
     /// Resolve a [`Binder`](deckmaste_core::Binder) to its bound group of
     /// element ids ([CR#608.2]) — the shared spine of `With`/`Each`/
-    /// `DivideAmong`. `TheRef` is a singleton, `Existing` evaluates its
+    /// `Distribute`. `TheRef` is a singleton, `Existing` evaluates its
     /// `Selection`, and a chooser (`ChooseOne`/`Choose`) reads the picks that a
     /// prior [`Self::binder_choice`] surfaced into `frame.anaphora.chosen`.
     fn resolve_binder(&self, binder: &deckmaste_core::Binder, frame: &Frame) -> Vec<ObjectId> {
@@ -379,7 +379,7 @@ impl GameState {
     /// `frame.anaphora.chosen`). The chooser is the binder's `by` resolved
     /// to a player ([CR#608.2d] — default `You` = the controller; "that
     /// player sacrifices a creature of their choice" routes to the foreign
-    /// actor). Shared by `With`/`Each`/`DivideAmong` so all three iterate a
+    /// actor). Shared by `With`/`Each`/`Distribute` so all three iterate a
     /// player-chosen group identically.
     fn binder_choice(
         &self,
@@ -617,7 +617,7 @@ impl GameState {
             // distributive. The matched set is fixed once when this node
             // resolves ([CR#608.2h]); each element binds as the iteration anaphor
             // `Reference::It` (so a body like `Destroy(It)` reads "it"), via
-            // `bind_it` which also CLEARS any inherited `DivideAmong` allotment so
+            // `bind_it` which also CLEARS any inherited `Distribute` allotment so
             // an outer share can't leak in. The many-binder is resolved through
             // the shared binder spine: a `ChooseOne`/`Choose` first surfaces the
             // controller's choice and re-runs this node with the picks in
@@ -800,7 +800,7 @@ impl GameState {
             // so a `ChooseOne`/`Choose` group surfaces its choice first. v1 splits
             // the amount as evenly as possible; surfacing the "as you choose"
             // division as a player decision is a seam.
-            Effect::DivideAmong(divide) => {
+            Effect::Distribute(divide) => {
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&divide.binder, frame)
                 {
@@ -811,7 +811,7 @@ impl GameState {
                         max,
                     });
                     self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
-                        effect: Box::new(Effect::DivideAmong(divide)),
+                        effect: Box::new(Effect::Distribute(divide)),
                         frame: frame.clone(),
                     });
                     return;
@@ -1105,7 +1105,7 @@ impl GameState {
                 .any(|mode| Self::body_repositions_ordered(&mode.effect)),
             Effect::With(w) => Self::body_repositions_ordered(&w.body),
             Effect::Each(e) => Self::body_repositions_ordered(&e.effect),
-            Effect::DivideAmong(d) => Self::body_repositions_ordered(&d.body),
+            Effect::Distribute(d) => Self::body_repositions_ordered(&d.body),
             Effect::If(i) => {
                 Self::body_repositions_ordered(&i.then)
                     || i.otherwise
@@ -2071,7 +2071,7 @@ impl GameState {
     /// `Predicate` enumerates the matching set;
     /// `They`/`TheGroup`/`TopOfLibrary` name an already-bound group. A
     /// per-object instruction runs over this set via an enclosing `Each`/
-    /// `DivideAmong`/`With`, never the verb itself.
+    /// `Distribute`/`With`, never the verb itself.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             Selection::SelectAll(f) => crate::target::candidates(self, f),
@@ -2122,7 +2122,7 @@ impl GameState {
                 .expect("a Random selection is bound into the frame before it is read"),
             Selection::Expanded(e) => self.eval_selection_set(&e.value, frame),
             // The ordered plural group bound by the enclosing many-binder
-            // (`Effect::With`/`Each`/`DivideAmong`). Reads the `(Many, k)`
+            // (`Effect::With`/`Each`/`Distribute`). Reads the `(Many, k)`
             // `that` slot, order-preserved exactly as bound (top→down for a
             // library window). A `(One, k)` binding has NO group read — the
             // singular `Reference::That` is its only reader — so a single object
@@ -2242,7 +2242,7 @@ impl GameState {
 
     /// The object(s) a verb's [`Reference`] patient acts on — exactly one.
     /// Plurality is never the verb's: a "for each"/"all" instruction is an
-    /// enclosing [`Effect::Each`]/[`Effect::DivideAmong`] whose body names a
+    /// enclosing [`Effect::Each`]/[`Effect::Distribute`] whose body names a
     /// single reference per element ([CR#608.2]). A 1-element vector so the
     /// verb arms keep their batch-shaped `.into_iter()…` bodies.
     pub(crate) fn eval_reference_set(&self, reference: &Reference, frame: &Frame) -> Vec<ObjectId> {
@@ -2271,7 +2271,7 @@ impl GameState {
                 self.player(opp).object
             }
             // The current iteration / projection element — "it" ([CR#608.2]).
-            // Bound per element by an enclosing `Each`/`DivideAmong` loop, and by
+            // Bound per element by an enclosing `Each`/`Distribute` loop, and by
             // `Predicate::Where` / `Selection::Pick` while testing a candidate (the
             // role the old `Subject` named). Kind-poly ([CR#120.3]): a card/token
             // element resolves to its (last-known) id, a player element to its
@@ -2300,7 +2300,7 @@ impl GameState {
                 }
                 Self::unbound_ref(
                     reference,
-                    "It outside an Each/DivideAmong/Where/Pick element and no lone announced target",
+                    "It outside an Each/Distribute/Where/Pick element and no lone announced target",
                 )
             }
             // The single object bound by an enclosing `Effect::With`/cost
@@ -2614,14 +2614,14 @@ impl GameState {
                      with no antecedent"
                 )
             }),
-            // [CR#601.2d]: the per-element share in scope inside a `DivideAmong`
-            // body — `DivideAmong` puts it in the `allotment` slot per element
-            // (the Idris `bindAllot`), and an inner `Each`/`DivideAmong` clears
+            // [CR#601.2d]: the per-element share in scope inside a `Distribute`
+            // body — `Distribute` puts it in the `allotment` slot per element
+            // (the Idris `bindAllot`), and an inner `Each`/`Distribute` clears
             // it (the Idris allotment-clearing `bindIt`), so reading it outside a
-            // `DivideAmong` body — or inside a nested loop that rebound `It` — is
+            // `Distribute` body — or inside a nested loop that rebound `It` — is
             // a malformed card.
             Count::Allotment => frame.anaphora.allotment.expect(
-                "Count::Allotment outside a DivideAmong body (or inside a nested Each/DivideAmong \
+                "Count::Allotment outside a Distribute body (or inside a nested Each/Distribute \
                  that cleared the outer share)",
             ),
             // [CR#107.3a]: while a spell/ability is on the stack, X equals the
@@ -5550,15 +5550,15 @@ mod tests {
         assert_eq!(state.objects.obj(b).counters.get(&p1p1).copied(), Some(2));
     }
 
-    /// [CR#601.2d]: `DivideAmong` splits the amount across the binder's group and
+    /// [CR#601.2d]: `Distribute` splits the amount across the binder's group and
     /// binds each element's `Allotment` share in scope for its body — divided
     /// damage deals the split shares, summing to the total, ≥1 to each.
     #[test]
     fn divide_among_splits_amount_and_binds_allotment() {
-        use deckmaste_core::DivideAmong;
+        use deckmaste_core::Distribute;
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src(a);
-        let effect = Effect::DivideAmong(DivideAmong {
+        let effect = Effect::Distribute(Distribute {
             amount: Count::Literal(3),
             binder: Binder::Existing(Selection::SelectAll(Predicate::AllOf(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
@@ -5591,7 +5591,7 @@ mod tests {
     /// share as marked damage, the player loses life by its share.
     #[test]
     fn divide_among_handles_a_player_element_without_panicking() {
-        use deckmaste_core::DivideAmong;
+        use deckmaste_core::Distribute;
 
         let (mut state, creature) = bear_on_field();
         let player = state.players[1].object;
@@ -5606,7 +5606,7 @@ mod tests {
             kind: RefKind::Object,
             group: vec![creature, player],
         });
-        let effect = Effect::DivideAmong(DivideAmong {
+        let effect = Effect::Distribute(Distribute {
             amount: Count::Literal(3),
             binder: Binder::Existing(Selection::They),
             body: Box::new(Effect::Act(Action::deal_damage(
@@ -5660,7 +5660,7 @@ mod tests {
     /// Ticket: the iteration anaphor's KIND ([CR#120.3]) tracks the element's
     /// source — a card/token element binds as an object (carrying its LKI
     /// snapshot, so reads survive its removal), a player proxy binds as a
-    /// player (zoneless, no snapshot). The kind a `With`/`Each`/`DivideAmong`
+    /// player (zoneless, no snapshot). The kind a `With`/`Each`/`Distribute`
     /// element exposes through `It`.
     #[test]
     fn it_binding_kind_distinguishes_player_and_object() {
@@ -5756,14 +5756,14 @@ mod tests {
         );
     }
 
-    /// Ticket: a nested `Each` CLEARS the outer `DivideAmong` allotment (the
+    /// Ticket: a nested `Each` CLEARS the outer `Distribute` allotment (the
     /// Idris allotment-clearing `bindIt`), so an outer per-element share cannot
     /// leak into the inner loop ([CR#601.2d]). Once the inner `Each` rebinds
     /// `It`, the share is gone, and the inner body's `Count::Allotment` read
     /// has nothing in scope and is rejected — proving threading is
     /// add-AND-clear.
     #[test]
-    #[should_panic(expected = "Allotment outside a DivideAmong body")]
+    #[should_panic(expected = "Allotment outside a Distribute body")]
     fn nested_each_clears_outer_divide_among_allotment() {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src(a);
@@ -5771,7 +5771,7 @@ mod tests {
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
-        let effect = Effect::DivideAmong(deckmaste_core::DivideAmong {
+        let effect = Effect::Distribute(deckmaste_core::Distribute {
             amount: Count::Literal(2),
             binder: Binder::Existing(Selection::SelectAll(creatures.clone())),
             // The outer share is in scope here, but the inner `Each` rebinds `It`

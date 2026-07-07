@@ -8,12 +8,12 @@ use crate::SupportsMacros;
 use crate::Zone;
 
 /// The binder feeding [`Effect::With`](crate::With), [`Each`](crate::Each),
-/// and [`DivideAmong`](crate::DivideAmong) — the Idris `Bindable`, collapsed
+/// and [`Distribute`](crate::Distribute) — the Idris `Bindable`, collapsed
 /// (cardinality is encoded by the variant, not a type index). A one-binder
 /// (`TheRef`/`ChooseOne`) binds a single object read as
 /// [`Reference::That`](crate::Reference::That); a many-binder
 /// (`Choose`/`Existing`) binds a group read as
-/// [`Selection::That`](crate::Selection::That). `Each`/`DivideAmong` take a
+/// [`Selection::That`](crate::Selection::That). `Each`/`Distribute` take a
 /// many-binder and expose each element in turn as
 /// [`Reference::It`](crate::Reference::It).
 ///

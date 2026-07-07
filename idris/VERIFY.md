@@ -59,7 +59,7 @@ prints the `idris2` output on failure.
    | `It` / `That(Card)` / `That(Creature)` | `It` / `That Card` / `That (OfType Creature)` |
    | `They` / `Them(Token)` | `They` / `Them Token` |
    | `Each { binder, effect }` | `Each <binder> (Act <effect>)` |
-   | `DivideAmong { amount, binder, body }` | `Distribute <amount> <binder> (Act <body>)` |
+   | `Distribute { amount, binder, body }` | `Distribute <amount> <binder> (Act <body>)` |
    | `Choose(Exactly(n), filter)` | `Choose (^n) <filter>` (a Many-binder) |
    | `With(ChooseOne(filter), …It…)` | `With (ChooseOne <filter>) (Act …It…)` (the indefinite; the choice binds a frame read by `It`) |
    | `DealDamage(It, Allotment)` | `DealDamage It Allotment` |

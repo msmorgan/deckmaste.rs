@@ -178,7 +178,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // [CR#601.2d]: a divided distribution — the body picks the verb
         // ("deal … damage" vs "distribute … counters"), the amount is divided
         // "as you choose" among the group.
-        Effect::DivideAmong(d) => divide_among(d, ctx),
+        Effect::Distribute(d) => divide_among(d, ctx),
         // [CR#601.2b]: a choose-then-act binder. The binder's noun phrase
         // ("a creature", "two cards") is bound as the body's `That`/`Those`
         // anaphor, so `With(ChooseOne(Creature), Sacrifice(That))` renders
@@ -824,7 +824,7 @@ fn stat_word(s: Stat) -> &'static str {
 /// Render a divided distribution ([CR#601.2d]). The body selects the verb;
 /// `group` is rendered as the set it divides among — an announced plural
 /// target slot prints its announce phrase ("one, two, or three targets").
-fn divide_among(d: &deckmaste_core::DivideAmong, ctx: &Ctx) -> String {
+fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
     let amount = fragment::count(&d.amount);
     let group = divided_group_phrase(&d.binder, ctx);
     match &*d.body {
@@ -1402,11 +1402,11 @@ mod tests {
         );
     }
 
-    /// `DivideAmong` renders by its body: a `DealDamage` body -> "Deal N damage
+    /// `Distribute` renders by its body: a `DealDamage` body -> "Deal N damage
     /// divided as you choose among <group>" ([CR#601.2d]).
     #[test]
     fn divide_among_renders_divided_damage() {
-        use deckmaste_core::DivideAmong;
+        use deckmaste_core::Distribute;
         use deckmaste_core::Predicate;
         let ctx = Ctx {
             subject: "it",
@@ -1414,7 +1414,7 @@ mod tests {
             that: None,
         };
         let divide = super::effect(
-            &deckmaste_core::Effect::DivideAmong(DivideAmong {
+            &deckmaste_core::Effect::Distribute(Distribute {
                 amount: Count::Literal(3),
                 binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
                 body: Box::new(deckmaste_core::Effect::Act(Action::deal_damage(

@@ -109,7 +109,7 @@ pub enum Reference {
     Opponent,
     /// The wildcard singular anaphor — "it". Inside a binder it is the
     /// innermost bound element, deterministically: the loop variable of
-    /// [`Each`](crate::Each) / [`DivideAmong`](crate::DivideAmong), a
+    /// [`Each`](crate::Each) / [`Distribute`](crate::Distribute), a
     /// [`With`](crate::With) binder's choice, the per-subject candidate a
     /// continuous modifier reads, the candidate a per-object filter
     /// ([`Predicate::Where`](crate::Predicate::Where)) or extremal projection

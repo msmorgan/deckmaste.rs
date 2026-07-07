@@ -21,7 +21,7 @@ Normal(
     Spell(
       effect: Targeted(
         targets: [Target(Between(1, 3), AnyTarget)],
-        effect: DivideAmong(
+        effect: Distribute(
           amount: 3,
           binder: Existing(They),
           body: DealDamage(It, Allotment),
