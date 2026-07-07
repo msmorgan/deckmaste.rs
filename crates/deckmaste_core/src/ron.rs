@@ -28,7 +28,7 @@ pub fn kinds() -> KindSet {
     // library form is `Library(FromTop/FromBottom(Count))`.
     kinds.add(crate::Destination::kind());
     kinds.add(crate::Zone::kind());
-    kinds.add(crate::Effect::kind());
+    kinds.add(crate::OneShotEffect::kind());
     kinds.add(crate::EventFilter::kind());
     kinds.add(crate::Predicate::kind());
     kinds.add(crate::KeywordAbility::kind());

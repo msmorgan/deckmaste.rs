@@ -839,7 +839,7 @@ impl GameState {
     /// printed face. Empty when the ability is non-targeting.
     fn trigger_targets(&self, source: ObjectSource, ability: usize) -> Vec<TargetSpec> {
         match &crate::derive::abilities_of_source(self, source)[ability] {
-            // Targets live on a top-level `Effect::Targeted` wrapper ([CR#115.1]).
+            // Targets live on a top-level `OneShotEffect::Targeted` wrapper ([CR#115.1]).
             Ability::Triggered(t) => crate::resolve::top_targets(&t.effect).to_vec(),
             _ => unreachable!("a noted trigger indexes a Triggered ability"),
         }
@@ -2819,8 +2819,8 @@ mod tests {
         use deckmaste_core::Color;
         use deckmaste_core::CombatStep;
         use deckmaste_core::Count;
-        use deckmaste_core::Effect;
         use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
@@ -2851,7 +2851,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new(),
-                effect: Effect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::Create(Count::Literal(1), goblin_token.into(), vec![]),
                 )),
@@ -2985,8 +2985,8 @@ mod tests {
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
         use deckmaste_core::Count;
-        use deckmaste_core::Effect;
         use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
@@ -3006,7 +3006,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new(),
-                effect: Effect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::Draw(Count::Literal(1)),
                 )),
@@ -3711,8 +3711,8 @@ mod tests {
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
         use deckmaste_core::Count;
-        use deckmaste_core::Effect;
         use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::StatValue;
@@ -3734,7 +3734,7 @@ mod tests {
                 },
                 condition: None,
                 limits,
-                effect: Effect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GainLife(Count::Literal(1)),
                 )),
@@ -3803,7 +3803,7 @@ mod tests {
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
         use deckmaste_core::Count;
-        use deckmaste_core::Effect;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::StatValue;
         use deckmaste_core::TriggeredAbility;
@@ -3823,7 +3823,7 @@ mod tests {
                 },
                 condition: None,
                 limits: vec![],
-                effect: Effect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GainLife(Count::ThatMuch),
                 )),
@@ -4289,7 +4289,7 @@ mod tests {
 
     /// The saga-chapter walk-through ([CR#714.2b]): three chapter abilities
     /// authored through the `Chapter` MACRO (`Chapter(n: N, effect: …)` —
-    /// the [CR#714.2b] "{rN}—[Effect]" spelling, expanding to
+    /// the [CR#714.2b] "{rN}—[OneShotEffect]" spelling, expanding to
     /// `OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This)))` gated by
     /// `Crossed` at thresholds 1/2/3) against a counter-DOUBLED
     /// 0→2 lore jump arriving as ONE batch fact — chapter I fires

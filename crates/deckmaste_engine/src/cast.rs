@@ -7,9 +7,9 @@
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
-use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PayAct;
 use deckmaste_core::PipClass;
 use deckmaste_core::PlayerAction;
@@ -465,7 +465,7 @@ fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId
     verbs
         .iter()
         .map(|verb| WorkItem::RunEffect {
-            effect: Box::new(Effect::act_by_you(verb.clone())),
+            effect: Box::new(OneShotEffect::act_by_you(verb.clone())),
             // A cost verb names no targets and reads no announced X.
             frame: Frame::bare(source, player),
         })
@@ -907,7 +907,7 @@ impl GameState {
             StackObject::Spell(o) => crate::resolve::spell_targets(&self.layers(), *o),
             // The carried ability text is authoritative — never re-derive
             // from the (possibly changed) source. Targets live on a top-level
-            // `Effect::Targeted` wrapper ([CR#115.1,601.2c]).
+            // `OneShotEffect::Targeted` wrapper ([CR#115.1,601.2c]).
             StackObject::Activated { ability, .. } => {
                 crate::resolve::top_targets(&ability.effect).to_vec()
             }
@@ -1253,7 +1253,7 @@ impl GameState {
                 items.extend(verb_payment_items(&summary.verbs, source, controller));
                 items.extend(verb_payment_items(&extra_verbs, source, controller));
                 // [CR#601.2b,601.2h]: pay each cost-side `With` choose-then-pay
-                // step. Rendered as an `Effect::With` (choosing kept OUT of the
+                // step. Rendered as an `OneShotEffect::With` (choosing kept OUT of the
                 // verb) and run over a fresh frame whose controller is the
                 // activator — so the binder surfaces a `ChooseObjects` decision,
                 // binds `That`/`Those`, then the body's verb pays against it,
@@ -2182,7 +2182,7 @@ mod tests {
                 window: None,
                 condition: None,
                 limits: vec![],
-                effect: Effect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     Count::Literal(1),
                     ManaSpec::Specific(color).into(),
                 )),

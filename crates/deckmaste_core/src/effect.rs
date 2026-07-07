@@ -19,34 +19,34 @@ use crate::reference::Reference;
 /// An effect an ability produces ([CR#608]). Compartmentalized in Rust; flat in
 /// RON (`Draw(1)`, never `Act(By(You, Draw(1)))`): the `Act` tag never appears
 /// in text. Its `#[macro_ron(flatten)]` marker lifts [`Action`]'s accepted
-/// names into `Effect`'s dispatch — transitively through `Action::By`'s embed,
-/// so a bare player verb (`Draw(1)`) reads at an effect slot as the
+/// names into `OneShotEffect`'s dispatch — transitively through `Action::By`'s
+/// embed, so a bare player verb (`Draw(1)`) reads at an effect slot as the
 /// implicit-`You` default `Act(By(You, …))` — and the write is transparent.
 ///
 /// A single instruction stands bare (`effect: DealDamage(This, 3, It)`); the
-/// structural forms (`Sequence`, `May`, `If`, …) are the corpus's connective
-/// tissue — data the engine interprets, never seen by the macro layer as
-/// control flow. The struct-carrying forms delegate to inner derived structs
-/// (`May`, …), which read flat via `unwrap_variant_newtypes` and carry
+/// structural forms (`Sequentially`, `May`, `If`, …) are the corpus's
+/// connective tissue — data the engine interprets, never seen by the macro
+/// layer as control flow. The struct-carrying forms delegate to inner derived
+/// structs (`May`, …), which read flat via `unwrap_variant_newtypes` and carry
 /// the field defaults and shapes.
 // `Act(Action)` is the largest variant: `Action` is a big *balanced* leaf enum
-// (no single fat field to box), and `Effect` is the hot, recursively-matched
+// (no single fat field to box), and `OneShotEffect` is the hot, recursively-matched
 // node of the effect grammar. Boxing `Act` would inject indirection + a deref
-// into every `Effect::Act` match (incl. the `resolve` hot path) and still leave
-// `Effect` over the bar via the next-largest variant — so it buys nothing for
+// into every `OneShotEffect::Act` match (incl. the `resolve` hot path) and still leave
+// `OneShotEffect` over the bar via the next-largest variant — so it buys nothing for
 // the lint without a sweeping multi-box of `Action`/`Condition` embeddings.
 // The recursive sub-effect fields are already boxed (`May.effect`, …);
 // this `allow` is the "balanced AST leaf" exception, same call as `Ability`.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum Effect {
+pub enum OneShotEffect {
     /// A single intrinsic instruction (the `Act` compartment, transparent in
     /// RON).
     #[macro_ron(flatten)]
     Act(Action),
     /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
-    Sequence(Vec<Effect>),
-    /// Simultaneous sub-effects — the written spec. **One snapshot:** every
+    Sequentially(Vec<OneShotEffect>),
+    /// Simultaneously sub-effects — the written spec. **One snapshot:** every
     /// member reads game state as of one pre-application view (an exchange
     /// works BECAUSE both halves read the pre-state). **One timestamp, one
     /// batch:** application emits the member facts as one batch sharing a
@@ -58,10 +58,10 @@ pub enum Effect {
     /// between members. **All-or-nothing:** a member that evaluates to no
     /// events voids the whole set ([CR#701.12a] — "if the entire exchange
     /// can't be completed, no part of the exchange occurs"). `Fight` is NOT
-    /// `Simultaneous` sugar — it stays a primitive verb
+    /// `Simultaneously` sugar — it stays a primitive verb
     /// ([CR#701.14a..701.14d]). Restricted to the exchange-family macros'
     /// bodies until the wiring generalizes.
-    Simultaneous(Vec<Effect>),
+    Simultaneously(Vec<OneShotEffect>),
     /// A one-shot-created continuous effect ([CR#611.2]).
     Continuously(Continuously),
     /// A one-shot-created continuous effect over a LIST of static parts —
@@ -95,7 +95,8 @@ pub enum Effect {
     If(If),
     /// "[actor] may pay [cost]; if they do, [`and_then`], else [`or_else`]"
     /// ([CR#603,608]) — a resolution-time kicker over the full [`Cost`] algebra
-    /// (the may-pay→branch shape [`MustPay`](Effect::MustPay) can't spell).
+    /// (the may-pay→branch shape [`MustPay`](OneShotEffect::MustPay) can't
+    /// spell).
     MayPay(MayPay),
     /// "[actor] must pay [cost], or else [`or_else`]" ([CR#118.12a]) — the
     /// resolution-time punisher (Mana Leak's "counter target spell unless its
@@ -160,23 +161,24 @@ pub enum Effect {
     /// consumes it, its announced slots read back by the anaphors
     /// (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth announced slot).
     Targeted(Targeted),
-    /// A remembered `Effect` macro invocation (declared compound verbs like
-    /// `Investigate`). Serialized as the invocation, not the struct.
+    /// A remembered `OneShotEffect` macro invocation (declared compound verbs
+    /// like `Investigate`). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
-    Expanded(Expansion<Effect>),
+    Expanded(Expansion<OneShotEffect>),
 }
 
-impl Effect {
+impl OneShotEffect {
     /// A bare player verb in the implicit-"you" default — `Act(By(You, …))`,
     /// the form a player verb written bare in an effect slot reads as.
     #[must_use]
-    pub fn act_by_you(action: PlayerAction) -> Effect {
-        Effect::Act(Action::by_you(action))
+    pub fn act_by_you(action: PlayerAction) -> OneShotEffect {
+        OneShotEffect::Act(Action::by_you(action))
     }
 }
 
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
-/// the `Effect` → `StaticEffect` → `Replacement` → `Effect` size cycle.
+/// the `OneShotEffect` → `StaticEffect` → `Replacement` → `OneShotEffect` size
+/// cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Continuously {
     pub effect: Box<StaticEffect>,
@@ -189,20 +191,20 @@ pub struct Continuously {
 /// at resolution this node is transparent (the inner effect runs with
 /// `frame.targets` already bound), and per-instance illegal-target handling
 /// ([CR#608.2b]) reads each inner instruction's referenced targets. `effect`
-/// is boxed to break the `Effect` → `Targeted` → `Effect` size cycle
-/// (mirrors `May`).
+/// is boxed to break the `OneShotEffect` → `Targeted` → `OneShotEffect` size
+/// cycle (mirrors `May`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Targeted {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<TargetSpec>,
-    pub effect: Box<Effect>,
+    pub effect: Box<OneShotEffect>,
 }
 
 impl Targeted {
     /// Scopes `targets` over `effect`, boxing the inner effect. Builds the
     /// wrapper without the caller spelling the `Box::new` / field order.
     #[must_use]
-    pub fn new(targets: Vec<TargetSpec>, effect: Effect) -> Targeted {
+    pub fn new(targets: Vec<TargetSpec>, effect: OneShotEffect) -> Targeted {
         Targeted {
             targets,
             effect: Box::new(effect),
@@ -213,11 +215,11 @@ impl Targeted {
 /// `May { do, if_did, if_not }` — `do` is a keyword, so the field is `effect`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct May {
-    pub effect: Box<Effect>,
+    pub effect: Box<OneShotEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub if_did: Option<Box<Effect>>,
+    pub if_did: Option<Box<OneShotEffect>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub if_not: Option<Box<Effect>>,
+    pub if_not: Option<Box<OneShotEffect>>,
 }
 
 /// `If { condition, then, else }` — `else` is a keyword, so the field is
@@ -225,16 +227,16 @@ pub struct May {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct If {
     pub condition: Condition,
-    pub then: Box<Effect>,
+    pub then: Box<OneShotEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub otherwise: Option<Box<Effect>>,
+    pub otherwise: Option<Box<OneShotEffect>>,
 }
 
-/// `Noting { key, effect }` — see `Effect::Noting`.
+/// `Noting { key, effect }` — see `OneShotEffect::Noting`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Noting {
     pub key: crate::Ident,
-    pub effect: Box<Effect>,
+    pub effect: Box<OneShotEffect>,
 }
 
 /// serde default for the paying/acting player — "you" unless the text names
@@ -259,9 +261,9 @@ pub struct MayPay {
     #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub actor: Reference,
     pub cost: Cost,
-    pub and_then: Box<Effect>,
+    pub and_then: Box<OneShotEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub or_else: Option<Box<Effect>>,
+    pub or_else: Option<Box<OneShotEffect>>,
 }
 
 /// `MustPay { actor, cost, or_else }` — "[actor] must pay [cost], or else
@@ -276,7 +278,7 @@ pub struct MustPay {
     #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub actor: Reference,
     pub cost: Cost,
-    pub or_else: Box<Effect>,
+    pub or_else: Box<OneShotEffect>,
 }
 
 /// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
@@ -287,12 +289,12 @@ pub struct MustPay {
 /// `StatOf(EventObject, Power)`, Fling/Momentous Fall). Unlike
 /// [`MayPay`]/[`MustPay`] there is no `actor`: an additional cost is always
 /// paid by the spell/ability's controller ([CR#601.2b]). `body` is boxed to
-/// break the `Effect` → `AdditionalCost` → `Effect` size cycle (mirrors
-/// [`May`]).
+/// break the `OneShotEffect` → `AdditionalCost` → `OneShotEffect` size cycle
+/// (mirrors [`May`]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct AdditionalCost {
     pub pay: Cost,
-    pub body: Box<Effect>,
+    pub body: Box<OneShotEffect>,
 }
 
 /// `Each { binder, do }` — `do` is a keyword, so the field is `effect`.
@@ -302,7 +304,7 @@ pub struct AdditionalCost {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Each {
     pub binder: crate::Binder,
-    pub effect: Box<Effect>,
+    pub effect: Box<OneShotEffect>,
 }
 
 /// `With { binder, body }` — `body`/`do` is a keyword, so the field is `body`.
@@ -313,21 +315,21 @@ pub struct Each {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct With {
     pub binder: crate::Binder,
-    pub body: Box<Effect>,
+    pub body: Box<OneShotEffect>,
 }
 
-/// `Distribute { amount, binder, body }` — see [`Effect::Distribute`].
+/// `Distribute { amount, binder, body }` — see [`OneShotEffect::Distribute`].
 /// `amount` is the total to split, `binder` the many-cardinality
 /// [`Binder`](crate::Binder) of recipients (each bound as
 /// [`Reference::It`](crate::Reference::It) in turn), and `body` the per-element
 /// effect that reads [`Count::Allotment`](crate::Count::Allotment) for that
-/// element's share. `body` is boxed to break the `Effect` → `Distribute` →
-/// `Effect` size cycle.
+/// element's share. `body` is boxed to break the `OneShotEffect` → `Distribute`
+/// → `OneShotEffect` size cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Distribute {
     pub amount: crate::Count,
     pub binder: crate::Binder,
-    pub body: Box<Effect>,
+    pub body: Box<OneShotEffect>,
 }
 
 /// `Modal { choose, modes }` ([CR#700.2]).
@@ -337,16 +339,16 @@ pub struct Modal {
     pub modes: Vec<Mode>,
 }
 
-/// `Label { as, effect }` — see [`Effect::Label`]. `as` is a Rust keyword,
-/// hence the raw identifier; the RON field is spelled `as`.
+/// `Label { as, effect }` — see [`OneShotEffect::Label`]. `as` is a Rust
+/// keyword, hence the raw identifier; the RON field is spelled `as`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Label {
     pub r#as: crate::Ident,
-    pub effect: Box<Effect>,
+    pub effect: Box<OneShotEffect>,
 }
 
 /// `SeparatePiles { group, into, by, note, then }` — see
-/// [`Effect::SeparatePiles`]. `by` defaults to `You` and is omitted from
+/// [`OneShotEffect::SeparatePiles`]. `by` defaults to `You` and is omitted from
 /// RON when it is; `note`/`then` are omitted when absent.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct SeparatePiles {
@@ -357,10 +359,10 @@ pub struct SeparatePiles {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<crate::Ident>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub then: Option<Box<Effect>>,
+    pub then: Option<Box<OneShotEffect>>,
 }
 
-/// `ChoosePile { from, by, random, then }` — see [`Effect::ChoosePile`].
+/// `ChoosePile { from, by, random, then }` — see [`OneShotEffect::ChoosePile`].
 /// `by` defaults to `You`; `random` defaults to `false`; both are omitted
 /// from RON at their defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -370,7 +372,7 @@ pub struct ChoosePile {
     pub by: Reference,
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub random: bool,
-    pub then: Box<Effect>,
+    pub then: Box<OneShotEffect>,
 }
 
 /// Where a [`ChoosePile`] takes its piles from: labels introduced in scope
@@ -392,17 +394,17 @@ mod tests {
     use crate::reference::Reference;
     use crate::selection::Selection;
 
-    fn read(source: &str) -> Effect {
+    fn read(source: &str) -> OneShotEffect {
         crate::ron::options().from_str(source).unwrap()
     }
-    fn write(effect: &Effect) -> String {
+    fn write(effect: &OneShotEffect) -> String {
         crate::ron::options().to_string(effect).unwrap()
     }
 
     /// Wraps a bare player action in the implicit-you default — the form a
     /// player verb written bare in an effect slot reads as.
-    fn act_by_you(pa: PlayerAction) -> Effect {
-        Effect::Act(Action::By(Reference::You, pa))
+    fn act_by_you(pa: PlayerAction) -> OneShotEffect {
+        OneShotEffect::Act(Action::By(Reference::You, pa))
     }
 
     /// Bare player verbs read flat as `By(You, …)`; source verbs read native.
@@ -422,7 +424,7 @@ mod tests {
         );
         assert_eq!(
             read("DealDamage(This, Literal(3), It)"),
-            Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
+            OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
         );
         assert_eq!(
             read("AddMana(Literal(1), AnyColor)"),
@@ -439,7 +441,7 @@ mod tests {
     fn new_verbs_read_flat() {
         assert_eq!(
             read("Destroy(This)"),
-            Effect::Act(Action::Destroy(Reference::This)),
+            OneShotEffect::Act(Action::Destroy(Reference::This)),
         );
         assert_eq!(
             read("Tap(This)"),
@@ -464,7 +466,7 @@ mod tests {
         use crate::Destination;
         assert_eq!(
             read("Move(This, Library(FromTop(0)))"),
-            Effect::Act(Action::Move(
+            OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
                 vec![],
@@ -477,7 +479,7 @@ mod tests {
     fn explicit_agent_reads_flat() {
         assert_eq!(
             read("By(It, Draw(Literal(3)))"),
-            Effect::Act(Action::By(
+            OneShotEffect::Act(Action::By(
                 Reference::It,
                 PlayerAction::Draw(Count::Literal(3)),
             )),
@@ -489,14 +491,14 @@ mod tests {
     #[test]
     fn structural_forms_read_flat() {
         assert_eq!(
-            read("Sequence([Draw(Literal(1)), GainLife(Literal(1))])"),
-            Effect::Sequence(vec![
+            read("Sequentially([Draw(Literal(1)), GainLife(Literal(1))])"),
+            OneShotEffect::Sequentially(vec![
                 act_by_you(PlayerAction::Draw(Count::Literal(1))),
                 act_by_you(PlayerAction::GainLife(Count::Literal(1))),
             ]),
         );
         let may = read("May(effect: Draw(Literal(1)))");
-        let Effect::May(may) = may else {
+        let OneShotEffect::May(may) = may else {
             panic!("expected May");
         };
         assert_eq!(
@@ -526,7 +528,7 @@ mod tests {
             "AddMana(Literal(1),AnyColor)",
             // Verb patients are a single bare `Reference` now.
             "Destroy(This)",
-            "Sequence([Draw(Literal(1)),GainLife(Literal(1))])",
+            "Sequentially([Draw(Literal(1)),GainLife(Literal(1))])",
             "May(effect:Draw(Literal(1)))",
             // `Each.binder` is a many-`Binder` (the set of all creatures wrapped
             // in `Existing`), binding `It` per element.
@@ -556,7 +558,7 @@ mod tests {
         let mana_leak =
             "MustPay(actor:ControllerOf(It),cost:[Mana([Generic(3)])],or_else:Counter(It))";
         let parsed = read(mana_leak);
-        let Effect::MustPay(m) = &parsed else {
+        let OneShotEffect::MustPay(m) = &parsed else {
             panic!("expected MustPay, got {parsed:?}");
         };
         assert_eq!(m.actor, Reference::ControllerOf(Box::new(Reference::It)));
@@ -570,7 +572,7 @@ mod tests {
         // Default actor (You) is omitted on write.
         let omitted = "MustPay(cost:[Mana([Generic(2)])],or_else:LoseLife(1))";
         let parsed = read(omitted);
-        let Effect::MustPay(m) = &parsed else {
+        let OneShotEffect::MustPay(m) = &parsed else {
             panic!("expected MustPay");
         };
         assert_eq!(m.actor, Reference::You, "omitted actor defaults to You");
@@ -585,7 +587,7 @@ mod tests {
         // No "if you don't" branch — `or_else` omitted.
         let bare = "MayPay(cost:[Mana([Generic(1)])],and_then:Draw(1))";
         let parsed = read(bare);
-        let Effect::MayPay(m) = &parsed else {
+        let OneShotEffect::MayPay(m) = &parsed else {
             panic!("expected MayPay, got {parsed:?}");
         };
         assert_eq!(m.actor, Reference::You);
@@ -607,7 +609,7 @@ mod tests {
     fn additional_cost_reads_and_round_trips() {
         let src = "AdditionalCost(pay:[Do(Sacrifice(This))],body:DealDamage(This,StatOf(EventObject,Power),It))";
         let parsed = read(src);
-        let Effect::AdditionalCost(ac) = &parsed else {
+        let OneShotEffect::AdditionalCost(ac) = &parsed else {
             panic!("expected AdditionalCost, got {parsed:?}");
         };
         assert_eq!(
@@ -617,7 +619,7 @@ mod tests {
         );
         assert_eq!(
             *ac.body,
-            Effect::Act(Action::deal_damage(
+            OneShotEffect::Act(Action::deal_damage(
                 Reference::It,
                 Count::StatOf(Reference::EventObject, crate::Stat::Power),
             )),
@@ -631,7 +633,7 @@ mod tests {
     fn unknown_names_error() {
         assert!(
             crate::ron::options()
-                .from_str::<Effect>("Bogus(1)")
+                .from_str::<OneShotEffect>("Bogus(1)")
                 .is_err()
         );
     }
@@ -643,13 +645,13 @@ mod tests {
     fn targeted_effect_reads_and_round_trips() {
         let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(Creature))],effect:DealDamage(This,Literal(3),It))";
         let parsed = read(src);
-        let Effect::Targeted(te) = &parsed else {
+        let OneShotEffect::Targeted(te) = &parsed else {
             panic!("expected Targeted, got {parsed:?}");
         };
         assert_eq!(te.targets.len(), 1);
         assert_eq!(
             *te.effect,
-            Effect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
+            OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3),)),
         );
         assert_eq!(read(&write(&parsed)), parsed, "round-trip");
     }
@@ -658,8 +660,8 @@ mod tests {
     /// `Existing(<selection>)` binds the group as `Selection::That`.
     #[test]
     fn with_binds_a_group() {
-        let v = read("With(binder:Existing(TopOfLibrary(count:2)),body:Sequence([]))");
-        let Effect::With(w) = &v else {
+        let v = read("With(binder:Existing(TopOfLibrary(count:2)),body:Sequentially([]))");
+        let OneShotEffect::With(w) = &v else {
             panic!("expected With, got {v:?}");
         };
         assert!(matches!(
@@ -679,7 +681,7 @@ mod tests {
             "Distribute(amount: 3, binder: Existing(SelectAll(Type(Creature))), \
              body: DealDamage(This, Allotment, It))",
         );
-        let Effect::Distribute(d) = &damage else {
+        let OneShotEffect::Distribute(d) = &damage else {
             panic!("expected Distribute, got {damage:?}");
         };
         assert_eq!(d.amount, Count::Literal(3));
@@ -689,7 +691,7 @@ mod tests {
         ));
         assert_eq!(
             *d.body,
-            Effect::Act(Action::deal_damage(Reference::It, Count::Allotment,)),
+            OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Allotment,)),
         );
         assert_eq!(read(&write(&damage)), damage, "round-trip");
 
@@ -699,7 +701,7 @@ mod tests {
             "Distribute(amount: X, binder: Existing(They), \
              body: PutCounters(It, P1P1Counter, Allotment))",
         );
-        assert!(matches!(counters, Effect::Distribute(_)));
+        assert!(matches!(counters, OneShotEffect::Distribute(_)));
         assert_eq!(read(&write(&counters)), counters, "round-trip");
     }
 
@@ -709,7 +711,7 @@ mod tests {
     #[test]
     fn each_binds_via_binder() {
         let v = read("Each(binder:Existing(SelectAll(Type(Creature))),effect:Draw(Literal(1)))");
-        let Effect::Each(e) = &v else {
+        let OneShotEffect::Each(e) = &v else {
             panic!("expected Each, got {v:?}");
         };
         assert!(matches!(
@@ -722,7 +724,7 @@ mod tests {
         let over_group = read("Each(binder:Existing(They),effect:Destroy(It))");
         assert!(matches!(
             over_group,
-            Effect::Each(ref e) if matches!(e.binder, crate::Binder::Existing(Selection::They)),
+            OneShotEffect::Each(ref e) if matches!(e.binder, crate::Binder::Existing(Selection::They)),
         ));
         assert_eq!(read(&write(&over_group)), over_group, "round-trip");
     }
@@ -738,7 +740,7 @@ mod tests {
         let reference_slot = read("Destroy(That(Creature))");
         assert_eq!(
             reference_slot,
-            Effect::Act(Action::Destroy(Reference::That(crate::Sort::OfType(
+            OneShotEffect::Act(Action::Destroy(Reference::That(crate::Sort::OfType(
                 crate::Type::Creature
             )))),
             "`That(Creature)` in a Reference slot is Reference::That",
@@ -746,8 +748,8 @@ mod tests {
         assert_eq!(read(&write(&reference_slot)), reference_slot, "round-trip");
 
         // Selection slot: a many-`Binder` `Existing(They)` wraps a `Selection`.
-        let selection_slot = read("With(binder:Existing(They),body:Sequence([]))");
-        let Effect::With(w) = &selection_slot else {
+        let selection_slot = read("With(binder:Existing(They),body:Sequentially([]))");
+        let OneShotEffect::With(w) = &selection_slot else {
             panic!("expected With, got {selection_slot:?}");
         };
         assert_eq!(
@@ -764,7 +766,7 @@ mod tests {
     fn until_reads_a_part_list() {
         let src = "Until(FixedUntil(EndOfTurn),[Modify(This,Power(Up(Literal(1))))])";
         let parsed = read(src);
-        let Effect::Until(_, parts) = &parsed else {
+        let OneShotEffect::Until(_, parts) = &parsed else {
             panic!("expected Until, got {parsed:?}");
         };
         assert_eq!(parts.len(), 1);
@@ -777,7 +779,7 @@ mod tests {
     fn label_round_trips() {
         let src = "Label(as:\"exiled\",effect:Move(It,Exile))";
         let parsed = read(src);
-        let Effect::Label(label) = &parsed else {
+        let OneShotEffect::Label(label) = &parsed else {
             panic!("expected Label, got {parsed:?}");
         };
         assert_eq!(label.r#as.as_str(), "exiled");
@@ -789,7 +791,7 @@ mod tests {
     #[test]
     fn piles_round_trip() {
         let separate = read("SeparatePiles(group: TopOfLibrary(count: 5), into: [\"a\", \"b\"])");
-        let Effect::SeparatePiles(sp) = &separate else {
+        let OneShotEffect::SeparatePiles(sp) = &separate else {
             panic!("expected SeparatePiles, got {separate:?}");
         };
         assert_eq!(sp.by, Reference::You, "omitted by defaults to You");
@@ -800,7 +802,7 @@ mod tests {
             "ChoosePile(from: Labels([\"a\", \"b\"]), by: Opponent, \
              then: Each(binder: Existing(Them(Pile)), effect: Move(It, Hand)))",
         );
-        let Effect::ChoosePile(cp) = &choose else {
+        let OneShotEffect::ChoosePile(cp) = &choose else {
             panic!("expected ChoosePile, got {choose:?}");
         };
         assert!(!cp.random, "omitted random defaults to false");
@@ -809,7 +811,7 @@ mod tests {
         // The noted per-player form (the Whims shape).
         let noted = read(
             "ChoosePile(from: Noted(note: \"whims\", of: It), random: true, \
-             then: Sequence([]))",
+             then: Sequentially([]))",
         );
         assert_eq!(read(&write(&noted)), noted, "round-trip");
     }

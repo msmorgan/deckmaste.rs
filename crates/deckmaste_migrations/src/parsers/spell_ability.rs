@@ -44,7 +44,7 @@ mod tests {
         resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Spell)).unwrap()
     }
 
-    /// A spell whose effect is an `Effect`-kind keyword-action macro
+    /// A spell whose effect is an `OneShotEffect`-kind keyword-action macro
     /// (`Investigate.`) frames through the shared macro-template fallthrough —
     /// the bare invocation as the spell effect, no targets field.
     #[test]
@@ -71,7 +71,7 @@ mod tests {
             .as_deref(),
             Some(
                 "Spell(effect: Targeted(targets: [TargetOne(Creature)], \
-                 effect: Sequence([Move(It, Exile), \
+                 effect: Sequentially([Move(It, Exile), \
                  Delayed(event: StepBegins(at: Ending(End), whose: EachPlayers), \
                  effect: Move(That(Card), Battlefield, [UnderOwnersControl]))])))"
             )
@@ -130,7 +130,7 @@ mod tests {
         // The Ascend reader: a conditional branch on the city's blessing. The
         // condition is a `Condition`-kind macro INVOCATION
         // (`YouHaveTheCitysBlessing`), the parse-via-macros form the plugin
-        // loader expands at graduation — exactly as the `Effect` action macro
+        // loader expands at graduation — exactly as the `OneShotEffect` action macro
         // `Investigate` stands as an effect body. The bare `core::ron` reader
         // does NOT expand macros, so the macro-aware graduation gate (not a
         // core re-parse) is what validates this; resolved against the real

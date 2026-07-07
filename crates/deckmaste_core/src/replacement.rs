@@ -2,10 +2,10 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Count;
-use crate::Effect;
 use crate::EventFilter;
 use crate::Expand;
 use crate::Expansion;
+use crate::OneShotEffect;
 use crate::PhaseStep;
 use crate::Predicate;
 use crate::SupportsMacros;
@@ -19,12 +19,18 @@ use crate::continuous::Duration;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Replacement {
     /// "If [event] would happen, [effect] instead" — replace ([CR#614.1a]).
-    Instead { would: EventFilter, instead: Effect },
+    Instead {
+        would: EventFilter,
+        instead: OneShotEffect,
+    },
     /// Skip a step or phase — omit ([CR#614.1b]).
     Skip { what: PhaseStep },
     /// "If [event] would happen, [event] and [effect]" — augment, all-at-once
     /// ([CR#614.1c]). `AsEnters` is a prelude macro over this.
-    Also { would: EventFilter, also: Effect },
+    Also {
+        would: EventFilter,
+        also: OneShotEffect,
+    },
     /// A remembered `Replacement` macro invocation (`AsEnters`, …).
     #[macro_ron(expanded)]
     Expanded(Expansion<Replacement>),

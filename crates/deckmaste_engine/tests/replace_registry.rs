@@ -18,8 +18,8 @@ use deckmaste_core::Card;
 use deckmaste_core::CardFace;
 use deckmaste_core::CausePattern;
 use deckmaste_core::Duration;
-use deckmaste_core::Effect;
 use deckmaste_core::EventFilter;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
@@ -224,7 +224,7 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 fn instead_redirects_destruction_to_exile() {
     // The `instead` body: Move(This, Zone(Exile)) is a `PlayerAction`; By(You, ...)
     // is the implicit agent sugar.
-    let instead_body = Effect::Act(Action::By(
+    let instead_body = OneShotEffect::Act(Action::By(
         Reference::You,
         PlayerAction::Move(
             Reference::This,
@@ -300,13 +300,13 @@ fn indestructible_still_survives_via_cant_pass() {
 }
 
 /// Build a `GameState` with ONE creature that has TWO static abilities, each
-/// carrying an `Instead(would: Destroyed(This), instead: Sequence([]))`.
+/// carrying an `Instead(would: Destroyed(This), instead: Sequentially([]))`.
 /// When it receives lethal damage, the registry must gather both and surface a
 /// `ChooseReplacement` decision.
 fn creature_with_two_replacements() -> (GameState, ObjectId) {
     let instead = Replacement::Instead {
         would: destroyed_self(),
-        instead: Effect::Sequence(vec![]),
+        instead: OneShotEffect::Sequentially(vec![]),
     };
     let card = Arc::new(Card::Normal(CardFace {
         name: "Double Shield".into(),
@@ -446,7 +446,7 @@ fn vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
 /// Build the `CreateReplacement` effect that registers a regeneration shield
 /// on `subject_ref`: "the next time [subject] would be destroyed this turn,
 /// instead remove all damage marked on it and tap it." [CR#701.19a,614.8]
-fn regenerate_effect(subject_ref: Reference) -> Effect {
+fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
     // The shield resolves `subject` to a concrete object and remembers it as
     // `That`; the watch and body refer to that captured permanent as
     // `ThatObject` (NOT `This` — `This` stays the source ability).
@@ -460,19 +460,19 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
             agent: None,
         })),
     };
-    let instead = Effect::Sequence(vec![
+    let instead = OneShotEffect::Sequentially(vec![
         // [CR#701.19a]: remove all damage from That (the regenerated permanent).
-        Effect::Act(Action::By(
+        OneShotEffect::Act(Action::By(
             Reference::You,
             PlayerAction::RemoveDamage(Reference::EventObject),
         )),
         // [CR#701.19a]: its controller taps it.
-        Effect::Act(Action::By(
+        OneShotEffect::Act(Action::By(
             Reference::You,
             PlayerAction::Tap(Reference::EventObject),
         )),
     ]);
-    Effect::Act(Action::CreateReplacement {
+    OneShotEffect::Act(Action::CreateReplacement {
         replacement: Box::new(Replacement::Instead { would, instead }),
         subject: subject_ref,
         duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
@@ -487,7 +487,7 @@ fn regenerate_effect(subject_ref: Reference) -> Effect {
 /// game-startup work items (the initial `BeginStep(Untap)`) do not advance
 /// the game into a priority window and prevent subsequent `drive_sbas` calls
 /// from running.
-fn resolve_and_drive(state: &mut GameState, effect: Effect, source: ObjectId) {
+fn resolve_and_drive(state: &mut GameState, effect: OneShotEffect, source: ObjectId) {
     // Flush game-startup items; tests that call this function only care about
     // the effect's immediate consequences, not full turn progression.
     state.agenda.clear();
@@ -614,7 +614,7 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
         .expect("backed by a card");
 
     // A shield protecting the SUBJECT, created by a distinct SOURCE.
-    let Effect::Act(Action::CreateReplacement { replacement, .. }) =
+    let OneShotEffect::Act(Action::CreateReplacement { replacement, .. }) =
         regenerate_effect(Reference::This)
     else {
         unreachable!("regenerate_effect builds a CreateReplacement")
@@ -703,14 +703,14 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // "the object THIS (the Aura) is attached to" ([CR#702.89a]).
     let enchanted_perm = Predicate::Ref(Reference::AttachHostOf(Box::new(Reference::This)));
 
-    let instead_body = Effect::Sequence(vec![
+    let instead_body = OneShotEffect::Sequentially(vec![
         // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
-        Effect::Act(Action::By(
+        OneShotEffect::Act(Action::By(
             Reference::You,
             PlayerAction::RemoveDamage(Reference::AttachHostOf(Box::new(Reference::This))),
         )),
         // [CR#702.89a]: destroy this Aura.
-        Effect::Act(Action::Destroy(Reference::This)),
+        OneShotEffect::Act(Action::Destroy(Reference::This)),
     ]);
 
     let umbra_armor = Replacement::Instead {
@@ -904,7 +904,7 @@ fn lifegain_replaced_by_draw() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = Effect::Act(deckmaste_core::Action::By(
+    let instead_body = OneShotEffect::Act(deckmaste_core::Action::By(
         Reference::You,
         PlayerAction::LoseLife(deckmaste_core::Count::Literal(1)),
     ));
@@ -997,7 +997,7 @@ fn double_damage_lineage_terminates() {
 
     // The `instead` body: deal 10 damage to this creature (a fixed amount
     // rather than a doubled one — see doc-comment above for rationale).
-    let instead_body = Effect::Act(deckmaste_core::Action::deal_damage(
+    let instead_body = OneShotEffect::Act(deckmaste_core::Action::deal_damage(
         Reference::This,
         Count::Literal(10),
     ));
@@ -1079,7 +1079,7 @@ fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) ->
         combat: None,
         amount: None,
     };
-    let instead = Effect::Act(Action::By(
+    let instead = OneShotEffect::Act(Action::By(
         Reference::You,
         PlayerAction::PutCounters(recipient, kind.into(), Count::ThatMuch),
     ));

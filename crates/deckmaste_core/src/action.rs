@@ -218,11 +218,11 @@ pub enum Action {
     /// actually acts — scry 0 does nothing, [CR#701.22b]) emits the named
     /// keyword-action event a "whenever you scry/surveil" trigger reads,
     /// exactly like `KeywordAbility::Composite { name, .. }` on the ability
-    /// side. `body` is boxed to break the `Action` → `Effect` → `Action` size
-    /// cycle.
+    /// side. `body` is boxed to break the `Action` → `OneShotEffect` → `Action`
+    /// size cycle.
     Composite {
         name: crate::Ident,
-        body: Box<crate::Effect>,
+        body: Box<crate::OneShotEffect>,
     },
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
@@ -859,12 +859,12 @@ mod tests {
     fn composite_round_trips() {
         let scry = Action::Composite {
             name: crate::Ident::new("Scry"),
-            body: Box::new(crate::Effect::Each(crate::Each {
+            body: Box::new(crate::OneShotEffect::Each(crate::Each {
                 binder: crate::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
                     of: Reference::You,
                 }),
-                effect: Box::new(crate::Effect::Act(Action::Move(
+                effect: Box::new(crate::OneShotEffect::Act(Action::Move(
                     Reference::It,
                     Destination::Library(Anchor::FromTop(Count::Literal(0))),
                     vec![],

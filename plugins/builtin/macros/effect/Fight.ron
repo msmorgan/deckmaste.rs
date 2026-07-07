@@ -6,7 +6,7 @@
 //   permanent). If either isn't, `then` never runs — neither deals damage, and
 //   `Composite`'s `KeywordActionPerformed{Fight}` is suppressed (no fight, no
 //   "fights" trigger).
-// - simultaneity: the `Simultaneous` batch — both halves read the pre-damage
+// - simultaneity: the `Simultaneously` batch — both halves read the pre-damage
 //   powers and land together, SBAs after the whole batch.
 // - [CR#701.14c] self-fight: same object both sides → two `X -> X` packets, which
 //   the engine coalesces (same source+target in one batch) into ONE 2x instance.
@@ -21,7 +21,7 @@
 (
     name: "Fight",
     template: "${0} fights ${1}",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     params: [Reference, Reference],
     body: Composite(
         name: "Fight",
@@ -30,7 +30,7 @@
                 Is(Param(0), AllOf([Permanent, Type(Creature)])),
                 Is(Param(1), AllOf([Permanent, Type(Creature)])),
             ]),
-            then: Simultaneous([
+            then: Simultaneously([
                 DealDamage(Param(0), StatOf(Param(0), Power), Param(1)),
                 DealDamage(Param(1), StatOf(Param(1), Power), Param(0)),
             ]),

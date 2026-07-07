@@ -184,7 +184,7 @@ public export
 regenerate : OneShotEffect b
 regenerate = Continuously UntilEndOfTurn
   (Replaces (MkEventQuery [Destroy] [Patient (SameAs This)])
-            (Sequence [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
+            (Sequentially [Act (RemoveAllDamage This), Act (Tap This), Act (RemoveFromCombat This)])
             {limit = UpTo (^1)})
 
 -- transport a P-op to toughness: power and toughness share a value class (`CharValue _ Power = Count =
@@ -235,7 +235,7 @@ surveil n = Act (Composite Surveil
 
 -- fight is no longer a hand-written Idris macro: it's a RON grammar macro over
 -- `DealDamage` (`plugins/builtin/macros/effect/Fight.ron`). Its emitted form —
--- `Composite Fight (If (And [Matches …]) (Simultaneous [dealDamageFrom …, …]))`,
+-- `Composite Fight (If (And [Matches …]) (Simultaneously [dealDamageFrom …, …]))`,
 -- guarding both-or-neither ([CR#701.14b]) with the engine coalescing a
 -- self-fight's packets ([CR#701.14c]) — is exercised by the canon idris-check
 -- (Pounce), not a helper here.
@@ -317,7 +317,7 @@ public export
 monstrosity : Cost b -> Count b -> Ability b
 monstrosity cost n = Activated cost
   (If (Matches This (Not (HasDesignation monstrous)))
-      (Sequence [ Act (PutCounters p1p1 n This), Act (GrantDesignation monstrous This) ]))
+      (Sequentially [ Act (PutCounters p1p1 n This), Act (GrantDesignation monstrous This) ]))
 
 -- "Level up [cost]" ([CR#702.87]): put a level counter on THIS; sorcery-speed only.
 public export

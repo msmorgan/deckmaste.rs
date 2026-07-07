@@ -1,7 +1,7 @@
 //! The `Activated` frame parser: a "<cost>: <effect>." line -> the bare
 //! `Activated(...)` ability RON. An activated ability is written as
-//! "[Cost]: [Effect.]"; the activation cost is everything before the colon
-//! [CR#602.1,602.1a]. The effect grammar is shared via
+//! "[Cost]: [OneShotEffect.]"; the activation cost is everything before the
+//! colon [CR#602.1,602.1a]. The effect grammar is shared via
 //! [`crate::parsers::effect`], the cost grammar via [`crate::parsers::cost`].
 
 use crate::parsers::cost::VariableMana;

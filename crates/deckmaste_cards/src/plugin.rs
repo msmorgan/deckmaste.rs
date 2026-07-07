@@ -433,7 +433,7 @@ mod tests {
             plugin
                 .sba_rules
                 .iter()
-                .all(|r| matches!(&r.then, deckmaste_core::Effect::Act(_)))
+                .all(|r| matches!(&r.then, deckmaste_core::OneShotEffect::Act(_)))
         );
     }
 
@@ -491,9 +491,9 @@ mod tests {
     }
 
     /// [CR#704.5q]: the `-1/-1` counter confers both the negative `Continuous`
-    /// boost AND the annihilation as a `StateBased` SBA (a `Sequence` of two
-    /// `RemoveCounters`). Exercises the richer confer RON (`Is`/`HasCounter`,
-    /// bare-embedded `RemoveCounters`, `CounterCount`).
+    /// boost AND the annihilation as a `StateBased` SBA (a `Sequentially` of
+    /// two `RemoveCounters`). Exercises the richer confer RON
+    /// (`Is`/`HasCounter`, bare-embedded `RemoveCounters`, `CounterCount`).
     #[test]
     fn builtin_minus_one_counter_carries_annihilation_sba() {
         use deckmaste_core::Property;

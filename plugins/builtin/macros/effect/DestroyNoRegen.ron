@@ -14,9 +14,9 @@
 (
     name: "DestroyNoRegen",
     template: "destroy ${0}. It can't be regenerated",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     params: [Reference],
-    body: Sequence([
+    body: Sequentially([
         Destroy(Param(0)),
         Until(ForThisEvent, [Cant(Regenerate(on: Ref(Param(0))))]),
     ]),

@@ -95,7 +95,7 @@ fn fold_spell_ascend(face: &mut TodoCardFace) -> bool {
             let head = &s[..idx + "effect: ".len()];
             let effect_val = &s[idx + "effect: ".len()..s.len() - 1];
             *ability = TodoAbility::Parsed(format!(
-                "{head}Sequence([If(condition: {ASCEND_GATE}, then: GetDesignation(\"CitysBlessing\")), {effect_val}]))"
+                "{head}Sequentially([If(condition: {ASCEND_GATE}, then: GetDesignation(\"CitysBlessing\")), {effect_val}]))"
             ));
             wrapped = true;
             break;
@@ -393,7 +393,7 @@ mod tests {
     }
 
     /// [CR#702.131a]: on a spell, Ascend is folded into the front of the spell
-    /// effect (a Sequence) and the keyword ability is dropped — the grant
+    /// effect (a Sequentially) and the keyword ability is dropped — the grant
     /// resolves before any downstream "if you have the city's blessing"
     /// read. On a permanent, the keyword is left as-is (Task 5's static-Sba
     /// macro handles it).
@@ -438,8 +438,8 @@ mod tests {
             })
             .expect("a Spell ability remains");
         assert!(
-            spell.contains("Sequence(["),
-            "effect wrapped in a Sequence: {spell}"
+            spell.contains("Sequentially(["),
+            "effect wrapped in a Sequentially: {spell}"
         );
         assert!(
             spell.contains("GetDesignation(\"CitysBlessing\")"),

@@ -6,7 +6,7 @@
 (
     name: "PreventAll",
     template: "prevent all damage that would be dealt to ${to} this turn",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     params: { "to": Predicate, "from": Default(Predicate, Any) },
     body: Continuously(
         effect: Prevention(PreventAll(from: Param(from), to: Param(to))),

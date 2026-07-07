@@ -131,7 +131,7 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
         abilities
             .iter()
             .any(|a| matches!(a, Ability::Spell(s)
-                if matches!(&s.effect, deckmaste_core::Effect::Targeted(t) if !t.targets.is_empty()))),
+                if matches!(&s.effect, deckmaste_core::OneShotEffect::Targeted(t) if !t.targets.is_empty()))),
         "Enchant confers a targeting Spell ability ([CR#303.4a]); got {abilities:?}"
     );
 
@@ -160,7 +160,7 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
 fn fortify_confers_sorcery_speed_attach_activated() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Timing;
 
     let plugin = builtin();
@@ -186,7 +186,7 @@ fn fortify_confers_sorcery_speed_attach_activated() {
         "fortify is sorcery-speed ([CR#702.67a]); got {:?}",
         act.window
     );
-    let Effect::Targeted(t) = &act.effect else {
+    let OneShotEffect::Targeted(t) = &act.effect else {
         panic!(
             "fortify's effect is a Targeted wrapper; got {:?}",
             act.effect
@@ -194,7 +194,7 @@ fn fortify_confers_sorcery_speed_attach_activated() {
     };
     assert!(!t.targets.is_empty(), "fortify targets a land");
     assert!(
-        matches!(&*t.effect, Effect::Act(Action::Attach { .. })),
+        matches!(&*t.effect, OneShotEffect::Act(Action::Attach { .. })),
         "fortify's inner effect is Attach; got {:?}",
         t.effect
     );
@@ -210,7 +210,7 @@ fn fortify_confers_sorcery_speed_attach_activated() {
 fn reconfigure_confers_attach_and_unattach_activated() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Timing;
 
     let plugin = builtin();
@@ -241,12 +241,12 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     // One attaches, one unattaches.
     assert!(
         acts.iter().any(|a| matches!(&a.effect,
-            Effect::Targeted(t) if matches!(&*t.effect, Effect::Act(Action::Attach { .. })))),
+            OneShotEffect::Targeted(t) if matches!(&*t.effect, OneShotEffect::Act(Action::Attach { .. })))),
         "reconfigure has an Attach ability"
     );
     assert!(
         acts.iter()
-            .any(|a| matches!(&a.effect, Effect::Act(Action::Unattach(_)))),
+            .any(|a| matches!(&a.effect, OneShotEffect::Act(Action::Unattach(_)))),
         "reconfigure has an Unattach ability"
     );
 }
@@ -262,7 +262,7 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
     use deckmaste_core::Action;
     use deckmaste_core::Cost;
     use deckmaste_core::Count;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::Timing;
@@ -303,11 +303,13 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
         "outlast cost is the param cost plus {{T}}, spliced flat ([CR#702.107a])"
     );
 
-    // (3) Effect puts one +1/+1 counter on THIS creature ([CR#122.1a]).
+    // (3) OneShotEffect puts one +1/+1 counter on THIS creature ([CR#122.1a]).
     // PutCounters is a player verb — `By(You, PutCounters(…))`, the implicit-you
     // default an effect-slot player verb reads as.
-    let Effect::Act(Action::By(Reference::You, PlayerAction::PutCounters(_, counter, count))) =
-        &act.effect
+    let OneShotEffect::Act(Action::By(
+        Reference::You,
+        PlayerAction::PutCounters(_, counter, count),
+    )) = &act.effect
     else {
         panic!("outlast's effect is PutCounters; got {:?}", act.effect);
     };
@@ -411,7 +413,7 @@ fn ascend_macro_expands_to_static_sba() {
 fn cycling_confers_from_hand_discard_self_draw() {
     use deckmaste_core::Ability;
     use deckmaste_core::Cost;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Zone;
     use deckmaste_core::ron::options as ron_options;
 
@@ -449,8 +451,8 @@ fn cycling_confers_from_hand_discard_self_draw() {
         "cycling cost is the printed cost + discard this card, spliced flat"
     );
 
-    // (3) Effect = draw a card.
-    let expected_effect: Effect = ron_options().from_str("Draw(Literal(1))").unwrap();
+    // (3) OneShotEffect = draw a card.
+    let expected_effect: OneShotEffect = ron_options().from_str("Draw(Literal(1))").unwrap();
     assert_eq!(act.effect, expected_effect, "cycling draws a card");
 }
 
@@ -468,7 +470,7 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Cost;
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
@@ -511,8 +513,8 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
         "reinforce cost is the printed cost + discard this card, spliced flat"
     );
 
-    // (3) Effect = put N +1/+1 counters on target creature ([CR#702.77a]).
-    let Effect::Targeted(t) = &act.effect else {
+    // (3) OneShotEffect = put N +1/+1 counters on target creature ([CR#702.77a]).
+    let OneShotEffect::Targeted(t) = &act.effect else {
         panic!(
             "reinforce's effect is a Targeted wrapper; got {:?}",
             act.effect
@@ -532,8 +534,10 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     // Inner effect places N (= Param(0) = 2) +1/+1 counters on the target.
     // PutCounters is a player verb ([CR#122.1]) — the implicit-you default
     // reads as `Act(By(You, PutCounters(…)))`.
-    let Effect::Act(Action::By(Reference::You, PlayerAction::PutCounters(sel, counter, count))) =
-        &*t.effect
+    let OneShotEffect::Act(Action::By(
+        Reference::You,
+        PlayerAction::PutCounters(sel, counter, count),
+    )) = &*t.effect
     else {
         panic!(
             "reinforce's inner effect is PutCounters; got {:?}",
@@ -571,7 +575,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::Cost;
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
@@ -626,10 +630,10 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
         "scavenge cost is the printed cost + exile this card, spliced flat"
     );
 
-    // (4) Effect = put +1/+1 counters equal to this card's power on target
+    // (4) OneShotEffect = put +1/+1 counters equal to this card's power on target
     // creature ([CR#702.97a]). One creature target, inner PutCounters reads
     // `StatOf(This, Power)` for the magnitude.
-    let Effect::Targeted(t) = &act.effect else {
+    let OneShotEffect::Targeted(t) = &act.effect else {
         panic!(
             "scavenge's effect is a Targeted wrapper; got {:?}",
             act.effect
@@ -639,7 +643,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     let TargetSpec::Target(_, _) = &t.targets[0] else {
         panic!("expected a Target spec; got {:?}", t.targets[0]);
     };
-    let Effect::Act(Action::By(Reference::You, PlayerAction::PutCounters(sel, kind, count))) =
+    let OneShotEffect::Act(Action::By(Reference::You, PlayerAction::PutCounters(sel, kind, count))) =
         &*t.effect
     else {
         panic!(
@@ -680,8 +684,8 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::Cmp;
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
-    use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationPredicate;
@@ -716,11 +720,11 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
         trig.event
     );
     // The effect is a `May` ([CR#702.46a] "you may").
-    let Effect::May(may) = &trig.effect else {
+    let OneShotEffect::May(may) = &trig.effect else {
         panic!("soulshift's effect is a May; got {:?}", trig.effect);
     };
     // … over a `Targeted` ([CR#115.1,601.2c]).
-    let Effect::Targeted(t) = &*may.effect else {
+    let OneShotEffect::Targeted(t) = &*may.effect else {
         panic!("soulshift's May wraps a Targeted; got {:?}", may.effect);
     };
     // One target whose filter is Spirit ∧ in-graveyard ∧ owned-by-you ∧ MV ≤ N.
@@ -764,7 +768,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     assert!(
         matches!(
             &*t.effect,
-            Effect::Act(Action::Move(
+            OneShotEffect::Act(Action::Move(
                 Reference::Target(0),
                 Destination::Zone(Zone::Hand),
                 _,
@@ -786,8 +790,8 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     use deckmaste_core::Action;
     use deckmaste_core::Color;
     use deckmaste_core::Count;
-    use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::StatValue;
@@ -820,7 +824,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     );
     // Create is a player verb ([CR#111.1]) — `By(You, Create(…))`, the
     // implicit-you default an effect-slot player verb reads as.
-    let Effect::Act(Action::By(
+    let OneShotEffect::Act(Action::By(
         Reference::You,
         PlayerAction::Create(count, TokenSpec::Token(token), _),
     )) = &trig.effect

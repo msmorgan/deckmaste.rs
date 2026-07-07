@@ -49,7 +49,7 @@ pub enum Selection {
     Random(Quantity, Predicate),
     /// A choice from among a PREVIOUSLY COMPUTED set ("exile two of them",
     /// "…from among them" — the among-restriction, queries.md §2): the
-    /// domain is whatever `Effect::Noting{key, …}` recorded under the
+    /// domain is whatever `OneShotEffect::Noting{key, …}` recorded under the
     /// key, not a re-evaluated filter — re-evaluation would be wrong for
     /// "this way" anaphora ([CR#607.2a] linkage).
     AmongNoted(crate::Ident, Quantity),
@@ -74,8 +74,8 @@ pub enum Selection {
     /// The PLURAL anaphor — "they"/"them": the nearest Many antecedent on
     /// the antecedent stack, any sort (R1 nearest-compatible,
     /// R2 uniqueness gate). Pushed by a many-binder
-    /// ([`Effect::With`](crate::With), [CR#608.2d]), a plural target slot
-    /// ([CR#115.3]), or a group-producing clause ("create two tokens —
+    /// ([`OneShotEffect::With`](crate::With), [CR#608.2d]), a plural target
+    /// slot ([CR#115.3]), or a group-producing clause ("create two tokens —
     /// **they** gain haste", [CR#111.2]); order preserved; iterated with
     /// [`Each`](crate::Each) (per-element [`Reference::It`]).
     They,
@@ -84,10 +84,10 @@ pub enum Selection {
     /// [`They`](Selection::They) with the sort constraint of
     /// [`Reference::That`](crate::Reference::That)).
     Them(crate::Sort),
-    /// Piles noted earlier by a [`SeparatePiles`](crate::Effect::SeparatePiles)
-    /// with a `note:` key, keyed by their divider: `of` names the player
-    /// whose piles these are ([CR#700.3a]; the Whims-of-the-Fates per-player
-    /// nesting).
+    /// Piles noted earlier by a
+    /// [`SeparatePiles`](crate::OneShotEffect::SeparatePiles) with a `note:
+    /// ` key, keyed by their divider: `of` names the player whose piles
+    /// these are ([CR#700.3a]; the Whims-of-the-Fates per-player nesting).
     PilesOf { note: crate::Ident, of: Reference },
     /// The extremal element(s) of a set, ranked by a per-element projection
     /// ([CR#107.1]): "the creature with the greatest power" =

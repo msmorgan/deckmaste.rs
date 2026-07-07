@@ -280,7 +280,7 @@ namespace UsageLimit
 namespace ObjectState
   public export
   data ObjectState = Tapped | SummoningSick
-                   | Untapped        -- untapped ([CR#502.3]); "becomes untapped" = `Becomes Untapped` (the untap event, symmetric with `Becomes Tapped`); `HasState Untapped` = "an untapped permanent". "Doesn't untap during your untap step" is a window-scoped SKIP: `Replaces [Becomes Untapped] [Agent (SameAs This), <during your untap step>] (Sequence [])`
+                   | Untapped        -- untapped ([CR#502.3]); "becomes untapped" = `Becomes Untapped` (the untap event, symmetric with `Becomes Tapped`); `HasState Untapped` = "an untapped permanent". "Doesn't untap during your untap step" is a window-scoped SKIP: `Replaces [Becomes Untapped] [Agent (SameAs This), <during your untap step>] (Sequentially [])`
                    | PhasedOut       -- phased out ([CR#702.26]); "becomes phased" = `Becomes PhasedOut`
                    | FaceDown        -- face down ([CR#708]); the engine applies the global 2/2-colorless-vanilla override here
 
@@ -598,7 +598,7 @@ ChoiceRefKindOk _        = Void
 -- [CR#400.7], an event body's roles [CR#603.2e,608.2k], a binder's choice
 -- [CR#608.2d], a loop element) — and references are SORTED ANAPHORS resolved
 -- against it: R1 nearest-compatible, R2 uniqueness gate, R3 strictly leftward
--- (the telescope `Sequence` below threads introductions in sentence order).
+-- (the telescope `Sequentially` below threads introductions in sentence order).
 -- Replaces the v1 role-named `Ctx` record. The Rust side no longer
 -- re-implements this resolution: each Rust card is checked by re-emitting it
 -- as a raw Core.idr term and typechecking it here (`cargo xtask idris-check`),
@@ -2020,7 +2020,7 @@ mutual
     public export
     data KeywordActionSpec = Scry | Surveil | Mill | Fight
 
-  -- The verbs ([CR#701]). `Effect::Act` wraps these. Object verbs carry an object
+  -- The verbs ([CR#701]). `OneShotEffect::Act` wraps these. Object verbs carry an object
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
   namespace Action
     public export
@@ -2105,14 +2105,14 @@ mutual
       -- color (`OneOf`/`AnyColor`) all fall out of the value language. `riders` are the per-mana strings of
       -- [CR#106.6] applied to each of the `amount` mana ([CR#106.6a]) — Cavern: a chosen color, only to cast
       -- the chosen creature type, uncounterable. (Fixed HETEROGENEOUS production — "add {R}{G}" — is a
-      -- `Sequence` of `AddMana`s, so the old per-action list is gone.)
+      -- `Sequentially` of `AddMana`s, so the old per-action list is gone.)
       AddMana : {default You actor : Reference b APlayer} -> (amount : Count b) -> ProducedMana
                 -> {default [] riders : List (ManaRider b)} -> Action b
       -- a COMPOSITE keyword action ([CR#701]): `tag` NAMES the verb, `body` is its primitive desugaring
-      -- (`Each`/`With`/`Modal`/`Sequence` over the verbs above). The action-side twin of
+      -- (`Each`/`With`/`Modal`/`Sequentially` over the verbs above). The action-side twin of
       -- `KeywordAbility.Composite` — the mechanics are just the primitives, but the tag lets the engine
       -- RECOGNIZE the action ("scry 2" = `Composite Scry (…)`) so "whenever you scry"/Aang's "whenever
-      -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: Effect::KeywordAction.
+      -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: OneShotEffect::KeywordAction.
       Composite : KeywordActionSpec -> OneShotEffect b -> Action b
 
   -- the event-anaphor caps the PAYMENT of a cost-action supplies its `AdditionalCost` body — the cost-side
@@ -2232,15 +2232,15 @@ mutual
       -- the TELESCOPE ([CR#608.2d]): clause i+1 elaborates in the context
       -- extended by clause i's introductions (`SeqList`/`intro` below) —
       -- sentence order IS binder order, so "Exile target creature, then
-      -- return THAT CARD" needs no binder inversion. Rust: Effect::Sequence.
-      Sequence : SeqList b -> OneShotEffect b
+      -- return THAT CARD" needs no binder inversion. Rust: OneShotEffect::Sequentially.
+      Sequentially : SeqList b -> OneShotEffect b
       -- SIMULTANEOUS ([CR#701.14a]): every member reads ONE pre-application
       -- snapshot and the facts land as a single batch — NOT a telescope, so
       -- members don't thread introductions to each other (plain `List`, not
       -- `SeqList`). Fight's two `DealDamage` halves each read the pre-damage
       -- powers; a self-fight's same-source/same-target packets coalesce to one
-      -- 2x instance ([CR#701.14c], engine-side). Rust: Effect::Simultaneous.
-      Simultaneous : List (OneShotEffect b) -> OneShotEffect b
+      -- 2x instance ([CR#701.14c], engine-side). Rust: OneShotEffect::Simultaneously.
+      Simultaneously : List (OneShotEffect b) -> OneShotEffect b
       -- each announced slot carries its OWN kind (its filter's), gathered as `ks : List RefKind`
       -- (a heterogeneous `All`); the slots push antecedents the body reads back as anaphors
       -- ([CR#115.3,601.2c]) — mixed-kind multi-target (Donate) disambiguates by SORT, same-sort
@@ -2249,27 +2249,27 @@ mutual
       Targeted : {ks : List RefKind} -> (ts : All (TargetSpec b) ks) -> {auto 0 lbl : labelsOk (slotAntes ts) = True} -> {auto 0 rng : distinctOk ts (length ks) = True} -> OneShotEffect (bindTargets (slotAntes ts) b) -> OneShotEffect b
       -- binds `that`'s antecedent for `body` ([CR#608.2d]): a choice binder is a deterministic
       -- frame; a produce/search binder a whiffable product. Read back by sort (`It`/`That w`/
-      -- `They`). Rust: Effect::With.
+      -- `They`). Rust: OneShotEffect::With.
       With : (that : Bindable b cd k) -> OneShotEffect (bindThat (binderAnte that) b) -> OneShotEffect b
       -- mid-resolution VALUE choice: "choose a [color/type/name/number/mode], then [body]".
       -- The effect-level twin of `AsEnters` (which is enters-only) — `body` runs at `bindChosen d b`, reading the
       -- pick via `OfChosen`/`ChosenIs`/`ChosenNumber`. Three Tree City's "{2},{T}: Choose a color. Add mana of
-      -- that color…" = `WithChosenValue AColor (Act (AddMana … <of the chosen color>))`. Rust: Effect::WithChosenValue.
+      -- that color…" = `WithChosenValue AColor (Act (AddMana … <of the chosen color>))`. Rust: OneShotEffect::WithChosenValue.
       WithChosenValue : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> OneShotEffect (bindChosen d b) -> OneShotEffect b
-      -- a single intrinsic instruction (the verb compartment). Rust: Effect::Act.
+      -- a single intrinsic instruction (the verb compartment). Rust: OneShotEffect::Act.
       Act : Action b -> OneShotEffect b
-      -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: Effect::Conclude.
+      -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: OneShotEffect::Conclude.
       Conclude : Outcome b -> OneShotEffect b
       -- "you may [effect]", with optional "if you do / if you don't". The "if you do" branch —
       -- and the May's right siblings (`introduces`) — see the inner effect's introductions
       -- (the Through the Breach shape: "You may put a creature card … THAT creature gains
       -- haste"); a DECLINED May's products are runtime-skipped, not scope-blocked ([CR#701.23b]).
-      -- Rust: Effect::May.
+      -- Rust: OneShotEffect::May.
       May : (effect : OneShotEffect b) -> {default Nothing ifDid : Maybe (OneShotEffect (intro effect b))} -> {default Nothing ifNot : Maybe (OneShotEffect b)} -> OneShotEffect b
-      -- "if [cond], [thenDo]; otherwise [else]". Rust: Effect::If.
+      -- "if [cond], [thenDo]; otherwise [else]". Rust: OneShotEffect::If.
       If : Condition b -> (thenDo : OneShotEffect b) -> {default Nothing otherwise : Maybe (OneShotEffect b)} -> OneShotEffect b
       -- COST-payment DECISIONS — a player chooses whether to pay (the common decider slice; the
-      -- full `Cost` algebra rides both). Rust: Effect::MayPay / Effect::MustPay.
+      -- full `Cost` algebra rides both). Rust: OneShotEffect::MayPay / OneShotEffect::MustPay.
       --  • `MayPay`  — "[actor] MAY pay [cost]; if they do → `and_then`; if not → optional `or_else`."
       --  • `MustPay` — "[actor] must pay [cost], OR ELSE `or_else`" — the resolution-stage punisher
       --    (Mana Leak: "counter target spell unless its controller pays {2}"; supersedes `Unless`).
@@ -2282,29 +2282,29 @@ mutual
       -- anaphors a trigger uses ("the sacrificed creature's power" = `StatOf EventObject Power`; Fling/Momentous
       -- Fall). At the ROOT of a `Spell`/`Activated` effect the engine HOISTS it to cast/activation time (the
       -- printed additional cost, [CR#601.2f,118.8]); nested, it's an extra resolution-time cost. The body's caps
-      -- are value-derived (`costCaps pay`), exactly like `Delayed`/`Triggered`. Rust: Effect::AdditionalCost.
+      -- are value-derived (`costCaps pay`), exactly like `Delayed`/`Triggered`. Rust: OneShotEffect::AdditionalCost.
       AdditionalCost : (pay : Cost b) -> OneShotEffect (bindEvent (costCaps pay) (costRoles (costCaps pay)) b) -> OneShotEffect b
       -- create a continuous effect for a duration ([CR#611.2]): `Continuously UntilEndOfTurn (Modify This …)`.
-      -- Duration FIRST so it reads "continuously, for [duration], [effect]". Rust: Effect::Continuously.
+      -- Duration FIRST so it reads "continuously, for [duration], [effect]". Rust: OneShotEffect::Continuously.
       Continuously : Duration b -> StaticEffect b -> OneShotEffect b
       -- choose modes, then apply them ([CR#700.2]). The mode list is a `Vect (S n)` — ≥1 mode
       -- BY CONSTRUCTION ([CR#700.2]; replaces the `NonEmpty` gate), and the choose-count gate
       -- ([CR#700.2d]) ranges over the NAT `S n`, not the mode list (a gate over a mutual-group
-      -- value is opaque to the strict-positivity checker). Rust: Effect::Modal.
+      -- value is opaque to the strict-positivity checker). Rust: OneShotEffect::Modal.
       Modal : (spec : ChooseSpec b) -> {n : Nat} -> (modes : Vect (S n) (Mode b)) -> {auto 0 cnt : modalCountOk spec (S n) = True} -> OneShotEffect b
       -- a VOTE ([CR#701.38]): starting with `starting` and proceeding in turn order ([CR#701.38a]), each player
       -- votes for one option on the `ballot`; the tally drives the effect. The two CR option kinds ([CR#701.38b])
       -- are the two `Ballot` arms (objects vs labeled outcomes) — Council's Judgment / Tyrant's Choice. The
-      -- per-player vote and tally are engine-resolved; the grammar names the starting player + the ballot. Rust: Effect::Vote.
+      -- per-player vote and tally are engine-resolved; the grammar names the starting player + the ballot. Rust: OneShotEffect::Vote.
       Vote : {default You starting : Reference b APlayer} -> Ballot b -> OneShotEffect b
       -- DIVIDE AND CHOOSE (Fact or Fiction): the `divider` splits `group` into two piles; the `chooser` picks
       -- one as the "chosen" pile, the rest is "other". Each pile is a BOUND GROUP — a choice FRAME
       -- ([CR#700.3,608.2d]), so `chosen`/`other` read their pile as the plural anaphor (`They`, iterated with
       -- `Each (Existing They) …`); no bespoke pile slot. The split + pick are engine-resolved; the grammar
-      -- names who does each and the per-pile fate. Rust: Effect::DivideAndChoose.
+      -- names who does each and the per-pile fate. Rust: OneShotEffect::DivideAndChoose.
       DivideAndChoose : (group : Selection b AnObject) -> (divider : Reference b APlayer) -> {default You chooser : Reference b APlayer} -> (chosen : OneShotEffect (bindThat PileFrame b)) -> (other : OneShotEffect (bindThat PileFrame b)) -> OneShotEffect b
       -- "for each [domain], [body]" — binds each element as `It`. The distributive
-      -- primitive (subsumes the old `Selection::Each`). Rust: Effect::ForEach.
+      -- primitive (subsumes the old `Selection::Each`). Rust: OneShotEffect::ForEach.
       Each : (dom : Bindable b Many k) -> OneShotEffect (bindIt (binderAnte dom) b) -> OneShotEffect b
       -- "[amount] divided as you choose among [a group]" ([CR#601.2d]): bind each element as `It` with its
       -- `Allotment` (the split is engine-resolved, ≥1 each summing to amount), then apply `body`. GENERAL over
@@ -2313,16 +2313,16 @@ mutual
       -- not `total` — the latter is a reserved totality keyword.)
       Distribute : (amount : Count b) -> (among : Bindable b Many k) -> OneShotEffect (bindAllot (binderAnte among) b) -> OneShotEffect b
       -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
-      -- `That`/targets stay in scope; no event-scanning sibling. Rust: Effect::Reflexive.
+      -- `That`/targets stay in scope; no event-scanning sibling. Rust: OneShotEffect::Reflexive.
       Reflexive : OneShotEffect b -> OneShotEffect b
       -- schedule `body` for `event` ([CR#603.7c]): the announced TARGETS are dropped (stale after
       -- resolution), `Product` antecedents — with their expected-zone stamps — survive, and the
-      -- delayed event's own caps/roles bind. Rust: Effect::Delayed.
+      -- delayed event's own caps/roles bind. Rust: OneShotEffect::Delayed.
       Delayed : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) (unbindTargets b)) -> OneShotEffect b
 
   -- the TELESCOPE ([CR#608.2d] — sentence order IS binder order; R3, no
   -- forward references, is structural: a clause reads only what stands to
-  -- its left): each `Sequence` cell elaborates in the context extended by
+  -- its left): each `Sequentially` cell elaborates in the context extended by
   -- the previous cell's introductions, per the total `intro` below.
   namespace SeqList
     public export
@@ -2400,7 +2400,7 @@ mutual
   public export
   introduces : OneShotEffect b -> List Ant
   introduces (Act a) = actionIntro a
-  introduces (Sequence es) = seqIntro es
+  introduces (Sequentially es) = seqIntro es
   introduces (Targeted ts e) = introduces e
   introduces (With that e) = introduces e
   introduces (May e) = introduces e
@@ -2467,7 +2467,7 @@ mutual
       Alter : (c : Characteristic) -> ModificationOp b c -> Modification b
       -- SEVERAL modifications as one ([CR#613] — "+2/+1 and gains flying"). The plural wrapper that lets
       -- `Modify` take a SINGLE `Modification`: a bare `List` never floats as an argument — it's always named
-      -- (`ApplyAll`, like `Sequence`/`And`/`Or`). `Modify This (ApplyAll [Alter Power (Up …), GrantAbility …])`.
+      -- (`ApplyAll`, like `Sequentially`/`And`/`Or`). `Modify This (ApplyAll [Alter Power (Up …), GrantAbility …])`.
       ApplyAll : List (Modification b) -> Modification b
       -- TEXT-CHANGE ([CR#612], a layer-3 mod): "replace all instances of one word with another of its
       -- class" — the eligible classes are listed; the two specific words are the player's resolution-time

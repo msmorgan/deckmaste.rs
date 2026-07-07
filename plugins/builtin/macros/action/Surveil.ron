@@ -5,7 +5,7 @@
 (
     name: "Surveil",
     template: "surveil ${0}",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     params: [Count],
     body: Composite(
         name: "Surveil",

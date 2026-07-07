@@ -13,8 +13,8 @@
 (
     name: "Unless",
     template: "${effect} unless ${who} pays ${unless}",
-    kinds: [Effect],
-    params: { "effect": Effect, "who": Default(Reference, You), "unless": Cost },
+    kinds: [OneShotEffect],
+    params: { "effect": OneShotEffect, "who": Default(Reference, You), "unless": Cost },
     body: MustPay(
         actor: Param(who),
         cost: [Splice(Param(unless))],

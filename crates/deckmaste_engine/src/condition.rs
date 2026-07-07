@@ -444,8 +444,8 @@ mod tests {
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
         use deckmaste_core::CharacteristicPredicate;
-        use deckmaste_core::Effect;
         use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::TriggeredAbility;
 
         use crate::agenda::WorkItem;
@@ -474,7 +474,7 @@ mod tests {
                         CharacteristicPredicate::Type(Type::Creature),
                     ))),
                     limits: Vec::new(),
-                    effect: Effect::Sequence(Vec::new()),
+                    effect: OneShotEffect::Sequentially(Vec::new()),
                 })],
                 ..CardFace::default()
             });

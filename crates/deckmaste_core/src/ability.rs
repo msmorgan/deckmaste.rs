@@ -11,25 +11,26 @@ use crate::Timing;
 use crate::continuous::StaticEffect;
 use crate::cost::Cost;
 use crate::cost::CostComponent;
-use crate::effect::Effect;
+use crate::effect::OneShotEffect;
 
 /// A spell ability — what an instant or sorcery does on resolution
-/// ([CR#113.3a]). Targeting, when present, lives on an `Effect::Targeted`
-/// wrapper in `effect` ([CR#115.1,601.2c]), read back by the anaphors
-/// (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth announced slot).
+/// ([CR#113.3a]). Targeting, when present, lives on an
+/// `OneShotEffect::Targeted` wrapper in `effect` ([CR#115.1,601.2c]), read back
+/// by the anaphors (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth
+/// announced slot).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct SpellAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
     /// meaning), pure render metadata: "Domain — …". NEVER a macro tier.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ability_word: Option<crate::Ident>,
-    pub effect: Effect,
+    pub effect: OneShotEffect,
 }
 
 /// An activated ability: paid with a cost and produces an effect
-/// ([CR#113.3b,602]). Targeting lives on an `Effect::Targeted` wrapper in
-/// `effect` ([CR#115.1,601.2c]); the `Resolvable` wrapper of the design sketch
-/// is realized as `Effect::Modal` (see `effect`).
+/// ([CR#113.3b,602]). Targeting lives on an `OneShotEffect::Targeted` wrapper
+/// in `effect` ([CR#115.1,601.2c]); the `Resolvable` wrapper of the design
+/// sketch is realized as `OneShotEffect::Modal` (see `effect`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct ActivatedAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
@@ -57,7 +58,7 @@ pub struct ActivatedAbility {
     /// "Activate only once each turn." ([CR#602.5b]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub limits: Vec<UseLimit>,
-    pub effect: Effect,
+    pub effect: OneShotEffect,
 }
 
 /// A limit on how often an ability may be used — a triggered ability
@@ -74,7 +75,7 @@ pub enum UseLimit {
 
 /// A triggered ability ([CR#113.3c,603]). A named struct because it recurs:
 /// delayed ([CR#603.7]) and reflexive ([CR#603.12]) triggers are the same
-/// value, created inside an `Effect`.
+/// value, created inside an `OneShotEffect`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct TriggeredAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
@@ -104,7 +105,7 @@ pub struct TriggeredAbility {
     /// number of experience counters you have").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub where_x: Option<crate::Count>,
-    pub effect: Effect,
+    pub effect: OneShotEffect,
 }
 
 /// A `skip_serializing_if` predicate: a `false` bool is omitted from RON.
@@ -164,11 +165,11 @@ pub enum ModalCostRider {
 }
 
 /// One mode of a modal spell or ability ([CR#700.2]). A mode's targets live on
-/// an `Effect::Targeted` wrapper in its `effect` ([CR#700.2c,115.8]); it may
-/// carry a per-mode cost ([CR#700.2h]).
+/// an `OneShotEffect::Targeted` wrapper in its `effect` ([CR#700.2c,115.8]); it
+/// may carry a per-mode cost ([CR#700.2h]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Mode {
-    pub effect: Effect,
+    pub effect: OneShotEffect,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cost: Option<Vec<CostComponent>>,
 }
@@ -265,7 +266,7 @@ mod tests {
     use crate::action::Action;
     use crate::action::PlayerAction;
     use crate::cost::CostComponent;
-    use crate::effect::Effect;
+    use crate::effect::OneShotEffect;
 
     fn read_ability(source: &str) -> Ability {
         crate::ron::options().from_str(source).unwrap()
@@ -283,7 +284,7 @@ mod tests {
                 cost: vec![CostComponent::Tap].into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::Draw(Count::Literal(1))
                 )),
@@ -297,7 +298,7 @@ mod tests {
     #[test]
     fn activated_ability_condition_limits_default_absent() {
         let parsed: ActivatedAbility = crate::ron::options()
-            .from_str("(cost: [Tap], effect: Sequence([]))")
+            .from_str("(cost: [Tap], effect: Sequentially([]))")
             .unwrap();
         assert_eq!(parsed.condition, None);
         assert!(parsed.limits.is_empty());
@@ -348,7 +349,7 @@ mod tests {
         };
         assert_eq!(
             triggered.effect,
-            Effect::Act(Action::By(
+            OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Draw(Count::Literal(1))
             ))

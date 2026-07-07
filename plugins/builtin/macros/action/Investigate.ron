@@ -2,7 +2,7 @@
 // predefined colorless artifact token with "{2}, Sacrifice this artifact:
 // Draw a card." ([CR#111.10f]) — mirrored inline here from
 // `plugins/builtin/tokens/Clue.ron` (`SacrificeThis` is the cost macro
-// `Do(Sacrifice(This))`). An `Effect`-kind macro, so it stands as the effect
+// `Do(Sacrifice(This))`). An `OneShotEffect`-kind macro, so it stands as the effect
 // body in any shell — ETB trigger ("When ~ enters, investigate."), activated
 // ("{4}, {T}: Investigate."), or spell ("Investigate.").
 //
@@ -13,7 +13,7 @@
 (
     name: "Investigate",
     template: "investigate",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     body: Create(1, Token(
         types: [Artifact],
         subtypes: [Clue],

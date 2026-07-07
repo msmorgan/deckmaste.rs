@@ -11,12 +11,12 @@ use deckmaste_core::Ability;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
-use deckmaste_core::Effect;
 use deckmaste_core::Expansion;
 use deckmaste_core::ExpansionArgs;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::ManaSymbol;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
@@ -72,7 +72,7 @@ fn treasure_token_parses() {
                 cost: vec![CostComponent::Tap, sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
@@ -101,7 +101,7 @@ fn clue_token_parses() {
                 cost: vec![mana_2(), sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                effect: OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
             })],
             power: None,
             toughness: None,
@@ -127,7 +127,7 @@ fn food_token_parses() {
                 cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
+                effect: OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
             })],
             power: None,
             toughness: None,
@@ -153,7 +153,7 @@ fn gold_token_parses() {
                 cost: vec![sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
@@ -190,7 +190,7 @@ fn blood_token_parses() {
                 cost: vec![mana_1, CostComponent::Tap, discard_one, sacrifice_this()].into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                effect: OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
             })],
             power: None,
             toughness: None,

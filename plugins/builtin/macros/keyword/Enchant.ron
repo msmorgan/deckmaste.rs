@@ -2,7 +2,7 @@
 // parameterizes the legal-host predicate. The keyword confers THREE abilities
 // (spec conferral map):
 //   1. a targeting `Spell` carrying ONLY the target spec ([CR#303.4a]) — its
-//      no-op `Sequence([])` effect keeps cast targeting on the live
+//      no-op `Sequentially([])` effect keeps cast targeting on the live
 //      `spell_targets` path; it does not attach.
 //   2. a *removable* `Cant(Attach(what: Ref(This), to: Not(Param(0))))` — the
 //      legal-host bound ([CR#702.5a]); also `Cant(Target)` so the spell can't
@@ -30,7 +30,7 @@
             Spell(
                 effect: Targeted(
                     targets: [Target(Exactly(1), Param(0))],
-                    effect: Sequence([]),
+                    effect: Sequentially([]),
                 ),
             ),
             Static(Cant(Target(by: (stack_object: Ref(This)), on: Not(Param(0))))),

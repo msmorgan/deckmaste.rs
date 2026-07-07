@@ -1,6 +1,6 @@
 // Pounce — "Target creature you control fights target creature you don't
 // control." Fight ([CR#701.14a]) is the `Fight` MACRO over `DealDamage`
-// (`plugins/builtin/macros/effect/Fight.ron`): a `Simultaneous` batch of the
+// (`plugins/builtin/macros/effect/Fight.ron`): a `Simultaneously` batch of the
 // two power-for-power `DealDamage`s, guarded by an `If (both still creatures on
 // the battlefield)` ([CR#701.14b]), with a self-fight's packets coalesced to one
 // 2x instance ([CR#701.14c]). `Fight(Target(0), Target(1))` reads at the effect

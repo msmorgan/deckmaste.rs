@@ -558,7 +558,7 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
 /// `Ref(EventActor)` — infect gives that player poison counters ([CR#702.90b]).
 fn schedule_body(
     state: &mut GameState,
-    effect: deckmaste_core::Effect,
+    effect: deckmaste_core::OneShotEffect,
     source: ObjectId,
     that: Option<ObjectId>,
 ) {
@@ -1026,12 +1026,12 @@ mod tests {
     #[test]
     fn gather_collects_static_and_floating_for_will_destroy() {
         use deckmaste_core::Duration;
-        use deckmaste_core::Effect;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::TurnMarker;
 
         let instead = deckmaste_core::Replacement::Instead {
             would: destroyed_self(),
-            instead: Effect::Sequence(vec![]),
+            instead: OneShotEffect::Sequentially(vec![]),
         };
         let (mut state, id) = tests_support::creature_with_static(StaticEffect::Replacement(
             Box::new(instead.clone()),

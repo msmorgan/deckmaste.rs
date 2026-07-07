@@ -128,7 +128,7 @@ tThatSurvivesDelay =
 tTelescopeCloudshift : OneShotEffect Base
 tTelescopeCloudshift =
   Targeted [Target (^1) (And [creature, ControlledBy you])]
-    (Sequence [ Act (Move It (ToZone Exile))
+    (Sequentially [ Act (Move It (ToZone Exile))
               , Act (Move (That Card) (ToZone Battlefield)) ])
 
 -- "Create two tokens. THEY gain haste. Sacrifice them at the next end step."
@@ -137,14 +137,14 @@ tTelescopeCloudshift =
 -- in v1 where `Produce` was One-only).
 tTelescopeTokens : OneShotEffect Base
 tTelescopeTokens =
-  Sequence [ Act (CreateToken (^2) (^: { types := [Creature], subtypes := [creatureType "Elemental"], colors := [Red], power := Just 1, toughness := Just 1 }))
+  Sequentially [ Act (CreateToken (^2) (^: { types := [Creature], subtypes := [creatureType "Elemental"], colors := [Red], power := Just 1, toughness := Just 1 }))
            , Continuously UntilEndOfTurn (Each (Existing (Them Token)) (Modify It (GrantAbility (keyword Haste))))
            , Delayed nextEndStep (Each (Existing They) (Act (Move It (ToZone Graveyard)))) ]
 
 -- "Draw three cards … gain THAT MUCH life" — the value anaphor over the
 -- amount antecedent a card-flow verb pushes ([CR#608.2i]).
 tThatMany : OneShotEffect Base
-tThatMany = Sequence [ Act (Draw (^3)), Act (GainLife ThatMany) ]
+tThatMany = Sequentially [ Act (Draw (^3)), Act (GainLife ThatMany) ]
 
 -- the INDEFINITE choice + the May-intro flow (Through the Breach): "You
 -- may put a creature card from your hand onto the battlefield. That
@@ -154,7 +154,7 @@ tThatMany = Sequence [ Act (Draw (^3)), Act (GainLife ThatMany) ]
 -- May's products are runtime-skipped, not scope-blocked ([CR#701.23b,608.2d]).
 tIndefiniteMay : OneShotEffect Base
 tIndefiniteMay =
-  Sequence [ May (With (ChooseOne (And [inHand, creature])) (Act (Move It (ToZone Battlefield))))
+  Sequentially [ May (With (ChooseOne (And [inHand, creature])) (Act (Move It (ToZone Battlefield))))
            , Continuously UntilEndOfTurn (Modify (That Permanent) (GrantAbility (keyword Haste)))
            , Delayed nextEndStep (Act (Move (That Permanent) (ToZone Graveyard))) ]
 
@@ -165,7 +165,7 @@ tIndefiniteMay =
 tLabeledSlots : OneShotEffect Base
 tLabeledSlots =
   Targeted [ anyTarget, Distinct [0] anyTarget ]
-    (Sequence [ Act (DealDamage (^2) (Target {k = Anything} 0))
+    (Sequentially [ Act (DealDamage (^2) (Target {k = Anything} 0))
               , Act (DealDamage (^1) (Target {k = Anything} 1)) ])
 
 -- an event-role antecedent serves the SORTED anaphor (the stack side of the
@@ -350,14 +350,14 @@ tRegenerate = regenerate
 
 tPreventNext : OneShotEffect Base
 tPreventNext = Continuously UntilEndOfTurn
-  (Replaces (MkEventQuery [DealDamage Nothing] [Patient (SameAs This)]) (Sequence []) {limit = UpTo (^3)})
+  (Replaces (MkEventQuery [DealDamage Nothing] [Patient (SameAs This)]) (Sequentially []) {limit = UpTo (^3)})
 
 -- Ward {2} ([CR#702.21a]): NO new machinery — a triggered ability over existing parts. When an opponent
 -- casts a spell targeting This, that player (`EventActor`) MAY pay {2}; if not, the spell (`EventObject`)
 -- is countered. Targets / MayPay (the unless-pay) / Counter were all already here.
 tWard : Ability Base
 tWard = Triggered (MkEventQuery [Begins Cast] [Patient (Targets (SameAs This)), Actor opponent])
-  (MayPay {actor = EventActor} (Mana [^2]) (Sequence []) {or_else = Just (Act (Counter EventObject))})
+  (MayPay {actor = EventActor} (Mana [^2]) (Sequentially []) {or_else = Just (Act (Counter EventObject))})
 
 tIndestructible : Ability Base
 tIndestructible = keyword Indestructible
@@ -521,7 +521,7 @@ tDevotion = Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
 
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
-tCounters = Sequence [ Each (Existing (SelectAll creature)) (Act (PutCounters p1p1 (Literal 1) It))
+tCounters = Sequentially [ Each (Existing (SelectAll creature)) (Act (PutCounters p1p1 (Literal 1) It))
                      , Each (Existing (SelectAll (Not (HasCounter p1p1)))) (Act (Destroy It)) ]
 
 -- anthem: a static `Each` over a controller-predicate filter, with layer mods
@@ -771,7 +771,7 @@ failing "resolveStack Nothing Many (Base .stack)"
 failing "unbindTargets"
   tBadDelayedTarget : OneShotEffect Base
   tBadDelayedTarget = Targeted [Target (^1) creature]
-    (Sequence [ Act (Move It (ToZone Exile))
+    (Sequentially [ Act (Move It (ToZone Exile))
               , Delayed nextEndStep (Act (Move (That (OfType Creature)) (ToZone Battlefield))) ])
 
 -- a `Distinct` constraint naming an announce sibling that doesn't exist
@@ -800,7 +800,7 @@ failing "queryRoles thisEnters"
 -- read the group as `They`/`Them`).
 failing "resolveStack (Just Token) One"
   tBadOneFromMany : OneShotEffect Base
-  tBadOneFromMany = Sequence [ Act (CreateToken (^2) (^: { types := [Creature] }))
+  tBadOneFromMany = Sequentially [ Act (CreateToken (^2) (^: { types := [Creature] }))
                              , Act (Destroy (That Token)) ]
 
 -- ...nor a plural anaphor a ONE antecedent (read it as `It`/`That w`).
@@ -812,7 +812,7 @@ failing "resolveStack Nothing Many ((bindTargets"
 -- antecedent — the compat table's most load-bearing closed pair.
 failing "resolveStack (Just Card) One ((intro"
   tBadTokenIsNotCard : OneShotEffect Base
-  tBadTokenIsNotCard = Sequence [ Act (CreateToken (^1) (^: { types := [Creature] }))
+  tBadTokenIsNotCard = Sequentially [ Act (CreateToken (^1) (^: { types := [Creature] }))
                                 , Act (Move (That Card) (ToZone Exile)) ]
 
 -- `Allotment` outside any `Distribute` body.
@@ -829,7 +829,7 @@ failing "candidates (Just Amount) One (Base .stack)"
 -- value anaphora too ([CR#608.2i]).
 failing "candidates (Just Amount) One ((intro"
   tBadAmbiguousAmount : OneShotEffect Base
-  tBadAmbiguousAmount = Sequence [ Act (Draw (^2)), Act (GainLife (^3)), Act (LoseLife ThatMany) ]
+  tBadAmbiguousAmount = Sequentially [ Act (Draw (^2)), Act (GainLife (^3)), Act (LoseLife ThatMany) ]
 
 -- an ORDERED zone is no bare destination ([CR#401.4]) — position it with
 -- `ToLibrary (FromTop …)`.

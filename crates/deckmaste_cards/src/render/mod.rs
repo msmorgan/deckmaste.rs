@@ -69,16 +69,16 @@ pub(crate) struct Ctx<'a> {
     /// The current ability's targets, so the slot-bound anaphors
     /// (`It`/`Target(n)`) can print their announce phrases.
     pub targets: &'a [TargetSpec],
-    /// The noun phrase the enclosing `Effect::With` bound, so the body's
+    /// The noun phrase the enclosing `OneShotEffect::With` bound, so the body's
     /// `Reference::That` / `Selection::Those` anaphor renders as that phrase
     /// ("Sacrifice a creature"). `None` outside a `With` body.
     pub that: Option<&'a str>,
 }
 
 impl<'a> Ctx<'a> {
-    /// Re-bind the `that` anaphor over an inner render — the `Effect::With`
-    /// body sees its binder's noun phrase via `Reference::That` /
-    /// `Selection::Those`.
+    /// Re-bind the `that` anaphor over an inner render — the
+    /// `OneShotEffect::With` body sees its binder's noun phrase via
+    /// `Reference::That` / `Selection::Those`.
     pub(super) fn with_that(&self, phrase: &'a str) -> Ctx<'a> {
         Ctx {
             subject: self.subject,
@@ -127,7 +127,7 @@ fn rules(view: &CardView) -> Vec<String> {
         match ability {
             Ability::Keyword(k) => kw_line.push(keyword::keyword_name(k)),
             Ability::Spell(s) => {
-                // Targeting lives on an `Effect::Targeted` wrapper, which the
+                // Targeting lives on an `OneShotEffect::Targeted` wrapper, which the
                 // effect walk rebinds `ctx.targets` from ([CR#115.1]).
                 let ctx = Ctx {
                     subject: view.name,

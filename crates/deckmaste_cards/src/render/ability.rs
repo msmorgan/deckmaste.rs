@@ -30,8 +30,8 @@ use super::effect;
 /// "While ~ is in your <zone>," qualifier for a graveyard/hand-functioning
 /// trigger ([CR#113.6,113.6b]).
 pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
-    // Targeting lives on an `Effect::Targeted` wrapper, which the effect walk
-    // rebinds `ctx.targets` from ([CR#115.1]).
+    // Targeting lives on an `OneShotEffect::Targeted` wrapper, which the effect
+    // walk rebinds `ctx.targets` from ([CR#115.1]).
     let ctx = Ctx {
         subject: view.name,
         targets: &[],
@@ -236,11 +236,11 @@ pub(super) fn static_effect(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
 }
 
 /// The one-shot twin of [`static_effect`] — a `Modify` inside
-/// `Effect::Continuously`/`Effect::Until` ([CR#611.2]) reads "gains X" for an
-/// ability grant, never the PERMANENT static's "has X" (Collective
-/// Resistance's "Target creature gains hexproof and indestructible until
-/// end of turn.", not "... has hexproof and has indestructible ..."). Every
-/// other `StaticEffect` shape reads identically either way, so this only
+/// `OneShotEffect::Continuously`/`OneShotEffect::Until` ([CR#611.2]) reads
+/// "gains X" for an ability grant, never the PERMANENT static's "has X"
+/// (Collective Resistance's "Target creature gains hexproof and indestructible
+/// until end of turn.", not "... has hexproof and has indestructible ...").
+/// Every other `StaticEffect` shape reads identically either way, so this only
 /// changes `Modify`'s verb choice.
 pub(super) fn static_effect_one_shot(e: &StaticEffect, ctx: &Ctx) -> Option<String> {
     static_effect_kind(e, ctx, true)

@@ -13,7 +13,7 @@
 //! hand).
 //!
 //! Earlier lint candidate: degenerate sequences once
-//! `Effect::Sequence(Vec<Effect>)` lands.
+//! `OneShotEffect::Sequentially(Vec<OneShotEffect>)` lands.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -355,10 +355,10 @@ mod tests {
     use deckmaste_core::Count;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
-    use deckmaste_core::Effect;
     use deckmaste_core::Expansion;
     use deckmaste_core::ExpansionArgs;
     use deckmaste_core::ManaSpec;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
@@ -367,10 +367,10 @@ mod tests {
     use deckmaste_core::Token;
     use deckmaste_core::Type;
 
-    /// `Effect::Act(By(You, AddMana(1, AnyColor)))` — the produced-mana effect
-    /// the test tokens carry, in the new player-agent shape.
-    fn add_one_any() -> Effect {
-        Effect::Act(Action::By(
+    /// `OneShotEffect::Act(By(You, AddMana(1, AnyColor)))` — the produced-mana
+    /// effect the test tokens carry, in the new player-agent shape.
+    fn add_one_any() -> OneShotEffect {
+        OneShotEffect::Act(Action::By(
             Reference::You,
             PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor.into()),
         ))

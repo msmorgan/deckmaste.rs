@@ -10,8 +10,8 @@ use deckmaste_core::CardFace;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
-use deckmaste_core::Effect;
 use deckmaste_core::ManaSpec;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Property;
 use deckmaste_core::Uint;
@@ -196,7 +196,7 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
                 // The produced-mana effect is a bare `AddMana` in RON, which
                 // reads as `By(You, AddMana(…))` (the implicit-you default);
                 // the agent is irrelevant for tap-for-mana derivation.
-                Effect::Act(Action::By(
+                OneShotEffect::Act(Action::By(
                     _,
                     PlayerAction::AddMana(
                         Count::Literal(n),
@@ -218,8 +218,8 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
-    use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Reference;
     use deckmaste_core::TriggeredAbility;
     use deckmaste_core::Zone;
@@ -263,7 +263,7 @@ mod tests {
             },
             condition: None,
             limits: vec![],
-            effect: Effect::Act(deckmaste_core::Action::By(
+            effect: OneShotEffect::Act(deckmaste_core::Action::By(
                 Reference::You,
                 deckmaste_core::PlayerAction::Draw(deckmaste_core::Count::Literal(1)),
             )),

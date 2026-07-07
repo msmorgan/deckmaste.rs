@@ -1,8 +1,8 @@
 //! Replacement effects as sentences.
 
 use deckmaste_core::Action;
-use deckmaste_core::Effect;
 use deckmaste_core::EventFilter;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
@@ -70,10 +70,10 @@ fn is_this_enters(e: &EventFilter) -> bool {
 }
 
 /// A lone "tap this" rider body.
-fn is_tap_this(e: &Effect) -> bool {
+fn is_tap_this(e: &OneShotEffect) -> bool {
     match e {
-        Effect::Expanded(exp) => is_tap_this(&exp.value),
-        Effect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => true,
+        OneShotEffect::Expanded(exp) => is_tap_this(&exp.value),
+        OneShotEffect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => true,
         _ => false,
     }
 }

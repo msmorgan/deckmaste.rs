@@ -49,7 +49,7 @@ pub enum Visibility {
 
 /// What kind of value a note slot stores ([CR#607.2] linked slots; "the
 /// chosen color" anaphora). Writers: `ChooseAndNote` (a resolution choice
-/// that stores) and `Effect::Noting` (stores the object set the inner
+/// that stores) and `OneShotEffect::Noting` (stores the object set the inner
 /// effect touched — exiled-with). Readers: `Reference::Linked(key)`,
 /// `Count::Noted(key)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, Expand, serde::Serialize)]

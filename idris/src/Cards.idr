@@ -3,7 +3,7 @@
 ||| templates. Verbs go through `Act` (the verb compartment); bodies read
 ||| announced targets and produced objects back as SORTED ANAPHORS
 ||| (`It`/`That w`/`They`/`The l`) in sentence order — the telescope
-||| `Sequence` threads each clause's introductions to its right siblings, so
+||| `Sequentially` threads each clause's introductions to its right siblings, so
 ||| the v1 `With (Produce …)` inversions are gone where the printed text
 ||| reads left-to-right. Encodings mirror the canon RON spellings
 ||| (`plugins/canon/cards/`) where a card exists there.
@@ -95,7 +95,7 @@ card_Flickerwisp = Normal $ ^:
       [ keyword Flying
       , Triggered (thisEnters) $
           Targeted [Target (^1) (And [permanent, Not (SameAs This)])] $
-            Sequence
+            Sequentially
               [ Act (Move (Target 0) (ToZone Exile))                       -- exile the announced target
               , Delayed nextEndStep
                   (Act (Move (That Card) (ToZone Battlefield))) ]          -- return the exiled card ([CR#603.7c]: the Product survives)
@@ -114,7 +114,7 @@ card_Brainstorm = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell $
-          Sequence
+          Sequentially
           [ Act (Draw (^3))
           , Each (Choose (^2) inHand) (Act (Move It (ToLibrary (FromTop (^0)))))   -- canon: Move(It, Library(FromTop(0))) — an ordered zone needs a position; a bare `Library` destination is unrepresentable
           ]
@@ -162,7 +162,7 @@ card_Cloudshift = Normal $ ^:
                                      , ControlledBy you
                                      ])
                    ] $
-          Sequence
+          Sequentially
             [ Act (Move It (ToZone Exile))
             , Act (Move (That Card) (ToZone Battlefield)) ]
       ]
@@ -187,7 +187,7 @@ card_ThroughTheBreach = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell $
-          Sequence
+          Sequentially
             [ May (With (ChooseOne (And [inHand, creature])) (Act (Move It (ToZone Battlefield))))
             , Continuously UntilEndOfTurn (Modify (That Permanent) (GrantAbility (keyword Haste)))  -- "that creature gains haste"
             , Delayed nextEndStep (Act (Move (That Permanent) (ToZone Graveyard))) ]
@@ -214,7 +214,7 @@ card_ApproachOfTheSecondSun = Normal $ ^:
                                                , Within ThisGame ]))
                             AtLeast (Literal 2) ])
              (Conclude (WinGame You))
-             { otherwise = Just (Sequence
+             { otherwise = Just (Sequentially
                  [ Act (Move (This) (ToLibrary (FromTop (^6))))
                  , Act (GainLife (^7)) ]) }
       ]
@@ -235,7 +235,7 @@ card_OblivionStone = Normal $ ^:
           (Targeted [Target (^1) permanent]
             (Act (PutCounters fateCounter (Literal 1) It)))
       , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
-          (Sequence
+          (Sequentially
             [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter fateCounter)]))) (Act (Destroy It))
             , Each (Existing (SelectAll permanent)) (Act (RemoveCounters fateCounter (CountersOn fateCounter It) It)) ])
       ]
@@ -313,11 +313,11 @@ card_Necropotence = Normal $ ^:
   , manaCost := [^Black, ^Black, ^Black]
   , types := [Enchantment]
   , abilities :=
-      [ Static (Replaces (MkEventQuery [BeginStep (BeginningPhase DrawStep)] [Whenever (TurnOf you)]) (Sequence []))
+      [ Static (Replaces (MkEventQuery [BeginStep (BeginningPhase DrawStep)] [Whenever (TurnOf you)]) (Sequentially []))
       , Triggered (MkEventQuery [Discard] [Actor you])
           (Act (Move EventObject (ToZone Exile)))
       , Activated (Do (LoseLife (Literal 1)))
-          (Sequence
+          (Sequentially
             [ Act (Move (Single (TopOfLibrary (Literal 1))) (ToZone Exile))
             , Delayed nextEndStep (Act (Move (That Card) (ToZone Hand))) ])  -- "put THAT CARD into your hand": the exiled product, through the delayed drop
       ]
@@ -535,7 +535,7 @@ card_Electrolyze = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
-          (Sequence
+          (Sequentially
             [ Distribute (^2) (Existing They) (Act (DealDamage Allotment It))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
             , Act (Draw (^1)) ]))
       ]
@@ -684,7 +684,7 @@ card_OutpostSiege = Normal $ ^:
           [ -- Khans (0): at your upkeep, exile the top card of your library; until eot you may play THAT CARD
             Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
-                  (Sequence
+                  (Sequentially
                     [ Act (Move (Single (TopOfLibrary (^1))) (ToZone Exile))
                     , Continuously UntilEndOfTurn (Can (Enact Play you (SameAs (That Card)))) ]))
           , -- Dragons (1): when a creature you control leaves the battlefield, deal 1 to any target —
@@ -770,7 +770,7 @@ card_DelverOfSecrets = TwoFaced Transforming
       , abilities :=
           [ Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] [Whenever (TurnOf you)])
               (If (Matches (Single (TopOfLibrary (^1))) (Or [hasType Instant, hasType Sorcery]))
-                  (May (Sequence [ Act (Reveal (Single (TopOfLibrary (^1))))
+                  (May (Sequentially [ Act (Reveal (Single (TopOfLibrary (^1))))
                                  , Act (Transform This) ])))
           ]
       , power := Just 1
@@ -858,7 +858,7 @@ card_FloodedStrand = Normal $ ^:
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (LoseLife (^1)), Do (Sacrifice (SameAs This))])
           (With (SearchOne {from = [Library]} (Or [hasSubtype (landType "Plains"), hasSubtype (landType "Island")]))
-            (Sequence [ Act (Move (That Card) (ToZone Battlefield))     -- the found card: a whiffable Product, noun `Card`
+            (Sequentially [ Act (Move (That Card) (ToZone Battlefield))     -- the found card: a whiffable Product, noun `Card`
                       , Act Shuffle ])) ]
   }
 
@@ -900,7 +900,7 @@ card_ThornOfTheBlackRose = Normal $ ^:
 -- Fleecemane Lion — an OBJECT designation (monstrous): Monstrosity grants it (`GrantDesignation
 -- monstrous This`), and the statics read it (`HasDesignation monstrous`, an object test) to confer
 -- hexproof AND indestructible while monstrous. Indestructible needs no new construct — it's `Replaces`
--- (the destroy of This) with `Sequence []` (a pure skip).
+-- (the destroy of This) with `Sequentially []` (a pure skip).
 export
 card_FleecemaneLion : Card
 card_FleecemaneLion = Normal $ ^:
@@ -1031,7 +1031,7 @@ card_PlatinumAngel = Normal $ ^:
   }
 
 -- Darksteel Citadel — INDESTRUCTIBLE as a keyword (its `Composite` desugars to the `Replaces`-the-
--- destroy-with-`Sequence []` skip, so the `Replaces`-empty machinery subsumes Rust's `CantHappen`).
+-- destroy-with-`Sequentially []` skip, so the `Replaces`-empty machinery subsumes Rust's `CantHappen`).
 export
 card_DarksteelCitadel : Card
 card_DarksteelCitadel = Normal $ ^:
@@ -1140,7 +1140,7 @@ card_SmugglersCopter = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , Triggered (MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs This)])
-          (May (Sequence [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
+          (May (Sequentially [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
       , crew (^1)                                                  -- Crew 1
       ]
   , power := Just 3

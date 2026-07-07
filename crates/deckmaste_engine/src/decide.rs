@@ -426,13 +426,13 @@ pub(crate) fn unless_cost_action(
         // A cost-side `With` ([CR#601.2b]) is a choose-then-pay step with no
         // single-`Action` rendering — it must surface a payment-time choice and
         // bind `That`/`Those`. Every caller that can see a `With` routes through
-        // `unless_cost_effect` (which renders it as an `Effect::With`), so this
+        // `unless_cost_effect` (which renders it as an `OneShotEffect::With`), so this
         // Action-only path is never reached for one.
         CostComponent::With { .. } => unreachable!(
             "a cost-side With ([CR#601.2b]) is rendered by unless_cost_effect as an \
-             Effect::With, never as a single Action"
+             OneShotEffect::With, never as a single Action"
         ),
-        // The `unless` cost list is `Cost::normalize`d at the `Effect::Unless`
+        // The `unless` cost list is `Cost::normalize`d at the `OneShotEffect::Unless`
         // boundary (see `resolve.rs`), which splices every nested `Cost` flat,
         // so a `Cost` component never survives to here.
         CostComponent::Cost(_) => {
@@ -486,30 +486,31 @@ pub(crate) fn toll_item(
 /// ([CR#118.12a,601.2b]) — the entry point every cost-to-effect payment walk
 /// (the `Unless`/`MayPay` continuations, the `AdditionalCost` arm, and the
 /// activation cost-`With` step) uses. Most components are a single payer
-/// `Action`, so they wrap [`unless_cost_action`] in [`Effect::Act`]; a
+/// `Action`, so they wrap [`unless_cost_action`] in [`OneShotEffect::Act`]; a
 /// cost-side [`With`](deckmaste_core::CostComponent::With) is a choose-then-pay
-/// step with no single-`Action` rendering, so it becomes an [`Effect::With`]:
-/// the binder surfaces the controller's `ChooseObjects` choice (bound as
-/// `That`/`Those`), then the body pays against it — exactly the effect-side
-/// `With` machinery, reused here so cost choosing stays OUT of the verb.
+/// step with no single-`Action` rendering, so it becomes an
+/// [`OneShotEffect::With`]: the binder surfaces the controller's
+/// `ChooseObjects` choice (bound as `That`/`Those`), then the body pays against
+/// it — exactly the effect-side `With` machinery, reused here so cost choosing
+/// stays OUT of the verb.
 pub(crate) fn unless_cost_effect(
     component: &deckmaste_core::CostComponent,
     who: &deckmaste_core::Reference,
-) -> deckmaste_core::Effect {
+) -> deckmaste_core::OneShotEffect {
     use deckmaste_core::CostComponent;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     match component {
         // [CR#601.2b]: the binder's choice binds `That`/`Those`; the body pays
         // against that binding. Recurse on the body (a nested `With` still
-        // surfaces its own choice) and reuse the `Effect::With` interpreter.
-        CostComponent::With { binder, body } => Effect::With(deckmaste_core::With {
+        // surfaces its own choice) and reuse the `OneShotEffect::With` interpreter.
+        CostComponent::With { binder, body } => OneShotEffect::With(deckmaste_core::With {
             binder: (**binder).clone(),
             body: Box::new(cost_body_effect(body, who)),
         }),
         // Look through a remembered macro invocation so a wrapped `With` is
         // still intercepted here (not delegated to the Action-only path).
         CostComponent::Expanded(e) => unless_cost_effect(&e.value, who),
-        other => Effect::Act(unless_cost_action(other, who)),
+        other => OneShotEffect::Act(unless_cost_action(other, who)),
     }
 }
 
@@ -519,12 +520,12 @@ pub(crate) fn unless_cost_effect(
 fn cost_body_effect(
     body: &deckmaste_core::Cost,
     who: &deckmaste_core::Reference,
-) -> deckmaste_core::Effect {
-    let mut effects: Vec<deckmaste_core::Effect> =
+) -> deckmaste_core::OneShotEffect {
+    let mut effects: Vec<deckmaste_core::OneShotEffect> =
         body.iter().map(|c| unless_cost_effect(c, who)).collect();
     match effects.len() {
         1 => effects.pop().expect("len 1"),
-        _ => deckmaste_core::Effect::Sequence(effects),
+        _ => deckmaste_core::OneShotEffect::Sequentially(effects),
     }
 }
 
@@ -1072,11 +1073,11 @@ impl GameState {
                     .take()
                     .expect("a YesNo decision stashed its continuation");
                 match cont {
-                    // [CR#118.12]: `Effect::May` — yes runs `effect` then
+                    // [CR#118.12]: `OneShotEffect::May` — yes runs `effect` then
                     // `if_did`; no runs `if_not` (or nothing). Front-scheduled
                     // in order so `effect` precedes `if_did`.
                     crate::state::ChoiceContinuation::May { may, frame } => {
-                        let branch: Vec<Box<deckmaste_core::Effect>> = if yes {
+                        let branch: Vec<Box<deckmaste_core::OneShotEffect>> = if yes {
                             std::iter::once(may.effect).chain(may.if_did).collect()
                         } else {
                             may.if_not.into_iter().collect()
@@ -1114,7 +1115,7 @@ impl GameState {
                         let index = if yes && repeatable { index } else { index + 1 };
                         self.schedule_front(vec![WorkItem::AnnounceOptionalCosts { index }]);
                     }
-                    // [CR#118.12a,608.2d]: `Effect::Unless` — yes pays the cost
+                    // [CR#118.12a,608.2d]: `OneShotEffect::Unless` — yes pays the cost
                     // (each component as the payer's action) and `effect` is
                     // skipped; no runs `effect`.
                     crate::state::ChoiceContinuation::Unless {
@@ -1134,7 +1135,7 @@ impl GameState {
                         };
                         self.schedule_front(items);
                     }
-                    // [CR#603,608]: `Effect::MayPay` — yes pays the cost (each
+                    // [CR#603,608]: `OneShotEffect::MayPay` — yes pays the cost (each
                     // component as `actor`'s action) THEN runs `and_then`; no
                     // runs `or_else` (or nothing). Front-scheduled in order so
                     // the payment precedes `and_then`.

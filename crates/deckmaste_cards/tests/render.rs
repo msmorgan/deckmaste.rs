@@ -415,7 +415,7 @@ fn renders_synthesized_lose_life_and_destroy() {
     use deckmaste_core::Action;
     use deckmaste_core::CardFace;
     use deckmaste_core::Count;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
@@ -429,7 +429,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::LoseLife(Count::Literal(3)),
             )),
@@ -447,9 +447,9 @@ fn renders_synthesized_lose_life_and_destroy() {
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
-            effect: Effect::Targeted(deckmaste_core::Targeted::new(
+            effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
-                Effect::Act(Action::Destroy(Reference::It)),
+                OneShotEffect::Act(Action::Destroy(Reference::It)),
             )),
         })],
         ..CardFace::default()
@@ -466,7 +466,7 @@ fn renders_synthesized_lose_life_and_destroy() {
 fn renders_named_predefined_token() {
     use deckmaste_core::Action;
     use deckmaste_core::Count;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::TokenName;
@@ -477,7 +477,7 @@ fn renders_named_predefined_token() {
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
             ability_word: None,
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(
                     Count::Literal(1),
@@ -498,7 +498,7 @@ fn renders_named_predefined_token() {
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
             ability_word: None,
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(
                     Count::Literal(2),
@@ -621,10 +621,11 @@ fn renders_aura_host_pump() {
     );
 }
 
-// ── Coverage D: Effect::Continuously + Duration suffix ──────────────────────
+// ── Coverage D: OneShotEffect::Continuously + Duration suffix
+// ──────────────────────
 
 /// Synthesized pump spell: "Target creature gets +3/+3 until end of turn."
-/// Exercises `Effect::Continuously` → `static_effect` (inner) +
+/// Exercises `OneShotEffect::Continuously` → `static_effect` (inner) +
 /// `duration_suffix(FixedUntil(EndOfTurn))`.
 #[test]
 fn renders_continuously_pump_until_eot() {
@@ -633,8 +634,8 @@ fn renders_continuously_pump_until_eot() {
     use deckmaste_core::Continuously;
     use deckmaste_core::Count;
     use deckmaste_core::Duration;
-    use deckmaste_core::Effect;
     use deckmaste_core::Modification;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
@@ -648,9 +649,9 @@ fn renders_continuously_pump_until_eot() {
         types: vec![Type::Instant],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
-            effect: Effect::Targeted(deckmaste_core::Targeted::new(
+            effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
-                Effect::Continuously(Continuously {
+                OneShotEffect::Continuously(Continuously {
                     effect: Box::new(StaticEffect::Modify(
                         Reference::It,
                         Modification::Several(vec![
@@ -677,7 +678,7 @@ fn renders_create_one_token() {
     use deckmaste_core::Action;
     use deckmaste_core::Color;
     use deckmaste_core::Count;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
@@ -702,7 +703,7 @@ fn renders_create_one_token() {
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(Count::Literal(1), TokenSpec::Token(token), vec![]),
             )),
@@ -720,7 +721,7 @@ fn renders_create_two_tokens() {
     use deckmaste_core::Action;
     use deckmaste_core::Color;
     use deckmaste_core::Count;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
@@ -745,7 +746,7 @@ fn renders_create_two_tokens() {
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(Count::Literal(2), TokenSpec::Token(token), vec![]),
             )),
@@ -792,8 +793,8 @@ fn renders_get_designation() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::CardFace;
-    use deckmaste_core::Effect;
     use deckmaste_core::Ident;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SpellAbility;
@@ -803,7 +804,7 @@ fn renders_get_designation() {
         types: vec![Type::Sorcery],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GetDesignation(Ident::from("CitysBlessing")),
             )),
@@ -877,8 +878,8 @@ fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::CardFace;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
-    use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
@@ -902,7 +903,7 @@ fn renders_trigger_with_turnof_intervening_if() {
                 RelationPredicate::OpponentOf(Box::new(Predicate::Ref(Reference::You))),
             ))),
             limits: vec![],
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Draw(Count::Literal(1)),
             )),

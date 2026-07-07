@@ -49,14 +49,14 @@ pub fn kinds() -> KindSet {
 /// grammar kind — the [typed-holes delta 1] retype, so a `params: [Any]` slot
 /// is the deliberate escape hatch, not the default. A validator reads the
 /// argument as its Rust type with macros in scope, so the check and the real
-/// grammar are one path (a bad `Color`, `Effect`, `Predicate`, … fails at the
-/// call site exactly as it would at a real position).
+/// grammar are one path (a bad `Color`, `OneShotEffect`, `Predicate`, … fails
+/// at the call site exactly as it would at a real position).
 ///
-/// The registered name is the type's own serde name (`Predicate`, `Effect`,
-/// `Reference`), with three shaped exceptions carrying their own spelling:
-/// `Color` (a characteristic, not a macro kind), `Cost` (the *list* form
-/// `Vec<CostComponent>`, the bracketed keyword-cost argument), and `Abilities`
-/// (the `Vec<Ability>` a `Composite`/keyword meta forwards).
+/// The registered name is the type's own serde name (`Predicate`,
+/// `OneShotEffect`, `Reference`), with three shaped exceptions carrying their
+/// own spelling: `Color` (a characteristic, not a macro kind), `Cost` (the
+/// *list* form `Vec<CostComponent>`, the bracketed keyword-cost argument), and
+/// `Abilities` (the `Vec<Ability>` a `Composite`/keyword meta forwards).
 #[must_use]
 pub fn param_types() -> ParamTypeSet {
     use deckmaste_core as dc;
@@ -78,7 +78,7 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::CostComponent>("CostComponent");
     param_types.add_typed::<dc::Count>("Count");
     param_types.add_typed::<dc::Destination>("Destination");
-    param_types.add_typed::<dc::Effect>("Effect");
+    param_types.add_typed::<dc::OneShotEffect>("OneShotEffect");
     param_types.add_typed::<dc::EventFilter>("EventFilter");
     param_types.add_typed::<dc::Predicate>("Predicate");
     param_types.add_typed::<dc::KeywordAbility>("KeywordAbility");
@@ -121,12 +121,12 @@ mod tests {
     use deckmaste_core::Count;
     use deckmaste_core::Counter;
     use deckmaste_core::Destination;
-    use deckmaste_core::Effect;
     use deckmaste_core::EventFilter;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::ManaRider;
     use deckmaste_core::Modification;
     use deckmaste_core::ObjectKind;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
@@ -172,7 +172,7 @@ mod tests {
             name_of::<CostComponent>(),
             name_of::<Destination>(),
             name_of::<Zone>(),
-            name_of::<Effect>(),
+            name_of::<OneShotEffect>(),
             name_of::<EventFilter>(),
             name_of::<Predicate>(),
             name_of::<KeywordAbility>(),
@@ -551,11 +551,11 @@ mod tests {
         );
     }
 
-    /// `expand_all` over a real converted type: an `Effect` read through the
-    /// card macro set carries the remembered `Expanded` node (here nested in
-    /// a `Sequence`, proving recursion through real grammar containers), and
-    /// expanding strips it — the result serializes as the fully-expanded RON,
-    /// not the invocation.
+    /// `expand_all` over a real converted type: an `OneShotEffect` read through
+    /// the card macro set carries the remembered `Expanded` node (here
+    /// nested in a `Sequentially`, proving recursion through real grammar
+    /// containers), and expanding strips it — the result serializes as the
+    /// fully-expanded RON, not the invocation.
     #[test]
     fn expand_all_strips_remembered_invocations() {
         use deckmaste_core::Expand as _;
@@ -564,27 +564,27 @@ mod tests {
         macros
             .insert(&def(r#"(
                     name: "DrawTwo",
-                    kinds: [Effect],
+                    kinds: [OneShotEffect],
                     body: Draw(2),
                 )"#))
             .unwrap();
-        let effect: Effect = macros.read_str("Sequence([DrawTwo])").unwrap();
-        let Effect::Sequence(steps) = &effect else {
+        let effect: OneShotEffect = macros.read_str("Sequentially([DrawTwo])").unwrap();
+        let OneShotEffect::Sequentially(steps) = &effect else {
             panic!("expected a sequence, got {effect:?}");
         };
-        assert!(matches!(steps[0], Effect::Expanded(_)));
+        assert!(matches!(steps[0], OneShotEffect::Expanded(_)));
 
         let expanded = effect.expand_all();
         assert_eq!(
             expanded,
-            Effect::Sequence(vec![Effect::act_by_you(PlayerAction::Draw(
+            OneShotEffect::Sequentially(vec![OneShotEffect::act_by_you(PlayerAction::Draw(
                 Count::Literal(2),
             ))])
         );
         let written = deckmaste_core::ron::options().to_string(&expanded).unwrap();
         assert!(!written.contains("DrawTwo"), "macro name leaked: {written}");
         // A `Count` literal writes bare — `2`, never `Literal(2)`.
-        assert_eq!(written, "Sequence([Draw(2)])");
+        assert_eq!(written, "Sequentially([Draw(2)])");
     }
 
     /// The literal sugar applies to `Count` through the glue's registry:
@@ -642,14 +642,15 @@ mod tests {
     }
 
     /// [typed-holes delta 1] Every macroable kind is a registered param type,
-    /// so a macro may declare `Effect`/`Selection`/`Modification`/… slots — and
-    /// an argument that isn't that grammar is rejected at the call site, before
-    /// the body expands. Retyping the `Any` slots to real types is the point.
+    /// so a macro may declare `OneShotEffect`/`Selection`/`Modification`/…
+    /// slots — and an argument that isn't that grammar is rejected at the
+    /// call site, before the body expands. Retyping the `Any` slots to real
+    /// types is the point.
     #[test]
     fn every_macroable_kind_is_a_typed_param() {
         let param_types = param_types();
         for name in [
-            "Effect",
+            "OneShotEffect",
             "Ability",
             "Action",
             "Condition",
@@ -684,8 +685,8 @@ mod tests {
         }
     }
 
-    /// An `Effect`-typed slot rejects a non-Effect at the call site — the
-    /// delta-1 headline for a kind that had no validator before.
+    /// An `OneShotEffect`-typed slot rejects a non-OneShotEffect at the call
+    /// site — the delta-1 headline for a kind that had no validator before.
     #[test]
     fn effect_param_rejects_a_non_effect() {
         let mut macros = macro_set();
@@ -693,20 +694,20 @@ mod tests {
             .insert(&def(r#"(
                     name: "DoThen",
                     kinds: [Replacement],
-                    params: [Effect],
+                    params: [OneShotEffect],
                     body: Also(would: ZoneChange(what: Any, to: Battlefield), also: Param(0)),
                 )"#))
             .unwrap();
-        // `Purple` is neither an Effect variant nor an Effect macro.
+        // `Purple` is neither a OneShotEffect variant nor a OneShotEffect macro.
         let error = macros
             .read_str::<deckmaste_core::Replacement>("DoThen(Purple)")
             .unwrap_err()
             .to_string();
         assert!(
-            error.contains("DoThen") && error.contains("Effect"),
+            error.contains("DoThen") && error.contains("OneShotEffect"),
             "unexpected error: {error}"
         );
-        // A real Effect argument is accepted (remembered as `Expanded`).
+        // A real OneShotEffect argument is accepted (remembered as `Expanded`).
         let ok: deckmaste_core::Replacement = macros.read_str("DoThen(Tap(This))").unwrap();
         let deckmaste_core::Replacement::Expanded(exp) = ok else {
             panic!("expected a remembered replacement, got {ok:?}");

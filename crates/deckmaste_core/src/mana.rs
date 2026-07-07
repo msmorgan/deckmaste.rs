@@ -164,10 +164,10 @@ pub enum ManaRider {
     SpendOnly(crate::Predicate),
     /// An effect granted to the spell or ability the mana is spent on
     /// ("If that mana is spent on a creature spell, it gains riot").
-    GrantOnSpend(Box<crate::Effect>),
+    GrantOnSpend(Box<crate::OneShotEffect>),
     /// A delayed trigger ([CR#603.7a]) firing when the mana is spent
     /// ("When that mana is spent to cast …, copy that spell").
-    TriggerOnSpend(Box<crate::Effect>),
+    TriggerOnSpend(Box<crate::OneShotEffect>),
     /// Persistence override ([CR#106.4] emptying does not claim it until
     /// the marker — firebending's "you don't lose this mana",
     /// [CR#702.189a]).

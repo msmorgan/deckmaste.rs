@@ -425,7 +425,7 @@ fn gather(
             continue;
         }
         let timestamp = obj.timestamp;
-        // Effect-source abilities come from the DERIVED list once the fixpoint
+        // OneShotEffect-source abilities come from the DERIVED list once the fixpoint
         // is running ([CR#613.7]): the first iteration reads the PRINTED list
         // (the cycle-safe base that breaks the `layers() → derive::abilities →
         // layers()` recursion), and every later iteration reads the working
@@ -1756,9 +1756,9 @@ mod tests {
         use deckmaste_core::CardFace;
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::CostComponent;
-        use deckmaste_core::Effect;
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Property;
         use deckmaste_core::Reference;
@@ -1778,7 +1778,7 @@ mod tests {
                     window: None,
                     condition: None,
                     limits: vec![],
-                    effect: Effect::Act(deckmaste_core::Action::By(
+                    effect: OneShotEffect::Act(deckmaste_core::Action::By(
                         Reference::You,
                         PlayerAction::AddMana(
                             Count::Literal(1),

@@ -5,8 +5,8 @@
 
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
-use deckmaste_core::Effect;
 use deckmaste_core::EventFilter;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
@@ -65,14 +65,14 @@ impl GameState {
     /// selection (§4). Counters/face-down are Stage-4 seams.
     fn apply_as_enters(
         &self,
-        effect: &Effect,
+        effect: &OneShotEffect,
         entering: crate::object::ObjectId,
         status: &mut EnterStatus,
     ) {
         match effect {
             // `Tap` is a `PlayerAction`, so the `AsEnters` sugar expands to
             // `Act(By(You, Tap(This)))` (the agent is irrelevant here).
-            Effect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => {
+            OneShotEffect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => {
                 status.tapped = true;
             }
             // [CR#303.4,303.4f]: enters attached. The enters-attached shape is
@@ -80,7 +80,7 @@ impl GameState {
             // controller chooses a legal host matching the Aura's enchant
             // quality (choosing BEFORE the attach, never inside the verb). v1
             // picks the first legal candidate; the cast-path choice is Stage-4.
-            Effect::With(_) if enters_attached_quality(effect).is_some() => {
+            OneShotEffect::With(_) if enters_attached_quality(effect).is_some() => {
                 let filter = enters_attached_quality(effect).expect("guarded just above");
                 status.attach_to = self.enters_attached_host(entering, filter);
             }
@@ -88,7 +88,7 @@ impl GameState {
             // n)` self-replacement → fold `(kind, n)` into the entering status.
             // `n` is evaluated against a `This`-anchored frame so a count that
             // scales ("a +1/+1 counter for each …") resolves at entry.
-            Effect::Act(Action::By(_, PlayerAction::PutCounters(what, kind, count)))
+            OneShotEffect::Act(Action::By(_, PlayerAction::PutCounters(what, kind, count)))
                 if is_self_reference(what) =>
             {
                 let frame = self.enters_frame(entering);
@@ -102,7 +102,7 @@ impl GameState {
             // `AsEnters(If(condition: <gate>, then: <fold>, otherwise: <fold>))`.
             // Evaluate the gate against a `This`-anchored entry frame (the "you"
             // is the entering object's controller) and fold the chosen branch.
-            Effect::If(if_effect) => {
+            OneShotEffect::If(if_effect) => {
                 let frame = self.enters_frame(entering);
                 if self.condition_holds(&if_effect.condition, &frame) {
                     self.apply_as_enters(&if_effect.then, entering, status);
@@ -110,7 +110,7 @@ impl GameState {
                     self.apply_as_enters(otherwise, entering, status);
                 }
             }
-            Effect::Expanded(e) => self.apply_as_enters(&e.value, entering, status),
+            OneShotEffect::Expanded(e) => self.apply_as_enters(&e.value, entering, status),
             other => todo!("stage 3 does not interpret enters-replacement effect {other:?}"),
         }
     }
@@ -154,17 +154,17 @@ impl GameState {
 /// `With(ChooseOne(quality), Attach(This, It))` ([CR#303.4f]: as it enters,
 /// the controller chooses a legal host matching the Aura's enchant quality),
 /// looked through `Expanded`. `None` for any other shape.
-fn enters_attached_quality(effect: &Effect) -> Option<&Predicate> {
+fn enters_attached_quality(effect: &OneShotEffect) -> Option<&Predicate> {
     match effect {
-        Effect::With(with) => {
+        OneShotEffect::With(with) => {
             let body_is_self_attach = matches!(
                 &*with.body,
-                Effect::Act(Action::Attach { what, to })
+                OneShotEffect::Act(Action::Attach { what, to })
                     if is_self_reference(what) && matches!(to, Reference::It)
             );
             if body_is_self_attach { host_quality(&with.binder) } else { None }
         }
-        Effect::Expanded(e) => enters_attached_quality(&e.value),
+        OneShotEffect::Expanded(e) => enters_attached_quality(&e.value),
         _ => None,
     }
 }
@@ -192,7 +192,7 @@ fn is_self_reference(r: &Reference) -> bool {
 /// Whether an `also` effect is this object attaching itself on entry — the
 /// enters-attached shape `With(ChooseOne(quality), Attach(This, That))`,
 /// looked through `Expanded`.
-fn also_is_self_attach(effect: &Effect) -> bool {
+fn also_is_self_attach(effect: &OneShotEffect) -> bool {
     enters_attached_quality(effect).is_some()
 }
 
@@ -282,7 +282,7 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: Effect::With(deckmaste_core::With {
+                    also: OneShotEffect::With(deckmaste_core::With {
                         binder: deckmaste_core::Binder::ChooseOne {
                             filter: Predicate::AllOf(vec![
                                 Predicate::State(deckmaste_core::StatePredicate::InZone(
@@ -292,7 +292,7 @@ mod tests {
                             ]),
                             by: Reference::You,
                         },
-                        body: Box::new(Effect::Act(Action::Attach {
+                        body: Box::new(OneShotEffect::Act(Action::Attach {
                             what: Reference::This,
                             to: Reference::It,
                         })),
@@ -413,7 +413,7 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: Effect::Act(Action::By(
+                    also: OneShotEffect::Act(Action::By(
                         Reference::You,
                         PlayerAction::PutCounters(
                             Reference::This,
@@ -502,9 +502,9 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: Effect::If(If {
+                    also: OneShotEffect::If(If {
                         condition: Condition::Not(Box::new(gate)),
-                        then: Box::new(Effect::Act(Action::By(
+                        then: Box::new(OneShotEffect::Act(Action::By(
                             Reference::You,
                             PlayerAction::Tap(Reference::This),
                         ))),

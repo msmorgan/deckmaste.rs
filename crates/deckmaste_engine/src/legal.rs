@@ -1078,9 +1078,9 @@ mod tests {
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::CostComponent;
         use deckmaste_core::Count;
-        use deckmaste_core::Effect;
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::PlayerAction;
         Ability::Activated(ActivatedAbility {
             ability_word: None,
@@ -1089,7 +1089,7 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![],
-            effect: Effect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::AddMana(
                     Count::Literal(1),

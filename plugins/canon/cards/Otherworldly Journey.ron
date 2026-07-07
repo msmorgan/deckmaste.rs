@@ -20,7 +20,7 @@ Normal(
     Spell(
       effect: Targeted(
         targets: [TargetOne(Creature)],
-        effect: Sequence([
+        effect: Sequentially([
           Move(It, Exile),
           Delayed(
             event: NextEndStep,

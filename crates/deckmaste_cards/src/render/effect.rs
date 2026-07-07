@@ -11,8 +11,8 @@ use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
 use deckmaste_core::Destination;
 use deckmaste_core::Duration;
-use deckmaste_core::Effect;
 use deckmaste_core::EnterRider;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
@@ -41,12 +41,12 @@ fn payer_verbs(payer: &str) -> (&'static str, &'static str, &'static str) {
     }
 }
 
-/// Render an `Effect` as one or more sentences joined into a single rules
-/// string.
-pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
+/// Render an `OneShotEffect` as one or more sentences joined into a single
+/// rules string.
+pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
     match e {
-        Effect::Act(a) => action(a, ctx),
-        Effect::Sequence(parts) => {
+        OneShotEffect::Act(a) => action(a, ctx),
+        OneShotEffect::Sequentially(parts) => {
             let mut out = String::new();
             for (i, p) in parts.iter().enumerate() {
                 let s = trim_period(&effect(p, ctx));
@@ -55,8 +55,10 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 // ...", Otherworldly Journey) always reads as its OWN
                 // sentence — never joined with ", then" the way two plain
                 // instructions are ([CR#603.7,603.12]).
-                let new_sentence =
-                    matches!(peel_expanded(p), Effect::Delayed(_) | Effect::Reflexive(_));
+                let new_sentence = matches!(
+                    peel_expanded(p),
+                    OneShotEffect::Delayed(_) | OneShotEffect::Reflexive(_)
+                );
                 if i == 0 {
                     out.push_str(&s);
                 } else if new_sentence {
@@ -76,7 +78,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // phrase ("target creature you control"), so `${0} fights ${1}` reads
         // back to oracle; other args keep the context-free `render_slot`. The
         // sentence is capitalized (a reference-leading template starts lower).
-        Effect::Expanded(e) => {
+        OneShotEffect::Expanded(e) => {
             let filled = e.template.as_deref().and_then(|tmpl| {
                 super::template::fill_with(tmpl, ctx.subject, &e.args, |raw, modifier| {
                     if modifier.is_none()
@@ -92,7 +94,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
                 None => effect(&e.value, ctx),
             }
         }
-        Effect::Continuously(c) => {
+        OneShotEffect::Continuously(c) => {
             let clause = super::ability::static_effect_one_shot(&c.effect, ctx).map_or_else(
                 || format!("[unrendered: {:?}]", c.effect),
                 |s| trim_period(&s),
@@ -107,7 +109,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // Parts join "and" — the common case is one part; the corpus has no
         // multi-part `Until` fixture yet, so N>1 stays a plain "and" splice
         // rather than fabricated punctuation.
-        Effect::Until(duration, parts) => {
+        OneShotEffect::Until(duration, parts) => {
             let clauses: Vec<String> = parts
                 .iter()
                 .map(|p| {
@@ -124,7 +126,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // A target-scoping wrapper ([CR#115.1,601.2c]): render the inner effect
         // with `ctx.targets` rebound to this node's targets, so the inner
         // the slot-bound anaphors resolve to "target creature" etc.
-        Effect::Targeted(t) => effect(
+        OneShotEffect::Targeted(t) => effect(
             &t.effect,
             &Ctx {
                 subject: ctx.subject,
@@ -136,7 +138,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // time punisher (Mana Leak). Starts with the rendered punisher effect
         // (already capitalized). Declines structurally if the cost has no symbol
         // rendering (e.g. a `Do(...)` verb cost).
-        Effect::MustPay(m) => {
+        OneShotEffect::MustPay(m) => {
             let payer = fragment::reference(&m.actor, ctx);
             let (_, _, pays) = payer_verbs(&payer);
             match super::template::render_cost(&m.cost.0) {
@@ -149,7 +151,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         }
         // [CR#603,608]: "[actor] may pay [cost]. If [actor] does, [and_then];
         // if [actor] doesn't, [or_else]" — a resolution-time kicker.
-        Effect::MayPay(m) => {
+        OneShotEffect::MayPay(m) => {
             let payer = fragment::reference(&m.actor, ctx);
             let (does, doesnt, _) = payer_verbs(&payer);
             match super::template::render_cost(&m.cost.0) {
@@ -176,7 +178,7 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // (every current corpus/test usage sits there); an activated
         // ability's printed additional cost ("to activate this ability")
         // is unhandled until a card needs it.
-        Effect::AdditionalCost(ac) => match additional_payment(&ac.pay.0, ctx) {
+        OneShotEffect::AdditionalCost(ac) => match additional_payment(&ac.pay.0, ctx) {
             Some(pay) => {
                 // "the sacrificed creature" (Fling), when the body reads it
                 // back via `EventObject` — the cost-side twin of `With`'s
@@ -196,12 +198,12 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // [CR#601.2d]: a divided distribution — the body picks the verb
         // ("deal … damage" vs "distribute … counters"), the amount is divided
         // "as you choose" among the group.
-        Effect::Distribute(d) => divide_among(d, ctx),
+        OneShotEffect::Distribute(d) => divide_among(d, ctx),
         // [CR#601.2b]: a choose-then-act binder. The binder's noun phrase
         // ("a creature", "two cards") is bound as the body's `That`/`Those`
         // anaphor, so `With(ChooseOne(Creature), Sacrifice(That))` renders
         // "Sacrifice a creature."
-        Effect::With(w) => {
+        OneShotEffect::With(w) => {
             let phrase = binder_phrase(&w.binder, ctx);
             effect(&w.body, &ctx.with_that(&phrase))
         }
@@ -213,8 +215,8 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // creature, …"; a body the collapse does not recognise falls back to
         // that per-element form ([CR#608.2]). This is the renderer half of the
         // `core-many-binder-group-move` seam.
-        Effect::Each(fe) => {
-            if let Effect::Act(act) = &*fe.effect
+        OneShotEffect::Each(fe) => {
+            if let OneShotEffect::Act(act) = &*fe.effect
                 && let Some(collective) = each_collective(act, &fe.binder, ctx)
             {
                 return collective;
@@ -233,12 +235,12 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // family. Bespoke, like `divide_among`/`additional_payment`: the
         // pile-shape has no generic "spell one sentence per node" reading,
         // so this recognizes the shapes the corpus actually needs.
-        Effect::SeparatePiles(piles) => separate_piles(piles, ctx),
-        Effect::ChoosePile(cp) => choose_pile(cp, ctx),
+        OneShotEffect::SeparatePiles(piles) => separate_piles(piles, ctx),
+        OneShotEffect::ChoosePile(cp) => choose_pile(cp, ctx),
         // [CR#700.2]: a modal spell/ability — an optional Escalate/Entwine
         // cost-rider line, then "Choose ... —" and one bulleted mode per
         // line.
-        Effect::Modal(modal) => modal_effect(modal, ctx),
+        OneShotEffect::Modal(modal) => modal_effect(modal, ctx),
         // [CR#603.7]: a delayed triggered ability created on resolution —
         // "At the beginning of [event], [effect]." One-shot by construction,
         // so a step-based event reads with whatever "next"-qualified
@@ -246,13 +248,13 @@ pub(super) fn effect(e: &Effect, ctx: &Ctx) -> String {
         // beginning of the next end step") rather than the generic
         // recurring phrasing `ability::event_clause` uses for a permanent's
         // own (repeating) triggers.
-        Effect::Delayed(t) => delayed(t, ctx),
+        OneShotEffect::Delayed(t) => delayed(t, ctx),
         other => format!("[unrendered: {other:?}]."),
     }
 }
 
 /// A delayed triggered ability's lead-in + body ([CR#603.7]). See
-/// [`Effect::Delayed`]'s render arm above for why this doesn't just call
+/// [`OneShotEffect::Delayed`]'s render arm above for why this doesn't just call
 /// `ability::event_clause` uncritically.
 fn delayed(t: &deckmaste_core::TriggeredAbility, ctx: &Ctx) -> String {
     use deckmaste_core::EventFilter;
@@ -275,9 +277,9 @@ fn delayed(t: &deckmaste_core::TriggeredAbility, ctx: &Ctx) -> String {
 
 /// See through a macro invocation to its expanded value — the effect-side
 /// twin of `fragment::strip_expanded` (which does the same for `Predicate`).
-fn peel_expanded(e: &Effect) -> &Effect {
+fn peel_expanded(e: &OneShotEffect) -> &OneShotEffect {
     match e {
-        Effect::Expanded(exp) => peel_expanded(&exp.value),
+        OneShotEffect::Expanded(exp) => peel_expanded(&exp.value),
         other => other,
     }
 }
@@ -376,7 +378,7 @@ fn plural_group_noun(f: &deckmaste_core::Predicate, ctx: &Ctx) -> String {
 fn choose_pile(cp: &deckmaste_core::ChoosePile, ctx: &Ctx) -> String {
     let chooser = fragment::reference(&cp.by, ctx);
     let pile_phrase = format!("the pile of {chooser}'s choice");
-    if let Effect::Each(each) = peel_expanded(&cp.then)
+    if let OneShotEffect::Each(each) = peel_expanded(&cp.then)
         && matches!(
             &each.binder,
             deckmaste_core::Binder::Existing(Selection::Them(Sort::Pile))
@@ -393,17 +395,17 @@ fn choose_pile(cp: &deckmaste_core::ChoosePile, ctx: &Ctx) -> String {
 /// [group]." rather than "For each creature in [group], destroy it."). Only
 /// the shapes the corpus needs are recognized; `None` declines to the
 /// caller's structural fallback.
-fn pile_collective(body: &Effect, group_phrase: &str) -> Option<String> {
+fn pile_collective(body: &OneShotEffect, group_phrase: &str) -> Option<String> {
     match body {
-        Effect::Act(Action::Destroy(Reference::It)) => {
+        OneShotEffect::Act(Action::Destroy(Reference::It)) => {
             Some(format!("Destroy all creatures in {group_phrase}."))
         }
-        // `DestroyNoRegen`'s expansion: `Sequence([Destroy(It), Until(
+        // `DestroyNoRegen`'s expansion: `Sequentially([Destroy(It), Until(
         // ForThisEvent, [Cant(Regenerate(on: It))])])` ([CR#701.19c]).
-        Effect::Sequence(parts) => match parts.as_slice() {
+        OneShotEffect::Sequentially(parts) => match parts.as_slice() {
             [
-                Effect::Act(Action::Destroy(Reference::It)),
-                Effect::Until(Duration::ForThisEvent, statics),
+                OneShotEffect::Act(Action::Destroy(Reference::It)),
+                OneShotEffect::Until(Duration::ForThisEvent, statics),
             ] => match statics.as_slice() {
                 [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Regenerate { .. }))] => Some(
                     format!("Destroy all creatures in {group_phrase}. They can't be regenerated."),
@@ -458,8 +460,8 @@ fn choose_line(spec: &deckmaste_core::ChooseSpec) -> String {
 }
 
 /// The noun phrase a [`Binder`](deckmaste_core::Binder) contributes to its
-/// `Effect::With` / `CostComponent::With` body — read by the body's `That` /
-/// `Those` anaphor ([CR#601.2b]). A one-binder yields "a creature"; a
+/// `OneShotEffect::With` / `CostComponent::With` body — read by the body's
+/// `That` / `Those` anaphor ([CR#601.2b]). A one-binder yields "a creature"; a
 /// many-binder yields "two cards"; the reference/existing forms defer to the
 /// shared fragment renderers.
 fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
@@ -515,8 +517,8 @@ fn a_an(noun: &str) -> String {
     format!("a {noun}")
 }
 
-/// The collective rendering of an [`Effect::Each`] whose body is a single group
-/// verb acting on the per-element [`Reference::It`] — the natural
+/// The collective rendering of an [`OneShotEffect::Each`] whose body is a
+/// single group verb acting on the per-element [`Reference::It`] — the natural
 /// "<verb> each <group>" / "put <group> on <dest>" surface ([CR#608]), the
 /// renderer half the `core-many-binder-group-move` seam calls for. Returns
 /// `None` for any body the collapse does not recognise, so the caller falls
@@ -584,8 +586,8 @@ fn binder_is_plural(binder: &deckmaste_core::Binder) -> bool {
 }
 
 /// The bare collective noun a [`Binder`](deckmaste_core::Binder) contributes to
-/// an [`Effect::Each`] "each <noun>" / "For each <noun>" construction: the
-/// whole matching set yields the bare noun ("creature", so the surrounding
+/// an [`OneShotEffect::Each`] "each <noun>" / "For each <noun>" construction:
+/// the whole matching set yields the bare noun ("creature", so the surrounding
 /// "each" supplies the quantifier — not "each each creature"), a
 /// bound/announced group its plural anaphor ("them"), and a chosen group its
 /// full phrase.
@@ -839,7 +841,7 @@ fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
     let amount = fragment::count(&d.amount);
     let group = divided_group_phrase(&d.binder, ctx);
     match &*d.body {
-        Effect::Act(Action::DealDamage(source, _, _)) => {
+        OneShotEffect::Act(Action::DealDamage(source, _, _)) => {
             let dealer = match source {
                 Reference::This => ctx.subject.to_string(),
                 other => fragment::reference(other, ctx),
@@ -849,7 +851,7 @@ fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
                 capitalize_first(&dealer)
             )
         }
-        Effect::Act(Action::By(_, PlayerAction::PutCounters(_, kind, _))) => {
+        OneShotEffect::Act(Action::By(_, PlayerAction::PutCounters(_, kind, _))) => {
             format!(
                 "Distribute {amount} {} counters among {group}.",
                 kind.as_str()
@@ -875,7 +877,7 @@ fn divided_group_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
         .unwrap_or_else(|| binder_phrase(binder, ctx))
 }
 
-/// The payment clause of an [`Effect::AdditionalCost`] ([CR#601.2f]): an
+/// The payment clause of an [`OneShotEffect::AdditionalCost`] ([CR#601.2f]): an
 /// all-symbol cost reads "pay {cost}"; an object-moving verb cost reads as its
 /// lowercased verb phrase ("sacrifice a creature"). Declines (`None`) on an
 /// empty or no-clean-rendering cost, so the effect falls back to the structural
@@ -1232,7 +1234,7 @@ mod tests {
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
     use deckmaste_core::Each;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
@@ -1264,16 +1266,20 @@ mod tests {
             that: None,
         };
         let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
-        let draw = || Box::new(Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))));
+        let draw = || {
+            Box::new(OneShotEffect::act_by_you(PlayerAction::Draw(
+                Count::Literal(1),
+            )))
+        };
         let lose = || {
-            Box::new(Effect::act_by_you(PlayerAction::LoseLife(Count::Literal(
-                1,
-            ))))
+            Box::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
+                Count::Literal(1),
+            )))
         };
 
         // -- MayPay: "[payer] may pay {1}. If [payer] do(es), draw a card; if
         //    [payer] do(esn't), [lose]." --
-        let may_you = Effect::MayPay(MayPay {
+        let may_you = OneShotEffect::MayPay(MayPay {
             actor: Reference::You,
             cost: one(),
             and_then: draw(),
@@ -1289,7 +1295,7 @@ mod tests {
             "no third-person -s for the `you` payer: {rendered}"
         );
 
-        let may_them = Effect::MayPay(MayPay {
+        let may_them = OneShotEffect::MayPay(MayPay {
             actor: Reference::EventActor,
             cost: one(),
             and_then: draw(),
@@ -1303,7 +1309,7 @@ mod tests {
         );
 
         // -- MustPay: "[or_else] unless [payer] pay(s) {1}." --
-        let must_you = Effect::MustPay(MustPay {
+        let must_you = OneShotEffect::MustPay(MustPay {
             actor: Reference::You,
             cost: one(),
             or_else: lose(),
@@ -1314,7 +1320,7 @@ mod tests {
             "second-person MustPay: {rendered}"
         );
 
-        let must_them = Effect::MustPay(MustPay {
+        let must_them = OneShotEffect::MustPay(MustPay {
             actor: Reference::EventActor,
             cost: one(),
             or_else: lose(),
@@ -1425,10 +1431,10 @@ mod tests {
             that: None,
         };
         let divide = super::effect(
-            &deckmaste_core::Effect::Distribute(Distribute {
+            &deckmaste_core::OneShotEffect::Distribute(Distribute {
                 amount: Count::Literal(3),
                 binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-                body: Box::new(deckmaste_core::Effect::Act(Action::deal_damage(
+                body: Box::new(deckmaste_core::OneShotEffect::Act(Action::deal_damage(
                     Reference::It,
                     Count::Allotment,
                 ))),
@@ -1457,7 +1463,7 @@ mod tests {
             that: None,
         };
         let fling = super::effect(
-            &deckmaste_core::Effect::AdditionalCost(AdditionalCost {
+            &deckmaste_core::OneShotEffect::AdditionalCost(AdditionalCost {
                 // "sacrifice a creature" is now the choose-then-pay `With` cost
                 // step: ChooseOne(Creature) binds `That`, then `Sacrifice(That)`.
                 pay: Cost(vec![CostComponent::With {
@@ -1471,9 +1477,9 @@ mod tests {
                         )),
                     ))]),
                 }]),
-                body: Box::new(deckmaste_core::Effect::act_by_you(PlayerAction::Draw(
-                    Count::Literal(1),
-                ))),
+                body: Box::new(deckmaste_core::OneShotEffect::act_by_you(
+                    PlayerAction::Draw(Count::Literal(1)),
+                )),
             }),
             &ctx,
         );
@@ -1483,10 +1489,10 @@ mod tests {
         );
     }
 
-    /// `Effect::With` binds the binder's noun phrase as the body's `That`
-    /// anaphor ([CR#601.2b]): a `ChooseOne` one-binder renders "Sacrifice a
-    /// creature." — the choose-then-act surface that replaced the old
-    /// verb-patient `Choose`.
+    /// `OneShotEffect::With` binds the binder's noun phrase as the body's
+    /// `That` anaphor ([CR#601.2b]): a `ChooseOne` one-binder renders
+    /// "Sacrifice a creature." — the choose-then-act surface that replaced
+    /// the old verb-patient `Choose`.
     #[test]
     fn with_choose_one_renders_sacrifice_a_creature() {
         use deckmaste_core::PlayerAction;
@@ -1495,12 +1501,12 @@ mod tests {
             targets: &[],
             that: None,
         };
-        let with = Effect::With(With {
+        let with = OneShotEffect::With(With {
             binder: Binder::ChooseOne {
                 filter: Predicate::creature(),
                 by: Reference::You,
             },
-            body: Box::new(Effect::act_by_you(PlayerAction::Sacrifice(
+            body: Box::new(OneShotEffect::act_by_you(PlayerAction::Sacrifice(
                 Reference::That(deckmaste_core::Sort::OfType(deckmaste_core::Type::Creature)),
             ))),
         });
@@ -1519,13 +1525,13 @@ mod tests {
             targets: &[],
             that: None,
         };
-        let with = Effect::With(With {
+        let with = OneShotEffect::With(With {
             binder: Binder::Choose {
                 quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
                 filter: Predicate::Kind(ObjectKind::Card),
                 by: Reference::You,
             },
-            body: Box::new(Effect::act_by_you(PlayerAction::Discard {
+            body: Box::new(OneShotEffect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(2),
                 what: Some(Reference::That(deckmaste_core::Sort::Card)),
                 random: false,
@@ -1534,8 +1540,8 @@ mod tests {
         assert_eq!(effect(&with, &ctx), "Discard two cards.");
     }
 
-    /// `Effect::Each` over a many-binder collapses a single group-verb body
-    /// (acting on the per-element `It`) to the collective surface —
+    /// `OneShotEffect::Each` over a many-binder collapses a single group-verb
+    /// body (acting on the per-element `It`) to the collective surface —
     /// `Destroy(It)` → "Destroy each creature." — and falls back to the
     /// per-element "For each <group>, …" form for a body the collapse does not
     /// recognise ([CR#608]). This is the renderer half of
@@ -1549,17 +1555,17 @@ mod tests {
             that: None,
         };
         // A group verb on the per-element `It` → the collective sentence.
-        let destroy = Effect::Each(Each {
+        let destroy = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-            effect: Box::new(Effect::Act(Action::Destroy(Reference::It))),
+            effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
         });
         assert_eq!(effect(&destroy, &ctx), "Destroy each creature.");
         // A body the collapse does not recognise → the per-element form.
-        let gain = Effect::Each(Each {
+        let gain = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-            effect: Box::new(Effect::act_by_you(PlayerAction::GainLife(Count::Literal(
-                1,
-            )))),
+            effect: Box::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
+                Count::Literal(1),
+            ))),
         });
         assert_eq!(effect(&gain, &ctx), "For each creature, you gain 1 life.");
     }

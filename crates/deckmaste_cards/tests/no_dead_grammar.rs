@@ -60,7 +60,8 @@ fn plugins_root() -> PathBuf {
 }
 
 /// One grammar node: the enum it belongs to, and its variant name (the tag a
-/// card would spell, e.g. `Effect::Sequence` -> `("Effect", "Sequence")`).
+/// card would spell, e.g. `OneShotEffect::Sequentially` -> `("OneShotEffect",
+/// "Sequentially")`).
 type Node = (String, String);
 
 /// Parses one grammar-family file and returns every TOP-LEVEL `pub enum`'s
@@ -99,12 +100,12 @@ fn grammar_inventory() -> Vec<Node> {
 /// construction — a text search for the name is structurally inapplicable,
 /// not evidence the node is unused:
 ///
-///  - `Effect::Act` / `StaticEffect::Deontic` / `Destination::Zone` are
+///  - `OneShotEffect::Act` / `StaticEffect::Deontic` / `Destination::Zone` are
 ///    `#[macro_ron(flatten)]`: the wrapping tag is fully invisible in RON —
 ///    only the PAYLOAD type's own variant names are ever spelled (a bare verb
-///    like `Draw(1)` reads as `Effect::Act(Action::By(You, Draw(1)))` with
-///    neither `Act` nor `Zone` ever written). Every one of these positions is
-///    exercised constantly; there is simply nothing to grep for.
+///    like `Draw(1)` reads as `OneShotEffect::Act(Action::By(You, Draw(1)))`
+///    with neither `Act` nor `Zone` ever written). Every one of these positions
+///    is exercised constantly; there is simply nothing to grep for.
 ///  - `Count::Literal` is `#[macro_ron(literal)]` bare-numeral sugar: a card
 ///    always writes the bare number (`3`), never the convention-breaking
 ///    `Literal(3)` spelling — exercised on nearly every card, unobservable by
@@ -115,7 +116,7 @@ fn grammar_inventory() -> Vec<Node> {
 /// agent, e.g. `By(That(Player), Draw(3))`.)
 fn structurally_untagged() -> BTreeSet<Node> {
     [
-        ("Effect", "Act"),
+        ("OneShotEffect", "Act"),
         ("StaticEffect", "Deontic"),
         ("Destination", "Zone"),
         ("Count", "Literal"),
@@ -125,7 +126,7 @@ fn structurally_untagged() -> BTreeSet<Node> {
         // invocation (`AddPowerToughness(2, 2)`), never literally as
         // `Expanded(...)`. A text search for the tag is structurally
         // meaningless for the same reason `Act`/`Zone`/`Deontic` are above.
-        ("Effect", "Expanded"),
+        ("OneShotEffect", "Expanded"),
         ("PlayerAction", "Expanded"),
         ("Modification", "Expanded"),
         ("StaticEffect", "Expanded"),
@@ -157,19 +158,19 @@ fn structurally_untagged() -> BTreeSet<Node> {
 fn accept_allowlist() -> Vec<(Node, &'static str)> {
     vec![
         (
-            n("Effect", "Label"),
+            n("OneShotEffect", "Label"),
             "BLOCKED: Label's only real use-case in this batch (Blood Money's \
             'destroyed this way' product-group read-back) is the same confirmed grammar gap as \
             Noting/AmongNoted below — see the ticket's completion notes.",
         ),
         (
-            n("Effect", "MayPay"),
+            n("OneShotEffect", "MayPay"),
             "DEFERRED: no real card in this batch uses the resolution-time \
             optional-cost-kicker shape (canon's Mana Leak uses the punisher MustPay instead); a \
             real candidate (e.g. a 'you may pay {2}; if you do, ...' spell) is buildable.",
         ),
         (
-            n("Effect", "Noting"),
+            n("OneShotEffect", "Noting"),
             "BLOCKED: 'for each nontoken creature destroyed this way' (Blood \
             Money) needs a way to re-read a noted PRODUCT group filtered further; \
             Selection::AmongNoted is a CHOICE primitive (wrong shape for an unconditional \
@@ -177,7 +178,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             genuine missing-grammar finding, not built. See the ticket's completion notes.",
         ),
         (
-            n("Effect", "Reflexive"),
+            n("OneShotEffect", "Reflexive"),
             "DEFERRED: no real 'when you do' reflexive-trigger card in this \
             batch; render support for Reflexive is also unbuilt (same family as Delayed).",
         ),
@@ -721,7 +722,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("CostChange", "Additional"),
             "DEFERRED: no MANDATORY continuous cost-modifier real \
             card ('spells of type X cost an additional {R} to cast') in this batch — distinct \
-            from Fling's `Effect::AdditionalCost`, which is the per-spell PRINTED clause, not a \
+            from Fling's `OneShotEffect::AdditionalCost`, which is the per-spell PRINTED clause, not a \
             `StaticEffect::CostModifier`.",
         ),
     ]

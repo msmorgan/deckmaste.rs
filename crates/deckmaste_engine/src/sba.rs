@@ -137,7 +137,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
         // A `This`-anchored frame: `condition_holds`/`action_items` resolve
         // `Ref(This)` to this object via the frame source ([CR#603.10a]).
         let frame = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
-        let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::Effect)> = Vec::new();
+        let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::OneShotEffect)> = Vec::new();
         crate::legal::for_each_static(view, id, |e| {
             if let deckmaste_core::StaticEffect::Sba { when, then } = e {
                 rows.push((*when.clone(), (**then).clone()));
@@ -148,7 +148,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
                 continue;
             }
             // Run `then` — `Act(<Action>)` (the Aura's `Move`, the Saga
-            // generalization's `Sacrifice`) or a `Sequence` of them.
+            // generalization's `Sacrifice`) or a `Sequentially` of them.
             out.extend(run_sba_effect(state, &then, &frame));
             // This object is being moved/removed by its own SBA this sweep;
             // pass 2 must not also unattach it.
@@ -270,19 +270,19 @@ fn stamp_sba_cause(ev: &mut GameEvent) {
 }
 
 /// Run an SBA `then`/`effect` purely (no apply) into the events it produces:
-/// `Act(<Action>)`, or a `Sequence` of effects (each evaluated against the SAME
-/// pre-sweep state — so the annihilation's two `RemoveCounters` both read the
-/// pre-removal counts). Choice-bearing shapes are a documented seam.
+/// `Act(<Action>)`, or a `Sequentially` of effects (each evaluated against the
+/// SAME pre-sweep state — so the annihilation's two `RemoveCounters` both read
+/// the pre-removal counts). Choice-bearing shapes are a documented seam.
 fn run_sba_effect(
     state: &GameState,
-    effect: &deckmaste_core::Effect,
+    effect: &deckmaste_core::OneShotEffect,
     frame: &crate::stack::Frame,
 ) -> Vec<GameEvent> {
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
 
     let mut out = Vec::new();
     match effect {
-        Effect::Act(action) => {
+        OneShotEffect::Act(action) => {
             for item in state.action_items(action, frame) {
                 if let WorkItem::Emit(occ) = item {
                     match occ {
@@ -292,13 +292,13 @@ fn run_sba_effect(
                 }
             }
         }
-        Effect::Sequence(children) => {
+        OneShotEffect::Sequentially(children) => {
             for child in children {
                 out.extend(run_sba_effect(state, child, frame));
             }
         }
-        Effect::Expanded(e) => out.extend(run_sba_effect(state, &e.value, frame)),
-        other => todo!("SBA effect is only Act/Sequence in this stage (got {other:?})"),
+        OneShotEffect::Expanded(e) => out.extend(run_sba_effect(state, &e.value, frame)),
+        other => todo!("SBA effect is only Act/Sequentially in this stage (got {other:?})"),
     }
     out
 }
@@ -736,7 +736,7 @@ mod tests {
     fn dead_token_ceases_to_exist() {
         use deckmaste_core::Action;
         use deckmaste_core::Count;
-        use deckmaste_core::Effect;
+        use deckmaste_core::OneShotEffect;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::Token;
@@ -753,7 +753,7 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            Effect::Act(Action::By(
+            OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::Create(Count::Literal(1), token.into(), vec![]),
             )),
@@ -846,7 +846,7 @@ mod tests {
     use deckmaste_core::Condition;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Reference;
     use deckmaste_core::StaticEffect;
 
@@ -891,7 +891,7 @@ mod tests {
             when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
                 Reference::This,
             )))),
-            then: Box::new(Effect::Act(deckmaste_core::Action::move_to(
+            then: Box::new(OneShotEffect::Act(deckmaste_core::Action::move_to(
                 Reference::This,
                 Zone::Graveyard,
             ))),
@@ -1118,7 +1118,7 @@ mod tests {
         ]);
         let ascend = Ability::Static(StaticEffect::Sba {
             when: Box::new(gate),
-            then: Box::new(Effect::Act(Action::By(
+            then: Box::new(OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GetDesignation(name),
             ))),
@@ -1207,7 +1207,7 @@ mod tests {
                         Predicate::State(StatePredicate::Designated(name)),
                     ))),
                 ])),
-                then: Box::new(Effect::Act(Action::By(
+                then: Box::new(OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GetDesignation(name),
                 ))),

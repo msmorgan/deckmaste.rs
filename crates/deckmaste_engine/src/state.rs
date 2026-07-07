@@ -152,41 +152,41 @@ pub enum ChoiceContinuation {
     /// `frame.anaphora.chosen`, then re-run `effect` (the action whose
     /// `Choose`/`Random` selection produced the decision).
     BindChoice {
-        effect: Box<deckmaste_core::Effect>,
+        effect: Box<deckmaste_core::OneShotEffect>,
         frame: crate::stack::Frame,
     },
-    /// A `YesNo` answer for `Effect::May` ([CR#118.12]): true → `effect` then
-    /// `if_did`; false → `if_not` (or nothing).
+    /// A `YesNo` answer for `OneShotEffect::May` ([CR#118.12]): true → `effect`
+    /// then `if_did`; false → `if_not` (or nothing).
     May {
         may: deckmaste_core::May,
         frame: crate::stack::Frame,
     },
-    /// A `ChooseModes` answer for `Effect::Modal` ([CR#700.2]): run the chosen
-    /// modes' effects in the order they were picked.
+    /// A `ChooseModes` answer for `OneShotEffect::Modal` ([CR#700.2]): run the
+    /// chosen modes' effects in the order they were picked.
     Modal {
         modes: Vec<deckmaste_core::Mode>,
         frame: crate::stack::Frame,
     },
-    /// A `YesNo` answer for `Effect::Unless` ([CR#118.12a,608.2d]): yes → pay
-    /// the `unless` cost (skipping `effect`); no → run `effect`. `who` is
-    /// the paying player, so each cost component runs as that player's
-    /// action.
+    /// A `YesNo` answer for `OneShotEffect::Unless` ([CR#118.12a,608.2d]): yes
+    /// → pay the `unless` cost (skipping `effect`); no → run `effect`.
+    /// `who` is the paying player, so each cost component runs as that
+    /// player's action.
     Unless {
-        effect: Box<deckmaste_core::Effect>,
+        effect: Box<deckmaste_core::OneShotEffect>,
         who: deckmaste_core::Reference,
         unless: Vec<deckmaste_core::CostComponent>,
         frame: crate::stack::Frame,
     },
-    /// A `YesNo` answer for `Effect::MayPay` ([CR#603,608]): yes → pay the
-    /// `cost` (each component as `actor`'s action) then run `and_then`; no →
-    /// run `or_else` (or nothing). `actor` is the paying player. Unlike
-    /// `Unless`, the PAID branch also runs an effect (`and_then`) — the
-    /// resolution-time kicker.
+    /// A `YesNo` answer for `OneShotEffect::MayPay` ([CR#603,608]): yes → pay
+    /// the `cost` (each component as `actor`'s action) then run `and_then`;
+    /// no → run `or_else` (or nothing). `actor` is the paying player.
+    /// Unlike `Unless`, the PAID branch also runs an effect (`and_then`) —
+    /// the resolution-time kicker.
     MayPay {
         actor: deckmaste_core::Reference,
         cost: Vec<deckmaste_core::CostComponent>,
-        and_then: Box<deckmaste_core::Effect>,
-        or_else: Option<Box<deckmaste_core::Effect>>,
+        and_then: Box<deckmaste_core::OneShotEffect>,
+        or_else: Option<Box<deckmaste_core::OneShotEffect>>,
         frame: crate::stack::Frame,
     },
     /// [CR#401.4]: walking the post-pick arrange decisions — `current` is the
@@ -290,7 +290,7 @@ pub struct GameState {
     pub combat_damage: Option<CombatDamage>,
     pub rng: ChaCha8Rng,
     /// Floating one-shot continuous effects ([CR#611.2]): created by resolving
-    /// spells/abilities via `Effect::Continuously`, retained until their
+    /// spells/abilities via `OneShotEffect::Continuously`, retained until their
     /// `duration` expires.
     pub continuous: Vec<ContinuousEffect>,
     /// Floating one-shot/duration-bounded replacement effects ([CR#614.3]):
@@ -367,10 +367,11 @@ pub struct GameState {
     /// ([CR#603.3b,603.2c]; a destroy-all's dies-facts are one occurrence).
     pub(crate) evolving_batch: Option<Vec<GameEvent>>,
     /// Fact-backed product groups ([CR#607.2a] linkage; the "this way"
-    /// anaphora mechanism): `Effect::Noting { key, .. }` records the object
-    /// set its inner effect ACTUALLY moved — each enacted `ZoneChanged`
-    /// fact's snapshot plus the moved object's post-move identity — never
-    /// the gathered input set. Read by `Selection::AmongNoted`.
+    /// anaphora mechanism): `OneShotEffect::Noting { key, .. }` records the
+    /// object set its inner effect ACTUALLY moved — each enacted
+    /// `ZoneChanged` fact's snapshot plus the moved object's post-move
+    /// identity — never the gathered input set. Read by
+    /// `Selection::AmongNoted`.
     pub noted: std::collections::HashMap<deckmaste_core::Ident, Vec<crate::state::NotedMember>>,
     /// The keys currently COLLECTING ([CR#607.2a]) — a stack: `BeginNote`
     /// pushes, `EndNote` pops; while non-empty, every enacted `ZoneChanged`

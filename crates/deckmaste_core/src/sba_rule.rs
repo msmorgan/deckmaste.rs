@@ -2,8 +2,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Condition;
-use crate::Effect;
 use crate::Expand;
+use crate::OneShotEffect;
 use crate::Predicate;
 
 /// A rules-defined state-based action ([CR#704]) authored as data under a
@@ -18,7 +18,7 @@ use crate::Predicate;
 pub struct SbaRule {
     pub scope: Predicate,
     pub when: Condition,
-    pub then: Effect,
+    pub then: OneShotEffect,
 }
 
 #[cfg(test)]
@@ -26,7 +26,7 @@ mod tests {
     use super::*;
     use crate::CharacteristicPredicate;
     use crate::Condition;
-    use crate::Effect;
+    use crate::OneShotEffect;
     use crate::Predicate;
     use crate::Type;
 
@@ -37,10 +37,10 @@ mod tests {
         let rule = SbaRule {
             scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
             when: Condition::YourTurn,
-            then: Effect::Sequence(vec![]),
+            then: OneShotEffect::Sequentially(vec![]),
         };
         assert!(matches!(rule.scope, Predicate::Characteristic(_)));
         assert!(matches!(rule.when, Condition::YourTurn));
-        assert!(matches!(rule.then, Effect::Sequence(_)));
+        assert!(matches!(rule.then, OneShotEffect::Sequentially(_)));
     }
 }

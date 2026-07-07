@@ -21,7 +21,7 @@
     name: "Chapter",
     template: "${n} — ${effect}",
     kinds: [Ability],
-    params: { "n": Count, "effect": Effect },
+    params: { "n": Count, "effect": OneShotEffect },
     body: Innate(Triggered(
         event: OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This))),
         condition: Crossed(

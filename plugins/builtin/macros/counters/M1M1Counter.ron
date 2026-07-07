@@ -20,7 +20,7 @@
                     Is(This, HasCounter(P1P1Counter)),
                     Is(This, HasCounter(M1M1Counter)),
                 ]),
-                effect: Sequence([
+                effect: Sequentially([
                     RemoveCounters(This, P1P1Counter, Min(CounterCount(This, P1P1Counter), CounterCount(This, M1M1Counter))),
                     RemoveCounters(This, M1M1Counter, Min(CounterCount(This, P1P1Counter), CounterCount(This, M1M1Counter))),
                 ]),

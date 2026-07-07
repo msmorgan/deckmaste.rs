@@ -7,10 +7,10 @@ use crate::Selection;
 use crate::SupportsMacros;
 use crate::Zone;
 
-/// The binder feeding [`Effect::With`](crate::With), [`Each`](crate::Each),
-/// and [`Distribute`](crate::Distribute) — the Idris `Bindable`, collapsed
-/// (cardinality is encoded by the variant, not a type index). A one-binder
-/// (`TheRef`/`ChooseOne`) binds a single object read as
+/// The binder feeding [`OneShotEffect::With`](crate::With),
+/// [`Each`](crate::Each), and [`Distribute`](crate::Distribute) — the Idris
+/// `Bindable`, collapsed (cardinality is encoded by the variant, not a type
+/// index). A one-binder (`TheRef`/`ChooseOne`) binds a single object read as
 /// [`Reference::That`](crate::Reference::That); a many-binder
 /// (`Choose`/`Existing`) binds a group read as
 /// [`Selection::That`](crate::Selection::That). `Each`/`Distribute` take a
@@ -74,7 +74,7 @@ pub enum Binder {
         /// binding, so reading the search's `That` inside it is unsound
         /// (rejected by the Idris re-emit gate).
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        if_none: Option<Box<crate::Effect>>,
+        if_none: Option<Box<crate::OneShotEffect>>,
     },
     /// The chooser picks a quantity of matches — Many → `That` (group).
     /// ("choose two cards") Same `by` default as
@@ -113,7 +113,7 @@ pub enum Binder {
         /// [`SearchOne::if_none`](Binder::SearchOne). Elaborates without the
         /// searched group bound.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        if_none: Option<Box<crate::Effect>>,
+        if_none: Option<Box<crate::OneShotEffect>>,
     },
     /// A remembered `Binder` macro invocation.
     #[macro_ron(expanded)]
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn search_if_none_defaults_and_round_trips() {
         use crate::Count;
-        use crate::Effect;
+        use crate::OneShotEffect;
         use crate::PlayerAction;
 
         let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
@@ -312,7 +312,7 @@ mod tests {
             by: Reference::You,
             whose: Reference::You,
             from: vec![Zone::Library],
-            if_none: Some(Box::new(Effect::act_by_you(PlayerAction::LoseLife(
+            if_none: Some(Box::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
                 Count::Literal(1),
             )))),
         };

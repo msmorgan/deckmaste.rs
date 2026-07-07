@@ -9,7 +9,7 @@
 //                 upkeep trigger Echo uses [CR#603.2].
 //   - intervening-if [CR#603.4]: "if this permanent is on the battlefield" =
 //                 `Is(This, InZone(Battlefield))`.
-//   - resolution: a `Sequence` — first `PutCounters(This, AgeCounter, 1)` (the
+//   - resolution: a `Sequentially` — first `PutCounters(This, AgeCounter, 1)` (the
 //                 new age counter, [CR#702.24a], a player action by you), then
 //                 `MustPay(cost: <cost>, or_else: Sacrifice(This))` — the same
 //                 resolution toll shape Echo threads the printed [cost] into
@@ -45,7 +45,7 @@
         abilities: [Triggered(
             event: StepBegins(at: Beginning(Upkeep), whose: Your),
             condition: Is(This, InZone(Battlefield)),
-            effect: Sequence([
+            effect: Sequentially([
                 PutCounters(This, AgeCounter, 1),
                 MustPay(
                     cost: [Splice(Param(0))],

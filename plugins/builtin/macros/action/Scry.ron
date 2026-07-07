@@ -7,7 +7,7 @@
 (
     name: "Scry",
     template: "scry ${0}",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     params: [Count],
     body: Composite(
         name: "Scry",

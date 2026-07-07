@@ -16,9 +16,9 @@ use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::Duration;
-use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Property;
 use deckmaste_core::Reference;
@@ -50,7 +50,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                 cost: vec![CostComponent::Tap].into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::AddMana(
                         Count::Literal(1),
@@ -198,12 +198,12 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     // `Expanded` (the bidirectional form — it renders back to "Regenerate(This)"
     // via the template; the typed param is what restores that round-trip), with
     // the expansion in `value`.
-    let effect: Effect = plugin.macros.read_str("Regenerate(This)").unwrap();
-    let Effect::Expanded(ref ex) = effect else {
+    let effect: OneShotEffect = plugin.macros.read_str("Regenerate(This)").unwrap();
+    let OneShotEffect::Expanded(ref ex) = effect else {
         panic!("a macro invocation is remembered as Expanded, got {effect:?}");
     };
     assert_eq!(ex.name.as_str(), "Regenerate");
-    let Effect::Act(Action::CreateReplacement {
+    let OneShotEffect::Act(Action::CreateReplacement {
         replacement,
         subject,
         duration,
@@ -230,21 +230,21 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     let Replacement::Instead { instead, .. } = *replacement else {
         panic!("regeneration is an Instead replacement");
     };
-    let Effect::Sequence(body) = instead else {
-        panic!("the regen body is a Sequence (remove damage, then tap)");
+    let OneShotEffect::Sequentially(body) = instead else {
+        panic!("the regen body is a Sequentially (remove damage, then tap)");
     };
     assert_eq!(body.len(), 2, "remove all damage, then tap [CR#701.19a]");
 
     // Regenerate(It): the announced-target anaphor parses too — the param is
     // a Reference, so `It` fits exactly where `This` did.
-    let tgt: Effect = plugin.macros.read_str("Regenerate(It)").unwrap();
-    let Effect::Expanded(tex) = tgt else {
+    let tgt: OneShotEffect = plugin.macros.read_str("Regenerate(It)").unwrap();
+    let OneShotEffect::Expanded(tex) = tgt else {
         panic!("Regenerate(It) is remembered as Expanded");
     };
     assert!(
         matches!(
             *tex.value,
-            Effect::Act(Action::CreateReplacement {
+            OneShotEffect::Act(Action::CreateReplacement {
                 subject: Reference::It,
                 ..
             })
@@ -357,35 +357,35 @@ fn wave_macros_expand_to_their_blessed_bodies() {
 
     // Unless — the English order over MustPay ([CR#118.12a]): actor
     // defaults to You, the cost splices flat.
-    let unless: Effect = plugin
+    let unless: OneShotEffect = plugin
         .macros
         .read_str("Unless(effect: Draw(1), unless: [Mana([Generic(2)])])")
         .unwrap();
-    let Effect::Expanded(exp) = unless else {
+    let OneShotEffect::Expanded(exp) = unless else {
         panic!("expected a remembered Unless expansion, got {unless:?}");
     };
     assert_eq!(exp.name.as_str(), "Unless");
-    let Effect::MustPay(m) = exp.value.as_ref() else {
+    let OneShotEffect::MustPay(m) = exp.value.as_ref() else {
         panic!("Unless must expand to MustPay, got {:?}", exp.value);
     };
     assert_eq!(m.actor, Reference::You, "the payer defaults to You");
     assert!(
         matches!(
             m.or_else.as_ref(),
-            Effect::Act(Action::By(_, PlayerAction::Draw(_)))
+            OneShotEffect::Act(Action::By(_, PlayerAction::Draw(_)))
         ),
         "or_else carries the unpaid branch"
     );
 
     // Exile — the render name over the pure zone move ([CR#701.13]).
-    let exile: Effect = plugin.macros.read_str("Exile(This)").unwrap();
-    let Effect::Expanded(exp) = exile else {
+    let exile: OneShotEffect = plugin.macros.read_str("Exile(This)").unwrap();
+    let OneShotEffect::Expanded(exp) = exile else {
         panic!("expected a remembered Exile expansion");
     };
     assert!(
         matches!(
             exp.value.as_ref(),
-            Effect::Act(Action::Move(Reference::This, _, _))
+            OneShotEffect::Act(Action::Move(Reference::This, _, _))
         ),
         "Exile(This) is Move(This, Exile), got {:?}",
         exp.value
@@ -393,42 +393,42 @@ fn wave_macros_expand_to_their_blessed_bodies() {
 
     // DestroyNoRegen — destroy + the ForThisEvent-scoped
     // Cant(Regenerate) rider ([CR#701.19c]).
-    let dnr: Effect = plugin.macros.read_str("DestroyNoRegen(This)").unwrap();
-    let Effect::Expanded(exp) = dnr else {
+    let dnr: OneShotEffect = plugin.macros.read_str("DestroyNoRegen(This)").unwrap();
+    let OneShotEffect::Expanded(exp) = dnr else {
         panic!("expected a remembered DestroyNoRegen expansion");
     };
-    let Effect::Sequence(parts) = exp.value.as_ref() else {
-        panic!("DestroyNoRegen is a Sequence, got {:?}", exp.value);
+    let OneShotEffect::Sequentially(parts) = exp.value.as_ref() else {
+        panic!("DestroyNoRegen is a Sequentially, got {:?}", exp.value);
     };
     assert!(matches!(
         parts[0],
-        Effect::Act(Action::Destroy(Reference::This))
+        OneShotEffect::Act(Action::Destroy(Reference::This))
     ));
     assert!(
-        matches!(&parts[1], Effect::Until(Duration::ForThisEvent, statics) if statics.len() == 1),
+        matches!(&parts[1], OneShotEffect::Until(Duration::ForThisEvent, statics) if statics.len() == 1),
         "the rider is a ForThisEvent-scoped static, got {:?}",
         parts[1]
     );
 
     // PreventNext / PreventAll — render names over the Prevention class
     // ([CR#615.7,615.1]), one-shot shields until end of turn.
-    let next: Effect = plugin
+    let next: OneShotEffect = plugin
         .macros
         .read_str("PreventNext(n: 3, to: Creature)")
         .unwrap();
-    let Effect::Expanded(exp) = next else {
+    let OneShotEffect::Expanded(exp) = next else {
         panic!("expected a remembered PreventNext expansion");
     };
     assert!(
         matches!(
             exp.value.as_ref(),
-            Effect::Continuously(c) if c.duration == Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
+            OneShotEffect::Continuously(c) if c.duration == Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
         ),
         "PreventNext is an until-end-of-turn shield, got {:?}",
         exp.value
     );
-    let all: Effect = plugin.macros.read_str("PreventAll(to: Ref(You))").unwrap();
-    assert!(matches!(all, Effect::Expanded(_)));
+    let all: OneShotEffect = plugin.macros.read_str("PreventAll(to: Ref(You))").unwrap();
+    assert!(matches!(all, OneShotEffect::Expanded(_)));
 
     // Multikicker — the repeatable kicker variant ([CR#702.33c]): the same
     // Kicker-tagged CostOption with repeatable: true.

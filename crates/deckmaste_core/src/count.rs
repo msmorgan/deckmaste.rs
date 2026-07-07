@@ -142,8 +142,8 @@ pub enum Count {
     /// The amount allotted to the current element of a divided distribution
     /// ([CR#601.2d] — "N damage/counters divided as you choose"): the
     /// per-element anaphor read inside an
-    /// [`Effect::Distribute`](crate::Effect::Distribute) body, where it
-    /// stands for that element's share of the divided amount.
+    /// [`OneShotEffect::Distribute`](crate::OneShotEffect::Distribute) body,
+    /// where it stands for that element's share of the divided amount.
     Allotment,
     /// How many times an event matching the pattern occurred within the
     /// [`Lookback`](crate::Lookback) ([CR#608.2i] history reads) — the

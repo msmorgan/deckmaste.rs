@@ -187,7 +187,7 @@ pub(super) fn parse_tap_ability(line: &str) -> anyhow::Result<Option<TapAbility>
 }
 
 /// The `AddMana` instruction(s) for a production: one `AddMana` for a one-run
-/// production, a `Sequence` for a heterogeneous run.
+/// production, a `Sequentially` for a heterogeneous run.
 fn render_production(production: &Production) -> anyhow::Result<String> {
     Ok(match production {
         Production::AnyColor => "AddMana(1, AnyColor)".to_owned(),
@@ -207,7 +207,7 @@ fn render_production(production: &Production) -> anyhow::Result<String> {
             if adds.len() == 1 {
                 adds.into_iter().next().unwrap()
             } else {
-                format!("Sequence([{}])", adds.join(", "))
+                format!("Sequentially([{}])", adds.join(", "))
             }
         }
         Production::Scaled(count, spec) => {
@@ -217,12 +217,12 @@ fn render_production(production: &Production) -> anyhow::Result<String> {
 }
 
 /// The resolution effect: the production, plus any rider folded into a
-/// `Sequence` after it (the `Add` happens first, [CR#605.1a]).
+/// `Sequentially` after it (the `Add` happens first, [CR#605.1a]).
 fn render_effect(production: &Production, rider: Option<&Rider>) -> anyhow::Result<String> {
     let add = render_production(production)?;
     Ok(match rider {
         None => add,
-        Some(Rider::DamageToYou(n)) => format!("Sequence([{add}, DealDamage(This, {n}, You)])"),
+        Some(Rider::DamageToYou(n)) => format!("Sequentially([{add}, DealDamage(This, {n}, You)])"),
     })
 }
 
@@ -292,11 +292,11 @@ mod tests {
     fn heterogeneous_run_is_a_sequence() {
         assert_eq!(
             effect("{W}{U}"),
-            "Sequence([AddMana(1, White), AddMana(1, Blue)])"
+            "Sequentially([AddMana(1, White), AddMana(1, Blue)])"
         );
         assert_eq!(
             effect("{G}{G}{W}"),
-            "Sequence([AddMana(2, Green), AddMana(1, White)])"
+            "Sequentially([AddMana(2, Green), AddMana(1, White)])"
         );
     }
 
@@ -336,7 +336,7 @@ mod tests {
             ability("{1}, {T}: Add {W}{U}."),
             Some(
                 "Activated(cost: [Mana([Generic(1)]), Tap], effect: \
-                 Sequence([AddMana(1, White), AddMana(1, Blue)]))"
+                 Sequentially([AddMana(1, White), AddMana(1, Blue)]))"
                     .to_owned()
             )
         );
@@ -367,7 +367,7 @@ mod tests {
             ability("{T}: Add {W} or {B}. ~ deals 1 damage to you."),
             Some(
                 "Activated(cost: [Tap], effect: \
-                 Sequence([AddMana(1, OneOf([White, Black])), DealDamage(This, 1, You)]))"
+                 Sequentially([AddMana(1, OneOf([White, Black])), DealDamage(This, 1, You)]))"
                     .to_owned()
             )
         );
@@ -461,7 +461,9 @@ mod tests {
             )
             .unwrap()
             .as_deref(),
-            Some("Activated(cost: [Tap], effect: Sequence([AddMana(1, White), AddMana(1, Blue)]))")
+            Some(
+                "Activated(cost: [Tap], effect: Sequentially([AddMana(1, White), AddMana(1, Blue)]))"
+            )
         );
     }
 }

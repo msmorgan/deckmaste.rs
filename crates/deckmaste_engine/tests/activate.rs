@@ -24,9 +24,9 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
-use deckmaste_core::Effect;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
@@ -824,8 +824,8 @@ fn pinger_fizzles_when_target_dies() {
 
 /// A nondescript no-target effect: gain 0 life. Resolving it mutates nothing,
 /// so a test can isolate the *cost* being performed from the effect.
-fn gain_zero() -> Effect {
-    Effect::Act(CoreAction::By(
+fn gain_zero() -> OneShotEffect {
+    OneShotEffect::Act(CoreAction::By(
         Reference::You,
         PlayerAction::GainLife(Count::Literal(0)),
     ))

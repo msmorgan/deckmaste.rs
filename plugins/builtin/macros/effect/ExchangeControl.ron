@@ -1,6 +1,6 @@
 // "ExchangeControl" = exchange control of two permanents
 // ([CR#701.12a..701.12b]): each player simultaneously gains control of the
-// permanent the other controlled. The body is the `Simultaneous` batch primitive — the
+// permanent the other controlled. The body is the `Simultaneously` batch primitive — the
 // exchange works BECAUSE both halves read ONE pre-application snapshot
 // (each `ControllerOf` evaluates before either half applies), land as one
 // batch of `ControlChanged` facts, and are all-or-nothing ([CR#701.12a]:
@@ -9,14 +9,14 @@
 //
 // Usage: ExchangeControl(a, b) — e.g. ExchangeControl(Target(0), Target(1)).
 //
-// `Simultaneous`/`GainControl` are restricted to THIS macro family's bodies
+// `Simultaneously`/`GainControl` are restricted to THIS macro family's bodies
 // until the engine's batch wiring generalizes.
 (
     name: "ExchangeControl",
     template: "exchange control of ${0} and ${1}",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     params: [Reference, Reference],
-    body: Simultaneous([
+    body: Simultaneously([
         GainControl(Param(0), ControllerOf(Param(1))),
         GainControl(Param(1), ControllerOf(Param(0))),
     ]),

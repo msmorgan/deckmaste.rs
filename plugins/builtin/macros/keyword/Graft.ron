@@ -30,7 +30,7 @@
 //     optional "you may") over the MOVE: removing one +1/+1 counter from This
 //     and putting one on EventObject is, mechanically, a `RemoveCounters(This,
 //     P1P1Counter, 1)` then `PutCounters(EventObject, P1P1Counter, 1)`, an
-//     ordered `Sequence` ([CR#608.2c]) of the two halves of the migration
+//     ordered `Sequentially` ([CR#608.2c]) of the two halves of the migration
 //     ([CR#122.1], counters move between objects this way).
 (
     name: "Graft",
@@ -50,7 +50,7 @@
             Triggered(
                 event: Enters(AllOf([Creature, Not(Ref(This))])),
                 condition: Compare(CounterCount(This, P1P1Counter), Greater, Literal(0)),
-                effect: May(effect: Sequence([
+                effect: May(effect: Sequentially([
                     RemoveCounters(This, P1P1Counter, 1),
                     PutCounters(EventObject, P1P1Counter, 1),
                 ])),

@@ -75,8 +75,9 @@ pub enum CostComponent {
         filter: Box<Predicate>,
     },
     /// A choice/bind step made BEFORE the cost actions it scopes
-    /// ([CR#601.2b]) — the cost-level twin of [`Effect::With`](crate::Effect).
-    /// The `binder` makes the choice (e.g. `ChooseOne(Creature)`) and binds it
+    /// ([CR#601.2b]) — the cost-level twin of
+    /// [`OneShotEffect::With`](crate::OneShotEffect). The `binder` makes
+    /// the choice (e.g. `ChooseOne(Creature)`) and binds it
     /// as [`Reference::That`](crate::Reference)/
     /// [`Selection::That`](crate::Selection), then `body` (a nested cost)
     /// pays using that binding: "sacrifice a creature" = `With(binder:

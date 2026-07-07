@@ -7,12 +7,12 @@
 //! [`effect::parse_clause`] grammar, and (only if EVERY bullet parses)
 //! collapses the whole run into one `Spell(effect: Modal(...))` ability.
 //!
-//! Each mode's targets ride an `Effect::Targeted` wrapper inside its `effect`
-//! ([CR#700.2c]); per-mode additional costs ride `Mode.cost` ([CR#700.2h], not
-//! yet emitted — see the deferral note on [`fold_modal`]). The engine's `Modal`
-//! resolution maps the emitted `ChooseSpec { count, up_to, repeats }` to the
-//! `ChooseModes` decision's `min`/`max`/`repeats` (`max = repeats ? count :
-//! min(count, options)`, `min = up_to ? 0 : max`).
+//! Each mode's targets ride an `OneShotEffect::Targeted` wrapper inside its
+//! `effect` ([CR#700.2c]); per-mode additional costs ride `Mode.cost`
+//! ([CR#700.2h], not yet emitted — see the deferral note on [`fold_modal`]).
+//! The engine's `Modal` resolution maps the emitted `ChooseSpec { count, up_to,
+//! repeats }` to the `ChooseModes` decision's `min`/`max`/`repeats` (`max =
+//! repeats ? count : min(count, options)`, `min = up_to ? 0 : max`).
 
 use crate::parsers::effect;
 use crate::parsers::effect::ParsedEffect;
@@ -117,8 +117,9 @@ fn strip_bullet(line: &str) -> Option<&str> {
 }
 
 /// Renders one parsed mode effect into a `Mode(effect: …)` RON fragment,
-/// lifting declared targets onto an `Effect::Targeted` wrapper ([CR#700.2c]) —
-/// the same framing the `Spell` parser applies, scoped per-mode.
+/// lifting declared targets onto an `OneShotEffect::Targeted` wrapper
+/// ([CR#700.2c]) — the same framing the `Spell` parser applies, scoped
+/// per-mode.
 fn render_mode(parsed: &ParsedEffect) -> String {
     if parsed.targets.is_empty() {
         format!("Mode(effect: {})", parsed.effect)

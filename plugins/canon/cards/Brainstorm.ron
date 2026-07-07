@@ -8,7 +8,7 @@ Normal(
   ],
   abilities: [
     Spell(
-      effect: Sequence([
+      effect: Sequentially([
         Draw(3),
         // "put two cards from your hand on top of your library in any order"
         // ([CR#401.4]). A many-binder `Choose` binds the two cards; `MoveGroup`

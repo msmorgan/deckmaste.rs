@@ -179,7 +179,8 @@ impl ItBinding {
     }
 }
 
-/// The group bound by an enclosing [`Effect::With`](deckmaste_core::With) /
+/// The group bound by an enclosing
+/// [`OneShotEffect::With`](deckmaste_core::With) /
 /// [`Each`](deckmaste_core::Each) /
 /// [`Distribute`](deckmaste_core::Distribute) many-binder — the
 /// [`Reference::That`]/[`Selection::That`] anaphor's value, carrying per-slot
@@ -243,11 +244,12 @@ pub struct Anaphora {
     /// candidate (the role the old `Subject` named). `None` at every frameless
     /// position. Mirrors the Idris `itKind` + its `It` value.
     pub it: Option<ItBinding>,
-    /// The group bound by an enclosing `Effect::With`/cost `With` many-binder,
-    /// carrying cardinality + kind so the singular `Reference::That` and the
-    /// group `Selection::That` resolve by slot (the Idris `thatKind`). `None`
-    /// outside a `With`. Replaces the old untyped `those` whose dropped
-    /// cardinality caused the first-of-many bug.
+    /// The group bound by an enclosing `OneShotEffect::With`/cost `With`
+    /// many-binder, carrying cardinality + kind so the singular
+    /// `Reference::That` and the group `Selection::That` resolve by slot
+    /// (the Idris `thatKind`). `None` outside a `With`. Replaces the old
+    /// untyped `those` whose dropped cardinality caused the first-of-many
+    /// bug.
     pub that: Option<ThatBinding>,
     /// The per-element share in scope inside a `Distribute` body — read by
     /// `Count::Allotment` ([CR#601.2d]). Set per element when `Distribute`

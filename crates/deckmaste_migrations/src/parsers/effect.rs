@@ -12,8 +12,9 @@ use crate::parsers::modify::strip_prefix_ci;
 use crate::resolve::ResolveCtx;
 
 /// One parsed effect clause: `TargetSpec` RON fragments to declare on the
-/// frame (empty when the effect targets nothing), and the `Effect`/`Action`
-/// body RON, which references any declared targets as `It`, `It`…
+/// frame (empty when the effect targets nothing), and the
+/// `OneShotEffect`/`Action` body RON, which references any declared targets as
+/// `It`, `It`…
 pub(super) struct ParsedEffect {
     pub(super) targets: Vec<String>,
     pub(super) effect: String,
@@ -22,12 +23,13 @@ pub(super) struct ParsedEffect {
 /// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
 /// decline. Productions are tried in order; the first match wins. `parse_if`
 /// leads (it folds a base sentence + conditional override into one
-/// `Effect::If`); the bespoke productions follow (they encode targeting/scope
-/// the bare macro templates can't carry); an `Effect`-kind macro template
-/// ([`parse_macro_effect`]) is the final fallthrough, so keyword-action lines
-/// (`investigate.`, `scry 2.`) route back to the macro whose template renders
-/// them. [`ResolveCtx`] carries the reverse template index that the fallthrough
-/// (and the conditional's condition-phrase lookup) consults.
+/// `OneShotEffect::If`); the bespoke productions follow (they encode
+/// targeting/scope the bare macro templates can't carry); an
+/// `OneShotEffect`-kind macro template ([`parse_macro_effect`]) is the final
+/// fallthrough, so keyword-action lines (`investigate.`, `scry 2.`) route back
+/// to the macro whose template renders them. [`ResolveCtx`] carries the reverse
+/// template index that the fallthrough (and the conditional's condition-phrase
+/// lookup) consults.
 pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     parse_if(line, ctx)
         .or_else(|| parse_may(line, ctx))
@@ -54,7 +56,7 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
 }
 
 /// The final effect-clause fallthrough: route the whole clause back to the
-/// `Effect`-kind macro whose `template` renders it — the settled
+/// `OneShotEffect`-kind macro whose `template` renders it — the settled
 /// "parse-via-macros" direction. This is what lets keyword-action macros
 /// (`investigate`, and its slot-bearing kin) stand as effect bodies in any
 /// shell (ETB trigger / activated / spell) without a bespoke `parse_<action>`
@@ -68,7 +70,7 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
 fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     let body = line.strip_suffix('.')?.trim();
     // Nullary (param-less) action macro — `investigate`.
-    if let Some(m) = ctx.index.match_kind("Effect", body)
+    if let Some(m) = ctx.index.match_kind("OneShotEffect", body)
         && m.consumed == body.len()
     {
         return Some(ParsedEffect {
@@ -78,7 +80,9 @@ fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     }
     // Slot-bearing action macro — `scry ${0}`, with each `${i}` slot read by
     // the typed reader.
-    if let Some(m) = ctx.index.match_with("Effect", body, macro_slot_reader)
+    if let Some(m) = ctx
+        .index
+        .match_with("OneShotEffect", body, macro_slot_reader)
         && m.consumed == body.len()
     {
         return Some(ParsedEffect {
@@ -89,12 +93,12 @@ fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     None
 }
 
-/// Read one `Effect`-macro template slot of declared type `ty` from the rest of
-/// the clause. The slot is the line's tail in the action shapes modeled here
-/// (`scry 2` — a `Count` magnitude at the end; `regenerate ~` — a `Reference`
-/// subject), so a successful read consumes all of `input`. `Count` and the
-/// self-reference forms of `Reference` are read; an unmodeled slot type (or a
-/// `Reference` that isn't a self-reference) declines, failing the whole
+/// Read one `OneShotEffect`-macro template slot of declared type `ty` from the
+/// rest of the clause. The slot is the line's tail in the action shapes modeled
+/// here (`scry 2` — a `Count` magnitude at the end; `regenerate ~` — a
+/// `Reference` subject), so a successful read consumes all of `input`. `Count`
+/// and the self-reference forms of `Reference` are read; an unmodeled slot type
+/// (or a `Reference` that isn't a self-reference) declines, failing the whole
 /// template cleanly.
 fn macro_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
     match ty {
@@ -232,9 +236,9 @@ fn player_verb_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
 /// (e.g. `you have the city's blessing` -> `YouHaveTheCitysBlessing`, authored
 /// in `plugins/builtin/macros/condition/`), and the emitted RON carries that
 /// macro INVOCATION, which the loader expands to its `Condition` body — exactly
-/// as an `Effect` action macro stands as an effect body. New condition phrases
-/// are added by authoring a `Condition` macro, with no parser change. v1
-/// declines when EITHER branch declares targets: the two clauses share no
+/// as an `OneShotEffect` action macro stands as an effect body. New condition
+/// phrases are added by authoring a `Condition` macro, with no parser change.
+/// v1 declines when EITHER branch declares targets: the two clauses share no
 /// announce list here, so colliding `It` references can't be expressed —
 /// a later production with a hoisted shared `Targeted` wrapper will lift that.
 fn parse_if(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
@@ -405,7 +409,7 @@ const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " hav
 /// ("destroy all/each …") are a later production. Declines when the subject
 /// isn't filter-parseable. Case-insensitive lead, since the clause opens a
 /// spell ("Destroy …") or follows a trigger comma ("…, destroy …").
-/// Sentence-order `Sequence` ([CR#608.2c]): a multi-sentence effect line
+/// Sentence-order `Sequentially` ([CR#608.2c]): a multi-sentence effect line
 /// splits into its sentences and parses each as a clause, in ORACLE ORDER —
 /// the telescope surface (each clause elaborates in the context extended by
 /// its left siblings' introductions; no binder inversion). Targets may be
@@ -425,7 +429,7 @@ fn parse_sequence(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     let effects: Vec<String> = parts.iter().map(|p| p.effect.clone()).collect();
     Some(ParsedEffect {
         targets: parts[0].targets.clone(),
-        effect: format!("Sequence([{}])", effects.join(", ")),
+        effect: format!("Sequentially([{}])", effects.join(", ")),
     })
 }
 
@@ -451,7 +455,7 @@ fn split_sentences(line: &str) -> Option<Vec<&str>> {
 /// The delayed-trigger template ([CR#603.7]): "At the beginning of the next
 /// end step, <clause>" -> `Delayed(event: StepBegins(at: Ending(End),
 /// whose: EachPlayers), effect: <clause>)` — a one-shot schedule created on
-/// resolution (fire-once is `Effect::Delayed`'s own semantics,
+/// resolution (fire-once is `OneShotEffect::Delayed`'s own semantics,
 /// [CR#603.7c]). The inner clause may not declare targets (a delayed body
 /// reads products, never the spell's slots — they are dropped, [CR#603.7c]).
 fn parse_delayed_next_end_step(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
@@ -546,10 +550,10 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
 /// - `Sacrifice it/~ unless you pay <cost>.` -> the "unless you pay" toll
 ///   ([CR#118.12a]): the controller may pay the stated cost to keep the
 ///   permanent, else sacrifices it. Wrapped in an
-///   [`Unless`](deckmaste_core::Effect::Unless) whose payer is the default
-///   `You` (the controller — the trigger fires on your own upkeep). Only a
-///   single mana cost is modeled (the overwhelmingly common upkeep tax); a
-///   richer toll declines. Mirrors the kw-echo macro's `Unless(effect:
+///   [`Unless`](deckmaste_core::OneShotEffect::Unless) whose payer is the
+///   default `You` (the controller — the trigger fires on your own upkeep).
+///   Only a single mana cost is modeled (the overwhelmingly common upkeep tax);
+///   a richer toll declines. Mirrors the kw-echo macro's `Unless(effect:
 ///   Sacrifice(This), unless: Param(0))` resolution shape.
 ///
 /// A non-self sacrifice ("Sacrifice a creature", "Sacrifice another …") is a
@@ -610,8 +614,8 @@ fn parse_attach(line: &str) -> Option<ParsedEffect> {
 /// `Counter target spell[ unless its controller pays <cost>].` -> a
 /// `TargetOne(Spell)` target on the stack and a `Counter(It)` body
 /// ([CR#701.6a]). The "unless its controller pays" rider wraps the counter in
-/// an [`Unless`](deckmaste_core::Effect::Unless) ([CR#118.12a]): the spell's
-/// controller (`who: ControllerOf(It)`) may pay the stated cost to stop
+/// an [`Unless`](deckmaste_core::OneShotEffect::Unless) ([CR#118.12a]): the
+/// spell's controller (`who: ControllerOf(It)`) may pay the stated cost to stop
 /// the counter. Only the bare and the mana-tax riders parse; richer riders
 /// (replacement clauses, "you may cast …", restricted spell filters) are later
 /// productions. Case-insensitive lead (spell clause vs. trigger comma).
@@ -1285,7 +1289,7 @@ mod tests {
     }
 
     /// `(targets, effect)` resolved against the REAL builtin macro index, so
-    /// the `Effect`-kind macro-template fallthrough is exercised.
+    /// the `OneShotEffect`-kind macro-template fallthrough is exercised.
     fn parsed_with_macros(line: &str) -> Option<(String, String)> {
         let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
         parse_clause(line, &ctx).map(|p| (p.targets.join(", "), p.effect))
@@ -1358,14 +1362,14 @@ mod tests {
         use std::path::Path;
         let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
         let plugin = deckmaste_cards::plugin::Plugin::load(plugins.join("builtin")).unwrap();
-        let effect: deckmaste_core::Effect = plugin
+        let effect: deckmaste_core::OneShotEffect = plugin
             .macros
             .read_str("Each(binder: Existing(SelectAll(Player)), effect: By(It, Mills(2)))")
             .unwrap();
-        let deckmaste_core::Effect::Each(each) = effect else {
+        let deckmaste_core::OneShotEffect::Each(each) = effect else {
             panic!("expected Each, got {effect:?}");
         };
-        let deckmaste_core::Effect::Act(deckmaste_core::Action::By(
+        let deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::By(
             deckmaste_core::Reference::It,
             ref action,
         )) = *each.effect
@@ -1969,10 +1973,10 @@ mod tests {
         assert!(declines("you may flip a coin."));
     }
 
-    /// A nullary `Effect`-kind macro template (`investigate`) resolves as the
-    /// effect body through the final macro-template fallthrough — emitting the
-    /// bare invocation, no targets. Both the bare and Title-Case leads match
-    /// (the template is case-folded).
+    /// A nullary `OneShotEffect`-kind macro template (`investigate`) resolves
+    /// as the effect body through the final macro-template fallthrough —
+    /// emitting the bare invocation, no targets. Both the bare and
+    /// Title-Case leads match (the template is case-folded).
     #[test]
     fn macro_effect_investigate_resolves_via_template() {
         assert_eq!(
@@ -1997,10 +2001,10 @@ mod tests {
         );
     }
 
-    /// A slot-bearing `Effect`-kind macro whose param is a `Reference` resolves
-    /// through the fallthrough: the self-reference sigil `~` fills the slot as
-    /// `This` ([CR#201.5]). Regenerate (`template: "regenerate ${0}"`,
-    /// `params: [Reference]`) is the flagship — `regenerate ~.` ->
+    /// A slot-bearing `OneShotEffect`-kind macro whose param is a `Reference`
+    /// resolves through the fallthrough: the self-reference sigil `~` fills
+    /// the slot as `This` ([CR#201.5]). Regenerate (`template: "regenerate
+    /// ${0}"`, `params: [Reference]`) is the flagship — `regenerate ~.` ->
     /// `Regenerate(This)`.
     #[test]
     fn macro_effect_reference_slot_reads_self_ref() {
@@ -2261,7 +2265,7 @@ mod tests {
         );
     }
 
-    /// The sentence-order `Sequence` production: two parseable sentences
+    /// The sentence-order `Sequentially` production: two parseable sentences
     /// join in oracle order, targets declared by the first only.
     #[test]
     fn sequence_parses_counter_then_gain() {
@@ -2271,7 +2275,7 @@ mod tests {
         )
         .expect("both sentences are productions");
         assert_eq!(parsed.targets, vec!["TargetOne(Spell)".to_owned()]);
-        assert_eq!(parsed.effect, "Sequence([Counter(It), GainLife(5)])");
+        assert_eq!(parsed.effect, "Sequentially([Counter(It), GainLife(5)])");
     }
 
     #[test]
@@ -2284,7 +2288,7 @@ mod tests {
             "Counter target spell unless its controller pays {1} for each card in your graveyard."
         ));
         // "Counter target spell. You gain 5 life." parses now — the
-        // sentence-order Sequence production picked it up (both sentences
+        // sentence-order Sequentially production picked it up (both sentences
         // are productions); see `sequence_parses_counter_then_gain`.
         assert!(declines("Counter target spell you don't control."));
         // Spell-on-the-stack restrictions ("that targets a creature") aren't

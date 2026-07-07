@@ -12,7 +12,7 @@
 //                     `Not(Is(This, HasCounter(P1P1Counter)))` — the dying
 //                     object (`This`, read through last-known information,
 //                     [CR#603.10a]) holds zero +1/+1 counters.
-//   - resolution:     a `Sequence` — first `Move(This, Battlefield)` (the
+//   - resolution:     a `Sequentially` — first `Move(This, Battlefield)` (the
 //                     source-agent plain zone change that returns the dead card
 //                     to the battlefield under its owner's control, [CR#400.7];
 //                     a graveyard→battlefield destination is the object's
@@ -36,7 +36,7 @@
         abilities: [Triggered(
             event: ThisDies,
             condition: Not(Is(This, HasCounter(P1P1Counter))),
-            effect: Sequence([
+            effect: Sequentially([
                 Move(This, Battlefield),
                 PutCounters(This, P1P1Counter, 1),
             ]),

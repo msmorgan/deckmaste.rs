@@ -121,16 +121,17 @@ pub enum WorkItem {
     },
     /// Resolve the named committed stack object ([CR#608]). Reads `self.stack`.
     Resolve(crate::object::ObjectId),
-    /// Interpret one `Effect` node against a resolution frame ([CR#608.2]).
+    /// Interpret one `OneShotEffect` node against a resolution frame
+    /// ([CR#608.2]).
     RunEffect {
-        effect: Box<deckmaste_core::Effect>,
+        effect: Box<deckmaste_core::OneShotEffect>,
         frame: crate::stack::Frame,
     },
     /// Opens a `Noting` collection window ([CR#607.2a] linkage — the
     /// fact-backed product group): resets `key`'s group and pushes it onto
     /// the noting stack, so every enacted `ZoneChanged` fact until the
     /// matching `EndNote` joins the group. Scheduled around the noted
-    /// effect's `RunEffect` by `Effect::Noting`.
+    /// effect's `RunEffect` by `OneShotEffect::Noting`.
     BeginNote { key: deckmaste_core::Ident },
     /// Closes the innermost `Noting` collection window ([CR#607.2a]).
     EndNote,

@@ -2786,7 +2786,7 @@ fn nonflash_creature_not_castable_at_instant_timing() {
 fn inline_blink() -> Card {
     use deckmaste_core::Action;
     use deckmaste_core::Destination;
-    use deckmaste_core::Effect;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
@@ -2801,15 +2801,15 @@ fn inline_blink() -> Card {
         abilities: vec![deckmaste_core::Ability::Spell(
             deckmaste_core::SpellAbility {
                 ability_word: None,
-                effect: Effect::Targeted(Targeted::new(
+                effect: OneShotEffect::Targeted(Targeted::new(
                     vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
-                    Effect::Sequence(vec![
-                        Effect::Act(Action::Move(
+                    OneShotEffect::Sequentially(vec![
+                        OneShotEffect::Act(Action::Move(
                             Reference::It,
                             Destination::Zone(Zone::Exile),
                             vec![],
                         )),
-                        Effect::Act(Action::Move(
+                        OneShotEffect::Act(Action::Move(
                             Reference::That(Sort::Card),
                             Destination::Zone(Zone::Battlefield),
                             vec![],

@@ -20,7 +20,7 @@
 (
     name: "Regenerate",
     template: "regenerate ${0}",
-    kinds: [Effect],
+    kinds: [OneShotEffect],
     params: [Reference],
     body: CreateReplacement(
         replacement: Instead(
@@ -30,7 +30,7 @@
                 to: Graveyard,
                 cause: Cause(verb: Destroy),
             ),
-            instead: Sequence([
+            instead: Sequentially([
                 RemoveDamage(EventObject),
                 Tap(EventObject),
             ]),

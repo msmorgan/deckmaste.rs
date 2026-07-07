@@ -67,7 +67,6 @@ use deckmaste_core::DesignationDecl;
 use deckmaste_core::DesignationDef;
 use deckmaste_core::DesignationScope;
 use deckmaste_core::Destination;
-use deckmaste_core::Effect;
 use deckmaste_core::EnterRider;
 use deckmaste_core::EventFilter;
 use deckmaste_core::Ident;
@@ -79,6 +78,7 @@ use deckmaste_core::ManaSymbol;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
 use deckmaste_core::NumericOp;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerAttr;
@@ -1777,7 +1777,7 @@ fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
                 &["(DealDamage Nothing)".to_string()],
                 &damage_facets(from, to)?,
             );
-            app("Replaces", vec![q, "(Sequence [])".to_string()])
+            app("Replaces", vec![q, "(Sequentially [])".to_string()])
         }
         P::PreventNext { n, from, to, .. } => {
             let q = event_query(
@@ -1790,7 +1790,7 @@ fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
                 "replacesLimit",
                 vec![
                     q,
-                    "(Sequence [])".to_string(),
+                    "(Sequentially [])".to_string(),
                     format!("(UpTo {})", emit_count(n)?),
                 ],
             )
@@ -2425,36 +2425,40 @@ fn merge_one_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
 }
 
 // ===========================================================================
-// Effect
+// OneShotEffect
 // ===========================================================================
 
-fn emit_effect(e: &Effect) -> R {
+fn emit_effect(e: &OneShotEffect) -> R {
     Ok(match e {
-        Effect::Act(a) => app("Act", vec![emit_action(a)?]),
-        Effect::Sequence(es) => app("Sequence", vec![map_list(es, emit_effect)?]),
+        OneShotEffect::Act(a) => app("Act", vec![emit_action(a)?]),
+        OneShotEffect::Sequentially(es) => app("Sequentially", vec![map_list(es, emit_effect)?]),
         // One pre-application snapshot, one batch ([CR#701.14a]) — a plain list
-        // (no `SeqList` threading, unlike `Sequence`). Fight's guarded body
+        // (no `SeqList` threading, unlike `Sequentially`). Fight's guarded body
         // rides this.
-        Effect::Simultaneous(es) => app("Simultaneous", vec![map_list(es, emit_effect)?]),
-        Effect::Continuously(c) => app(
+        OneShotEffect::Simultaneously(es) => {
+            app("Simultaneously", vec![map_list(es, emit_effect)?])
+        }
+        OneShotEffect::Continuously(c) => app(
             "Continuously",
             vec![emit_duration(&c.duration)?, emit_static_effect(&c.effect)?],
         ),
-        Effect::Until(duration, parts) => {
+        OneShotEffect::Until(duration, parts) => {
             let d = emit_duration(duration)?;
             let mut wrapped = Vec::with_capacity(parts.len());
             for p in parts {
                 wrapped.push(app("Continuously", vec![d.clone(), emit_static_effect(p)?]));
             }
-            app("Sequence", vec![ilist(wrapped)])
+            app("Sequentially", vec![ilist(wrapped)])
         }
-        Effect::Label { .. } => {
-            return Err(gap("Effect::Label has no Idris OneShotEffect counterpart"));
+        OneShotEffect::Label { .. } => {
+            return Err(gap(
+                "OneShotEffect::Label has no Idris OneShotEffect counterpart",
+            ));
         }
-        Effect::SeparatePiles(sp) => emit_separate_piles(sp)?,
-        Effect::ChoosePile(cp) => emit_choose_pile(cp)?,
+        OneShotEffect::SeparatePiles(sp) => emit_separate_piles(sp)?,
+        OneShotEffect::ChoosePile(cp) => emit_choose_pile(cp)?,
         // `mayWith` takes the (default-`Nothing`) `ifDid`/`ifNot` positionally.
-        Effect::May(m) => app(
+        OneShotEffect::May(m) => app(
             "mayWith",
             vec![
                 emit_effect(&m.effect)?,
@@ -2463,7 +2467,7 @@ fn emit_effect(e: &Effect) -> R {
             ],
         ),
         // `ifElse` takes the (default-`Nothing`) `otherwise` positionally.
-        Effect::If(i) => app(
+        OneShotEffect::If(i) => app(
             "ifElse",
             vec![
                 emit_condition(&i.condition)?,
@@ -2472,7 +2476,7 @@ fn emit_effect(e: &Effect) -> R {
             ],
         ),
         // `mayPayFull`/`mustPayBy` take the (default-`You`) actor positionally.
-        Effect::MayPay(m) => app(
+        OneShotEffect::MayPay(m) => app(
             "mayPayFull",
             vec![
                 emit_reference(&m.actor)?,
@@ -2481,7 +2485,7 @@ fn emit_effect(e: &Effect) -> R {
                 opt_effect(&m.or_else)?,
             ],
         ),
-        Effect::MustPay(m) => app(
+        OneShotEffect::MustPay(m) => app(
             "mustPayBy",
             vec![
                 emit_reference(&m.actor)?,
@@ -2489,16 +2493,16 @@ fn emit_effect(e: &Effect) -> R {
                 emit_effect(&m.or_else)?,
             ],
         ),
-        Effect::AdditionalCost(ac) => app(
+        OneShotEffect::AdditionalCost(ac) => app(
             "AdditionalCost",
             vec![emit_cost(&ac.pay)?, emit_effect(&ac.body)?],
         ),
-        Effect::Each(e) => app(
+        OneShotEffect::Each(e) => app(
             "Each",
             vec![emit_binder(&e.binder)?, emit_effect(&e.effect)?],
         ),
-        Effect::With(w) => app("With", vec![emit_binder(&w.binder)?, emit_effect(&w.body)?]),
-        Effect::Distribute(d) => app(
+        OneShotEffect::With(w) => app("With", vec![emit_binder(&w.binder)?, emit_effect(&w.body)?]),
+        OneShotEffect::Distribute(d) => app(
             "Distribute",
             vec![
                 emit_count(&d.amount)?,
@@ -2506,20 +2510,20 @@ fn emit_effect(e: &Effect) -> R {
                 emit_effect(&d.body)?,
             ],
         ),
-        Effect::Noting(_) => return Err(gap("Effect::Noting not yet mapped")),
-        Effect::Delayed(ta) => {
+        OneShotEffect::Noting(_) => return Err(gap("OneShotEffect::Noting not yet mapped")),
+        OneShotEffect::Delayed(ta) => {
             let (kinds, facets) = emit_event_filter(&ta.event)?;
             app(
                 "Delayed",
                 vec![event_query(&kinds, &facets), emit_effect(&ta.effect)?],
             )
         }
-        Effect::Reflexive(ta) => app("Reflexive", vec![emit_effect(&ta.effect)?]),
-        Effect::Modal(m) => emit_modal(m)?,
-        Effect::Targeted(t) => emit_targeted(t)?,
-        Effect::Expanded(_) => {
+        OneShotEffect::Reflexive(ta) => app("Reflexive", vec![emit_effect(&ta.effect)?]),
+        OneShotEffect::Modal(m) => emit_modal(m)?,
+        OneShotEffect::Targeted(t) => emit_targeted(t)?,
+        OneShotEffect::Expanded(_) => {
             return Err(gap(
-                "unexpanded Effect macro invocation remained after expand_all",
+                "unexpanded OneShotEffect macro invocation remained after expand_all",
             ));
         }
     })
@@ -2527,7 +2531,7 @@ fn emit_effect(e: &Effect) -> R {
 
 /// An optional sub-effect as a plain Idris `Maybe` — `Nothing`, or `(Just
 /// <effect>)` — for the positional `mayWith`/`ifElse`/`mayPayFull` helpers.
-fn opt_effect(e: &Option<Box<Effect>>) -> R {
+fn opt_effect(e: &Option<Box<OneShotEffect>>) -> R {
     match e {
         None => Ok("Nothing".to_string()),
         Some(inner) => Ok(format!("(Just {})", emit_effect(inner)?)),
@@ -2606,12 +2610,12 @@ fn emit_mode(m: &deckmaste_core::Mode) -> R {
 
 fn emit_separate_piles(_sp: &deckmaste_core::SeparatePiles) -> R {
     Err(gap(
-        "Effect::SeparatePiles not yet mapped (Idris's DivideAndChoose has a different two-pile shape)",
+        "OneShotEffect::SeparatePiles not yet mapped (Idris's DivideAndChoose has a different two-pile shape)",
     ))
 }
 
 fn emit_choose_pile(_cp: &deckmaste_core::ChoosePile) -> R {
-    Err(gap("Effect::ChoosePile not yet mapped"))
+    Err(gap("OneShotEffect::ChoosePile not yet mapped"))
 }
 
 // ===========================================================================

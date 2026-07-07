@@ -160,7 +160,7 @@ impl PredefinedToken {
         use crate::ability::ActivatedAbility;
         use crate::action::PlayerAction;
         use crate::cost::CostComponent;
-        use crate::effect::Effect;
+        use crate::effect::OneShotEffect;
         use crate::mana::ManaCost;
         use crate::mana::ManaSymbol;
         use crate::mana::SimpleManaSymbol;
@@ -180,20 +180,23 @@ impl PredefinedToken {
         let add_any = || PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor.into());
 
         // (cost components, ability effect)
-        let (cost, effect): (Vec<CostComponent>, Effect) = match self {
+        let (cost, effect): (Vec<CostComponent>, OneShotEffect) = match self {
             // [CR#111.10a] "{T}, Sacrifice this token: Add one mana of any color."
-            Self::Treasure => (vec![CostComponent::Tap, sac], Effect::act_by_you(add_any())),
+            Self::Treasure => (
+                vec![CostComponent::Tap, sac],
+                OneShotEffect::act_by_you(add_any()),
+            ),
             // [CR#111.10b] "{2}, {T}, Sacrifice this token: You gain 3 life."
             Self::Food => (
                 vec![mana(2), CostComponent::Tap, sac],
-                Effect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
+                OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
             ),
             // [CR#111.10c] "Sacrifice this token: Add one mana of any color."
-            Self::Gold => (vec![sac], Effect::act_by_you(add_any())),
+            Self::Gold => (vec![sac], OneShotEffect::act_by_you(add_any())),
             // [CR#111.10f] "{2}, Sacrifice this token: Draw a card."
             Self::Clue => (
                 vec![mana(2), sac],
-                Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
             ),
             // [CR#111.10g] "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
             Self::Blood => (
@@ -207,7 +210,7 @@ impl PredefinedToken {
                     })),
                     sac,
                 ],
-                Effect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
             ),
         };
 
@@ -262,7 +265,7 @@ mod tests {
     use crate::action::Action;
     use crate::action::PlayerAction;
     use crate::cost::CostComponent;
-    use crate::effect::Effect;
+    use crate::effect::OneShotEffect;
     use crate::mana::ManaSpec;
     use crate::reference::Reference;
 
@@ -310,7 +313,7 @@ mod tests {
                 .into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::act_by_you(PlayerAction::AddMana(
+                effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     crate::Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
@@ -447,7 +450,7 @@ mod tests {
                 .into(),
                 condition: None,
                 limits: vec![],
-                effect: Effect::Act(Action::By(
+                effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::AddMana(crate::Count::Literal(1), ManaSpec::AnyColor.into()),
                 )),

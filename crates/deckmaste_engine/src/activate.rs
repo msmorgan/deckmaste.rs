@@ -73,7 +73,7 @@ pub(crate) struct CostSummary {
     /// the verb. Collected verbatim because the choice can only be surfaced
     /// against a live frame: the gate ([`GameState::can_activate`]) checks
     /// the binder's choose-feasibility, and the pay step
-    /// ([`GameState::pay_cost`]) runs each as an `Effect::With`
+    /// ([`GameState::pay_cost`]) runs each as an `OneShotEffect::With`
     /// (which surfaces `ChooseObjects` and binds `frame.those`, exactly like
     /// the effect-side `With`).
     pub withs: Vec<CostComponent>,
@@ -141,7 +141,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
             // as `That`/`Those`, then pay the body. Collected verbatim: the
             // choice can only be surfaced against a live frame, so the gate
             // checks the binder's choose-feasibility and the pay step runs each
-            // as an `Effect::With` (mirroring `ManaCostOf`/`TapTotal`).
+            // as an `OneShotEffect::With` (mirroring `ManaCostOf`/`TapTotal`).
             CostComponent::With { .. } => withs.push(component.clone()),
             // Recurse through macro wrappers.
             CostComponent::Expanded(e) => {
@@ -663,9 +663,9 @@ mod tests {
     use deckmaste_core::ActivatedAbility;
     use deckmaste_core::Condition;
     use deckmaste_core::CostComponent;
-    use deckmaste_core::Effect;
     use deckmaste_core::ManaCost;
     use deckmaste_core::ManaSymbol;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SimpleManaSymbol;
@@ -695,7 +695,7 @@ mod tests {
 
     /// Build an `ActivatedAbility` with the given cost and no
     /// condition/limits/targets.
-    fn activated(cost: Vec<CostComponent>, effect: Effect) -> ActivatedAbility {
+    fn activated(cost: Vec<CostComponent>, effect: OneShotEffect) -> ActivatedAbility {
         ActivatedAbility {
             ability_word: None,
             from: None,
@@ -707,9 +707,9 @@ mod tests {
         }
     }
 
-    fn noop_effect() -> Effect {
+    fn noop_effect() -> OneShotEffect {
         // A no-target effect: By(You, Sacrifice(This)) — available in core.
-        Effect::Act(Action::By(
+        OneShotEffect::Act(Action::By(
             Reference::You,
             PlayerAction::Sacrifice(Reference::This),
         ))
