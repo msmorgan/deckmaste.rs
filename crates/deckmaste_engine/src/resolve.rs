@@ -7957,6 +7957,257 @@ mod tests {
         assert_eq!(union, vec![a, b, c], "order-preserving union, b deduped");
     }
 
+    // ---- scry / arrange (the recomposed keyword-action path) ----------------
+    use crate::decide::Decision;
+    use crate::decide::PendingDecision;
+    use deckmaste_core::Anchor;
+    use deckmaste_core::Destination;
+    use deckmaste_core::Uint;
+
+    /// Mint a fresh card-backed object into `owner`'s library at the BOTTOM
+    /// (`push_back`; the front is the top). Returns its id.
+    fn mint_in_library(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
+        let cid = state.cards.push(
+            Arc::new(Card::Normal(CardFace {
+                name: name.into(),
+                types: vec![Type::Creature],
+                ..CardFace::default()
+            })),
+            owner,
+        );
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), owner, Some(Zone::Library));
+        state.zones.libraries[owner.index()].push_back(id);
+        id
+    }
+
+    /// The recomposed `scry n` effect ([CR#701.22a]): the committed north-star
+    /// shape — `Composite Scry (Each (Existing (TopOfLibrary n)) (Modal 1-of-2
+    /// [Move(It, Library(FromTop 0)), Move(It, Library(FromBottom 0))]))`.
+    fn scry_effect(n: Uint) -> Effect {
+        let mode = |anchor| deckmaste_core::Mode {
+            effect: Effect::Act(Action::Move(
+                Reference::It,
+                Destination::Library(anchor),
+                vec![],
+            )),
+            cost: None,
+        };
+        Effect::Act(Action::Composite {
+            name: "Scry".into(),
+            body: Box::new(Effect::Each(deckmaste_core::Each {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
+                    count: Count::Literal(n),
+                    of: Reference::You,
+                }),
+                effect: Box::new(Effect::Modal(deckmaste_core::Modal {
+                    choose: deckmaste_core::ChooseSpec {
+                        count: deckmaste_core::Quantity::Range(
+                            Some(Count::Literal(1)),
+                            Some(Count::Literal(1)),
+                        ),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![
+                        mode(Anchor::FromTop(Count::Literal(0))),
+                        mode(Anchor::FromBottom(Count::Literal(0))),
+                    ],
+                })),
+            })),
+        })
+    }
+
+    /// Step until a decision surfaces (or `n` steps elapse), returning the
+    /// applied events seen along the way.
+    fn drain_events(state: &mut GameState, n: usize) -> Vec<GameEvent> {
+        let mut out = Vec::new();
+        for p in drain_progress(state, n) {
+            if let Progress::Applied(occ) = p {
+                match occ {
+                    Occurrence::Single(e) => out.push(e),
+                    Occurrence::Batch(v) => out.extend(v),
+                }
+            }
+        }
+        out
+    }
+
+    /// [CR#701.22a,401.7]: scry-1 to the BOTTOM repositions the peeked card
+    /// within the SAME library — the `ObjectId` is preserved, no `ZoneChanged`
+    /// fires (a pile of one surfaces no arrange decision), and the keyword-action
+    /// event fires once the pick lands ([CR#701.22d]).
+    #[test]
+    fn scry_reposition_keeps_id_and_fires_no_zone_change() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        let c = mint_in_library(&mut state, p0, "C");
+        // library top→bottom = [a, b, c].
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60); // → the single Modal decision
+        assert!(
+            matches!(state.pending, Some(PendingDecision::ChooseModes { .. })),
+            "scry surfaces the per-card top/bottom pick, got {:?}",
+            state.pending
+        );
+        // The looker sees the peeked card.
+        assert!(state.look_grants.contains(&(p0, a)), "peek grants look");
+        // Pick mode 1 (bottom).
+        state.submit_decision(Decision::Modes(vec![1])).unwrap();
+        let events = drain_events(&mut state, 60);
+        // `a` moved to the bottom, SAME id, no zone change.
+        assert_eq!(
+            state.zones.libraries[p0.index()].iter().copied().collect::<Vec<_>>(),
+            vec![b, c, a],
+            "a repositioned to the bottom, keeping its id"
+        );
+        assert!(
+            state.objects.get(a).is_some(),
+            "the repositioned object id is preserved (not reminted)"
+        );
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::ZoneChanged { .. })),
+            "a same-library reposition fires no ZoneChanged"
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+            )),
+            "scry-1 fires the keyword-action event"
+        );
+    }
+
+    /// [CR#701.22b]: scry 0 does nothing and fires NO keyword event; scry N>0
+    /// fires exactly one `KeywordActionPerformed`.
+    #[test]
+    fn scry_zero_fires_no_event_but_nonzero_does() {
+        let p0 = PlayerId(0);
+
+        // scry 0 over a stocked library: no decision, no event.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(0), &frame);
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::KeywordActionPerformed { .. })),
+            "scry 0 emits no keyword event ([CR#701.22b])"
+        );
+
+        // scry 1 fires exactly one.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap();
+        let events = drain_events(&mut state, 60);
+        let scries = events
+            .iter()
+            .filter(|e| matches!(
+                e,
+                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+            ))
+            .count();
+        assert_eq!(scries, 1, "scry 1 fires exactly one keyword event");
+    }
+
+    /// [CR#401.4]: a pile of MORE THAN ONE card at a library end surfaces one
+    /// arrange decision (both-on-top), while a scry whose picks split one card to
+    /// each end surfaces NONE (every pile is a single card).
+    #[test]
+    fn scry_arrange_surfaces_only_for_multi_card_piles() {
+        let p0 = PlayerId(0);
+
+        // Both on top → one arrange decision over the two-card pile.
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        mint_in_library(&mut state, p0, "C");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
+        drain_events(&mut state, 60);
+        let Some(PendingDecision::ArrangePile { player, objects }) = state.pending.clone() else {
+            panic!("expected an ArrangePile decision, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the scrying player arranges");
+        assert_eq!(
+            objects.iter().copied().collect::<std::collections::HashSet<_>>(),
+            [a, b].into_iter().collect(),
+            "the top pile holds both peeked cards"
+        );
+
+        // One top, one bottom → two singleton piles → no arrange decision.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        mint_in_library(&mut state, p0, "C");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![1])).unwrap(); // b → bottom
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !matches!(state.pending, Some(PendingDecision::ArrangePile { .. })),
+            "two singleton piles surface no arrange decision, got {:?}",
+            state.pending
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+            )),
+            "the keyword event still fires"
+        );
+    }
+
+    /// [CR#701.22a]: a full scry-2 both-on-top round trip — the arrange decision
+    /// orders the top pile, and the library ends up in the chosen order above the
+    /// untouched rest, every id preserved.
+    #[test]
+    fn scry_two_both_top_round_trip() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        let c = mint_in_library(&mut state, p0, "C");
+        let d = mint_in_library(&mut state, p0, "D");
+        // top→bottom = [a, b, c, d].
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
+        drain_events(&mut state, 60);
+        // Arrange the top pile as b, then a (top → down).
+        state.submit_decision(Decision::Arranged(vec![b, a])).unwrap();
+        drain_events(&mut state, 60);
+        assert_eq!(
+            state.zones.libraries[p0.index()].iter().copied().collect::<Vec<_>>(),
+            vec![b, a, c, d],
+            "the chosen order sits on top, the rest untouched, ids preserved"
+        );
+    }
 
     /// `Count` arithmetic ([CR#107.1]) evaluates structurally — no board
     /// needed. `Minus` floors at 0 ([CR#107.1b]); `Half` rounds per the mode.
