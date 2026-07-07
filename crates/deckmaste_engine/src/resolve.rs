@@ -472,10 +472,9 @@ impl GameState {
             // `CheckSbas`, never between members). ALL-OR-NOTHING: a member
             // that evaluates to no events voids the whole set ([CR#701.12a]
             // — "if the entire exchange can't be completed, no part of the
-            // exchange occurs"). The load cap (`E-POS-SIMULTANEOUS`)
-            // restricts members to the exchange family's pure-verb bodies —
-            // a choice-bearing member is unreachable from loadable data and
-            // trips loudly.
+            // exchange occurs"). The exchange family restricts members to
+            // pure-verb bodies — a choice-bearing member is unrepresentable
+            // in sound data and trips loudly.
             Effect::Simultaneous(children) => {
                 let mut member_events: Vec<Vec<GameEvent>> = Vec::new();
                 for child in &children {
@@ -576,8 +575,8 @@ impl GameState {
                     .collect();
                 self.schedule_front(items);
             }
-            // A label names the clause's introductions for the ELABORATOR
-            // (`The`/`TheGroup` reads); at runtime it is transparent.
+            // A label names the clause's introductions (a compile-time
+            // soundness concept); at runtime it is transparent.
             Effect::Label(label) => self.run_effect(*label.effect, frame),
             // A remembered macro expansion (e.g. an `Effect`-kind macro like
             // `PumpThisUntilEot`) is transparent to resolution — run its value,
@@ -1952,12 +1951,12 @@ impl GameState {
             // can never be silently splayed into a group here. Panics outside a
             // many-binder `With` — always a bug.
             Selection::They | Selection::Them(_) => {
-                // The sort is elaborator-verified surface; the frame's bound
-                // group is the value. Without a `With` binding, the plural
-                // slot read: the announced target list is the one Many
+                // The sort is verified by the Idris re-emit gate; the frame's
+                // bound group is the value. Without a `With` binding, the
+                // plural slot read: the announced target list is the one Many
                 // antecedent (Arc Lightning's 1–3 targets read back as
-                // `They` — the runtime twin of the elaborator's R1, sound
-                // because R2 refused any second Many candidate at load). A
+                // `They` — the runtime twin of the Idris model's R1, sound
+                // because R2 refused any second Many candidate). A
                 // product-sited plural read (create-two-tokens … They) is
                 // [[engine-bound-references]] work.
                 let Some(that) = frame.anaphora.that.as_ref() else {
@@ -2108,12 +2107,12 @@ impl GameState {
                 }
                 // The slot-bound read: outside every loop binder, a lone
                 // announced target is `It`'s unique antecedent — the runtime
-                // twin of the elaborator's R1 resolution, sound because the
-                // R2 gate refused any second candidate AT LOAD. The guard on
+                // twin of the Idris model's R1 resolution, sound because the
+                // R2 gate refused any second candidate. The guard on
                 // the other singular bindings keeps this from ever guessing:
                 // a frame carrying an event role or a `With` choice can't
-                // take the fallback (such a read would have been ambiguous
-                // and refused at load, so it can't reach here).
+                // take the fallback (such a read would be ambiguous —
+                // unrepresentable in the Idris model — so it can't reach here).
                 let no_other_singular = frame.anaphora.that.is_none()
                     && frame.anaphora.that_object.is_none()
                     && frame.anaphora.that_patient.is_none()
@@ -2134,8 +2133,8 @@ impl GameState {
             // iterated with `Each` — so this never silently takes the first of
             // many. Panics outside an enclosing one-binder `With` — always a bug.
             Reference::That(_) => {
-                // The sort is elaborator-verified surface; at runtime the
-                // frame's binding is the value. A PRODUCT-sited `That(Sort)`
+                // The sort is verified by the Idris re-emit gate; at runtime
+                // the frame's binding is the value. A PRODUCT-sited `That(Sort)`
                 // (the exile-and-return chain) has no frame binding — its
                 // runtime backing (GameState.noted product groups) lands
                 // with [[engine-bound-references]]; loud until then.
@@ -2580,8 +2579,8 @@ impl GameState {
     /// draw fact ([CR#121.2] — drawn one at a time), and one per moved card
     /// on a cause-amount zone change (a discard's/mill's card count,
     /// [CR#701.9a,701.17a]). A fact kind outside this set trips loudly: the
-    /// caps gate (`E-CAPS-AMOUNT`) rejects `EventSum` over an event that
-    /// guarantees no amount, so no loadable card reaches the fallback.
+    /// Idris re-emit gate rejects `EventSum` over an event that guarantees no
+    /// amount, so no sound card reaches the fallback.
     fn game_event_amount(fact: &GameEvent) -> Uint {
         match fact {
             GameEvent::LifeLost { amount, .. }

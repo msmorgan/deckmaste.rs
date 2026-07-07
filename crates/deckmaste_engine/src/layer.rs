@@ -342,7 +342,7 @@ struct ActiveEffect {
     scope: ScopeResolved,
     changes: Vec<Modification>,
     /// The effect's carrier ([CR#611.2c]) — the object whose `Ref(This)`/
-    /// `Ref(You)` a `Matching` scope resolves against. The source permanent for
+    /// `Ref(You)` a matching-set static resolves against. The source permanent for
     /// a static ability; `Player(controller)` for a spell-built floating effect
     /// (its source spell has left the stack, so `You` anchors on the locked
     /// controller's proxy, which is always live). Threaded into `resolve_scope`
@@ -606,8 +606,8 @@ fn static_effect_scope(
     }
 }
 
-/// Resolve a `Reference` inside a static ability's `Scope::Of`/`These` to
-/// concrete object ids, SOURCE-RELATIVE: `This` is the static's source object
+/// Resolve a `Reference` inside a static ability's effect (its `Modify`/`Each`
+/// references) to concrete object ids, SOURCE-RELATIVE: `This` is the static's source object
 /// `source` (the carrying permanent), and `gather` has **no** [`Frame`], so
 /// only the references whose value is fixed by the source's own relations are
 /// resolvable here. The rest are a documented seam (see below) and resolve to
@@ -776,7 +776,7 @@ fn matches_derived(
 /// realizing [CR#613.6]'s requirement that affected sets are re-evaluated
 /// against "the characteristics produced by earlier layers". This means an
 /// anthem catches permanents animated to Creature by a same-pass L4 effect,
-/// and a `Matching(Enchantment)` scope correctly includes only objects still
+/// and a `SelectAll(Enchantment)` set correctly includes only objects still
 /// typed Enchantment in the working map at the time of resolution.
 ///
 /// `Locked` ids are returned as-is (pre-snapshotted at the first applied
@@ -1629,7 +1629,7 @@ mod tests {
     }
 
     /// A self-anthem `Static`: "creatures get +2/+2" — matches the carrying
-    /// creature itself (a `Matching` floating scope, no Stage-3 source-relative
+    /// creature itself (a floating `SelectAll` set, no Stage-3 source-relative
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
         let s = Ability::Static(StaticEffect::Each(

@@ -116,7 +116,7 @@ card_Brainstorm = Normal $ ^:
       [ Spell $
           Sequence
           [ Act (Draw (^3))
-          , Each (Choose (^2) inHand) (Act (Move It (ToLibrary (FromTop (^0)))))   -- canon: Move(It, Library(FromTop(0))) — a bare Library destination is the E-FLOOR-DESTINATION reject
+          , Each (Choose (^2) inHand) (Act (Move It (ToLibrary (FromTop (^0)))))   -- canon: Move(It, Library(FromTop(0))) — an ordered zone needs a position; a bare `Library` destination is unrepresentable
           ]
       ]
   }
@@ -149,7 +149,7 @@ card_Rancor = Normal $ ^:
 -- case), in SENTENCE ORDER: "Exile target creature you control, then return
 -- that card to the battlefield." The exile clause's product answers to
 -- "card" (exile's noun), so the second telescope cell reads `That Card` —
--- no binder inversion (the signature fixture's accept twin).
+-- no binder inversion.
 export
 card_Cloudshift : Card
 card_Cloudshift = Normal $ ^:

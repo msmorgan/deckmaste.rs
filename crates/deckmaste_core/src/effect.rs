@@ -59,30 +59,28 @@ pub enum Effect {
     /// events voids the whole set ([CR#701.12a] — "if the entire exchange
     /// can't be completed, no part of the exchange occurs"). `Fight` is NOT
     /// `Simultaneous` sugar — it stays a primitive verb
-    /// ([CR#701.14a..701.14d]). Load-capped to the exchange-family macros'
-    /// bodies (`E-POS-SIMULTANEOUS`) until the wiring generalizes.
+    /// ([CR#701.14a..701.14d]). Restricted to the exchange-family macros'
+    /// bodies until the wiring generalizes.
     Simultaneous(Vec<Effect>),
     /// A one-shot-created continuous effect ([CR#611.2]).
     Continuously(Continuously),
     /// A one-shot-created continuous effect over a LIST of static parts —
     /// `Until(EndOfTurn, [Modify(…), Deontic(…)])` ([CR#611.2]). Fixed-vs-
     /// live affected sets are PER PART ([CR#611.2c]): characteristic-/
-    /// controller-modifying parts gather their `Matching` set once at start;
-    /// deontic/prevention/replacement/cost parts stay live — the class is
-    /// the emitted `static-classes.ron` column, stamped by the elaborator.
+    /// controller-modifying parts gather their affected set once at start;
+    /// deontic/prevention/replacement/cost parts stay live — the class
+    /// follows each part's kind.
     /// (`Continuously` is the single-part spelling; `Static` ability
     /// position stays live re-gathering, [CR#611.3a].)
     Until(Duration, Vec<StaticEffect>),
     /// `Label { as, effect }` — names the antecedents the inner effect
-    /// introduces, so later clauses can read them explicitly as
-    /// [`Reference::The`](crate::Reference::The) /
-    /// [`Selection::TheGroup`](crate::Selection::TheGroup) — the R2
-    /// ambiguity gate's escape hatch ([CR#608.2d]).
+    /// introduces so later clauses can read them explicitly, rather than by
+    /// the positional/anaphoric defaults ([CR#608.2d]).
     Label(Label),
     /// `SeparatePiles { group, into, by, note, then }` — `by` separates
     /// `group` into labeled piles ([CR#700.3a]; piles may be empty). Each
-    /// label becomes a Many antecedent (read as
-    /// [`Selection::TheGroup`](crate::Selection::TheGroup)); `note:`
+    /// label becomes a Many antecedent (read as the plural anaphor
+    /// [`Selection::They`](crate::Selection::They)); `note:`
     /// persists the piles as noted groups keyed by (note, label, divider),
     /// read back via [`Selection::PilesOf`](crate::Selection::PilesOf).
     SeparatePiles(SeparatePiles),
@@ -159,7 +157,7 @@ pub enum Effect {
     /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
     /// faithful home for the word "target" — declared on the effect that
     /// consumes it, its announced slots read back by the anaphors
-    /// (`It`/`That(Sort)`/`They`, or `The(label)` for an `As`-named slot).
+    /// (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth announced slot).
     Targeted(Targeted),
     /// A remembered `Effect` macro invocation (declared compound verbs like
     /// `Investigate`). Serialized as the invocation, not the struct.
@@ -772,8 +770,8 @@ mod tests {
         assert_eq!(read(&write(&parsed)), parsed, "round-trip");
     }
 
-    /// `Label { as, effect }` names an introduction; `The`/`TheGroup` read
-    /// it back. The raw-keyword field spells `as` in RON.
+    /// `Label { as, effect }` names an introduction later clauses read back.
+    /// The raw-keyword field spells `as` in RON.
     #[test]
     fn label_round_trips() {
         let src = "Label(as:\"exiled\",effect:Move(It,Exile))";

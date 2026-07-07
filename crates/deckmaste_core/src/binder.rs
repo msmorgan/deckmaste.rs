@@ -70,8 +70,9 @@ pub enum Binder {
         /// The explicit WHIFF branch ([CR#701.23b] — a search may fail to
         /// find): what happens when nothing is found. Whiff semantics are
         /// DATA — a whiffed search skips the product-dependent body, and the
-        /// branch here runs instead; it elaborates WITHOUT the product
-        /// binding, so reading the search's `That` inside it is a load error.
+        /// branch here runs instead; it runs WITHOUT the product
+        /// binding, so reading the search's `That` inside it is unsound
+        /// (rejected by the Idris re-emit gate).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         if_none: Option<Box<crate::Effect>>,
     },

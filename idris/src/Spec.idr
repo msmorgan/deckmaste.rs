@@ -4,18 +4,11 @@
 ||| message in the error (each asserts a type-level invariant still bites, and
 ||| the pin names the rule — a block that fails for an unrelated reason no
 ||| longer counts, killing the vacuous-block class). Each negative changes
-||| exactly one thing from a known-good construction; each twins a RON reject
-||| fixture on the Rust side (crates/deckmaste_cards/tests/reject/).
+||| exactly one thing from a known-good construction.
 |||
-||| TWIN DISCIPLINE ([[idris-tables-fixtures-v2]]): the `-- @twin` line
-||| immediately above every `failing` block is MACHINE-READ by the Rust
-||| `twin_gate` test — it names the block's reject fixture
-||| (`reject/<E-CODE>/<fixture>.ron`, which must exist and whose code must be
-||| manifest-marked `Idris`), or declares the block Idris-construction-only
-||| (`idris-only: <reason>` — the invariant has no RON spelling / no E-code).
-||| The reverse direction rides the emitted checker-rule manifest's `twin:`
-||| column: every `Idris`-marked code must be named by an annotation here (or
-||| in Experimental.idr), and every `RustOnly` code must NOT be.
+||| These Idris negatives are the same soundness invariants the
+||| `cargo xtask idris-check` re-emit gate enforces on the Rust card corpus:
+||| each card is re-emitted to raw Core.idr and typechecked.
 module Spec
 
 import Core
@@ -45,9 +38,9 @@ CtxPlayerTarget = bindTargets [playerSlotAnte] Base
 
 -- POSITIVE — must typecheck ---------------------------------------------------
 
--- TABLE AGREEMENT: the emitted `sort-compat.ron` rows, pinned against the v2
--- `compat` function — one boolean per emitted row. If `compat` moves, this
--- Refl breaks before the table can silently drift ([CR#108.2,110.1,205.2a,405.1]).
+-- COMPAT PINS: `compat`'s valuation over one representative Sort per key,
+-- pinned by Refl — one boolean per pair. If `compat` moves, this Refl breaks
+-- before it can silently drift ([CR#108.2,110.1,205.2a,405.1]).
 public export
 compatRowPairs : List (Sort, Sort)
 compatRowPairs =
@@ -77,8 +70,7 @@ tCompatClosed = Refl
 tWildNeverAmount : wildReaches Amount = False
 tWildNeverAmount = Refl
 
--- the emitted `zone-sorts.ron` column IS `zoneSort` (the emitter now derives
--- it); pin the full valuation ([CR#110.1,112.1,108.2]).
+-- pin `zoneSort`'s full valuation ([CR#110.1,112.1,108.2]).
 tZoneSorts : map Core.zoneSort [Battlefield, Stack, Graveyard, Hand, Library, Exile, Command, Sideboard]
            = the (List Sort) [Permanent, Spell, Card, Card, Card, Card, Card, Card]
 tZoneSorts = Refl
@@ -384,7 +376,7 @@ tOutcomeGate = OutcomeGate CantLose you
 -- "Enchant creature" is the `enchant` MACRO — a bundle, not a keyword: (1) the PERMISSION to attach
 -- (attaching is forbidden by DEFAULT, so it ENABLES this aura to attach to creatures — the dual of a
 -- planeswalker granting `Can (Enact Attack … This)`); (2) the aura's SPELL (cast → target a host →
--- attach, the host read back through its `As` label). The falls-off SBA is conferred by the Aura
+-- attach, the host read back positionally). The falls-off SBA is conferred by the Aura
 -- SUBTYPE (`subtypeConfers`). The non-cast "choose a valid host on ETB" rule rides the `Also`.
 tEnchant : List (Ability Base)
 tEnchant = enchant creature
@@ -646,7 +638,6 @@ tSetChars =
   , Alter Supertypes (Set [Legendary]) ]
 
 -- ...and it's VALUE-TYPED by construction: a non-Color value for `Colors` is a type error.
--- @twin idris-only: value-typed Set op (CharValue) - the RON spelling fails to parse, not to elaborate; no E-code
 failing "Mismatch between: Type_ and Color"
   tBadSetColorValue : Modification Base
   tBadSetColorValue = Alter Colors (Set [Creature])
@@ -758,30 +749,24 @@ tDistributeCounters = Targeted [Target (between (^1) (^3)) creature]
 
 -- THE ANAPHOR SURFACE (R1/R2/R3 + survival rules) -----------------------------
 
--- `It` with NO antecedent: no binder, empty stack (E-BIND-IT twin).
--- @twin reject/E-BIND-IT/it-outside-binder.ron
+-- `It` with NO antecedent: no binder, empty stack.
 failing "innermostBinder (Base .stack)"
   tBadItOutside : Reference Base AnObject
   tBadItOutside = It
 
--- a sorted anaphor with NO compatible antecedent (E-BIND-THAT twin).
--- @twin reject/E-BIND-THAT/that-outside-with.ron
+-- a sorted anaphor with NO compatible antecedent.
 failing "resolveStack (Just Card) One (Base .stack)"
   tBadThatNoAntecedent : Reference Base AnObject
   tBadThatNoAntecedent = That Card
 
--- a plural anaphor with NO Many antecedent in scope (E-BIND-THAT-GROUP twin).
--- @twin reject/E-BIND-THAT-GROUP/group-that-outside-with.ron
+-- a plural anaphor with NO Many antecedent in scope.
 failing "resolveStack Nothing Many (Base .stack)"
   tBadTheyOutside : Selection Base AnObject
   tBadTheyOutside = They
 
 -- THE STALE TARGET ([CR#603.7c]): a `Delayed` body drops the announced target,
 -- and the exile clause's product answers to "card" (its new zone), NOT
--- "creature" — `That (OfType Creature)` has no antecedent there. Twin of
--- reject/E-BIND-THAT/stale-target-that-creature.ron (the v2 re-twin of the
--- retired v1 `tBadDelayedTarget`); the accept twin is `tThatSurvivesDelay`.
--- @twin reject/E-BIND-THAT/stale-target-that-creature.ron
+-- "creature" — `That (OfType Creature)` has no antecedent there.
 failing "unbindTargets"
   tBadDelayedTarget : OneShotEffect Base
   tBadDelayedTarget = Targeted [Target (^1) creature]
@@ -789,17 +774,14 @@ failing "unbindTargets"
               , Delayed nextEndStep (Act (Move (That (OfType Creature)) (ToZone Battlefield))) ])
 
 -- a `Distinct` constraint naming an announce sibling that doesn't exist
--- ([CR#115.7e,601.2c]). Twin of reject/E-BIND-TARGET/distinct-sibling-out-of-
--- range.ron (the v2 re-twin of the retired index-read `tBadTargetRange`).
--- @twin reject/E-BIND-TARGET/distinct-sibling-out-of-range.ron
+-- ([CR#115.7e,601.2c]).
 failing "distinctOk"
   tBadDistinctSibling : OneShotEffect Base
   tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage It (^1)))
 
--- THE R2 UNIQUENESS GATE (E-BIND-AMBIGUOUS twin): a second same-sort
--- antecedent makes the sorted anaphor a guess — refused; `As` labels are the
--- escape hatch (tLabeledSlots).
--- @twin reject/E-BIND-AMBIGUOUS/insertion-repoints-that-card.ron
+-- THE R2 UNIQUENESS GATE: a second same-sort antecedent makes the sorted
+-- anaphor a guess — refused; the positional `Target n` read is the
+-- disambiguation.
 failing "Target ((^) 1) creature, Target ((^) 1) creature"
   tBadAmbiguousThat : OneShotEffect Base
   tBadAmbiguousThat = Targeted [Target (^1) creature, Target (^1) creature]
@@ -808,7 +790,6 @@ failing "Target ((^) 1) creature, Target ((^) 1) creature"
 -- ...and the wildcard trips it too: inside a trigger body the event's role
 -- antecedent is in scope, so an announced slot + `It` is a guess (the Goblin
 -- Medics shape without a positional read — tTriggerTargetLabel is the fix).
--- @twin reject/E-BIND-AMBIGUOUS/ambiguous-it-two-targets.ron
 failing "queryRoles thisEnters"
   tBadAmbiguousIt : Ability Base
   tBadAmbiguousIt = Triggered thisEnters
@@ -816,48 +797,41 @@ failing "queryRoles thisEnters"
 
 -- a SINGULAR anaphor cannot read a MANY antecedent (the cardinality split;
 -- read the group as `They`/`Them`).
--- @twin reject/E-BIND-THAT/singular-that-reads-range-slot.ron
 failing "resolveStack (Just Token) One"
   tBadOneFromMany : OneShotEffect Base
   tBadOneFromMany = Sequence [ Act (CreateToken (^2) (^: { types := [Creature] }))
                              , Act (Destroy (That Token)) ]
 
 -- ...nor a plural anaphor a ONE antecedent (read it as `It`/`That w`).
--- @twin reject/E-BIND-THAT-GROUP/group-that-outside-with.ron
 failing "resolveStack Nothing Many ((bindTargets"
   tBadTheyFromOne : OneShotEffect Base
   tBadTheyFromOne = Targeted [Target (^1) creature] (Each (Existing They) (Act (Tap It)))
 
 -- tokens aren't cards ([CR#108.2b]): "that card" never reaches a token
 -- antecedent — the compat table's most load-bearing closed pair.
--- @twin reject/E-BIND-THAT/that-card-reads-token.ron
 failing "resolveStack (Just Card) One ((intro"
   tBadTokenIsNotCard : OneShotEffect Base
   tBadTokenIsNotCard = Sequence [ Act (CreateToken (^1) (^: { types := [Creature] }))
                                 , Act (Move (That Card) (ToZone Exile)) ]
 
--- `Allotment` outside any `Distribute` body (E-BIND-ALLOTMENT twin).
--- @twin reject/E-BIND-ALLOTMENT/allotment-outside-divide.ron
+-- `Allotment` outside any `Distribute` body.
 failing "hasAllot (Base .stack) = True"
   tBadAllotmentOutside : Count Base
   tBadAllotmentOutside = Allotment
 
--- `ThatMany` with no amount antecedent in scope (E-CAPS-AMOUNT twin).
--- @twin reject/E-CAPS-AMOUNT/thatmany-no-antecedent.ron
+-- `ThatMany` with no amount antecedent in scope.
 failing "candidates (Just Amount) One (Base .stack)"
   tBadThatManyNoAmount : Count Base
   tBadThatManyNoAmount = ThatMany
 
 -- TWO amount antecedents make `ThatMany` a guess — the R2 gate ranges over
 -- value anaphora too ([CR#608.2i]).
--- @twin reject/E-BIND-AMBIGUOUS/two-amount-antecedents.ron
 failing "candidates (Just Amount) One ((intro"
   tBadAmbiguousAmount : OneShotEffect Base
   tBadAmbiguousAmount = Sequence [ Act (Draw (^2)), Act (GainLife (^3)), Act (LoseLife ThatMany) ]
 
--- an ORDERED zone is no bare destination ([CR#401.4]; E-FLOOR-DESTINATION
--- twin) — position it with `ToLibrary (FromTop …)`.
--- @twin reject/E-FLOOR-DESTINATION/stack-destination.ron
+-- an ORDERED zone is no bare destination ([CR#401.4]) — position it with
+-- `ToLibrary (FromTop …)`.
 failing "implementation for Void"
   tBadDestinationLibrary : Action Base
   tBadDestinationLibrary = Move This (ToZone Library)
@@ -865,82 +839,69 @@ failing "implementation for Void"
 -- THE CARRIED-OVER V1 GATES ---------------------------------------------------
 
 -- a target slot can't target ZERO — `NonZeroQ` rejects a statically-zero upper bound
--- @twin reject/E-FLOOR-TARGET-QTY/zero-target.ron
 failing "NonZeroQ"
   tBadZeroTarget : TargetSpec Base AnObject
   tBadZeroTarget = Target (^0) creature
 
 -- a card with NO card types is rejected — `CharacteristicsOk` (the one lenient well-formedness floor)
--- @twin reject/E-FLOOR-TYPES/typeless.ron
 failing "implementation for NonEmpty"
   tBadTypeless : Card
   tBadTypeless = Normal $ ^: { name := Just "Typeless" }
 
 -- a two-faced card's BACK face is well-formedness-checked too, not just the front — a typeless back fails
--- @twin reject/E-FLOOR-TYPES/two-faced-typeless-back.ron
 failing "implementation for NonEmpty"
   tBadTwoFacedBack : Card
   tBadTwoFacedBack = TwoFaced Split (^: { types := [Instant] }) (^: { name := Just "Back" })
 
 -- a PLAYER-carried counter can't go on an object — `counterScope Poison = APlayer`, so `This`
 -- (an `AnObject` reference) is rejected with no runtime check. The dependent carrier is load-bearing.
--- @twin reject/E-KIND-COUNTER-SCOPE/p1p1-on-player.ron
 failing "counterScope Poison"
   tBadPoisonOnObject : Action Base
   tBadPoisonOnObject = PutCounters Poison (^1) This
 
 -- granting a PLAYER designation to an object is a type error — `designationScope Monarch = APlayer`
--- @twin reject/E-KIND-DESIGNATION-SCOPE/monstrous-on-player.ron
 failing "designationScope Monarch"
   tBadDesignationScope : Action Base
   tBadDesignationScope = GrantDesignation Monarch This
 
 -- replacing the AMOUNT of an amountless event is rejected — a Cast has no numeric payload
--- @twin reject/E-CAPS-AMOUNT/event-sum-amountless.ron
 failing "False = True"
   tBadReplaceAmountless : StaticEffect Base
   tBadReplaceAmountless = ReplaceAmount (MkEventQuery [Begins Cast] []) (^0)
 
 -- folding the amount of an amountless event is rejected likewise
--- @twin reject/E-CAPS-AMOUNT/event-sum-amountless.ron
 failing "False = True"
   tBadEventAggAmountless : Count Base
   tBadEventAggAmountless = EventAgg SumOf (MkEventQuery [Begins Cast] [])
 
 -- "becomes summoning-sick" isn't a transition event — `IsBecomesState SummoningSick = Void`
--- @twin idris-only: the Rust StateBecame keys are a closed spelling with no SummoningSick arm - unrepresentable in RON; no E-code
 failing "implementation for Void"
   tBadBecomesSummoningSick : EventKind
   tBadBecomesSummoningSick = Becomes SummoningSick
 
 -- projecting a NON-object `Countable` is rejected — only `Objects` is `Projectable`, so `Project (Events …)`
 -- has no `Projectable (Events …)` proof (you cannot bind `It` over an atomic event).
--- @twin idris-only: Projectable gates the Idris Countable by construction; the Rust aggregation source is shaped object-only
 failing "Projectable (Events"
   tBadProjectEvents : Projection Base
   tBadProjectEvents = Project (Events (MkEventQuery [DealDamage Nothing] [])) (Literal 0)
 
 -- `CountDistinct` is gated by `readableOn`: an object-only characteristic over a non-object source is
 -- rejected — "distinct powers of the mana you spent" is nonsense (`readableOn Power ManaSpent = Void`).
--- @twin idris-only: the readableOn gate; the Rust CountDistinct source shapes do not cross, so there is no E-code
 failing "implementation for Void"
   tBadDistinctStatOfMana : Count Base
   tBadDistinctStatOfMana = CountDistinct Power ManaSpent
 
 -- ...and a non-colour characteristic over events is rejected too (`Name` reads nothing off an event).
--- @twin idris-only: the readableOn gate; the Rust CountDistinct source shapes do not cross, so there is no E-code
 failing "implementation for Void"
   tBadDistinctNameOfEvents : Count Base
   tBadDistinctNameOfEvents = CountDistinct Name (Events (MkEventQuery [DealDamage Nothing] []))
 
 -- `Pick` is gated to the EXTREMAL ops by `IsExtremal`: argmax-by-SUM is meaningless (`IsExtremal SumOf` is uninhabited).
--- @twin idris-only: IsExtremal gates Pick by construction; no E-code
 failing "IsExtremal SumOf"
   tBadPickNonExtremal : Selection Base AnObject
   tBadPickNonExtremal = Pick SumOf (eachOf creature (StatOf It Power))
 
 -- an empty symbol disjunction ("devotion to no colours") is rejected — the restored `NonEmpty` guard.
--- @twin idris-only: the NonEmpty guard on the symbol algebra; no E-code
 failing "NonEmpty []"
   tBadEmptySymbolOr : Countable Base
   tBadEmptySymbolOr = ManaSymbols This (Or [])
@@ -948,42 +909,35 @@ failing "NonEmpty []"
 -- a `Distribute` share (`Allotment`) can't leak into a `Projection` accessor — `eachOf`/`Project` rebind `It`
 -- via `bindIt`, which clears the `Allot` antecedent, so `Allotment` has no proof there (it was indexed to
 -- a DIFFERENT loop element).
--- @twin reject/E-BIND-ALLOTMENT/each-rebind-clears-allotment.ron
 failing "bindIt (loopOf creature)"
   tBadAllotmentInProjection : Projection Base
   tBadAllotmentInProjection = eachOf creature Allotment
 
 -- THE INVALID-REFERENCE GATE: an event anaphor is valid only where the event SUPPLIES it (`eventQueryCaps`).
 -- `EventObject` ("that card") in a step-begin body — a `BeginStep` event has no object.
--- @twin reject/E-CAPS-OBJECT/upkeep-trigger-reads-object.ron
 failing ".hasObject = True"
   tBadEventObjectNoObject : Ability Base
   tBadEventObjectNoObject =
     Triggered (MkEventQuery [BeginStep (BeginningPhase UpkeepStep)] []) (Act (Move EventObject (ToZone Exile)))
 
 -- `EventAmount` (the amount) in a `Begins Cast` body — a cast carries no amount.
--- @twin reject/E-CAPS-AMOUNT/replacement-body-reads-amount.ron
 failing ".hasAmount = True"
   tBadThatMuchNoAmount : StaticEffect Base
   tBadThatMuchNoAmount = Replaces (MkEventQuery [Begins Cast] []) (Act (DealDamage This EventAmount))
 
 -- `EventActor` ("that player") in a Destroy body — a destruction has no actor.
--- @twin reject/E-CAPS-ACTOR/destroy-trigger-reads-actor.ron
 failing ".hasActor = True"
   tBadEventActorNoActor : Ability Base
   tBadEventActorNoActor = Triggered (MkEventQuery [Destroy] []) (Conclude (WinGame EventActor))
 
--- `EventPatient` where the event fixes no patient kind (E-CAPS-PATIENT
--- twin): a draw acts on no patient ([CR#120.3,608.2k]), so the read has no
--- sound binder.
--- @twin reject/E-CAPS-PATIENT/drawn-trigger-reads-patient.ron
+-- `EventPatient` where the event fixes no patient kind: a draw acts on no
+-- patient ([CR#120.3,608.2k]), so the read has no sound binder.
 failing ".patientKind = Just"
   tBadEventPatientNoKind : Ability Base
   tBadEventPatientNoKind = Triggered (MkEventQuery [Draw] []) (Act (Destroy EventPatient))
 
--- `DefendingPlayer` where no combat onset supplies one (E-CAPS-DEFENDER
--- twin): an enters trigger has no defender ([CR#506.2,508.5]).
--- @twin reject/E-CAPS-DEFENDER/enters-trigger-reads-defender.ron
+-- `DefendingPlayer` where no combat onset supplies one: an enters trigger has
+-- no defender ([CR#506.2,508.5]).
 failing ".hasDefender = True"
   tBadDefenderNoCombat : Ability Base
   tBadDefenderNoCombat = Triggered thisEnters (Act (LoseLife {actor = DefendingPlayer} (^1)))
@@ -995,7 +949,6 @@ tEventActorValid = Triggered (MkEventQuery [Begins Cast] []) (Conclude (WinGame 
 -- MULTI-KIND SOUNDNESS (the EventQuery restructure): a multi-kind query's caps are the INTERSECTION —
 -- the body gets only anaphora EVERY listed kind supplies. `EventActor` under `[Begins Cast, Destroy]` is
 -- rejected (a Destroy event has no actor), so the old union-cap leak (A6) is gone.
--- @twin reject/E-CAPS-ACTOR/multikind-meet-drops-actor.ron
 failing "Begins Cast, Destroy"
   tBadEventActorMultiKind : Ability Base
   tBadEventActorMultiKind = Triggered (MkEventQuery [Begins Cast, Destroy] []) (Conclude (WinGame EventActor))
@@ -1008,7 +961,6 @@ tEventObjectMultiKind =
 
 -- "whenever a creature enters, draw THAT MANY cards" — meaningless: a creature entering (`ZoneChanged`)
 -- carries no amount, so `EventAmount` has no referent. The caps gate rejects it.
--- @twin reject/E-CAPS-AMOUNT/enters-trigger-draws-that-many.ron
 failing ".hasAmount = True"
   tBadDrawThatManyOnEnter : Ability Base
   tBadDrawThatManyOnEnter =
@@ -1016,31 +968,26 @@ failing ".hasAmount = True"
       (Act (Draw EventAmount))
 
 -- BOUNDED-NUMERIC gates. An inverted range ("between 5 and 2") — `OrderedRange` rejects `lo > hi`.
--- @twin reject/E-FLOOR-RANGE/inverted-target-range.ron
 failing "OrderedRange"
   tBadInvertedRange : Bindable Base Many AnObject
   tBadInvertedRange = Choose (between (^5) (^2)) creature
 
 -- `MainPhase` is a closed 2-value enum now, not a `Nat` — `MainPhase 99` doesn't typecheck.
--- @twin idris-only: MainPhaseKind is a closed 2-value enum - the RON spelling fails to parse; no E-code
 failing "Num MainPhaseKind"
   tBadMainPhase99 : PhaseStep
   tBadMainPhase99 = MainPhase 99
 
 -- a modal "choose 5" of a single mode — `modalCountOk` bounds the literal count by the mode count.
--- @twin reject/E-FLOOR-MODAL-COUNT/choose-two-of-one.ron
 failing "modalCountOk"
   tBadModalOverCount : OneShotEffect Base
   tBadModalOverCount = Modal (MkChooseSpec (^5)) [ MkMode (Act (Draw (^1))) ]
 
 -- a modal with NO modes — the `Vect (S n)` mode vector has no empty form.
--- @twin reject/E-FLOOR-MODAL-EMPTY/no-modes.ron
 failing "Mismatch between: 0 and S"
   tBadModalEmptyModes : OneShotEffect Base
   tBadModalEmptyModes = Modal (MkChooseSpec (^1)) []
 
 -- a 0-way mode domain — `ModeDomainOk (AMode 0)` is `LT 0 0` = uninhabited.
--- @twin idris-only: the as-enters mode-domain gate; the Rust chosen machinery carries no E-code for it yet
 failing "LTE 1 0"
   tBadModeDomainZero : Ability Base
   tBadModeDomainZero = AsEnters (AMode 0) []
@@ -1050,25 +997,21 @@ failing "LTE 1 0"
 -- test the type distinction, not the model.)
 
 -- a 0-size block is rejected — a declared block has ≥1 blocker (`NonZeroQ` on `BlockedBy`'s size)
--- @twin reject/E-FLOOR-BLOCK-QTY/zero-block-bound.ron
 failing "NonZeroQ"
   tBadZeroBlock : StaticEffect Base
   tBadZeroBlock = cant (BlockedBy (SameAs This) (^0))
 
 -- `OfChosen` with no as-enters choice in scope — `IsCharDomain Nothing = Void` denies the anaphor
--- @twin idris-only: the chosen-channel gates (IsCharDomain/chosenKind); no Rust E-code yet
 failing "IsCharDomain (Base .chosenKind)"
   tBadOfChosenNoChoice : Filter Base AnObject
   tBadOfChosenNoChoice = OfChosen
 
 -- `ChosenIs` past the mode count is rejected — `LT 2 2` is uninhabited (a 2-mode card, index 2)
--- @twin idris-only: the chosen-channel gates (mode index bound); no Rust E-code yet
 failing "LTE 3 2"
   tBadChosenMode : Condition (bindChosen (AMode 2) Base)
   tBadChosenMode = ChosenIs 2
 
 -- `OfChosen` on a MODE choice is rejected — a mode isn't a characteristic (`IsCharDomain (AMode _) = Void`)
--- @twin idris-only: the chosen-channel gates (a mode is not a characteristic); no Rust E-code yet
 failing "IsCharDomain ((bindChosen (AMode 2)"
   tBadOfChosenMode : Filter (bindChosen (AMode 2) Base) AnObject
   tBadOfChosenMode = OfChosen
@@ -1076,13 +1019,11 @@ failing "IsCharDomain ((bindChosen (AMode 2)"
 -- `OfChosen` on an as-enters ENTITY choice is rejected — an object is identity, not a characteristic, and
 -- it binds `chosenRefKind` (NOT `chosenKind`), so `OfChosen`'s `IsCharDomain (chosenKind b)` finds
 -- `Nothing` → `Void`. Read a chosen object with `ChosenObject`/`SameAs`, never `OfChosen`.
--- @twin idris-only: the chosen-channel gates (an entity choice is identity, not a characteristic); no Rust E-code yet
 failing "bindChosenRef AnObject"
   tBadOfChosenObject : Filter (bindChosenRef AnObject Base) AnObject
   tBadOfChosenObject = OfChosen
 
 -- a subtype whose category isn't among the card's types [CR#205.3d]
--- @twin reject/E-FLOOR-SUBTYPE/aura-on-creature.ron
 failing "Elem (subtypeCategory"
   tBadSubtype : Card
   tBadSubtype = Normal $ ^:
@@ -1090,33 +1031,28 @@ failing "Elem (subtypeCategory"
 
 -- the split makes the old `CountOf (During …)` category error ILL-TYPED: `CountOf`
 -- takes a `Filter`, but `During` (a game-state test) is a `Condition`.
--- @twin idris-only: the Countable/Condition split makes the category error ill-typed by construction; no E-code
 failing "and Countable"
   tBadCountOfCondition : Count Base
   tBadCountOfCondition = CountOf (During (MainPhase PreCombat))
 
 -- `EventObject` ("that card") is rejected outside a trigger/replacement/delayed body
 -- (the caps are `NoCaps` there) — the review fix that closed the ungated-anaphora hole.
--- @twin reject/E-BIND-EVENT/event-object-outside-event.ron
 failing "(Base .eventCaps) .hasObject"
   tBadEventObjectOutside : Reference Base AnObject
   tBadEventObjectOutside = EventObject
 
 -- one Reference, but the kind still bites: a player has no power/toughness
--- @twin reject/E-KIND-FILTER/power-of-player.ron
 failing "Mismatch between: APlayer and AnObject"
   tBadStatOfPlayer : Count Base
   tBadStatOfPlayer = StatOf You Power       -- You : APlayer, StatOf wants AnObject
 
 -- ...and an object has no life total
--- @twin reject/E-KIND-FILTER/power-of-player.ron
 failing "Mismatch between: AnObject and APlayer"
   tBadLifeOfObject : Count Base
   tBadLifeOfObject = lifeTotal This         -- This : AnObject, lifeTotal wants APlayer
 
 -- kind strictness through the stack: a CREATURE target's anaphor can't be
 -- read as a player — the resolved kind rides the antecedent.
--- @twin reject/E-KIND-FILTER/power-of-player.ron
 failing "CtxCreatureTarget .stack"
   tBadLifeOfCreatureTarget : Count CtxCreatureTarget
   tBadLifeOfCreatureTarget = lifeTotal It

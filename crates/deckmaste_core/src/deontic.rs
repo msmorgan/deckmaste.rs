@@ -102,8 +102,8 @@ impl CountBound {
 ///   ColorIs(Red)` ([CR#702.11d]: red spells, or abilities from red sources),
 ///   protection's targeted clause is `source: Param(quality)` ([CR#702.16b]).
 ///
-/// The empty agent (neither arm) is spellable but meaningless — the
-/// elaborator refuses it (`E-FLOOR-DEED-AGENT`). Omitting the whole slot
+/// The empty agent (neither arm) is spellable but meaningless — ill-formed,
+/// so the Idris re-emit gate rejects it. Omitting the whole slot
 /// yields the shroud default (`stack_object: Any`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct DeedAgent {
@@ -132,8 +132,9 @@ impl DeedAgent {
         *self == DeedAgent::default()
     }
 
-    /// Whether NO arm is present — the shape the elaborator refuses (an
-    /// agent that constrains nothing matches nothing meaningfully).
+    /// Whether NO arm is present — the ill-formed shape the Idris re-emit
+    /// gate rejects (an agent that constrains nothing matches nothing
+    /// meaningfully).
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.stack_object.is_none() && self.source.is_none()
@@ -358,7 +359,7 @@ mod tests {
     /// The two-slot deed agent ([CR#702.11d,702.16b]): the omitted slot is
     /// the shroud default (any spell or ability, [CR#702.18a]) and is
     /// omitted on write; the hexproof-from shape sets both arms; the EMPTY
-    /// agent is spellable (the elaborator refuses it, not serde).
+    /// agent is spellable (the Idris re-emit gate rejects it, not serde).
     #[test]
     fn deed_agent_two_slots_read_and_round_trip() {
         use crate::CharacteristicFilter;
@@ -396,7 +397,7 @@ mod tests {
         assert_eq!(read(&written), hexproof);
 
         // The empty agent parses (both arms absent) — refusing it is the
-        // ELABORATOR's job (E-FLOOR-DEED-AGENT), not serde's.
+        // Idris re-emit gate's job, not serde's.
         let empty = read("Cant(Target(on: Ref(This), by: ()))");
         let Deontic::Cant(DeonticAction::Target { by, .. }) = &empty else {
             panic!("expected Cant(Target), got {empty:?}");

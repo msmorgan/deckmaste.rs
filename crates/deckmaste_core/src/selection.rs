@@ -71,7 +71,7 @@ pub enum Selection {
         of: Reference,
     },
     /// The PLURAL anaphor — "they"/"them": the nearest Many antecedent on
-    /// the elaborator's antecedent stack, any sort (R1 nearest-compatible,
+    /// the antecedent stack, any sort (R1 nearest-compatible,
     /// R2 uniqueness gate). Pushed by a many-binder
     /// ([`Effect::With`](crate::With), [CR#608.2d]), a plural target slot
     /// ([CR#115.3]), or a group-producing clause ("create two tokens —

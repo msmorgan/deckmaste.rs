@@ -72,8 +72,8 @@ fn parse_grant(subj: &str, pred: &str) -> Option<String> {
 }
 
 /// "<subject> can't <action[ or action…]>" → one `Cant(<verb>)` per action.
-/// The subject is a bare `Filter` (Deontic actions carry `Filter`, not
-/// `Scope`). The active verbs ("attack"/"block") anchor the subject on the
+/// The subject is a bare `Filter` (Deontic actions carry a `Filter`). The
+/// active verbs ("attack"/"block") anchor the subject on the
 /// actor side (`by`); the passive "be blocked …" evasion forms anchor it on
 /// the blocked side (`on`) and read a blocker-quality clause. Any action
 /// outside the known set declines the whole.

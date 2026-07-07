@@ -45,9 +45,9 @@ pub struct Plugin {
     /// authored `CounterRef` against this registry.
     pub counters: HashMap<Ident, Counter>,
     /// The designations declared by `macros/` (`DesignationDecl`-kind,
-    /// nullary), keyed by the designation's identity. The elaborator's
-    /// designation-scope check consults this registry first, falling back to
-    /// the emitted curated table for undeclared names (an open vocabulary).
+    /// nullary), keyed by the designation's identity. The designation-scope
+    /// check consults this registry first, falling back to the curated core
+    /// vocabulary for undeclared names (an open vocabulary).
     pub designations: HashMap<Ident, DesignationDecl>,
     /// The keyword registry ([CR#702]): one row per `KeywordAbility`-kind
     /// macro, its [`ParamShape`] DERIVED from the macro's typed parameter

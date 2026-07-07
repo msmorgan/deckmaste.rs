@@ -1,5 +1,5 @@
 //! The emitted cause-verb ENTAILMENT table ([CR#701] keyword actions),
-//! shared with the load-time elaborator: each closed
+//! computed from the Idris model (`EmitTables.idr`): each closed
 //! [`deckmaste_core::CauseVerb`]'s fact form — its master-form kind and the
 //! zone coordinates it fixes. `Sacrifice` entails a Battlefield→Graveyard
 //! `ZoneChange` [CR#701.21a], so "dies" matches a sacrifice STRUCTURALLY
@@ -9,7 +9,7 @@
 //!
 //! One source of truth: `crates/deckmaste_cards/tables/entailments.ron` is
 //! emitted by `idris/src/EmitTables.idr` and `include_str!`-shared — the
-//! elaborator's caps/contradiction checks and the engine's matching can
+//! Idris model (which computes these rows) and the engine's matching can
 //! never disagree on a verb's fact form.
 
 use std::collections::HashMap;
@@ -23,8 +23,8 @@ use serde::Deserialize;
 /// leaves the coordinate open), and the `amount` caps column — whether the
 /// verb's occurrences fix an amount antecedent (a discard clause's card
 /// count feeds "that many", [CR#107.3]); the apply funnel honors exactly
-/// the rows the elaborator admits. The remaining caps columns
-/// (object/actor) stay elaborator-only (serde skips unknown fields).
+/// the rows the table admits. The remaining caps columns
+/// (object/actor) are not read here (serde skips unknown fields).
 #[derive(Debug, Deserialize)]
 pub(crate) struct EntailmentRow {
     pub verb: String,
@@ -58,7 +58,7 @@ pub(crate) fn entailment(verb: &str) -> Option<&'static EntailmentRow> {
 mod tests {
     use super::*;
 
-    /// The engine reads the same emitted rows the elaborator does — the
+    /// The engine reads the emitted rows — the
     /// Play row (the land drop, [CR#701.18a]) fixes `to: Battlefield`, the
     /// Destroy row ([CR#701.8a]) the Battlefield→Graveyard move.
     #[test]

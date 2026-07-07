@@ -199,7 +199,7 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         // The sorted singular anaphor: an enclosing binder's noun phrase
         // when one is bound (the With collapse — "Sacrifice a creature"),
         // else the English pronoun phrase — "that card", "that creature"
-        // ([CR#608.2d]; the elaborator, not the renderer, resolves it).
+        // ([CR#608.2d]; the engine, not the renderer, resolves it).
         Reference::That(sort) => ctx
             .that
             .map_or_else(|| format!("that {}", sort.noun()), str::to_string),

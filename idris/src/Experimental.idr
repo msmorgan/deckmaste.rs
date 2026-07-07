@@ -174,32 +174,27 @@ aScry2 = Use Scry (^2)
 -- ===== Negatives (each `failing` block must NOT typecheck) =====
 
 -- A bare keyword cannot take a cost: "Deathtouch {2}" has no type.
--- @twin idris-only: the None-shape keyword given a cost - the same one ParamShape check as the bare-parameterized fixture, from the other direction
 failing "Mismatch between: Cost ?b and ()"
   bad : KeywordUse Base
   bad = KA Deathtouch (Mana [^2])
 
 -- A costed keyword cannot be bare: "Ward" with no cost has no type.
--- @twin reject/E-KIND-KEYWORD-SHAPE/bare-parameterized-ward.ron
 failing "Cost Base"
   bad : KeywordUse Base
   bad = KA Ward ()
 
 -- A counted keyword cannot take a predicate.
--- @twin idris-only: a shape cross-application - the same one ParamShape check; the RON spelling fails at the declared-shape read
 failing "Mismatch between: Filter ?b AnObject and Count ?b"
   bad : KeywordUse Base
   bad = KA Toxic creature
 
 -- The open tail obeys its declared shape too: a Costed custom keyword
 -- cannot be applied bare.
--- @twin reject/E-KIND-KEYWORD-SHAPE/bare-parameterized-ward.ron
 failing "Cost Base"
   bad : KeywordUse Base
   bad = KA (Custom "Warp" Costed) ()
 
 -- A keyword action is not a keyword ability: `KA Scry …` has no type.
--- @twin idris-only: the action-vs-ability family split is representational; no E-code
 failing "Keyword ?shape"
   bad : KeywordUse Base
   bad = KA Scry (^2)

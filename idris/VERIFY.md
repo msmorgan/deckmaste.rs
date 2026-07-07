@@ -7,10 +7,13 @@ nearest-compatible, the R2 uniqueness gate, R3 strictly-leftward (the telescope
 `Sequence`). A type error therefore IS a soundness failure: an unbound anaphor,
 an ambiguous one (two compatible antecedents), a wrong-sort read ("that card"
 against a token), or a stale target in a `Delayed` body is rejected at
-compile time. This makes the model an **oracle** for the Rust corpus: the same
-resolution algorithm runs in `deckmaste_cards::elaborate` (against the tables
-`EmitTables.idr` emits), so a suspect Rust RON term can be transcribed into the
-corresponding Idris term and typechecked.
+compile time. This makes the model an **oracle** for the Rust corpus: a
+suspect Rust RON term can be transcribed into the corresponding Idris term and
+typechecked. The Rust load-time elaborator is gone — soundness is now proven
+POSITIVELY, by re-emitting each Rust card as Idris and typechecking it (see
+"the oracle loop", below); at engine eval time the Rust runtime resolves
+anaphora dynamically over the frame, degrading an unresolvable read to the null
+object (never-crash), separate from this compile-time gate.
 
 ## Build / typecheck the whole model
 
@@ -18,19 +21,30 @@ From `idris/`, with `~/.local/bin` on `PATH` for `idris2`:
 
     idris2 --build mtg.ipkg
 
-Builds and typechecks all seven modules (Core, Macros, Cards, Spec,
-Experimental, Resolutions, EmitTables) under `%default total`. `Spec.idr` is
-the self-checking regression suite — every `failing "<message>"` block must
-fail WITH its pinned message, and the `-- @twin` line above each block names
-its Rust reject-fixture twin (machine-checked by the `twin_gate` test);
-`Cards.idr` is the worked corpus. Exit 0 means the whole model — including
-every card term — typechecks. (`./scripts/build` wraps this command;
-`./scripts/emit-tables` regenerates `crates/deckmaste_cards/tables/*.ron`
-AND the per-card resolution fixtures under
-`crates/deckmaste_cards/tests/resolution/` — the tables the Rust elaborator
-consumes and the anaphor-binding tables it must reproduce byte-for-byte.)
+Builds and typechecks all six modules (Core, Macros, Cards, Spec,
+Experimental, EmitTables) under `%default total`. `Spec.idr` is the
+self-checking regression suite — every `failing "<message>"` block must fail
+WITH its pinned message (the same soundness invariants the `cargo xtask
+idris-check` re-emit gate enforces on the Rust corpus); `Cards.idr` is the
+worked corpus. Exit 0 means the whole model — including every card term —
+typechecks. (`./scripts/build` wraps this command; `./scripts/emit-tables`
+regenerates `crates/deckmaste_cards/tables/entailments.ron`, the one table the
+Rust engine still loads independently — `deckmaste_engine::entail`; the twelve
+other tables the old elaborator consumed, and the per-card resolution
+fixtures, were deleted with it.)
 
-## Check one transcribed card (the oracle loop)
+## Check the whole corpus (the automated gate)
+
+`cargo xtask idris-check <plugin>` (e.g. `plugins/canon`) re-emits every
+finished card as an equivalent raw `Core.idr` term (via
+`deckmaste_cards::idris_emit`) and typechecks the batch with
+`idris2 --find-ipkg --check`. It reports how many cards typecheck and, for the
+rest, whether it's an emitter gap (no Idris text produced) or an Idris proof
+failure (emitted but rejected — a genuinely unsound card, or an over-strict
+Idris proof). `cargo xtask idris-check <plugin> <card>` checks one card and
+prints the `idris2` output on failure.
+
+## Check one transcribed card by hand (the oracle loop)
 
 1. Read the Rust card's RON (e.g. `plugins/canon/cards/<Name>.ron`).
 2. Transcribe its effect into the Idris term, using the constructor / anaphor
@@ -41,13 +55,13 @@ consumes and the anaphor-binding tables it must reproduce byte-for-byte.)
    | `Sequence([...])` | `Sequence [ ... ]` (the telescope — clause i+1 sees clause i's introductions) |
    | `Targeted(targets: [...], effect: e)` | `Targeted [ ... ] e` |
    | `TargetOne(f)` / `Target(Between(1,3), f)` | `Target (^1) f` / `Target (between (^1) (^3)) f` |
-   | `As("l", spec)` / `The("l")` / `TheGroup("l")` | `As "l" spec` / `The "l"` / `TheGroup "l"` |
+   | `Target(n)` (the nth announced target) | `Target n` (a `Reference` reading the nth target slot) |
    | `It` / `That(Card)` / `That(Creature)` | `It` / `That Card` / `That (OfType Creature)` |
    | `They` / `Them(Token)` | `They` / `Them Token` |
    | `Each { binder, effect }` | `Each <binder> (Act <effect>)` |
    | `DivideAmong { amount, binder, body }` | `Distribute <amount> <binder> (Act <body>)` |
    | `Choose(Exactly(n), filter)` | `Choose (^n) <filter>` (a Many-binder) |
-   | `A(filter)` | `A <filter>` (the indefinite; pushes a Chosen antecedent) |
+   | `With(ChooseOne(filter), …It…)` | `With (ChooseOne <filter>) (Act …It…)` (the indefinite; the choice binds a frame read by `It`) |
    | `DealDamage(It, Allotment)` | `DealDamage It Allotment` |
    | `Move(It, Library(FromTop(0)))` | `Move It (ToLibrary (FromTop (^0)))` |
 

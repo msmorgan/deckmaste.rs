@@ -130,7 +130,7 @@ pub enum Count {
     /// rounded up"). Boxed.
     Half(RoundMode, Box<Count>),
     /// Magnitude anaphora, countable spelling: "that many" — the nearest
-    /// Amount antecedent on the elaborator's antecedent stack, fixed by an
+    /// Amount antecedent on the antecedent stack, fixed by an
     /// earlier instruction or the enclosing event ([CR#107.3]). The primary
     /// spelling; [`ThatMuch`](Count::ThatMuch) is the uncountable alias
     /// ("that much life"), identical in resolution.

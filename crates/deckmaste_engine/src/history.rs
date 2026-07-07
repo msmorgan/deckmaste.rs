@@ -81,8 +81,8 @@ impl History {
     /// ([CR#608.2i]), with their log positions — the one evaluator's
     /// history-lane feed (`Happened`/`EventCount`/`EventSum`/`Nth`
     /// counting). The sub-turn lookbacks (`ThisCombat`/`ThisStep`/
-    /// `SinceYour`) stay load-capped (E-BRIDGE-CAP, the `Lookback:*` rows;
-    /// engine-history-windows) and are unreachable here.
+    /// `SinceYour`) are not yet in the emittable surface (the `Lookback:*`
+    /// rows; engine-history-windows) and are unreachable here.
     pub(crate) fn in_window(
         &self,
         within: Lookback,

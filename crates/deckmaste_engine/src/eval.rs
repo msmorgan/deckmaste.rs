@@ -40,12 +40,11 @@ use crate::player::PlayerId;
 use crate::stack::Frame;
 use crate::state::GameState;
 
-/// The consumer position a pattern is evaluated in — the engine twin of the
-/// emitted lane table (`event-lanes.ron`, plan §3.2). Per-atom lane
-/// ADMISSION is the elaborator's job (lane rows ∧ bridge-caps rows at load);
-/// the lane here selects only the residual semantic differences the
-/// evaluator itself owns — today, how [`EventFilter::Nth`] counts the
-/// current occurrence.
+/// The consumer position a pattern is evaluated in. Per-atom lane admission
+/// is a soundness property of the Idris model (an ill-placed atom is
+/// unrepresentable there), not a load-time check; the lane here selects only
+/// the residual semantic differences the evaluator itself owns — today, how
+/// [`EventFilter::Nth`] counts the current occurrence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Lane {
     /// `Triggered.event` — a live fact scanned in its own wake ([CR#603.2]);
@@ -546,8 +545,8 @@ pub(crate) fn shadowed_by_fact(event: &GameEvent) -> bool {
 /// Does the recorded/current turn `time` fall inside `within`, seen from
 /// `current_turn` ([CR#608.2i])? The sub-turn windows (`ThisCombat`/
 /// `ThisStep`/`SinceYour`) need step markers the log records but no window
-/// derivation consumes yet — they stay load-capped (E-BRIDGE-CAP,
-/// `Lookback:*` rows; engine-history-windows), so no evaluable query
+/// derivation consumes yet — they are not yet in the emittable surface
+/// (`Lookback:*` rows; engine-history-windows), so no evaluable query
 /// reaches them.
 pub(crate) fn window_contains(within: Lookback, time: Uint, current_turn: Uint) -> bool {
     match within {
@@ -597,8 +596,8 @@ impl GameState {
     /// semantics are a participant value, not a second matcher. Coordinates
     /// the fact record cannot supply (`TokenCreated:what` pre-mint specs,
     /// `CoinFlipped:won` call-relativity, `BecomesTarget:source`) read
-    /// `false` — each is a KEPT load cap (E-BRIDGE-CAP + reject fixture), so
-    /// no loadable pattern carries one.
+    /// `false` — each is unrepresentable in the Idris model, so no card
+    /// carries one and `false` is a defensive floor.
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per EventFilter node — the grammar's full surface in one dispatch"
@@ -813,9 +812,9 @@ impl GameState {
             // [CR#608.2i,400.7]: object-scoped identity — `of` resolves
             // through the frame when the consumer holds one, else through
             // the watcher's live object (the self-scoped `This`). A bound
-            // non-`This` reference outside any frame is structurally
-            // prevented at load (E-BIND requires the binder; the caps keep
-            // frameless lanes to `This`).
+            // non-`This` reference outside any frame is unrepresentable in
+            // the Idris model (the binder is required; frameless lanes stay
+            // `This`).
             EventFilter::Used { of } => {
                 if fact.kind != FactKind::Used {
                     return false;
@@ -832,8 +831,8 @@ impl GameState {
                             .iter()
                             .find(|ob| ob.source == bindings.watcher)
                             .is_some_and(|ob| ob.id == used),
-                        // No frame, no binder: unreachable from loadable
-                        // data (E-BIND), no match — never a panic.
+                        // No frame, no binder: unreachable from sound
+                        // data, no match — never a panic.
                         _ => false,
                     },
                 }
@@ -927,8 +926,8 @@ impl GameState {
 
             // [CR#608.2i]: the history window refinement — the fact's
             // recorded turn against the lookback (a live fact's time is the
-            // current turn; live lanes REFUSE `Within` at load as vacuous,
-            // per the lane table).
+            // current turn; live lanes REFUSE `Within` as vacuous — a
+            // soundness property of the Idris model).
             EventFilter::Within(inner, within) => {
                 window_contains(*within, fact.time, self.turn.turn_number)
                     && self.eval(inner, fact, lane, bindings)

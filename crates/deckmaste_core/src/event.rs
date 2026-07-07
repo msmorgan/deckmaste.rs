@@ -242,8 +242,8 @@ pub enum Cause {
 /// `Option` refinements are unconstrained.
 ///
 /// The algebra tail (`AllOf`/`OneOf`/`Not`/`OneOrMore`/`Nth`/`When`/
-/// `Within`) is LANE-GATED at load by the emitted lane table
-/// (`crates/deckmaste_cards/tables/event-lanes.ron`): live lanes
+/// `Within`) is LANE-GATED by the Idris model (an ill-placed atom is
+/// unrepresentable there): live lanes
 /// (trigger/replacement/duration) refuse `Within`; history lanes
 /// (`Happened`/`EventCount`) refuse `OneOrMore`; disjunction pairs kind
 /// with filters per-disjunct and must bottom out in master forms in
@@ -456,7 +456,7 @@ pub enum EventFilter {
     BecameNight,
     /// Every sub-pattern matches the same occurrence ([CR#603.2]) — a
     /// refinement conjunction. All conjuncts must agree on one master-form
-    /// kind (the load-time kind pass; disagreement is `E-CAPS-CONTRADICTION`).
+    /// kind (a disagreement is unrepresentable in the Idris model).
     AllOf(Vec<EventFilter>),
     /// Any of several events ([CR#603.2], "whenever … or …"); still fires
     /// once per matching occurrence ([CR#603.2c]). Kind↔filter pairing is
@@ -473,7 +473,7 @@ pub enum EventFilter {
     OneOrMore(Box<EventFilter>),
     /// The nth matching occurrence within a lookback ([CR#603.2]; a dead
     /// 0th occurrence never happens, [CR#603.2g]) — "the second spell you
-    /// cast this turn". `n` is 1-based, checked ≥ 1 at load.
+    /// cast this turn". `n` is 1-based (≥ 1, gated by the Idris model).
     Nth {
         n: Uint,
         of: Box<EventFilter>,

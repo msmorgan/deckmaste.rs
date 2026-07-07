@@ -453,7 +453,7 @@ fn split_sentences(line: &str) -> Option<Vec<&str>> {
 /// whose: EachPlayers), effect: <clause>)` — a one-shot schedule created on
 /// resolution (fire-once is `Effect::Delayed`'s own semantics,
 /// [CR#603.7c]). The inner clause may not declare targets (a delayed body
-/// reads products, never the spell's slots — the elaborator drops them).
+/// reads products, never the spell's slots — they are dropped, [CR#603.7c]).
 fn parse_delayed_next_end_step(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
     let rest = strip_prefix_ci(line, "at the beginning of the next end step, ")?;
     let mut capitalized = String::with_capacity(rest.len());

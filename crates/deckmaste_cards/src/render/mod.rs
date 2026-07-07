@@ -67,7 +67,7 @@ pub(crate) struct Ctx<'a> {
     /// events/effects).
     pub subject: &'a str,
     /// The current ability's targets, so the slot-bound anaphors
-    /// (`It`/`The(label)`) can print their announce phrases.
+    /// (`It`/`Target(n)`) can print their announce phrases.
     pub targets: &'a [TargetSpec],
     /// The noun phrase the enclosing `Effect::With` bound, so the body's
     /// `Reference::That` / `Selection::Those` anaphor renders as that phrase

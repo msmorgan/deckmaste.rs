@@ -625,7 +625,7 @@ fn target_rows(
 /// source ([CR#113.7] an ability's generator; [CR#609.7a] a spell is itself
 /// a source) — so hexproof-from-red's one row covers "red spells … or
 /// abilities … from red sources" ([CR#702.11d]). The EMPTY agent (which the
-/// elaborator refuses, E-FLOOR-DEED-AGENT) defensively matches nothing.
+/// Idris re-emit gate rejects) defensively matches nothing.
 pub(crate) fn deed_agent_matches(
     state: &GameState,
     agent: &DeedAgent,

@@ -1,8 +1,8 @@
 //! The SORT of an anaphor or antecedent — the English noun a sorted anaphor
 //! carries (`That(Card)` = "that card", `Them(Token)` = "those tokens").
-//! Sorts drive the elaborator's nearest-compatible-antecedent resolution
-//! (R1) and its ambiguity gate (R2): an anaphor reaches an antecedent whose
-//! sort is compatible per the emitted `sort-compat.ron` table, and the sort
+//! Sorts drive the nearest-compatible-antecedent resolution (R1) and the
+//! ambiguity gate (R2): an anaphor reaches an antecedent whose sort is
+//! compatible (the Idris model's `compat` relation), and the sort
 //! is why "exile target **creature** … return that **card**" resolves — the
 //! exile clause's product sits in exile, so its sort is [`Sort::Card`]
 //! ([CR#400.7] — the new object the effect tracks across the move).
@@ -49,8 +49,8 @@ pub enum Sort {
 }
 
 impl Sort {
-    /// The stable table key of this sort's shape — `OfType(_)` collapses to
-    /// one key; the emitted `sort-compat.ron` rows pair these keys, with the
+    /// The stable key of this sort's shape — `OfType(_)` collapses to
+    /// one key; the Idris model's `compat` relation pairs these keys, with the
     /// same-`t` refinement on `OfType`/`OfType` applied by the consumer.
     #[must_use]
     pub fn key(self) -> &'static str {

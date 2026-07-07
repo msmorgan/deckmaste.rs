@@ -106,9 +106,9 @@ impl<'de> serde::Deserialize<'de> for KeywordRef {
 /// `suspend 4—{1}{U}`), a quality (`landwalk`, `hexproof from red`), a
 /// quality and a cost (`splice onto Arcane {1}{R}`), or a name
 /// (`partner with N`). The registry ROW (`KeywordDecl`) carries the shape
-/// as data; the elaborator's `E-KIND-KEYWORD-SHAPE` check refuses a use
-/// whose args don't fit (a bare `Keyword(Composite(name: "Ward", …))` with
-/// its cost lost).
+/// as data; a use whose args don't fit the declared shape is unrepresentable
+/// in the Idris model and so rejected by the re-emit gate (a bare
+/// `Keyword(Composite(name: "Ward", …))` with its cost lost).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ParamShape {
     None,

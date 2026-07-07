@@ -116,9 +116,10 @@ pub enum Reference {
     /// ([`Selection::Pick`](crate::Selection::Pick)) is currently testing —
     /// subsuming the old `Subject` role (candidate-relative predicates spell
     /// as `SharesColor(It, This)`, "with the same name as ~"). OUTSIDE every
-    /// binder it resolves over the elaborator's antecedent stack — the
-    /// nearest singular antecedent of ANY sort (R1), refused when a second
-    /// compatible antecedent makes it a guess (the R2 gate): Lightning
+    /// binder it resolves over the antecedent stack — the nearest singular
+    /// antecedent of ANY sort (R1), refused when a second compatible
+    /// antecedent makes it a guess (the R2 uniqueness gate; both are
+    /// soundness invariants proven by the Idris re-emit gate): Lightning
     /// Bolt's `DealDamage(It, 3)` reads its one announced target.
     It,
     /// The nth announced target ([CR#115.3,601.2c]); out-of-range degrades
@@ -151,12 +152,12 @@ pub enum Reference {
     DefendingPlayer,
     /// The SORTED singular anaphor — "that card", "that creature", "that
     /// player": the nearest singular antecedent of this [`Sort`](crate::Sort)
-    /// on the elaborator's antecedent stack (R1 nearest-compatible, R2
-    /// uniqueness gate). Antecedents are pushed by target slots
-    /// ([CR#115.3]), producing clauses (the moved/created object,
-    /// [CR#400.7]), event bodies ([CR#603.2e]), and binders ([CR#608.2d]);
-    /// resolution is computed at load, never authored, and pinned by
-    /// `cards.elab.lock`. A many-antecedent is read instead as
+    /// on the antecedent stack (R1 nearest-compatible, R2 uniqueness gate).
+    /// Antecedents are pushed by target slots ([CR#115.3]), producing clauses
+    /// (the moved/created object, [CR#400.7]), event bodies ([CR#603.2e]), and
+    /// binders ([CR#608.2d]); resolution is dynamic at engine eval time (over
+    /// the frame), and its soundness is proven by the Idris re-emit gate. A
+    /// many-antecedent is read instead as
     /// [`Selection::They`](crate::Selection::They) /
     /// [`Selection::Them`](crate::Selection::Them).
     That(crate::Sort),

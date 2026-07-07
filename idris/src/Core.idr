@@ -655,15 +655,18 @@ ChoiceRefKindOk _        = Void
 -- [CR#608.2d], a loop element) — and references are SORTED ANAPHORS resolved
 -- against it: R1 nearest-compatible, R2 uniqueness gate, R3 strictly leftward
 -- (the telescope `Sequence` below threads introductions in sentence order).
--- Replaces the v1 role-named `Ctx` record. The same resolution
--- algorithm is implemented in Rust (`deckmaste_cards::elaborate::walk`)
--- against the emitted tables; divergence between the two is the meta-level
--- failure mode the shared fixtures guard.
+-- Replaces the v1 role-named `Ctx` record. The Rust side no longer
+-- re-implements this resolution: each Rust card is checked by re-emitting it
+-- as a raw Core.idr term and typechecking it here (`cargo xtask idris-check`),
+-- so this model is the single source of truth for anaphor soundness. (At
+-- ENGINE eval time the Rust runtime resolves anaphora dynamically via
+-- `Frame`/`Anaphora`, degrading an unresolvable read to the null object — the
+-- never-crash runtime, separate from this compile-time soundness gate.)
 -- ===========================================================================
 
 -- The SORT of an anaphor/antecedent — the English NOUN it answers to
--- ("that card" / "that creature" / "those tokens"). Mirrors the Rust `Sort`
--- and the emitted `sort-compat.ron`. `OfType t` is "that creature"/"that
+-- ("that card" / "that creature" / "those tokens"). Mirrors the Rust `Sort`.
+-- `OfType t` is "that creature"/"that
 -- land"/… ([CR#205.2a]); `Card` is a non-battlefield object ([CR#108.2]);
 -- `Amount` is a value antecedent ("that many/much", [CR#608.2i]).
 namespace Sort
@@ -708,9 +711,8 @@ sameSort Pile Pile = True
 sameSort _ _ = False
 
 -- R1 sort COMPATIBILITY: which antecedent nouns an anaphor of each wanted
--- noun reaches — the SOURCE of the emitted `sort-compat.ron` rows (the
--- emitter enumerates this function over one representative Sort per key;
--- `Spec.tCompatRows` pins the valuation). "That card" never reaches a
+-- noun reaches (`Spec.tCompatRows` pins this function's valuation over one
+-- representative Sort per key). "That card" never reaches a
 -- token ([CR#108.2b]); "that permanent" reaches any battlefield noun
 -- ([CR#110.1]); "spell or ability" reaches a spell ([CR#405.1]); a typed
 -- noun reaches exactly its own type ([CR#205.2a]). (The exact-vs-widened
@@ -801,10 +803,10 @@ record Ante where
   expectedZone : Maybe Zone
   label : Maybe String
 
--- the RESULT of an anaphor resolution — the constructor names the checker
--- rule, so a failed auto-search error names it too: `Unbound` twins
--- E-BIND-THAT/-IT/-THAT-GROUP ("no compatible antecedent in scope"),
--- `Ambiguous` twins E-BIND-AMBIGUOUS (the R2 uniqueness gate).
+-- the RESULT of an anaphor resolution — the constructor names the failure, so
+-- a failed auto-search error names it too: `Unbound` = "no compatible
+-- antecedent in scope", `Ambiguous` = a second compatible antecedent in scope
+-- (the R2 uniqueness gate).
 namespace Bind
   public export
   data Bind = Bound RefKind | Unbound | Ambiguous
@@ -925,8 +927,8 @@ public export
 PaidSpellAnte : Ante
 PaidSpellAnte = MkAnte Spell AnObject One Loop Nothing Nothing
 
--- the noun an object answers to once it sits in a zone — the emitted
--- `zone-sorts.ron` (derived from THIS function) ([CR#110.1,112.1,108.2]). This
+-- the noun an object answers to once it sits in a zone (`Spec.tZoneSorts`
+-- pins this function's full valuation) ([CR#110.1,112.1,108.2]). This
 -- is why "exile target creature … return that card" resolves: the exile
 -- clause's product answers to `Card`.
 public export
@@ -1672,8 +1674,8 @@ destSort d = zoneSort (destZone d)
 
 -- an ORDERED zone is only a destination AT A POSITION ([CR#401.4] — bare
 -- Library is unanchored), and the stack is never a `Move` destination
--- ([CR#405.1] — casting puts a spell there, not a move). The E-FLOOR-
--- DESTINATION twin; demanded by `Move`/`MoveArranged`.
+-- ([CR#405.1] — casting puts a spell there, not a move). Demanded by
+-- `Move`/`MoveArranged`.
 public export
 DestinationOk : Destination b -> Type
 DestinationOk (ToZone Library) = Void
@@ -2132,8 +2134,8 @@ mutual
   -- the event-anaphor caps the PAYMENT of a cost-action supplies its `AdditionalCost` body — the cost-side
   -- twin of `eventKindCaps`, for the object-moving cost verbs. Sacrifice/Discard bind the moved object
   -- (`EventObject`) + payer (`EventActor`); a zone change (exile-to-pay) binds the object; the tap/untap/
-  -- life/counter payments carry their event kind's caps. TOTAL-BY-ENUMERATION (the emitted cost-actions
-  -- table demands it): every verb has an explicit row — a capless verb says `NoCaps` in its own arm, so a
+  -- life/counter payments carry their event kind's caps. TOTAL-BY-ENUMERATION (`%default total` demands
+  -- it): every verb has an explicit row — a capless verb says `NoCaps` in its own arm, so a
   -- NEW verb forces a decision here rather than silently binding nothing.
   public export
   actionEventCaps : Action b -> EventCaps
