@@ -1,0 +1,14 @@
+// Worthy [CR#700.16]: a creature is worthy if it's legendary, isn't a Villain,
+// and is red and/or white. A named compound predicate, not a new engine
+// primitive — every piece already exists on `Predicate`. The `template` lets it
+// render back to the bare adjective "worthy".
+(
+    name: "Worthy",
+    template: "worthy",
+    kinds: [Predicate],
+    body: AllOf([
+        Supertype(Legendary),
+        Not(Subtype("Villain")),
+        OneOf([ColorIs(Red), ColorIs(White)]),
+    ]),
+)

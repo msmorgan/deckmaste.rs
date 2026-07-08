@@ -396,6 +396,17 @@ fn subtype_head(word: &str) -> Option<String> {
 /// gives the subtype head the same scope.
 fn head_noun(word: &str) -> Option<Vec<String>> {
     let w = word.trim();
+    // "worthy" / "worthy creature(s)" — the named compound predicate
+    // [CR#700.16]. Both forms emit the `Worthy` macro invocation: worthy is
+    // creature-only by definition, so the explicit "creature" is redundant.
+    let lower = w.to_ascii_lowercase();
+    if lower == "worthy"
+        || lower
+            .strip_prefix("worthy ")
+            .is_some_and(|tail| singularize(tail.trim()) == "creature")
+    {
+        return Some(vec!["Worthy".to_string()]);
+    }
     // A designation head ("commander") is not a subtype ([CR#903.3]).
     if let Some(ident) = designation_ident(w) {
         return Some(vec![format!("Designated(\"{ident}\")")]);
@@ -441,6 +452,20 @@ mod tests {
             Some("AllOf([Permanent, Subtype(\"Goblin\")])")
         );
         assert_eq!(parse_phrase("sorceries").as_deref(), Some("Type(Sorcery)"));
+    }
+
+    #[test]
+    fn worthy_named_predicate() {
+        // "worthy" and "worthy creature(s)" both emit the `Worthy` macro
+        // invocation ([CR#700.16]) — the explicit "creature" is redundant.
+        assert_eq!(parse_phrase("worthy").as_deref(), Some("Worthy"));
+        assert_eq!(parse_phrase("worthy creature").as_deref(), Some("Worthy"));
+        assert_eq!(parse_phrase("worthy creatures").as_deref(), Some("Worthy"));
+        assert_eq!(parse_phrase("a worthy creature").as_deref(), Some("Worthy"));
+        assert_eq!(
+            parse_phrase("other worthy creatures").as_deref(),
+            Some("AllOf([Worthy, Not(Ref(This))])")
+        );
     }
 
     #[test]
