@@ -932,6 +932,15 @@ fn emit_count(c: &Count) -> R {
         Count::Noted(_) => return Err(gap("Count::Noted has no Idris counterpart")),
         Count::TimesPaid(tag) => app("TimesPaid", vec![ilit(tag.as_str())]),
         Count::Damage(r) => app("Damage", vec![emit_reference(r)?]),
+        // The floated-mana-pool reader is a data-driven-strategy sensing
+        // source ([CR#106.4]); the Idris grammar models card text, not play
+        // policy, so it has no counterpart.
+        Count::ManaAvailable(_) => {
+            return Err(gap(
+                "Count::ManaAvailable (floated mana pool) is a strategy-only reader \
+                 with no Idris counterpart",
+            ));
+        }
         Count::Expanded(_) => {
             return Err(gap(
                 "unexpanded Count macro invocation remained after expand_all",

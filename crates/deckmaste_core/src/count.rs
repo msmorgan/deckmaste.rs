@@ -185,6 +185,15 @@ pub enum Count {
     /// ~". Used by the lethal-damage SBA: `Compare(Damage(This), AtLeast,
     /// StatOf(This, Toughness))`.
     Damage(Reference),
+    /// A referenced player's total unspent (floated) mana — the size of their
+    /// mana pool ([CR#106.4]). Not a printed characteristic, so it is a
+    /// player/pool source of its own, not a [`StatOf`](Count::StatOf) stat:
+    /// it reads the mana currently floated in the pool, the quantity a
+    /// data-driven strategy's ramp gate senses ("tap until I can afford the
+    /// spell") — `Compare(ManaAvailable(You), Less, <cost>)`. The `Reference`
+    /// resolves to a player proxy; a non-player reference fizzles to 0
+    /// (never-crash), like its `Opponents`/`PlayerStatOf` peers.
+    ManaAvailable(Reference),
     /// A remembered `Count` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<Count>),
@@ -360,6 +369,18 @@ mod tests {
     fn opponents_reads_and_round_trips() {
         assert_eq!(read("Opponents(You)"), Count::Opponents(Reference::You));
         let value = Count::Opponents(Reference::You);
+        assert_eq!(read(&write(&value)), value);
+    }
+
+    /// `ManaAvailable(Reference)` — a player's total floated mana
+    /// ([CR#106.4]) — parses named and round-trips.
+    #[test]
+    fn mana_available_reads_and_round_trips() {
+        assert_eq!(
+            read("ManaAvailable(You)"),
+            Count::ManaAvailable(Reference::You),
+        );
+        let value = Count::ManaAvailable(Reference::You);
         assert_eq!(read(&write(&value)), value);
     }
 

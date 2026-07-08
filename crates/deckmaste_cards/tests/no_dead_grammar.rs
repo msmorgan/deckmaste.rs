@@ -667,6 +667,12 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             the same engine-runtime and domain gaps.",
         ),
         (
+            n("Count", "ManaAvailable"),
+            "STRATEGY-ONLY: the floated-mana-pool reader senses a player's \
+            unspent mana for data-driven strategy ramp gates; card text never reads it, so it has \
+            no card fixture (and no Idris counterpart).",
+        ),
+        (
             n("Condition", "Exists"),
             "DEFERRED: no 'if you control a ...' conditional real card in \
             this batch.",

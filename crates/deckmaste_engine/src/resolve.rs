@@ -2562,6 +2562,10 @@ impl GameState {
     /// Panics on a `Count` not wired for Stage 3, on a `StatOf` whose object
     /// lacks the stat, and on a `ThatMuch` with no amount fixed in this
     /// resolution.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per Count kind — the value language's full surface"
+    )]
     pub(crate) fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
         match qty {
             Count::Literal(n) => *n,
@@ -2792,8 +2796,20 @@ impl GameState {
                 let id = self.eval_reference(reference, frame);
                 self.objects.obj(id).damage
             }
+            Count::ManaAvailable(reference) => self.floated_mana(reference, frame),
             Count::Expanded(e) => self.eval_count(&e.value, frame),
         }
+    }
+
+    /// [CR#106.4]: the referenced player's total unspent (floated) mana — the
+    /// count of units currently in their pool. Backs
+    /// [`Count::ManaAvailable`](deckmaste_core::Count::ManaAvailable), the
+    /// mana-available reader a data-driven strategy's ramp gate senses. A
+    /// non-player reference fizzles to 0 (never-crash), like `Opponents`.
+    fn floated_mana(&self, reference: &Reference, frame: &Frame) -> Uint {
+        self.eval_player_ref(reference, frame).map_or(0, |p| {
+            Uint::try_from(self.player(p).mana_pool.units().len()).expect("mana pool fits Uint")
+        })
     }
 
     /// The distinct-value keys a single object contributes to a

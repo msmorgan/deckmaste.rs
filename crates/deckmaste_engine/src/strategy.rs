@@ -579,6 +579,38 @@ mod tests {
         );
     }
 
+    /// `Count::ManaAvailable(You)` reads the seat's floated pool total off a
+    /// strategy sensing frame — the ramp-gate reader. Empty pool → 0; after
+    /// floating three mana → 3; a non-player reference fizzles to 0.
+    #[test]
+    fn mana_available_reads_the_seats_floated_pool() {
+        use deckmaste_core::Color;
+        use deckmaste_core::ColorOrColorless;
+
+        let mut state = empty_two_player();
+        let frame = eval_frame(&state, PlayerId(0), None);
+        assert_eq!(
+            state.eval_count(&Count::ManaAvailable(Reference::You), &frame),
+            0,
+            "an empty pool reads 0",
+        );
+
+        state
+            .player_mut(PlayerId(0))
+            .mana_pool
+            .add(ColorOrColorless::Color(Color::Green), 2);
+        state
+            .player_mut(PlayerId(0))
+            .mana_pool
+            .add(ColorOrColorless::Colorless, 1);
+        let frame = eval_frame(&state, PlayerId(0), None);
+        assert_eq!(
+            state.eval_count(&Count::ManaAvailable(Reference::You), &frame),
+            3,
+            "three floated units read as 3",
+        );
+    }
+
     /// Rule-walk: the first rule whose `when` holds wins. `Always → Pass`
     /// yields a pass at a priority window.
     #[test]

@@ -119,6 +119,22 @@ pub(super) fn count(c: &Count) -> String {
                 )
             ),
         },
+        // [CR#106.4]: the floated-mana-pool reader (a strategy sensing
+        // source) — "the amount of unspent mana you have".
+        Count::ManaAvailable(r) => match r {
+            Reference::You => "the amount of unspent mana you have".to_string(),
+            other => format!(
+                "the amount of unspent mana {} has",
+                reference(
+                    other,
+                    &Ctx {
+                        subject: "that player",
+                        targets: &[],
+                        that: None,
+                    }
+                )
+            ),
+        },
         // [CR#107.1] value arithmetic.
         Count::Plus(a, b) => format!("{} plus {}", count(a), count(b)),
         Count::Minus(a, b) => format!("{} minus {}", count(a), count(b)),

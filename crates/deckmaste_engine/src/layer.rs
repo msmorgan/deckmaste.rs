@@ -935,6 +935,18 @@ fn eval_count(
         Count::Damage(reference) => resolve_count_ref(state, reference, watcher)
             .and_then(|id| state.objects.get(id))
             .map_or(0, |o| Int::try_from(o.damage).expect("damage fits Int")),
+        // [CR#106.4]: the referenced player's total floated mana — read
+        // straight off the pool (base state, no layers). A non-player or
+        // unresolved reference contributes 0.
+        Count::ManaAvailable(reference) => resolve_count_ref(state, reference, watcher)
+            .and_then(|id| state.objects.get(id))
+            .and_then(|o| match o.source {
+                ObjectSource::Player(p) => Some(p),
+                ObjectSource::Card(_) => None,
+            })
+            .map_or(0, |p| {
+                Int::try_from(state.player(p).mana_pool.units().len()).expect("mana pool fits Int")
+            }),
         // [CR#704.5q]: the lesser of two magnitudes.
         Count::Min(a, b) => {
             eval_count(a, state, working, watcher).min(eval_count(b, state, working, watcher))
