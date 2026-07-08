@@ -33,6 +33,13 @@ static SUBTYPES: LazyLock<HashSet<String>> = LazyLock::new(|| {
         };
         set.extend(catalog.data.iter().map(ToString::to_string));
     }
+    // Catalog gap: Vibranium is a new artifact subtype ([CR#205.3g]) that
+    // Scryfall's `artifact-types` catalog does not list yet (unlike the other
+    // June 2026 subtypes — Plan and the Marvel creature types — which flow
+    // through the catalogs above automatically). Supplement it so the
+    // "Vibranium" adjective and the Vibranium token's type line resolve; drop
+    // this once a `scripts/fetch_data` picks up the catalog entry.
+    set.insert("Vibranium".to_string());
     set
 });
 

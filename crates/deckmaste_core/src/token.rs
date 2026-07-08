@@ -120,6 +120,8 @@ pub enum PredefinedToken {
     Clue,
     /// [CR#111.10g]
     Blood,
+    /// [CR#111.10w]
+    Vibranium,
 }
 
 impl PredefinedToken {
@@ -133,6 +135,7 @@ impl PredefinedToken {
             "Gold" => Self::Gold,
             "Clue" => Self::Clue,
             "Blood" => Self::Blood,
+            "Vibranium" => Self::Vibranium,
             _ => return None,
         })
     }
@@ -146,21 +149,35 @@ impl PredefinedToken {
             Self::Gold => "Gold",
             Self::Clue => "Clue",
             Self::Blood => "Blood",
+            Self::Vibranium => "Vibranium",
         }
     }
 
     /// The rules-defined characteristics ([CR#111.10]). A colorless artifact
     /// token whose single subtype is its own name, carrying the predefined
-    /// activated ability. The `Subtype` is reconstructed inline (an
-    /// artifact-typed subtype, like the builtin token files expand to).
+    /// activated ability (and, for Vibranium, a keyword ability too). The
+    /// `Subtype` is reconstructed inline (an artifact-typed subtype, like the
+    /// builtin token files expand to).
     #[must_use]
     pub fn token(self) -> Token {
+        use crate::CausePattern;
+        use crate::CauseVerb;
+        use crate::ColorOrColorless;
         use crate::Count;
+        use crate::EventFilter;
+        use crate::KeywordAbility;
+        use crate::ManaProduction;
+        use crate::ManaRider;
         use crate::ManaSpec;
+        use crate::ObjectKind;
+        use crate::Predicate;
+        use crate::StaticEffect;
+        use crate::Zone;
         use crate::ability::ActivatedAbility;
         use crate::action::PlayerAction;
         use crate::cost::CostComponent;
         use crate::effect::OneShotEffect;
+        use crate::event::Cause;
         use crate::mana::ManaCost;
         use crate::mana::ManaSymbol;
         use crate::mana::SimpleManaSymbol;
@@ -178,28 +195,72 @@ impl PredefinedToken {
             )]))
         };
         let add_any = || PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor.into());
+        // Vibranium's "Add {C}. This mana can't be spent to cast a nonartifact
+        // spell." ([CR#111.10w]) — a colorless unit carrying a `SpendOnly`
+        // rider ([CR#106.6]) whose filter admits everything EXCEPT a
+        // nonartifact spell (abilities and artifact spells stay payable).
+        let restricted_colorless = || {
+            let nonartifact_spell = Predicate::AllOf(vec![
+                Predicate::Kind(ObjectKind::Spell),
+                Predicate::Not(Box::new(Predicate::type_(Type::Artifact))),
+            ]);
+            PlayerAction::AddMana(
+                Count::Literal(1),
+                ManaProduction::WithRiders {
+                    mana: ManaSpec::Specific(ColorOrColorless::Colorless),
+                    riders: vec![ManaRider::SpendOnly(Predicate::Not(Box::new(
+                        nonartifact_spell,
+                    )))],
+                },
+            )
+        };
+        // Indestructible ([CR#702.12b]) as a `Composite` keyword — the printed
+        // name plus the event-side can't-happen it stands for ([CR#614.17]),
+        // mirroring the builtin `Indestructible` keyword macro.
+        let indestructible = || {
+            Ability::Keyword(KeywordAbility::Composite {
+                name: "Indestructible".into(),
+                abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                    EventFilter::ZoneChange {
+                        what: Predicate::Ref(Reference::This),
+                        from: Some(Zone::Battlefield),
+                        to: Some(Zone::Graveyard),
+                        cause: Some(Cause::Cause(CausePattern {
+                            verb: Some(CauseVerb::Destroy),
+                            agency: None,
+                            agent: None,
+                        })),
+                    },
+                ))],
+            })
+        };
 
-        // (cost components, ability effect)
-        let (cost, effect): (Vec<CostComponent>, OneShotEffect) = match self {
+        // (leading keyword abilities, activated-ability cost, effect)
+        let (keywords, cost, effect): (Vec<Ability>, Vec<CostComponent>, OneShotEffect) = match self
+        {
             // [CR#111.10a] "{T}, Sacrifice this token: Add one mana of any color."
             Self::Treasure => (
+                vec![],
                 vec![CostComponent::Tap, sac],
                 OneShotEffect::act_by_you(add_any()),
             ),
             // [CR#111.10b] "{2}, {T}, Sacrifice this token: You gain 3 life."
             Self::Food => (
+                vec![],
                 vec![mana(2), CostComponent::Tap, sac],
                 OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
             ),
             // [CR#111.10c] "Sacrifice this token: Add one mana of any color."
-            Self::Gold => (vec![sac], OneShotEffect::act_by_you(add_any())),
+            Self::Gold => (vec![], vec![sac], OneShotEffect::act_by_you(add_any())),
             // [CR#111.10f] "{2}, Sacrifice this token: Draw a card."
             Self::Clue => (
+                vec![],
                 vec![mana(2), sac],
                 OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
             ),
             // [CR#111.10g] "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
             Self::Blood => (
+                vec![],
                 vec![
                     mana(1),
                     CostComponent::Tap,
@@ -212,22 +273,32 @@ impl PredefinedToken {
                 ],
                 OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
             ),
+            // [CR#111.10w] indestructible; "{T}: Add {C}. This mana can't be
+            // spent to cast a nonartifact spell."
+            Self::Vibranium => (
+                vec![indestructible()],
+                vec![CostComponent::Tap],
+                OneShotEffect::act_by_you(restricted_colorless()),
+            ),
         };
+
+        let mut abilities = keywords;
+        abilities.push(Ability::Activated(ActivatedAbility {
+            ability_word: None,
+            from: None,
+            window: None,
+            cost: cost.into(),
+            condition: None,
+            limits: vec![],
+            effect,
+        }));
 
         Token {
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact],
             subtypes: vec![subtype],
-            abilities: vec![Ability::Activated(ActivatedAbility {
-                ability_word: None,
-                from: None,
-                window: None,
-                cost: cost.into(),
-                condition: None,
-                limits: vec![],
-                effect,
-            })],
+            abilities,
             power: None,
             toughness: None,
         }

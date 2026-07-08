@@ -1704,6 +1704,11 @@ mod tests {
             parsed("create a Clue token."),
             Some((String::new(), "Create(1, Named(Clue))".to_owned()))
         );
+        // [CR#111.10w] Vibranium is built (indestructible + restricted {C}).
+        assert_eq!(
+            parsed("create a Vibranium token."),
+            Some((String::new(), "Create(1, Named(Vibranium))".to_owned()))
+        );
     }
 
     #[test]

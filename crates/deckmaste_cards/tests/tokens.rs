@@ -1,4 +1,5 @@
-//! Integration tests for the three builtin token files: Treasure, Clue, Food.
+//! Integration tests for the builtin token files: Treasure, Clue, Food, Gold,
+//! Blood, and Vibranium.
 //!
 //! Each token is loaded via `Plugin::token(name)` (macro-aware reader) and
 //! compared to the expected Rust value. A validate-level assertion confirms
@@ -198,6 +199,85 @@ fn blood_token_parses() {
     );
 }
 
+// [CR#111.10w]
+#[test]
+fn vibranium_token_parses() {
+    use deckmaste_core::Cause;
+    use deckmaste_core::CausePattern;
+    use deckmaste_core::CauseVerb;
+    use deckmaste_core::ColorOrColorless;
+    use deckmaste_core::EventFilter;
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_core::ManaProduction;
+    use deckmaste_core::ManaRider;
+    use deckmaste_core::ObjectKind;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Zone;
+
+    // Indestructible expands from the `Keyword(Indestructible)` macro — a
+    // `Composite` keyword carrying the event-side can't-happen, under the
+    // macro-provenance `Expanded` wrapper.
+    let indestructible = Ability::Keyword(KeywordAbility::Expanded(Expansion {
+        name: "Indestructible".into(),
+        args: ExpansionArgs::none(),
+        template: Some("indestructible".into()),
+        value: Box::new(KeywordAbility::Composite {
+            name: "Indestructible".into(),
+            abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                EventFilter::ZoneChange {
+                    what: Predicate::Ref(Reference::This),
+                    from: Some(Zone::Battlefield),
+                    to: Some(Zone::Graveyard),
+                    cause: Some(Cause::Cause(CausePattern {
+                        verb: Some(CauseVerb::Destroy),
+                        agency: None,
+                        agent: None,
+                    })),
+                },
+            ))],
+        }),
+    }));
+    // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The
+    // SpendOnly rider admits everything EXCEPT a nonartifact spell.
+    let restricted_mana = OneShotEffect::act_by_you(PlayerAction::AddMana(
+        Count::Literal(1),
+        ManaProduction::WithRiders {
+            mana: ManaSpec::Specific(ColorOrColorless::Colorless),
+            riders: vec![ManaRider::SpendOnly(Predicate::Not(Box::new(
+                Predicate::AllOf(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Not(Box::new(Predicate::type_(Type::Artifact))),
+                ]),
+            )))],
+        },
+    ));
+    let token = builtin().token("Vibranium").unwrap();
+    assert_eq!(
+        token,
+        Token {
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![Type::Artifact],
+            subtypes: vec![artifact_subtype("Vibranium")],
+            abilities: vec![
+                indestructible,
+                Ability::Activated(ActivatedAbility {
+                    ability_word: None,
+                    from: None,
+                    window: None,
+                    cost: vec![CostComponent::Tap].into(),
+                    condition: None,
+                    limits: vec![],
+                    effect: restricted_mana,
+                }),
+            ],
+            power: None,
+            toughness: None,
+        }
+    );
+}
+
 /// `validate_plugin` on the builtin directory must report zero parse failures
 /// and zero lint failures with the token files included.
 #[test]
@@ -220,9 +300,9 @@ fn validate_builtin_with_tokens_has_no_failures() {
         "{} lint failure(s)",
         validation.lint_failures.len()
     );
-    // 5 cards + 5 tokens = 10 minimum.
+    // 5 cards + 6 tokens = 11 minimum.
     assert!(
-        validation.valid >= 10,
+        validation.valid >= 11,
         "only {} items validated",
         validation.valid
     );

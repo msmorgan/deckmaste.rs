@@ -1,0 +1,18 @@
+// [CR#111.10w] — a colorless Vibranium artifact token with indestructible and
+// "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The
+// mana rider ([CR#106.6]) admits everything EXCEPT a nonartifact spell, so
+// abilities and artifact spells stay payable.
+Token(
+    types: [Artifact],
+    subtypes: [Vibranium],
+    abilities: [
+        Keyword(Indestructible),
+        Activated(
+            cost: [Tap],
+            effect: AddMana(1, WithRiders(
+                mana: Colorless,
+                riders: [SpendOnly(Not(AllOf([Kind(Spell), Not(Type(Artifact))])))],
+            )),
+        ),
+    ],
+)
