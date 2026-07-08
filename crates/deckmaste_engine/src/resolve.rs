@@ -5229,10 +5229,7 @@ mod tests {
             name: "Fight".into(),
             body: Box::new(OneShotEffect::If(deckmaste_core::If {
                 condition: Condition::AllOf(vec![is_creature(x), is_creature(y)]),
-                then: Box::new(OneShotEffect::Simultaneously(vec![
-                    half(y, x),
-                    half(x, y),
-                ])),
+                then: Box::new(OneShotEffect::Simultaneously(vec![half(y, x), half(x, y)])),
                 otherwise: None,
             })),
         })
