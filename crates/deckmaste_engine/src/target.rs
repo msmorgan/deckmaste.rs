@@ -77,6 +77,30 @@ pub(crate) fn source_of(state: &GameState, id: ObjectId) -> Option<ObjectId> {
     }
 }
 
+/// The combinator arms shared by every `Predicate` matcher: the logical
+/// `AllOf`/`OneOf`/`Not`, the transparent look-through of an `Expanded` filter
+/// macro, and the `Any` wildcard. Returns `Some(result)` for one of those arms
+/// — recursing each sub-filter through `eval`, the caller's own leaf-aware
+/// matcher (which re-enters this walker for nested combinators) — and `None`
+/// for any other (leaf) predicate, which the caller evaluates itself. This owns
+/// the combinator recursion in one place so the live ([`matches_with`]),
+/// snapshot (`GameState::filter_matches_snapshot`), and derived-view
+/// (`layer::matches_derived`) matchers share it instead of hand-copying it; the
+/// leaves legitimately differ (live / snapshot / derived) and stay per-caller.
+pub(crate) fn walk_combinators<F>(filter: &Predicate, eval: F) -> Option<bool>
+where
+    F: Fn(&Predicate) -> bool,
+{
+    match filter {
+        Predicate::AllOf(fs) => Some(fs.iter().all(&eval)),
+        Predicate::OneOf(fs) => Some(fs.iter().any(&eval)),
+        Predicate::Not(f) => Some(!eval(f)),
+        Predicate::Expanded(e) => Some(eval(&e.value)),
+        Predicate::Any => Some(true),
+        _ => None,
+    }
+}
+
 /// Whether the live object `id` matches `filter`. `watcher` is the carrier of
 /// the ability doing the matching (`Some` in the trigger lane, `None` for
 /// frameless targeting); it anchors `Ref(This)`/`Ref(You)` and threads into
@@ -94,15 +118,25 @@ pub fn matches_with(
     filter: &Predicate,
     watcher: Option<ObjectSource>,
 ) -> bool {
+    // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`/`Any`) recurse through this
+    // same matcher via the shared walker; leaves fall through to the match.
+    if let Some(result) = walk_combinators(filter, |f| matches_with(state, id, f, watcher)) {
+        return result;
+    }
     match filter {
         Predicate::Kind(k) => object_kind(state, id) == *k,
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => has_type(state, id, *t),
         // [CR#110.5a]: state, not characteristic — card/token objects only, so a
         // player proxy (zone None) never matches InZone.
         Predicate::State(StatePredicate::InZone(z)) => state.objects.obj(id).zone == Some(*z),
-        Predicate::AllOf(fs) => fs.iter().all(|f| matches_with(state, id, f, watcher)),
-        Predicate::OneOf(fs) => fs.iter().any(|f| matches_with(state, id, f, watcher)),
-        Predicate::Not(f) => !matches_with(state, id, f, watcher),
+        // Combinators are handled by `walk_combinators` before this match.
+        Predicate::AllOf(_)
+        | Predicate::OneOf(_)
+        | Predicate::Not(_)
+        | Predicate::Expanded(_)
+        | Predicate::Any => {
+            unreachable!("combinator filters are handled by walk_combinators before the match")
+        }
         // [CR#702.11d] "abilities … from [quality] sources": strict to stack
         // ABILITIES by construction — the candidate is an activated/triggered
         // ability on the stack whose SOURCE (the generating object,
@@ -143,13 +177,6 @@ pub fn matches_with(
                 }
             }
         },
-        Predicate::Any => true,
-        // A filter-position macro (`kinds: [Predicate]` — `Self`, evasion sets,
-        // protection qualities) survives expansion as `Predicate::Expanded`;
-        // evaluate it transparently through the remembered body. (Target-position
-        // macros like `AnyTarget` are looked through earlier, in
-        // `resolve::target_spec_filter`, so they never reach here.)
-        Predicate::Expanded(e) => matches_with(state, id, &e.value, watcher),
         // [CR#702]: keyword presence by NAME against the DERIVED abilities
         // (granted keywords count; the carried Composite name survives
         // expansion). Per-call layers() rebuild — a perf seam if a hot path

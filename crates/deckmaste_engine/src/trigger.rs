@@ -186,6 +186,13 @@ impl GameState {
         snapshot: &LkiSnapshot,
         watcher: ObjectSource,
     ) -> bool {
+        // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`/`Any`) recurse through
+        // this same matcher via the shared walker; leaves fall through below.
+        if let Some(result) = crate::target::walk_combinators(filter, |f| {
+            self.filter_matches_snapshot(f, snapshot, watcher)
+        }) {
+            return result;
+        }
         match filter {
             // "this object": match only when the snapshot is the watching object
             // ([CR#603.10a] — self-dies / self-enters).
@@ -319,21 +326,8 @@ impl GameState {
                 }
             },
 
-            // Logical combinators: recurse.
-            Predicate::AllOf(fs) => fs
-                .iter()
-                .all(|f| self.filter_matches_snapshot(f, snapshot, watcher)),
-            Predicate::OneOf(fs) => fs
-                .iter()
-                .any(|f| self.filter_matches_snapshot(f, snapshot, watcher)),
-            Predicate::Not(f) => !self.filter_matches_snapshot(f, snapshot, watcher),
-
-            // Match-anything.
-            Predicate::Any => true,
-
-            // Look through a remembered filter macro.
-            Predicate::Expanded(e) => self.filter_matches_snapshot(&e.value, snapshot, watcher),
-
+            // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`/`Any`) are handled
+            // by `walk_combinators` before this match.
             other => todo!("stage 3 does not evaluate snapshot filter {other:?}"),
         }
     }

@@ -686,8 +686,16 @@ fn matches_derived(
     let Some(c) = working.get(&id).map(|d| &d.characteristics) else {
         return false;
     };
+    // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`; `Any` handled above so it
+    // matches even for ids absent from `working`) recurse through this same
+    // derived matcher via the shared walker; characteristic leaves fall through
+    // below and everything else delegates to the printed matcher.
+    if let Some(result) =
+        crate::target::walk_combinators(filter, |f| matches_derived(state, working, id, f, watcher))
+    {
+        return result;
+    }
     match filter {
-        Predicate::Any => unreachable!("handled above"),
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => c.card_types.contains(t),
         Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
             c.supertypes.contains(s)
@@ -747,17 +755,6 @@ fn matches_derived(
             };
             crate::target::stat_satisfies(value, *cmp, count)
         }
-        // Combinators: recurse through matches_derived so characteristic leaves
-        // see the derived map, carrying the same `watcher` so a nested
-        // `Ref(This)`/`Ref(You)` still anchors against the host.
-        Predicate::AllOf(fs) => fs
-            .iter()
-            .all(|f| matches_derived(state, working, id, f, watcher)),
-        Predicate::OneOf(fs) => fs
-            .iter()
-            .any(|f| matches_derived(state, working, id, f, watcher)),
-        Predicate::Not(f) => !matches_derived(state, working, id, f, watcher),
-        Predicate::Expanded(e) => matches_derived(state, working, id, &e.value, watcher),
         // `Named` and everything non-characteristic (zone, status, kind,
         // combat, relations, refs …): delegate to the printed matcher, threading
         // the carrier `watcher` so a scope's `Ref(This)`/`Ref(You)` (and the
