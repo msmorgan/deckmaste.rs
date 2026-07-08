@@ -1041,6 +1041,39 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             });
         }
 
+        // Bare defaulted invocation: a macro whose params are all defaulted
+        // may be written by its bare name (`Hexproof` for `Hexproof()`). ron
+        // reads a bare identifier through the unit-variant channel, but a
+        // named macro's arguments come through the struct-variant channel,
+        // which errors on it — and `VariantAccess` is one-shot, so the shape
+        // can't be re-tried once chosen. Pre-scan instead: capture the value,
+        // and if it's a bare identifier naming such a macro, splice the
+        // explicit empty-args form and re-read, expanding identically to
+        // `Hexproof()`. A parenthesized form, a non-macro identifier, or a
+        // non-identifier value re-reads verbatim with `Skip` through the
+        // normal `EnumIntercept` path below (the re-read opts out of this
+        // scan, so it can't loop).
+        if self.intercept != Intercept::Skip && self.ctx.read.macros.has_bare_invocable(name) {
+            let source = <&RawValue>::deserialize(self.de)?.get_ron();
+            if let Some(ident) = leading_ident::<Self::Error>(source, self.ctx)?
+                && source.trim() == ident.as_str()
+                && self
+                    .ctx
+                    .read
+                    .macros
+                    .get(name, &ident)
+                    .is_some_and(|def| def.params.all_defaulted())
+            {
+                let spliced = self.ctx.read.splice(format!("{ident}()"));
+                return reread(spliced, self.ctx, Intercept::Full, |de| {
+                    de.deserialize_enum(name, variants, visitor)
+                });
+            }
+            return reread(source, self.ctx, Intercept::Skip, |de| {
+                de.deserialize_enum(name, variants, visitor)
+            });
+        }
+
         self.de.deserialize_enum(
             name,
             variants,

@@ -2171,6 +2171,53 @@ fn all_defaulted_invocation_round_trips() {
     assert_eq!(reread, filter);
 }
 
+/// All params defaulted: the bare name `Sized` reads as the zero-arg call,
+/// expanding identically to the explicit `Sized()`, and still writes back as
+/// `Sized()` (serialization stays parenthesized).
+#[test]
+fn bare_name_reads_as_all_defaulted_invocation() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Sized",
+            kinds: [Filter],
+            params: { "min": Default(Any, 1) },
+            body: Power(min: Param(min)),
+        )"#))
+        .unwrap();
+    let bare: Filter = macros.read_str("Sized").unwrap();
+    let parens: Filter = macros.read_str("Sized()").unwrap();
+    assert_eq!(bare, parens, "bare name expands like the empty-args form");
+    // Serialization stays `Sized()`, which re-reads to the same value.
+    let written = options().to_string(&bare).unwrap();
+    assert_eq!(written, "Sized()");
+    let reread: Filter = macros.read_str(&written).unwrap();
+    assert_eq!(reread, bare);
+}
+
+/// A bare name is only a zero-arg call when *every* param is defaulted: a
+/// named macro with a required param still errors when invoked bare.
+#[test]
+fn bare_name_with_required_param_still_errors() {
+    let mut macros = empty();
+    macros
+        .insert(&def(r#"(
+            name: "Sized",
+            kinds: [Filter],
+            params: { "kind": Any, "min": Default(Any, 1) },
+            body: AllOf([Type(Param(kind)), Power(min: Param(min))]),
+        )"#))
+        .unwrap();
+    // Not all-defaulted, so the bare-invocation pre-scan doesn't fire and the
+    // named-args grammar rejects the missing parentheses.
+    let error = macros.read_str::<Filter>("Sized").unwrap_err();
+    let msg = error.to_string();
+    assert!(
+        msg.contains("Expected opening `(`"),
+        "unexpected error: {msg}"
+    );
+}
+
 /// A meta-macro's own params may be defaulted: the subtype meta-macro shape
 /// this feature was built for, end to end.
 #[test]

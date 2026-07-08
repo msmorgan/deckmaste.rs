@@ -63,6 +63,20 @@ impl Default for Params {
     }
 }
 
+impl Params {
+    /// Whether every parameter has a default, so the macro can be invoked
+    /// with no arguments — and, for a named signature, by its bare name.
+    /// Only named signatures qualify: positional defaults are never filled
+    /// (their arity is required), so a bare positional name reads as the
+    /// already-supported zero-arg unit form, not a defaulted call.
+    pub(crate) fn all_defaulted(&self) -> bool {
+        match self {
+            Params::Named(signature) => signature.values().all(|ty| ty.default.is_some()),
+            Params::Positional(_) => false,
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for Params {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         struct ShapeVisitor;
@@ -391,6 +405,16 @@ impl MacroSet {
     /// that parse position needs macro interception.
     pub(crate) fn expands_to_struct(&self, name: &str) -> bool {
         self.macros.contains_key(name)
+    }
+
+    /// Whether any macro at `position` may be invoked by its bare name — a
+    /// named signature whose parameters are all defaulted. Gates the
+    /// bare-invocation pre-scan so only positions that host such a macro pay
+    /// the capture cost.
+    pub(crate) fn has_bare_invocable(&self, position: &str) -> bool {
+        self.macros
+            .get(position)
+            .is_some_and(|named| named.values().any(|def| def.params.all_defaulted()))
     }
 
     fn check_kinds(&self, def: &MacroDef) -> Result<(), InsertError> {
