@@ -88,6 +88,109 @@ fn every_builtin_keyword_macro_expands() {
     }
 }
 
+/// [CR#702.51a,702.66a,702.126a]: the per-pip alternative-payment keywords
+/// confer the actual `PayPips` STATICS, not merely a name-carrying Composite —
+/// `every_builtin_keyword_macro_expands` checks only the printed name, so a
+/// body that dropped or mangled the `PayPips` rows would slip past it. Convoke
+/// confers a `Generic` tap clause plus one `Colored(c)` tap clause per color;
+/// delve a single `Generic` EXILE clause; improvise a single `Generic` tap
+/// clause filtered to artifacts.
+#[test]
+fn convoke_delve_improvise_confer_pay_pips_statics() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Color;
+    use deckmaste_core::PayAct;
+    use deckmaste_core::PipClass;
+    use deckmaste_core::StaticEffect;
+
+    fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
+        match a {
+            Ability::Static(s) => out.push(s.clone()),
+            Ability::Expanded(e) => statics(&e.value, out),
+            _ => {}
+        }
+    }
+    fn peel(e: &StaticEffect) -> &StaticEffect {
+        match e {
+            StaticEffect::Expanded(x) => peel(&x.value),
+            other => other,
+        }
+    }
+    // Expand a keyword invocation to the flat list of its `PayPips` rows.
+    fn pay_pips(plugin: &Plugin, invocation: &str) -> Vec<(PipClass, PayAct)> {
+        let kw: KeywordAbility = plugin
+            .macros
+            .read_str(invocation)
+            .unwrap_or_else(|e| panic!("expanding {invocation}: {e}"));
+        let KeywordAbility::Expanded(expanded) = &kw else {
+            panic!("expected Expanded for {invocation}, got {kw:?}");
+        };
+        let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
+            panic!("{invocation} body is a Composite");
+        };
+        let mut effs = Vec::new();
+        for a in abilities {
+            statics(a, &mut effs);
+        }
+        effs.iter()
+            .filter_map(|e| match peel(e) {
+                StaticEffect::PayPips(class, act) => Some((*class, act.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    let plugin = builtin();
+
+    // Convoke: one Generic tap clause + one Colored(c) tap clause per color, all
+    // `TapToPay` (never `ExileToPay`) ([CR#702.51a]).
+    let convoke = pay_pips(&plugin, "Convoke");
+    assert!(
+        convoke
+            .iter()
+            .all(|(_, act)| matches!(act, PayAct::TapToPay(_))),
+        "every convoke clause taps to pay; got {convoke:?}"
+    );
+    assert!(
+        convoke.iter().any(|(c, _)| matches!(c, PipClass::Generic)),
+        "convoke confers a Generic tap clause; got {convoke:?}"
+    );
+    for color in [
+        Color::White,
+        Color::Blue,
+        Color::Black,
+        Color::Red,
+        Color::Green,
+    ] {
+        assert!(
+            convoke
+                .iter()
+                .any(|(c, _)| matches!(c, PipClass::Colored(cc) if *cc == color)),
+            "convoke confers a Colored({color:?}) tap clause; got {convoke:?}"
+        );
+    }
+
+    // Delve: a single Generic EXILE clause ([CR#702.66a]).
+    let delve = pay_pips(&plugin, "Delve");
+    assert!(
+        matches!(
+            delve.as_slice(),
+            [(PipClass::Generic, PayAct::ExileToPay(_))]
+        ),
+        "delve confers exactly one Generic ExileToPay clause; got {delve:?}"
+    );
+
+    // Improvise: a single Generic TAP clause ([CR#702.126a]).
+    let improvise = pay_pips(&plugin, "Improvise");
+    assert!(
+        matches!(
+            improvise.as_slice(),
+            [(PipClass::Generic, PayAct::TapToPay(_))]
+        ),
+        "improvise confers exactly one Generic TapToPay clause; got {improvise:?}"
+    );
+}
+
 /// [CR#702.5a,303.4a,303.4f]: the **Enchant** keyword confers THREE abilities,
 /// not just the legal-host restriction: (1) a targeting `Spell` (target spec
 /// only, no-op effect) so cast targeting stays on the live `spell_targets`

@@ -431,3 +431,140 @@ fn delve_makes_an_otherwise_unaffordable_cast_legal() {
         "the affordability gate is read-only: nothing is exiled until payment"
     );
 }
+
+// --- improvise: tap an artifact you control to pay a generic pip
+// --------------
+
+fn improvise_game(seed: u64) -> GameState {
+    let improvise = Arc::new(testing().card("Sorcery Improvise Draw").unwrap());
+    let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
+    let island = Arc::new(builtin().card("Island").unwrap());
+    let mut p0 = vec![Arc::clone(&improvise); 3];
+    p0.extend(vec![Arc::clone(&myr); 3]);
+    p0.extend(vec![Arc::clone(&island); 10]);
+    GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&island); 15],
+            },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+    })
+}
+
+#[test]
+fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
+    let mut state = improvise_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    // An artifact you control to improvise with (Darksteel Myr is an Artifact).
+    let myr = find_in_hand(&state, PlayerId(0), "Darksteel Myr");
+    force_onto_battlefield(&mut state, myr);
+
+    // Float the full {2} so the cast is legal regardless of improvise (the
+    // affordability gate is improvise-unaware; the hook still reduces the actual
+    // payment). Improvise then pays one {1} by tapping the artifact.
+    state.player_mut(PlayerId(0)).mana_pool.add(blue(), 2);
+    resurface_priority(&mut state);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    let spell = find_in_hand(&state, PlayerId(0), "Sorcery Improvise Draw");
+    assert_eq!(
+        printed_mana_value(&state, spell),
+        2,
+        "{{2}} is mana value 2"
+    );
+    let library_before = state.zones.libraries[0].len();
+
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+        .unwrap();
+
+    // First decision after cast: PayMana for the REDUCED cost — improvise covered
+    // one generic pip by tapping the artifact, so only {1} remains.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = &stop else {
+        panic!("expected PayMana after improvise reduced the cost, got {stop:?}");
+    };
+    assert_eq!(
+        cost.mana_value(),
+        1,
+        "one generic pip was paid by tapping the artifact; only {{1}} is left to pay with mana"
+    );
+    // [CR#702.51b,202.3]: the spell's printed cost / mana value is untouched —
+    // the pip is still IN the cost, just paid a different way.
+    assert_eq!(
+        printed_mana_value(&state, spell),
+        2,
+        "improvise must not lower the spell's mana value"
+    );
+    // The tap is scheduled in the payment window, behind the mana decision.
+    assert!(
+        !state.objects.obj(myr).tapped,
+        "the improvised artifact taps as the cost is paid, not before"
+    );
+
+    // Pay {1}, then pass to resolution.
+    loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                if state.stack.is_empty() && !state.zones.hands[0].contains(&spell) {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop: {other:?}"),
+        }
+    }
+
+    assert!(
+        state.objects.obj(myr).tapped,
+        "the improvised artifact is tapped to pay the pip ([CR#702.126a])"
+    );
+    assert_eq!(
+        state.zones.libraries[0].len(),
+        library_before - 1,
+        "the spell resolved and drew a card"
+    );
+}
+
+#[test]
+fn improvise_makes_an_otherwise_unaffordable_cast_legal() {
+    let mut state = improvise_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    let spell = find_in_hand(&state, PlayerId(0), "Sorcery Improvise Draw");
+    let myr = find_in_hand(&state, PlayerId(0), "Darksteel Myr");
+
+    // Float only {1} — one short of {2}. With no artifact to tap, improvise has
+    // no resource, so the cast is unpayable ([CR#601.2h]).
+    state.player_mut(PlayerId(0)).mana_pool.add(blue(), 1);
+    assert!(
+        !cast_is_offered(&mut state, spell),
+        "{{2}} is not castable off a single mana with nothing to improvise with"
+    );
+
+    // Put an artifact onto the battlefield: improvise can now cover one generic
+    // pip by tapping it ([CR#702.126a]); {1} of mana plus that pip resource then
+    // cover {2} ([CR#601.2g..601.2h]).
+    force_onto_battlefield(&mut state, myr);
+    assert!(
+        cast_is_offered(&mut state, spell),
+        "improvise covers one {{1}} by tapping the artifact, so {{2}} is castable off {{1}}"
+    );
+    assert!(
+        !state.objects.obj(myr).tapped,
+        "the affordability gate is read-only: nothing is tapped until payment"
+    );
+}
