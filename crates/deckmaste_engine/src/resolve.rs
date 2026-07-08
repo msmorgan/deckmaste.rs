@@ -5203,7 +5203,7 @@ mod tests {
     /// = itself])`. Slots `x`/`y` are the two fighters. Mirrors
     /// `plugins/builtin/macros/effect/Fight.ron` (the guard's `Permanent` is
     /// spelled here as `InZone(Battlefield)`, an equivalent for the test).
-    fn fight_effect(x: Reference, y: Reference) -> OneShotEffect {
+    fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
         use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Condition;
         use deckmaste_core::Predicate;
@@ -5228,10 +5228,10 @@ mod tests {
         OneShotEffect::Act(Action::Composite {
             name: "Fight".into(),
             body: Box::new(OneShotEffect::If(deckmaste_core::If {
-                condition: Condition::AllOf(vec![is_creature(&x), is_creature(&y)]),
+                condition: Condition::AllOf(vec![is_creature(x), is_creature(y)]),
                 then: Box::new(OneShotEffect::Simultaneously(vec![
-                    half(&y, &x),
-                    half(&x, &y),
+                    half(y, x),
+                    half(x, y),
                 ])),
                 otherwise: None,
             })),
@@ -5247,7 +5247,7 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src_targets(a, vec![a, b]);
         state.run_effect(
-            fight_effect(Reference::Target(0), Reference::Target(1)),
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
             &frame,
         );
         // Both packets land as ONE applied batch occurrence.
@@ -5293,7 +5293,7 @@ mod tests {
         state.objects.remove(b);
         let frame = frame_src_targets(a, vec![a, b]);
         state.run_effect(
-            fight_effect(Reference::Target(0), Reference::Target(1)),
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
             &frame,
         );
         run_injected(&mut state);
@@ -5319,7 +5319,7 @@ mod tests {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src_targets(a, vec![a, a]);
         state.run_effect(
-            fight_effect(Reference::Target(0), Reference::Target(1)),
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
             &frame,
         );
         run_injected(&mut state);

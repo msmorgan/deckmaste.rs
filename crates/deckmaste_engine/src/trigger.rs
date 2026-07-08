@@ -4360,7 +4360,7 @@ mod tests {
 
     /// The saga-chapter walk-through ([CR#714.2b]): three chapter abilities
     /// authored through the `Chapter` MACRO (`Chapter(n: N, effect: …)` —
-    /// the [CR#714.2b] "{rN}—[OneShotEffect]" spelling, expanding to
+    /// the [CR#714.2b] "{rN}—[`OneShotEffect`]" spelling, expanding to
     /// `OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This)))` gated by
     /// `Crossed` at thresholds 1/2/3) against a counter-DOUBLED
     /// 0→2 lore jump arriving as ONE batch fact — chapter I fires

@@ -1,7 +1,7 @@
 ---
 needs: [macro-modification-bundle]
 ---
-Implement `Amass` [CR#701.45] as a canonical example of a "composite macro" that decomposes into smaller representable operations.
+Implement `Amass` [CR#701.47a] as a canonical example of a "composite macro" that decomposes into smaller representable operations.
 
 "Amass [subtype] N" means:
 1. If you don't control an Army [subtype] creature, create a 0/0 black Army [subtype] creature token.

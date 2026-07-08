@@ -1,6 +1,31 @@
 ---
 needs: [engine-replacements]
+design: true
 ---
+## Needs a design pass (or a won't-do call) — investigated 2026-07-08
+
+The functional work here has LANDED (binding model shipped; residual item 1
+migrated). The ONLY remaining item (residual item 2 below) is explicitly framed
+as "architectural elegance, not a functional blocker," and it is NOT a mechanical
+edit — it reshapes a core type and the engine's shield capture/matching key.
+
+`CreateReplacement.subject` is a load-bearing engine matching key, coupled across
+six layers: the core field (`crates/deckmaste_core/src/action.rs`), shield
+creation freezing it (`resolve.rs::create_shield`), `floating_watches` matching
+events BY frozen subject identity (`replace_registry.rs` — whose doc-comment notes
+the `would` clause's `Ref(EventObject)` filter can't be evaluated by a frameless
+gather, which is exactly why the captured field exists), emit/render
+(`idris_emit.rs`, `render/effect.rs`), and subject-identity tests
+(`builtin.rs`, `replace_registry.rs`). Routing capture through `With`/`That`
+forces unspecified design answers: how a persistent shield FREEZES the
+frame-bound `That` (the resolution frame is gone when the shield later fires);
+how `floating_watches` derives its matching key without `subject`; whether the
+`would` predicate becomes `Ref(That)` and what that does to identity matching;
+and the resulting Idris emission shape. No `With`-wrapped-shield precedent exists
+to mirror. Recommend either closing this as optional/won't-do, or routing the
+shield-capture reshape through a design pass before implementation. Surfaced by
+the batch executor.
+
 ## Status: binding model LANDED (Scry/Surveil/Fateseal work)
 
 The core binding model has been **built and shipped** as of the look-and-distribute / scry-surveil-fateseal integration.

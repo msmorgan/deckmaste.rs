@@ -592,7 +592,7 @@ fn amass_decomposes_into_core_primitives() {
     let StaticEffect::Modify(Reference::It, Modification::Subtypes(CollectionOp::Add(added))) =
         effect.as_ref()
     else {
-        panic!("it ADDS the subtype to the chosen Army, got {:?}", effect);
+        panic!("it ADDS the subtype to the chosen Army, got {effect:?}");
     };
     assert_eq!(added.as_str(), "Orc", "becomes an Orc in addition");
 }

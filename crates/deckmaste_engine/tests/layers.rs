@@ -606,7 +606,7 @@ fn stolen_creature_attacks_for_new_controller() {
 }
 
 /// [CR#613.8a,613.8b]: within layer 4, an effect whose affected set DEPENDS on
-/// another applies after it, overriding timestamp order. OneShotEffect B
+/// another applies after it, overriding timestamp order. `OneShotEffect` B
 /// ("enchantments are also artifacts", EARLIER timestamp) depends on effect A
 /// ("creatures are also enchantments", LATER timestamp): applying A adds the
 /// bear to B's affected set. So A applies first despite its later timestamp,
