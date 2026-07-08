@@ -753,10 +753,15 @@ impl GameState {
             // this is still a no-op (removal from combat is still correct —
             // the shield fired, so the permanent would have been in combat
             // when the destroy was imminent). `remove_object` is idempotent
-            // for non-combat objects.
+            // for non-combat objects. Removing damage also clears the
+            // deathtouch mark ([CR#704.5h]) — a healed creature is no longer
+            // "dealt damage by a deathtouch source", so a later SBA check must
+            // not re-destroy it on the stale flag.
             GameEvent::DamageRemoved { object } => {
                 if self.objects.get(object).is_some() {
-                    self.objects.obj_mut(object).damage = 0;
+                    let obj = self.objects.obj_mut(object);
+                    obj.damage = 0;
+                    obj.struck_by_deathtouch = false;
                 }
                 self.combat.remove_object(object);
                 GameEvent::DamageRemoved { object }
@@ -1463,12 +1468,30 @@ impl GameState {
             return Progress::SbasChecked { actions: 0 };
         }
         let actions = sba::sweep(self);
+        // [CR#704.5h]: the deathtouch-damage window is per-SBA-check ("since the
+        // last time state-based actions were checked"), NOT until cleanup. The
+        // sweep has now read every `struck_by_deathtouch` flag, so close the
+        // window by clearing them. A creature that regenerates from the
+        // resulting destroy (shield consumed, damage healed) then presents a
+        // clean flag on the re-check and is not wrongly destroyed a second time.
+        self.clear_deathtouch_marks();
         let count = Uint::try_from(actions.len()).expect("action count fits in Uint");
         if count > 0 {
             // Re-check is conditional on this batch actually changing state.
             self.schedule_front(vec![WorkItem::EmitSbaBatch(actions)]);
         }
         Progress::SbasChecked { actions: count }
+    }
+
+    /// [CR#704.5h]: clear every object's deathtouch-damage marker. Called at the
+    /// end of each SBA check ([`check_sbas`]), once the sweep has consumed the
+    /// flags, so the marker only ever reflects damage dealt by a deathtouch
+    /// source since the previous check.
+    fn clear_deathtouch_marks(&mut self) {
+        let ids: Vec<_> = self.objects.iter().map(|o| o.id).collect();
+        for id in ids {
+            self.objects.obj_mut(id).struck_by_deathtouch = false;
+        }
     }
 
     /// [CR#514.1]: the active player discards to maximum hand size.

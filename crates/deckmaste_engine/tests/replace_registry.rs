@@ -562,6 +562,54 @@ fn regenerated_creature_survives_lethal_damage() {
     );
 }
 
+/// [CR#704.5h,701.19a]: a creature that regenerates from *deathtouch* damage
+/// must survive — the deathtouch-strike window is per-SBA-check, so the marker
+/// that fired the first `WillDestroy` must be cleared before the post-heal
+/// re-check. Regression for the bug where `struck_by_deathtouch` was cleared
+/// only at cleanup: the shield replaced the first destroy and healed the
+/// damage, but the still-set flag drove a *second* `WillDestroy` on the very
+/// next check with no shield left, wrongly destroying the creature (Drudge
+/// Skeletons vs a deathtouch attacker).
+#[test]
+fn regenerated_creature_survives_deathtouch_strike() {
+    let (mut state, id) = vanilla_creature(2, 2);
+    let card_id = state.objects.obj(id).card_id().expect("backed by a card");
+
+    // Resolve "Regenerate ~" — creates a single one-shot shield on id.
+    resolve_and_drive(&mut state, regenerate_effect(Reference::This), id);
+    assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
+
+    // SUBLETHAL physical damage (1 < toughness 2) but struck by a deathtouch
+    // source: only the deathtouch marker makes this lethal ([CR#704.5h]).
+    state.objects.obj_mut(id).damage = 1;
+    state.objects.obj_mut(id).struck_by_deathtouch = true;
+
+    // Drive SBAs: first check → WillDestroy → shield replaces → heal (damage
+    // and the deathtouch marker cleared) + tap; re-check must see a clean flag.
+    drive_sbas(&mut state);
+
+    let live = find_on_battlefield(&state, card_id);
+    assert!(
+        state.objects.get(live).is_some(),
+        "creature regenerated from deathtouch damage must survive; bf={:?}",
+        state.zones.battlefield
+    );
+    assert_eq!(
+        state.objects.obj(live).damage,
+        0,
+        "damage must be cleared by regeneration [CR#701.19a]"
+    );
+    assert!(
+        !state.objects.obj(live).struck_by_deathtouch,
+        "the deathtouch marker must be cleared, not carried into the next check \
+         ([CR#704.5h]) — otherwise the healed creature is re-destroyed"
+    );
+    assert!(
+        state.shields.is_empty(),
+        "only one shield existed and it was consumed by the single destroy [CR#614.3]"
+    );
+}
+
 /// "Regenerate TARGET creature" — the shield's SOURCE (the regenerating spell/
 /// ability) is a different object than its SUBJECT (the protected creature).
 /// Because the shield matches by stored subject identity and its body reads
