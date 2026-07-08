@@ -253,9 +253,15 @@ fn arc_lightning_targets_any_target() {
     let OneShotEffect::Targeted(ref te) = spell.effect else {
         panic!("expected a Targeted wrapper, got {:?}", spell.effect);
     };
-    let TargetSpec::Target(_, filter) = &te.targets[0] else {
+    let TargetSpec::Target(count, filter) = &te.targets[0] else {
         panic!("expected Target variant, got {:?}", te.targets[0]);
     };
+    // Between(1, 3): one, two, or three targets — never zero (the AnyNumber bug).
+    assert_eq!(
+        count.bounds(),
+        (Some(&Count::Literal(1)), Some(&Count::Literal(3))),
+        "Arc Lightning must target 1–3, not any number (which permits 0)"
+    );
     let deckmaste_core::Predicate::Expanded(exp) = filter else {
         panic!("expected Expanded filter, got {filter:?}");
     };
