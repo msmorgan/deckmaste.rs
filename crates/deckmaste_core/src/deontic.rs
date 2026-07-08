@@ -239,6 +239,20 @@ pub enum DeonticAction {
         #[serde(default = "Predicate::any")]
         on: Predicate,
     },
+    /// `by` (a stack object — a spell or ability, the countering source)
+    /// counters `on` (the spell/ability on the stack being countered)
+    /// ([CR#701.6a]). The deed behind "can't be countered": a `Cant` row
+    /// over it — `Cant(Counter(on: Ref(This)))` — causes the countering
+    /// instruction not to affect `on`. Both slots default to match-anything;
+    /// the agent needs no restriction for the common self-referential form
+    /// (only spells/abilities counter anything). Mirrors the Idris
+    /// `Relation.Counter` (agent `AnObject`, patient `AnObject`).
+    Counter {
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
+    },
     /// A remembered `DeonticAction` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]
@@ -403,6 +417,23 @@ mod tests {
             panic!("expected Cant(Target), got {empty:?}");
         };
         assert!(by.is_empty());
+    }
+
+    /// "This spell can't be countered" ([CR#701.6a]): a `Cant(Counter)` over
+    /// the self-referential patient, the agent left at the any-source default.
+    #[test]
+    fn cant_be_countered_reads() {
+        let clause = read("Cant(Counter(on: Ref(This)))");
+        assert_eq!(
+            clause,
+            Deontic::Cant(DeonticAction::Counter {
+                by: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
+            }),
+        );
+        // Round-trips through serialize → read.
+        let written = crate::ron::options().to_string(&clause).unwrap();
+        assert_eq!(read(&written), clause);
     }
 
     /// A declaration Gate (Propaganda-shaped, cost simplified to {T}).

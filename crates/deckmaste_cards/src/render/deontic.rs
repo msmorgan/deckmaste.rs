@@ -117,6 +117,11 @@ fn prohibition(a: &DeonticAction, subject: &str) -> String {
         DeonticAction::Block { by, .. } => {
             format!("{} can't block.", deontic_subject(by, subject))
         }
+        // "This spell can't be countered." ([CR#701.6a]) — the countered
+        // object (`on`) is the subject; the any-source agent isn't named.
+        DeonticAction::Counter { on, .. } => {
+            format!("{} can't be countered.", deontic_subject(on, subject))
+        }
         other => format!("[unrendered: {other:?}]."),
     }
 }

@@ -1324,6 +1324,14 @@ impl GameState {
             Action::Counter(sel) => {
                 let mut events = Vec::new();
                 for object in self.eval_reference_set(sel, frame) {
+                    // [CR#701.6a]: a "can't be countered" object is not
+                    // countered — the instruction simply doesn't affect it (a
+                    // `Cant(Counter)` deontic row, checked at the moment the
+                    // counter would happen). Never crashes: an unmatched or
+                    // gone object just fizzles like any no-op counter.
+                    if !crate::legal::counter_legal(self, frame.source, object) {
+                        continue;
+                    }
                     match self
                         .stack
                         .iter()
@@ -5868,6 +5876,69 @@ mod tests {
         assert_eq!(state.zones.graveyards[0].len(), gy_before + 1);
         let countered = *state.zones.graveyards[0].last().expect("a countered spell");
         assert_eq!(state.objects.obj(countered).zone, Some(Zone::Graveyard));
+    }
+
+    /// [CR#701.6a]: a spell carrying `Cant(Counter(on: Ref(This)))` ("this
+    /// spell can't be countered") is NOT moved off the stack by a counter
+    /// instruction — the eval hook on the counter-resolution path refuses the
+    /// counter, so the spell stays (to resolve normally); nothing hits the
+    /// graveyard. The mirror of `counter_spell_goes_to_owners_graveyard`.
+    #[test]
+    fn cant_be_countered_spell_survives_counter() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::StaticEffect;
+
+        let (mut state, bear) = bear_on_field();
+        // Mint an instant carrying "this spell can't be countered" and push it
+        // onto the stack, owned/controlled by player 0.
+        let card = Card::Normal(CardFace {
+            name: "Uncounterable".into(),
+            types: vec![Type::Instant],
+            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Counter {
+                    by: Predicate::Any,
+                    on: Predicate::Ref(Reference::This),
+                },
+            )))],
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+        });
+        let gy_before = state.zones.graveyards[0].len();
+
+        // The source's effect tries to counter that spell (chosen as Target(0)).
+        let frame = frame_src_targets(bear, vec![spell]);
+        state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
+        // Process the (empty) emit the refused counter scheduled. The refusal
+        // emits no ZoneWillChange, so — unlike the happy path — there is no
+        // follow-up item; step exactly once.
+        let _ = state.step();
+
+        assert!(
+            state.stack.iter().any(|e| e.id == spell),
+            "an uncounterable spell stays on the stack"
+        );
+        assert!(
+            state.objects.get(spell).is_some(),
+            "the spell object is still live (not reminted into a graveyard)"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            gy_before,
+            "nothing was countered into the graveyard"
+        );
     }
 
     /// [CR#701.6a]: countering an ability removes it from the stack and it

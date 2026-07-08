@@ -2115,6 +2115,14 @@ fn emit_deed(action: &DeonticAction) -> R {
                 deed_patient(on)?,
             ],
         ),
+        // `cant (Enact Counter spellOrAbility (SameAs This))` ([CR#701.6a]):
+        // `agentScope Counter = AnObject` is forced concretely (a literal
+        // constructor here), so an `Any` agent resolves as the empty
+        // conjunction like `Target`'s agent.
+        DeonticAction::Counter { by, on } => app(
+            "Enact",
+            vec!["Counter".to_string(), emit_filter(by)?, deed_patient(on)?],
+        ),
         DeonticAction::Expanded(_) => {
             return Err(gap(
                 "unexpanded DeonticAction macro invocation remained after expand_all",

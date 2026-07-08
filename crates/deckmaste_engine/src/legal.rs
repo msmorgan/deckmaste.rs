@@ -746,6 +746,62 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
     })
 }
 
+/// Every `Cant(Counter)` row visible to a counter of `target`, with its
+/// carrier: `(carrier source, by, on)`. Rows come from battlefield permanents
+/// (Dromoka-style grants — "spells you control can't be countered") PLUS the
+/// `target`'s OWN abilities, since "this spell can't be countered" is a static
+/// the spell carries while on the stack ([CR#701.6a]) — the same
+/// battlefield + candidate gathering `may_cast_rows` uses for flash. A
+/// countered ABILITY on the stack ([CR#113.3b]) is a non-card object with no
+/// characteristics in the layered view, so its own statics are skipped (it
+/// carries none); only the battlefield grants can reach it.
+#[must_use]
+fn cant_counter_rows(
+    state: &GameState,
+    view: &LayeredView,
+    target: ObjectId,
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
+    let mut rows = Vec::new();
+    // The target's own row is only visible if it is a card-backed object (in
+    // the derived view); a bare stack ability isn't, and `view.get` would panic.
+    let self_row = state.objects.obj(target).card_id().is_some();
+    let ids = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .chain(self_row.then_some(target));
+    for id in ids {
+        let source = state.objects.obj(id).source;
+        for_each_static(view, id, |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Counter { by, on }) = cant_action(d)
+            {
+                rows.push((source, by.clone(), on.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// [CR#701.6a]: whether the countering source `by` may legally counter
+/// `target` — the eval hook on the counter-resolution path. `false` iff some
+/// applicable `Cant(Counter(by, on))` row forbids the pair: `by` matched
+/// against the countering stack object, `on` against the countered object,
+/// both anchored on the row's carrier (so a self-referential
+/// `Cant(Counter(on: Ref(This)))` on the target resolves its `This`
+/// correctly). A forbidden counter simply doesn't affect the object — it is
+/// not moved off the stack.
+#[must_use]
+pub(crate) fn counter_legal(state: &GameState, by: ObjectId, target: ObjectId) -> bool {
+    let view = state.layers();
+    let rows = cant_counter_rows(state, &view, target);
+    !rows.iter().any(|(carrier, by_pred, on_pred)| {
+        state.filter_matches_live(by_pred, by, *carrier)
+            && state.filter_matches_live(on_pred, target, *carrier)
+    })
+}
+
 /// One `May(Cast)` row from the derived view: the carrier it sits on and
 /// the permission's slots. `window` is the timing lift ([CR#702.8a]
 /// flash); `from`/`cost` are the cast-from-zones / alternative-cost
@@ -1210,6 +1266,41 @@ mod tests {
             !attachment_legal(&state, aura, noncreature_host),
             "composite-conferred Cant(Attach to Not(Creature)) forbids a non-creature host \
              ([CR#702.5a]) — statics_on must flatten the composite keyword"
+        );
+    }
+
+    /// [CR#701.6a]: `counter_legal` reads the target's OWN
+    /// `Cant(Counter(on: Ref(This)))` — "this spell can't be countered" — and
+    /// refuses the counter (`false`), while a plain object without the row can
+    /// be countered (`true`). `Ref(This)` on the row anchors to the object
+    /// carrying it, so the self-referential form matches exactly its own
+    /// carrier.
+    #[test]
+    fn counter_legal_honors_self_referential_cant() {
+        use super::counter_legal;
+        let mut state = game();
+        let uncounterable = obj_on_field(
+            &mut state,
+            "Uncounterable",
+            vec![Type::Instant],
+            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Counter {
+                    by: Predicate::Any,
+                    on: Predicate::Ref(Reference::This),
+                },
+            )))],
+        );
+        let plain = obj_on_field(&mut state, "Plain", vec![Type::Instant], vec![]);
+        // The countering source — any object; the `by: Any` agent matches it.
+        let source = obj_on_field(&mut state, "Counterspell", vec![Type::Instant], vec![]);
+
+        assert!(
+            !counter_legal(&state, source, uncounterable),
+            "a `Cant(Counter(on: Ref(This)))` object can't be countered"
+        );
+        assert!(
+            counter_legal(&state, source, plain),
+            "an object with no can't-be-countered row can be countered"
         );
     }
 }
