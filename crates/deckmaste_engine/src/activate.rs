@@ -265,7 +265,10 @@ impl GameState {
         // source here so "pay mana equal to its mana cost" gates on the real
         // amount, not a free read.
         let mana = self.resolve_cost_mana(&summary, object, player);
-        if !self.gate_mana_affordable(player, &mana, object) {
+        // No `PayPips` — convoke / delve / improvise are cast-time spell
+        // statics, never activated-ability costs ([CR#702.51a]) — so pip
+        // payment does not enter the affordability gate here.
+        if !self.gate_mana_affordable(player, &mana, object, None) {
             return false;
         }
 

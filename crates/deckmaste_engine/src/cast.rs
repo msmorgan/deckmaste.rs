@@ -524,11 +524,19 @@ impl GameState {
         player: PlayerId,
         cost: &ManaCost,
         subject: ObjectId,
+        pip_spell: Option<ObjectId>,
     ) -> bool {
         let options = crate::cost_options::choosable(cost);
         // Recurse over the per-symbol option lists, building one pick per
         // symbol; at a complete pick set, test the assembled concretization.
-        self.any_reading_payable(player, cost, subject, &options.options, &mut Vec::new())
+        self.any_reading_payable(
+            player,
+            cost,
+            subject,
+            &options.options,
+            &mut Vec::new(),
+            pip_spell,
+        )
     }
 
     /// [CR#601.2b,601.2g]: whether `player` can afford `cost`'s mana for
@@ -543,12 +551,31 @@ impl GameState {
         player: PlayerId,
         cost: &ManaCost,
         subject: ObjectId,
+        pip_spell: Option<ObjectId>,
     ) -> bool {
         let reduced = concretize_x(cost, 0);
         if crate::cost_options::choosable(&reduced).options.is_empty() {
-            can_pay(&self.spendable_pool(player, subject), &reduced)
+            // [CR#601.2g..601.2h]: pips a spell's `PayPips` statics can cover
+            // (convoke / delve / improvise) drop out of the mana that must be
+            // paid with real mana, so a cast is affordable when mana plus
+            // available pip-payment resources together cover the cost.
+            let payable = self.mana_after_pips(&reduced, pip_spell);
+            can_pay(&self.spendable_pool(player, subject), &payable)
         } else {
-            self.affordable_concretization(player, &reduced, subject)
+            self.affordable_concretization(player, &reduced, subject, pip_spell)
+        }
+    }
+
+    /// `mana` with the pips a spell's `PayPips` statics can currently cover
+    /// removed ([CR#601.2g..601.2h]) when `pip_spell` names the spell being
+    /// cast, else `mana` unchanged. The single point where the affordability
+    /// gate consults the same [`Self::pip_coverage`] walk the payment window
+    /// uses, so a cast the gate judges payable is actually payable. `None`
+    /// (activated abilities, which have no `PayPips`) is a plain pass-through.
+    fn mana_after_pips(&self, mana: &ManaCost, pip_spell: Option<ObjectId>) -> ManaCost {
+        match pip_spell {
+            Some(spell) => self.pip_coverage(spell, mana).0,
+            None => mana.clone(),
         }
     }
 
@@ -564,13 +591,15 @@ impl GameState {
         subject: ObjectId,
         options: &[crate::cost_options::SymbolOptions],
         picks: &mut Vec<crate::cost_options::SymbolChoice>,
+        pip_spell: Option<ObjectId>,
     ) -> bool {
         if picks.len() == options.len() {
-            return self.reading_payable(player, cost, subject, picks);
+            return self.reading_payable(player, cost, subject, picks, pip_spell);
         }
         for &choice in &options[picks.len()].choices {
             picks.push(choice);
-            let payable = self.any_reading_payable(player, cost, subject, options, picks);
+            let payable =
+                self.any_reading_payable(player, cost, subject, options, picks, pip_spell);
             picks.pop();
             if payable {
                 return true;
@@ -591,6 +620,7 @@ impl GameState {
         cost: &ManaCost,
         subject: ObjectId,
         picks: &[crate::cost_options::SymbolChoice],
+        pip_spell: Option<ObjectId>,
     ) -> bool {
         let choices = crate::cost_options::CostOptionChoices {
             picks: picks.to_vec(),
@@ -600,6 +630,10 @@ impl GameState {
         let Ok((mana, verbs)) = crate::cost_options::concretize(cost, &choices) else {
             return false;
         };
+        // [CR#601.2g..601.2h]: pip-payment covers pips of this concretized
+        // reading before the pool is asked to fund the remainder — matching the
+        // payment window, which runs the same walk over the concretized mana.
+        let mana = self.mana_after_pips(&mana, pip_spell);
         if !can_pay(&self.spendable_pool(player, subject), &mana) {
             return false;
         }
@@ -658,7 +692,9 @@ impl GameState {
         };
         // [CR#601.2b,601.2g,107.3a]: gate mana affordability under all legal
         // readings (concretizes {X} to 0, then plain or hybrid/Phyrexian path).
-        self.gate_mana_affordable(player, &cost, object)
+        // The spell's own `PayPips` statics (convoke / delve / improvise) may
+        // cover pips the pool can't, so pass the spell for the pip-payment walk.
+        self.gate_mana_affordable(player, &cost, object, Some(object))
     }
 
     /// The concrete cost `player` must cover to cast `object`, IFF every
@@ -1311,34 +1347,66 @@ impl GameState {
     }
 
     /// [CR#601.2g..601.2h]: the per-pip alternative-payment hook for a spell
-    /// being cast (convoke / delve / improvise) — the SINGLE engine consumer of
-    /// [`StaticEffect::PayPips`]. Gathers the spell's `PayPips` statics, walks
-    /// the locked-in `mana`'s pips, and for each eligible pip with an available
-    /// resource pays it that way ([CR#702.51a] "rather than pay that mana"):
-    /// tapping a permanent ([CR#107.5]) or exiling a graveyard card
-    /// ([CR#702.66a]). Returns the mana the player must still pay (covered pips
-    /// removed) plus the tap/exile work items for the payment window.
+    /// being cast (convoke / delve / improvise) — the EXECUTING consumer of
+    /// [`StaticEffect::PayPips`]. Runs the shared [`Self::pip_coverage`] walk
+    /// over the locked-in `mana` and turns each covered pip into its payment
+    /// work item, returning the mana the player must still pay with real mana
+    /// plus those tap/exile items for the payment window.
     ///
-    /// Reading it ONLY here encodes the active window structurally: the static
-    /// "functions while the spell is on the stack" ([CR#702.51a]) but is
-    /// EXERCISABLE only in this casting's payment window ([CR#601.2g]) — no
-    /// stack-lifetime "is it active?" predicate. The total cost and mana value
-    /// ([CR#202.3]) are never mutated — it "isn't an additional or alternative
-    /// cost" ([CR#702.51b]) and paying this way still counts as paying the
-    /// original ([CR#118.7]); only HOW each pip is paid changes.
-    ///
-    /// DEFERRED — interactive picker: the payer is entitled to CHOOSE which
-    /// permanent to tap / card to exile and WHICH pips to cover ([CR#601.2g]);
-    /// this takes a deterministic first-eligible subset (each resource spent at
-    /// most once), exactly as [`GameState::tap_total_subset`] does for Crew.
-    /// The interactive choice is a follow-up seam needing a payment-time
-    /// decision point; the chosen subset is always a legal payment.
+    /// `PayPips` is read in exactly two read-only places, both through
+    /// `pip_coverage`: here (to PAY, in the casting's payment window) and the
+    /// castability affordability gate ([`Self::gate_mana_affordable`], to JUDGE
+    /// a cast payable before it is offered). Both are exercised only during a
+    /// casting's cost handling, so the static's "functions while the spell is
+    /// on the stack" lifetime ([CR#702.51a]) still needs no stack-lifetime
+    /// "is it active?" predicate. The total cost and mana value ([CR#202.3])
+    /// are never mutated — it "isn't an additional or alternative cost"
+    /// ([CR#702.51b]) and paying this way still counts as paying the original
+    /// ([CR#118.7]); only HOW each pip is paid changes.
     fn assemble_pip_payments(
         &self,
         spell: ObjectId,
         controller: PlayerId,
         mana: &ManaCost,
     ) -> (ManaCost, Vec<WorkItem>) {
+        let (mana, covered) = self.pip_coverage(spell, mana);
+        // Each covered pip's chosen resource becomes its payment work item —
+        // a `Tapped` event or a move to exile ([CR#601.2h]).
+        let items = covered
+            .into_iter()
+            .map(|(act, resource)| self.pip_payment_item(&act, resource, spell, controller))
+            .collect();
+        (mana, items)
+    }
+
+    /// The read-only core of the per-pip alternative-payment walk, shared by
+    /// the payment window ([`assemble_pip_payments`]) and the castability
+    /// affordability gate ([`gate_mana_affordable`]) so both agree, by the SAME
+    /// logic, on which pips of `mana` a spell's `PayPips` statics cover
+    /// ([CR#601.2g..601.2h]). Gathers the spell's `PayPips` statics, walks the
+    /// locked-in `mana`'s pips, and for each eligible pip with an available
+    /// resource covers it that way ([CR#702.51a] "rather than pay that mana"):
+    /// tapping a permanent ([CR#107.5]) or exiling a graveyard card
+    /// ([CR#702.66a]). Returns the mana that must still be paid with real mana
+    /// (covered pips removed) plus the `(action, resource)` pair covering each
+    /// pip — each resource spent at most once. The gate discards the pairs and
+    /// prices the remaining mana; the payment window turns each pair into a
+    /// work item. The total cost and mana value ([CR#202.3]) are never
+    /// mutated — it "isn't an additional or alternative cost"
+    /// ([CR#702.51b]) and paying this way still counts as paying the
+    /// original ([CR#118.7]); only HOW each pip is paid changes.
+    ///
+    /// DEFERRED — interactive picker: the payer is entitled to CHOOSE which
+    /// permanent to tap / card to exile and WHICH pips to cover ([CR#601.2g]);
+    /// this takes a deterministic first-eligible subset (each resource spent at
+    /// most once), exactly as [`GameState::tap_total_subset`] does for Crew.
+    /// Both the gate and the payment take the same subset, so a cast the
+    /// gate judges affordable is always actually payable.
+    fn pip_coverage(
+        &self,
+        spell: ObjectId,
+        mana: &ManaCost,
+    ) -> (ManaCost, Vec<(PayAct, ObjectId)>) {
         // The static functions while the spell is on the stack ([CR#702.51a]),
         // so it rides the spell object's own derived ability list.
         let view = self.layers();
@@ -1355,7 +1423,7 @@ impl GameState {
         let watcher = self.objects.obj(spell).source;
         let mut symbols: Vec<ManaSymbol> = mana.iter().copied().collect();
         let mut used: std::collections::HashSet<ObjectId> = std::collections::HashSet::new();
-        let mut items: Vec<WorkItem> = Vec::new();
+        let mut covered: Vec<(PayAct, ObjectId)> = Vec::new();
         for (class, act) in &acts {
             // One static may pay several matching pips ([CR#702.51a] "for each
             // ... mana"); loop until pips or eligible resources run out.
@@ -1365,10 +1433,10 @@ impl GameState {
                 };
                 used.insert(resource);
                 remove_one_pip(&mut symbols, idx, *class);
-                items.push(self.pip_payment_item(act, resource, spell, controller));
+                covered.push((act.clone(), resource));
             }
         }
-        (ManaCost::from(symbols), items)
+        (ManaCost::from(symbols), covered)
     }
 
     /// The first eligible object for a [`PayAct`] alternative not already spent

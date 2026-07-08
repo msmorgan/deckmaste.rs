@@ -126,6 +126,15 @@ fn force_into_graveyard(state: &mut GameState, id: ObjectId) {
     state.zones.graveyards[0].push(id);
 }
 
+/// Whether player 0 is offered `Action::CastSpell` for `spell` at its
+/// precombat main priority — i.e. the castability / affordability gate judges
+/// the cast legal right now.
+fn cast_is_offered(state: &mut GameState, spell: ObjectId) -> bool {
+    resurface_priority(state);
+    let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    legal.contains(&Action::CastSpell { object: spell })
+}
+
 // --- convoke: tap a creature to pay a generic pip ----------------------------
 
 fn convoke_game(seed: u64) -> GameState {
@@ -349,5 +358,76 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
         state.zones.libraries[0].len(),
         library_before - 1,
         "the spell resolved and drew a card"
+    );
+}
+
+// --- affordability gate: pip payment makes an unaffordable cast legal
+// ---------
+
+#[test]
+fn convoke_makes_an_otherwise_unaffordable_cast_legal() {
+    let mut state = convoke_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    let spell = find_in_hand(&state, PlayerId(0), "Sorcery Convoke Draw");
+    let bear = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
+
+    // Float only {G} — one short of {1}{G}. With no creature to convoke, the
+    // affordability gate must judge the cast unpayable ([CR#601.2h]): the pool
+    // covers {G} OR {1}, never both.
+    state.player_mut(PlayerId(0)).mana_pool.add(green(), 1);
+    assert!(
+        !cast_is_offered(&mut state, spell),
+        "{{1}}{{G}} is not castable off a single {{G}} with nothing to convoke with"
+    );
+
+    // Put a creature onto the battlefield: convoke can now cover the {1} by
+    // tapping it ([CR#702.51a]), so mana ({G}) plus the pip resource together
+    // cover the locked-in cost and the cast becomes legal ([CR#601.2g..601.2h]).
+    force_onto_battlefield(&mut state, bear);
+    assert!(
+        cast_is_offered(&mut state, spell),
+        "convoke covers the {{1}} by tapping the creature, so {{1}}{{G}} is castable off {{G}}"
+    );
+    // Payment / mana value are untouched — pip payment is not a reduction
+    // ([CR#702.51b,202.3]).
+    assert_eq!(
+        printed_mana_value(&state, spell),
+        2,
+        "convoke must not lower the spell's mana value in the gate"
+    );
+    assert!(
+        !state.objects.obj(bear).tapped,
+        "the affordability gate is read-only: nothing is tapped until payment"
+    );
+}
+
+#[test]
+fn delve_makes_an_otherwise_unaffordable_cast_legal() {
+    let mut state = delve_game(1);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    let spell = find_in_hand(&state, PlayerId(0), "Sorcery Delve Draw");
+    let fodder = find_in_hand(&state, PlayerId(0), "Island");
+
+    // Float only {1} — one short of {2}. With an empty graveyard, delve has no
+    // card to exile, so the cast is unpayable ([CR#601.2h]).
+    state.player_mut(PlayerId(0)).mana_pool.add(blue(), 1);
+    assert!(
+        !cast_is_offered(&mut state, spell),
+        "{{2}} is not castable off a single mana with an empty graveyard"
+    );
+
+    // A card in the graveyard lets delve cover one generic pip by exiling it
+    // ([CR#702.66a]); {1} of mana plus that pip resource then cover {2}.
+    force_into_graveyard(&mut state, fodder);
+    assert!(
+        cast_is_offered(&mut state, spell),
+        "delve covers one {{1}} by exiling the graveyard card, so {{2}} is castable off {{1}}"
+    );
+    assert_eq!(
+        state.objects.obj(fodder).zone,
+        Some(Zone::Graveyard),
+        "the affordability gate is read-only: nothing is exiled until payment"
     );
 }

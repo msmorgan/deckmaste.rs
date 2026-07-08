@@ -1007,10 +1007,15 @@ impl GameState {
                 // [CR#601.2h,733]: an unpayable announcement reverses the cast.
                 // Read the kind + base cost immutably, then decide.
                 let pending = self.announcing.as_ref().expect("an announce in flight");
-                let (subject, base) = match &pending.object {
-                    crate::stack::StackObject::Spell(o) => {
-                        (*o, self.mana_cost(*o).expect("a castable spell has a cost"))
-                    }
+                // `pip_spell` names the spell whose `PayPips` statics (convoke /
+                // delve / improvise) may cover pips of the X-concretized cost —
+                // `Some` only for a spell; an activated ability has no `PayPips`.
+                let (subject, base, pip_spell) = match &pending.object {
+                    crate::stack::StackObject::Spell(o) => (
+                        *o,
+                        self.mana_cost(*o).expect("a castable spell has a cost"),
+                        Some(*o),
+                    ),
                     crate::stack::StackObject::Activated {
                         source, ability, ..
                     } => (
@@ -1018,6 +1023,7 @@ impl GameState {
                         crate::activate::cost_summary(&ability.cost)
                             .expect("can_activate vetted the cost")
                             .mana,
+                        None,
                     ),
                     crate::stack::StackObject::Triggered { .. } => {
                         unreachable!("triggers never occupy the announce slot")
@@ -1035,6 +1041,7 @@ impl GameState {
                     player,
                     &crate::cast::concretize_x(&base, x),
                     subject,
+                    pip_spell,
                 );
                 self.pending = None;
                 // Writing `x` first is safe: `rewind_announce` discards the
