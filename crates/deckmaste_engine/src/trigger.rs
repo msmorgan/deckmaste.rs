@@ -2435,6 +2435,83 @@ mod tests {
         );
     }
 
+    /// The `combat` refinement discriminates combat vs noncombat damage
+    /// ([CR#120.2a,510.1]): `Damage(combat: true)` fires ONLY on the
+    /// combat-damage step's assignments, `Damage(combat: false)` ONLY on
+    /// effect/fight damage ([CR#701.14d]), and an omitted `combat` matches
+    /// either — the "deals combat damage to a player" trigger family relies on
+    /// this, and must never fire on noncombat damage.
+    #[test]
+    fn combat_refinement_discriminates_combat_vs_noncombat() {
+        let (mut state, bear) = bear_on_field();
+        let watcher_source = state.objects.obj(bear).source;
+        let other = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let combat_damage = GameEvent::DamageDealt {
+            source: bear,
+            target: other,
+            amount: 2,
+            combat: true,
+        };
+        let noncombat_damage = GameEvent::DamageDealt {
+            source: bear,
+            target: other,
+            amount: 2,
+            combat: false,
+        };
+
+        let wants_combat = EventFilter::Damage {
+            source: Predicate::Any,
+            to: Predicate::Any,
+            combat: Some(true),
+            amount: None,
+        };
+        assert!(
+            state.event_matches(&wants_combat, &combat_damage, watcher_source),
+            "Damage(combat: true) fires on combat damage"
+        );
+        assert!(
+            !state.event_matches(&wants_combat, &noncombat_damage, watcher_source),
+            "Damage(combat: true) must NOT fire on noncombat damage"
+        );
+
+        let wants_noncombat = EventFilter::Damage {
+            source: Predicate::Any,
+            to: Predicate::Any,
+            combat: Some(false),
+            amount: None,
+        };
+        assert!(
+            state.event_matches(&wants_noncombat, &noncombat_damage, watcher_source),
+            "Damage(combat: false) fires on noncombat damage"
+        );
+        assert!(
+            !state.event_matches(&wants_noncombat, &combat_damage, watcher_source),
+            "Damage(combat: false) must NOT fire on combat damage"
+        );
+
+        let any_damage = EventFilter::Damage {
+            source: Predicate::Any,
+            to: Predicate::Any,
+            combat: None,
+            amount: None,
+        };
+        assert!(
+            state.event_matches(&any_damage, &combat_damage, watcher_source)
+                && state.event_matches(&any_damage, &noncombat_damage, watcher_source),
+            "an omitted combat refinement matches either kind"
+        );
+    }
+
     /// A sacrifice view is a cause-narrowed `ZoneChange` ([CR#701.21a] — the
     /// W3 unification retired the dedicated verb facts): "you sacrifice" is
     /// spelled as the moved object being controlled by you.
