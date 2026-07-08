@@ -481,3 +481,118 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         "the [CR#714.2b] was-less-than/became-at-least gate"
     );
 }
+
+/// Amass [subtype] N ([CR#701.47a]) — the canonical *composite* keyword action:
+/// it decomposes into core primitives, never a new engine verb. Expanding
+/// `Amass("Orc", 1)` (Orcish Bowmasters' "amass Orcs 1") must yield the four
+/// CR sentences as data: (1) the guard-token `Create`, (2) the `ChooseOne`
+/// bind, (3) the `PutCounters` growth, (4) the "becomes a [subtype]" continuous
+/// add.
+#[test]
+fn amass_decomposes_into_core_primitives() {
+    use deckmaste_core::Binder;
+    use deckmaste_core::CollectionOp;
+    use deckmaste_core::Condition;
+    use deckmaste_core::Continuously;
+    use deckmaste_core::CounterRef;
+    use deckmaste_core::Modification;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::TokenSpec;
+
+    let plugin = builtin();
+    let effect: OneShotEffect = plugin.macros.read_str("Amass(\"Orc\", 1)").unwrap();
+    // The invocation is remembered (so it can render back through the template).
+    let OneShotEffect::Expanded(exp) = effect else {
+        panic!("expected a remembered Amass expansion");
+    };
+    assert_eq!(exp.name.as_str(), "Amass");
+    let OneShotEffect::Sequentially(steps) = exp.value.as_ref() else {
+        panic!("Amass is a Sequentially, got {:?}", exp.value);
+    };
+    assert_eq!(
+        steps.len(),
+        2,
+        "guard-token step, then the choose+grow step"
+    );
+
+    // Step 1: "If you don't control an Army creature, create a 0/0 black
+    // [subtype] Army creature token."
+    let OneShotEffect::If(guard) = &steps[0] else {
+        panic!("step 1 is an If, got {:?}", steps[0]);
+    };
+    assert!(
+        matches!(&guard.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Exists(_))),
+        "the guard is `Not(Exists(Army creature you control))`, got {:?}",
+        guard.condition,
+    );
+    let OneShotEffect::Act(Action::By(
+        Reference::You,
+        PlayerAction::Create(_, TokenSpec::Token(tok), _),
+    )) = guard.then.as_ref()
+    else {
+        panic!("the guard creates a token, got {:?}", guard.then);
+    };
+    assert_eq!(tok.color_indicator, vec![Color::Black], "0/0 BLACK token");
+    assert_eq!(tok.types, vec![Type::Creature]);
+    let names: Vec<&str> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(names, vec!["Orc", "Army"], "the amassed subtype PLUS Army");
+    assert_eq!(tok.power, Some(deckmaste_core::StatValue::Number(0)));
+    assert_eq!(tok.toughness, Some(deckmaste_core::StatValue::Number(0)));
+
+    // Step 2: "Choose an Army creature you control," then grow + becomes.
+    let OneShotEffect::With(with) = &steps[1] else {
+        panic!("step 2 is a With, got {:?}", steps[1]);
+    };
+    assert!(
+        matches!(&with.binder, Binder::ChooseOne { .. }),
+        "the Army is CHOSEN (bound as That), got {:?}",
+        with.binder,
+    );
+    let OneShotEffect::Sequentially(body) = with.body.as_ref() else {
+        panic!("the With body is a Sequentially, got {:?}", with.body);
+    };
+    assert_eq!(body.len(), 2, "put counters, then the becomes-subtype If");
+
+    // Step 3: "Put N +1/+1 counters on that creature."
+    assert_eq!(
+        body[0],
+        OneShotEffect::Act(Action::By(
+            Reference::You,
+            PlayerAction::PutCounters(
+                Reference::It,
+                CounterRef::from("P1P1Counter"),
+                Count::Literal(1),
+            ),
+        )),
+        "N +1/+1 counters on the chosen Army",
+    );
+
+    // Step 4: "If it isn't a [subtype], it becomes a [subtype] in addition to
+    // its other types." — a one-shot-created continuous subtype-add.
+    let OneShotEffect::If(becomes) = &body[1] else {
+        panic!("step 4 is an If, got {:?}", body[1]);
+    };
+    assert!(
+        matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Is(Reference::It, _))),
+        "guarded on `Not(Is(It, Orc))`, got {:?}",
+        becomes.condition,
+    );
+    let OneShotEffect::Continuously(Continuously { effect, duration }) = becomes.then.as_ref()
+    else {
+        panic!(
+            "the becomes is a one-shot continuous effect, got {:?}",
+            becomes.then
+        );
+    };
+    assert_eq!(
+        *duration,
+        Duration::EndOfGame,
+        "no stated duration ([CR#611.2a])"
+    );
+    let StaticEffect::Modify(Reference::It, Modification::Subtypes(CollectionOp::Add(added))) =
+        effect.as_ref()
+    else {
+        panic!("it ADDS the subtype to the chosen Army, got {:?}", effect);
+    };
+    assert_eq!(added.as_str(), "Orc", "becomes an Orc in addition");
+}

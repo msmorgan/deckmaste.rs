@@ -1,0 +1,68 @@
+// "Amass [subtype] N" [CR#701.47a] — the canonical *composite* keyword action:
+// it names no new engine primitive, it DECOMPOSES into ones the grammar already
+// carries. Verbatim ([CR#701.47a]): "If you don't control an Army creature,
+// create a 0/0 black [subtype] Army creature token. Choose an Army creature you
+// control. Put N +1/+1 counters on that creature. If it isn't a [subtype], it
+// becomes a [subtype] in addition to its other types."
+//
+// The four sentences map one-for-one onto core:
+//   1. `If(Not(Exists(Army creature you control)), Create(... token ...))` — the
+//      guard token, a 0/0 black creature whose subtypes are the amassed
+//      `${0}` PLUS `Army` (spelled inline so the macro needs no pre-registered
+//      subtype for `${0}`).
+//   2. `With(ChooseOne(Army creature you control), …)` — bind the chosen Army as
+//      `It` for the two clauses that follow. (After step 1 the token, if made,
+//      is itself an Army creature you control, so the choice is always
+//      satisfiable.)
+//   3. `PutCounters(It, P1P1Counter, ${1})` — the growth.
+//   4. `If(Not(Is(It, ${0})), Continuously(Modify(It, add ${0}), EndOfGame))`
+//      — "becomes a [subtype] in addition": a one-shot-created continuous effect
+//      with no stated duration ([CR#611.2a]) that adds the subtype, guarded so a
+//      creature that is already that subtype is untouched.
+//
+// `${0}` is the amassed subtype NAME (a quoted `String`, e.g. "Orc"); `${1}` is
+// N (a `Count`). An `OneShotEffect`-kind macro, so `Amass("Orc", 1)` (Orcish
+// Bowmasters' "amass Orcs 1") stands as the effect body of any shell — an ETB
+// trigger, an activated ability, or a spell.
+(
+    name: "Amass",
+    template: "amass ${0} ${1}",
+    kinds: [OneShotEffect],
+    params: [String, Count],
+    body: Sequentially([
+        If(
+            condition: Not(Exists(AllOf([
+                Type(Creature),
+                Subtype("Army"),
+                ControlledBy(Ref(You)),
+            ]))),
+            then: Create(1, Token(
+                color_indicator: [Black],
+                types: [Creature],
+                subtypes: [
+                    Subtype(name: Param(0), types: [Creature, Kindred]),
+                    Subtype(name: "Army", types: [Creature, Kindred]),
+                ],
+                power: 0,
+                toughness: 0,
+            )),
+        ),
+        With(
+            binder: ChooseOne(filter: AllOf([
+                Type(Creature),
+                Subtype("Army"),
+                ControlledBy(Ref(You)),
+            ])),
+            body: Sequentially([
+                PutCounters(It, P1P1Counter, Param(1)),
+                If(
+                    condition: Not(Is(It, Subtype(Param(0)))),
+                    then: Continuously(
+                        effect: Modify(It, Subtypes(Add(Param(0)))),
+                        duration: EndOfGame,
+                    ),
+                ),
+            ]),
+        ),
+    ]),
+)
