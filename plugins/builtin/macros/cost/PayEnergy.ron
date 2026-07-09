@@ -1,0 +1,21 @@
+// "Pay {E}" ([CR#107.14] — {E} is the energy symbol; to pay {E} a player
+// removes one energy counter from themselves; energy counters sit on the player
+// [CR#122.1]): a `CostComponent` that removes that many energy counters from
+// you. The engine resource model (energy counters are player-borne, paid by
+// removing them) landed in `engine-energy`; this is the render/parse surface.
+//
+// The printed count is a run of `{E}` glyphs ("Pay {E}", "Pay {E}{E}"), driven
+// by the count-driven literal-repetition construct `${0*\{E\}}`: it renders the
+// escaped `{E}` literal `${0}`-many times and, in reverse, folds a run of `{E}`
+// back into the count for graduation. The param is a PLAIN `Uint` (energy is
+// always a fixed literal count, never a "for each …" `Count`); the body wraps
+// it as `Literal(Param(0))` because `RemoveCounters`'s amount is a `Count`.
+// (`RemoveCounters` is the positional `(Reference, CounterRef, Count)` verb;
+// `Energy` is the counter name minted by the `Energy` counter macro.)
+(
+    name: "PayEnergy",
+    template: "Pay ${0*\\{E\\}}",
+    kinds: [CostComponent],
+    params: [Uint],
+    body: Do(RemoveCounters(You, Energy, Literal(Param(0)))),
+)

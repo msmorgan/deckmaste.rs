@@ -45,8 +45,20 @@ pub(super) fn fill_with(
             '~' => out.push_str(subject),
             '$' if matches!(chars.peek(), Some((_, '{'))) => {
                 chars.next(); // consume the '{'
+                // Read the placeholder body up to the matching unescaped `}`.
+                // A backslash escapes the next character (so `\{`/`\}` are a
+                // literal brace INSIDE the body, not the closing delimiter) —
+                // the escaping convention that lets a repeat construct carry a
+                // braced literal like `${0*\{E\}}`. The backslash is dropped;
+                // the escaped char is kept verbatim.
                 let mut content = String::new();
-                for (_, d) in chars.by_ref() {
+                while let Some((_, d)) = chars.next() {
+                    if d == '\\' {
+                        if let Some((_, e)) = chars.next() {
+                            content.push(e);
+                        }
+                        continue;
+                    }
                     if d == '}' {
                         break;
                     }
@@ -65,6 +77,17 @@ pub(super) fn fill_with(
                         out.push_str(prefix);
                         out.push_str(&resolve(raw, modifier)?);
                         out.push_str(suffix);
+                    }
+                } else if let Some((key, literal)) = content.split_once('*') {
+                    // Count-driven literal repetition (`${slot*\{E\}}`): emit the
+                    // (already-unescaped) `literal` `slot`-many times — the render
+                    // twin of `pattern::Segment::Repeat`. `n == 0` emits nothing;
+                    // a missing or non-numeric count declines to the structural
+                    // fallback.
+                    let raw = lookup_arg(args, key.trim())?;
+                    let n: usize = raw.trim().parse().ok()?;
+                    for _ in 0..n {
+                        out.push_str(literal);
                     }
                 } else {
                     let (key, modifier) = split_modifier(content.trim());
@@ -484,6 +507,105 @@ mod tests {
             &ExpansionArgs::Named(vec![("n".into(), "X".into())]),
         );
         assert_eq!(dynamic.as_deref(), Some("mills X cards"));
+    }
+
+    /// The count-driven repeat construct `${slot*\{E\}}` emits the escaped
+    /// literal `slot`-many times: `3` → `{E}{E}{E}`, `1` → `{E}`, `0` → empty.
+    /// (The Rust source doubles each backslash; the template value carries the
+    /// single-backslash `\{E\}` that the RON source's `\\{E\\}` decodes to.)
+    #[test]
+    fn fills_repeat_construct() {
+        let three = fill(
+            "Pay ${0*\\{E\\}}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["3".into()]),
+        );
+        assert_eq!(three.as_deref(), Some("Pay {E}{E}{E}"));
+
+        let one = fill(
+            "Pay ${0*\\{E\\}}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["1".into()]),
+        );
+        assert_eq!(one.as_deref(), Some("Pay {E}"));
+
+        let zero = fill(
+            "Pay ${0*\\{E\\}}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["0".into()]),
+        );
+        assert_eq!(zero.as_deref(), Some("Pay "));
+    }
+
+    /// A non-numeric repeat count declines to the structural fallback rather
+    /// than emit a half-filled template.
+    #[test]
+    fn repeat_construct_declines_non_numeric_count() {
+        let bad = fill(
+            "${0*\\{E\\}}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["X".into()]),
+        );
+        assert_eq!(bad, None);
+    }
+
+    /// End-to-end round trip through the real macro pipeline: `PayEnergy(2)`
+    /// renders (via its own `template`) to `Pay {E}{E}`, and that string parses
+    /// back to `PayEnergy(2)` through the reverse `TemplateIndex` — render and
+    /// parse are the same rule read both ways.
+    #[test]
+    fn pay_energy_round_trips_render_and_parse() {
+        use std::path::Path;
+
+        use crate::plugin::Plugin;
+        use crate::template::index::TemplateIndex;
+
+        let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
+        let plugin = Plugin::load(plugins.join("builtin")).unwrap();
+        let cost: deckmaste_core::CostComponent =
+            plugin.macros.read_str("PayEnergy(2)").expect("expands");
+        let deckmaste_core::CostComponent::Expanded(e) = &cost else {
+            panic!("PayEnergy expands to a CostComponent::Expanded, got {cost:?}");
+        };
+        let rendered = expanded(e, "ignored").expect("renders via template");
+        assert_eq!(rendered, "Pay {E}{E}");
+
+        let idx = TemplateIndex::build(&plugin.macros);
+        let never = |_: &str, _: &str| -> Option<(String, usize)> { None };
+        let back = idx
+            .match_with("CostComponent", &rendered, never)
+            .unwrap()
+            .expect("re-parses");
+        assert_eq!(back.invocation, "PayEnergy(2)");
+    }
+
+    /// The gain-side sibling `GainEnergy(3)` renders (via its `OneShotEffect`
+    /// template) to `you get {E}{E}{E}` and parses back — the same repeat
+    /// construct, wired through the `OneShotEffect` index.
+    #[test]
+    fn gain_energy_round_trips_render_and_parse() {
+        use std::path::Path;
+
+        use crate::plugin::Plugin;
+        use crate::template::index::TemplateIndex;
+
+        let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
+        let plugin = Plugin::load(plugins.join("builtin")).unwrap();
+        let effect: deckmaste_core::OneShotEffect =
+            plugin.macros.read_str("GainEnergy(3)").expect("expands");
+        let deckmaste_core::OneShotEffect::Expanded(e) = &effect else {
+            panic!("GainEnergy expands to a OneShotEffect::Expanded, got {effect:?}");
+        };
+        let rendered = expanded(e, "ignored").expect("renders via template");
+        assert_eq!(rendered, "you get {E}{E}{E}");
+
+        let idx = TemplateIndex::build(&plugin.macros);
+        let never = |_: &str, _: &str| -> Option<(String, usize)> { None };
+        let back = idx
+            .match_with("OneShotEffect", &rendered, never)
+            .unwrap()
+            .expect("re-parses");
+        assert_eq!(back.invocation, "GainEnergy(3)");
     }
 
     #[test]

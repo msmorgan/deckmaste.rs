@@ -5,6 +5,7 @@
 //! [CR#702.21a]). Components: mana runs, the tap/untap symbols, sacrifice-self,
 //! chosen-sacrifice (`Sacrifice a creature`), pay-life, discard.
 
+use deckmaste_cards::template::index::TemplateIndex;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 
@@ -28,14 +29,18 @@ pub(crate) enum VariableMana {
 }
 
 /// Parses a cost clause: every ", "-separated component must be recognized,
-/// or the whole cost declines.
+/// or the whole cost declines. `index` (when present) routes a component to a
+/// slot-bearing `CostComponent` macro via the reverse [`TemplateIndex`] — e.g.
+/// the energy-payment `Pay {E}{E}` → `PayEnergy(2)`; callers with no macro
+/// context (keyword cost args, mana-ability production costs) pass `None`.
 pub(crate) fn parse_cost(
     clause: &str,
     variable: VariableMana,
+    index: Option<&TemplateIndex>,
 ) -> anyhow::Result<Option<Vec<String>>> {
     let mut components = Vec::new();
     for part in clause.split(", ") {
-        let Some(component) = cost_component(part, variable)? else {
+        let Some(component) = cost_component(part, variable, index)? else {
             return Ok(None);
         };
         components.push(component);
@@ -45,8 +50,14 @@ pub(crate) fn parse_cost(
 
 /// One cost component -> its `CostComponent` RON, or `None`. The tap/untap
 /// symbols [CR#107.5,107.6] and sacrifice-self (the `SacrificeThis` macro)
-/// are exact matches; the rest are shape productions.
-fn cost_component(text: &str, variable: VariableMana) -> anyhow::Result<Option<String>> {
+/// are exact matches; the rest are shape productions. A component matching no
+/// bespoke shape is finally offered to the slot-bearing `CostComponent` macro
+/// index (`Pay {E}{E}` → `PayEnergy(2)`), when a macro context is supplied.
+fn cost_component(
+    text: &str,
+    variable: VariableMana,
+    index: Option<&TemplateIndex>,
+) -> anyhow::Result<Option<String>> {
     Ok(match text {
         "{T}" => Some("Tap".to_owned()),
         "{Q}" => Some("Untap".to_owned()),
@@ -56,9 +67,25 @@ fn cost_component(text: &str, variable: VariableMana) -> anyhow::Result<Option<S
             .or_else(|| sacrifice(text))
         {
             Some(component) => Some(component),
-            None => mana_component(text, variable)?,
+            None => match mana_component(text, variable)? {
+                Some(mana) => Some(mana),
+                None => cost_macro(text, index)?,
+            },
         },
     })
+}
+
+/// Route a cost component to a slot-bearing `CostComponent` macro via the
+/// reverse [`TemplateIndex`]: `Pay {E}{E}` → `PayEnergy(2)`. The count-driven
+/// repeat construct folds the `{E}` run into the count itself, so the slot
+/// reader is never consulted (it declines unconditionally). `None` when no
+/// macro context is supplied or no macro template claims the whole component.
+fn cost_macro(text: &str, index: Option<&TemplateIndex>) -> anyhow::Result<Option<String>> {
+    let Some(index) = index else {
+        return Ok(None);
+    };
+    let m = index.match_with("CostComponent", text, |_, _| None)?;
+    Ok(m.map(|m| m.invocation))
 }
 
 /// `Pay N life` -> `Do(LoseLife(N))`: paying life is losing that much life

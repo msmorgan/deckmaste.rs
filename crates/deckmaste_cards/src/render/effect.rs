@@ -1276,7 +1276,20 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
                     }
                 }
             }
-            other @ (CostComponent::Cost(_) | CostComponent::Expanded(_)) => {
+            // A macro-expanded cost component ("Pay {E}{E}") renders through its
+            // own `template` — the printed cost text, e.g. the energy-repeat
+            // construct — overriding the generic structural render of its
+            // `value` ([CR#602.1]). The template already carries the segment's
+            // capitalized verb ("Pay …"), so it is pushed verbatim; only a
+            // template-less / unrenderable macro falls back.
+            CostComponent::Expanded(e) => {
+                flush_symbol_run(&mut symbol_run, &mut parts);
+                match super::template::expanded(e, ctx.subject) {
+                    Some(s) => parts.push(s),
+                    None => parts.push(format!("[unrendered: {:?}]", e.value)),
+                }
+            }
+            other @ CostComponent::Cost(_) => {
                 flush_symbol_run(&mut symbol_run, &mut parts);
                 parts.push(format!("[unrendered: {other:?}]"));
             }

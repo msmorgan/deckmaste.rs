@@ -1,0 +1,21 @@
+// "You get {E}" ([CR#107.14] — {E} is the energy symbol, one energy counter;
+// getting it puts that many energy counters on you, which sit on the player
+// [CR#122.1]): a `OneShotEffect` that puts that many energy counters on you.
+// The sibling of `PayEnergy` (the cost side), riding the SAME count-driven
+// literal-repetition construct
+// `${0*\{E\}}`: the escaped `{E}` literal repeats `${0}`-many times, folded
+// back from a run of `{E}` on the parse side.
+//
+// The param is a PLAIN `Uint` (energy is always a fixed literal count — the
+// dynamic "you get {E} for each …" / "an amount of {E} equal to …" forms are a
+// different, out-of-scope shape); the body wraps it as `Literal(Param(0))`
+// because `PutCounters`'s amount is a `Count`. (`PutCounters` is the positional
+// `(Reference, CounterRef, Count)` verb; `Energy` is the counter name minted by
+// the `Energy` counter macro.)
+(
+    name: "GainEnergy",
+    template: "you get ${0*\\{E\\}}",
+    kinds: [OneShotEffect],
+    params: [Uint],
+    body: PutCounters(You, Energy, Literal(Param(0))),
+)

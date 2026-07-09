@@ -22,6 +22,11 @@ pub(crate) enum Segment {
         slot: Slot,
         suffix: String,
     },
+    /// A count-driven literal-repetition hole (`${slot*\{E\}}`): the `slot`
+    /// count determines how many times `literal` repeats. Rendered by emitting
+    /// `literal` count-many times; matched by consuming a run of `literal` and
+    /// folding the run length back into the `slot` as a plain number.
+    Repeat { slot: Slot, literal: String },
 }
 
 /// A `${…}` argument hole: which param it binds, plus that param's declared
@@ -66,10 +71,12 @@ pub(crate) struct ParsePattern {
 impl ParsePattern {
     /// No `${…}` slots in the template — a pure-literal / self-only shape.
     pub(crate) fn is_nullary(&self) -> bool {
-        !self
-            .segments
-            .iter()
-            .any(|s| matches!(s, Segment::Slot(_) | Segment::Conditional { .. }))
+        !self.segments.iter().any(|s| {
+            matches!(
+                s,
+                Segment::Slot(_) | Segment::Conditional { .. } | Segment::Repeat { .. }
+            )
+        })
     }
 
     /// Emittable as a bare `Keyword(Name)`: no template slots *and* no params
@@ -86,7 +93,7 @@ impl ParsePattern {
             .map(|s| match s {
                 Segment::Literal(t) => t.chars().count(),
                 Segment::SelfRef => 1,
-                Segment::Slot(_) | Segment::Conditional { .. } => 0,
+                Segment::Slot(_) | Segment::Conditional { .. } | Segment::Repeat { .. } => 0,
             })
             .sum()
     }
@@ -114,8 +121,18 @@ pub(crate) fn compile(
             }
             '$' if chars.peek() == Some(&'{') => {
                 chars.next(); // consume the '{'
+                // Escape-aware body read, mirroring `render::template::fill_with`:
+                // a backslash escapes the next char (`\{`/`\}` are a literal brace
+                // inside the body), and only an unescaped `}` closes the hole. The
+                // backslash is dropped, the escaped char kept.
                 let mut key = String::new();
-                for d in chars.by_ref() {
+                while let Some(d) = chars.next() {
+                    if d == '\\' {
+                        if let Some(e) = chars.next() {
+                            key.push(e);
+                        }
+                        continue;
+                    }
                     if d == '}' {
                         break;
                     }
@@ -131,6 +148,14 @@ pub(crate) fn compile(
                         prefix,
                         slot: slot_for(value, params),
                         suffix,
+                    });
+                } else if let Some((slot_spec, literal)) = key.split_once('*') {
+                    // Count-driven literal repetition (`${slot*\{E\}}`): the
+                    // (already-unescaped) `literal` after `*` repeats `slot`-many
+                    // times — the parse twin of `render::template`'s repeat branch.
+                    segments.push(Segment::Repeat {
+                        slot: slot_for(slot_spec.trim(), params),
+                        literal: literal.to_owned(),
                     });
                 } else {
                     // 0 `#` = an ordinary slot. A malformed count (1 or 3+) degrades to a
@@ -288,6 +313,35 @@ mod tests {
                 }),
             ]
         );
+    }
+
+    /// The repeat construct `${0*\{E\}}` compiles to a `Repeat` segment whose
+    /// `literal` is the unescaped braced glyph. (Rust source doubles each
+    /// backslash to spell the single-backslash template value.)
+    #[test]
+    fn compiles_repeat_construct() {
+        let p = compile(
+            "PayEnergy".into(),
+            "Pay ${0*\\{E\\}}",
+            &pos(&["Uint"]),
+            None,
+        );
+        assert_eq!(
+            p.segments,
+            vec![
+                Segment::Literal("Pay ".into()),
+                Segment::Repeat {
+                    slot: Slot {
+                        key: SlotKey::Index(0),
+                        ty: "Uint".into(),
+                        modifier: None,
+                    },
+                    literal: "{E}".into(),
+                },
+            ]
+        );
+        assert!(!p.is_nullary());
+        assert!(!p.emits_bare());
     }
 
     #[test]

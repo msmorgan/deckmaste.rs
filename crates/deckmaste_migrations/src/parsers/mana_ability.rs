@@ -8,6 +8,7 @@
 //! mana of any color", or a `for each` scaler. A painland tail (`. ~ deals N
 //! damage to you.`) rides as a second effect in the same resolution.
 
+use deckmaste_cards::template::index::TemplateIndex;
 use deckmaste_core::ColorOrColorless;
 
 use crate::parsers::cost::VariableMana;
@@ -171,7 +172,10 @@ fn parse_rider(text: &str) -> Option<Rider> {
 
 /// Parses one normalized oracle line as a tap ability, or `None`. The cost is
 /// any pre-colon clause the shared cost grammar accepts ([CR#602.1a]).
-pub(super) fn parse_tap_ability(line: &str) -> anyhow::Result<Option<TapAbility>> {
+pub(super) fn parse_tap_ability(
+    line: &str,
+    index: Option<&TemplateIndex>,
+) -> anyhow::Result<Option<TapAbility>> {
     if line == "~ enters tapped." {
         return Ok(Some(TapAbility::EntersTapped));
     }
@@ -185,8 +189,9 @@ pub(super) fn parse_tap_ability(line: &str) -> anyhow::Result<Option<TapAbility>
         return Ok(None);
     };
     // No variable mana in a mana ability's own production cost: {X} costs front
-    // spells/X-abilities, not "{T}: Add" rocks.
-    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Decline)? else {
+    // spells/X-abilities, not "{T}: Add" rocks. An energy toll ("{T}, Pay {E}:
+    // Add one mana of any color.") routes to the `PayEnergy` macro via `index`.
+    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Decline, index)? else {
         return Ok(None);
     };
     let (production_text, rider) = split_rider(add_body);
@@ -257,8 +262,8 @@ fn render_effect(production: &Production, rider: Option<&Rider>) -> anyhow::Resu
 
 /// A registry parser: a `<cost>: Add …` / `~ enters tapped.` line -> the bare
 /// RON of one ability, or `None`.
-pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    let Some(ability) = parse_tap_ability(line)? else {
+pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    let Some(ability) = parse_tap_ability(line, Some(ctx.index))? else {
         return Ok(None);
     };
     Ok(Some(render_bare(&ability)?))
@@ -289,7 +294,7 @@ mod tests {
     fn effect(text: &str) -> String {
         let Some(TapAbility::Mana {
             production, rider, ..
-        }) = parse_tap_ability(&format!("{{T}}: Add {text}.")).unwrap()
+        }) = parse_tap_ability(&format!("{{T}}: Add {text}."), None).unwrap()
         else {
             panic!("not a mana ability");
         };
@@ -465,13 +470,17 @@ mod tests {
 
     #[test]
     fn declines_non_mana_and_garbage() {
-        assert!(parse_tap_ability("Flying").unwrap().is_none());
+        assert!(parse_tap_ability("Flying", None).unwrap().is_none());
         // A cost colon but no `Add` body (e.g. a non-mana activated ability)
         // declines, leaving it to the activated-ability parser.
-        assert!(parse_tap_ability("{T}: Draw a card.").unwrap().is_none());
+        assert!(
+            parse_tap_ability("{T}: Draw a card.", None)
+                .unwrap()
+                .is_none()
+        );
         // An unrecognized cost component declines the whole line.
         assert!(
-            parse_tap_ability("{T}, Frobnicate: Add {C}.")
+            parse_tap_ability("{T}, Frobnicate: Add {C}.", None)
                 .unwrap()
                 .is_none()
         );

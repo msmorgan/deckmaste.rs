@@ -22,7 +22,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     };
     // Variable activation costs parse now: the engine announces X onto the
     // activation slot and concretizes the cost (engine-x-costs, [CR#601.2b]).
-    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Allow)? else {
+    let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Allow, Some(ctx.index))? else {
         return Ok(None);
     };
     // Peel a trailing "Activate only once each turn/game." use-limit sentence
@@ -119,6 +119,33 @@ mod tests {
             Some(
                 "Activated(cost: [Mana([Generic(1),Black]), Tap, SacrificeThis], effect: Draw(1))"
             )
+        );
+    }
+
+    /// "Pay {E}" / "Pay {E}{E}" activation costs route through the reverse
+    /// `CostComponent` template index to the `PayEnergy` macro — the repeat
+    /// construct folds the `{E}` run into the count. Needs the real builtin
+    /// index (the empty test ctx has no macros).
+    #[test]
+    fn pay_energy_cost() {
+        let one = resolve_line(
+            "{T}, Pay {E}: Draw a card.",
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap();
+        assert_eq!(
+            one.as_deref(),
+            Some("Activated(cost: [Tap, PayEnergy(1)], effect: Draw(1))")
+        );
+
+        let two = resolve_line(
+            "Pay {E}{E}: Draw a card.",
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap();
+        assert_eq!(
+            two.as_deref(),
+            Some("Activated(cost: [PayEnergy(2)], effect: Draw(1))")
         );
     }
 

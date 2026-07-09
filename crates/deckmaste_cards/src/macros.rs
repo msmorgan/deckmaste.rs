@@ -97,6 +97,10 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::Subtype>("Subtype");
     param_types.add_typed::<dc::Zone>("Zone");
     param_types.add_typed::<dc::strategy::Preference>("Preference");
+    // A plain non-negative literal number (`PayEnergy(2)`) — distinct from the
+    // `Count` enum: a fixed count with no "for each …" reading. Read as the core
+    // `Uint`, the type `Count::Literal` wraps.
+    param_types.add_typed::<dc::Uint>("Uint");
     param_types
 }
 

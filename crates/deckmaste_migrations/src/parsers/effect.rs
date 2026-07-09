@@ -738,9 +738,10 @@ fn parse_sacrifice(line: &str) -> Option<ParsedEffect> {
     };
     // "unless you pay <cost>." — the controller's optional mana toll.
     let cost = toll.strip_prefix("unless you pay ")?;
-    let cost = crate::parsers::cost::parse_cost(cost, crate::parsers::cost::VariableMana::Decline)
-        .ok()
-        .flatten()?;
+    let cost =
+        crate::parsers::cost::parse_cost(cost, crate::parsers::cost::VariableMana::Decline, None)
+            .ok()
+            .flatten()?;
     if cost.len() != 1 {
         return None;
     }
@@ -792,9 +793,10 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
     // to avoid the counter. Only a single mana cost is modeled here (the
     // overwhelmingly common "{N}" tax); a "for each …" scaled tax declines.
     let cost = body.strip_prefix(" unless its controller pays ")?;
-    let cost = crate::parsers::cost::parse_cost(cost, crate::parsers::cost::VariableMana::Decline)
-        .ok()
-        .flatten()?;
+    let cost =
+        crate::parsers::cost::parse_cost(cost, crate::parsers::cost::VariableMana::Decline, None)
+            .ok()
+            .flatten()?;
     if cost.len() != 1 {
         return None;
     }

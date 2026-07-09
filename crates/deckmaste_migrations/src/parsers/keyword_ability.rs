@@ -225,7 +225,7 @@ fn render_arg(ident: &str, arg: &str) -> anyhow::Result<Option<String>> {
 pub(crate) fn cost_arg(text: &str) -> anyhow::Result<Option<String>> {
     let trimmed = text.trim();
     let clause = trimmed.strip_suffix('.').unwrap_or(trimmed);
-    let Some(components) = cost::parse_cost(clause, VariableMana::Allow)? else {
+    let Some(components) = cost::parse_cost(clause, VariableMana::Allow, None)? else {
         return Ok(None);
     };
     Ok(Some(format!("[{}]", components.join(", "))))

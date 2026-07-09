@@ -294,12 +294,40 @@ where
                 }
                 // Absent: no arg, cursor unchanged.
             }
+            Segment::Repeat { slot, literal } => {
+                // Match a run of `literal` (case-folded) at the cursor and fold
+                // the run length back into the slot as a plain number — the
+                // parse twin of `render::template`'s repeat branch. A zero-length
+                // run declines (the literal isn't present at all).
+                let (count, new_cursor) = match_repeat(input, cursor, literal)?;
+                args.push(fmt_arg(&slot.key, &count.to_string()));
+                cursor = new_cursor;
+            }
         }
     }
     Some(SlotMatch {
         invocation: format!("{}({})", pattern.macro_name, args.join(", ")),
         consumed: cursor,
     })
+}
+
+/// Consume a maximal run of `literal` (case-folded) starting at `cursor`,
+/// returning the run length (number of repetitions) and the cursor past it.
+/// `None` when `literal` is empty or does not occur even once at `cursor`.
+fn match_repeat(input: &str, cursor: usize, literal: &str) -> Option<(usize, usize)> {
+    if literal.is_empty() {
+        return None;
+    }
+    let mut count = 0usize;
+    let mut cursor = cursor;
+    while input
+        .get(cursor..cursor + literal.len())
+        .is_some_and(|s| s.eq_ignore_ascii_case(literal))
+    {
+        cursor += literal.len();
+        count += 1;
+    }
+    (count > 0).then_some((count, cursor))
 }
 
 /// Match a nullary pattern against the start of `input` (case-folded),
@@ -310,7 +338,9 @@ fn match_nullary(pattern: &ParsePattern, input: &str) -> Option<usize> {
         match seg {
             Segment::Literal(t) => target.push_str(t),
             Segment::SelfRef => target.push('~'),
-            Segment::Slot(_) | Segment::Conditional { .. } => return None,
+            Segment::Slot(_) | Segment::Conditional { .. } | Segment::Repeat { .. } => {
+                return None;
+            }
         }
     }
     let n = target.len();
@@ -465,5 +495,48 @@ mod tests {
     fn unambiguous_still_matches() {
         let m = builtin().match_kind("KeywordAbility", "flying").unwrap();
         assert!(m.is_some());
+    }
+
+    /// The repeat construct's reverse direction: a run of the literal folds
+    /// back into the slot as a plain number. `PayEnergy`'s `Pay ${0*\{E\}}`
+    /// template matches `Pay {E}{E}` → `PayEnergy(2)`, and a single `Pay
+    /// {E}` → `(1)`. The slot reader is never consulted (the count comes
+    /// from the run length).
+    #[test]
+    fn matches_repeat_construct_via_builtin() {
+        let idx = builtin();
+        let never = |_: &str, _: &str| -> Option<(String, usize)> {
+            panic!("repeat slot must not consult the slot reader")
+        };
+        let two = idx
+            .match_with("CostComponent", "Pay {E}{E}", never)
+            .unwrap()
+            .expect("Pay {E}{E} matches PayEnergy");
+        assert_eq!(two.invocation, "PayEnergy(2)");
+        assert_eq!(two.consumed, "Pay {E}{E}".len());
+
+        let one = idx
+            .match_with("CostComponent", "Pay {E}", never)
+            .unwrap()
+            .expect("Pay {E} matches PayEnergy");
+        assert_eq!(one.invocation, "PayEnergy(1)");
+    }
+
+    /// A `Pay ` with no `{E}` run does not match (the repeat requires at least
+    /// one occurrence), and a trailing non-`{E}` tail fails full consumption.
+    #[test]
+    fn repeat_construct_requires_a_run_and_full_consumption() {
+        let idx = builtin();
+        let never = |_: &str, _: &str| -> Option<(String, usize)> { None };
+        assert!(
+            idx.match_with("CostComponent", "Pay 3 life", never)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            idx.match_with("CostComponent", "Pay {E} life", never)
+                .unwrap()
+                .is_none()
+        );
     }
 }
