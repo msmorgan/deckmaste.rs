@@ -708,6 +708,18 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
             app("TargetCount", vec![emit_cmp(cmp), emit_count(count)?])
         }
         StatePredicate::WasPaidWith(tag) => app("WasPaidWith", vec![ilit(tag.as_str())]),
+        // Unlike `WasPaidWith` (a bare string label), Idris `WasCastWith`
+        // takes a `KeywordSpec`, so the tag resolves through the same
+        // keyword table `Cast.tag` does, not `ilit`.
+        StatePredicate::WasCastWith(tag) => {
+            let spec = keywordspec_idris(tag.as_str()).ok_or_else(|| {
+                gap(format!(
+                    "WasCastWith keyword not in KeywordSpec table: {}",
+                    tag.as_str()
+                ))
+            })?;
+            app("WasCastWith", vec![spec])
+        }
     })
 }
 
@@ -793,6 +805,21 @@ fn emit_condition(c: &Condition) -> R {
         }
         Condition::Crossed { .. } => return Err(gap("Condition::Crossed not yet mapped")),
         Condition::PaidCost(tag) => app("PaidCost", vec![ilit(tag.as_str())]),
+        // Idris's `Condition` namespace has no `CastWith` of its own (only
+        // the `WasCastWith` PREDICATE) — desugar to `Matches This
+        // (WasCastWith tag)`, mirroring `Condition::Is`'s `Matches` shape.
+        Condition::CastWith(tag) => {
+            let spec = keywordspec_idris(tag.as_str()).ok_or_else(|| {
+                gap(format!(
+                    "CastWith keyword not in KeywordSpec table: {}",
+                    tag.as_str()
+                ))
+            })?;
+            app(
+                "Matches",
+                vec!["This".to_string(), app("WasCastWith", vec![spec])],
+            )
+        }
         Condition::YourTurn => "yourTurn".to_string(),
         Condition::TurnOf(f) => app("TurnOf", vec![emit_filter(f)?]),
         Condition::DuringPhase(p) => app("During", vec![emit_phase_step(*p)?]),
@@ -1973,6 +2000,7 @@ fn emit_can(action: &DeonticAction) -> R {
         from,
         window,
         cost,
+        tag,
     } = action
     {
         if let Some(alt) = cost {
@@ -2000,7 +2028,22 @@ fn emit_can(action: &DeonticAction) -> R {
                 None => "[Hand]".to_string(),
                 Some(z) => format!("[{}]", emit_zone(*z)),
             };
-            return Ok(app("mayCastForFrom", vec![costs, from_zones]));
+            // With no `tag`, keep the terse `mayCastForFrom` helper (leaves
+            // `tag`/`when` at their Idris defaults). With a `tag`, that
+            // helper has no way to thread it through, so call `MayCastFor`
+            // directly with named-field syntax for both `from` and `tag`.
+            return Ok(match tag {
+                None => app("mayCastForFrom", vec![costs, from_zones]),
+                Some(t) => {
+                    let spec = keywordspec_idris(t.as_str()).ok_or_else(|| {
+                        gap(format!(
+                            "Cast.tag keyword not in KeywordSpec table: {}",
+                            t.as_str()
+                        ))
+                    })?;
+                    format!("(MayCastFor {costs} {{from = {from_zones}, tag = Just {spec}}})")
+                }
+            });
         }
         // No alternative cost: a plain cast permission (flash-shaped).
         let by_pred = if matches!(by, Predicate::Any) {
@@ -2902,4 +2945,83 @@ pub fn sanitize_ident(name: &str) -> String {
         out.insert(0, '_');
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_core::AlternativeCost;
+    use deckmaste_core::CostTag;
+
+    use super::*;
+
+    /// `Cast(… cost: Components([Tap]), tag: Flashback)` threads the tag
+    /// through as `MayCastFor … {tag = Just Flashback}` — the `mayCastForFrom`
+    /// shortcut can't carry a tag, so the tagged case falls back to a
+    /// directly-named-field `MayCastFor` call ([CR#702.34a]).
+    #[test]
+    fn cast_tag_emits_maycastfor_with_tag() {
+        let action = DeonticAction::Cast {
+            what: Predicate::Ref(Reference::This),
+            by: Predicate::Any,
+            from: Some(deckmaste_core::Zone::Graveyard),
+            window: None,
+            cost: Some(AlternativeCost::Components(vec![CostComponent::Tap])),
+            tag: Some(CostTag::from("Flashback")),
+        };
+        let out = emit_can(&action).expect("Cast.tag should emit");
+        assert!(
+            out.contains("MayCastFor"),
+            "expected a MayCastFor call, got: {out}"
+        );
+        assert!(
+            out.contains("tag = Just Flashback"),
+            "expected the tag threaded through as `tag = Just Flashback`, got: {out}"
+        );
+        assert!(
+            out.contains("from = [Graveyard]"),
+            "expected the `from` zone to still be threaded through, got: {out}"
+        );
+    }
+
+    /// An untagged `Cast` cost keeps the terse `mayCastForFrom` shape (no
+    /// `tag`/`when` field noise) — the tagged path must not regress it.
+    #[test]
+    fn cast_without_tag_still_uses_maycastforfrom() {
+        let action = DeonticAction::Cast {
+            what: Predicate::Ref(Reference::This),
+            by: Predicate::Any,
+            from: None,
+            window: None,
+            cost: Some(AlternativeCost::Components(vec![CostComponent::Tap])),
+            tag: None,
+        };
+        let out = emit_can(&action).expect("Cast without tag should emit");
+        assert!(
+            out.contains("mayCastForFrom"),
+            "expected mayCastForFrom, got: {out}"
+        );
+        assert!(
+            !out.contains("tag"),
+            "untagged Cast shouldn't mention `tag` at all, got: {out}"
+        );
+    }
+
+    /// `StatePredicate::WasCastWith` resolves its tag through the same
+    /// `keywordspec_idris` table as `Cast.tag` (a `KeywordSpec`, unlike
+    /// `WasPaidWith`'s bare string literal).
+    #[test]
+    fn was_cast_with_emits_keywordspec() {
+        let out = emit_state_filter(&StatePredicate::WasCastWith(CostTag::from("Evoke")))
+            .expect("WasCastWith(Evoke) should emit");
+        assert_eq!(out, "(WasCastWith Evoke)");
+    }
+
+    /// `Condition::CastWith` has no direct Idris `Condition` counterpart, so
+    /// it desugars to `Matches This (WasCastWith tag)`.
+    #[test]
+    fn condition_cast_with_desugars_to_matches() {
+        let out = emit_condition(&Condition::CastWith(CostTag::from("Flashback")))
+            .expect("CastWith(Flashback) should emit");
+        assert_eq!(out, "(Matches This (WasCastWith Flashback))");
+    }
 }

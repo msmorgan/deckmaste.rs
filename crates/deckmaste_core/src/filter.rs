@@ -107,6 +107,11 @@ pub enum StatePredicate {
     /// channel of the paid-cost linkage ([CR#702.33d..702.33e,607.2]): "a
     /// kicked spell" = `AllOf([Kind(Spell), WasPaidWith(Kicker)])`.
     WasPaidWith(crate::CostTag),
+    /// The object was cast using the named alternative base cost
+    /// ([CR#118.9,702.34a]) — the filter-language channel of the alt-cost
+    /// linkage; the twin of `WasPaidWith` (optional/additional costs). Idris
+    /// `WasCastWith`.
+    WasCastWith(crate::CostTag),
 }
 
 /// Structural relations the engine owns. Relations are
@@ -414,6 +419,11 @@ mod tests {
             Predicate::State(StatePredicate::WasPaidWith("Kicker".into())),
         );
         assert_eq!(
+            // The alt-cost tag is a bare ident (`CostTag`), not a string.
+            read("WasCastWith(Flashback)"),
+            Predicate::State(StatePredicate::WasCastWith("Flashback".into())),
+        );
+        assert_eq!(
             read(r#"RelatedBy("PairedWith", Type(Creature))"#),
             Predicate::State(StatePredicate::RelatedBy(
                 "PairedWith".into(),
@@ -581,6 +591,7 @@ mod tests {
             "Status(Tapped)",
             "HasCounter(P1P1Counter)",
             "WasPaidWith(Kicker)",
+            "WasCastWith(Flashback)",
             r#"Designated("Monstrous")"#,
             r#"RelatedBy("PairedWith", Type(Creature))"#,
             r#"Subtype("Forest")"#,

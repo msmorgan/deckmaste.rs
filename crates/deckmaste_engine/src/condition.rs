@@ -144,6 +144,14 @@ impl GameState {
                 .find(|e| e.id == frame.source)
                 .is_some_and(|e| e.paid_costs.iter().any(|(t, n)| t == tag && *n > 0)),
 
+            // "if its [keyword] cost was paid" ([CR#702.34a,702.74a]) — the
+            // ALTERNATIVE-cost twin of `PaidCost`. The announce record that
+            // marks a spell as cast with an alternative cost is engine-alt-costs
+            // (unbuilt), so no object is yet recorded as cast that way: the
+            // rider it gates (Flashback's exile, Evoke's sacrifice) does not
+            // fire until then. Conservative `false`, never a panic.
+            Condition::CastWith(_tag) => false,
+
             // It is the evaluating player's turn — the frame-robust sugar for
             // `TurnOf(Ref(You))` (reads `you` directly, no carrier needed).
             Condition::YourTurn => self.turn.active_player == you,

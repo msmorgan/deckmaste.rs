@@ -208,6 +208,12 @@ pub enum DeonticAction {
         /// "you may cast … without paying its mana cost".
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cost: Option<AlternativeCost>,
+        /// Names the alternative cost this permission carries, so a rider
+        /// can ask `CastWith(tag)` — "if its flashback/evoke cost was paid"
+        /// ([CR#702.34a,702.74a]). Mirrors Idris `MayCastFor.tag`. The
+        /// alt-cost twin of `OptionalCost.tag`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tag: Option<crate::CostTag>,
     },
     /// `by` plays `what` — land plays / play-a-card permissions
     /// ([CR#701.18]).
@@ -351,6 +357,7 @@ mod tests {
                 from: None,
                 window: Some(Timing::InstantSpeed),
                 cost: None,
+                tag: None,
             }),
         );
     }
@@ -366,8 +373,40 @@ mod tests {
                 from: Some(Zone::Graveyard),
                 window: None,
                 cost: None,
+                tag: None,
             }),
         );
+    }
+
+    /// `Cast(… tag: Flashback)` names the alt cost the permission carries
+    /// ([CR#702.34a,702.74a]) — reads with a bare-ident tag, round-trips, and
+    /// an omitted tag stays absent (like the sibling `cost`/`from` fields).
+    #[test]
+    fn cast_tag_reads_and_round_trips() {
+        let flashback = read("May(Cast(what: Ref(This), tag: Flashback))");
+        assert_eq!(
+            flashback,
+            Deontic::May(DeonticAction::Cast {
+                what: Predicate::Ref(Reference::This),
+                by: Predicate::Any,
+                from: None,
+                window: None,
+                cost: None,
+                tag: Some(crate::CostTag::from("Flashback")),
+            }),
+        );
+        let written = crate::ron::options().to_string(&flashback).unwrap();
+        assert!(
+            written.contains("tag:Flashback"),
+            "tag writes as a bare ident: {written}"
+        );
+        assert_eq!(read(&written), flashback);
+
+        // Omitted tag stays absent, like the sibling `cost`/`from` fields.
+        let untagged = read("May(Cast(what: Ref(This)))");
+        let written = crate::ron::options().to_string(&untagged).unwrap();
+        assert!(!written.contains("tag"), "default tag omitted: {written}");
+        assert_eq!(read(&written), untagged);
     }
 
     /// The two-slot deed agent ([CR#702.11d,702.16b]): the omitted slot is

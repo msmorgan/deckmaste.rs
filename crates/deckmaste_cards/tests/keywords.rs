@@ -35,6 +35,7 @@ fn every_builtin_keyword_macro_expands() {
         ("Ward(cost: [Tap])", "Ward"),
         ("Kicker([Tap])", "Kicker"),
         ("Flashback([Tap])", "Flashback"),
+        ("Evoke([Tap])", "Evoke"),
         ("Equip([Tap])", "Equip"),
         ("Fortify([Tap])", "Fortify"),
         ("Reconfigure([Tap])", "Reconfigure"),

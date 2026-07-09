@@ -428,6 +428,14 @@ pub fn matches_with(
             "engine-alt-costs: WasPaidWith({tag:?}) needs the [CR#601.2b] optional-cost \
              announce record"
         ),
+        // The alt-cost twin of `WasPaidWith` ([CR#118.9,702.34a]) — a filter
+        // over "a spell cast with [keyword]". No card fixture forces it yet
+        // (Flashback/Evoke read the alt cost via `Condition::CastWith`, not this
+        // filter); it needs the same engine-alt-costs announce record.
+        Predicate::State(StatePredicate::WasCastWith(tag)) => todo!(
+            "engine-alt-costs: WasCastWith({tag:?}) needs the [CR#118.9,702.34a] alt-cost \
+             announce record"
+        ),
         // [CR#607]: linked-ability relations have no registry yet.
         Predicate::State(StatePredicate::RelatedBy(..)) => todo!(
             "engine-filter-breadth: RelatedBy needs a CR#607 linked-ability relation registry \

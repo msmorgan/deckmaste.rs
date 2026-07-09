@@ -1,0 +1,28 @@
+// Evoke = two statics [CR#702.74a]: an alternative-cost cast permission
+// (from hand — the default `from`, so no `from` field) tagged `Evoke`, and a
+// self-ETB triggered ability that sacrifices the permanent when it was cast
+// that way. The alt-cost linkage is the same `tag`/`CastWith` pair Flashback
+// uses ([CR#702.34a,702.74a] share the `MayCastFor.tag` mechanism): the cast
+// permission NAMES the alternative cost via `tag: Evoke`, and the triggered
+// ability's `condition: CastWith(Evoke)` reads it back as "if its evoke cost
+// was paid" — not an unconditional sacrifice-on-ETB.
+// CAVEAT: same as Flashback — the shape is correct and round-trips today,
+// but the engine doesn't yet evaluate `CastWith` conditions at trigger time;
+// that lands with `engine-alt-costs`.
+(
+    name: "Evoke",
+    template: "evoke ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Evoke",
+        abilities: [
+            Static(May(Cast(what: Ref(This), cost: Components(Param(0)), tag: Evoke))),
+            Triggered(
+                event: ThisEnters,
+                condition: CastWith(Evoke),
+                effect: Sacrifice(This),
+            ),
+        ],
+    ),
+)

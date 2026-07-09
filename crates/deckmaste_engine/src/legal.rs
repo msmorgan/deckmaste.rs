@@ -844,6 +844,11 @@ pub(crate) fn may_cast_rows(
                     from,
                     window,
                     cost,
+                    // The alt-cost `tag` names the permission for the
+                    // `CastWith`/`WasCastWith` readers; the announce record
+                    // that consumes it is engine-alt-costs, so the
+                    // permission derivation ignores it here.
+                    tag: _,
                 }) = may_action(d)
             {
                 rows.push(MayCastRow {

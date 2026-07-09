@@ -1,12 +1,17 @@
 // Flashback = two statics [CR#702.34a]: a graveyard cast permission at an
-// alternative cost ([CR#118.9] territory) and an exile-instead replacement as
-// it leaves the stack. The exile half is factored into the shared
-// static/ExileWhenLeavesStack macro (reused by the other graveyard-recast
-// keywords); the cast half stays inline because its cost rides Param(0), and
-// the macro layer can't forward a Param into a nested macro invocation.
-// CAVEAT: the replacement applies only to the flashback cast — the
-// "was cast this way" linkage is the known core-alt-costs gap; until it
-// lands, the row over-claims (engine consumption is a seam either way).
+// alternative cost ([CR#118.9] territory), tagged `Flashback` so a rider can
+// ask "was this cast that way", and an exile-instead replacement gated on
+// that tag via `Conditionally(CastWith(Flashback), …)`. The exile half is
+// factored into the shared static/ExileWhenLeavesStack macro (reused by the
+// other graveyard-recast keywords); the cast half stays inline because its
+// cost rides Param(0), and the macro layer can't forward a Param into a
+// nested macro invocation.
+// CAVEAT: the "was cast this way" linkage now lands in the SHAPE via the
+// `tag`/`Conditionally(CastWith(Flashback), …)` pair, so the exile row no
+// longer over-claims on paper. Engine GATING of a `Conditionally` static is
+// still a currently-unwired seam (see `StaticEffect::Conditionally`'s own
+// doc, [CR#611.3a]) — runtime firing lands with `engine-alt-costs`. The
+// shape is correct and round-trips today.
 (
     name: "Flashback",
     template: "flashback ${0}",
@@ -15,8 +20,8 @@
     body: Composite(
         name: "Flashback",
         abilities: [
-            Static(May(Cast(what: Ref(This), from: Graveyard, cost: Components(Param(0))))),
-            Static(ExileWhenLeavesStack),
+            Static(May(Cast(what: Ref(This), from: Graveyard, cost: Components(Param(0)), tag: Flashback))),
+            Static(Conditionally(CastWith(Flashback), ExileWhenLeavesStack)),
         ],
     ),
 )
