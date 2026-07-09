@@ -487,6 +487,7 @@ impl<'a> FactView<'a> {
             | GameEvent::DrewFromEmpty(_)
             | GameEvent::TokenCeased(_)
             | GameEvent::PlayerLost { .. }
+            | GameEvent::PlayerWon { .. }
             | GameEvent::ManaAdded { .. }
             | GameEvent::ManaEmptied { .. }
             | GameEvent::Revealed { .. }

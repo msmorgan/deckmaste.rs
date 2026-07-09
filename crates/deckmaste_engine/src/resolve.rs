@@ -1842,8 +1842,17 @@ impl GameState {
             }
             // P0.W6 seams: outcome verbs (immediate, gate-checked at the
             // OUTCOME layer — never deontic rows) and reveal/look.
+            // [CR#104.2b]: "you win the game" — a first-class win event,
+            // suppressed by a matching `CantWin` gate ([CR#101.1]). The
+            // last-player-standing win ([CR#104.2a]) never rides this verb.
             PlayerAction::WinGame => {
-                todo!("P0.W6: win outcome ([CR#104.2b]; CantWin gate check)")
+                let view = self.layers();
+                if self.gate_suppresses(&view, actor, deckmaste_core::OutcomeGateKind::CantWin) {
+                    return vec![];
+                }
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerWon {
+                    player: actor,
+                }))]
             }
             PlayerAction::LoseGame => {
                 todo!("P0.W6: lose outcome ([CR#104.3e]; CantLose gate check)")
@@ -8989,6 +8998,59 @@ mod tests {
         assert!(
             !picked.contains(&courser),
             "the 3-power creature is not least"
+        );
+    }
+
+    /// [CR#104.2b]: `WinGame` resolves to a first-class `PlayerWon` event
+    /// that ends the game with the actor as winner.
+    #[test]
+    fn win_game_verb_sets_win_outcome() {
+        let (mut state, _bear) = bear_on_field();
+        let frame = frame_for(&state, PlayerId(0));
+        state.run_effect(OneShotEffect::act_by_you(PlayerAction::WinGame), &frame);
+        let _ = state.step();
+        assert_eq!(
+            state.outcome,
+            Some(crate::state::GameOutcome::Win(PlayerId(0)))
+        );
+    }
+
+    /// Platinum Angel's "your opponents can't win the game" static
+    /// ([CR#101.1]) suppresses the `WinGame` verb for the gated opponent —
+    /// a graceful no-op, no event emitted.
+    #[test]
+    fn cant_win_gated_win_game_is_a_noop() {
+        let (state, _ids) = battlefield_with(&["Platinum Angel"]);
+        let frame = frame_for(&state, PlayerId(1));
+        assert_eq!(
+            state.action_items(&Action::by_you(PlayerAction::WinGame), &frame),
+            vec![],
+            "Platinum Angel's opponents-can't-win gate suppresses the WinGame verb"
+        );
+    }
+
+    /// [CR#104.3f]: a player who would simultaneously win and lose in the
+    /// same batch loses instead — the arbitration in `apply_occurrence`
+    /// drops the `PlayerWon` fact before the batch applies, so the OTHER
+    /// player takes the last-standing win.
+    #[test]
+    fn win_and_lose_batch_arbitration_drops_the_win() {
+        let (mut state, _bear) = bear_on_field();
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
+            GameEvent::PlayerWon {
+                player: PlayerId(0),
+            },
+            GameEvent::PlayerLost {
+                player: PlayerId(0),
+                reason: crate::event::LossReason::LifeZero,
+            },
+        ]))]);
+        let _ = state.step();
+        assert!(state.players[0].lost, "the loss still applies");
+        assert_eq!(
+            state.outcome,
+            Some(crate::state::GameOutcome::Win(PlayerId(1))),
+            "the dropped win lets player 1 take the last-standing win instead"
         );
     }
 }

@@ -212,6 +212,13 @@ pub enum GameEvent {
         player: PlayerId,
         reason: LossReason,
     },
+    /// [CR#104.2b,104.1]: an effect-driven win. Applies by ending the game with
+    /// this player as the winner (others neither win nor lose) — distinct from
+    /// the derived last-player-standing win in `check_game_end`. A player who
+    /// would simultaneously win and lose loses instead ([CR#104.3f]).
+    PlayerWon {
+        player: PlayerId,
+    },
     /// [CR#601.2i] — a spell becomes cast. Applies by promoting `announcing`
     /// onto the stack. The Stage-3 "whenever you cast" seam.
     SpellCast(ObjectId),

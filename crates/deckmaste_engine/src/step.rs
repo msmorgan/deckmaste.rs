@@ -415,6 +415,16 @@ impl GameState {
                 self.player_mut(player).lost = true;
                 event
             }
+            // [CR#104.2b,104.1]: an effect-driven win ends the game outright —
+            // this player wins, no one else wins or loses. Distinct from the
+            // derived last-player-standing win `check_game_end` computes.
+            GameEvent::PlayerWon { player } => {
+                if self.outcome.is_none() {
+                    self.outcome = Some(GameOutcome::Win(player));
+                    self.agenda.clear();
+                }
+                event
+            }
             GameEvent::SpellCast(object) => {
                 // [CR#601.2i]: promote the staged announce onto the stack.
                 // [CR#405]: a spell's stack identity is its own object id —
@@ -987,7 +997,22 @@ impl GameState {
     /// facts that occurred. A `Batch` applies with no SBA/trigger interleaving.
     /// After applying, runs `check_game_end` so a simultaneous multi-loss batch
     /// is evaluated as a whole.
-    fn apply_occurrence(&mut self, occ: Occurrence) -> Occurrence {
+    fn apply_occurrence(&mut self, mut occ: Occurrence) -> Occurrence {
+        // [CR#104.3f]: a player who would simultaneously win and lose, loses
+        // — drop any `PlayerWon{p}` the same batch also carries `PlayerLost{p}`
+        // for, before the batch is applied.
+        if let Occurrence::Batch(ref mut facts) = occ {
+            let losers: std::collections::HashSet<PlayerId> = facts
+                .iter()
+                .filter_map(|e| match e {
+                    GameEvent::PlayerLost { player, .. } => Some(*player),
+                    _ => None,
+                })
+                .collect();
+            facts.retain(
+                |e| !matches!(e, GameEvent::PlayerWon { player } if losers.contains(player)),
+            );
+        }
         // Preserve whether the input was a Single or Batch — callers and tests
         // observe the shape ([CR#616.1]: a batch is a simultaneous set).
         let occurred = match occ {
