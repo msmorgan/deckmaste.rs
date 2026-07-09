@@ -113,8 +113,10 @@ fn sacrifice(text: &str) -> Option<String> {
 }
 
 /// A run of mana symbols -> `Mana([...])`. Declines on non-mana text, the
-/// empty cost, and — under [`VariableMana::Decline`] — `{X}`.
-fn mana_component(text: &str, variable: VariableMana) -> anyhow::Result<Option<String>> {
+/// empty cost, and — under [`VariableMana::Decline`] — `{X}`. Shared with the
+/// static-ability cost-modifier grammar (`{N} less/more to cast`), whose amount
+/// is a bare mana run.
+pub(crate) fn mana_component(text: &str, variable: VariableMana) -> anyhow::Result<Option<String>> {
     let Ok(mana) = text.parse::<ManaCost>() else {
         return Ok(None);
     };

@@ -128,6 +128,56 @@ pub(crate) fn is_subtype(word: &str) -> bool {
     SUBTYPES.contains(word)
 }
 
+/// A spell-subject phrase ("Goblin spells you cast", "creature spells") → a
+/// `Predicate` matching a SPELL on the stack ([CR#112.1] — a card on the
+/// stack). The `of` filter of a [`CostModifier`](deckmaste_core::StaticEffect)
+/// reducer/ taxer. Always leads with `Kind(Spell)`; then one characteristic
+/// atom from the leading adjective (a card type, a color, or a catalog
+/// subtype); then, if the phrase ends "… you cast", `ControlledBy(Ref(You))` —
+/// the caster controls the spell on the stack ([CR#108.4]). A missing
+/// "spell(s)" head noun, an unknown adjective, or leftover tokens decline.
+pub(crate) fn spell_subject(phrase: &str) -> Option<String> {
+    let mut rest = phrase.trim();
+    let controlled = rest.strip_suffix(" you cast").map(|head| {
+        rest = head.trim_end();
+        true
+    });
+    let adj = rest
+        .strip_suffix(" spells")
+        .or_else(|| rest.strip_suffix(" spell"))?
+        .trim();
+    let mut atoms = vec!["Kind(Spell)".to_string(), spell_adjective(adj)?];
+    if controlled.is_some() {
+        atoms.push("ControlledBy(Ref(You))".to_string());
+    }
+    Some(combine(atoms))
+}
+
+/// The characteristic atom for a spell-subject adjective — a color
+/// (`ColorIs(Red)`), a card type (`Type(Creature)`), or a catalog subtype
+/// (`Subtype("Goblin")`), in that precedence. A multi-word or unknown adjective
+/// declines. The subtype is validated case-sensitively against the same catalog
+/// [`strip_subtype_adjective`] gates on, so a non-subtype never mints a bogus
+/// atom.
+fn spell_adjective(word: &str) -> Option<String> {
+    if word.contains(' ') {
+        return None;
+    }
+    if let Some(color) = color_ident(word) {
+        return Some(format!("ColorIs({color})"));
+    }
+    if let Some(ty) = type_filter(&singularize(word).to_ascii_lowercase()) {
+        return Some(ty);
+    }
+    if is_subtype(word) {
+        return Some(format!(
+            "Subtype(\"{}\")",
+            crate::ident::to_rust_ident(word)
+        ));
+    }
+    None
+}
+
 /// The head atom for a singular/plural type noun ("land" → `Type(Land)`,
 /// "creature" → `Creature`), or `None` if `word` is not a type noun. The
 /// supertype-adjective dual-land grammar pairs this with a `Supertype(...)`

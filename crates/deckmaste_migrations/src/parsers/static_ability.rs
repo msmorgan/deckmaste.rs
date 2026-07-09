@@ -25,6 +25,9 @@ fn parse(line: &str, kind: CardKind) -> Option<String> {
     }
     let body = line.strip_suffix('.').unwrap_or(line);
 
+    if let Some(row) = parse_cost_modifier(body) {
+        return Some(row);
+    }
     if let Some((subj, pred)) = modify::split_marker(body, &[" can't ", " cannot "]) {
         return parse_restriction(subj, pred);
     }
@@ -170,6 +173,32 @@ fn parse_requirement(subj: &str, pred: &str) -> Option<String> {
     }
     let filter = modify::subject_to_filter(subj)?;
     Some(format!("Static(Must(Attack(by: {filter})))"))
+}
+
+/// "<adjective> spell(s) [you cast] cost {N} less/more to cast" → a
+/// [`CostModifier`](deckmaste_core::StaticEffect) static ([CR#118.7,601.2f]):
+/// "less" is a `Reduce`, "more" an `Increase`, of {N} generic mana, whose `of`
+/// filter is the spell-subject predicate (Goblin Warchief = "Goblin spells you
+/// cast"). This is the PARSE half — the engine's total-cost
+/// application of the emitted row is engine-cost-modification. The amount is a
+/// bare mana run (`{X}` declines — a variable reduction is not a fixed pipeline
+/// step); anything else about the shape declines and the line stays `Unparsed`.
+fn parse_cost_modifier(body: &str) -> Option<String> {
+    use crate::parsers::cost::VariableMana;
+
+    let stem = body.strip_suffix(" to cast")?;
+    let (subject_amount, change_kw) = stem
+        .strip_suffix(" less")
+        .map(|s| (s, "Reduce"))
+        .or_else(|| stem.strip_suffix(" more").map(|s| (s, "Increase")))?;
+    let (subject, amount) = subject_amount.rsplit_once(" cost ")?;
+    let of = crate::parsers::filter::spell_subject(subject.trim())?;
+    let component = crate::parsers::cost::mana_component(amount.trim(), VariableMana::Decline)
+        .ok()
+        .flatten()?;
+    Some(format!(
+        "Static(CostModifier(of: {of}, change: {change_kw}([{component}])))"
+    ))
 }
 
 #[cfg(test)]
@@ -412,6 +441,57 @@ mod tests {
             Some(
                 "Static(Each(SelectAll(AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
             )
+        );
+    }
+
+    #[test]
+    fn cost_modifier_reduce_subtype_you_cast() {
+        // Goblin Warchief's reducer: "Goblin spells you cast cost {1} less to
+        // cast" → a CostModifier scoped to Goblin spells the caster controls
+        // ([CR#118.7,601.2f]).
+        assert_eq!(
+            stat("Goblin spells you cast cost {1} less to cast.").as_deref(),
+            Some(
+                "Static(CostModifier(of: AllOf([Kind(Spell), Subtype(\"Goblin\"), ControlledBy(Ref(You))]), change: Reduce([Mana([Generic(1)])])))"
+            )
+        );
+    }
+
+    #[test]
+    fn cost_modifier_increase_tax_form() {
+        // The symmetric taxer: "cost {2} more" → an Increase over the same
+        // spell-subject shape.
+        assert_eq!(
+            stat("Creature spells you cast cost {2} more to cast.").as_deref(),
+            Some(
+                "Static(CostModifier(of: AllOf([Kind(Spell), Type(Creature), ControlledBy(Ref(You))]), change: Increase([Mana([Generic(2)])])))"
+            )
+        );
+        // A color adjective and no "you cast" scope (affects all such spells).
+        assert_eq!(
+            stat("Red spells cost {1} more to cast.").as_deref(),
+            Some(
+                "Static(CostModifier(of: AllOf([Kind(Spell), ColorIs(Red)]), change: Increase([Mana([Generic(1)])])))"
+            )
+        );
+    }
+
+    #[test]
+    fn cost_modifier_declines() {
+        // A variable {X} reduction is not a fixed pipeline step.
+        assert!(stat("Goblin spells you cast cost {X} less to cast.").is_none());
+        // No "spell(s)" head noun — a permanent anthem, not a cost modifier.
+        assert!(stat("Goblins you control cost {1} less to cast.").is_none());
+        // Unknown adjective declines rather than mint a wrong filter.
+        assert!(stat("Wibble spells you cast cost {1} less to cast.").is_none());
+        // A durational cost line is not a static (handled by the guard).
+        assert!(
+            resolve_line(
+                "Goblin spells you cast cost {1} less to cast this turn.",
+                &crate::parsers::test_ctx::ctx(CardKind::Permanent)
+            )
+            .unwrap()
+            .is_none()
         );
     }
 
