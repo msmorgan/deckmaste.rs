@@ -343,6 +343,15 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
                 recipient_of(to, ctx)
             ),
         ),
+        // Cast onset ([CR#601.2i]) — "you cast X", the controller's own
+        // filtered cast (Prowess/Cascade shape). Only the `who: Ref(You)`
+        // narrowing is recognized (an opponent's/any-player's cast has no
+        // real card in this corpus). Self (`Ref(This)`) leads "When" via
+        // `lead_for`, matching the enters/dies self convention.
+        EventFilter::Cast {
+            who: Predicate::Ref(Reference::You),
+            what,
+        } => (lead_for(what), format!("you cast {}", cast_subject(what))),
         other => ("When", format!("[unrendered: {other:?}]")),
     }
 }
@@ -1008,6 +1017,52 @@ fn article_for(word: &str) -> &'static str {
     }
 }
 
+/// A [`EventFilter::Cast`]'s `what:` narrowing as the noun phrase following
+/// "you cast" ([CR#601.2i]). Self (`Ref(This)`) reads as the real oracle
+/// "this spell" convention (Cascade's reminder text) — never the card's own
+/// printed name, unlike an ETB/dies subject: a cast trigger describes the
+/// spell ON THE STACK referring to itself. A bare `Kind(Spell)` is "a
+/// spell"; anything else pairs `Kind(Spell)` with one characteristic atom —
+/// a card-type/disjunction ([`types_noun`]), a card-type negation ("a
+/// noncreature spell"), or a single catalog subtype (the Prowess/"an Elf
+/// spell" shape). Falls back to the structural marker for any other
+/// narrowing this v1 production doesn't model (restriction-laden forms:
+/// first/second spell each turn, "that targets ~", color/mana-value/historic,
+/// …).
+fn cast_subject(what: &Predicate) -> String {
+    let what = super::fragment::strip_expanded(what);
+    if matches!(what, Predicate::Ref(Reference::This)) {
+        return "this spell".to_string();
+    }
+    if matches!(what, Predicate::Kind(ObjectKind::Spell)) {
+        return "a spell".to_string();
+    }
+    let Predicate::And(parts) = what else {
+        return format!("[unrendered: {what:?}]");
+    };
+    let rest: Vec<&Predicate> = parts
+        .iter()
+        .map(super::fragment::strip_expanded)
+        .filter(|p| !matches!(p, Predicate::Kind(ObjectKind::Spell)))
+        .collect();
+    if rest.len() != 1 {
+        return format!("[unrendered: {what:?}]");
+    }
+    let only = rest[0];
+    if let Predicate::Not(inner) = only {
+        return match super::fragment::strip_expanded(inner) {
+            Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
+                format!("a non{} spell", super::card::type_str(*t).to_lowercase())
+            }
+            other => format!("[unrendered: {other:?}]"),
+        };
+    }
+    if let Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) = only {
+        return format!("{} {name} spell", article_for(name.as_str()));
+    }
+    format!("{} spell", types_noun(only))
+}
+
 // ── Verb helpers (plural/singular) ──────────────────────────────────────────
 
 fn get(plural: bool) -> &'static str {
@@ -1197,6 +1252,89 @@ mod tests {
                 "Whenever",
                 "Test deals combat damage to a player or planeswalker".to_string()
             )
+        );
+    }
+
+    /// `EventFilter::Cast { who: Ref(You), .. }` ([CR#601.2i]) — the cast
+    /// trigger family the migrations parser's `parse_cast_event` mints.
+    /// Round-trips every new `what:` shape (plus the retained self and
+    /// single-subtype forms) back to its oracle phrase.
+    #[test]
+    fn cast_event_clause_renders_forms() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let event = |what| EventFilter::Cast {
+            who: Predicate::Ref(Reference::You),
+            what,
+        };
+
+        // Self — Cascade's own "you cast this spell" reminder-text shape;
+        // leads "When" like an enters/dies self trigger.
+        assert_eq!(
+            event_clause(&event(Predicate::Ref(Reference::This)), &ctx),
+            ("When", "you cast this spell".to_string())
+        );
+        // Bare spell.
+        assert_eq!(
+            event_clause(&event(Predicate::Kind(ObjectKind::Spell)), &ctx),
+            ("Whenever", "you cast a spell".to_string())
+        );
+        // A single card-type filter.
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                ])),
+                &ctx
+            ),
+            ("Whenever", "you cast a creature spell".to_string())
+        );
+        // The instant-or-sorcery disjunction.
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Or(vec![
+                        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Instant)),
+                        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Sorcery)),
+                    ]),
+                ])),
+                &ctx
+            ),
+            (
+                "Whenever",
+                "you cast an instant or sorcery spell".to_string()
+            )
+        );
+        // The noncreature negation.
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Not(Box::new(Predicate::Characteristic(
+                        CharacteristicPredicate::Type(Type::Creature)
+                    ))),
+                ])),
+                &ctx
+            ),
+            ("Whenever", "you cast a noncreature spell".to_string())
+        );
+        // The retained single-subtype form ("an Elf spell").
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                        deckmaste_core::Ident::from("Elf")
+                    )),
+                ])),
+                &ctx
+            ),
+            ("Whenever", "you cast an Elf spell".to_string())
         );
     }
 }

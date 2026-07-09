@@ -123,19 +123,20 @@ fn target_slot_reads(body: &str) -> String {
 
 /// Parses a trigger's event clause (the text between the trigger word and the
 /// comma) into the event RON, or `None`. v1 verbs: ETB, dies, attacks, and the
-/// "you cast a[n] <subtype> spell" cast trigger. The state-transition verbs
-/// (enters/dies/attacks) take a subject: self (`~`) uses the `This{Verb}`
-/// shorthand macro; any other subject is parsed by the shared [`filter`]
-/// grammar and applied to the event macro — so "a creature you control", "a
-/// Goblin", etc. all resolve (declining when the filter grammar can't parse the
-/// subject).
+/// "you cast X" cast trigger family ([`parse_cast_event`]). The
+/// state-transition verbs (enters/dies/attacks) take a subject: self (`~`)
+/// uses the `This{Verb}` shorthand macro; any other subject is parsed by the
+/// shared [`filter`] grammar and applied to the event macro — so "a creature
+/// you control", "a Goblin", etc. all resolve (declining when the filter
+/// grammar can't parse the subject).
 ///
 /// Shared with [`crate::parsers::replacement`]: an `Instead`/`Also`
 /// replacement's `would:` is the same `EventFilter`, parsed from the same
 /// enters/dies clause grammar.
 pub(super) fn parse_event(clause: &str) -> Option<String> {
-    // Cast trigger: "you cast a[n] <subtype> spell" — the `Cast` onset event
-    // ([CR#601.2i]), filtered to a spell of the named subtype (Prowess shape).
+    // Cast trigger: "you cast X" — the `Cast` onset event ([CR#601.2i]),
+    // filtered per [`parse_cast_event`]'s recognized shapes (self, bare
+    // spell, card-type/noncreature/instant-or-sorcery, single subtype).
     if let Some(event) = parse_cast_event(clause) {
         return Some(event);
     }
@@ -204,28 +205,71 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
     }
 }
 
-/// "you cast a[n] <Subtype> spell" -> `Cast(who: Ref(You),
-/// what: And([Kind(Spell), Subtype("<X>")]))` ([CR#601.2i] cast onset;
-/// mirrors the Prowess macro's filtered-cast shape). Only the controller's own
-/// cast of a single-subtype spell is modeled here; any other cast surface (an
-/// opponent's cast, a card-type-filtered spell, no subtype) declines.
+/// "you cast X" -> `Cast(who: Ref(You), what: <filter>)` ([CR#601.2i] cast
+/// onset; mirrors the Prowess/Cascade macros' filtered-cast shape). Only the
+/// controller's own cast is modeled here — an opponent's cast declines
+/// (leaves `clause` unconsumed by the `"you cast "` prefix). The recognized
+/// `what:` shapes, in order:
+///
+/// - self ("you cast ~") -> `Ref(This)` (Cascade's own "you cast this spell"
+///   reminder-text shape).
+/// - a bare spell ("you cast a spell") -> `Kind(Spell)`.
+/// - "an instant or sorcery spell" -> `And([Kind(Spell), Or([Type(Instant),
+///   Type(Sorcery)])])` (the two-type disjunction; NOT the general
+///   heterogeneous-type-disjunction grammar, since only this one pairing is
+///   modeled here).
+/// - "a noncreature spell" -> `And([Kind(Spell), Not(Type(Creature))])`.
+/// - "a[n] <card-type> spell" (creature/artifact/enchantment/instant/ sorcery)
+///   -> `And([Kind(Spell), Type(<T>)])`.
+/// - "a[n] <Subtype> spell" (the original v1 shape, e.g. "an Elf spell") ->
+///   `And([Kind(Spell), Subtype("<X>")])`. A lone non-subtype token still mints
+///   a `Subtype`, caught downstream by the catalog lint, as in the shared
+///   filter grammar's bare-token head.
+///
+/// Any other multi-word descriptor (restriction-laden forms: "your first
+/// spell each turn", "a spell that targets ~", color/mana-value/historic
+/// filters, …) declines, left for the debug/unparsed path — these need extra
+/// filter machinery or trigger-condition modeling this v1 production doesn't
+/// carry.
 fn parse_cast_event(clause: &str) -> Option<String> {
     let rest = clause.strip_prefix("you cast ")?;
+    if rest == "~" {
+        return Some("Cast(who: Ref(You), what: Ref(This))".to_owned());
+    }
     let body = rest
         .strip_prefix("a ")
         .or_else(|| rest.strip_prefix("an "))?;
-    let subtype = body.strip_suffix(" spell")?;
-    // Exactly one descriptor word: an empty descriptor ("a spell") or a
-    // multi-word one ("a creature or artifact spell") declines — this v1 form
-    // models only the single-subtype cast. A lone non-subtype token (a card-type
-    // word) still mints a `Subtype`, caught downstream by the catalog lint, as in
-    // the shared filter grammar's bare-token head.
-    if subtype.is_empty() || subtype.contains(' ') {
+    if body == "spell" {
+        return Some("Cast(who: Ref(You), what: Kind(Spell))".to_owned());
+    }
+    let descriptor = body.strip_suffix(" spell")?;
+    if descriptor.is_empty() {
         return None;
     }
+    if descriptor == "instant or sorcery" {
+        return Some(
+            "Cast(who: Ref(You), what: And([Kind(Spell), \
+             Or([Type(Instant), Type(Sorcery)])]))"
+                .to_owned(),
+        );
+    }
+    if descriptor == "noncreature" {
+        return Some(
+            "Cast(who: Ref(You), what: And([Kind(Spell), Not(Type(Creature))]))".to_owned(),
+        );
+    }
+    // Any other multi-word descriptor is out of scope for this production
+    // (restriction-laden forms deferred).
+    if descriptor.contains(' ') {
+        return None;
+    }
+    // A single-word descriptor: a card-type noun first (Type(<T>)), else the
+    // original v1 subtype fallback (unconditional, like the shared filter
+    // grammar's bare-token head).
+    let atom = filter::type_filter(&filter::singularize(descriptor).to_ascii_lowercase())
+        .unwrap_or_else(|| format!("Subtype(\"{}\")", crate::ident::to_rust_ident(descriptor)));
     Some(format!(
-        "Cast(who: Ref(You), what: And([Kind(Spell), Subtype(\"{}\")]))",
-        crate::ident::to_rust_ident(subtype)
+        "Cast(who: Ref(You), what: And([Kind(Spell), {atom}]))"
     ))
 }
 
@@ -416,8 +460,6 @@ mod tests {
     fn declines_non_triggers_unknown_events_and_effects() {
         // Not a trigger line.
         assert!(trig("Draw a card.").is_none());
-        // Unknown event (cast trigger not in v1).
-        assert!(trig("When you cast ~, draw a card.").is_none());
         // Unknown effect declines.
         assert!(trig("When ~ dies, manifest the top card of your library.").is_none());
         // Trigger word present but no ", " separator (no effect clause).
@@ -495,11 +537,64 @@ mod tests {
     }
 
     #[test]
+    fn cast_self_spell() {
+        // Cascade's own reminder-text shape: "Whenever you cast this
+        // spell, ..." (normalized to the `~` sigil by extraction).
+        assert_eq!(
+            trig("Whenever you cast ~, draw a card.").as_deref(),
+            Some("Triggered(event: Cast(who: Ref(You), what: Ref(This)), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn cast_bare_spell() {
+        assert_eq!(
+            trig("Whenever you cast a spell, draw a card.").as_deref(),
+            Some("Triggered(event: Cast(who: Ref(You), what: Kind(Spell)), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn cast_creature_spell() {
+        assert_eq!(
+            trig("Whenever you cast a creature spell, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), what: And([Kind(Spell), Type(Creature)])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_instant_or_sorcery_spell() {
+        assert_eq!(
+            trig("Whenever you cast an instant or sorcery spell, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Or([Type(Instant), Type(Sorcery)])])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_noncreature_spell() {
+        assert_eq!(
+            trig("Whenever you cast a noncreature spell, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Not(Type(Creature))])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
     fn cast_trigger_declines_out_of_scope() {
-        // No subtype (a bare "a spell") -> declines (no single-subtype token).
-        assert!(trig("Whenever you cast a spell, draw a card.").is_none());
-        // A multi-word descriptor before "spell" -> declines (this v1 production
-        // handles only a single subtype token).
+        // A multi-word descriptor before "spell" that isn't the modeled
+        // "instant or sorcery"/"noncreature" shapes -> declines (this v1
+        // production handles only single-token and those two disjunction/
+        // negation shapes).
         assert!(trig("Whenever you cast a creature or artifact spell, draw a card.").is_none());
         // An opponent's cast is not the controller-cast surface modeled here.
         assert!(trig("Whenever an opponent casts a spell, draw a card.").is_none());
