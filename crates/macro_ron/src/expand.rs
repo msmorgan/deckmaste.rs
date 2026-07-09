@@ -1169,11 +1169,17 @@ fn fill_defaults<'de>(
 /// into a nested macro it invokes (`Pair(Up(Param(0)), Up(Param(1)))`).
 /// `HoleMode::PassThrough` leaves any hole the caller's frame can't resolve
 /// untouched, since it belongs to the invoked macro's own frame once pushed.
-/// At the top level (`ctx.frame` is `None`) there are no resolvable holes, so
-/// this always returns the input unchanged (byte-identical to before this
-/// pre-substitution step existed).
-fn forward_arg<'de>(raw: &'de str, ctx: &Ctx<'de, '_>) -> Result<&'de str, String> {
-    match substitute_params(raw, ctx, HoleMode::PassThrough)? {
+/// At the top level (`ctx.frame` is `None`) this returns the input unchanged
+/// *by construction*: there is no frame to forward, so `collect_holes` (which
+/// would also unwrap any literal `Quote(...)` it finds, frame or no) never
+/// runs, keeping the argument byte-identical to before this pre-substitution
+/// step existed — including a misused top-level `Quote(...)`, which stays
+/// intact for the invoked macro's own reader to reject.
+fn forward_arg<'de>(raw: &'de str, ctx: Ctx<'de, '_>) -> Result<&'de str, String> {
+    if ctx.frame.is_none() {
+        return Ok(raw);
+    }
+    match substitute_params(raw, &ctx, HoleMode::PassThrough)? {
         std::borrow::Cow::Borrowed(s) => Ok(s),
         std::borrow::Cow::Owned(s) => Ok(ctx.read.splice(s)),
     }
@@ -1249,7 +1255,7 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
             }
             let args: Vec<&'de str> = args
                 .into_iter()
-                .map(|raw| forward_arg(raw, &ctx))
+                .map(|raw| forward_arg(raw, ctx))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(A::Error::custom)?;
             for (i, ty) in types.iter().enumerate() {
@@ -1262,7 +1268,7 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
             let args = variant.struct_variant(&[], NamedArgs)?;
             let args: Vec<(Ident, &'de str)> = args
                 .into_iter()
-                .map(|(key, raw)| forward_arg(raw, &ctx).map(|raw| (key, raw)))
+                .map(|(key, raw)| forward_arg(raw, ctx).map(|raw| (key, raw)))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(A::Error::custom)?;
             for (i, (key, _)) in args.iter().enumerate() {

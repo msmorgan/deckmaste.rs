@@ -526,6 +526,62 @@ fn body_forwards_params_into_nested_macro() {
     );
 }
 
+/// A misused top-level `Quote(...)` — legal only inside a meta-macro body —
+/// must keep erroring exactly as it did before nested-macro param forwarding
+/// was added: `forward_arg` only pre-substitutes a captured argument against
+/// a *caller's* frame, and at the top level there is no frame, so the
+/// argument (including any `Quote(...)` it contains) is untouched and the
+/// invoked macro's own reader rejects the stray `Quote` as always. Before
+/// the fix, `forward_arg` ran `collect_holes` unconditionally, whose
+/// `Node::Quote` branch strips the wrapper regardless of frame ownership —
+/// silently turning `Quote(Up(5))` into `Up(5)` here and letting the
+/// misuse through instead of erroring.
+#[test]
+fn top_level_nested_macro_arg_with_stray_quote_still_errors() {
+    let mut set = macros();
+    set.insert(&def(r#"(
+        name: "Pair",
+        kinds: [Modification],
+        params: [NumericOp, NumericOp],
+        body: Several([Power(Param(0)), Toughness(Param(1))]),
+    )"#))
+        .unwrap();
+    let err = set
+        .read_str::<Modification>("Pair(Quote(Up(5)), Up(3))")
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("only legal in a meta-macro body"),
+        "{err}"
+    );
+}
+
+/// The named/struct-position branch of `read_args` (the second `forward_arg`
+/// call site, alongside the positional branch `body_forwards_params_into_
+/// nested_macro` above already covers) also forwards a caller's own `Param`
+/// into a nested macro it invokes with struct-call syntax
+/// (`Inner(op: Param(0))`).
+#[test]
+fn body_forwards_params_into_nested_named_macro() {
+    let mut set = macros();
+    set.insert(&def(r#"(
+        name: "Inner",
+        kinds: [Modification],
+        params: { "op": NumericOp },
+        body: Power(Param(op)),
+    )"#))
+        .unwrap();
+    set.insert(&def(r#"(
+        name: "Outer",
+        template: "boosts by ${0}",
+        kinds: [Modification],
+        params: [NumericOp],
+        body: Inner(op: Param(0)),
+    )"#))
+        .unwrap();
+    let m: Modification = set.read_str("Outer(Up(5))").unwrap();
+    assert_eq!(options().to_string(&m).unwrap(), "Power(Up(5))");
+}
+
 #[test]
 fn effect_positions_expand_macros() {
     let mut macros = empty();
