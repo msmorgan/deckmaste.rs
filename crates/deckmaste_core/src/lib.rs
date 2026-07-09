@@ -113,6 +113,7 @@ pub use effect::MustPay;
 pub use effect::Noting;
 pub use effect::OneShotEffect;
 pub use effect::PileSource;
+pub use effect::RevealUntil;
 pub use effect::SeparatePiles;
 pub use effect::Targeted;
 pub use effect::With;

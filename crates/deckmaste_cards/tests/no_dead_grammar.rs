@@ -757,6 +757,25 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             real card in this batch.",
         ),
         (
+            n("OneShotEffect", "Repeat"),
+            "DEFERRED: no real card in this batch cleanly exercises the \
+            count-driven repeat primitive without ALSO pulling in unrelated unbuilt grammar — \
+            every literal-count 'repeat this process N (more) times' card checked either needs a \
+            disjunctive cost (Remorseless Punishment's 'discards two cards or sacrifices a \
+            creature or planeswalker', no `CostComponent::Or` exists), a multi-ability \
+            planeswalker whose OTHER abilities need unbuilt grammar too (Professor Onyx's \
+            Magecraft keyword + a 'greatest power among' superlative), or (Another Round, the \
+            best-fitting candidate: 'Exile any number of creatures you control, then return them \
+            to the battlefield under their owner's control. Then repeat this process X more \
+            times.') a still-DEFERRED `Action::MoveGroup`-to-battlefield/exile render arm (see \
+            Action::MoveGroup above — only its Library destination is rendered today), a plural \
+            'under their owner's control' EnterRider phrasing (only the singular \"its\" is \
+            rendered), and an 'any number of' binder-quantity render — all real but unrelated to \
+            this mirror task. Engine execution IS wired and covered by a direct engine test \
+            (`resolve::tests::repeat_runs_body_n_times_and_is_steppable` and \
+            `repeat_zero_is_a_no_op`); buildable as a card once Another Round's render gaps close.",
+        ),
+        (
             n("Countable", "ManaSpentMatching"),
             "DEFERRED: no Adamant-style filtered-mana-spent real card in \
             this batch (the plain, unfiltered mana-spent domain has no Rust \

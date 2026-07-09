@@ -1,0 +1,36 @@
+// Evolutionary Leap — "{G}, Sacrifice a creature: Reveal cards from the top
+// of your library until you reveal a creature card. Put that card into your
+// hand and the rest on the bottom of your library in a random order."
+// `OneShotEffect::RevealUntil` fixture ([CR#702.85,701.57] the variable-length
+// dig-until): the found card binds as `It` ("that card"); the passed-over
+// prefix binds as the plural anaphor (`They`, "the rest"). Engine EXECUTION
+// fizzles to a documented no-op — the Reveal seam (`PlayerAction::Reveal` /
+// `GameEvent::Revealed`) is genuinely unbuilt, the same seam the sibling
+// `engine-explore` ticket is blocked on — so this fixture exercises the
+// grammar mirror + emit + render round-trip, not live resolution.
+Normal(
+  name: "Evolutionary Leap",
+  mana_cost: [
+    Generic(1),
+    Green,
+  ],
+  types: [
+    Enchantment,
+  ],
+  abilities: [
+    Activated(
+      cost: [
+        Mana([Green]),
+        With(binder: ChooseOne(filter: Type(Creature)), body: [Do(Sacrifice(That(Creature)))]),
+      ],
+      effect: RevealUntil(
+        whose: You,
+        matches: Type(Creature),
+        body: Sequentially([
+          Move(It, Hand),
+          MoveGroup(group: They, arrangement: RandomOrder, to: Library(FromBottom(0))),
+        ]),
+      ),
+    ),
+  ],
+)

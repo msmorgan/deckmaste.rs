@@ -2749,6 +2749,15 @@ fn emit_effect(e: &OneShotEffect) -> R {
         OneShotEffect::Reflexive(ta) => app("Reflexive", vec![emit_effect(&ta.effect)?]),
         OneShotEffect::Modal(m) => emit_modal(m)?,
         OneShotEffect::Targeted(t) => emit_targeted(t)?,
+        OneShotEffect::Repeat(n, body) => app("Repeat", vec![emit_count(n)?, emit_effect(body)?]),
+        OneShotEffect::RevealUntil(r) => app(
+            "RevealUntil",
+            vec![
+                emit_reference(&r.whose)?,
+                emit_filter(&r.matches)?,
+                emit_effect(&r.body)?,
+            ],
+        ),
         OneShotEffect::Expanded(_) => {
             return Err(gap(
                 "unexpanded OneShotEffect macro invocation remained after expand_all",

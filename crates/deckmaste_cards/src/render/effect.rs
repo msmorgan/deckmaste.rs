@@ -4,6 +4,7 @@ use std::fmt::Write as _;
 
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
+use deckmaste_core::Arrangement;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::CounterSpec;
@@ -245,8 +246,79 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // recurring phrasing `ability::event_clause` uses for a permanent's
         // own (repeating) triggers.
         OneShotEffect::Delayed(t) => delayed(t, ctx),
+        // [CR#702.85,701.57] the variable-length dig-until (cascade/discover's
+        // shape): "Reveal cards from the top of [whose]'s library until you
+        // reveal [a/an X]. [body]" — the found card reads as `It` ("that
+        // card"), the passed-over prefix as the plural anaphor ("the rest").
+        // Bespoke like `separate_piles`/`choose_pile`: recognizes the
+        // corpus's put-found-card / relocate-prefix-to-an-ordered-library-
+        // position shape, declines structurally otherwise.
+        OneShotEffect::RevealUntil(r) => reveal_until(r, ctx),
         other => format!("[unrendered: {other:?}]."),
     }
+}
+
+/// See [`OneShotEffect::RevealUntil`]'s render arm above.
+fn reveal_until(r: &deckmaste_core::RevealUntil, ctx: &Ctx) -> String {
+    let whose = fragment::reference(&r.whose, ctx);
+    let whose_poss = if whose.eq_ignore_ascii_case("you") {
+        "your".to_string()
+    } else {
+        format!("{whose}'s")
+    };
+    let noun = format!("{} card", fragment::filter_noun(&r.matches));
+    let lead = format!(
+        "Reveal cards from the top of {whose_poss} library until you reveal {}.",
+        a_an(&noun),
+    );
+    match reveal_until_body(&r.body, &whose_poss) {
+        Some(body) => format!("{lead} {body}"),
+        None => format!("{lead} [unrendered: {:?}].", r.body),
+    }
+}
+
+/// Recognizes the corpus's dig-until body shape: put the found card (`It`)
+/// somewhere, then relocate the passed-over prefix group (the plural
+/// `Selection::They`) to an ordered library position — "Put that card into
+/// your hand and the rest on the bottom of your library in a random order."
+/// (Evolutionary Leap). `None` for any other body shape — no other card in
+/// the corpus needs one yet.
+fn reveal_until_body(body: &OneShotEffect, whose_poss: &str) -> Option<String> {
+    let OneShotEffect::Sequentially(parts) = body else {
+        return None;
+    };
+    let [
+        OneShotEffect::Act(Action::Move(
+            Reference::It,
+            Destination::Zone(found_zone),
+            found_riders,
+        )),
+        OneShotEffect::Act(Action::MoveGroup {
+            group: Selection::They,
+            arrangement,
+            to: Destination::Library(anchor),
+            riders: group_riders,
+        }),
+    ] = parts.as_slice()
+    else {
+        return None;
+    };
+    if !found_riders.is_empty() || !group_riders.is_empty() {
+        return None;
+    }
+    let found_dest = match found_zone {
+        Zone::Hand => "into your hand",
+        _ => return None,
+    };
+    let order = match arrangement {
+        Arrangement::RandomOrder => " in a random order",
+        Arrangement::AnyOrder | Arrangement::ChosenOrder(_) => " in any order",
+        Arrangement::SameOrder => "",
+    };
+    Some(format!(
+        "Put that card {found_dest} and the rest on {} of {whose_poss} library{order}.",
+        fragment::library_position(anchor),
+    ))
 }
 
 /// A delayed triggered ability's lead-in + body ([CR#603.7]). See
@@ -991,6 +1063,76 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
         }
     }
     Some(parts.join(" and "))
+}
+
+/// An activated ability's printed cost line ([CR#602.1] — cost components
+/// separated by commas, e.g. "{G}, Sacrifice a creature:"). A run of
+/// symbol-only components (mana/tap/…) renders as ONE glued group via the
+/// shared `render_cost` glyph renderer (so `{1}{T}` stays adjacent, never
+/// comma-split mid-symbol-run); a verb component (`Do`/`With`) renders its
+/// lowercased clause, exactly like [`additional_payment`]'s reader — the two
+/// kinds of segment then join with ", ". No existing corpus card mixes a
+/// symbol run with a verb component in an ACTIVATION cost yet (only
+/// `AdditionalCost`'s printed-additional-cost clause did, which is why this
+/// is a distinct function rather than a reuse of `additional_payment`: that
+/// one's all-symbol case reads "pay {cost}", which is wrong here — an
+/// activation cost line never says "pay").
+pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> String {
+    use deckmaste_core::CostComponent;
+
+    fn flush_symbol_run(run: &mut Vec<deckmaste_core::CostComponent>, parts: &mut Vec<String>) {
+        if run.is_empty() {
+            return;
+        }
+        parts.push(
+            super::template::render_cost(run).unwrap_or_else(|| format!("[unrendered: {run:?}]")),
+        );
+        run.clear();
+    }
+
+    let mut parts = Vec::new();
+    let mut symbol_run = Vec::new();
+    for component in cost {
+        match component {
+            CostComponent::Mana(_)
+            | CostComponent::Tap
+            | CostComponent::Untap
+            | CostComponent::ManaCostOf(_)
+            | CostComponent::TapTotal { .. } => symbol_run.push(component.clone()),
+            CostComponent::Do(pa) => {
+                flush_symbol_run(&mut symbol_run, &mut parts);
+                let phrase = trim_period(&player_action(pa, ctx));
+                // CR#602.1's printed convention capitalizes each verb-cost
+                // segment ("{T}, Sacrifice a Goblin: ..."), unlike a body
+                // verb clause joined mid-sentence.
+                parts.push(capitalize_first(&phrase));
+            }
+            // The same choose-then-pay reader `additional_payment` uses:
+            // bind the binder's noun phrase as the body verbs' `That`
+            // anaphor, then render the body's `Do` verbs — "Sacrifice a
+            // creature".
+            CostComponent::With { binder, body } => {
+                flush_symbol_run(&mut symbol_run, &mut parts);
+                let phrase = binder_phrase(binder, ctx);
+                let inner = ctx.with_that(&phrase);
+                for inner_comp in body {
+                    match inner_comp {
+                        CostComponent::Do(pa) => {
+                            let p = trim_period(&player_action(pa, &inner));
+                            parts.push(capitalize_first(&p));
+                        }
+                        other => parts.push(format!("[unrendered: {other:?}]")),
+                    }
+                }
+            }
+            other @ (CostComponent::Cost(_) | CostComponent::Expanded(_)) => {
+                flush_symbol_run(&mut symbol_run, &mut parts);
+                parts.push(format!("[unrendered: {other:?}]"));
+            }
+        }
+    }
+    flush_symbol_run(&mut symbol_run, &mut parts);
+    parts.join(", ")
 }
 
 /// The phrase an `AdditionalCost` body's `EventObject` anaphor should read,

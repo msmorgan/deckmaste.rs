@@ -121,8 +121,7 @@ pub(super) fn activated(a: &deckmaste_core::ActivatedAbility, view: &CardView) -
         targets: &[],
         that: None,
     };
-    let cost = super::template::render_cost(&a.cost.0)
-        .unwrap_or_else(|| format!("[unrendered: {:?}]", a.cost));
+    let cost = effect::activated_cost(&a.cost.0, &ctx);
     let body = effect::effect(&a.effect, &ctx);
     from_zone_qualified(a.from, view.name, format!("{cost}: {body}"))
 }

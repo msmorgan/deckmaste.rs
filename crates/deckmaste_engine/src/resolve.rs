@@ -1050,6 +1050,60 @@ impl GameState {
             // choice (`Sacrifice(Choose …)`) — the paid object isn't known until
             // the choice resolves, so `EventObject` is left unbound here (it needs
             // a payment-time capture continuation).
+            // "[body], [count] times" ([CR#608.2] quantifier family, sibling
+            // to `Each`/`Distribute`): `count` is evaluated ONCE, up front,
+            // to a concrete number (Storm/Replicate-style per-iteration
+            // semantics are engine-side, per the Idris comment) — never
+            // re-evaluated per iteration, so a body that changes game state
+            // mid-loop (e.g. proliferating counters) can't skew how many
+            // iterations remain. Each iteration is its own
+            // `WorkItem::RunEffect`, scheduled in strict sequence: unlike
+            // `Each`'s all-`Emit` fast path, a `Repeat` body always gets one
+            // `RunEffect` per repetition, so a choice-bearing body pauses and
+            // resumes per iteration rather than being auto-resolved (the
+            // engine-steppable ruling). `count`'s own domain bounds the loop
+            // (the same `Uint` a `Distribute`/`Modal` count already uses,
+            // read via the same `eval_count`) — a huge-but-finite count (a
+            // storm count, a repeated proliferate) allocates a
+            // proportionally large work list but never HANGS: there is no
+            // "and continue forever" shape here to guard against, so no
+            // artificial cap is invented.
+            OneShotEffect::Repeat(count, body) => {
+                let n = self.eval_count(&count, frame);
+                let items: Vec<WorkItem> = (0..n)
+                    .map(|_| WorkItem::RunEffect {
+                        effect: body.clone(),
+                        frame: frame.clone(),
+                    })
+                    .collect();
+                self.schedule_front(items);
+            }
+            // [CR#702.85,701.57] dig-until (cascade/discover's shape): reveal
+            // cards off the top of `whose`'s library one at a time until one
+            // matches, binding the found card as `It` and the passed-over
+            // prefix as `They` (the Idris `bindFound`/`bindIt`+`bindThat`),
+            // then run `body`. GENUINELY ABSENT SUBSYSTEM — the identical
+            // seam the sibling `engine-explore` ticket
+            // (`docs/tickets/planned/engine-explore.md`, itself split out of
+            // `engine-scry-surveil-explore` for exactly this reason) is
+            // blocked on: `PlayerAction::Reveal` / `GameEvent::Revealed` are
+            // SHAPED but unbuilt (`todo!("P0.W6: reveal apply")` at
+            // `step.rs`'s `GameEvent::Revealed` apply arm;
+            // `todo!("P0.W6: reveal/look")` at this file's own
+            // `PlayerAction::Reveal` arm) — the reveal WINDOW lifetime
+            // machinery ([CR#701.20a]) they need does not exist. The
+            // predicate-match (`target::matches`) and `It`/`They`
+            // anaphora-binding machinery this needs ARE built and reusable,
+            // but walking the library and binding anaphora WITHOUT ever
+            // emitting a reveal fact would silently skip the one thing that
+            // makes "reveal" a real game action (a future "whenever a card
+            // is revealed"/"as long as it's revealed" consumer would see
+            // nothing happen) — a convenient-but-wrong shortcut, not a fix.
+            // Building the seam is a real subsystem, out of scope for a
+            // grammar-mirror task; this arm fizzles to a graceful no-op
+            // instead (nothing revealed, `body` never runs) — never a
+            // panic, matching the CRITICAL never-crash ruling.
+            OneShotEffect::RevealUntil(_) => {}
             OneShotEffect::AdditionalCost(ac) => {
                 let cost = ac.pay.normalize().0;
                 let mut body_frame = frame.clone();
@@ -5613,6 +5667,154 @@ mod tests {
             !matches!(state.agenda.front(), Some(WorkItem::Emit(_))),
             "a choice-bearing Each body must not collapse to a simultaneous Emit batch"
         );
+    }
+
+    /// [CR#608.2] "[body], [count] times": a plain (non-choice) body runs the
+    /// evaluated count total — `count` is read ONCE, up front (`eval_count`),
+    /// never re-evaluated mid-loop.
+    #[test]
+    fn repeat_runs_a_plain_body_count_times() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+
+        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(2)));
+        state.run_effect(
+            OneShotEffect::Repeat(Count::Literal(3), Box::new(body)),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 40);
+
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 6,
+            "three iterations of +2 life = +6 total"
+        );
+    }
+
+    /// A count of zero schedules nothing — never a panic, never a hang; the
+    /// CRITICAL never-crash ruling applies to a degenerate `Repeat` exactly
+    /// as it does to every other new arm.
+    #[test]
+    fn repeat_zero_is_a_no_op() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        let agenda_before = state.agenda.len();
+
+        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(2)));
+        state.run_effect(
+            OneShotEffect::Repeat(Count::Literal(0), Box::new(body)),
+            &frame,
+        );
+
+        assert_eq!(
+            state.agenda.len(),
+            agenda_before,
+            "count=0 schedules no ADDITIONAL work (a fresh game already has its own \
+             turn-structure agenda queued, so this compares the delta, not raw emptiness)"
+        );
+        let _ = drain_progress(&mut state, 5);
+        assert_eq!(state.player(p0).life, life0, "no iterations ran");
+    }
+
+    /// A choice-bearing body (`May`) surfaces its OWN decision on EVERY
+    /// repetition — never auto-resolved (the engine-steppable ruling): the
+    /// second iteration's yes/no is not decided until the first iteration's
+    /// answer has actually been submitted and applied.
+    #[test]
+    fn repeat_over_a_choice_bearing_body_steps_each_iteration_independently() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+
+        let may_gain_3 = || {
+            OneShotEffect::May(deckmaste_core::May {
+                effect: Box::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
+                    Count::Literal(3),
+                ))),
+                if_did: None,
+                if_not: None,
+            })
+        };
+        state.run_effect(
+            OneShotEffect::Repeat(Count::Literal(2), Box::new(may_gain_3())),
+            &frame,
+        );
+
+        // Pump steps until a decision surfaces (a `RunEffect` work item's own
+        // `step()` call only *sets* `self.pending` as a side effect and
+        // returns `Progress::Resolving` for that step; `NeedsDecision` is
+        // reported on the NEXT `step()` call, which sees `pending` already
+        // set — so this may take more than one `step()`).
+        fn step_to_decision(state: &mut GameState) -> crate::decide::PendingDecision {
+            loop {
+                match state.step() {
+                    StepOutcome::NeedsDecision(d) => return d,
+                    StepOutcome::Progress(_) => {}
+                    StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
+                }
+            }
+        }
+
+        // First iteration's decision.
+        let PendingDecision::YesNo { player } = step_to_decision(&mut state) else {
+            panic!("expected the first iteration's YesNo");
+        };
+        assert_eq!(player, p0);
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        let _ = drain_progress(&mut state, 10);
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 3,
+            "first iteration applied alone"
+        );
+
+        // Second iteration's OWN decision — not skipped, not pre-answered.
+        let PendingDecision::YesNo { player } = step_to_decision(&mut state) else {
+            panic!("expected the second iteration's own YesNo");
+        };
+        assert_eq!(player, p0);
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        let _ = drain_progress(&mut state, 10);
+        assert_eq!(state.player(p0).life, life0 + 6, "both iterations applied");
+    }
+
+    /// [CR#702.85,701.57] `RevealUntil` fizzles to a graceful no-op — the
+    /// Reveal seam (`PlayerAction::Reveal`/`GameEvent::Revealed`) is
+    /// genuinely unbuilt (see the doc comment on this arm in `run_effect`),
+    /// so `body` never runs and nothing is scheduled — never a panic,
+    /// matching the CRITICAL never-crash ruling.
+    #[test]
+    fn reveal_until_fizzles_to_a_no_op() {
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(a);
+        let life0 = state.player(PlayerId(0)).life;
+        let agenda_before = state.agenda.len();
+
+        let effect = OneShotEffect::RevealUntil(deckmaste_core::RevealUntil {
+            whose: Reference::You,
+            matches: Predicate::creature(),
+            body: Box::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
+                Count::Literal(99),
+            ))),
+        });
+        state.run_effect(effect, &frame);
+
+        assert_eq!(
+            state.agenda.len(),
+            agenda_before,
+            "RevealUntil schedules no ADDITIONAL work — the absent-subsystem no-op (compares \
+             the delta, since a live game already has its own turn-structure agenda queued)"
+        );
+        let _ = drain_progress(&mut state, 5);
+        assert_eq!(state.player(PlayerId(0)).life, life0, "body never runs");
     }
 
     /// The Blood-Money shape ([CR#607.2a] fact-backed product groups): a

@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::ChooseSpec;
 use crate::Condition;
 use crate::Cost;
+use crate::Count;
 use crate::Expand;
 use crate::Expansion;
 use crate::Mode;
@@ -161,6 +162,31 @@ pub enum OneShotEffect {
     /// consumes it, its announced slots read back by the anaphors
     /// (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth announced slot).
     Targeted(Targeted),
+    /// "[body], [count] times" ([CR#608.2] — the quantifier family, sibling
+    /// to [`Each`](OneShotEffect::Each)/
+    /// [`Distribute`](OneShotEffect::Distribute) rather than the
+    /// manner-adverb family
+    /// ([`Simultaneously`](OneShotEffect::Simultaneously)/
+    /// [`Continuously`](OneShotEffect::Continuously)): a `Count` over ONE
+    /// body, not a manner over a list. `body` elaborates in the SAME
+    /// context every iteration — no iteration-index binder; Storm/Replicate
+    /// per-iteration semantics are engine-side. `body` is boxed to break
+    /// the `OneShotEffect` → `Repeat` → `OneShotEffect` size cycle. Mirrors
+    /// the Idris `Repeat : (count : Count b) -> OneShotEffect
+    /// b -> OneShotEffect b`.
+    Repeat(Count, Box<OneShotEffect>),
+    /// The variable-length DIG-UNTIL ([CR#702.85] cascade, [CR#701.57]
+    /// discover): `whose` reveals cards off the top of their library one at a
+    /// time until one matches `matches`; `body` then runs with the found card
+    /// bound as [`Reference::It`](crate::Reference::It) and the passed-over
+    /// prefix bound as the plural anaphor
+    /// ([`Selection::They`](crate::Selection::They)) — the Idris
+    /// `bindFound` binding. Reveal-nothing (no match in the
+    /// library) degrades at runtime, never a compile-time gate. Mirrors the
+    /// Idris `RevealUntil : (whose : Reference b APlayer) -> (match :
+    /// Predicate b AnObject) -> OneShotEffect (bindFound match b) ->
+    /// OneShotEffect b`.
+    RevealUntil(RevealUntil),
     /// A remembered `OneShotEffect` macro invocation (declared compound verbs
     /// like `Investigate`). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
@@ -329,6 +355,19 @@ pub struct With {
 pub struct Distribute {
     pub amount: crate::Count,
     pub binder: crate::Binder,
+    pub body: Box<OneShotEffect>,
+}
+
+/// `RevealUntil { whose, matches, body }` — see
+/// [`OneShotEffect::RevealUntil`]. `whose`'s library is revealed from the top
+/// one card at a time until one satisfies `matches`; `body` then runs with
+/// the found card bound as `It` and the passed-over prefix bound as the
+/// plural anaphor. `body` is boxed to break the `OneShotEffect` ->
+/// `RevealUntil` -> `OneShotEffect` size cycle.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct RevealUntil {
+    pub whose: crate::Reference,
+    pub matches: crate::Predicate,
     pub body: Box<OneShotEffect>,
 }
 
