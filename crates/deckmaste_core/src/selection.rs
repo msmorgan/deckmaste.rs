@@ -1,26 +1,11 @@
-use serde::Deserialize;
-use serde::Serialize;
-
+use crate::AggregateOp;
 use crate::Count;
-use crate::Expand;
 use crate::Expansion;
 use crate::Predicate;
+use crate::Projection;
 use crate::Quantity;
 use crate::Reference;
 use crate::SupportsMacros;
-
-/// Which extreme a [`Selection::Pick`] takes — the subset of the aggregate
-/// ops along which an *element* is well-defined ([CR#107.1]). Only the
-/// extremal ops are representable here (no "pick the sum"); the value-twin
-/// fold over the same projection is the aggregate-count work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Extremum {
-    /// The element with the greatest projected value ("the creature with the
-    /// greatest power").
-    Greatest,
-    /// The element with the least projected value.
-    Least,
-}
 
 /// A resolution-time group or query over objects — the plural/collective
 /// shape a combinator binds ([CR#608.2d]). This is the pure group/query type:
@@ -89,18 +74,16 @@ pub enum Selection {
     /// ` key, keyed by their divider: `of` names the player whose piles
     /// these are ([CR#700.3a]; the Whims-of-the-Fates per-player nesting).
     PilesOf { note: crate::Ident, of: Reference },
-    /// The extremal element(s) of a set, ranked by a per-element projection
-    /// ([CR#107.1]): "the creature with the greatest power" =
-    /// `Pick(op: Greatest, of: Type(Creature), by: StatOf(It, Power))`.
-    /// The element-twin of the aggregate fold; the projection `by` reads each
-    /// candidate via [`Reference::It`](crate::Reference::It), and ties yield
-    /// the whole group (narrowed by the usual single/choice path
-    /// downstream).
-    Pick {
-        op: Extremum,
-        of: Predicate,
-        by: Box<Count>,
-    },
+    /// The extremal element(s) of a set, ranked by a per-element
+    /// [`Projection`] ([CR#107.1]): "the creature with the greatest power" =
+    /// `Pick(op: MaxOf, proj: (of: Objects(Type(Creature)), by: StatOf(It,
+    /// Power)))`. `op` is gated to the extremal ops (`MinOf`/`MaxOf`); a
+    /// non-extremal `op` fizzles to the empty group. The element-twin of
+    /// [`Count::Aggregate`] — shares [`Projection`] with it; the projection's
+    /// `by` reads each candidate via [`Reference::It`](crate::Reference::It),
+    /// and ties yield the whole group (narrowed by the usual single/choice
+    /// path downstream).
+    Pick { op: AggregateOp, proj: Projection },
     /// A remembered `Selection` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<Selection>),
@@ -212,20 +195,26 @@ mod tests {
         assert_eq!(read(&to_string(&piles)), piles);
     }
 
-    /// `Pick` (extremal element) parses from named RON and round-trips — the
-    /// element-twin of the aggregate fold.
+    /// `Pick` (extremal element) parses from named RON and round-trips on the
+    /// shared `AggregateOp` + `Projection` machinery — the element-twin of
+    /// `Count::Aggregate`.
     #[test]
-    fn pick_round_trips() {
+    fn pick_round_trips_on_aggregate_op() {
         let v = Selection::Pick {
-            op: Extremum::Greatest,
-            of: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
-            by: Box::new(Count::StatOf(crate::Reference::This, crate::Stat::Power)),
+            op: crate::AggregateOp::MaxOf,
+            proj: crate::Projection {
+                of: crate::Countable::Objects(Box::new(Predicate::Characteristic(
+                    CharacteristicPredicate::Type(Type::Creature),
+                ))),
+                by: Box::new(Count::StatOf(crate::Reference::It, crate::Stat::Power)),
+            },
         };
-        assert_eq!(read(&to_string(&v)), v);
+        let s = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(crate::ron::options().from_str::<Selection>(&s).unwrap(), v);
         assert!(matches!(
-            read("Pick(op: Least, of: Type(Creature), by: StatOf(It, Toughness))"),
+            read("Pick(op: MinOf, proj: (of: Objects(Type(Creature)), by: StatOf(It, Toughness)))"),
             Selection::Pick {
-                op: Extremum::Least,
+                op: crate::AggregateOp::MinOf,
                 ..
             },
         ));

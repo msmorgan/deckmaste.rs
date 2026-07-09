@@ -1161,19 +1161,20 @@ fn emit_selection(s: &Selection) -> R {
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
         Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),
-        Selection::Pick { op, of, by } => {
-            let op_name = match op {
-                deckmaste_core::Extremum::Greatest => "MaxOf",
-                deckmaste_core::Extremum::Least => "MinOf",
-            };
-            app(
-                "Pick",
-                vec![
-                    op_name.to_string(),
-                    format!("(eachOf {} {})", emit_filter(of)?, emit_count(by)?),
-                ],
-            )
-        }
+        // [CR#107.1]: the extremal element(s) of `proj` — shares `Project`
+        // emission with `Count::Aggregate`; `op` is identity on the Idris
+        // `AggregateOp` name (gated to `MinOf`/`MaxOf` at the Rust type by
+        // the eval fizzle, not here).
+        Selection::Pick { op, proj } => app(
+            "Pick",
+            vec![
+                emit_aggregate_op(op),
+                app(
+                    "Project",
+                    vec![emit_countable(&proj.of)?, emit_count(&proj.by)?],
+                ),
+            ],
+        ),
         Selection::Expanded(_) => {
             return Err(gap(
                 "unexpanded Selection macro invocation remained after expand_all",

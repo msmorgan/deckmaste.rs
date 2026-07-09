@@ -191,7 +191,6 @@ pub use symbol::Symbol;
 pub mod ron;
 
 mod selection;
-pub use selection::Extremum;
 pub use selection::Selection;
 
 // Play-policy types (`strategy::Strategy`, `Preference`, …). Deliberately NOT

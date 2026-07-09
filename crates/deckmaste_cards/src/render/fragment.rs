@@ -7,7 +7,6 @@ use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::Countable;
-use deckmaste_core::Extremum;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::Predicate;
@@ -250,18 +249,27 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
             format!("the piles {} separated", reference(of, ctx))
         }
         // [CR#107.1] the extremal element: "the creature with the greatest
-        // power". The projection's axis is named when it is a simple stat read.
-        Selection::Pick { op, of, by } => {
+        // power". The projection's axis is named when it is a simple stat
+        // read. A non-extremal `op` is malformed authoring (fizzles at
+        // resolution) and falls through to the generic `[unrendered: …]`; a
+        // `ManaSymbols`-sourced `of` has no forced card yet.
+        Selection::Pick { op, proj } => {
             let extreme = match op {
-                Extremum::Greatest => "greatest",
-                Extremum::Least => "least",
+                AggregateOp::MaxOf => "greatest",
+                AggregateOp::MinOf => "least",
+                AggregateOp::SumOf | AggregateOp::AverageOf(_) => "",
             };
-            let axis = match by.as_ref() {
-                Count::StatOf(_, Stat::Power) => " power",
-                Count::StatOf(_, Stat::Toughness) => " toughness",
-                _ => "",
-            };
-            format!("the {} with the {extreme}{axis}", filter_noun(of))
+            match &proj.of {
+                Countable::Objects(filter) if !extreme.is_empty() => {
+                    let axis = match proj.by.as_ref() {
+                        Count::StatOf(_, Stat::Power) => " power",
+                        Count::StatOf(_, Stat::Toughness) => " toughness",
+                        _ => "",
+                    };
+                    format!("the {} with the {extreme}{axis}", filter_noun(filter))
+                }
+                _ => format!("[unrendered: {sel:?}]"),
+            }
         }
         other => format!("[unrendered: {other:?}]"),
     }

@@ -2170,13 +2170,27 @@ impl GameState {
             Selection::SelectAll(f) => crate::target::candidates(self, f),
 
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
-            // per-element projection. Each candidate is bound as the frame's
-            // iteration anaphor `It` so the projection (`by`) reads it via
-            // `Reference::It`; ties yield the whole tied group (the usual
-            // single/choice path narrows downstream).
-            Selection::Pick { op, of, by } => {
-                use deckmaste_core::Extremum;
-                let candidates = crate::target::candidates(self, of);
+            // shared `Projection` ([`Count::Aggregate`]'s element-twin). Each
+            // candidate is bound as the frame's iteration anaphor `It` so the
+            // projection (`proj.by`) reads it via `Reference::It`; ties yield
+            // the whole tied group (the usual single/choice path narrows
+            // downstream). Mirrors `Count::Aggregate`'s candidate enumeration
+            // exactly (`candidates_with` + the frame's watcher) rather than
+            // the frameless `target::candidates`, so a `Ref(You)`-relative
+            // `of` ("the creature YOU control with the greatest power")
+            // resolves instead of panicking on a frameless position. `op` is
+            // gated to the extremal ops; a non-extremal `op` fizzles to the
+            // empty group.
+            Selection::Pick { op, proj } => {
+                use deckmaste_core::AggregateOp;
+                use deckmaste_core::Countable;
+                let candidates = match &proj.of {
+                    Countable::Objects(filter) => {
+                        let watcher = self.frame_watcher(frame);
+                        crate::target::candidates_with(self, filter, Some(watcher))
+                    }
+                    Countable::ManaSymbols(..) => Vec::new(),
+                };
                 let scored: Vec<(ObjectId, Uint)> = candidates
                     .into_iter()
                     .map(|id| {
@@ -2188,12 +2202,15 @@ impl GameState {
                             },
                             ..frame.clone()
                         };
-                        (id, self.eval_count(by, &sub))
+                        (id, self.eval_count(&proj.by, &sub))
                     })
                     .collect();
                 let extremum = match op {
-                    Extremum::Greatest => scored.iter().map(|(_, v)| *v).max(),
-                    Extremum::Least => scored.iter().map(|(_, v)| *v).min(),
+                    AggregateOp::MaxOf => scored.iter().map(|(_, v)| *v).max(),
+                    AggregateOp::MinOf => scored.iter().map(|(_, v)| *v).min(),
+                    // A non-extremal op on Pick is malformed authoring —
+                    // fizzle to the empty group (never-crash).
+                    AggregateOp::SumOf | AggregateOp::AverageOf(_) => None,
                 };
                 match extremum {
                     Some(target) => scored
@@ -9263,9 +9280,11 @@ mod tests {
         let courser = ids[2];
         let frame = frame_for(&state, PlayerId(0));
         let greatest = Selection::Pick {
-            op: deckmaste_core::Extremum::Greatest,
-            of: creatures_in_play(),
-            by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            op: deckmaste_core::AggregateOp::MaxOf,
+            proj: deckmaste_core::Projection {
+                of: deckmaste_core::Countable::Objects(Box::new(creatures_in_play())),
+                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            },
         };
         assert_eq!(
             state.eval_selection_set(&greatest, &frame),
@@ -9273,9 +9292,11 @@ mod tests {
             "Centaur Courser (3 power) is the unique greatest",
         );
         let least = Selection::Pick {
-            op: deckmaste_core::Extremum::Least,
-            of: creatures_in_play(),
-            by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            op: deckmaste_core::AggregateOp::MinOf,
+            proj: deckmaste_core::Projection {
+                of: deckmaste_core::Countable::Objects(Box::new(creatures_in_play())),
+                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            },
         };
         let picked = state.eval_selection_set(&least, &frame);
         assert_eq!(picked.len(), 2, "the two 2-power creatures tie for least");
