@@ -1885,4 +1885,55 @@ mod tests {
             "loss fires once the gate is gone"
         );
     }
+
+    #[test]
+    fn gated_empty_draw_window_lapses() {
+        use crate::agenda::WorkItem;
+        use crate::object::ObjectSource;
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        });
+        let card_id = state.cards.push(angel, PlayerId(0));
+        let angel_obj = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(angel_obj);
+        state.players[0].drew_from_empty = true;
+
+        // One SBA check while gated: loss suppressed AND window closed.
+        state.schedule_front(vec![WorkItem::CheckSbas]);
+        let _ = state.step();
+        assert!(
+            !state.players[0].drew_from_empty,
+            "gated empty-draw window is closed"
+        );
+
+        // Remove the gate; the lapsed window means no retroactive loss.
+        state.zones.battlefield.retain(|&o| o != angel_obj);
+        state.objects.obj_mut(angel_obj).zone = None;
+        let actions = sba::sweep(&state);
+        assert!(
+            !actions.iter().any(
+                |e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == PlayerId(0))
+            ),
+            "no retroactive empty-draw loss after the window lapsed"
+        );
+    }
 }

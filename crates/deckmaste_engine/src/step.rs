@@ -1475,6 +1475,7 @@ impl GameState {
         // resulting destroy (shield consumed, damage healed) then presents a
         // clean flag on the re-check and is not wrongly destroyed a second time.
         self.clear_deathtouch_marks();
+        self.close_gated_draw_windows();
         let count = Uint::try_from(actions.len()).expect("action count fits in Uint");
         if count > 0 {
             // Re-check is conditional on this batch actually changing state.
@@ -1491,6 +1492,28 @@ impl GameState {
         let ids: Vec<_> = self.objects.iter().map(|o| o.id).collect();
         for id in ids {
             self.objects.obj_mut(id).struck_by_deathtouch = false;
+        }
+    }
+
+    /// [CR#704.5b] is a WINDOWED predicate ("since the last time SBAs were
+    /// checked"). When a `CantLose` gate ([CR#101.1], ADR U5) suppresses an
+    /// empty-draw loss, close that player's window so the loss does NOT
+    /// retroactively fire once the gate leaves — unlike the standing life/
+    /// poison predicates, which re-fire at the first ungated check.
+    fn close_gated_draw_windows(&mut self) {
+        let view = self.layers();
+        let gated: Vec<PlayerId> = self
+            .players
+            .iter()
+            .filter(|p| {
+                p.drew_from_empty
+                    && !p.lost
+                    && self.gate_suppresses(&view, p.id, deckmaste_core::OutcomeGateKind::CantLose)
+            })
+            .map(|p| p.id)
+            .collect();
+        for p in gated {
+            self.player_mut(p).drew_from_empty = false;
         }
     }
 
