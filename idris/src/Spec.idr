@@ -85,6 +85,24 @@ tRollUnionAmountless = Refl
 tRollDiceAloneHasAmount : kindsHaveAmount [RollDice] = True
 tRollDiceAloneHasAmount = Refl
 
+-- the planar-die union is likewise NOT randomness-eligible ([CR#614.3,901.9d]): this gates the future
+-- `ReplaceRoll` — a "roll one or more dice" that includes the planar die can't be Krark's Thumb'd.
+tRollPlanarUnionNotRandomness : kindsAreRandomness [RollDice, RollPlanarDie Nothing] = False
+tRollPlanarUnionNotRandomness = Refl
+
+-- the positive companion: `RollDice`/`FlipCoin` alone stay randomness-eligible ([CR#614.3]).
+tRollDiceFlipCoinAreRandomness : kindsAreRandomness [RollDice, FlipCoin Nothing] = True
+tRollDiceFlipCoinAreRandomness = Refl
+
+-- lifted onto the `EventQuery` wrapper (a named `EventQuery Base` value, mirroring `tBecomesBlocked`
+-- et al. — pins `b` before elaborating `MkEventQuery`, avoiding the ambiguous-`b` trap an inline
+-- `isRandomnessQuery (MkEventQuery ...) = False` hits with no outer `EventQuery b` signature).
+tRollPlanarQuery : EventQuery Base
+tRollPlanarQuery = MkEventQuery [RollDice, RollPlanarDie Nothing] []
+
+tEventQueryRollPlanarNotRandomness : isRandomnessQuery Spec.tRollPlanarQuery = False
+tEventQueryRollPlanarNotRandomness = Refl
+
 -- THE stack-weakening lemma, exercised ([type-theory#4]): pushing a
 -- NON-candidate (here a player role antecedent, against a "that card" read)
 -- moves no resolution — one lemma over the one resolve function. Sorted
