@@ -1329,15 +1329,25 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     };
     let (targets, selection) = damage_target(tail)?;
     // A verb takes a single `Reference`; a "to each / to all" shape's patient is
-    // a `SelectAll(...)` SELECTION, which can't ride the verb directly. Wrap it
-    // in `Each` over the many-`Binder` `Existing(<selection>)`, binding each
-    // member in turn as the iteration anaphor `It` per element ([CR#608.2d]
-    // to-each), with the verb taking that anaphor. A targeted shape's patient
-    // is a `Reference` (`It`) and rides the verb unchanged.
-    let effect = if selection.starts_with("SelectAll(") {
-        format!("Each(binder: Existing({selection}), effect: DealDamage(This, {amount}, It))")
-    } else {
-        format!("DealDamage(This, {amount}, {selection})")
+    // a `SelectAll(...)` SELECTION, which can't ride the verb directly — that
+    // shape is the `DealsDamageToEach` macro
+    // (`plugins/builtin/macros/effect/DealsDamageToEach.ron`): `Each` over the
+    // many-`Binder` `Existing(SelectAll(<filter>))`, binding each member in
+    // turn as the iteration anaphor `It` per element ([CR#608.2d] to-each),
+    // with `DealDamage` taking that anaphor. Emitting the macro invocation
+    // (rather than inlining the `Each`/`SelectAll` shell here) is what lets
+    // this shape render back through its own template
+    // ([`crate::parsers::filter`]'s recipient filter is the invocation's
+    // second argument) — the same "production emits the macro" pattern the
+    // trigger families use for their `EventFilter` macros. A targeted
+    // shape's patient is a `Reference` (`It`) and rides the verb unchanged,
+    // no macro needed.
+    let effect = match selection
+        .strip_prefix("SelectAll(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        Some(filter) => format!("DealsDamageToEach({amount}, {filter})"),
+        None => format!("DealDamage(This, {amount}, {selection})"),
     };
     Some(ParsedEffect { targets, effect })
 }
@@ -1632,6 +1642,29 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         "each creature and each player" => {
             (Vec::new(), "SelectAll(Or([Creature, Player]))".to_owned())
         }
+        // A "each <subject>" mass-burn recipient class beyond the bare-noun
+        // shapes above (the damage-sweeper family, ~186 corpus lines):
+        // "each creature your opponents control" ([CR#608.2d] distributive
+        // each over a characteristic-filtered set; [CR#102.2] opponent),
+        // reusing the shared object-target grammar so any filter it already
+        // models (a controller postfix, a color/subtype adjective, a type
+        // disjunction, …) sweeps too.
+        _ if text.starts_with("each ") => {
+            let subject = text.strip_prefix("each ")?;
+            let filter = object_target_filter(subject)?;
+            // A "with/without <keyword>" quality clause ("each creature
+            // without flying") parses through to a `Has(...)`/`Not(Has(...))`
+            // atom, but the renderer ([`fragment::filter_noun`] in
+            // `deckmaste_cards`) has no arm for it yet — emitting the filter
+            // would silently drop the qualifier on render (the recurring
+            // "no render arm" trap). Decline rather than mint an effect that
+            // can't render back; left unmodeled for a follow-up once the
+            // renderer grows `Has` support.
+            if filter.contains("Has(") {
+                return None;
+            }
+            (Vec::new(), format!("SelectAll({filter})"))
+        }
         // A "target <subject>" object target whose subject parses through the
         // shared object-target grammar (single head noun, or a "<type> or
         // <type>" / "attacking or blocking creature" disjunction).
@@ -1889,33 +1922,54 @@ mod tests {
 
     #[test]
     fn deal_damage_each_shapes() {
-        // A "to each" shape wraps the verb in `Each` over the many-`Binder`
-        // `Existing(<filter>)`, binding the iteration anaphor `It` per member
-        // ([CR#608.2d]) — a verb takes a single `Reference`, never a `Predicate`.
+        // A "to each" shape emits the `DealsDamageToEach` macro invocation
+        // (`plugins/builtin/macros/effect/DealsDamageToEach.ron`) — the
+        // `Each`/`SelectAll`/`DealDamage(This, n, It)` shell ([CR#608.2d]
+        // distributive each; a verb takes a single `Reference`, never a
+        // `Predicate`) is the macro's body, not inlined by the parser.
         assert_eq!(
             parsed("~ deals 2 damage to each creature."),
-            Some((
-                String::new(),
-                "Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(This, 2, It))"
-                    .to_owned()
-            ))
+            Some((String::new(), "DealsDamageToEach(2, Creature)".to_owned()))
         );
         assert_eq!(
             parsed("~ deals 20 damage to each player."),
-            Some((
-                String::new(),
-                "Each(binder: Existing(SelectAll(Player)), effect: DealDamage(This, 20, It))"
-                    .to_owned()
-            ))
+            Some((String::new(), "DealsDamageToEach(20, Player)".to_owned()))
         );
         // "each opponent" -> the player set "opponents of you".
         assert_eq!(
             parsed("~ deals 1 damage to each opponent."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: DealDamage(This, 1, It))"
+                "DealsDamageToEach(1, OpponentOf(Ref(You)))".to_owned()
+            ))
+        );
+    }
+
+    /// The damage-sweeper family's filtered recipient: "each creature your
+    /// opponents control" ([CR#608.2d] distributive each; [CR#102.2]
+    /// opponent) reuses the shared object-target filter grammar
+    /// ([`filter::parse_phrase`]'s controller postfix), sweeping past the
+    /// bare-noun shapes `deal_damage_each_shapes` pins.
+    #[test]
+    fn deal_damage_each_filtered_recipient() {
+        assert_eq!(
+            parsed("~ deals 3 damage to each creature your opponents control."),
+            Some((
+                String::new(),
+                "DealsDamageToEach(3, And([Creature, ControlledBy(OpponentOf(Ref(You)))]))"
                     .to_owned()
             ))
+        );
+        // "with/without <keyword>" recipients decline: the renderer has no
+        // `Has(...)` arm yet, so parsing one would mint an effect that can't
+        // render back ([`fragment::filter_noun`] in `deckmaste_cards`).
+        assert_eq!(
+            parsed("~ deals 2 damage to each creature with flying."),
+            None
+        );
+        assert_eq!(
+            parsed("~ deals 2 damage to each creature without flying."),
+            None
         );
     }
 
@@ -2095,8 +2149,11 @@ mod tests {
 
     #[test]
     fn declines_unknown_damage_targets_and_non_effects() {
-        // A damage target the grammar doesn't model still declines.
-        assert!(declines("~ deals 3 damage to each artifact."));
+        // A damage target the grammar doesn't model still declines. ("each
+        // artifact" now resolves via the mass-burn recipient-class fallback
+        // — see `deal_damage_each_shapes`/`deal_damage_each_filtered_recipient`
+        // — so pick a phrase the shared filter grammar still rejects here.)
+        assert!(declines("~ deals 3 damage to each creature wearing hats."));
         assert!(declines("Flying"));
         assert!(declines("~ deals X damage to any target."));
         // Destroy without the "target" form (board wipes) is a later follow-up.
@@ -3150,13 +3207,13 @@ mod tests {
             ))
         );
         // "each creature and each player" — the unioned distributive sweep,
-        // wrapped in `Each` over the unioned filter ([CR#608.2d]).
+        // via the `DealsDamageToEach` macro over the unioned filter
+        // ([CR#608.2d]).
         assert_eq!(
             parsed("~ deals 2 damage to each creature and each player."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(Or([Creature, Player]))), effect: DealDamage(This, 2, It))"
-                    .to_owned()
+                "DealsDamageToEach(2, Or([Creature, Player]))".to_owned()
             ))
         );
     }

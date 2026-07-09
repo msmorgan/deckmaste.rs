@@ -2211,6 +2211,64 @@ mod tests {
         assert_eq!(effect(&gain, &ctx), "For each creature, you gain 1 life.");
     }
 
+    /// The damage-sweeper family's own macro
+    /// (`plugins/builtin/macros/effect/DealsDamageToEach.ron`), loaded
+    /// through the REAL plugin macro set — the migrations parser
+    /// (`parse_deal_damage`/`damage_target`) emits this invocation, so this
+    /// is the render half of the parse⇄render round trip: a macro-shorthand
+    /// filter argument (`Creature`) doesn't parse through the template
+    /// layer's bare core reader, so this exercises the "template fill
+    /// declines, fall back to structural" path through
+    /// [`each_collective`](super::each_collective); a bare-core-parseable
+    /// filter (`OpponentOf(Ref(You))`) exercises the template-fill path
+    /// directly. Either way the printed sentence must read back faithfully —
+    /// a shape with no render arm would silently print "[unrendered: ...]"
+    /// and pass every parser-only test.
+    #[test]
+    fn deals_damage_to_each_round_trips_render() {
+        use std::path::Path;
+
+        use crate::plugin::Plugin;
+
+        let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
+        let plugin = Plugin::load(plugins.join("builtin")).unwrap();
+        let ctx = Ctx {
+            subject: "~",
+            targets: &[],
+            that: None,
+        };
+
+        let creature: OneShotEffect = plugin
+            .macros
+            .read_str("DealsDamageToEach(2, Creature)")
+            .expect("expands");
+        assert_eq!(
+            effect(&creature, &ctx),
+            "~ deals 2 damage to each creature."
+        );
+
+        let opponent: OneShotEffect = plugin
+            .macros
+            .read_str("DealsDamageToEach(1, OpponentOf(Ref(You)))")
+            .expect("expands");
+        assert_eq!(
+            effect(&opponent, &ctx),
+            "~ deals 1 damage to each opponent."
+        );
+
+        // The filtered recipient the migrations parser's new "each <subject>"
+        // fallback arm adds ([CR#608.2d]; [CR#102.2]): "each creature your
+        // opponents control".
+        let filtered: OneShotEffect = plugin
+            .macros
+            .read_str("DealsDamageToEach(3, And([Creature, ControlledBy(OpponentOf(Ref(You)))]))")
+            .expect("expands");
+        assert_eq!(
+            effect(&filtered, &ctx),
+            "~ deals 3 damage to each creature an opponent controls."
+        );
+    }
+
     /// [CR#119.1,119.5]: "Each player's life total becomes N." — the
     /// possessive-subject collective, Arbiter of Knollridge's own shape
     /// (`N` = a cross-player `Aggregate` reading "the highest life total

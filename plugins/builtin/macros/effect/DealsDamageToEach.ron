@@ -1,0 +1,28 @@
+// "DealsDamageToEach" — the mass-burn / board-wipe damage shape (the
+// damage-sweeper family): an object deals damage ([CR#120.1]) to every
+// member of a recipient class at once ([CR#608.2d] distributive each —
+// iterating a many-`Binder` binds each selected object in turn as the
+// anaphor `It`). Pyroclasm's "~ deals 2 damage to each creature.", Flame
+// Rift's "each player", Hour of Devastation's "each opponent", and any other
+// characteristic-filtered recipient ("each creature your opponents
+// control") all ride this one macro — the migrations parser's
+// `parse_deal_damage`/`damage_target` production reads the recipient-class
+// phrase (via the shared object-target filter grammar) and emits this
+// invocation with that filter as the second argument, since the generic
+// macro-template fallthrough can't itself synthesize an arbitrary
+// `Predicate` from English.
+//
+// `source` is fixed at `This` — every corpus usage is a spell/ability
+// naming its own source ("~ deals …"), never a foreign dealer; a card that
+// needs a different source is a distinct (unbuilt) shape.
+//
+// Usage: DealsDamageToEach(2, Creature) / DealsDamageToEach(1,
+// OpponentOf(Ref(You))) / DealsDamageToEach(3, And([Creature,
+// ControlledBy(OpponentOf(Ref(You)))])).
+(
+    name: "DealsDamageToEach",
+    template: "~ deals ${0} damage to each ${1}",
+    kinds: [OneShotEffect],
+    params: [Count, Predicate],
+    body: Each(binder: Existing(SelectAll(Param(1))), effect: DealDamage(This, Param(0), It)),
+)

@@ -494,8 +494,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: Enters(And([Creature, ControlledBy(Ref(You))])), \
-                 effect: Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: \
-                 DealDamage(This, 1, It)))"
+                 effect: DealsDamageToEach(1, OpponentOf(Ref(You))))"
             )
         );
     }

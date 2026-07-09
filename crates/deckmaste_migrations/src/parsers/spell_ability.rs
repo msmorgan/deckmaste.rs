@@ -95,9 +95,7 @@ mod tests {
     fn frames_untargeted_effects_without_a_targets_field() {
         assert_eq!(
             spell("~ deals 2 damage to each creature.").as_deref(),
-            Some(
-                "Spell(effect: Each(binder: Existing(SelectAll(Creature)), effect: DealDamage(This, 2, It)))"
-            )
+            Some("Spell(effect: DealsDamageToEach(2, Creature))")
         );
         assert_eq!(
             spell("Draw two cards.").as_deref(),
