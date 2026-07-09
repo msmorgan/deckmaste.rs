@@ -458,7 +458,7 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
         return noun;
     }
     // The base noun: a card TYPE atom ("creature") or, failing that, a bare
-    // macro-provenance noun among the `AllOf` parts ("permanent" — the
+    // macro-provenance noun among the `And` parts ("permanent" — the
     // `Permanent` filter macro has no `Type(_)` atom of its own to key off
     // of, [CR#110.1]; "target nonland permanent", Avarice Totem).
     let base_noun = find_card_type(filter)
@@ -537,7 +537,7 @@ fn controller_suffix(filter: &Predicate) -> Option<&'static str> {
     None
 }
 
-/// A negated-subtype exclusion among a filter's `AllOf` parts ([CR#205.3]):
+/// A negated-subtype exclusion among a filter's `And` parts ([CR#205.3]):
 /// `Not(Subtype("Brushwagg"))` -> "non-Brushwagg", prefixed onto the base
 /// noun ("non-Brushwagg creature", Embiggen). `None` when the filter carries
 /// no such exclusion.
@@ -553,7 +553,7 @@ fn subtype_exclusion_prefix(filter: &Predicate) -> Option<String> {
     None
 }
 
-/// A negated CARD-TYPE exclusion among a filter's `AllOf` parts ([CR#205.2]):
+/// A negated CARD-TYPE exclusion among a filter's `And` parts ([CR#205.2]):
 /// `Not(Type(Land))` -> "nonland", prefixed onto the base noun ("nonland
 /// permanent", Avarice Totem). Unlike [`subtype_exclusion_prefix`]'s
 /// hyphenated "non-Brushwagg", a card-type exclusion elides the hyphen —
@@ -571,7 +571,7 @@ fn type_exclusion_prefix(filter: &Predicate) -> Option<String> {
     None
 }
 
-/// A bare macro-provenance noun among a filter's `AllOf` parts — the
+/// A bare macro-provenance noun among a filter's `And` parts — the
 /// non-card-type twin of [`find_card_type`]: `Permanent`'s
 /// `InZone(Battlefield)` expansion carries no `Type(_)` atom of its own, so the
 /// noun comes off its template ("permanent") instead. `None` for a filter with
@@ -579,7 +579,7 @@ fn type_exclusion_prefix(filter: &Predicate) -> Option<String> {
 fn find_macro_noun(f: &Predicate) -> Option<String> {
     match f {
         Predicate::Expanded(exp) => super::template::expanded(exp, ""),
-        Predicate::AllOf(parts) => parts.iter().find_map(find_macro_noun),
+        Predicate::And(parts) => parts.iter().find_map(find_macro_noun),
         _ => None,
     }
 }

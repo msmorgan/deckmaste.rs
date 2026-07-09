@@ -125,7 +125,7 @@ fn self_type_phrase(view: &CardView) -> String {
 }
 
 /// Death Spark's "if this card is in your graveyard with a creature card
-/// directly above it" ([CR#404.2]): recognizes `Condition::Exists(AllOf([type
+/// directly above it" ([CR#404.2]): recognizes `Condition::Exists(And([type
 /// filter, Adjacent(dir, Ref(This))]))` against a non-battlefield `from`, and
 /// folds the ability's own function-zone ([CR#113.6]) into the clause
 /// itself. `None` for every other condition/from shape — the generic
@@ -136,7 +136,7 @@ fn adjacent_in_zone_if_clause(
     from: Option<deckmaste_core::Zone>,
 ) -> Option<String> {
     let zone = from.filter(|&z| z != Zone::Battlefield)?;
-    let Condition::Exists(Predicate::AllOf(parts)) = cond else {
+    let Condition::Exists(Predicate::And(parts)) = cond else {
         return None;
     };
     let [a, b] = parts.as_slice() else { return None };
