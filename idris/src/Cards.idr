@@ -1328,4 +1328,11 @@ vlxBalance : Count b         -- fewest lands any player controls
 vlxBalance = Aggregate MinOf
   (eachPlayer Anyone (CountOf (Objects (And [HasChar Types Land, ControlledBy (SameAs It)]))))
 
+-- value-language-extensions Task 9 probe (TapForMana event + ProducedMana Ctx-index/variants)
+vlxChromeMox : Action b      -- add one mana of any of the imprinted card's colors
+vlxChromeMox = AddMana (^1) (AmongColorsOf (Only (ExiledBy This)))
+vlxVorinclex : Ability b     -- add one mana of any type the tapped land produced
+vlxVorinclex = Triggered (MkEventQuery [TapForMana] [Actor you, Agent (hasType Land)])
+                 (Act (AddMana (^1) ProducedByEvent))
+
 --:vim:sts=2 sw=2:

@@ -474,6 +474,11 @@ namespace EventKind
     -- `[GainControl] [Actor you, Agent creature]`. Verb-name reuse with the `GainControl` MODIFICATION
     -- (type-directed, like `GainLife`). Supplies the permanent (object) + the gainer (actor); no amount.
     GainControl : EventKind
+    -- "whenever a land is tapped for mana" ([CR#106.12]) — the ONE event kind whose `producesMana` cap is
+    -- True (it IS a mana ability resolving), gating `ProducedByEvent` ([CR#106.12a]). Object = the tapped
+    -- permanent, actor = its controller (the tapper); Vorinclex/Dictate of Karametra read the object's
+    -- production via `ProducedByEvent`, Nyxbloom/Mana Reflection the amount via `ReplaceAmount`/`EventAmount`.
+    TapForMana : EventKind
 
 -- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
 -- an ACTOR ("that player"), a numeric AMOUNT. Read by `EventObject`/`EventActor`/`EventAmount` so each is
@@ -529,6 +534,9 @@ eventKindCaps (Begins r)        =
   case agentScope r of
     APlayer => MkEventCaps True True  False Nothing       False False
     _       => MkEventCaps True False False Nothing       False False
+-- the tapped land is the object, its controller the actor, the mana produced the amount, and
+-- `producesMana` (the trailing `True` — the ONLY row that's True) gates `ProducedByEvent` ([CR#106.12,106.12a]).
+eventKindCaps TapForMana        = MkEventCaps True  True  True  Nothing       False True
 
 -- which event-kinds carry an AMOUNT — derived from the caps; the per-kind base for `kindsHaveAmount`.
 public export
@@ -945,6 +953,7 @@ eventKindObjectSort (Begins _) = Permanent                 -- attacker/blocker/a
 eventKindObjectSort GainLife = Permanent                   -- (no object cap; unused)
 eventKindObjectSort LoseLife = Permanent
 eventKindObjectSort GainControl = Permanent                -- the "of" permanent
+eventKindObjectSort TapForMana = Permanent                 -- the tapped land
 
 -- one antecedent per CAPS guarantee ([CR#603.2e,608.2k]): the roles an
 -- event/payment body pushes for its anaphora — object, patient (sort fixed
@@ -2070,6 +2079,14 @@ mutual
       AnyColor : ProducedMana b                   -- one mana of any color (the producer picks)
       OneOf : List (Maybe Color) -> ProducedMana b -- one mana, the producer choosing from a FIXED set ("add {W} or {U}" = `OneOf [Just White, Just Blue]`); distinct from `AnyColor` (all five) and from a heterogeneous list (add ALL) ([CR#106.1])
       OneOfRuns : List (List (Maybe Color)) -> ProducedMana b -- one of several multi-symbol RUNS, producer choosing on resolution ("add {W}{W}, {W}{U}, or {U}{U}" = the filterland cycle = `OneOfRuns [[Just White, Just White], [Just White, Just Blue], [Just Blue, Just Blue]]`); the chosen run's whole sequence is added ([CR#106.1b])
+      -- one mana of any of `r`'s colors ([CR#105.2]) — the producer picks AMONG a referenced object's
+      -- colors, not a fixed set (Chrome Mox: `AmongColorsOf (Only (ExiledBy This))`, its imprinted card).
+      -- Distinct from `OneOf` (a literal color list authored on the card).
+      AmongColorsOf : Reference b AnObject -> ProducedMana b
+      -- the TYPE the ambient mana-producing event actually produced ([CR#106.1b,106.12a]) — Vorinclex/
+      -- Dictate of Karametra's "of any type that land produced". Gated by `producesMana (eventCaps b)`
+      -- so it only typechecks inside a `TapForMana`-triggered body — the `EventObject`/`EventAmount` pattern.
+      ProducedByEvent : {auto 0 prf : producesMana (eventCaps b) = True} -> ProducedMana b
 
   public export
   implementation Promote Color (ProducedMana b) where
