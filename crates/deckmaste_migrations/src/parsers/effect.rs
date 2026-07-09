@@ -902,12 +902,13 @@ fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>
         .map(|m| m.macro_name.to_string()))
 }
 
-/// Return-to-hand productions ([CR#400.7], the bounce family):
+/// Return-to-hand productions ([CR#400.7], the bounce family) — every arm
+/// emits the `Move(_, Hand)` primitive (`Action::ReturnToHand` retired; a
+/// hand destination is exactly as unremarkable as any other zone move):
 /// - `Return target <subject> to its owner's hand.` -> battlefield bounce via
-///   the dedicated [`ReturnToHand`](deckmaste_core::Action::ReturnToHand) verb,
-///   the subject parsed by [`object_target_filter`].
-/// - `Return ~ to its owner's hand.` -> a self-bounce (`ReturnToHand(This)`),
-///   no target — the effect body of `{cost}: Return ~ to its owner's hand.`
+///   `Move(It, Hand)`, the subject parsed by [`object_target_filter`].
+/// - `Return ~ to its owner's hand.` -> a self-bounce (`Move(This, Hand)`), no
+///   target — the effect body of `{cost}: Return ~ to its owner's hand.`
 ///   activated abilities (the cost is the activated-frame's job).
 /// - `Return target <subject> card from your graveyard to your hand.` -> a
 ///   graveyard-to-hand recursion: a plain zone change ([CR#400.7]) of a card
@@ -923,7 +924,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     if body == "~ to its owner's hand" || body == "it to its owner's hand" {
         return Some(ParsedEffect {
             targets: Vec::new(),
-            effect: "ReturnToHand(This)".to_owned(),
+            effect: "Move(This, Hand)".to_owned(),
         });
     }
     // Graveyard recursion: "target <subject> card from your graveyard to your
@@ -951,7 +952,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "ReturnToHand(It)".to_owned(),
+        effect: "Move(It, Hand)".to_owned(),
     })
 }
 
@@ -2595,14 +2596,14 @@ mod tests {
             parsed("Return target creature to its owner's hand."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "ReturnToHand(It)".to_owned()
+                "Move(It, Hand)".to_owned()
             ))
         );
         assert_eq!(
             parsed("Return target permanent to its owner's hand."),
             Some((
                 "TargetOne(Permanent)".to_owned(),
-                "ReturnToHand(It)".to_owned()
+                "Move(It, Hand)".to_owned()
             ))
         );
         // "nonland permanent" rides the shared filter grammar's negation.
@@ -2610,7 +2611,7 @@ mod tests {
             parsed("Return target nonland permanent to its owner's hand."),
             Some((
                 "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
-                "ReturnToHand(It)".to_owned()
+                "Move(It, Hand)".to_owned()
             ))
         );
     }
@@ -2621,7 +2622,7 @@ mod tests {
         // self-bounce, no target (the cost is the activated frame's job).
         assert_eq!(
             parsed("Return ~ to its owner's hand."),
-            Some((String::new(), "ReturnToHand(This)".to_owned()))
+            Some((String::new(), "Move(This, Hand)".to_owned()))
         );
     }
 

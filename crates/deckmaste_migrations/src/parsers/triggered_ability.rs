@@ -571,7 +571,7 @@ mod tests {
         assert_eq!(
             trig("When ~ is put into a graveyard from the battlefield, return it to its owner's hand.")
                 .as_deref(),
-            Some("Triggered(event: ThisDies, effect: ReturnToHand(This))")
+            Some("Triggered(event: ThisDies, effect: Move(This, Hand))")
         );
         assert_eq!(
             trig("When ~ is put into a graveyard from the battlefield, draw a card.").as_deref(),

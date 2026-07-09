@@ -1485,10 +1485,6 @@ fn emit_action(a: &Action) -> R {
             ],
         ),
         Action::Destroy(r) => app("Destroy", vec![emit_reference(r)?]),
-        Action::ReturnToHand(r) => app(
-            "Move",
-            vec![emit_reference(r)?, "(ToZone Hand)".to_string()],
-        ),
         Action::Counter(r) => app("Counter", vec![emit_reference(r)?]),
         Action::Attach { what, to } => {
             app("Attach", vec![emit_reference(what)?, emit_reference(to)?])

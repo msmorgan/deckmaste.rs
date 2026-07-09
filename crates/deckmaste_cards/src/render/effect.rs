@@ -1004,9 +1004,14 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         }
         // [CR#402.1]: a hand destination — "Return <r> to your hand." The
         // self-referential graveyard-return idiom (Death Spark's "return
-        // this card to your hand") is the only shape this corpus exercises
+        // this card to your hand") and the "return ~/it/that card to your
+        // hand" bounce forms (the retired `ReturnToHand` verb's migrated
+        // self/anaphor productions) are the shapes this corpus exercises
         // yet; a target-relative "to its owner's hand" (Unsummon-style
-        // bounce) is unbuilt — flagged for the next card that needs it.
+        // bounce, or a self-bounce whose owner may differ from its
+        // controller) is unbuilt — flagged for the next card that needs it,
+        // since the renderer has no signal here to tell an owned-by-you
+        // reference from an arbitrary one.
         Action::Move(r, Destination::Zone(Zone::Hand), riders) if riders.is_empty() => {
             format!("Return {} to your hand.", fragment::reference(r, ctx))
         }

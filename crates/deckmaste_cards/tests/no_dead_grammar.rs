@@ -245,11 +245,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "DEFERRED: see Arrangement::ChosenOrder.",
         ),
         (
-            n("Action", "ReturnToHand"),
-            "DEFERRED: no real card in this batch bounces via the bare \
-            source-agent verb (existing effects route through PlayerAction::Move); buildable.",
-        ),
-        (
             n("Action", "MoveGroup"),
             "DEFERRED: no real simultaneous-group-relocation card (e.g. \
             'return all creatures to hand') in this batch — Brainstorm's own group-move uses \

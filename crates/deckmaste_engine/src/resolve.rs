@@ -1270,8 +1270,11 @@ impl GameState {
     /// bare-relocation case; a battlefield entry's `enters`, a library
     /// insertion's `position`, and a face-down arrival's `face` each need
     /// their own builder). Centralizes the `self.objects.obj(object).zone.
-    /// expect(…)` + `…: None` boilerplate the move verbs (`ReturnToHand`,
-    /// `Exile`) otherwise repeat.
+    /// expect(…)` + `…: None` boilerplate a cost-payment exile (`cast.rs`)
+    /// otherwise repeats — the retired `ReturnToHand` verb's other caller;
+    /// `Action::Move`'s own bounce/exile paths go through `move_items`
+    /// instead, which additionally no-ops a gone reference rather than
+    /// panicking.
     pub(crate) fn relocate_from_current(
         &self,
         object: ObjectId,
@@ -1458,20 +1461,6 @@ impl GameState {
                 let actor = self.acting_player(who, frame);
                 self.player_action_items(pa, actor, frame)
             }
-            // [CR#400.7]: each selected object moves to its owner's hand from
-            // whatever zone it's in (bound at schedule time, like `Exile`),
-            // becoming a new object the apply pipeline remints. A relocation,
-            // not a destruction — no cause-verb fact (the from/to zones the
-            // resulting `ZoneChanged` carries are what leave/enter triggers
-            // match on).
-            Action::ReturnToHand(sel) => {
-                let events: Vec<GameEvent> = self
-                    .eval_reference_set(sel, frame)
-                    .into_iter()
-                    .map(|object| self.relocate_from_current(object, Zone::Hand, None))
-                    .collect();
-                vec![WorkItem::Emit(occurrence_of(events))]
-            }
             // [CR#701.6a]: countering cancels an object on the stack — it
             // never resolves. A countered SPELL is put into its owner's
             // graveyard (reminted off the stack, [CR#400.7]), cause-tagged
@@ -1577,8 +1566,9 @@ impl GameState {
             // [CR#400.7]: a PLAIN zone move (no `WillDestroy` intent, no
             // cause-verb fact) — each selected object moves from whatever zone
             // it's in to the `Destination`. The apply remints into the owner's
-            // graveyard/hand/library (or the shared exile), exactly like
-            // `ReturnToHand`/`Exile`. NOT destruction (indestructible doesn't
+            // graveyard/hand/library (or the shared exile) — a hand
+            // destination is the bounce family, subsuming the retired
+            // `ReturnToHand` verb. NOT destruction (indestructible doesn't
             // apply) and NOT a sacrifice — the [CR#704.5m] Aura graveyard SBA's
             // mover. A library destination ([CR#401.7]) carries an insertion
             // index: `FromTop(n)` is a from-top index (0 = top); `FromBottom(n)`
@@ -6920,8 +6910,9 @@ mod tests {
         assert_eq!(state.zones.exile.len(), 2);
     }
 
-    /// [CR#400.7]: `ReturnToHand(This)` moves the source to its owner's hand,
-    /// reminting it — the old id is gone and a fresh object sits in hand. The
+    /// [CR#400.7]: `Move(This, Hand)` moves the source to its owner's hand,
+    /// reminting it — the old id is gone and a fresh object sits in hand
+    /// (the bounce family, subsuming the retired `ReturnToHand` verb). The
     /// graveyard arm proves the move reads each object's current zone (like
     /// `Exile`), not a hard-coded battlefield source.
     #[test]
@@ -6930,7 +6921,11 @@ mod tests {
         let hand_before = state.zones.hands[0].len();
         let frame = frame_src(bear);
         state.run_effect(
-            OneShotEffect::Act(Action::ReturnToHand(Reference::This)),
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Zone(Zone::Hand),
+                vec![],
+            )),
             &frame,
         );
         // ZoneWillChange → ZoneChanged.
@@ -6952,7 +6947,11 @@ mod tests {
         let gy_hand_before = state.zones.hands[0].len();
         let frame = frame_src(card);
         state.run_effect(
-            OneShotEffect::Act(Action::ReturnToHand(Reference::This)),
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Zone(Zone::Hand),
+                vec![],
+            )),
             &frame,
         );
         for _ in 0..2 {

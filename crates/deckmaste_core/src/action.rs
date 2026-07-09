@@ -129,8 +129,6 @@ pub enum Action {
     DealDamage(Reference, Count, Reference),
     /// Destroy the referenced permanent ([CR#701.8]).
     Destroy(Reference),
-    /// Return the referenced object to its owner's hand.
-    ReturnToHand(Reference),
     /// Counter the referenced spell or ability on the stack ([CR#701.6a]) — a
     /// countered spell moves to its owner's graveyard; a countered ability
     /// simply ceases. "Can't be countered" is deontic-layer territory, not
@@ -154,7 +152,9 @@ pub enum Action {
     /// zone name (`Move(This, Graveyard)` — the [CR#704.5m] Aura graveyard SBA)
     /// or the library at an anchor (`Move(This, Library(FromTop(0)))` — top of
     /// library, the former `PutInLibrary`; `Library(FromBottom(0))` — bottom,
-    /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split.
+    /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split,
+    /// and (`Move(_, Hand)`) the former dedicated `ReturnToHand` bounce verb —
+    /// a hand destination is exactly as unremarkable as any other zone.
     /// The trailing `riders` list ([`EnterRider`], default `[]`, omitted on
     /// write when empty) spells arrival state for a BATTLEFIELD destination —
     /// "onto the battlefield tapped / under its owner's control / with a +1/+1
