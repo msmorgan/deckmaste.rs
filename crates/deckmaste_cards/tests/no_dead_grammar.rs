@@ -49,6 +49,9 @@ const GRAMMAR_FILES: &[&str] = &[
     "count.rs",
     "condition.rs",
     "reference.rs",
+    "selection.rs",
+    "filter.rs",
+    "mana.rs",
 ];
 
 fn core_src_dir() -> PathBuf {
@@ -134,6 +137,27 @@ fn structurally_untagged() -> BTreeSet<Node> {
         ("Count", "Expanded"),
         ("Condition", "Expanded"),
         ("Reference", "Expanded"),
+        // `Predicate`'s three compartments are `#[macro_ron(flatten)]` (the
+        // same mechanism as `Destination::Zone` above): the compartment tag
+        // NEVER appears in RON — only the inner atom's own variant name is
+        // spelled (`Type(Creature)`, never `Characteristic(Type(Creature))`;
+        // `InZone(Battlefield)`, never `State(InZone(...))`). A text search for
+        // the wrapper tag is structurally meaningless; the atoms themselves are
+        // exercised constantly.
+        ("Predicate", "Characteristic"),
+        ("Predicate", "State"),
+        ("Predicate", "Relation"),
+        // The mana enums' `#[serde(untagged)]` fall-through variants: the tag is
+        // never a spelled token because the untagged arm serializes its payload
+        // transparently. `ManaSpec::Specific` writes `White` (not
+        // `Specific(White)`), `SimpleManaSymbol::Specific` and `ManaSymbol::Simple`
+        // likewise lift the inner symbol, and `ManaProduction::Bare` writes the
+        // bare spec (`AddMana(Literal(1), AnyColor)`, no `Bare(...)`). Each is
+        // exercised on every mana card; there is simply nothing to grep for.
+        ("ManaSpec", "Specific"),
+        ("SimpleManaSymbol", "Specific"),
+        ("ManaSymbol", "Simple"),
+        ("ManaProduction", "Bare"),
     ]
     .into_iter()
     .map(|(e, v)| (e.to_string(), v.to_string()))
@@ -791,6 +815,195 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             fixture) uses IgnoreChosen(1) — the flipper's choice, per [CR#706.6] — not an \
             automatic ignore-the-lower rule; no real card in this batch needs the forced-lowest \
             reading. Buildable once one does.",
+        ),
+        // --- selection.rs (Selection) ---
+        (
+            n("Selection", "Union"),
+            "DEFERRED: no real card in this batch groups two selections as ONE \
+            set ('each X and each Y' — the Idris Union); canon's multi-group effects iterate each \
+            group separately. Buildable.",
+        ),
+        (
+            n("Selection", "Random"),
+            "DEFERRED: no random-selection real card ('a creature at random') \
+            in this batch. Buildable.",
+        ),
+        (
+            n("Selection", "AmongNoted"),
+            "BLOCKED: the among-a-noted-set choice reads the note-store, which \
+            has no engine runtime yet (same gap as OneShotEffect::Noting / PlayerAction::ChooseAndNote / \
+            Count::Noted above); its 'destroyed this way' anaphor use-case (Blood Money) is a \
+            confirmed grammar gap, not built.",
+        ),
+        (
+            n("Selection", "BottomOfLibrary"),
+            "DEFERRED: no real card in this batch reads the BOTTOM \
+            of a library as an ordered set (canon's library reads are all top-anchored — \
+            TopOfLibrary is covered), mirroring Anchor::FromBottom above. Buildable.",
+        ),
+        (
+            n("Selection", "PilesOf"),
+            "DEFERRED: the labeled per-player noted-piles read (Whims of the \
+            Fates: SeparatePiles.note + PilesOf) is the same unbuilt shape as PileSource::Noted \
+            above — designed, not built this session.",
+        ),
+        (
+            n("Selection", "Pick"),
+            "DEFERRED: the extremal-element selection ('the creature with the \
+            greatest power') shares AggregateOp::MinOf/MaxOf, which stay deferred until a real card \
+            spells an extremal fold or Pick — see AggregateOp::MinOf above.",
+        ),
+        // --- filter.rs ---
+        (
+            n("ObjectKind", "CardCopy"),
+            "DEFERRED: the card-copy object kind ([CR#707.12]) is grammar \
+            footing for when the copy-creating grammar lands; no real card in this batch produces \
+            or filters a non-stack card copy. Buildable once copy grammar exists.",
+        ),
+        (
+            n("ObjectKind", "Emblem"),
+            "DEFERRED: no real card in this batch filters over emblems (the \
+            emblem-granting side, PlayerAction::GetEmblem, is itself DEFERRED above — no emblem \
+            card in canon yet).",
+        ),
+        (
+            n("CharacteristicPredicate", "Named"),
+            "DEFERRED: no real card in this batch filters by object \
+            NAME ('a creature named ~'); buildable.",
+        ),
+        (
+            n("CharacteristicPredicate", "Multicolored"),
+            "DEFERRED: no multicolored-matters real card ('a \
+            multicolored creature') in this batch (Colorless is covered); buildable.",
+        ),
+        (
+            n("StatePredicate", "Status"),
+            "DEFERRED: no real card in this batch filters by object STATUS \
+            ('a tapped creature' — Status(Tapped)); canon's tapped-matters effects are all \
+            costs/actions, not filters. Buildable.",
+        ),
+        (
+            n("StatePredicate", "RelatedBy"),
+            "DEFERRED: no soulbond/paired real card ('the creature ~ is \
+            paired with') in this batch; buildable.",
+        ),
+        (
+            n("StatePredicate", "Blocking"),
+            "DEFERRED: no 'a blocking creature' real card in this batch \
+            (Attacking is covered); buildable.",
+        ),
+        (
+            n("StatePredicate", "Unblocked"),
+            "DEFERRED: no 'an unblocked attacker' real card in this \
+            batch; buildable.",
+        ),
+        (
+            n("StatePredicate", "TargetCount"),
+            "DEFERRED: no 'a spell with a single target' real card \
+            ([CR#115.9a]) in this batch; buildable.",
+        ),
+        (
+            n("StatePredicate", "WasCastWith"),
+            "DEFERRED: no real card in this batch filters by an \
+            alternative-base-cost tag ('a spell cast with flashback/for its overload cost' — the \
+            filter-language twin of the now-covered WasPaidWith); the alt-cost cast linkage \
+            (Cast.tag / WasCastWith) landed with core-alt-costs but no canon card yet reads it as \
+            a filter. Buildable.",
+        ),
+        (
+            n("StatePredicate", "WasPutFrom"),
+            "DEFERRED: the move-provenance filter ('milled' = \
+            WasPutFrom(Library), 'discarded' = WasPutFrom(Hand), [CR#701.17a,701.9a]) is emit-wired \
+            and unit-tested (filter::tests::new_atoms_read_flat) but no canon card in this batch \
+            filters on it — the engine fizzles gracefully absent turn-scoped provenance. Buildable \
+            with a milled/discarded-matters card.",
+        ),
+        (
+            n("RelationPredicate", "TeammateOf"),
+            "DEFERRED: no Two-Headed-Giant / multiplayer real card \
+            ('a creature a teammate controls', [CR#102.3,810.1]) in this batch; unit-tested \
+            (filter::tests::teammate_of_reads_and_round_trips) but no canon fixture. Buildable.",
+        ),
+        (
+            n("RelationPredicate", "Attachment"),
+            "DEFERRED: no 'a creature with an Aura/Equipment attached \
+            to it' real card in this batch (the inverse, AttachedTo, is covered); buildable.",
+        ),
+        (
+            n("Adjacency", "Below"),
+            "DEFERRED: Death Spark ('a creature card directly ABOVE it', \
+            Predicate::Adjacent) covers Adjacency::Above; no real card in this batch reads directly \
+            BELOW. Buildable.",
+        ),
+        (
+            n("Predicate", "FromSource"),
+            "DEFERRED: no real card in this batch lifts a quality to a \
+            stack ability's SOURCE ('abilities from red sources', the hexproof-from-red agent \
+            shape, [CR#702.11d]); unit-tested (filter::tests::from_source_reads_and_round_trips) \
+            but no canon fixture. Buildable.",
+        ),
+        // --- mana.rs ---
+        (
+            n("PlanarFace", "Blank"),
+            "BLOCKED: the (Planechase) planar die's faces ride \
+            EventFilter::RollPlanarDie, whose whole surrounding subsystem — Plane cards, a distinct \
+            game-object type — isn't modeled by this engine; no real permanent/spell card reads a \
+            planar-die face (only Plane cards do, out of scope). Matches PlanarFace::Chaos and \
+            EventFilter::RollPlanarDie / PlayerAction::RollPlanarDie above.",
+        ),
+        (
+            n("PlanarFace", "Chaos"),
+            "BLOCKED: see PlanarFace::Blank — same absent Planechase subsystem.",
+        ),
+        (
+            n("ManaSpec", "OneOfRuns"),
+            "DEFERRED: no filterland real card ('{W}{W}, {W}{U}, or {U}{U}', \
+            [CR#106.1b]) in this batch (the single-mana OneOf is covered); buildable.",
+        ),
+        (
+            n("ManaSpec", "AmongColorsOf"),
+            "BLOCKED: 'add one mana of any of the exiled card's colors' \
+            (Chrome Mox's imprint, [CR#105.2]) needs the imprint/exile-linked-mana subsystem, which \
+            is blocked; no real card in this batch reaches it. (ManaSpec::ProducedByEvent, the \
+            sibling, IS now covered by Dictate of Karametra.)",
+        ),
+        (
+            n("SymbolPred", "AnyType"),
+            "DEFERRED: no 'as though it were mana of any type' \
+            spend-as-though / any-type-devotion real card in this batch (AnyColor is covered); \
+            buildable.",
+        ),
+        (
+            n("SymbolPred", "IsGeneric"),
+            "DEFERRED: no real card in this batch matches a GENERIC pip via \
+            SymbolPred (devotion/spend filters in canon count colored pips, CountsAs); buildable.",
+        ),
+        (
+            n("ManaSymbol", "Snow"),
+            "DEFERRED: no snow real card — none with a {S} symbol in a cost \
+            ([CR#107.4h]) — in this batch; buildable once a snow card lands.",
+        ),
+        (
+            n("ManaRider", "GrantOnSpend"),
+            "DEFERRED: no 'if that mana is spent on a creature spell, it \
+            gains X' real card ([CR#106.6]) in this batch (ManaRider::SpendOnly, the restriction \
+            rider, is covered); buildable.",
+        ),
+        (
+            n("ManaRider", "TriggerOnSpend"),
+            "DEFERRED: no 'when that mana is spent to cast …, …' \
+            delayed-trigger mana rider ([CR#603.7a]) real card in this batch; buildable.",
+        ),
+        (
+            n("ManaRider", "Persistent"),
+            "DEFERRED: no 'you don't lose this mana as steps and phases \
+            end' persistence-override rider ([CR#106.4]) real card in this batch; buildable.",
+        ),
+        (
+            n("ManaRider", "Snow"),
+            "DEFERRED: the snow-provenance rider is set at the production emit \
+            site from the source's supertypes, so it only appears via a snow permanent — none in \
+            this batch (see ManaSymbol::Snow); buildable once a snow source lands.",
         ),
     ]
 }
