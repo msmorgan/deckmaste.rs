@@ -927,6 +927,15 @@ fn emit_countable(c: &Countable) -> R {
             "ManaSymbols",
             vec![emit_reference(r)?, emit_symbol_pred(pred)?],
         ),
+        // [CR#105.2]: the per-object twin of `Objects` — Embiggen's "number
+        // of card types it has" = `CountDistinct Types (Singleton This)`.
+        Countable::Singleton(r) => app("Singleton", vec![emit_reference(r)?]),
+        // [CR#107.4]: mana spent to cast/activate `r`, filtered by `pred` —
+        // Adamant's "if at least three white mana symbols were spent".
+        Countable::ManaSpentMatching(r, pred) => app(
+            "ManaSpentMatching",
+            vec![emit_reference(r)?, emit_symbol_pred(pred)?],
+        ),
     })
 }
 
@@ -957,25 +966,14 @@ fn emit_count(c: &Count) -> R {
         Count::Literal(n) => app("Literal", vec![n.to_string()]),
         Count::CountOf(source) => match source {
             Countable::Objects(f) => format!("(CountMatching {})", emit_filter(f)?),
-            // [CR#700.5]: devotion — the mana symbols in a referenced
-            // object's cost matching `pred`.
-            Countable::ManaSymbols(r, pred) => app(
-                "CountOf",
-                vec![app(
-                    "ManaSymbols",
-                    vec![emit_reference(r)?, emit_symbol_pred(pred)?],
-                )],
-            ),
+            // Every other `Countable` source (devotion's `ManaSymbols`,
+            // `Singleton`, `ManaSpentMatching`) has no `CountMatching`-style
+            // sugar — spell it out as the explicit `CountOf` application.
+            other => app("CountOf", vec![emit_countable(other)?]),
         },
         Count::CountDistinct(characteristic, source) => {
             let c = collection_characteristic(*characteristic)?;
-            let src = match source {
-                Countable::Objects(f) => format!("(Objects {})", emit_filter(f)?),
-                Countable::ManaSymbols(r, pred) => app(
-                    "ManaSymbols",
-                    vec![emit_reference(r)?, emit_symbol_pred(pred)?],
-                ),
-            };
+            let src = emit_countable(source)?;
             app("CountDistinct", vec![c, src])
         }
         // [CR#107.1]: fold a per-element `Project` — devotion's own shape
@@ -1043,6 +1041,26 @@ fn emit_count(c: &Count) -> R {
                 emit_count(inner)?,
             ],
         ),
+        // [CR#107.1a]: general integer division, `Half`'s dedicated /2 twin.
+        Count::Divide(mode, a, b) => app(
+            "Divide",
+            vec![
+                match mode {
+                    deckmaste_core::RoundMode::RoundUp => "RoundUp",
+                    deckmaste_core::RoundMode::RoundDown => "RoundDown",
+                }
+                .to_string(),
+                emit_count(a)?,
+                emit_count(b)?,
+            ],
+        ),
+        // [CR#107.1]: remainder — parity checks (`Compare(Mod(x, 2), Eq, 0)`).
+        Count::Mod(a, b) => app("Mod", vec![emit_count(a)?, emit_count(b)?]),
+        // [CR#107.1]: exponentiation — doubling effects (`Pow(2, X)`).
+        Count::Pow(a, b) => app("Pow", vec![emit_count(a)?, emit_count(b)?]),
+        // [CR#115.9a]: how many times `r` was chosen as a target on
+        // announcement — Strive's `Minus(TargetsOf(This), 1)`.
+        Count::TargetsOf(r) => app("TargetsOf", vec![emit_reference(r)?]),
         Count::ThatMany | Count::ThatMuch => "ThatMany".to_string(),
         Count::Allotment => "Allotment".to_string(),
         Count::EventCount(..) => {

@@ -58,17 +58,7 @@ pub(super) fn count(c: &Count) -> String {
     match c {
         Count::Literal(n) => n.to_string(),
         Count::X => "X".to_string(),
-        Count::Damage(r) => format!(
-            "damage marked on {}",
-            reference(
-                r,
-                &Ctx {
-                    subject: "it",
-                    targets: &[],
-                    that: None,
-                }
-            )
-        ),
+        Count::Damage(r) => format!("damage marked on {}", reference(r, &it_ctx())),
         // [CR#122.1]: the counter-count read — "the number of experience
         // counters you have" (a player-borne kind), "the number of lore
         // counters on it" (object-borne).
@@ -78,14 +68,7 @@ pub(super) fn count(c: &Count) -> String {
                 Reference::You => format!("the number of {noun} counters you have"),
                 other => format!(
                     "the number of {noun} counters on {}",
-                    reference(
-                        other,
-                        &Ctx {
-                            subject: "it",
-                            targets: &[],
-                            that: None,
-                        }
-                    )
+                    reference(other, &it_ctx())
                 ),
             }
         }
@@ -144,13 +127,27 @@ pub(super) fn count(c: &Count) -> String {
         Count::Times(a, b) => format!("{} times {}", count(a), count(b)),
         Count::Max(a, b) => format!("the greater of {} and {}", count(a), count(b)),
         Count::Min(a, b) => format!("the lesser of {} and {}", count(a), count(b)),
-        Count::Half(mode, inner) => {
-            let rounding = match mode {
-                RoundMode::RoundUp => "rounded up",
-                RoundMode::RoundDown => "rounded down",
-            };
-            format!("half {}, {rounding}", count(inner))
-        }
+        Count::Half(mode, inner) => format!("half {}, {}", count(inner), rounding_word(*mode)),
+        // [CR#107.1a]: `Half`'s general twin — "X divided by Y, rounded ...".
+        Count::Divide(mode, a, b) => format!(
+            "{} divided by {}, {}",
+            count(a),
+            count(b),
+            rounding_word(*mode)
+        ),
+        // [CR#107.1]: remainder — parity checks read `Compare(Mod(x, 2), Eq, 0)`.
+        Count::Mod(a, b) => format!("the remainder of {} divided by {}", count(a), count(b)),
+        // [CR#107.1]: exponentiation — doubling effects build `Pow(2, X)`; a
+        // real card's own "double ~'s power X times" reads through the
+        // dedicated `doubling_power_clause` recognizer instead, so this is
+        // the structural fallback for any other `Pow` shape.
+        Count::Pow(base, exp) => format!("{} raised to the power of {}", count(base), count(exp)),
+        // [CR#115.9a]: how many times a referenced object was chosen as a
+        // target when it was put on the stack (Strive).
+        Count::TargetsOf(r) => format!(
+            "the number of times {} was chosen as a target",
+            reference(r, &it_ctx())
+        ),
         // [CR#107.3] distinct-union count (Domain / Coven / Tarmogoyf). The
         // subtype axis over a typed group names the type's own subtype
         // family ("land types"); the group reads as its plural subject
@@ -158,7 +155,7 @@ pub(super) fn count(c: &Count) -> String {
         // `ManaSymbols`-sourced distinct counts have no forced card yet — the
         // devotion-style phrasing lands with `Count::Aggregate` (a later
         // task); render structurally for now (YAGNI).
-        Count::CountDistinct(_, Countable::ManaSymbols(..)) => {
+        Count::CountDistinct(_, Countable::ManaSymbols(..) | Countable::ManaSpentMatching(..)) => {
             format!("[unrendered: {c:?}]")
         }
         Count::CountDistinct(axis, Countable::Objects(filter)) => {
@@ -171,6 +168,17 @@ pub(super) fn count(c: &Count) -> String {
             let group = super::ability::lower_first(&filter_subject(filter));
             format!("the number of {axis_word} among {group}")
         }
+        // [CR#105.2]: the distinct-union axis read off a SINGLE object —
+        // Embiggen's "number of card types it has" = `CountDistinct(Types,
+        // Singleton(This))`. A real card's own triple-axis phrasing ("for
+        // each supertype, card type, and subtype it has") reads through the
+        // dedicated `axis_pump_clause` recognizer instead; this is the
+        // structural single-axis fallback.
+        Count::CountDistinct(axis, Countable::Singleton(r)) => format!(
+            "the number of {} {} has",
+            characteristic_word(*axis),
+            reference(r, &it_ctx())
+        ),
         // [CR#107.1] the fold over a projection — "the total/greatest/
         // least/average [by] among [of]". A devotion-shaped fold (`SumOf`
         // over permanents you control's matching mana symbols, [CR#700.5])
@@ -190,7 +198,9 @@ pub(super) fn count(c: &Count) -> String {
                     let group = super::ability::lower_first(&filter_subject(filter));
                     format!("the {fold_word} {} among {group}", count(&proj.by))
                 }
-                Countable::ManaSymbols(..) => format!("[unrendered: {c:?}]"),
+                Countable::ManaSymbols(..)
+                | Countable::Singleton(..)
+                | Countable::ManaSpentMatching(..) => format!("[unrendered: {c:?}]"),
             },
         },
         // The value anaphor's two spellings ([CR#107.3,608.2i]).
@@ -212,6 +222,27 @@ fn counter_noun(ident: &str) -> String {
 
 /// The plural noun for a [`Characteristic`] axis, used by the distinct-count
 /// phrase ("the number of subtypes among …").
+/// A [`RoundMode`] as its "rounded ..." adverbial phrase — shared by `Half`
+/// and `Divide`'s render arms.
+fn rounding_word(mode: RoundMode) -> &'static str {
+    match mode {
+        RoundMode::RoundUp => "rounded up",
+        RoundMode::RoundDown => "rounded down",
+    }
+}
+
+/// The `Ctx` a bare pronominal read uses when no real subject/targets/that
+/// context is in scope — "it" with nothing else bound. Shared by the handful
+/// of `count()` arms (`Damage`, `CounterCount`, `TargetsOf`, `CountDistinct`
+/// over a `Singleton`) that read a plain `Reference` this way.
+fn it_ctx() -> Ctx<'static> {
+    Ctx {
+        subject: "it",
+        targets: &[],
+        that: None,
+    }
+}
+
 fn characteristic_word(axis: Characteristic) -> &'static str {
     match axis {
         Characteristic::Colors => "colors",
@@ -407,6 +438,13 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
     }
     if let Some(t) = find_card_type(filter) {
         let base = super::card::type_str(t).to_lowercase();
+        // A negated-subtype exclusion rides the noun as a "non-" prefix
+        // ([CR#205.3] — "non-Brushwagg creature"), ahead of any controller
+        // suffix.
+        let base = match subtype_exclusion_prefix(filter) {
+            Some(prefix) => format!("{prefix} {base}"),
+            None => base,
+        };
         // A controller restrictor rides the noun: "creature you control",
         // "creature you don't control", "creature an opponent controls" —
         // the restrictor is printed text, never dropped.
@@ -465,6 +503,22 @@ fn controller_suffix(filter: &Predicate) -> Option<&'static str> {
                 }
             }
             _ => {}
+        }
+    }
+    None
+}
+
+/// A negated-subtype exclusion among a filter's `AllOf` parts ([CR#205.3]):
+/// `Not(Subtype("Brushwagg"))` -> "non-Brushwagg", prefixed onto the base
+/// noun ("non-Brushwagg creature", Embiggen). `None` when the filter carries
+/// no such exclusion.
+fn subtype_exclusion_prefix(filter: &Predicate) -> Option<String> {
+    for part in flatten_all_of(filter) {
+        if let Predicate::Not(negated) = strip_expanded(part)
+            && let Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) =
+                strip_expanded(negated)
+        {
+            return Some(format!("non-{name}"));
         }
     }
     None

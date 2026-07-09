@@ -250,8 +250,17 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
     match e {
         StaticEffect::Expanded(exp) => static_effect_kind(&exp.value, ctx, one_shot),
         // A bare `Modify` targets ONE object — singular agreement ("Test Aura
-        // gets +1/+1.", "Enchanted creature gets +2/+2.").
+        // gets +1/+1.", "Enchanted creature gets +2/+2."). Two bespoke
+        // real-card shapes (Exponential Growth's doubling verb, Embiggen's
+        // triple-axis "for each ... it has" pump) read structurally
+        // differently from the "gets +N/+N" family below, so they get their
+        // own recognizers, checked first.
         StaticEffect::Modify(r, change) => {
+            if let Some(clause) = doubling_power_clause(r, change, ctx)
+                .or_else(|| axis_sum_pump_clause(r, change, ctx))
+            {
+                return Some(format!("{clause}."));
+            }
             let subj = super::fragment::modify_subject(r, ctx);
             Some(format!(
                 "{subj} {}.",
@@ -329,6 +338,99 @@ fn pay_pips_keyword(act: &PayAct) -> String {
         }
         PayAct::TapToPay(_) => "Convoke".to_string(),
     }
+}
+
+// ── Bespoke real-card `Modify` shapes ────────────────────────────────────────
+
+/// "double {subj}'s power {X} times" — Exponential Growth's own imperative
+/// verb, structurally distinct from the "gets +N/+N" pump family below (it is
+/// not additive-delta phrasing at all). The recognized shape is the doubling
+/// delta [`Count::Pow`] builds: `Up(Minus(Times(StatOf(r, Power), Pow(2,
+/// exp)), StatOf(r, Power)))` — current power times 2^exp, minus current
+/// power, i.e. "gets +X/+0" where X takes power to its post-doubling value
+/// (the official ruling's own phrasing). `None` for any other shape.
+fn doubling_power_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Option<String> {
+    use deckmaste_core::Stat;
+
+    let Modification::Power(NumericOp::Up(delta)) = change else {
+        return None;
+    };
+    let Count::Minus(a, b) = delta else { return None };
+    let Count::Times(base, exp) = a.as_ref() else {
+        return None;
+    };
+    let Count::StatOf(base_ref, Stat::Power) = base.as_ref() else {
+        return None;
+    };
+    let Count::Pow(two, x) = exp.as_ref() else {
+        return None;
+    };
+    if !matches!(two.as_ref(), Count::Literal(2)) {
+        return None;
+    }
+    let Count::StatOf(sub_ref, Stat::Power) = b.as_ref() else {
+        return None;
+    };
+    if base_ref != r || sub_ref != r {
+        return None;
+    }
+    let subj = super::fragment::reference(r, ctx);
+    let times_word = super::fragment::count(x);
+    Some(format!("double {subj}'s power {times_word} times"))
+}
+
+/// "{subj} gets +1/+1 for each supertype, card type, and subtype it has" —
+/// Embiggen's own real-card phrasing for a triple-axis
+/// [`Countable::Singleton`](deckmaste_core::Countable::Singleton) sum, whose
+/// per-object-axis-enumeration idiom ("... it has") reads nothing like the
+/// group-fold `CountDistinct(_, Objects(..))` phrasing (Domain/Coven's "the
+/// number of X among Y"). The recognized shape is `Several([Power(Up(c)),
+/// Toughness(Up(c))])` with the SAME `c = Plus(Plus(CountDistinct(Supertypes,
+/// Singleton(r)), CountDistinct(Types, Singleton(r))), CountDistinct(
+/// Subtypes, Singleton(r)))` for both — the +1/+1-per-unit case (a
+/// coefficient-`k` "+k/+k for each ..." generalization is unforced until a
+/// real card needs it). `None` for any other shape.
+fn axis_sum_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Option<String> {
+    use deckmaste_core::Characteristic;
+    use deckmaste_core::Countable;
+    use deckmaste_core::Expand;
+
+    let normalized = change.clone().expand_all();
+    let Modification::Several(parts) = &normalized else {
+        return None;
+    };
+    let [
+        Modification::Power(NumericOp::Up(power_delta)),
+        Modification::Toughness(NumericOp::Up(toughness_delta)),
+    ] = parts.as_slice()
+    else {
+        return None;
+    };
+    if power_delta != toughness_delta {
+        return None;
+    }
+    let is_singleton_axis = |c: &Count, want: Characteristic| {
+        matches!(
+            c,
+            Count::CountDistinct(a, Countable::Singleton(rr)) if *a == want && rr.as_ref() == r
+        )
+    };
+    let Count::Plus(ab, subtypes) = power_delta else {
+        return None;
+    };
+    let Count::Plus(supertypes, types) = ab.as_ref() else {
+        return None;
+    };
+    if !is_singleton_axis(supertypes, Characteristic::Supertypes)
+        || !is_singleton_axis(types, Characteristic::Types)
+        || !is_singleton_axis(subtypes, Characteristic::Subtypes)
+    {
+        return None;
+    }
+    let subj = super::fragment::reference(r, ctx);
+    Some(format!(
+        "{subj} gets +1/+1 for each supertype, card type, and subtype it has"
+    ))
 }
 
 // ── Modification predicate builder ──────────────────────────────────────────

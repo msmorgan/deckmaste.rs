@@ -820,6 +820,20 @@ fn resolve_count_ref(
         .next()
 }
 
+/// `Count::Divide`/`Count::Half`'s shared rounded-division op — factored out
+/// of `eval_count` to keep that function under the line-count lint. A zero
+/// divisor fizzles to 0 (never-crash) rather than panicking.
+fn eval_divide(mode: deckmaste_core::RoundMode, a: Int, b: Int) -> Int {
+    if b == 0 {
+        0
+    } else {
+        match mode {
+            deckmaste_core::RoundMode::RoundUp => (a + b - 1) / b,
+            deckmaste_core::RoundMode::RoundDown => a / b,
+        }
+    }
+}
+
 /// Evaluate a `Count` to an `Int` against the IN-PROGRESS derived map
 /// (`working`) being built this pass — never `self.layers()` (that would
 /// recurse the layer build) and never a `Frame` (which the layer pass lacks).
@@ -886,6 +900,11 @@ fn eval_stat_of(
     value.max(0)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per Count kind — the value language's full surface, mirroring \
+    resolve.rs::eval_count's own expect"
+)]
 fn eval_count(
     n: &Count,
     state: &GameState,
@@ -927,6 +946,26 @@ fn eval_count(
                     .count();
                 Int::try_from(n).expect("pip count fits Int")
             }
+            // [CR#105.2]: the cardinality of a one-object "set" — 1 when the
+            // reference resolves to a real card-backed object, else 0.
+            Countable::Singleton(reference) => {
+                let Some(id) = resolve_count_ref(state, reference, watcher) else {
+                    return 0;
+                };
+                if state
+                    .objects
+                    .get(id)
+                    .and_then(crate::object::GameObject::card_id)
+                    .is_none()
+                {
+                    return 0;
+                }
+                1
+            }
+            // [CR#107.4]: mana spent to cast/activate a referenced object,
+            // filtered by `pred` (Adamant). No mana-spent tracking in the
+            // engine yet — fizzles to 0, like `ManaSymbols`'s siblings.
+            Countable::ManaSpentMatching(..) => 0,
         },
         // "Equal to its power": resolve the reference, read the DERIVED stat off
         // `working`. Mana value / loyalty / defense are layer-stable base state
@@ -1004,6 +1043,26 @@ fn eval_count(
                 deckmaste_core::RoundMode::RoundDown => v / 2,
             }
         }
+        // [CR#107.1a]: `Half`'s general twin. A zero divisor fizzles to 0
+        // (never-crash) rather than panicking on integer division.
+        Count::Divide(mode, a, b) => eval_divide(
+            *mode,
+            eval_count(a, state, working, watcher).max(0),
+            eval_count(b, state, working, watcher).max(0),
+        ),
+        // [CR#107.1]: remainder — parity checks. A zero divisor fizzles to 0.
+        Count::Mod(a, b) => {
+            let b = eval_count(b, state, working, watcher).max(0);
+            if b == 0 { 0 } else { eval_count(a, state, working, watcher).max(0) % b }
+        }
+        // [CR#107.1]: exponentiation — doubling effects build `Pow(2, X)`.
+        Count::Pow(base, exp) => eval_count(base, state, working, watcher)
+            .max(0)
+            .saturating_pow(
+                eval_count(exp, state, working, watcher)
+                    .max(0)
+                    .cast_unsigned(),
+            ),
         // [CR#107.3]: distinct-union count over the derived working set.
         // Printed axes read the card face; power/toughness read the in-progress
         // derived characteristics, matched the same way `CountOf` is.
@@ -1019,9 +1078,28 @@ fn eval_count(
                 }
                 Int::try_from(seen.len()).expect("distinct count fits Int")
             }
-            // Not a forced path yet ([CR#700.5] devotion has no
-            // distinct-union reading) — fizzle to 0.
-            Countable::ManaSymbols(..) => 0,
+            // [CR#105.2]: the distinct-union axis read off a SINGLE object —
+            // Embiggen's "number of card types it has" =
+            // `CountDistinct(Types, Singleton(This))`.
+            Countable::Singleton(reference) => {
+                let Some(id) = resolve_count_ref(state, reference, watcher) else {
+                    return 0;
+                };
+                if state
+                    .objects
+                    .get(id)
+                    .and_then(crate::object::GameObject::card_id)
+                    .is_none()
+                {
+                    return 0;
+                }
+                let n = distinct_keys_derived(state, working, id, *characteristic).len();
+                Int::try_from(n).expect("distinct count fits Int")
+            }
+            // Neither is a forced distinct-union path yet ([CR#700.5]
+            // devotion has no distinct-union reading; `ManaSpentMatching` has
+            // no engine tracking either) — fizzle to 0.
+            Countable::ManaSymbols(..) | Countable::ManaSpentMatching(..) => 0,
         },
         Count::Expanded(e) => eval_count(&e.value, state, working, watcher),
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
@@ -1034,6 +1112,9 @@ fn eval_count(
         // loop) — the layer pass has no `Frame` to bind against, so a CDA built
         // on an aggregate fold defaults to `0` here too (unforced: no CDA needs
         // one yet).
+        // [CR#115.9a]: `TargetsOf` reads the announcing stack entry's target
+        // list — announce-time context this Frame-less layer pass lacks
+        // (same seam as `TimesPaid`'s paid-cost record) — defaults to 0.
         Count::X
         | Count::ThatMany
         | Count::ThatMuch
@@ -1042,6 +1123,7 @@ fn eval_count(
         | Count::EventSum(..)
         | Count::TimesPaid(_)
         | Count::Noted(_)
+        | Count::TargetsOf(_)
         | Count::Aggregate(..) => 0,
     }
 }

@@ -741,6 +741,27 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             from Fling's `OneShotEffect::AdditionalCost`, which is the per-spell PRINTED clause, not a \
             `StaticEffect::CostModifier`.",
         ),
+        (
+            n("Count", "Divide"),
+            "DEFERRED: no general integer-division real card (`Half`'s \
+            dedicated /2 twin) in this batch.",
+        ),
+        (
+            n("Count", "Mod"),
+            "DEFERRED: no remainder/parity-check real card ('if X is even') \
+            in this batch.",
+        ),
+        (
+            n("Count", "TargetsOf"),
+            "DEFERRED: no Strive-style 'for each target beyond the first' \
+            real card in this batch.",
+        ),
+        (
+            n("Countable", "ManaSpentMatching"),
+            "DEFERRED: no Adamant-style filtered-mana-spent real card in \
+            this batch (the plain, unfiltered mana-spent domain has no Rust \
+            constructor yet either).",
+        ),
     ]
 }
 

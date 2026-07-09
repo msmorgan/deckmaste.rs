@@ -89,6 +89,22 @@ pub enum Countable {
     /// pips. `Reference` is boxed (it is 80 bytes, like its `CounterCount`
     /// peer) so this variant doesn't blow up `Count`/`Predicate`'s size.
     ManaSymbols(Box<Reference>, crate::SymbolPred),
+    /// ONE object treated as a singleton set — the per-object twin of
+    /// `Objects`, so [`Count::CountDistinct`] can read a characteristic off a
+    /// SINGLE object rather than a filtered many ([CR#105.2]): Embiggen's
+    /// "number of card types [this creature] has" =
+    /// `CountDistinct(Types, Singleton(This))`. `Reference` is boxed (it is
+    /// 80 bytes, like its `ManaSymbols` peer) so this variant doesn't blow up
+    /// `Count`/`Countable`'s size.
+    Singleton(Box<Reference>),
+    /// Mana SPENT to cast/activate a referenced object, filtered by a
+    /// [`SymbolPred`](crate::SymbolPred) ([CR#107.4]: what a mana symbol
+    /// counts as) — Adamant's "if at least three white [mana symbols were
+    /// spent]". Read via [`Count::CountOf`] (cardinality of matching spent
+    /// symbols); the FILTERED twin of the plain mana-spent domain (which is
+    /// read via `CountDistinct(Colors, ..)` instead). `Reference` boxed, like
+    /// its `ManaSymbols` peer.
+    ManaSpentMatching(Box<Reference>, crate::SymbolPred),
 }
 
 /// A fold operator over a projected set ([CR#107.1]) — the Idris `AggregateOp`.
@@ -189,6 +205,23 @@ pub enum Count {
     /// Half a count, rounded per [`RoundMode`] ([CR#107.1a], "half its power
     /// rounded up"). Boxed.
     Half(RoundMode, Box<Count>),
+    /// Divide the first count by the second, rounded per [`RoundMode`]
+    /// ([CR#107.1a]) — the general twin of `Half`'s dedicated /2 constructor
+    /// ("divided by X, rounded down"). Boxed.
+    Divide(RoundMode, Box<Count>, Box<Count>),
+    /// The remainder of the first count divided by the second ([CR#107.1] —
+    /// parity checks: "if X is even" reads `Compare(Mod(X, 2), Eq, 0)`).
+    /// Boxed.
+    Mod(Box<Count>, Box<Count>),
+    /// The first count raised to the second's power ([CR#107.1] —
+    /// exponential-growth effects: "double ~'s power X times" builds a
+    /// `Times`/`Minus` delta from `Pow(2, X)`; Mathemagics). Boxed.
+    Pow(Box<Count>, Box<Count>),
+    /// How many times a referenced object was chosen as a target when it was
+    /// put on the stack ([CR#115.9a]) — Strive's "for each target beyond the
+    /// first" reads `Minus(TargetsOf(This), 1)`. Unboxed, like its `Damage`/
+    /// `Opponents`/`ManaAvailable` peers (a single `Reference` field).
+    TargetsOf(Reference),
     /// Magnitude anaphora, countable spelling: "that many" — the nearest
     /// Amount antecedent on the antecedent stack, fixed by an
     /// earlier instruction or the enclosing event ([CR#107.3]). The primary
@@ -325,6 +358,40 @@ mod tests {
         assert_eq!(read(&write(&obj)), obj);
     }
 
+    /// `Countable::Singleton` — the per-object twin of `Objects` — and
+    /// `Countable::ManaSpentMatching` — the filtered mana-spent domain
+    /// ([CR#107.4]) — round-trip under `CountDistinct`/`CountOf`.
+    #[test]
+    fn singleton_and_mana_spent_matching_round_trip() {
+        use crate::Color;
+
+        let singleton = Count::CountDistinct(
+            Characteristic::Types,
+            Countable::Singleton(Box::new(Reference::This)),
+        );
+        assert_eq!(read("CountDistinct(Types, Singleton(This))"), singleton,);
+        assert_eq!(read(&write(&singleton)), singleton);
+
+        let mana_spent = Count::CountOf(Countable::ManaSpentMatching(
+            Box::new(Reference::This),
+            crate::SymbolPred::CountsAs(Color::White),
+        ));
+        assert_eq!(
+            read("CountOf(ManaSpentMatching(This, CountsAs(White)))"),
+            mana_spent,
+        );
+        assert_eq!(read(&write(&mana_spent)), mana_spent);
+    }
+
+    /// `TargetsOf(Reference)` — the announced-as-target count ([CR#115.9a])
+    /// — parses named and round-trips.
+    #[test]
+    fn targets_of_reads_and_round_trips() {
+        assert_eq!(read("TargetsOf(This)"), Count::TargetsOf(Reference::This));
+        let value = Count::TargetsOf(Reference::This);
+        assert_eq!(read(&write(&value)), value);
+    }
+
     /// `EventCount(EventFilter, Lookback)` parses and round-trips — the
     /// count-valued twin of `Condition::Happened` ([CR#608.2i]).
     #[test]
@@ -375,6 +442,22 @@ mod tests {
                     RoundMode::RoundUp,
                     Box::new(Count::StatOf(Reference::This, Stat::Power)),
                 ),
+            ),
+            (
+                "Divide(RoundDown, X, 2)",
+                Count::Divide(
+                    RoundMode::RoundDown,
+                    Box::new(Count::X),
+                    Box::new(Count::Literal(2)),
+                ),
+            ),
+            (
+                "Mod(X, 2)",
+                Count::Mod(Box::new(Count::X), Box::new(Count::Literal(2))),
+            ),
+            (
+                "Pow(2, X)",
+                Count::Pow(Box::new(Count::Literal(2)), Box::new(Count::X)),
             ),
         ];
         for (src, want) in cases {

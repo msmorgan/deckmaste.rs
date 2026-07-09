@@ -2279,7 +2279,11 @@ impl GameState {
                         let watcher = self.frame_watcher(frame);
                         crate::target::candidates_with(self, filter, Some(watcher))
                     }
-                    Countable::ManaSymbols(..) => Vec::new(),
+                    // Neither is a `Projectable` source — fizzle to the
+                    // empty group, like `ManaSymbols`.
+                    Countable::ManaSymbols(..)
+                    | Countable::Singleton(..)
+                    | Countable::ManaSpentMatching(..) => Vec::new(),
                 };
                 let scored: Vec<(ObjectId, Uint)> = candidates
                     .into_iter()
@@ -2740,6 +2744,25 @@ impl GameState {
                     };
                     Uint::try_from(n).expect("pip count fits Uint")
                 }
+                // [CR#105.2]: the cardinality of a one-object "set" — 1 when
+                // the reference resolves to a real card-backed object, else 0
+                // (never-crash, mirroring the `ManaSymbols` guard above).
+                Countable::Singleton(reference) => {
+                    let id = self.eval_reference(reference, frame);
+                    match self
+                        .objects
+                        .get(id)
+                        .and_then(crate::object::GameObject::card_id)
+                    {
+                        Some(_) => 1,
+                        None => 0,
+                    }
+                }
+                // [CR#107.4]: mana spent to cast/activate a referenced object,
+                // filtered by `pred` (Adamant). The engine has no mana-spent
+                // tracking yet (a separate, unforced piece of work) — fizzles
+                // to 0, like the `ManaSymbols`/`CountDistinct` gaps below.
+                Countable::ManaSpentMatching(..) => 0,
             },
             // "Equal to its power": resolve the reference, read the DERIVED
             // stat off the layer view ([CR#613]; per-call rebuild — the same
@@ -2847,6 +2870,45 @@ impl GameState {
                     deckmaste_core::RoundMode::RoundDown => v / 2,
                 }
             }
+            // [CR#107.1a]: `Half`'s general twin — divide by an arbitrary
+            // count, rounded per the mode. A zero divisor fizzles to 0
+            // (never-crash) rather than panicking on integer division.
+            Count::Divide(mode, a, b) => {
+                let a = self.eval_count(a, frame);
+                let b = self.eval_count(b, frame);
+                if b == 0 {
+                    0
+                } else {
+                    match mode {
+                        deckmaste_core::RoundMode::RoundUp => a.div_ceil(b),
+                        deckmaste_core::RoundMode::RoundDown => a / b,
+                    }
+                }
+            }
+            // [CR#107.1]: remainder — parity checks read `Compare(Mod(x, 2),
+            // Eq, 0)`. A zero divisor fizzles to 0 (never-crash).
+            Count::Mod(a, b) => {
+                let a = self.eval_count(a, frame);
+                let b = self.eval_count(b, frame);
+                if b == 0 { 0 } else { a % b }
+            }
+            // [CR#107.1]: exponentiation — doubling effects build `Pow(2,
+            // X)`. Saturates at the `Uint` ceiling, like `Times`.
+            Count::Pow(base, exp) => {
+                let base = self.eval_count(base, frame);
+                let exp = self.eval_count(exp, frame);
+                base.saturating_pow(exp)
+            }
+            // [CR#115.9a]: how many targets `reference`'s own stack entry
+            // carries — Strive's "for each target beyond the first" reads
+            // `Minus(TargetsOf(This), 1)`. A reference that isn't (or is no
+            // longer) on the stack fizzles to 0 (never-crash).
+            Count::TargetsOf(reference) => {
+                let id = self.eval_reference(reference, frame);
+                self.stack.iter().find(|e| e.id == id).map_or(0, |e| {
+                    Uint::try_from(e.targets.len()).expect("target count fits Uint")
+                })
+            }
             // [CR#107.3]: the size of the distinct union of a characteristic
             // across the matching objects (Domain = distinct land subtypes;
             // Coven = distinct creature powers; Tarmogoyf = distinct card types
@@ -2864,9 +2926,30 @@ impl GameState {
                     }
                     Uint::try_from(seen.len()).expect("distinct count fits Uint")
                 }
-                // Not a forced path yet ([CR#700.5] devotion has no
-                // distinct-union reading) — fizzle to 0.
-                Countable::ManaSymbols(..) => 0,
+                // [CR#105.2]: the distinct-union axis read off a SINGLE
+                // object — Embiggen's "number of card types it has" =
+                // `CountDistinct(Types, Singleton(This))`. A stale/absent/
+                // non-card-backed reference fizzles to 0 (never-crash).
+                Countable::Singleton(reference) => {
+                    let id = self.eval_reference(reference, frame);
+                    match self
+                        .objects
+                        .get(id)
+                        .and_then(crate::object::GameObject::card_id)
+                    {
+                        Some(_) => {
+                            let n = self.distinct_keys(*characteristic, id).len();
+                            Uint::try_from(n).expect("distinct count fits Uint")
+                        }
+                        None => 0,
+                    }
+                }
+                // Neither is a forced distinct-union path yet ([CR#700.5]
+                // devotion has no distinct-union reading; Idris's
+                // `readableOn` doesn't gate `ManaSpentMatching` either, but
+                // the engine has no mana-spent tracking to read) — fizzle to
+                // 0.
+                Countable::ManaSymbols(..) | Countable::ManaSpentMatching(..) => 0,
             },
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
@@ -2979,7 +3062,12 @@ impl GameState {
                         let watcher = self.frame_watcher(frame);
                         crate::target::candidates_with(self, filter, Some(watcher))
                     }
-                    Countable::ManaSymbols(..) => Vec::new(),
+                    // Neither is a `Projectable` source (Idris gates
+                    // `Aggregate`/`Project` to `Objects`/`Players`) — fizzle
+                    // to the empty set, like `ManaSymbols`.
+                    Countable::ManaSymbols(..)
+                    | Countable::Singleton(..)
+                    | Countable::ManaSpentMatching(..) => Vec::new(),
                 };
                 let values: Vec<Uint> = ids
                     .into_iter()

@@ -12,6 +12,7 @@ use deckmaste_core::DeonticAction;
 use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::EnterRider;
+use deckmaste_core::Modification;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::Reference;
@@ -99,10 +100,7 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
                 || format!("[unrendered: {:?}]", c.effect),
                 |s| trim_period(&s),
             );
-            match duration_suffix(&c.duration) {
-                Some(d) => format!("{clause} {d}."),
-                None => format!("{clause}."),
-            }
+            duration_qualified(&c.duration, &clause, has_dynamic_pt_delta(&c.effect))
         }
         // The multi-part spelling of `Continuously` ([CR#611.2c] — a list of
         // static parts sharing one duration, the Boros Charm mode-2 shape).
@@ -118,10 +116,8 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
                 })
                 .collect();
             let clause = clauses.join(" and ");
-            match duration_suffix(duration) {
-                Some(d) => format!("{clause} {d}."),
-                None => format!("{clause}."),
-            }
+            let leads = parts.len() == 1 && has_dynamic_pt_delta(&parts[0]);
+            duration_qualified(duration, &clause, leads)
         }
         // A target-scoping wrapper ([CR#115.1,601.2c]): render the inner effect
         // with `ctx.targets` rebound to this node's targets, so the inner
@@ -607,6 +603,66 @@ fn duration_suffix(d: &Duration) -> Option<String> {
         Duration::FixedUntil(m) => Some(format!("until {}", turn_marker(*m))),
         Duration::EndOfGame => None,
         other => Some(format!("[unrendered: {other:?}]")),
+    }
+}
+
+/// The LEADING spelling of a duration ("Until end of turn, ..."), the
+/// mirror-image of [`duration_suffix`]'s trailing "... until end of turn.".
+fn duration_prefix(d: &Duration) -> Option<String> {
+    match d {
+        Duration::FixedUntil(m) => Some(format!("Until {}", turn_marker(*m))),
+        Duration::EndOfGame => None,
+        other => Some(format!("[unrendered: {other:?}]")),
+    }
+}
+
+/// Join a one-shot-created continuous effect's clause with its duration,
+/// choosing FRONT ("Until end of turn, target creature gets +1/+1 for each
+/// ...") vs TRAILING ("Target creature gets +2/+2 until end of turn.")
+/// placement. Real oracle text varies stylistically, but consistently fronts
+/// the duration for a DYNAMIC-magnitude effect (Embiggen's per-axis pump,
+/// Exponential Growth's doubling) and trails it for the common fixed-number
+/// pump / ability-grant shape (Giant Growth, Collective Resistance) —
+/// `leads` carries that call from the caller, which has the effect shape in
+/// hand.
+fn duration_qualified(d: &Duration, clause: &str, leads: bool) -> String {
+    if leads {
+        match duration_prefix(d) {
+            Some(prefix) => format!("{prefix}, {}.", super::ability::lower_first(clause)),
+            None => format!("{clause}."),
+        }
+    } else {
+        match duration_suffix(d) {
+            Some(suffix) => format!("{clause} {suffix}."),
+            None => format!("{clause}."),
+        }
+    }
+}
+
+/// Whether a `StaticEffect`'s modification carries a non-literal P/T delta —
+/// "gets +1/+1 for each ..." / "double ... power X times" — vs the common
+/// fixed-number pump ("gets +N/+N") or ability grant. Drives
+/// [`duration_qualified`]'s front-vs-trail choice.
+fn has_dynamic_pt_delta(e: &StaticEffect) -> bool {
+    match e {
+        StaticEffect::Expanded(exp) => has_dynamic_pt_delta(&exp.value),
+        StaticEffect::Modify(_, change) => modification_has_dynamic_pt_delta(change),
+        _ => false,
+    }
+}
+
+/// `has_dynamic_pt_delta`'s `Modification`-level recursion — looks through
+/// `Several`/`Expanded` (a macro-bundled "+N/+N" carries the same shape).
+fn modification_has_dynamic_pt_delta(m: &Modification) -> bool {
+    use deckmaste_core::NumericOp;
+    match m {
+        Modification::Power(NumericOp::Up(c) | NumericOp::Down(c))
+        | Modification::Toughness(NumericOp::Up(c) | NumericOp::Down(c)) => {
+            !matches!(c, Count::Literal(_))
+        }
+        Modification::Several(parts) => parts.iter().any(modification_has_dynamic_pt_delta),
+        Modification::Expanded(exp) => modification_has_dynamic_pt_delta(&exp.value),
+        _ => false,
     }
 }
 
