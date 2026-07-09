@@ -1810,17 +1810,26 @@ impl GameState {
     /// Callers are responsible for merging these with any riders the producing
     /// ability declares.
     pub(crate) fn snow_provenance(&self, source: ObjectId) -> Vec<deckmaste_core::ManaRider> {
-        let is_permanent = self.objects.obj(source).zone == Some(Zone::Battlefield);
+        // Never-crash: the source may have ceased to exist by the time this
+        // runs (a token that left the game, or an LKI-only snapshot id). Both
+        // `objects.obj` and `layers().get` panic on a stale id, so guard the
+        // lookup with the non-panicking `objects.get` accessor and fizzle to
+        // no provenance — an object that is gone is not a snow permanent. A
+        // non-battlefield object short-circuits here too, keeping `layers()`
+        // (which also panics on a non-live id) off the path unless the source
+        // is a live permanent.
+        let Some(obj) = self.objects.get(source) else {
+            return vec![];
+        };
+        if obj.zone != Some(Zone::Battlefield) {
+            return vec![];
+        }
         let is_snow = self
             .layers()
             .get(source)
             .supertypes
             .contains(&deckmaste_core::Supertype::Snow);
-        if is_permanent && is_snow {
-            vec![deckmaste_core::ManaRider::Snow]
-        } else {
-            vec![]
-        }
+        if is_snow { vec![deckmaste_core::ManaRider::Snow] } else { vec![] }
     }
 
     /// [CR#117.3c]: taking an action restarts the pass count; the actor
@@ -1838,5 +1847,47 @@ impl GameState {
             .as_mut()
             .expect("open priority round")
             .consecutive_passes = 0;
+    }
+}
+
+#[cfg(test)]
+mod snow_provenance_tests {
+    use crate::object::ObjectId;
+    use crate::player::PlayerId;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        })
+    }
+
+    /// Never-crash ([CR#107.4h]): a mana ability can resolve after its source
+    /// has ceased to exist (a token that left the game, or an LKI-only
+    /// snapshot id) — `frame.source` then names an object absent from the
+    /// store. `snow_provenance` must fizzle to no provenance rather than
+    /// panic in the `objects.obj` / `layers().get` lookups. Regression for a
+    /// latent panic surfaced while writing an `AmongColorsOf` test.
+    #[test]
+    fn snow_provenance_fizzles_on_ceased_source() {
+        let state = game();
+        // A fabricated id that was never in the store stands in for a source
+        // that has ceased to exist by resolution time.
+        let ceased = ObjectId::from_raw(9999);
+        let riders = state.snow_provenance(ceased);
+        assert!(
+            riders.is_empty(),
+            "a ceased/absent source contributes no snow provenance (must not \
+             panic): {riders:?}"
+        );
     }
 }
