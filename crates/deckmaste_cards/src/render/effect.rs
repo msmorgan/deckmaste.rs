@@ -1091,6 +1091,28 @@ fn add_mana_text(count: &Count, production: &deckmaste_core::ManaProduction) -> 
                 .collect();
             format!("Add {}.", symbols.join(" or "))
         }
+        // The filterland cycle: a choice among multi-symbol runs, rendered as
+        // the Oxford-comma list "Add {W}{W}, {W}{U}, or {U}{U}." Each run is
+        // the concatenation of its symbols; a two-run choice is a bare "A or
+        // B", three or more the Oxford "A, B, or C".
+        ManaSpec::OneOfRuns(runs) => {
+            let options: Vec<String> = runs
+                .iter()
+                .map(|run| {
+                    run.iter()
+                        .map(|c| format!("{{{}}}", super::card::color_letter(*c)))
+                        .collect::<Vec<_>>()
+                        .concat()
+                })
+                .collect();
+            let list = match options.as_slice() {
+                [] => String::new(),
+                [only] => only.clone(),
+                [a, b] => format!("{a} or {b}"),
+                [rest @ .., last] => format!("{}, or {last}", rest.join(", ")),
+            };
+            format!("Add {list}.")
+        }
     }
 }
 
@@ -1329,6 +1351,46 @@ mod tests {
         assert!(
             rendered.contains("unless that player pays {1}"),
             "third-person MustPay: {rendered}"
+        );
+    }
+
+    /// A mana ability's produced-mana forms render their oracle text: the
+    /// single-color choice "Add {W} or {U}.", and the filterland multi-symbol
+    /// run choice "Add {W}{W}, {W}{U}, or {U}{U}." ([CR#106.1b]).
+    #[test]
+    fn add_mana_renders_run_and_color_choices() {
+        use deckmaste_core::Color::Blue;
+        use deckmaste_core::Color::White;
+        use deckmaste_core::ColorOrColorless;
+        use deckmaste_core::ManaSpec;
+        use deckmaste_core::PlayerAction;
+
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+        };
+        let render = |spec: ManaSpec| {
+            effect(
+                &OneShotEffect::act_by_you(PlayerAction::AddMana(Count::Literal(1), spec.into())),
+                &ctx,
+            )
+        };
+        let w = || ColorOrColorless::Color(White);
+        let u = || ColorOrColorless::Color(Blue);
+        assert_eq!(render(ManaSpec::OneOf(vec![w(), u()])), "Add {W} or {U}.");
+        assert_eq!(
+            render(ManaSpec::OneOfRuns(vec![
+                vec![w(), w()],
+                vec![w(), u()],
+                vec![u(), u()],
+            ])),
+            "Add {W}{W}, {W}{U}, or {U}{U}."
+        );
+        // The two-run form drops the Oxford comma.
+        assert_eq!(
+            render(ManaSpec::OneOfRuns(vec![vec![w(), w()], vec![u(), u()]])),
+            "Add {W}{W} or {U}{U}."
         );
     }
 

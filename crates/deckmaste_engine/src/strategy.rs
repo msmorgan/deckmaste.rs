@@ -332,6 +332,8 @@ impl StrategyEvaluator {
             PendingDecision::ChooseManaColor { options, .. } => {
                 Decision::ManaColor(*options.first().expect("a mana choice offers options"))
             }
+            // Greedy default: the first offered run (printed order).
+            PendingDecision::ChooseManaMode { .. } => Decision::ManaMode(0),
             PendingDecision::PayMana { .. } => Decision::Pay(state.auto_pay_pending()),
             PendingDecision::OrderTriggers { triggers, .. } => {
                 Decision::Order((0..triggers.len()).collect())

@@ -2012,6 +2012,15 @@ impl GameState {
                         amount,
                         riders,
                     }],
+                    // [CR#106.1b]: the filterland cycle — the actor picks one
+                    // of several multi-symbol runs on resolution, then that
+                    // run's whole sequence of mana is produced.
+                    ManaSpec::OneOfRuns(options) => vec![WorkItem::ChooseManaMode {
+                        player: actor,
+                        options: options.clone(),
+                        amount,
+                        riders,
+                    }],
                 }
             }
             PlayerAction::Discard {
@@ -6786,6 +6795,55 @@ mod tests {
         let blue = ColorOrColorless::Color(Color::Blue);
         state.submit_decision(Decision::ManaColor(blue)).unwrap();
         let _ = state.step(); // ManaAdded applies
+        assert_eq!(state.players[0].mana_pool.amount(blue), 1);
+    }
+
+    /// [CR#106.1b]: the filterland production `AddMana(1, OneOfRuns([[W,W],
+    /// [W,U], [U,U]]))` surfaces `ChooseManaMode`; an out-of-range index is
+    /// rejected; picking the heterogeneous run lands both its mana at once.
+    #[test]
+    fn add_mana_one_of_runs_surfaces_mode_and_lands_the_run() {
+        use deckmaste_core::Color;
+        use deckmaste_core::ColorOrColorless;
+        use deckmaste_core::ManaSpec;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let white = ColorOrColorless::Color(Color::White);
+        let blue = ColorOrColorless::Color(Color::Blue);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::AddMana(
+                Count::Literal(1),
+                ManaSpec::OneOfRuns(vec![
+                    vec![white, white],
+                    vec![white, blue],
+                    vec![blue, blue],
+                ])
+                .into(),
+            )),
+            &frame,
+        );
+        let _ = state.step(); // ManaModeOpened
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaMode {
+            player, options, ..
+        }) = state.step()
+        else {
+            panic!("expected ChooseManaMode, got {:?}", state.pending);
+        };
+        assert_eq!(player, PlayerId(0));
+        assert_eq!(options.len(), 3, "the three runs");
+        assert!(
+            state.submit_decision(Decision::ManaMode(3)).is_err(),
+            "index past the offered runs is illegal"
+        );
+        // Pick the {W}{U} run (index 1): one white and one blue land together.
+        state.submit_decision(Decision::ManaMode(1)).unwrap();
+        let _ = state.step(); // ManaAdded batch applies
+        assert_eq!(state.players[0].mana_pool.amount(white), 1);
         assert_eq!(state.players[0].mana_pool.amount(blue), 1);
     }
 

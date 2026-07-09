@@ -21,10 +21,15 @@ pub(super) enum Production {
     /// "one mana of any color".
     AnyColor,
     /// "{W} or {U}" / "{U}, {B}, or {R}" — one mana, color chosen from a set
-    /// on resolution ([CR#106.1b]). Members keep printed order. Each member is
-    /// a SINGLE symbol; a multi-symbol choice ("{W}{W}, {W}{U}, or {U}{U}") has
-    /// no engine spec and is declined.
+    /// on resolution ([CR#106.1b]). Members keep printed order. Every member is
+    /// a SINGLE symbol; a member that is a multi-symbol run promotes the whole
+    /// choice to [`Production::OneOfRuns`].
     OneOf(Vec<ColorOrColorless>),
+    /// "{W}{W}, {W}{U}, or {U}{U}" — the filterland cycle: a choice among
+    /// multi-symbol runs, one produced on resolution ([CR#106.1b]). Members
+    /// keep printed order; each is a non-empty run of colored/colorless
+    /// symbols.
+    OneOfRuns(Vec<Vec<ColorOrColorless>>),
     /// A run of mana symbols, consecutive identical specs run-length encoded:
     /// `{C}{C}` -> `[(2, Colorless)]`, `{W}{U}` -> `[(1, White), (1, Blue)]`.
     Fixed(Vec<(u32, ColorOrColorless)>),
@@ -112,24 +117,33 @@ pub(super) fn parse_production(text: &str) -> Option<Production> {
     )?)))
 }
 
-/// A color-choice production: `{W} or {U}` or the Oxford-comma list `{U}, {B},
-/// or {R}` ([CR#106.1b]). Splits on `, ` then `or `, so the last item's `, or`
-/// yields the same single-symbol tokens as the two-item ` or `. Each token
-/// must be ONE colored/colorless symbol; a multi-symbol member (`{W}{W}`)
-/// declines — `ManaSpec::OneOf` holds single colors, not runs.
+/// A color-choice production: `{W} or {U}` / the Oxford-comma list `{U}, {B},
+/// or {R}` / the multi-symbol filterland `{W}{W}, {W}{U}, or {U}{U}`
+/// ([CR#106.1b]). Splits on `, ` then `or `, so the last item's `, or` yields
+/// the same tokens as the two-item ` or `. Each token must be a non-empty run
+/// of colored/colorless symbols. When every run is a single symbol it is the
+/// classic single-mana choice ([`Production::OneOf`]); any multi-symbol run
+/// promotes the whole choice to [`Production::OneOfRuns`].
 fn parse_one_of(text: &str) -> Option<Production> {
-    let colors = text
+    let runs = text
         .replace(", or ", ", ")
         .split(", ")
         .flat_map(|tok| tok.split(" or "))
-        .map(symbol_color)
-        .collect::<Option<Vec<_>>>()?;
-    // A bare " or " between two symbols is the two-item form; the comma form
+        .map(|tok| parse_symbol_run(tok.trim()))
+        .collect::<Option<Vec<Vec<ColorOrColorless>>>>()?;
+    // A bare " or " between two members is the two-item form; the comma form
     // needs at least three. Either way two or more members is required.
-    if colors.len() < 2 {
+    if runs.len() < 2 {
         return None;
     }
-    Some(Production::OneOf(colors))
+    // All-single-symbol members are the single-mana color choice; anything
+    // longer is a multi-symbol run choice.
+    if runs.iter().all(|run| run.len() == 1) {
+        return Some(Production::OneOf(
+            runs.into_iter().map(|run| run[0]).collect(),
+        ));
+    }
+    Some(Production::OneOfRuns(runs))
 }
 
 /// Splits off a painland rider: the `Add` body and an optional trailing clause
@@ -198,6 +212,21 @@ fn render_production(production: &Production) -> anyhow::Result<String> {
                 .collect::<Result<Vec<_>, _>>()?
                 .join(", ");
             format!("AddMana(1, OneOf([{inner}]))")
+        }
+        Production::OneOfRuns(runs) => {
+            let options = runs
+                .iter()
+                .map(|run| {
+                    let inner = run
+                        .iter()
+                        .map(to_string_pretty)
+                        .collect::<Result<Vec<_>, _>>()?
+                        .join(", ");
+                    Ok(format!("[{inner}]"))
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?
+                .join(", ");
+            format!("AddMana(1, OneOfRuns([{options}]))")
         }
         Production::Fixed(runs) => {
             let adds = runs
@@ -320,12 +349,38 @@ mod tests {
         );
     }
 
-    /// A multi-symbol color choice ("{W}{W}, {W}{U}, or {U}{U}") has no engine
-    /// spec — `ManaSpec::OneOf` holds single colors, not runs — so it declines.
+    /// A multi-symbol color choice ("{W}{W}, {W}{U}, or {U}{U}") — the
+    /// filterland cycle — is a run choice, emitting `OneOfRuns`.
     #[test]
-    fn one_of_multi_symbol_declines() {
-        assert!(parse_production("{W}{W}, {W}{U}, or {U}{U}").is_none());
-        assert!(parse_production("{C}{C}, or {U}{U}").is_none());
+    fn one_of_multi_symbol_is_a_run_choice() {
+        assert_eq!(
+            effect("{W}{W}, {W}{U}, or {U}{U}"),
+            "AddMana(1, OneOfRuns([[White, White], [White, Blue], [Blue, Blue]]))"
+        );
+        // The two-item form (bare " or ") promotes too.
+        assert_eq!(
+            effect("{C}{C} or {U}{U}"),
+            "AddMana(1, OneOfRuns([[Colorless, Colorless], [Blue, Blue]]))"
+        );
+        // A mixed choice — one single symbol, one run — is still a run choice.
+        assert_eq!(
+            effect("{W} or {U}{U}"),
+            "AddMana(1, OneOfRuns([[White], [Blue, Blue]]))"
+        );
+    }
+
+    /// A full filterland line — Mystic Gate's hybrid cost fronting a
+    /// multi-symbol run choice ([CR#602.1a,106.1b]) — graduates end to end.
+    #[test]
+    fn filterland_line() {
+        assert_eq!(
+            ability("{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}."),
+            Some(
+                "Activated(cost: [Mana([Hybrid(White,Blue)]), Tap], effect: \
+                 AddMana(1, OneOfRuns([[White, White], [White, Blue], [Blue, Blue]])))"
+                    .to_owned()
+            )
+        );
     }
 
     /// The cost is the full pre-colon clause: generic mana, sacrifice-self,

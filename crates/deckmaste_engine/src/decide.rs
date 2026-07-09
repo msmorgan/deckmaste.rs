@@ -95,6 +95,7 @@ impl PendingDecision {
             | PendingDecision::DiscardToHandSize { player, .. }
             | PendingDecision::DiscardCards { player, .. }
             | PendingDecision::ChooseManaColor { player, .. }
+            | PendingDecision::ChooseManaMode { player, .. }
             | PendingDecision::ChooseTargets { player, .. }
             | PendingDecision::PayMana { player, .. }
             | PendingDecision::OrderTriggers { player, .. }
@@ -171,6 +172,17 @@ pub enum PendingDecision {
     ChooseManaColor {
         player: PlayerId,
         options: Vec<deckmaste_core::ColorOrColorless>,
+        amount: Uint,
+        riders: Vec<deckmaste_core::ManaRider>,
+    },
+    /// [CR#106.1b]: a resolving `AddMana` whose production is a choice among
+    /// multi-symbol runs (the filterland cycle "{W}{W}, {W}{U}, or {U}{U}") —
+    /// `player` picks one of `options` (each a run of mana), and the chosen
+    /// run's whole sequence lands. The answer ([`Decision::ManaMode`]) is the
+    /// chosen option index.
+    ChooseManaMode {
+        player: PlayerId,
+        options: Vec<Vec<deckmaste_core::ColorOrColorless>>,
         amount: Uint,
         riders: Vec<deckmaste_core::ManaRider>,
     },
@@ -317,6 +329,9 @@ pub enum Decision {
     Discard(Vec<ObjectId>),
     /// Answers `ChooseManaColor`: the chosen mana.
     ManaColor(deckmaste_core::ColorOrColorless),
+    /// Answers `ChooseManaMode`: the chosen multi-symbol run, by option index
+    /// into the offered runs ([CR#106.1b]).
+    ManaMode(Uint),
     /// Answers `ChooseTargets`: one chosen object per `TargetSpec`.
     Targets(Vec<ObjectId>),
     /// Answers `PayMana`: how the pool covers the cost.
@@ -617,6 +632,38 @@ impl GameState {
                         riders,
                     },
                 ))]);
+                Ok(())
+            }
+            (
+                PendingDecision::ChooseManaMode {
+                    player,
+                    options,
+                    amount,
+                    riders,
+                },
+                Decision::ManaMode(choice),
+            ) => {
+                // [CR#106.1b]: the chosen run is drawn from the offered set.
+                let run = usize::try_from(choice)
+                    .ok()
+                    .and_then(|i| options.get(i))
+                    .ok_or_else(|| DecisionError::Illegal {
+                        reason: format!("{choice} is not one of the offered mana runs"),
+                    })?;
+                let (player, amount, riders) = (*player, *amount, riders.clone());
+                // The whole run's mana lands at once — one `ManaAdded` per
+                // symbol in printed order, each carrying the shared riders.
+                let events = run
+                    .iter()
+                    .map(|&mana| GameEvent::ManaAdded {
+                        player,
+                        mana,
+                        amount,
+                        riders: riders.clone(),
+                    })
+                    .collect();
+                self.pending = None;
+                self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
                 Ok(())
             }
             (

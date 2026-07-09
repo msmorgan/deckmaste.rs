@@ -82,6 +82,7 @@ namespace ProducedMana
   data ProducedMana = OfColor (Maybe Color)   -- `OfColor (Just c)` = one {c}; `OfColor Nothing` = one {C}
                     | AnyColor                 -- one mana of any color (the producer picks)
                     | OneOf (List (Maybe Color)) -- one mana, the producer choosing from a FIXED set ("add {W} or {U}" = `OneOf [Just White, Just Blue]`); distinct from `AnyColor` (all five) and from a heterogeneous list (add ALL) ([CR#106.1])
+                    | OneOfRuns (List (List (Maybe Color))) -- one of several multi-symbol RUNS, producer choosing on resolution ("add {W}{W}, {W}{U}, or {U}{U}" = the filterland cycle = `OneOfRuns [[Just White, Just White], [Just White, Just Blue], [Just Blue, Just Blue]]`); the chosen run's whole sequence is added ([CR#106.1b])
 
 public export
 implementation Promote Color ProducedMana where

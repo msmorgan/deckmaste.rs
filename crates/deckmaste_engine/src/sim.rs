@@ -375,6 +375,8 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
         PendingDecision::ChooseManaColor { options, .. } => {
             Decision::ManaColor(*options.first().expect("a mana choice offers options"))
         }
+        // Greedy default: the first offered run (printed order).
+        PendingDecision::ChooseManaMode { .. } => Decision::ManaMode(0),
         // Route through `auto_pay_pending` so the autotapper honors the
         // subject's `SpendOnly` restrictions ([CR#106.6]).
         PendingDecision::PayMana { .. } => Decision::Pay(state.auto_pay_pending()),
@@ -418,6 +420,7 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::DiscardToHandSize { player, .. }
         | PendingDecision::DiscardCards { player, .. }
         | PendingDecision::ChooseManaColor { player, .. }
+        | PendingDecision::ChooseManaMode { player, .. }
         | PendingDecision::ChooseTargets { player, .. }
         | PendingDecision::PayMana { player, .. }
         | PendingDecision::OrderTriggers { player, .. }

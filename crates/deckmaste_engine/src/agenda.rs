@@ -108,6 +108,16 @@ pub enum WorkItem {
         amount: deckmaste_core::Uint,
         riders: Vec<deckmaste_core::ManaRider>,
     },
+    /// [CR#106.1b]: a resolving `AddMana` whose production is a choice among
+    /// multi-symbol runs (the filterland "{W}{W}, {W}{U}, or {U}{U}") —
+    /// surface a `ChooseManaMode` decision for `player` to pick one of
+    /// `options` (each a run of mana). The chosen run's whole sequence lands.
+    ChooseManaMode {
+        player: crate::player::PlayerId,
+        options: Vec<Vec<deckmaste_core::ColorOrColorless>>,
+        amount: deckmaste_core::Uint,
+        riders: Vec<deckmaste_core::ManaRider>,
+    },
     /// [CR#118.12a]: a mid-resolution mana toll — a `MustPay`/`MayPay`
     /// continuation's `Mana(...)` cost component, paid by `player` from
     /// their pool. Surfaces a `PayMana` decision; `subject` is the

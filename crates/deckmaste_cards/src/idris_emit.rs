@@ -1668,6 +1668,17 @@ fn emit_mana_spec(spec: &ManaSpec) -> R {
                 cs.iter().map(|c| emit_color_or_colorless(*c)).collect(),
             )],
         ),
+        // The filterland cycle: a choice among multi-symbol runs. Each run is
+        // itself an Idris list of `Maybe Color`, so the argument is a list of
+        // lists.
+        ManaSpec::OneOfRuns(runs) => app(
+            "OneOfRuns",
+            vec![ilist(
+                runs.iter()
+                    .map(|run| ilist(run.iter().map(|c| emit_color_or_colorless(*c)).collect()))
+                    .collect(),
+            )],
+        ),
         ManaSpec::Specific(c) => app("OfColor", vec![emit_color_or_colorless(*c)]),
     })
 }

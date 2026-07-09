@@ -15,11 +15,11 @@ use crate::color::ColorOrColorless;
 ///
 /// The untagged Specific variant serializes transparently, so the RON stays
 /// flat: `AddMana(Literal(1), White)`, not `…Specific(White)`. Tagged
-/// variants (`AnyColor`, `OneOf`, future `AnyType`, riders) must stay above
-/// the `#[serde(untagged)]` line — the untagged arm is tried last.
+/// variants (`AnyColor`, `OneOf`, `OneOfRuns`, future `AnyType`, riders) must
+/// stay above the `#[serde(untagged)]` line — the untagged arm is tried last.
 ///
-/// Not `Copy`: `OneOf` carries a `Vec`. Nothing `Copy` holds a `ManaSpec`
-/// (`Action`/`Token` are `Clone`), so the spec stays `Clone`.
+/// Not `Copy`: `OneOf`/`OneOfRuns` carry a `Vec`. Nothing `Copy` holds a
+/// `ManaSpec` (`Action`/`Token` are `Clone`), so the spec stays `Clone`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ManaSpec {
     AnyColor,
@@ -27,6 +27,14 @@ pub enum ManaSpec {
     /// resolution ("{W} or {U}", [CR#106.1b]) — a single mana ability, not a
     /// [CR#700.2] modal choice. Members keep their printed order.
     OneOf(Vec<ColorOrColorless>),
+    /// A choice among multi-symbol RUNS the controller makes on resolution
+    /// ("{W}{W}, {W}{U}, or {U}{U}", the filterland cycle, [CR#106.1b]): one
+    /// mana ability offering several fixed sequences, the chosen run's whole
+    /// sequence of mana produced at once. Each run is a non-empty sequence of
+    /// colored/colorless symbols; runs keep their printed order. The
+    /// general multi-mana form of `OneOf` (whose "runs" are each one mana);
+    /// still a single mana ability, not a [CR#700.2] modal choice.
+    OneOfRuns(Vec<Vec<ColorOrColorless>>),
     #[serde(untagged)]
     Specific(ColorOrColorless),
 }
@@ -593,6 +601,36 @@ mod tests {
         assert_eq!(
             read("OneOf([Colorless, Blue])"),
             ManaSpec::OneOf(vec![Colorless, Blue.into()])
+        );
+    }
+
+    /// The filterland production "{W}{W}, {W}{U}, or {U}{U}" lands: one mana
+    /// ability, a run chosen on resolution. Each run reads as a nested list of
+    /// flat colors (`[White, White]`, not `[Color(White), …]`).
+    #[test]
+    fn mana_spec_one_of_runs_round_trips() {
+        let read = |s: &str| crate::ron::options().from_str::<ManaSpec>(s).unwrap();
+        let spec = read("OneOfRuns([[White, White], [White, Blue], [Blue, Blue]])");
+        assert_eq!(
+            spec,
+            ManaSpec::OneOfRuns(vec![
+                vec![White.into(), White.into()],
+                vec![White.into(), Blue.into()],
+                vec![Blue.into(), Blue.into()],
+            ])
+        );
+        let write = |m: &ManaSpec| crate::ron::options().to_string(m).unwrap();
+        assert_eq!(
+            write(&spec),
+            "OneOfRuns([[White,White],[White,Blue],[Blue,Blue]])"
+        );
+        // Colorless is a valid member of a run too.
+        assert_eq!(
+            read("OneOfRuns([[Colorless, Colorless], [Colorless, Blue]])"),
+            ManaSpec::OneOfRuns(vec![
+                vec![Colorless, Colorless],
+                vec![Colorless, Blue.into()],
+            ])
         );
     }
 

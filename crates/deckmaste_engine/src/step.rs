@@ -73,6 +73,9 @@ pub enum Progress {
     DiscardOpened { count: Uint },
     /// [CR#106.1b]: a resolving `AddMana` surfaced its color choice.
     ManaColorOpened,
+    /// [CR#106.1b]: a resolving `AddMana` surfaced its multi-symbol-run choice
+    /// (the filterland cycle).
+    ManaModeOpened,
     /// [CR#508.1]: the Declare Attackers step surfaced its decision; `legal` is
     /// how many creatures the active player may declare.
     DeclareAttackersOpened { legal: Uint },
@@ -181,6 +184,12 @@ impl GameState {
                 amount,
                 riders,
             } => self.open_choose_mana_color(player, options, amount, riders),
+            WorkItem::ChooseManaMode {
+                player,
+                options,
+                amount,
+                riders,
+            } => self.open_choose_mana_mode(player, options, amount, riders),
             WorkItem::AnnounceOptionalCosts { index } => {
                 let surfaced = self.announce_optional_costs(index);
                 Progress::CostOptionsChosen { surfaced }
@@ -1785,6 +1794,29 @@ impl GameState {
             riders,
         });
         Progress::ManaColorOpened
+    }
+
+    /// [CR#106.1b]: surfaces the multi-symbol-run choice for a resolving
+    /// `AddMana` whose production is the filterland "{W}{W}, {W}{U}, or
+    /// {U}{U}". Always surfaces (engine policy: every choice is explicit).
+    fn open_choose_mana_mode(
+        &mut self,
+        player: PlayerId,
+        options: Vec<Vec<ColorOrColorless>>,
+        amount: Uint,
+        riders: Vec<deckmaste_core::ManaRider>,
+    ) -> Progress {
+        debug_assert!(
+            !options.is_empty() && options.iter().all(|run| !run.is_empty()),
+            "a mana-run choice offers at least one non-empty run"
+        );
+        self.pending = Some(PendingDecision::ChooseManaMode {
+            player,
+            options,
+            amount,
+            riders,
+        });
+        Progress::ManaModeOpened
     }
 
     /// [CR#508.1a]: surfaces the Declare Attackers decision for the active
