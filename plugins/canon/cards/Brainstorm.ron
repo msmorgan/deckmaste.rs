@@ -17,7 +17,7 @@ Normal(
         // ordered-landing surface scry uses, generalized to a hand→library
         // group move.
         With(
-          binder: Choose(quantity: Exactly(2), filter: AllOf([InZone(Hand), Owner(Ref(You))])),
+          binder: Choose(quantity: Exactly(2), filter: And([InZone(Hand), Owner(Ref(You))])),
           body: MoveGroup(group: They, arrangement: AnyOrder, to: Library(FromTop(0))),
         ),
       ])

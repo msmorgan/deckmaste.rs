@@ -10,6 +10,6 @@ KeywordAbility(
     template: "flying",
     abilities: [Static(Cant(Block(
             on: Ref(This),
-            by: Not(OneOf([Has(Flying), Has(Reach)])),
+            by: Not(Or([Has(Flying), Has(Reach)])),
         )))],
 )

@@ -14,5 +14,5 @@
     name: "YouHaveTheCitysBlessing",
     template: "you have the city's blessing",
     kinds: [Condition],
-    body: Is(You, Designated("CitysBlessing")),
+    body: Matches(You, Designated("CitysBlessing")),
 )

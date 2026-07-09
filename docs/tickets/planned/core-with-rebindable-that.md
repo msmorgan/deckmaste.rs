@@ -56,7 +56,7 @@ Example:
 
 ```rust
 With(
-    selection: Choose(2, AllOf([ControlledBy(You), Creature])),
+    selection: Choose(2, And([ControlledBy(You), Creature])),
     // `Those` is bound here to the chosen 2 creatures, order-preserved.
     body: Each(Those,
         // per-element distribution binds each creature to singular `That`:

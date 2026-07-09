@@ -485,9 +485,9 @@ fn ascend_macro_expands_to_static_sba() {
     // Drift guard: the macro's Sba `when` must equal the canonical Ascend gate
     // ([CR#702.131a,702.131b]) — the same typed `Condition` the spell-form
     // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
-    let canonical = Condition::AllOf(vec![
+    let canonical = Condition::And(vec![
         Condition::Compare(
-            Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
+            Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
@@ -496,7 +496,7 @@ fn ascend_macro_expands_to_static_sba() {
             Cmp::AtLeast,
             Count::Literal(10),
         ),
-        Condition::Not(Box::new(Condition::Is(
+        Condition::Not(Box::new(Condition::Matches(
             Reference::You,
             Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
         ))),
@@ -837,8 +837,8 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     let TargetSpec::Target(_, filter) = &t.targets[0] else {
         panic!("expected a Target spec; got {:?}", t.targets[0]);
     };
-    let Predicate::AllOf(clauses) = filter else {
-        panic!("soulshift target is an AllOf; got {filter:?}");
+    let Predicate::And(clauses) = filter else {
+        panic!("soulshift target is an And; got {filter:?}");
     };
     assert!(
         clauses

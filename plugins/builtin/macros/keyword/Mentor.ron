@@ -38,7 +38,7 @@ KeywordAbility(
     abilities: [Triggered(
         event: AttackDeclared(by: Ref(This)),
         effect: Targeted(
-            targets: [Target(Exactly(1), AllOf([
+            targets: [Target(Exactly(1), And([
                 Type(Creature),
                 Attacking,
                 Where(Compare(StatOf(It, Power), Less, StatOf(This, Power))),

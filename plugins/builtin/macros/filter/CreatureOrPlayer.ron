@@ -1,5 +1,5 @@
 (
     name: "CreatureOrPlayer",
     kinds: [Predicate],
-    body: OneOf([Creature, Player]),
+    body: Or([Creature, Player]),
 )

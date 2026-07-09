@@ -202,15 +202,15 @@ fn bears_vs_bolts_50k_game_stats() {
 const RON_BEARS: &str = r#"(
     name: "Bears (tap-out aggro)",
     rules: [
-        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+        (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Play(what: (pick: First, by: Literal(1)))),
-        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+        (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Activate(what: (pick: First, by: Literal(1)))),
-        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+        (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Cast(what: (pick: Min, by: StatOf(This, ManaValue)))),
-        (when: AllOf([]), prefer: Attack(what: (pick: First, by: Literal(1)))),
-        (when: AllOf([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
-        (when: AllOf([]), prefer: Pass),
+        (when: And([]), prefer: Attack(what: (pick: First, by: Literal(1)))),
+        (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
+        (when: And([]), prefer: Pass),
     ],
 )"#;
 
@@ -220,16 +220,16 @@ const RON_BEARS: &str = r#"(
 const RON_BOLTS: &str = r#"(
     name: "Bolts (tap-out burn)",
     rules: [
-        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+        (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Play(what: (pick: First, by: Literal(1)))),
-        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+        (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Activate(what: (pick: First, by: Literal(1)))),
-        (when: OneOf([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
+        (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Cast(
             what: (pick: Min, by: StatOf(This, ManaValue)),
             target: (pick: Max, by: StatOf(This, Power), among: Type(Creature)))),
-        (when: AllOf([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
-        (when: AllOf([]), prefer: Pass),
+        (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
+        (when: And([]), prefer: Pass),
     ],
 )"#;
 

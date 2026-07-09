@@ -94,7 +94,7 @@ mod tests {
         assert_eq!(c.head, "{G}");
         assert_eq!(
             c.count,
-            "CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])))"
+            "CountOf(Objects(And([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])))"
         );
         assert!(matches!(c.binder, Binder::ForEach));
     }
@@ -108,7 +108,7 @@ mod tests {
         assert_eq!(c.head, "Create X 1/1 red Goblin creature tokens");
         assert_eq!(
             c.count,
-            "CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))"
+            "CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))"
         );
         match c.binder {
             Binder::Variable(v) => assert_eq!(v, "X"),
@@ -122,7 +122,7 @@ mod tests {
         assert_eq!(c.head, "damage to any target");
         assert_eq!(
             c.count,
-            "CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))"
+            "CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))"
         );
         assert!(matches!(c.binder, Binder::EqualTo));
     }
@@ -135,7 +135,7 @@ mod tests {
         let c = strip("{G} for each Elf on the battlefield").unwrap();
         assert_eq!(
             c.count,
-            "CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\")])))"
+            "CountOf(Objects(And([Permanent, Subtype(\"Elf\")])))"
         );
     }
 

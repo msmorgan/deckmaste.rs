@@ -8,6 +8,6 @@ Normal(
     Enchantment,
   ],
   abilities: [
-    Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, GainAbility(Keyword(Vigilance))))),
+    Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, GainAbility(Keyword(Vigilance))))),
   ],
 )

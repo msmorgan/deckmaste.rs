@@ -799,7 +799,7 @@ fn parse_tap_untap(line: &str) -> Option<ParsedEffect> {
 /// An object-target subject phrase -> its `Predicate` RON. First the shared
 /// [`filter`] phrase grammar (single head noun with adjectives), then a
 /// type-noun disjunction fallback for "<type> or <type>[ or <type>]" subjects
-/// (`OneOf([…])`) the single-head grammar can't carry — "artifact or
+/// (`Or([…])`) the single-head grammar can't carry — "artifact or
 /// enchantment", "creature or planeswalker", "attacking or blocking creature".
 fn object_target_filter(subject: &str) -> Option<String> {
     if let Some(f) = filter::parse_phrase(subject) {
@@ -809,13 +809,13 @@ fn object_target_filter(subject: &str) -> Option<String> {
 }
 
 /// "<A> or <B>[ or <C>]" of type-noun (or status-qualified) members ->
-/// `OneOf([…])`. Two shapes:
+/// `Or([…])`. Two shapes:
 /// - a shared head noun with disjoined status adjectives: "attacking or
-///   blocking creature" -> `AllOf([Creature, OneOf([Attacking, Blocking])])` —
-///   the head noun trails the last member; the leading members are bare combat-
+///   blocking creature" -> `And([Creature, Or([Attacking, Blocking])])` — the
+///   head noun trails the last member; the leading members are bare combat-
 ///   status adjectives. Tried first, since a status adjective ("attacking")
 ///   would otherwise be misread as a bare-subtype head.
-/// - heterogeneous types: "artifact or enchantment" -> `OneOf([Type(Artifact),
+/// - heterogeneous types: "artifact or enchantment" -> `Or([Type(Artifact),
 ///   Type(Enchantment)])`. Every member must be a plain type-noun phrase
 ///   (creature / artifact / land / …) — NOT a bare-subtype fallthrough, which
 ///   the strict head check rules out (so "Goblin or Elf" stays unmodeled rather
@@ -836,15 +836,12 @@ fn type_disjunction(subject: &str) -> Option<String> {
             .map(|a| status_atom(a))
             .collect::<Option<Vec<_>>>()
         {
-            return Some(format!(
-                "AllOf([{head_filter}, OneOf([{}])])",
-                status.join(", ")
-            ));
+            return Some(format!("And([{head_filter}, Or([{}])])", status.join(", ")));
         }
     }
     // Heterogeneous type-noun disjunction: every member is a plain type noun.
     let members: Option<Vec<String>> = parts.iter().map(|p| type_noun_phrase(p)).collect();
-    Some(format!("OneOf([{}])", members?.join(", ")))
+    Some(format!("Or([{}])", members?.join(", ")))
 }
 
 /// A bare type-noun phrase (a determiner-led single card type / `permanent`) ->
@@ -858,7 +855,7 @@ fn type_noun_phrase(phrase: &str) -> Option<String> {
         .unwrap_or(phrase)
         .trim();
     let filter = filter::parse_phrase(phrase)?;
-    // A bare-subtype head renders as `AllOf([Permanent, Subtype(...)])` (or a
+    // A bare-subtype head renders as `And([Permanent, Subtype(...)])` (or a
     // lone `Subtype(...)`); reject those — only true type nouns disjoin here.
     (!filter.contains("Subtype(")).then_some(filter)
 }
@@ -876,8 +873,8 @@ fn status_atom(word: &str) -> Option<String> {
 
 /// A graveyard-card subject (the noun before " card" in "<subject> card from
 /// your graveyard") -> the `Predicate` for a card you own in your graveyard:
-/// `AllOf([<type>, InZone(Graveyard), Owner(Ref(You))])`. The type is the
-/// card-type spelling (`Type(Creature)`, `OneOf([Type(Instant),
+/// `And([<type>, InZone(Graveyard), Owner(Ref(You))])`. The type is the
+/// card-type spelling (`Type(Creature)`, `Or([Type(Instant),
 /// Type(Sorcery)])` for "instant or sorcery") — NOT the battlefield-scoped
 /// macros, since a graveyard card is not a permanent. A bare "card" (no type)
 /// is any card you own there.
@@ -892,11 +889,11 @@ fn graveyard_card_filter(subject: &str) -> Option<String> {
     }
     atoms.push("InZone(Graveyard)".to_owned());
     atoms.push("Owner(Ref(You))".to_owned());
-    Some(format!("AllOf([{}])", atoms.join(", ")))
+    Some(format!("And([{}])", atoms.join(", ")))
 }
 
 /// A graveyard-card type phrase -> its card-type `Predicate` (`Type(Creature)`,
-/// `OneOf([Type(Instant), Type(Sorcery)])`), or `None` for a bare "card" (no
+/// `Or([Type(Instant), Type(Sorcery)])`), or `None` for a bare "card" (no
 /// type qualifier) or an unmodeled phrase. Card-type spelling via
 /// [`filter::type_filter`], so the live matcher reads the printed card type,
 /// not a battlefield-only macro.
@@ -913,7 +910,7 @@ fn graveyard_card_type(subject: &str) -> Option<String> {
     Some(if types.len() == 1 {
         types.into_iter().next().unwrap()
     } else {
-        format!("OneOf([{}])", types.join(", "))
+        format!("Or([{}])", types.join(", "))
     })
 }
 
@@ -1250,7 +1247,7 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         // The restricted "any target" minus its object members ([CR#115.4]):
         // a player or planeswalker, never a creature/battle (Lava Spike).
         "target player or planeswalker" => (
-            vec!["TargetOne(OneOf([Player, Planeswalker]))".to_owned()],
+            vec!["TargetOne(Or([Player, Planeswalker]))".to_owned()],
             "It".to_owned(),
         ),
         "each creature" => (Vec::new(), "SelectAll(Creature)".to_owned()),
@@ -1259,11 +1256,10 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         "each opponent" => (Vec::new(), "SelectAll(OpponentOf(Ref(You)))".to_owned()),
         // "each creature and each player" — every member of the combined set
         // ([CR#608.2d] distributive each). The two "each" groups union into one
-        // `SelectAll(OneOf([…]))` selection (Pestilence / Earthquake-style sweeps).
-        "each creature and each player" => (
-            Vec::new(),
-            "SelectAll(OneOf([Creature, Player]))".to_owned(),
-        ),
+        // `SelectAll(Or([…]))` selection (Pestilence / Earthquake-style sweeps).
+        "each creature and each player" => {
+            (Vec::new(), "SelectAll(Or([Creature, Player]))".to_owned())
+        }
         // A "target <subject>" object target whose subject parses through the
         // shared object-target grammar (single head noun, or a "<type> or
         // <type>" / "attacking or blocking creature" disjunction).
@@ -1412,7 +1408,7 @@ mod tests {
         assert_eq!(
             parsed("~ deals 3 damage to target player or planeswalker."),
             Some((
-                "TargetOne(OneOf([Player, Planeswalker]))".to_owned(),
+                "TargetOne(Or([Player, Planeswalker]))".to_owned(),
                 "DealDamage(This, 3, It)".to_owned()
             ))
         );
@@ -1467,7 +1463,7 @@ mod tests {
         assert_eq!(
             parsed("Destroy target nonland permanent."),
             Some((
-                "TargetOne(AllOf([Permanent, Not(Type(Land))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
@@ -1476,7 +1472,7 @@ mod tests {
         assert_eq!(
             parsed("destroy target Goblin."),
             Some((
-                "TargetOne(AllOf([Permanent, Subtype(\"Goblin\")]))".to_owned(),
+                "TargetOne(And([Permanent, Subtype(\"Goblin\")]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
@@ -1489,7 +1485,7 @@ mod tests {
         assert_eq!(
             parsed("Destroy target creature with flying."),
             Some((
-                "TargetOne(AllOf([Creature, Has(Flying)]))".to_owned(),
+                "TargetOne(And([Creature, Has(Flying)]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
@@ -1502,7 +1498,7 @@ mod tests {
             parsed("Creatures you control get +3/+3 and gain trample until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
                  Modify(It, Several([AddPowerToughness(3, 3), GainAbility(Keyword(Trample))]))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
@@ -1819,7 +1815,7 @@ mod tests {
             parsed("Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                "Create(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -1831,7 +1827,7 @@ mod tests {
             parsed("Create a 1/1 red Goblin creature token for each Goblin you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                "Create(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -1843,7 +1839,7 @@ mod tests {
             parsed("Create a number of 1/1 white Soldier creature tokens equal to the number of creatures you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(AllOf([Creature, ControlledBy(Ref(You))]))), \
+                "Create(CountOf(Objects(And([Creature, ControlledBy(Ref(You))]))), \
                  Token(color_indicator: [White], types: [Creature], subtypes: [Soldier], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -1867,7 +1863,7 @@ mod tests {
             parsed("~ deals damage to any target equal to the number of Goblins you control."),
             Some((
                 "AnyTarget".to_owned(),
-                "DealDamage(This, CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), It)".to_owned()
+                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), It)".to_owned()
             ))
         );
     }
@@ -1878,7 +1874,7 @@ mod tests {
             parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(This, CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), It)".to_owned()
+                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), It)".to_owned()
             ))
         );
     }
@@ -1898,9 +1894,9 @@ mod tests {
             parsed("Creatures you control get +1/+1 for each Goblin you control until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
-                 Toughness(Up(CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))]))), \
+                "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
+                 Toughness(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -1913,8 +1909,8 @@ mod tests {
             parsed("Creatures you control get +1/+0 for each Goblin you control until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
+                "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
                  Toughness(Up(0))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
@@ -1937,7 +1933,7 @@ mod tests {
             parsed("you gain 1 life for each attacking Elf you control."),
             Some((
                 String::new(),
-                "GainLife(CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\"), Attacking, ControlledBy(Ref(You))]))))"
+                "GainLife(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), Attacking, ControlledBy(Ref(You))]))))"
                     .to_owned()
             ))
         );
@@ -2098,7 +2094,7 @@ mod tests {
         assert_eq!(
             parsed("Attach it to target creature you control."),
             Some((
-                "TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))".to_owned(),
+                "TargetOne(And([Creature, ControlledBy(Ref(You))]))".to_owned(),
                 "Attach(what: This, to: It)".to_owned()
             ))
         );
@@ -2167,9 +2163,9 @@ mod tests {
             Some((
                 String::new(),
                 "If(condition: YouHaveTheCitysBlessing, \
-                 then: Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 then: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
                  Modify(It, AddPowerToughness(2, 2))), duration: FixedUntil(EndOfTurn)), \
-                 otherwise: Continuously(effect: Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), \
+                 otherwise: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
                  Modify(It, AddPowerToughness(1, 1))), duration: FixedUntil(EndOfTurn)))".to_owned()
             ))
         );
@@ -2321,7 +2317,7 @@ mod tests {
         assert_eq!(
             parsed("Return target nonland permanent to its owner's hand."),
             Some((
-                "TargetOne(AllOf([Permanent, Not(Type(Land))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
                 "ReturnToHand(It)".to_owned()
             ))
         );
@@ -2345,7 +2341,7 @@ mod tests {
         assert_eq!(
             parsed("Return target creature card from your graveyard to your hand."),
             Some((
-                "TargetOne(AllOf([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "TargetOne(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
                 "Move(It, Hand)".to_owned()
             ))
         );
@@ -2353,7 +2349,7 @@ mod tests {
         assert_eq!(
             parsed("Return target card from your graveyard to your hand."),
             Some((
-                "TargetOne(AllOf([InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "TargetOne(And([InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
                 "Move(It, Hand)".to_owned()
             ))
         );
@@ -2361,7 +2357,7 @@ mod tests {
         assert_eq!(
             parsed("Return target instant or sorcery card from your graveyard to your hand."),
             Some((
-                "TargetOne(AllOf([OneOf([Type(Instant), Type(Sorcery)]), InZone(Graveyard), \
+                "TargetOne(And([Or([Type(Instant), Type(Sorcery)]), InZone(Graveyard), \
                  Owner(Ref(You))]))"
                     .to_owned(),
                 "Move(It, Hand)".to_owned()
@@ -2395,11 +2391,11 @@ mod tests {
 
     #[test]
     fn destroy_target_disjunction_types() {
-        // "artifact or enchantment" -> a OneOf of the two card types.
+        // "artifact or enchantment" -> a Or of the two card types.
         assert_eq!(
             parsed("Destroy target artifact or enchantment."),
             Some((
-                "TargetOne(OneOf([Type(Artifact), Type(Enchantment)]))".to_owned(),
+                "TargetOne(Or([Type(Artifact), Type(Enchantment)]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
@@ -2407,14 +2403,14 @@ mod tests {
         assert_eq!(
             parsed("Destroy target creature or planeswalker."),
             Some((
-                "TargetOne(OneOf([Creature, Planeswalker]))".to_owned(),
+                "TargetOne(Or([Creature, Planeswalker]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
         assert_eq!(
             parsed("Destroy target artifact or land."),
             Some((
-                "TargetOne(OneOf([Type(Artifact), Type(Land)]))".to_owned(),
+                "TargetOne(Or([Type(Artifact), Type(Land)]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
@@ -2440,7 +2436,7 @@ mod tests {
         assert_eq!(
             parsed("~ deals 4 damage to target attacking or blocking creature."),
             Some((
-                "TargetOne(AllOf([Creature, OneOf([Attacking, Blocking])]))".to_owned(),
+                "TargetOne(And([Creature, Or([Attacking, Blocking])]))".to_owned(),
                 "DealDamage(This, 4, It)".to_owned()
             ))
         );
@@ -2448,7 +2444,7 @@ mod tests {
         assert_eq!(
             parsed("~ deals 5 damage to target creature or planeswalker."),
             Some((
-                "TargetOne(OneOf([Creature, Planeswalker]))".to_owned(),
+                "TargetOne(Or([Creature, Planeswalker]))".to_owned(),
                 "DealDamage(This, 5, It)".to_owned()
             ))
         );
@@ -2458,7 +2454,7 @@ mod tests {
             parsed("~ deals 2 damage to each creature and each player."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(OneOf([Creature, Player]))), effect: DealDamage(This, 2, It))"
+                "Each(binder: Existing(SelectAll(Or([Creature, Player]))), effect: DealDamage(This, 2, It))"
                     .to_owned()
             ))
         );
@@ -2480,7 +2476,7 @@ mod tests {
         assert_eq!(
             parsed_with_macros("put a +1/+1 counter on target creature you control."),
             Some((
-                "TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))".to_owned(),
+                "TargetOne(And([Creature, ControlledBy(Ref(You))]))".to_owned(),
                 "PutCounters(It, P1P1Counter, 1)".to_owned()
             ))
         );

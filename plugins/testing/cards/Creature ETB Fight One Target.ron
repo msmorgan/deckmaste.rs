@@ -18,7 +18,7 @@ Normal(
         Triggered(
             event: ThisEnters,
             effect: Targeted(
-                targets: [TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))]))],
+                targets: [TargetOne(And([Creature, Not(ControlledBy(Ref(You)))]))],
                 effect: Fight(This, Target(0)),
             ),
         ),

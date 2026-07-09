@@ -4,7 +4,7 @@
 // +1/+1 counter on this creature."
 //
 // The trigger is "a creature you control enters" — the `Enters` ETB event
-// ([CR#603.6]) filtered to OTHER creatures you control: `AllOf([Creature,
+// ([CR#603.6]) filtered to OTHER creatures you control: `And([Creature,
 // Not(Ref(This)), ControlledBy(Ref(You))])`. (CR's "a creature you control"
 // includes this creature when it itself enters, but its own entry can never
 // satisfy the intervening-if — nothing has greater stats than itself at that
@@ -29,8 +29,8 @@ KeywordAbility(
     name: "Evolve",
     template: "evolve",
     abilities: [Triggered(
-        event: Enters(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])),
-        condition: OneOf([
+        event: Enters(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])),
+        condition: Or([
             Compare(StatOf(EventObject, Power), Greater, StatOf(This, Power)),
             Compare(StatOf(EventObject, Toughness), Greater, StatOf(This, Toughness)),
         ]),

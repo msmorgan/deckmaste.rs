@@ -1003,7 +1003,7 @@ fn activated_ability_pays_life_cost() {
 fn activated_ability_pays_choose_sacrifice_cost() {
     const ARTIFACT_NAME: &str = "Choose-sacrifice test artifact";
     // Creature filter: battlefield creatures (zone check + type check).
-    let creature_filter = Predicate::AllOf(vec![
+    let creature_filter = Predicate::And(vec![
         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
         Predicate::creature(),
     ]);

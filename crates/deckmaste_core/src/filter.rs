@@ -105,7 +105,7 @@ pub enum StatePredicate {
     /// The object's tagged optional cost
     /// ([`OptionalCost`](crate::OptionalCost)) was paid — the filter-language
     /// channel of the paid-cost linkage ([CR#702.33d..702.33e,607.2]): "a
-    /// kicked spell" = `AllOf([Kind(Spell), WasPaidWith(Kicker)])`.
+    /// kicked spell" = `And([Kind(Spell), WasPaidWith(Kicker)])`.
     WasPaidWith(crate::CostTag),
     /// The object was cast using the named alternative base cost
     /// ([CR#118.9,702.34a]) — the filter-language channel of the alt-cost
@@ -125,7 +125,7 @@ pub enum RelationPredicate {
     /// of [`ControlledBy`](RelationPredicate::ControlledBy) ([CR#109.5]).
     /// Zone-agnostic: control spans the battlefield, the stack (spells and
     /// abilities), and the command zone, so the inner filter carries any
-    /// zone restriction it needs (e.g. `Controls(AllOf([Permanent, …]))`
+    /// zone restriction it needs (e.g. `Controls(And([Permanent, …]))`
     /// for "controls a permanent").
     Controls(Box<Predicate>),
     /// The object's owner matches ([CR#108.3]).
@@ -137,7 +137,7 @@ pub enum RelationPredicate {
     /// ANOTHER player on the matching player's team (never that player itself).
     /// PRIMITIVE, not `Not(OpponentOf …)`: in Two-Headed Giant a teammate is
     /// neither you nor an opponent ([CR#810]). "your team" ([CR#102.4]) is
-    /// `OneOf([Ref(You), TeammateOf(Ref(You))])`.
+    /// `Or([Ref(You), TeammateOf(Ref(You))])`.
     TeammateOf(Box<Predicate>),
     /// The object is attached to a matching object ([CR#301.5,303.4]).
     AttachedTo(Box<Predicate>),
@@ -157,7 +157,7 @@ pub enum RelationPredicate {
 /// expanding at Predicate positions. Dispatching by name over one combined
 /// variant list keeps the RON flat *and* the positions macro-aware.
 ///
-/// Conjunction is explicit (`AllOf`) — an enum position never carries a
+/// Conjunction is explicit (`And`) — an enum position never carries a
 /// bare list. Canonical filters are context-free-correct: state the whole
 /// predicate even where engine context would make parts redundant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -175,11 +175,11 @@ pub enum Predicate {
     /// the stack whose SOURCE — the object that generated it ([CR#113.7]) —
     /// matches the inner filter. Strict to abilities by construction: a
     /// spell carries its qualities itself, so "red spells or abilities from
-    /// red sources" is `OneOf([AllOf([Kind(Spell), ColorIs(Red)]),
+    /// red sources" is `Or([And([Kind(Spell), ColorIs(Red)]),
     /// FromSource(ColorIs(Red))])`. Boxed like the other one-child atoms.
     FromSource(Box<Predicate>),
-    AllOf(Vec<Predicate>),
-    OneOf(Vec<Predicate>),
+    And(Vec<Predicate>),
+    Or(Vec<Predicate>),
     Not(Box<Predicate>),
     /// The candidate matches iff a [`Condition`] holds with `It` bound to
     /// it — the bridge that lets a per-object filter slot reach the whole
@@ -261,9 +261,9 @@ impl Normalize for StatePredicate {
 
 impl Normalize for Predicate {
     /// Normalize a predicate (bottom-up): recurse into child filters, then
-    /// collapse the boolean combinators. `AllOf`/`OneOf` are flattened by
-    /// associativity (a nested `AllOf` inside an `AllOf` splices in — same for
-    /// `OneOf`) and a singleton `AllOf([x])`/`OneOf([x])` collapses to `x`.
+    /// collapse the boolean combinators. `And`/`Or` are flattened by
+    /// associativity (a nested `And` inside an `And` splices in — same for
+    /// `Or`) and a singleton `And([x])`/`Or([x])` collapses to `x`.
     /// Both rewrites preserve meaning: conjunction/disjunction are associative,
     /// and a one-element conjunction/disjunction is its element.
     ///
@@ -278,34 +278,34 @@ impl Normalize for Predicate {
             Predicate::Not(inner) => Predicate::Not(inner.normalize()),
             Predicate::FromSource(inner) => Predicate::FromSource(inner.normalize()),
 
-            Predicate::AllOf(children) => {
+            Predicate::And(children) => {
                 let mut flat = Vec::with_capacity(children.len());
                 for child in children {
                     match child.normalize() {
-                        // Associativity: splice a nested AllOf in.
-                        Predicate::AllOf(inner) => flat.extend(inner),
+                        // Associativity: splice a nested And in.
+                        Predicate::And(inner) => flat.extend(inner),
                         other => flat.push(other),
                     }
                 }
-                // Singleton collapse: AllOf([x]) → x.
+                // Singleton collapse: And([x]) → x.
                 if flat.len() == 1 {
                     flat.pop().expect("len checked")
                 } else {
-                    Predicate::AllOf(flat)
+                    Predicate::And(flat)
                 }
             }
-            Predicate::OneOf(children) => {
+            Predicate::Or(children) => {
                 let mut flat = Vec::with_capacity(children.len());
                 for child in children {
                     match child.normalize() {
-                        Predicate::OneOf(inner) => flat.extend(inner),
+                        Predicate::Or(inner) => flat.extend(inner),
                         other => flat.push(other),
                     }
                 }
                 if flat.len() == 1 {
                     flat.pop().expect("len checked")
                 } else {
-                    Predicate::OneOf(flat)
+                    Predicate::Or(flat)
                 }
             }
 
@@ -367,8 +367,8 @@ mod tests {
         assert_eq!(read(&written), v);
         // "your team" ([CR#102.4]) composes from the two primitives.
         assert_eq!(
-            read("OneOf([Ref(You), TeammateOf(Ref(You))])"),
-            Predicate::OneOf(vec![
+            read("Or([Ref(You), TeammateOf(Ref(You))])"),
+            Predicate::Or(vec![
                 Predicate::Ref(Reference::You),
                 Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
                     Reference::You
@@ -461,11 +461,11 @@ mod tests {
         assert_eq!(read(&written), v);
         // The hexproof-from-red agent shape: red spells, or abilities from
         // red sources ([CR#702.11d]).
-        let agent = read("OneOf([AllOf([Kind(Spell), ColorIs(Red)]), FromSource(ColorIs(Red))])");
-        assert!(matches!(agent, Predicate::OneOf(_)));
+        let agent = read("Or([And([Kind(Spell), ColorIs(Red)]), FromSource(ColorIs(Red))])");
+        assert!(matches!(agent, Predicate::Or(_)));
         // Normalize recurses through FromSource.
         assert_eq!(
-            read("FromSource(AllOf([ColorIs(Red)]))").normalize(),
+            read("FromSource(And([ColorIs(Red)]))").normalize(),
             read("FromSource(ColorIs(Red))"),
         );
     }
@@ -473,8 +473,8 @@ mod tests {
     #[test]
     fn combinators_nest() {
         assert_eq!(
-            read("AllOf([InZone(Battlefield), Type(Creature)])"),
-            Predicate::AllOf(vec![
+            read("And([InZone(Battlefield), Type(Creature)])"),
+            Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
             ]),
@@ -522,52 +522,52 @@ mod tests {
         );
     }
 
-    /// `Normalize` flattens nested `AllOf`/`OneOf` (associativity) and
+    /// `Normalize` flattens nested `And`/`Or` (associativity) and
     /// collapses a singleton combinator to its element.
     #[test]
     fn normalize_flattens_and_collapses_combinators() {
-        // Associativity: AllOf([AllOf([a, b]), c]) → AllOf([a, b, c]).
-        let nested = read("AllOf([AllOf([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        // Associativity: And([And([a, b]), c]) → And([a, b, c]).
+        let nested = read("And([And([Type(Creature), Type(Land)]), InZone(Battlefield)])");
         assert_eq!(
             nested.clone().normalize(),
-            read("AllOf([Type(Creature), Type(Land), InZone(Battlefield)])"),
+            read("And([Type(Creature), Type(Land), InZone(Battlefield)])"),
         );
 
-        // Same for OneOf.
-        let nested_or = read("OneOf([OneOf([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        // Same for Or.
+        let nested_or = read("Or([Or([Type(Creature), Type(Land)]), InZone(Battlefield)])");
         assert_eq!(
             nested_or.normalize(),
-            read("OneOf([Type(Creature), Type(Land), InZone(Battlefield)])"),
+            read("Or([Type(Creature), Type(Land), InZone(Battlefield)])"),
         );
 
-        // Singleton collapse: AllOf([x]) → x, OneOf([x]) → x.
+        // Singleton collapse: And([x]) → x, Or([x]) → x.
         assert_eq!(
-            read("AllOf([Type(Creature)])").normalize(),
+            read("And([Type(Creature)])").normalize(),
             read("Type(Creature)")
         );
         assert_eq!(
-            read("OneOf([Type(Creature)])").normalize(),
+            read("Or([Type(Creature)])").normalize(),
             read("Type(Creature)")
         );
 
         // Nested singletons collapse from the inside out.
         assert_eq!(
-            read("AllOf([AllOf([Type(Creature)])])").normalize(),
+            read("And([And([Type(Creature)])])").normalize(),
             read("Type(Creature)")
         );
 
         // A combinator under a compartment filter is normalized too.
         assert_eq!(
-            read("ControlledBy(AllOf([Type(Creature)]))").normalize(),
+            read("ControlledBy(And([Type(Creature)]))").normalize(),
             read("ControlledBy(Type(Creature))"),
         );
 
-        // Distinct combinators are NOT merged (OneOf inside AllOf stays).
-        let mixed = read("AllOf([OneOf([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        // Distinct combinators are NOT merged (Or inside And stays).
+        let mixed = read("And([Or([Type(Creature), Type(Land)]), InZone(Battlefield)])");
         assert_eq!(
             mixed.clone().normalize(),
             mixed,
-            "AllOf/OneOf don't cross-flatten"
+            "And/Or don't cross-flatten"
         );
 
         // Idempotent.

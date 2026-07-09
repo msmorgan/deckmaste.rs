@@ -15,7 +15,7 @@
 //      is itself an Army creature you control, so the choice is always
 //      satisfiable.)
 //   3. `PutCounters(It, P1P1Counter, ${1})` — the growth.
-//   4. `If(Not(Is(It, ${0})), Continuously(Modify(It, add ${0}), EndOfGame))`
+//   4. `If(Not(Matches(It, ${0})), Continuously(Modify(It, add ${0}), EndOfGame))`
 //      — "becomes a [subtype] in addition": a one-shot-created continuous effect
 //      with no stated duration ([CR#611.2a]) that adds the subtype, guarded so a
 //      creature that is already that subtype is untouched.
@@ -31,7 +31,7 @@
     params: [String, Count],
     body: Sequentially([
         If(
-            condition: Not(Exists(AllOf([
+            condition: Not(Exists(And([
                 Type(Creature),
                 Subtype("Army"),
                 ControlledBy(Ref(You)),
@@ -48,7 +48,7 @@
             )),
         ),
         With(
-            binder: ChooseOne(filter: AllOf([
+            binder: ChooseOne(filter: And([
                 Type(Creature),
                 Subtype("Army"),
                 ControlledBy(Ref(You)),
@@ -56,7 +56,7 @@
             body: Sequentially([
                 PutCounters(It, P1P1Counter, Param(1)),
                 If(
-                    condition: Not(Is(It, Subtype(Param(0)))),
+                    condition: Not(Matches(It, Subtype(Param(0)))),
                     then: Continuously(
                         effect: Modify(It, Subtypes(Add(Param(0)))),
                         duration: EndOfGame,

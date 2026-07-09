@@ -9,7 +9,7 @@
 //   - trigger:        `ThisDies` — the `ZoneChange(what: Ref(This), from:
 //                     Battlefield, to: Graveyard)` macro ([CR#700.4]).
 //   - intervening-if [CR#603.4]: "if it had no -1/-1 counters on it" =
-//                     `Not(Is(This, HasCounter(M1M1Counter)))` — the dying
+//                     `Not(Matches(This, HasCounter(M1M1Counter)))` — the dying
 //                     object (`This`, read through last-known information,
 //                     [CR#603.10a]) holds zero -1/-1 counters.
 //   - resolution:     a `Sequentially` — first `Move(This, Battlefield)` (return
@@ -30,7 +30,7 @@
         name: "Persist",
         abilities: [Triggered(
             event: ThisDies,
-            condition: Not(Is(This, HasCounter(M1M1Counter))),
+            condition: Not(Matches(This, HasCounter(M1M1Counter))),
             effect: Sequentially([
                 Move(This, Battlefield),
                 PutCounters(This, M1M1Counter, 1),

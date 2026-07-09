@@ -293,8 +293,8 @@ fn separate_piles(piles: &deckmaste_core::SeparatePiles, ctx: &Ctx) -> String {
     let by = fragment::reference(&piles.by, ctx);
     let is_you = by.eq_ignore_ascii_case("you");
     let (preamble, noun) = match &piles.group {
-        Selection::TopOfLibrary { count, of } => {
-            let owner = fragment::reference(of, ctx);
+        Selection::TopOfLibrary { count, whose } => {
+            let owner = fragment::reference(whose, ctx);
             (
                 Some(format!(
                     "Reveal the top {} cards of {}'s library.",
@@ -344,7 +344,7 @@ fn plural_group_noun(f: &deckmaste_core::Predicate, ctx: &Ctx) -> String {
     use deckmaste_core::Predicate;
     use deckmaste_core::RelationPredicate;
     let parts: Vec<&Predicate> = match f {
-        Predicate::AllOf(members) => members.iter().collect(),
+        Predicate::And(members) => members.iter().collect(),
         other => vec![other],
     };
     let mut noun = None;

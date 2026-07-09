@@ -2122,7 +2122,7 @@ mod tests {
                         "{1}".parse().unwrap(),
                     )])),
                     times: Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
-                        Predicate::AllOf(vec![
+                        Predicate::And(vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Characteristic(CharacteristicPredicate::Type(
                                 Type::Artifact,

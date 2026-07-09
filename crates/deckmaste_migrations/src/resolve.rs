@@ -71,8 +71,8 @@ pub const REGISTRY: &[AbilityParser] = &[
 
 /// The Ascend gate ([CR#702.131a,702.131b]) — KEEP IN SYNC with
 /// `plugins/builtin/macros/keyword/Ascend.ron`.
-const ASCEND_GATE: &str = "AllOf([Compare(CountOf(Objects(AllOf([InZone(Battlefield), \
-ControlledBy(Ref(You))]))), AtLeast, 10), Not(Is(You, Designated(\"CitysBlessing\")))])";
+const ASCEND_GATE: &str = "And([Compare(CountOf(Objects(And([InZone(Battlefield), \
+ControlledBy(Ref(You))]))), AtLeast, 10), Not(Matches(You, Designated(\"CitysBlessing\")))])";
 
 /// [CR#702.131a]: fold an Ascend keyword on a SPELL into the front of its spell
 /// effect, then drop the keyword. `effect` is the last field of the rendered
@@ -367,7 +367,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
+                if r == "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
         ));
     }
 
@@ -499,9 +499,9 @@ mod tests {
             .from_str(ASCEND_GATE)
             .expect("ASCEND_GATE parses as a Condition");
 
-        let canonical = Condition::AllOf(vec![
+        let canonical = Condition::And(vec![
             Condition::Compare(
-                Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
+                Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
@@ -510,7 +510,7 @@ mod tests {
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),
-            Condition::Not(Box::new(Condition::Is(
+            Condition::Not(Box::new(Condition::Matches(
                 Reference::You,
                 Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
             ))),

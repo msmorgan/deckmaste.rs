@@ -6,9 +6,9 @@
     name: "Worthy",
     template: "worthy",
     kinds: [Predicate],
-    body: AllOf([
+    body: And([
         Supertype(Legendary),
         Not(Subtype("Villain")),
-        OneOf([ColorIs(Red), ColorIs(White)]),
+        Or([ColorIs(Red), ColorIs(White)]),
     ]),
 )

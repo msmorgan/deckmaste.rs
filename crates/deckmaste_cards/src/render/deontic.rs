@@ -158,7 +158,7 @@ fn find_subtype_noun(f: &Predicate) -> Option<String> {
         Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
             Some(name.as_str().to_string())
         }
-        Predicate::AllOf(parts) => parts.iter().find_map(find_subtype_noun),
+        Predicate::And(parts) => parts.iter().find_map(find_subtype_noun),
         _ => None,
     }
 }

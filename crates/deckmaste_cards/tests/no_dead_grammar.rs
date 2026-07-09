@@ -524,6 +524,14 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (n("CauseVerb", "Explore"), "DEFERRED: see CauseVerb::Play."),
         (
+            n("EventFilter", "AllOf"),
+            "DEFERRED: no card in this batch triggers on an event matching a CONJUNCTION \
+            of event filters (EventFilter::OneOf, the union, is covered by Bushido's \
+            block-declared trigger). This node was previously covered only by an incidental \
+            token collision with the now-renamed Predicate::AllOf (→ And); the \
+            event-conjunction shape has no natural single-card use yet.",
+        ),
+        (
             n("EventFilter", "LifeGained"),
             "DEFERRED: no life-gain-triggered real card in this \
             batch (canon's existing triggers are all ZoneChange-shaped: dies/enters).",

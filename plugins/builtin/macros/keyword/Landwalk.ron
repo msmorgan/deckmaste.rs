@@ -20,7 +20,7 @@
         name: "Landwalk",
         abilities: [Static(Cant(Block(
                 on: Ref(This),
-                by: ControlledBy(Controls(AllOf([Permanent, Param(quality)]))),
+                by: ControlledBy(Controls(And([Permanent, Param(quality)]))),
             )))],
     ),
 )

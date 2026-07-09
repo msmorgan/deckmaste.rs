@@ -838,12 +838,12 @@ fn renders_graveyard_static_from_zone() {
         name: "Test Incarnation".into(),
         types: vec![Type::Creature],
         abilities: vec![Ability::Static(StaticEffect::Conditionally(
-            Condition::Is(
+            Condition::Matches(
                 Reference::This,
                 Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
             ),
             Box::new(StaticEffect::Each(
-                Selection::SelectAll(Predicate::AllOf(vec![
+                Selection::SelectAll(Predicate::And(vec![
                     Predicate::type_(Type::Creature),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,

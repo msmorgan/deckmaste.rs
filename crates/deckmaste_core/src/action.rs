@@ -920,7 +920,7 @@ mod tests {
             body: Box::new(crate::OneShotEffect::Each(crate::Each {
                 binder: crate::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
-                    of: Reference::You,
+                    whose: Reference::You,
                 }),
                 effect: Box::new(crate::OneShotEffect::Act(Action::Move(
                     Reference::It,

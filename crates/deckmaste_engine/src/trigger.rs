@@ -245,7 +245,7 @@ impl GameState {
         snapshot: &LkiSnapshot,
         watcher: ObjectSource,
     ) -> bool {
-        // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`/`Any`) recurse through
+        // Combinators (`And`/`Or`/`Not`/`Expanded`/`Any`) recurse through
         // this same matcher via the shared walker; leaves fall through below.
         if let Some(result) = crate::target::walk_combinators(filter, |f| {
             self.filter_matches_snapshot(f, snapshot, watcher)
@@ -385,7 +385,7 @@ impl GameState {
                 }
             },
 
-            // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`/`Any`) are handled
+            // Combinators (`And`/`Or`/`Not`/`Expanded`/`Any`) are handled
             // by `walk_combinators` before this match.
             other => todo!("stage 3 does not evaluate snapshot filter {other:?}"),
         }
@@ -1841,7 +1841,7 @@ mod tests {
         use deckmaste_core::StatePredicate;
         Condition::Compare(
             Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
-                Predicate::AllOf(vec![
+                Predicate::And(vec![
                     Predicate::creature(),
                     Predicate::State(StatePredicate::Attacking),
                     Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
@@ -2532,7 +2532,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Cast {
             who: Predicate::Ref(Reference::You),
-            what: Predicate::AllOf(vec![
+            what: Predicate::And(vec![
                 Predicate::Kind(ObjectKind::Spell),
                 Predicate::Not(Box::new(Predicate::Characteristic(
                     CharacteristicPredicate::Type(Type::Creature),
@@ -4636,7 +4636,7 @@ mod tests {
         let (_watcher, watcher_source) = scan_watcher(
             &mut state,
             PlayerId(0),
-            "ZoneChange(what: AllOf([Type(Creature), Where(Is(It, Named(\"Grizzly Bears\")))]), \
+            "ZoneChange(what: And([Type(Creature), Where(Matches(It, Named(\"Grizzly Bears\")))]), \
              from: Battlefield, to: Graveyard)",
         );
 
@@ -4653,7 +4653,7 @@ mod tests {
         assert_eq!(
             fired_count(&state, watcher_source),
             1,
-            "the named bear's death satisfies Where(Is(It, Named(…)))"
+            "the named bear's death satisfies Where(Matches(It, Named(…)))"
         );
     }
 

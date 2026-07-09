@@ -284,7 +284,7 @@ mod tests {
                     },
                     also: OneShotEffect::With(deckmaste_core::With {
                         binder: deckmaste_core::Binder::ChooseOne {
-                            filter: Predicate::AllOf(vec![
+                            filter: Predicate::And(vec![
                                 Predicate::State(deckmaste_core::StatePredicate::InZone(
                                     Zone::Battlefield,
                                 )),
@@ -479,7 +479,7 @@ mod tests {
         use deckmaste_core::If;
         use deckmaste_core::RelationPredicate;
 
-        let other_lands_you_control = Predicate::AllOf(vec![
+        let other_lands_you_control = Predicate::And(vec![
             Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land)),
             Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(

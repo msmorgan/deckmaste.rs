@@ -245,7 +245,7 @@ fn vibranium_token_parses() {
         ManaProduction::WithRiders {
             mana: ManaSpec::Specific(ColorOrColorless::Colorless),
             riders: vec![ManaRider::SpendOnly(Predicate::Not(Box::new(
-                Predicate::AllOf(vec![
+                Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
                     Predicate::Not(Box::new(Predicate::type_(Type::Artifact))),
                 ]),

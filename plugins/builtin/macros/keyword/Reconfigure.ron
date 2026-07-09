@@ -7,7 +7,7 @@
 //
 // SEAM ([CR#702.151b]): "As long as it's attached to a permanent, this isn't a
 // creature." This is a CONDITIONAL layer-4 type-removal static gated on
-// `Is(This, AttachedTo(Creature))`. It is NOT authored here because the engine
+// `Matches(This, AttachedTo(Creature))`. It is NOT authored here because the engine
 // can't apply it correctly yet: the layer `gather` skips static `condition`s
 // ([CR#611.3a] seam, layer.rs) — so a conditional static applies
 // UNCONDITIONALLY — AND there is no type-removal `Modification` ("remove the
@@ -29,7 +29,7 @@
                 cost: Param(0),
                 window: SorcerySpeed,
                 effect: Targeted(
-                    targets: [Target(Exactly(1), AllOf([
+                    targets: [Target(Exactly(1), And([
                         Creature,
                         ControlledBy(Ref(You)),
                         Not(Ref(This)),
@@ -40,7 +40,7 @@
             Activated(
                 cost: Param(0),
                 window: SorcerySpeed,
-                condition: Is(This, AttachedTo(Creature)),
+                condition: Matches(This, AttachedTo(Creature)),
                 effect: Unattach(This),
             ),
         ],

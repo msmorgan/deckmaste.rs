@@ -101,7 +101,7 @@ fn conditionally_qualified(cond: &Condition, ctx: &Ctx, text: String) -> String 
         Condition::Expanded(e) => &e.value,
         other => other,
     };
-    if let Condition::Is(reference, filter) = cond
+    if let Condition::Matches(reference, filter) = cond
         && let Predicate::State(StatePredicate::InZone(zone)) =
             super::fragment::strip_expanded(filter)
     {
@@ -574,13 +574,13 @@ fn affected_phrase(affected: &Predicate) -> String {
 }
 
 /// A type filter as an indefinite noun: a single `Type` → "a creature"; a
-/// `OneOf` of types → "an artifact or creature"; anything else → "an object".
+/// `Or` of types → "an artifact or creature"; anything else → "an object".
 fn types_noun(what: &Predicate) -> String {
     let names: Vec<String> = match what {
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
             vec![super::card::type_str(*t).to_lowercase()]
         }
-        Predicate::OneOf(items) => items
+        Predicate::Or(items) => items
             .iter()
             .filter_map(|f| match f {
                 Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
@@ -711,13 +711,13 @@ mod tests {
 
         let convoke = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Predicate::AllOf(vec![ty(Type::Creature), you()])),
+            PayAct::TapToPay(Predicate::And(vec![ty(Type::Creature), you()])),
         );
         assert_eq!(static_effect(&convoke, &ctx).as_deref(), Some("Convoke"));
 
         let improvise = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Predicate::AllOf(vec![ty(Type::Artifact), you()])),
+            PayAct::TapToPay(Predicate::And(vec![ty(Type::Artifact), you()])),
         );
         assert_eq!(
             static_effect(&improvise, &ctx).as_deref(),

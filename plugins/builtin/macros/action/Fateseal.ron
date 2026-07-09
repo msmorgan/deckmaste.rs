@@ -1,6 +1,6 @@
 // "Fateseal N" [CR#701.29a]: look at the top N cards of an opponent's library,
 // then put any number of them on the bottom of that library and the rest on top
-// in any order. Scry over an OPPONENT's library (`TopOfLibrary(of: Opponent)`,
+// in any order. Scry over an OPPONENT's library (`TopOfLibrary(whose: Opponent)`,
 // the `FromTop`/`FromBottom` anchors on that library); the fatesealing player
 // makes the arrange choice over the opponent's library.
 (
@@ -11,7 +11,7 @@
     body: Composite(
         name: "Fateseal",
         body: Each(
-            binder: Existing(TopOfLibrary(count: Param(0), of: Opponent)),
+            binder: Existing(TopOfLibrary(count: Param(0), whose: Opponent)),
             effect: Modal(
                 choose: (count: Range(Literal(1), Literal(1))),
                 modes: [

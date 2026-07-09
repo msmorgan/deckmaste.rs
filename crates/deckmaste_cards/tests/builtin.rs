@@ -573,8 +573,8 @@ fn amass_decomposes_into_core_primitives() {
         panic!("step 4 is an If, got {:?}", body[1]);
     };
     assert!(
-        matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Is(Reference::It, _))),
-        "guarded on `Not(Is(It, Orc))`, got {:?}",
+        matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Matches(Reference::It, _))),
+        "guarded on `Not(Matches(It, Orc))`, got {:?}",
         becomes.condition,
     );
     let OneShotEffect::Continuously(Continuously { effect, duration }) = becomes.then.as_ref()

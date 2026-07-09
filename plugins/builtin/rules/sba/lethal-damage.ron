@@ -5,11 +5,11 @@
 [
     SbaRule(
         scope: Type(Creature),
-        when: AllOf([
+        when: And([
             Compare(StatOf(This, Toughness), Greater, 0),
-            OneOf([
+            Or([
                 Compare(Damage(This), AtLeast, StatOf(This, Toughness)),
-                Is(Source, Has(Deathtouch)),
+                Matches(Source, Has(Deathtouch)),
             ]),
         ]),
         then: Destroy(This),

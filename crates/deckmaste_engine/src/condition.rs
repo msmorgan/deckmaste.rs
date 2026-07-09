@@ -15,7 +15,7 @@ impl GameState {
     /// Evaluate a `Condition` against the current game state in `frame` — the
     /// resolution context whose `controller` is the evaluating player (the
     /// "you" of `YourTurn` and similar) and whose bindings/targets resolve the
-    /// references a `Condition::Is` reads.
+    /// references a `Condition::Matches` reads.
     ///
     /// One evaluator serves every site: the activation gate ([CR#602.5b]) and
     /// the trigger-fire gate build a minimal frame from what is known then (no
@@ -38,7 +38,7 @@ impl GameState {
             // intervening-if "if it had no +1/+1 (resp. -1/-1) counters on it"
             // ([CR#702.93a,702.79a]) reads the DYING object's captured counters,
             // which no live object holds. A live object takes the live path.
-            Condition::Is(reference, filter) => {
+            Condition::Matches(reference, filter) => {
                 // [CR#120.3,702.2c,704.5h]: `Source` is a set-valued binding
                 // over the marked-damage sources of the object under evaluation
                 // (the frame's `This`) — "was dealt damage by a source matching
@@ -101,8 +101,8 @@ impl GameState {
                 op.apply(self.eval_count(a, frame), self.eval_count(b, frame))
             }
 
-            Condition::AllOf(cs) => cs.iter().all(|c| self.condition_holds(c, frame)),
-            Condition::OneOf(cs) => cs.iter().any(|c| self.condition_holds(c, frame)),
+            Condition::And(cs) => cs.iter().all(|c| self.condition_holds(c, frame)),
+            Condition::Or(cs) => cs.iter().any(|c| self.condition_holds(c, frame)),
             Condition::Not(c) => !self.condition_holds(c, frame),
 
             // Look through a macro.
@@ -180,10 +180,10 @@ impl GameState {
     }
 
     /// The last-known-information snapshot a trigger bound for `reference`, if
-    /// any ([CR#603.10a]) — the fallback a `Condition::Is` over a gone object
-    /// reads. Only the snapshot-bearing references resolve: `This` → the firing
-    /// object's self, `EventObject` → the moved object, `It` → the
-    /// iteration/projection element. Looks through an `Expanded` macro
+    /// any ([CR#603.10a]) — the fallback a `Condition::Matches` over a gone
+    /// object reads. Only the snapshot-bearing references resolve: `This` →
+    /// the firing object's self, `EventObject` → the moved object, `It` →
+    /// the iteration/projection element. Looks through an `Expanded` macro
     /// reference, mirroring `eval_reference`.
     fn bound_snapshot<'f>(
         reference: &deckmaste_core::Reference,
@@ -394,11 +394,12 @@ mod tests {
         );
     }
 
-    /// `Condition::Is(ref, filter)` ([CR#603.4] "if it's a …") resolves the
-    /// reference against the frame and tests the filter on it. `This`/`Target`
-    /// pick the bear; the bear is a creature, not a land. A `Ref(This)` inside
-    /// the filter anchors to the frame's source via `frame_watcher`, so
-    /// `Is(This, Ref(This))` is true (the resolved object IS the watcher).
+    /// `Condition::Matches(ref, filter)` ([CR#603.4] "if it's a …") resolves
+    /// the reference against the frame and tests the filter on it.
+    /// `This`/`Target` pick the bear; the bear is a creature, not a land. A
+    /// `Ref(This)` inside the filter anchors to the frame's source via
+    /// `frame_watcher`, so `Is(This, Ref(This))` is true (the resolved
+    /// object IS the watcher).
     #[test]
     fn is_reference_tests_filter_against_resolved_object() {
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
@@ -445,24 +446,27 @@ mod tests {
 
         // Is(This, …): the bear is a creature …
         assert!(
-            state.condition_holds(&Condition::Is(Reference::This, creature.clone()), &frame),
+            state.condition_holds(
+                &Condition::Matches(Reference::This, creature.clone()),
+                &frame
+            ),
             "the bear is a creature"
         );
         // … and not a land.
         assert!(
-            !state.condition_holds(&Condition::Is(Reference::This, land), &frame),
+            !state.condition_holds(&Condition::Matches(Reference::This, land), &frame),
             "the bear is not a land"
         );
         // Is(It, …): the lone announced target is that same bear.
         assert!(
-            state.condition_holds(&Condition::Is(Reference::It, creature), &frame),
+            state.condition_holds(&Condition::Matches(Reference::It, creature), &frame),
             "the target is a creature"
         );
         // Is(This, Ref(This)): the resolved object IS the watcher, so the
         // self-reference inside the filter anchors and matches.
         assert!(
             state.condition_holds(
-                &Condition::Is(Reference::This, Predicate::Ref(Reference::This)),
+                &Condition::Matches(Reference::This, Predicate::Ref(Reference::This)),
                 &frame
             ),
             "the resolved object is the frame's own source"
@@ -632,7 +636,7 @@ mod tests {
                 this: Some(snapshot),
                 ..Frame::bare(bear, PlayerId(0))
             };
-            let cond = Condition::Is(
+            let cond = Condition::Matches(
                 Reference::This,
                 Predicate::State(StatePredicate::HasCounter(CounterRef::from(kind))),
             );
@@ -855,7 +859,7 @@ mod tests {
     /// `Compare(StatOf(EventObject, _), Greater, StatOf(This, _))` compares two
     /// DIFFERENT objects' derived stats directly — `This` = the Evolve carrier
     /// (Grizzly Bears, 2/2), `EventObject` = the entering creature, bound by
-    /// the trigger ([CR#603.10a]). The "and/or" is `OneOf`. No core
+    /// the trigger ([CR#603.10a]). The "and/or" is `Or`. No core
     /// addition is needed; this test pins that the gap is already
     /// representable AND engine-executable.
     #[test]
@@ -897,7 +901,7 @@ mod tests {
 
         // The Evolve intervening-if, parameterized over the entering creature
         // already bound as the event `EventObject`.
-        let evolve_if = Condition::OneOf(vec![
+        let evolve_if = Condition::Or(vec![
             Condition::Compare(
                 Count::StatOf(Reference::EventObject, Stat::Power),
                 Cmp::Greater,
@@ -1212,16 +1216,16 @@ mod tests {
         );
     }
 
-    /// Combinators: `Not(AllOf([OneOf([])]))` is true because `OneOf([])` is
-    /// vacuously false → `AllOf` of a false is false → `Not` of false is true.
+    /// Combinators: `Not(And([Or([])]))` is true because `Or([])` is
+    /// vacuously false → `And` of a false is false → `Not` of false is true.
     #[test]
     fn combinators() {
         let state = game();
         let p = PlayerId(0);
-        let cond = Condition::Not(Box::new(Condition::AllOf(vec![Condition::OneOf(vec![])])));
+        let cond = Condition::Not(Box::new(Condition::And(vec![Condition::Or(vec![])])));
         assert!(
             state.condition_holds(&cond, &frame_for(&state, p)),
-            "Not(AllOf([OneOf([])])) should be true (vacuous OneOf false → AllOf false → Not true)"
+            "Not(And([Or([])])) should be true (vacuous Or false → And false → Not true)"
         );
     }
 
@@ -1231,7 +1235,7 @@ mod tests {
     fn has_citys_blessing_reads_player_designation() {
         let mut state = game();
         let p0 = PlayerId(0);
-        let cond = Condition::Is(
+        let cond = Condition::Matches(
             Reference::You,
             Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
         );

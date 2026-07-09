@@ -78,7 +78,7 @@ pub(crate) fn source_of(state: &GameState, id: ObjectId) -> Option<ObjectId> {
 }
 
 /// The combinator arms shared by every `Predicate` matcher: the logical
-/// `AllOf`/`OneOf`/`Not`, the transparent look-through of an `Expanded` filter
+/// `And`/`Or`/`Not`, the transparent look-through of an `Expanded` filter
 /// macro, and the `Any` wildcard. Returns `Some(result)` for one of those arms
 /// — recursing each sub-filter through `eval`, the caller's own leaf-aware
 /// matcher (which re-enters this walker for nested combinators) — and `None`
@@ -92,8 +92,8 @@ where
     F: Fn(&Predicate) -> bool,
 {
     match filter {
-        Predicate::AllOf(fs) => Some(fs.iter().all(&eval)),
-        Predicate::OneOf(fs) => Some(fs.iter().any(&eval)),
+        Predicate::And(fs) => Some(fs.iter().all(&eval)),
+        Predicate::Or(fs) => Some(fs.iter().any(&eval)),
         Predicate::Not(f) => Some(!eval(f)),
         Predicate::Expanded(e) => Some(eval(&e.value)),
         Predicate::Any => Some(true),
@@ -118,7 +118,7 @@ pub fn matches_with(
     filter: &Predicate,
     watcher: Option<ObjectSource>,
 ) -> bool {
-    // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`/`Any`) recurse through this
+    // Combinators (`And`/`Or`/`Not`/`Expanded`/`Any`) recurse through this
     // same matcher via the shared walker; leaves fall through to the match.
     if let Some(result) = walk_combinators(filter, |f| matches_with(state, id, f, watcher)) {
         return result;
@@ -130,8 +130,8 @@ pub fn matches_with(
         // player proxy (zone None) never matches InZone.
         Predicate::State(StatePredicate::InZone(z)) => state.objects.obj(id).zone == Some(*z),
         // Combinators are handled by `walk_combinators` before this match.
-        Predicate::AllOf(_)
-        | Predicate::OneOf(_)
+        Predicate::And(_)
+        | Predicate::Or(_)
         | Predicate::Not(_)
         | Predicate::Expanded(_)
         | Predicate::Any => {
@@ -761,7 +761,7 @@ mod tests {
     /// Guards the delegation arm against being mistaken for dead code.
     #[test]
     fn matches_looks_through_a_filter_macro() {
-        // `CreatureOrPlayer` reads as `Predicate::Expanded(.., value: OneOf([..]))`:
+        // `CreatureOrPlayer` reads as `Predicate::Expanded(.., value: Or([..]))`:
         // the invocation survives, wrapping its expanded body.
         let wrapped: Predicate = builtin().macros.read_str("CreatureOrPlayer").unwrap();
         assert!(
@@ -1363,7 +1363,7 @@ mod tests {
     }
 
     fn where_is_subject_color(c: deckmaste_core::Color) -> Predicate {
-        Predicate::Where(Box::new(deckmaste_core::Condition::Is(
+        Predicate::Where(Box::new(deckmaste_core::Condition::Matches(
             deckmaste_core::Reference::It,
             Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::ColorIs(c)),
         )))
@@ -1381,12 +1381,12 @@ mod tests {
         use deckmaste_core::Condition;
         use deckmaste_core::Reference;
         let branch = |c| {
-            Condition::AllOf(vec![
-                Condition::Is(Reference::It, Predicate::Characteristic(ColorIs(c))),
-                Condition::Is(Reference::This, Predicate::Characteristic(ColorIs(c))),
+            Condition::And(vec![
+                Condition::Matches(Reference::It, Predicate::Characteristic(ColorIs(c))),
+                Condition::Matches(Reference::This, Predicate::Characteristic(ColorIs(c))),
             ])
         };
-        Predicate::Where(Box::new(Condition::OneOf(vec![
+        Predicate::Where(Box::new(Condition::Or(vec![
             branch(White),
             branch(Blue),
             branch(Black),
@@ -1497,7 +1497,7 @@ mod tests {
         use deckmaste_core::Count;
         use deckmaste_core::Reference;
         use deckmaste_core::Stat;
-        Predicate::AllOf(vec![
+        Predicate::And(vec![
             Predicate::State(StatePredicate::Attacking),
             Predicate::Where(Box::new(Condition::Compare(
                 Count::StatOf(Reference::It, Stat::Power),

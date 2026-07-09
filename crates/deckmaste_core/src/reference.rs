@@ -181,11 +181,11 @@ pub enum Reference {
     /// the damage* ([CR#120.3,702.2c]): its deal-time abilities are captured
     /// with the mark, since the source may since have lost the ability or left
     /// the battlefield. Meaningful only inside [`Is(Source, …)`](
-    /// crate::Condition::Is), which reads existentially — "was dealt damage by
-    /// a source matching F" tests F against each mark's captured abilities. The
-    /// lethal-damage SBA's deathtouch clause ([CR#704.5h]) is
-    /// `Is(Source, Has(Deathtouch))`. No live-object resolution exists (the
-    /// binding is over stored deal-time records), so it has no Idris
+    /// crate::Condition::Matches), which reads existentially — "was dealt
+    /// damage by a source matching F" tests F against each mark's captured
+    /// abilities. The lethal-damage SBA's deathtouch clause ([CR#704.5h])
+    /// is `Is(Source, Has(Deathtouch))`. No live-object resolution exists
+    /// (the binding is over stored deal-time records), so it has no Idris
     /// counterpart.
     Source,
     /// A remembered `Reference` macro invocation.

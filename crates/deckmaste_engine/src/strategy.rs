@@ -481,7 +481,7 @@ mod tests {
     }
 
     fn always() -> Condition {
-        Condition::AllOf(vec![])
+        Condition::And(vec![])
     }
 
     /// A one-rule strategy: `Always → prefer`.

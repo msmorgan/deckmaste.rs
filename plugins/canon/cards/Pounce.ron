@@ -18,8 +18,8 @@ Normal(
     Spell(
       effect: Targeted(
         targets: [
-          TargetOne(AllOf([Creature, ControlledBy(Ref(You))])),
-          TargetOne(AllOf([Creature, Not(ControlledBy(Ref(You)))])),
+          TargetOne(And([Creature, ControlledBy(Ref(You))])),
+          TargetOne(And([Creature, Not(ControlledBy(Ref(You)))])),
         ],
         effect: Fight(Target(0), Target(1)),
       ),

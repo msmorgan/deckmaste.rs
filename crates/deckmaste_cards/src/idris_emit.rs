@@ -629,8 +629,8 @@ fn emit_filter(f: &Predicate) -> R {
                 "Predicate::FromSource has no Idris Predicate counterpart",
             ));
         }
-        Predicate::AllOf(fs) => app("And", vec![map_list(fs, emit_filter)?]),
-        Predicate::OneOf(fs) => app("Or", vec![map_list(fs, emit_filter)?]),
+        Predicate::And(fs) => app("And", vec![map_list(fs, emit_filter)?]),
+        Predicate::Or(fs) => app("Or", vec![map_list(fs, emit_filter)?]),
         Predicate::Not(inner) => app("Not", vec![emit_filter(inner)?]),
         Predicate::Where(cond) => app("Where", vec![emit_condition(cond)?]),
         // The vacuous conjunction is universally (if trivially) true at any
@@ -833,7 +833,7 @@ fn emit_condition(c: &Condition) -> R {
             vec![emit_count(a)?, emit_cmp(*cmp), emit_count(b)?],
         ),
         Condition::Exists(f) => format!("(exists {})", emit_filter(f)?),
-        Condition::Is(r, f) => app("Matches", vec![emit_reference(r)?, emit_filter(f)?]),
+        Condition::Matches(r, f) => app("Matches", vec![emit_reference(r)?, emit_filter(f)?]),
         Condition::LegallyAttached(r) => app("LegallyAttached", vec![emit_reference(r)?]),
         Condition::Happened { .. } => {
             return Err(gap("Condition::Happened (history lookback) not yet mapped"));
@@ -842,7 +842,7 @@ fn emit_condition(c: &Condition) -> R {
         Condition::PaidCost(tag) => app("PaidCost", vec![ilit(tag.as_str())]),
         // Idris's `Condition` namespace has no `CastWith` of its own (only
         // the `WasCastWith` PREDICATE) — desugar to `Matches This
-        // (WasCastWith tag)`, mirroring `Condition::Is`'s `Matches` shape.
+        // (WasCastWith tag)`, mirroring `Condition::Matches`'s `Matches` shape.
         Condition::CastWith(tag) => {
             let spec = keywordspec_idris(tag.as_str()).ok_or_else(|| {
                 gap(format!(
@@ -858,8 +858,8 @@ fn emit_condition(c: &Condition) -> R {
         Condition::YourTurn => "yourTurn".to_string(),
         Condition::TurnOf(f) => app("TurnOf", vec![emit_filter(f)?]),
         Condition::DuringPhase(p) => app("During", vec![emit_phase_step(*p)?]),
-        Condition::AllOf(cs) => app("And", vec![map_list(cs, emit_condition)?]),
-        Condition::OneOf(cs) => app("Or", vec![map_list(cs, emit_condition)?]),
+        Condition::And(cs) => app("And", vec![map_list(cs, emit_condition)?]),
+        Condition::Or(cs) => app("Or", vec![map_list(cs, emit_condition)?]),
         Condition::Not(inner) => app("Not", vec![emit_condition(inner)?]),
         Condition::Expanded(_) => {
             return Err(gap(
@@ -1156,12 +1156,13 @@ fn emit_selection(s: &Selection) -> R {
         Selection::AmongNoted(..) => {
             return Err(gap("Selection::AmongNoted has no Idris counterpart"));
         }
-        Selection::TopOfLibrary { count, of } => {
-            app("topFrom", vec![emit_count(count)?, emit_reference(of)?])
+        Selection::TopOfLibrary { count, whose } => {
+            app("topFrom", vec![emit_count(count)?, emit_reference(whose)?])
         }
-        Selection::BottomOfLibrary { count, of } => {
-            app("bottomFrom", vec![emit_count(count)?, emit_reference(of)?])
-        }
+        Selection::BottomOfLibrary { count, whose } => app(
+            "bottomFrom",
+            vec![emit_count(count)?, emit_reference(whose)?],
+        ),
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
         Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),

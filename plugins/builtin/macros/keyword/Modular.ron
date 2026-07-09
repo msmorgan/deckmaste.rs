@@ -18,7 +18,7 @@
 //   - TRIGGERED dies-migration [CR#702.43a]: `ThisDies` ([CR#603.6c] — the
 //     leaving object watches its own departure) → `May` ([CR#603.4] optional
 //     "you may") over a `Targeted` migration. The target is "artifact creature"
-//     (`AllOf([Type(Artifact), Type(Creature)])`, declared on the effect's
+//     (`And([Type(Artifact), Type(Creature)])`, declared on the effect's
 //     `targets` per [CR#115.1,601.2c] — the same `Target(Exactly(1), filter)`
 //     shape Fortify uses). The placed amount is "for each +1/+1 counter on this
 //     permanent" = `CounterCount(This, P1P1Counter)`. By the time the trigger
@@ -42,7 +42,7 @@
             Triggered(
                 event: ThisDies,
                 effect: May(effect: Targeted(
-                    targets: [Target(Exactly(1), AllOf([Type(Artifact), Type(Creature)]))],
+                    targets: [Target(Exactly(1), And([Type(Artifact), Type(Creature)]))],
                     effect: PutCounters(
                         Target(0),
                         P1P1Counter,

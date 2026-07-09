@@ -91,7 +91,7 @@ mod tests {
         assert_eq!(
             spell("~ deals 3 damage to target player or planeswalker.").as_deref(),
             Some(
-                "Spell(effect: Targeted(targets: [TargetOne(OneOf([Player, Planeswalker]))], effect: DealDamage(This, 3, It)))"
+                "Spell(effect: Targeted(targets: [TargetOne(Or([Player, Planeswalker]))], effect: DealDamage(This, 3, It)))"
             )
         );
     }
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(
             spell("Creatures you control get +3/+3 and gain trample until end of turn.").as_deref(),
             Some(
-                "Spell(effect: Continuously(effect: Each(SelectAll(AllOf([Creature, \
+                "Spell(effect: Continuously(effect: Each(SelectAll(And([Creature, \
                  ControlledBy(Ref(You))])), Modify(It, Several([AddPowerToughness(3, 3), \
                  GainAbility(Keyword(Trample))]))), duration: FixedUntil(EndOfTurn)))"
             )

@@ -187,7 +187,7 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
 }
 
 /// "you cast a[n] <Subtype> spell" -> `Cast(who: Ref(You),
-/// what: AllOf([Kind(Spell), Subtype("<X>")]))` ([CR#601.2i] cast onset;
+/// what: And([Kind(Spell), Subtype("<X>")]))` ([CR#601.2i] cast onset;
 /// mirrors the Prowess macro's filtered-cast shape). Only the controller's own
 /// cast of a single-subtype spell is modeled here; any other cast surface (an
 /// opponent's cast, a card-type-filtered spell, no subtype) declines.
@@ -206,7 +206,7 @@ fn parse_cast_event(clause: &str) -> Option<String> {
         return None;
     }
     Some(format!(
-        "Cast(who: Ref(You), what: AllOf([Kind(Spell), Subtype(\"{}\")]))",
+        "Cast(who: Ref(You), what: And([Kind(Spell), Subtype(\"{}\")]))",
         crate::ident::to_rust_ident(subtype)
     ))
 }
@@ -347,7 +347,7 @@ mod tests {
         assert_eq!(
             trig("Whenever a creature you control enters, draw a card.").as_deref(),
             Some(
-                "Triggered(event: Enters(AllOf([Creature, ControlledBy(Ref(You))])), \
+                "Triggered(event: Enters(And([Creature, ControlledBy(Ref(You))])), \
                  effect: Draw(1))"
             )
         );
@@ -357,7 +357,7 @@ mod tests {
         assert_eq!(
             trig("Whenever a Goblin enters, draw a card.").as_deref(),
             Some(
-                "Triggered(event: Enters(AllOf([Permanent, Subtype(\"Goblin\")])), effect: Draw(1))"
+                "Triggered(event: Enters(And([Permanent, Subtype(\"Goblin\")])), effect: Draw(1))"
             )
         );
     }
@@ -367,7 +367,7 @@ mod tests {
         assert_eq!(
             trig("Whenever another creature you control dies, you lose 1 life.").as_deref(),
             Some(
-                "Triggered(event: Dies(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
+                "Triggered(event: Dies(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
                  effect: LoseLife(1))"
             )
         );
@@ -379,7 +379,7 @@ mod tests {
             trig("Whenever a creature you control enters, ~ deals 1 damage to each opponent.")
                 .as_deref(),
             Some(
-                "Triggered(event: Enters(AllOf([Creature, ControlledBy(Ref(You))])), \
+                "Triggered(event: Enters(And([Creature, ControlledBy(Ref(You))])), \
                  effect: Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: \
                  DealDamage(This, 1, It)))"
             )
@@ -427,7 +427,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(This, \
-                 Several([Power(Up(CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))))), \
+                 Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))))), \
                  Toughness(Up(0))])), duration: FixedUntil(EndOfTurn)))"
             )
         );
@@ -441,7 +441,7 @@ mod tests {
             trig("Whenever ~ attacks, you gain 1 life for each attacking Elf you control.")
                 .as_deref(),
             Some(
-                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\"), \
+                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), \
                  Attacking, ControlledBy(Ref(You))])))))"
             )
         );
@@ -453,7 +453,7 @@ mod tests {
         assert_eq!(
             trig("Whenever a creature you control attacks, draw a card.").as_deref(),
             Some(
-                "Triggered(event: Attacks(AllOf([Creature, ControlledBy(Ref(You))])), \
+                "Triggered(event: Attacks(And([Creature, ControlledBy(Ref(You))])), \
                  effect: Draw(1))"
             )
         );
@@ -469,7 +469,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: AllOf([Kind(Spell), Subtype(\"Elf\")])), \
+                 what: And([Kind(Spell), Subtype(\"Elf\")])), \
                  effect: May(effect: Create(1, Token(color_indicator: [Green], types: [Creature], \
                  subtypes: [Elf, Warrior], power: 1, toughness: 1))))"
             )
@@ -568,7 +568,7 @@ mod tests {
             trig("Whenever another creature you control is put into a graveyard from the battlefield, draw a card.")
                 .as_deref(),
             Some(
-                "Triggered(event: Dies(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
+                "Triggered(event: Dies(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
                  effect: Draw(1))"
             )
         );
@@ -584,7 +584,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(ability_word: \"Landfall\", \
-                 event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
+                 event: Enters(And([Type(Land), ControlledBy(Ref(You))])), \
                  effect: Continuously(effect: Modify(This, \
                  AddPowerToughness(2, 2)), duration: FixedUntil(EndOfTurn)))"
             )
@@ -600,7 +600,7 @@ mod tests {
             .as_deref(),
             Some(
                 "Triggered(ability_word: \"Landfall\", \
-                 event: Enters(AllOf([Type(Land), ControlledBy(Ref(You))])), \
+                 event: Enters(And([Type(Land), ControlledBy(Ref(You))])), \
                  effect: PutCounters(This, P1P1Counter, 1))"
             )
         );
@@ -614,7 +614,7 @@ mod tests {
             trig("When ~ enters, attach it to target creature you control.").as_deref(),
             Some(
                 "Triggered(event: ThisEnters, effect: Targeted(targets: \
-                 [TargetOne(AllOf([Creature, ControlledBy(Ref(You))]))], \
+                 [TargetOne(And([Creature, ControlledBy(Ref(You))]))], \
                  effect: Attach(what: This, to: Target(0))))"
             )
         );

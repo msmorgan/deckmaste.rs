@@ -9,5 +9,5 @@
     name: "Domain",
     template: "domain",
     kinds: [Count],
-    body: CountDistinct(BasicLandTypes, Objects(AllOf([InZone(Battlefield), Type(Land), ControlledBy(Ref(You))]))),
+    body: CountDistinct(BasicLandTypes, Objects(And([InZone(Battlefield), Type(Land), ControlledBy(Ref(You))]))),
 )

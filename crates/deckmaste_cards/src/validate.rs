@@ -665,7 +665,7 @@ mod keyword_ref_tests {
         let read = |src: &str| -> Ability { plugin.macros.read_str(src).unwrap() };
         let typo = read("Static(Cant(Block(on: Ref(This), by: Not(Has(Flyng)))))");
         let fine =
-            read("Static(Cant(Block(on: Ref(This), by: Not(OneOf([Has(Flying), Has(Trample)])))))");
+            read("Static(Cant(Block(on: Ref(This), by: Not(Or([Has(Flying), Has(Trample)])))))");
         let mut out = Vec::new();
         super::lint_keyword_refs(
             &PathBuf::from("test/dummy.ron"),

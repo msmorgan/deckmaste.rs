@@ -39,22 +39,22 @@ pub enum Selection {
     /// "this way" anaphora ([CR#607.2a] linkage).
     AmongNoted(crate::Ident, Quantity),
     /// The top `count` cards of a library, top → down (an ORDERED set —
-    /// position is the whole point). `of` names the library's player; the
+    /// position is the whole point). `whose` names the library's player; the
     /// default `You` writes bare. Feeds the scry `Each` over the peeked
     /// top-N ([CR#701.22a]).
     TopOfLibrary {
         count: Count,
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-        of: Reference,
+        whose: Reference,
     },
     /// The bottom `count` cards of a library, bottom → up (ordered) — the
     /// Idris `BottomOfLibrary`, mirroring
-    /// [`TopOfLibrary`](Self::TopOfLibrary). `of` names the library's player;
-    /// the default `You` writes bare.
+    /// [`TopOfLibrary`](Self::TopOfLibrary). `whose` names the library's
+    /// player; the default `You` writes bare.
     BottomOfLibrary {
         count: Count,
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-        of: Reference,
+        whose: Reference,
     },
     /// The PLURAL anaphor — "they"/"them": the nearest Many antecedent on
     /// the antecedent stack, any sort (R1 nearest-compatible,
@@ -89,14 +89,14 @@ pub enum Selection {
     Expanded(Expansion<Selection>),
 }
 
-/// serde default for [`TopOfLibrary.of`] — the library belongs to "you"
+/// serde default for [`TopOfLibrary.whose`] — the library belongs to "you"
 /// unless the text names another player.
 fn ref_you() -> Reference {
     Reference::You
 }
 
-/// `skip_serializing_if` predicate for [`TopOfLibrary.of`]: the default `You`
-/// is omitted from RON.
+/// `skip_serializing_if` predicate for [`TopOfLibrary.whose`]: the default
+/// `You` is omitted from RON.
 fn ref_is_you(r: &Reference) -> bool {
     matches!(r, Reference::You)
 }
@@ -137,20 +137,20 @@ mod tests {
     fn top_of_library_round_trips() {
         let v = Selection::TopOfLibrary {
             count: Count::Literal(2),
-            of: crate::Reference::You,
+            whose: crate::Reference::You,
         };
-        // `of: You` is the default and writes bare.
+        // `whose: You` is the default and writes bare.
         assert_eq!(read("TopOfLibrary(count:2)"), v);
         assert_eq!(read(&to_string(&v)), v);
     }
 
     /// `BottomOfLibrary` mirrors `TopOfLibrary` (the Idris constructor):
-    /// same fields, same bare-default `of`.
+    /// same fields, same bare-default `whose`.
     #[test]
     fn bottom_of_library_round_trips() {
         let v = Selection::BottomOfLibrary {
             count: Count::Literal(3),
-            of: crate::Reference::You,
+            whose: crate::Reference::You,
         };
         assert_eq!(read("BottomOfLibrary(count:3)"), v);
         assert_eq!(read(&to_string(&v)), v);

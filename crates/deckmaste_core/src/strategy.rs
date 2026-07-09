@@ -123,7 +123,7 @@ pub enum Preference {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Rule {
     /// The gating condition, in core's `Condition` vocabulary (reused verbatim;
-    /// boolean composition via `AllOf`/`OneOf`/`Not`).
+    /// boolean composition via `And`/`Or`/`Not`).
     pub when: Condition,
     /// The play to prefer when this rule fires.
     pub prefer: Preference,
@@ -236,7 +236,7 @@ mod tests {
                 name: "Test Aggro",
                 rules: [
                     (when: YourTurn, prefer: Cast(what: (pick: Min, by: StatOf(This, ManaValue)))),
-                    (when: AllOf([]), prefer: Pass),
+                    (when: And([]), prefer: Pass),
                 ],
             )"#,
         );
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(s.rules.len(), 2);
         assert_eq!(s.rules[0].when, Condition::YourTurn);
         assert!(matches!(s.rules[0].prefer, Preference::Cast { .. }));
-        assert_eq!(s.rules[1].when, Condition::AllOf(vec![]));
+        assert_eq!(s.rules[1].when, Condition::And(vec![]));
         assert_eq!(s.rules[1].prefer, Preference::Pass);
     }
 
@@ -260,8 +260,8 @@ mod tests {
                         what: (pick: Min, by: StatOf(This, ManaValue), among: Any),
                         target: (pick: Max, by: StatOf(This, Power)),
                     )),
-                    (when: AllOf([]), prefer: Block(BlockAll)),
-                    (when: AllOf([]), prefer: Pass),
+                    (when: And([]), prefer: Block(BlockAll)),
+                    (when: And([]), prefer: Pass),
                 ],
             )"#,
         );

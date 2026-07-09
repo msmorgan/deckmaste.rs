@@ -37,7 +37,7 @@ KeywordAbility(
     abilities: [Triggered(
         event: AttackDeclared(by: Ref(This)),
         condition: Compare(
-            CountOf(Objects(AllOf([
+            CountOf(Objects(And([
                 Type(Creature),
                 Attacking,
                 Not(Ref(This)),

@@ -55,7 +55,7 @@ split to the choice:
 
 ```
 SeparatePiles(
-  group: SelectAll(AllOf([Type(Creature), ControlledBy(Ref(It))])),
+  group: SelectAll(And([Type(Creature), ControlledBy(Ref(It))])),
   into: ["a", "b"],                 // ← string pile labels
   then: ChoosePile(
     from: Labels(["a", "b"]),        // ← same strings, re-referenced

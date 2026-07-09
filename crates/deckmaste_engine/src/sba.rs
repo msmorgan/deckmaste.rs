@@ -1094,9 +1094,9 @@ mod tests {
         let p0 = PlayerId(0);
 
         // The Ascend static, built typed (mirrors the builtin macro's expansion).
-        let gate = Condition::AllOf(vec![
+        let gate = Condition::And(vec![
             Condition::Compare(
-                Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
+                Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
@@ -1105,7 +1105,7 @@ mod tests {
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),
-            Condition::Not(Box::new(Condition::Is(
+            Condition::Not(Box::new(Condition::Matches(
                 Reference::You,
                 Predicate::State(StatePredicate::Designated(name)),
             ))),
@@ -1186,9 +1186,9 @@ mod tests {
         // controller's permanents and grants to that controller.
         let ascend = || {
             Ability::Static(StaticEffect::Sba {
-                when: Box::new(Condition::AllOf(vec![
+                when: Box::new(Condition::And(vec![
                     Condition::Compare(
-                        Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
+                        Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
                                 Predicate::Ref(Reference::You),
@@ -1197,7 +1197,7 @@ mod tests {
                         Cmp::AtLeast,
                         Count::Literal(10),
                     ),
-                    Condition::Not(Box::new(Condition::Is(
+                    Condition::Not(Box::new(Condition::Matches(
                         Reference::You,
                         Predicate::State(StatePredicate::Designated(name)),
                     ))),
@@ -1594,7 +1594,7 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let frame = this_frame(&state, bear);
-        let cond = Condition::Is(
+        let cond = Condition::Matches(
             Reference::Source,
             Predicate::Characteristic(CharacteristicPredicate::Has("Deathtouch".into())),
         );
@@ -1747,7 +1747,7 @@ mod tests {
     }
 
     /// [CR#704.5g,704.5h]: a creature with BOTH lethal damage AND a deathtouch
-    /// strike emits exactly one `WillDestroy` — the `OneOf` in the rule
+    /// strike emits exactly one `WillDestroy` — the `Or` in the rule
     /// prevents the rule from firing twice.
     #[test]
     fn lethal_and_deathtouch_emits_one_destroy() {
@@ -1768,7 +1768,7 @@ mod tests {
             .count();
         assert_eq!(
             n, 1,
-            "OneOf dedups to a single WillDestroy — no double-destroy panic; got {actions:?}"
+            "Or dedups to a single WillDestroy — no double-destroy panic; got {actions:?}"
         );
     }
 

@@ -188,7 +188,7 @@ mod tests {
             act("Sacrifice another Goblin: Draw a card.").as_deref(),
             Some(
                 "Activated(cost: [With(binder: ChooseOne(filter: \
-                 AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), \
+                 And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), \
                  body: [Do(Sacrifice(That(Permanent)))])], effect: Draw(1))"
             )
         );

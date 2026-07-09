@@ -411,7 +411,8 @@ mod tests {
     /// the way down.
     #[test]
     fn static_anthem_reads_and_writes_positionally() {
-        let source = "Static(Each(SelectAll(AllOf([Type(Creature),ColorIs(White)])),Modify(It,Power(Up(2)))))";
+        let source =
+            "Static(Each(SelectAll(And([Type(Creature),ColorIs(White)])),Modify(It,Power(Up(2)))))";
         let ability = read_ability(source);
         let Ability::Static(effect) = &ability else {
             panic!("expected a static ability");

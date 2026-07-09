@@ -10,6 +10,6 @@ Normal(
     Enchantment,
   ],
   abilities: [
-    Static(Each(SelectAll(AllOf([Creature, ColorIs(Black)])), Modify(It, Several([Power(Up(1)), Toughness(Up(1))])))),
+    Static(Each(SelectAll(And([Creature, ColorIs(Black)])), Modify(It, Several([Power(Up(1)), Toughness(Up(1))])))),
   ],
 )

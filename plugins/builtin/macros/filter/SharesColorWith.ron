@@ -12,11 +12,11 @@
     name: "SharesColorWith",
     kinds: [Predicate],
     params: [Reference],
-    body: Where(OneOf([
-        AllOf([Is(It, ColorIs(White)), Is(Param(0), ColorIs(White))]),
-        AllOf([Is(It, ColorIs(Blue)), Is(Param(0), ColorIs(Blue))]),
-        AllOf([Is(It, ColorIs(Black)), Is(Param(0), ColorIs(Black))]),
-        AllOf([Is(It, ColorIs(Red)), Is(Param(0), ColorIs(Red))]),
-        AllOf([Is(It, ColorIs(Green)), Is(Param(0), ColorIs(Green))]),
+    body: Where(Or([
+        And([Matches(It, ColorIs(White)), Matches(Param(0), ColorIs(White))]),
+        And([Matches(It, ColorIs(Blue)), Matches(Param(0), ColorIs(Blue))]),
+        And([Matches(It, ColorIs(Black)), Matches(Param(0), ColorIs(Black))]),
+        And([Matches(It, ColorIs(Red)), Matches(Param(0), ColorIs(Red))]),
+        And([Matches(It, ColorIs(Green)), Matches(Param(0), ColorIs(Green))]),
     ])),
 )

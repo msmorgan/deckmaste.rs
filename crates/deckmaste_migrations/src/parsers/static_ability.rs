@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(
             stat("Creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
+                "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
             )
         );
     }
@@ -224,7 +224,7 @@ mod tests {
         assert_eq!(
             stat("Creatures your opponents control get -1/-1.").as_deref(),
             Some(
-                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(OpponentOf(Ref(You)))])), Modify(It, Several([Power(Down(1)), Toughness(Down(1))]))))"
+                "Static(Each(SelectAll(And([Creature, ControlledBy(OpponentOf(Ref(You)))])), Modify(It, Several([Power(Down(1)), Toughness(Down(1))]))))"
             )
         );
         assert_eq!(
@@ -267,19 +267,19 @@ mod tests {
         assert_eq!(
             stat("Other Goblins have haste.").as_deref(),
             Some(
-                "Static(Each(SelectAll(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, GainAbility(Keyword(Haste)))))"
+                "Static(Each(SelectAll(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, GainAbility(Keyword(Haste)))))"
             )
         );
         assert_eq!(
             stat("Creatures you control have flying and vigilance.").as_deref(),
             Some(
-                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, Several([GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))]))))"
+                "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, Several([GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance))]))))"
             )
         );
         assert_eq!(
             stat("Creatures you control have flying, vigilance, and trample.").as_deref(),
             Some(
-                "Static(Each(SelectAll(AllOf([Creature, ControlledBy(Ref(You))])), Modify(It, Several([GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance)), GainAbility(Keyword(Trample))]))))"
+                "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, Several([GainAbility(Keyword(Flying)), GainAbility(Keyword(Vigilance)), GainAbility(Keyword(Trample))]))))"
             )
         );
     }
@@ -292,7 +292,7 @@ mod tests {
         assert!(stat("Enchanted creature can't attack or block.").is_none());
         assert_eq!(
             stat("Creatures you control can't attack.").as_deref(),
-            Some("Static(Cant(Attack(by: AllOf([Creature, ControlledBy(Ref(You))]))))")
+            Some("Static(Cant(Attack(by: And([Creature, ControlledBy(Ref(You))]))))")
         );
     }
 
@@ -324,14 +324,12 @@ mod tests {
         // Blocker-quality power restriction (the candidate blocker's power).
         assert_eq!(
             stat("~ can't be blocked by creatures with power 2 or less.").as_deref(),
-            Some(
-                "Static(Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtMost, 2)]))))"
-            )
+            Some("Static(Cant(Block(on: Ref(This), by: And([Creature, Stat(Power, AtMost, 2)]))))")
         );
         assert_eq!(
             stat("~ can't be blocked by creatures with power 3 or greater.").as_deref(),
             Some(
-                "Static(Cant(Block(on: Ref(This), by: AllOf([Creature, Stat(Power, AtLeast, 3)]))))"
+                "Static(Cant(Block(on: Ref(This), by: And([Creature, Stat(Power, AtLeast, 3)]))))"
             )
         );
     }
@@ -348,7 +346,7 @@ mod tests {
             stat("Each creature you control can't be blocked by more than one creature.")
                 .as_deref(),
             Some(
-                "Static(Cant(Block(on: AllOf([Creature, ControlledBy(Ref(You))]), count: Greater(1))))"
+                "Static(Cant(Block(on: And([Creature, ControlledBy(Ref(You))]), count: Greater(1))))"
             )
         );
     }
@@ -368,7 +366,7 @@ mod tests {
         // ([CR#509.1a]).
         assert_eq!(
             stat("~ can block only creatures with flying.").as_deref(),
-            Some("Static(Cant(Block(by: Ref(This), on: Not(AllOf([Creature, Has(Flying)])))))")
+            Some("Static(Cant(Block(by: Ref(This), on: Not(And([Creature, Has(Flying)])))))")
         );
     }
 
@@ -413,7 +411,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblin creatures you control attack each combat if able.").as_deref(),
             Some(
-                "Static(Must(Attack(by: AllOf([Creature, Not(Ref(This)), Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))"
+                "Static(Must(Attack(by: And([Creature, Not(Ref(This)), Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))"
             )
         );
         // A self-ref subject ("~ attacks each combat if able") → Must over This.
@@ -439,7 +437,7 @@ mod tests {
         assert_eq!(
             stat("Other Elf creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(Each(SelectAll(AllOf([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
+                "Static(Each(SelectAll(And([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
             )
         );
     }
@@ -452,7 +450,7 @@ mod tests {
         assert_eq!(
             stat("Goblin spells you cast cost {1} less to cast.").as_deref(),
             Some(
-                "Static(CostModifier(of: AllOf([Kind(Spell), Subtype(\"Goblin\"), ControlledBy(Ref(You))]), change: Reduce([Mana([Generic(1)])])))"
+                "Static(CostModifier(of: And([Kind(Spell), Subtype(\"Goblin\"), ControlledBy(Ref(You))]), change: Reduce([Mana([Generic(1)])])))"
             )
         );
     }
@@ -464,14 +462,14 @@ mod tests {
         assert_eq!(
             stat("Creature spells you cast cost {2} more to cast.").as_deref(),
             Some(
-                "Static(CostModifier(of: AllOf([Kind(Spell), Type(Creature), ControlledBy(Ref(You))]), change: Increase([Mana([Generic(2)])])))"
+                "Static(CostModifier(of: And([Kind(Spell), Type(Creature), ControlledBy(Ref(You))]), change: Increase([Mana([Generic(2)])])))"
             )
         );
         // A color adjective and no "you cast" scope (affects all such spells).
         assert_eq!(
             stat("Red spells cost {1} more to cast.").as_deref(),
             Some(
-                "Static(CostModifier(of: AllOf([Kind(Spell), ColorIs(Red)]), change: Increase([Mana([Generic(1)])])))"
+                "Static(CostModifier(of: And([Kind(Spell), ColorIs(Red)]), change: Increase([Mana([Generic(1)])])))"
             )
         );
     }
@@ -500,7 +498,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
             Some(
-                "Static(Each(SelectAll(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, Several([AddPowerToughness(1, 1), GainAbility(Keyword(Mountainwalk))]))))"
+                "Static(Each(SelectAll(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, Several([AddPowerToughness(1, 1), GainAbility(Keyword(Mountainwalk))]))))"
             )
         );
     }

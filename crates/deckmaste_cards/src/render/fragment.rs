@@ -438,7 +438,7 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
     }
 }
 
-/// The controller-restrictor phrase among a filter's `AllOf` parts:
+/// The controller-restrictor phrase among a filter's `And` parts:
 /// `ControlledBy(You)` → "you control"; `Not(ControlledBy(You))` → "you
 /// don't control"; `ControlledBy(OpponentOf(You))` → "an opponent controls".
 /// `None` when the filter carries no controller part.
@@ -548,7 +548,7 @@ pub(super) fn capitalize(s: &str) -> String {
 /// "Other creatures you control", "Creatures your opponents control".
 ///
 /// The Creature filter macro expands as
-/// `Expanded(value=AllOf([Expanded(Permanent),
+/// `Expanded(value=And([Expanded(Permanent),
 /// Characteristic(Type(Creature))]))`. `flatten_all_of` and `find_card_type`
 /// see through both layers.
 pub(super) fn filter_subject(f: &Predicate) -> String {
@@ -573,9 +573,9 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
             Predicate::Relation(RelationPredicate::ControlledBy(inner)) => {
                 control = Some(controller_phrase(inner));
             }
-            // The Creature macro expands to AllOf([Expanded(Permanent),
+            // The Creature macro expands to And([Expanded(Permanent),
             // Characteristic(Type(Creature))]); check whether this part holds
-            // a card type buried in a nested AllOf.
+            // a card type buried in a nested And.
             stripped => {
                 if let Some(t) = find_card_type(stripped) {
                     base = format!("{}s", super::card::type_str(t));
@@ -619,7 +619,7 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
 pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Type> {
     match strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(*t),
-        Predicate::AllOf(vs) => vs.iter().find_map(find_card_type),
+        Predicate::And(vs) => vs.iter().find_map(find_card_type),
         _ => None,
     }
 }
@@ -643,7 +643,7 @@ fn controller_phrase(f: &Predicate) -> String {
 
 fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
     match strip_expanded(f) {
-        Predicate::AllOf(v) => v.iter().collect(),
+        Predicate::And(v) => v.iter().collect(),
         single => vec![single],
     }
 }
@@ -651,7 +651,7 @@ fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
 // ── Devotion recognizer ([CR#700.5]) ────────────────────────────────────────
 
 /// Whether `filter` is (up to macro provenance) exactly "permanents you
-/// control" — `AllOf([Permanent, ControlledBy(Ref(You))])`, i.e.
+/// control" — `And([Permanent, ControlledBy(Ref(You))])`, i.e.
 /// `InZone(Battlefield)` + `ControlledBy(Ref(You))` and nothing else. A
 /// narrower subset (e.g. "creatures you control") is a different fold, not
 /// devotion.
@@ -851,7 +851,7 @@ mod tests {
     /// inside a plural subject ([CR#102.3]).
     #[test]
     fn filter_subject_renders_teammate_controller_phrase() {
-        let f = Predicate::AllOf(vec![
+        let f = Predicate::And(vec![
             Predicate::Characteristic(CharacteristicPredicate::Type(
                 deckmaste_core::Type::Creature,
             )),
@@ -869,7 +869,7 @@ mod tests {
     /// CountsAs(Green)))`.
     #[test]
     fn count_renders_single_color_devotion() {
-        let permanents_you_control = Predicate::AllOf(vec![
+        let permanents_you_control = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                 Reference::You,
@@ -892,7 +892,7 @@ mod tests {
     /// as an English color list — "your devotion to white and black".
     #[test]
     fn count_renders_two_color_devotion() {
-        let permanents_you_control = Predicate::AllOf(vec![
+        let permanents_you_control = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                 Reference::You,
@@ -921,7 +921,7 @@ mod tests {
         let total_power = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(Predicate::AllOf(vec![
+                of: Countable::Objects(Box::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Characteristic(CharacteristicPredicate::Type(
                         deckmaste_core::Type::Creature,

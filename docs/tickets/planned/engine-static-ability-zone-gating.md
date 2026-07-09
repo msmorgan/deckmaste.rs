@@ -63,7 +63,7 @@ static — it needs the machinery this ticket designs, plus one more primitive:
 
 1. **Conditional static evaluation in the layer `gather`.** Today `gather`
    constructs `ActiveEffect`s from a `StaticAbility` WITHOUT consulting
-   `sa.condition` (the [CR#611.3a] seam), so a conditional static (`Is(Ref(This),
+   `sa.condition` (the [CR#611.3a] seam), so a conditional static (`Matches(Ref(This),
    AttachedTo(Creature))` → not-a-creature) would apply *unconditionally* —
    making the Equipment non-creature even while unattached (an active bug). Honoring
    static `condition`s in gather is squarely this ticket's territory.
@@ -72,7 +72,7 @@ static — it needs the machinery this ticket designs, plus one more primitive:
    addition, do it alongside.
 
 Once both exist, Reconfigure's suppression is just an authored conditional static on
-the keyword macro: `Static(condition: Is(Ref(This), AttachedTo(Creature)),
+the keyword macro: `Static(condition: Matches(Ref(This), AttachedTo(Creature)),
 effects: [Modify(of: Of(Ref(This)), changes: [RemoveCardType(Creature)])])`. The
 `#[ignore]`'d `reconfigure_suppresses_creature` test in engine-attach pins the
 intended behavior.

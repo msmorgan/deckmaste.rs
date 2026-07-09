@@ -320,7 +320,7 @@ mod tests {
         ));
         assert_eq!(read(&write(&mk)), mk);
         // Objects wrapper is spelled explicitly.
-        let obj = read(r#"CountOf(Objects(AllOf([Subtype("Goblin"), ControlledBy(Ref(You))])))"#);
+        let obj = read(r#"CountOf(Objects(And([Subtype("Goblin"), ControlledBy(Ref(You))])))"#);
         assert!(matches!(obj, Count::CountOf(Countable::Objects(_))));
         assert_eq!(read(&write(&obj)), obj);
     }
@@ -457,7 +457,7 @@ mod tests {
         let devotion_green = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(Predicate::AllOf(vec![
+                of: Countable::Objects(Box::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,

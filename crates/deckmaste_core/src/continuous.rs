@@ -117,9 +117,9 @@ impl<T: Expand> Expand for CollectionOp<T> {
 /// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
 /// in a `changes: [...]` slot — the keystone being `AddPowerToughness(p, t)`,
 /// which expands to `Several([Power(Up(p)), Toughness(Up(t))])`. `Several` is
-/// the `Modification` analog of `Predicate::AllOf`: a macro expands to ONE
+/// the `Modification` analog of `Predicate::And`: a macro expands to ONE
 /// value, so a macro that must contribute several ops bundles them into a
-/// `Several`. Unlike `Predicate::AllOf` (a conjunction the engine evaluates),
+/// `Several`. Unlike `Predicate::And` (a conjunction the engine evaluates),
 /// `Several` is semantically inert — `changes` is already a flat,
 /// layer-spanning list ([CR#613.6]) — so it is flattened away once, at the
 /// engine boundary ([`Modification::flatten`]), and the engine layer loops
@@ -170,7 +170,7 @@ pub enum Modification {
     /// reachable from the plain `Set*` ops.
     BecomeBasicLandType(Vec<Ident>),
     /// A bundle of ops contributed by one macro invocation — the analog of
-    /// `Predicate::AllOf`. A macro expands to a single value, so a
+    /// `Predicate::And`. A macro expands to a single value, so a
     /// change-bundling macro (`AddPowerToughness(p, t)`) produces
     /// `Several([Power(Up(p)), Toughness(Up(t))])`. Semantically inert:
     /// `changes` is already a flat, layer-spanning list ([CR#613.6]), so
@@ -311,7 +311,7 @@ pub enum StaticEffect {
     /// — and multipliers ADD rather than compound (two Panharmonicons → 3×,
     /// not 4×; [CR#603.2d] "doesn't invoke itself repeatedly").
     /// Panharmonicon = `TriggerMultiplier(cause: ZoneChange(what:
-    /// OneOf([Type(Artifact), Type(Creature)]), to: Battlefield), extra:
+    /// Or([Type(Artifact), Type(Creature)]), to: Battlefield), extra:
     /// 1)`.
     TriggerMultiplier {
         cause: EventFilter,
@@ -694,7 +694,7 @@ mod tests {
     #[test]
     fn trigger_multiplier_round_trips() {
         let parsed = read(
-            "TriggerMultiplier(cause: ZoneChange(what: OneOf([Type(Artifact), Type(Creature)]), to: Battlefield), extra: 1)",
+            "TriggerMultiplier(cause: ZoneChange(what: Or([Type(Artifact), Type(Creature)]), to: Battlefield), extra: 1)",
         );
         let StaticEffect::TriggerMultiplier {
             extra, affected, ..
@@ -734,13 +734,13 @@ mod tests {
         // Convoke's colored clause: tap a white creature you control rather
         // than pay a {W} pip.
         let convoke = read(
-            "PayPips(Colored(White), TapToPay(AllOf([Type(Creature), ColorIs(White), ControlledBy(Ref(You))])))",
+            "PayPips(Colored(White), TapToPay(And([Type(Creature), ColorIs(White), ControlledBy(Ref(You))])))",
         );
         assert_eq!(
             convoke,
             StaticEffect::PayPips(
                 PipClass::Colored(Color::White),
-                PayAct::TapToPay(Predicate::AllOf(vec![
+                PayAct::TapToPay(Predicate::And(vec![
                     Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
                     Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(

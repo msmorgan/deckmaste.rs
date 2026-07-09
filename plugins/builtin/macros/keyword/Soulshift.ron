@@ -23,7 +23,7 @@
 //                     `Param(0)` into a nested macro's argument slot ("Param(0)
 //                     outside any macro expansion"), the same constraint that
 //                     forces Modular to inline its `Target(Exactly(1), …)`. This
-//                     is the same graveyard-return filter shape (`AllOf([…,
+//                     is the same graveyard-return filter shape (`And([…,
 //                     InZone(Graveyard), Owner(Ref(You))])`) the engine's
 //                     graveyard-return cards use.
 //   - resolution:     `Move(Target(0), Hand)` — the positional announced-
@@ -44,7 +44,7 @@
         abilities: [Triggered(
             event: ThisDies,
             effect: May(effect: Targeted(
-                targets: [Target(Exactly(1), AllOf([
+                targets: [Target(Exactly(1), And([
                     Subtype("Spirit"),
                     InZone(Graveyard),
                     Owner(Ref(You)),

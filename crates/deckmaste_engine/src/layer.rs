@@ -668,7 +668,7 @@ fn resolve_source_relative(
 /// spell-built floating effect ([CR#611.2c]). It anchors `Ref(This)`/`Ref(You)`
 /// in the scope: without it those refs hit the frameless-targeting `todo!` in
 /// `target::matches` the moment a layer rebuild touches a tribal-lord scope
-/// (`AllOf([…, Not(Ref(This)), ControlledBy(Ref(You))])`). The live trigger
+/// (`And([…, Not(Ref(This)), ControlledBy(Ref(You))])`). The live trigger
 /// lane (`filter_matches_live`) threads its watcher the same way.
 fn matches_derived(
     state: &GameState,
@@ -687,7 +687,7 @@ fn matches_derived(
     let Some(c) = working.get(&id).map(|d| &d.characteristics) else {
         return false;
     };
-    // Combinators (`AllOf`/`OneOf`/`Not`/`Expanded`; `Any` handled above so it
+    // Combinators (`And`/`Or`/`Not`/`Expanded`; `Any` handled above so it
     // matches even for ids absent from `working`) recurse through this same
     // derived matcher via the shared walker; characteristic leaves fall through
     // below and everything else delegates to the printed matcher.
@@ -2267,7 +2267,7 @@ mod tests {
     }
 
     /// The canonical tribal-lord static: "other Goblins you control get +1/+1",
-    /// i.e. `Matching(AllOf([Creature, Not(Ref(This)), Subtype("Goblin"),
+    /// i.e. `Matching(And([Creature, Not(Ref(This)), Subtype("Goblin"),
     /// ControlledBy(Ref(You))]))`. Its scope names both `~` (`Ref(This)`) and
     /// `you` (`Ref(You)`), which are exactly the carrier-bound refs the derived
     /// path must anchor against the host permanent.
@@ -2275,7 +2275,7 @@ mod tests {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationPredicate;
         Ability::Static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::AllOf(vec![
+            Selection::SelectAll(Predicate::And(vec![
                 Predicate::creature(),
                 Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
                 Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
@@ -2330,7 +2330,7 @@ mod tests {
     }
 
     /// engine-static-scope-carrier: a spell-built FLOATING scope (Overrun's
-    /// `Continuously(Modify(of: Matching(AllOf([Creature,
+    /// `Continuously(Modify(of: Matching(And([Creature,
     /// ControlledBy(Ref(You))] )), …))`) names `you` and so also rode the
     /// carrier `todo!`. The floating effect carries its controller, so
     /// `Ref(You)` resolves and the player's own creatures are buffed
@@ -2349,7 +2349,7 @@ mod tests {
         state.continuous.push(ContinuousEffect {
             timestamp,
             controller: PlayerId(0),
-            scope: ScopeResolved::Floating(Predicate::AllOf(vec![
+            scope: ScopeResolved::Floating(Predicate::And(vec![
                 Predicate::creature(),
                 Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
@@ -2674,7 +2674,7 @@ mod tests {
     }
 
     /// A lord-granting-a-lord `Static`: "other creatures you control have
-    /// '<granted>'", i.e. `Each(SelectAll(AllOf([Creature, Not(Ref(This))])),
+    /// '<granted>'", i.e. `Each(SelectAll(And([Creature, Not(Ref(This))])),
     /// Modify(It, GainAbility(granted)))`. The distributor's filter names `~`
     /// (`Ref(This)`) so it grants every OTHER creature (not itself); the
     /// `granted` static is a layer-6 `GainAbility` payload that only
@@ -2682,7 +2682,7 @@ mod tests {
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
         Ability::Static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::AllOf(vec![
+            Selection::SelectAll(Predicate::And(vec![
                 Predicate::creature(),
                 Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
             ])),

@@ -7,5 +7,5 @@
     name: "CardsInAnyGraveyard",
     template: "each card in a graveyard",
     kinds: [Selection],
-    body: SelectAll(AllOf([Card, InZone(Graveyard)])),
+    body: SelectAll(And([Card, InZone(Graveyard)])),
 )

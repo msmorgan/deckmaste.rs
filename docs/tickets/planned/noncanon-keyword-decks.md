@@ -19,7 +19,7 @@ deck work.
    this trunk-integrating batch.
 2. **Premise needs end-to-end verification.** Updated from an earlier note that
    said combat keywords were entirely unlive: the keyword macros now DO confer
-   the deontic rows — `Flying` → `Cant(Block(by: Not(OneOf([Has(Flying),
+   the deontic rows — `Flying` → `Cant(Block(by: Not(Or([Has(Flying),
    Has(Reach)]))))`, `Menace` → `Cant(Block(count: Less(2)))`, `Defender` →
    `Cant(Attack(by: This))` — and `legal.rs` has `Cant(Block)`/`Cant(Attack)`
    enforcement scaffolding ([CR#702.9b] flying-family evasion, [CR#702.111b]

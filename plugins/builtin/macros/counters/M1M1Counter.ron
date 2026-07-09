@@ -16,9 +16,9 @@
         confers: [
             Continuous(This, Several([Power(Down(CounterCount(This, M1M1Counter))), Toughness(Down(CounterCount(This, M1M1Counter)))])),
             StateBased(
-                condition: AllOf([
-                    Is(This, HasCounter(P1P1Counter)),
-                    Is(This, HasCounter(M1M1Counter)),
+                condition: And([
+                    Matches(This, HasCounter(P1P1Counter)),
+                    Matches(This, HasCounter(M1M1Counter)),
                 ]),
                 effect: Sequentially([
                     RemoveCounters(This, P1P1Counter, Min(CounterCount(This, P1P1Counter), CounterCount(This, M1M1Counter))),

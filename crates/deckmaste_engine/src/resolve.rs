@@ -2366,12 +2366,12 @@ impl GameState {
             // `of` resolves to a player via `eval_reference` → player proxy →
             // PlayerId. Supports `You` (controller's library) and `Opponent`
             // (the opponent's library, e.g. Fateseal [CR#701.29a]).
-            Selection::TopOfLibrary { count, of } => {
-                let proxy = self.eval_reference(of, frame);
+            Selection::TopOfLibrary { count, whose } => {
+                let proxy = self.eval_reference(whose, frame);
                 let pid = match self.objects.get(proxy).map(|o| o.source) {
                     Some(ObjectSource::Player(p)) => p,
                     other => {
-                        panic!("TopOfLibrary.of must resolve to a player proxy, got {other:?}")
+                        panic!("TopOfLibrary.whose must resolve to a player proxy, got {other:?}")
                     }
                 };
                 let n = self.eval_count(count, frame) as usize;
@@ -2381,14 +2381,16 @@ impl GameState {
                     .copied()
                     .collect()
             }
-            // The bottom `count` cards of `of`'s library, bottom→up — the
+            // The bottom `count` cards of `whose`'s library, bottom→up — the
             // mirror of `TopOfLibrary` (the Idris `BottomOfLibrary`).
-            Selection::BottomOfLibrary { count, of } => {
-                let proxy = self.eval_reference(of, frame);
+            Selection::BottomOfLibrary { count, whose } => {
+                let proxy = self.eval_reference(whose, frame);
                 let pid = match self.objects.get(proxy).map(|o| o.source) {
                     Some(ObjectSource::Player(p)) => p,
                     other => {
-                        panic!("BottomOfLibrary.of must resolve to a player proxy, got {other:?}")
+                        panic!(
+                            "BottomOfLibrary.whose must resolve to a player proxy, got {other:?}"
+                        )
                     }
                 };
                 let n = self.eval_count(count, frame) as usize;
@@ -2629,9 +2631,10 @@ impl GameState {
             // `Is(Source, …)` (which handles it before ever reaching here);
             // there is no single live object to resolve it to, so a stray use
             // fizzles (never crashes).
-            Reference::Source => {
-                Self::unbound_ref(reference, "Source is only meaningful inside Is(Source, …)")
-            }
+            Reference::Source => Self::unbound_ref(
+                reference,
+                "Source is only meaningful inside Matches(Source, …)",
+            ),
         }
     }
 
@@ -4445,7 +4448,7 @@ mod tests {
         use deckmaste_core::Quantity;
 
         let (state, bear) = bear_on_field();
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -4476,7 +4479,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
 
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -4533,7 +4536,7 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -4578,7 +4581,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
 
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -4923,7 +4926,7 @@ mod tests {
         let _ = second_bear_to_player_1(&mut state);
 
         let frame = frame_src(bear);
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -4936,7 +4939,7 @@ mod tests {
         );
 
         // "Creatures you control": only the frame side's bear.
-        let yours = Predicate::AllOf(vec![
+        let yours = Predicate::And(vec![
             creatures,
             Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
                 Predicate::Ref(Reference::You),
@@ -5072,7 +5075,7 @@ mod tests {
         let src = permanent_with_cost(&mut state, "{1}");
         let frame = frame_src(src);
 
-        let your_permanents = Predicate::AllOf(vec![
+        let your_permanents = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                 Reference::You,
@@ -5104,7 +5107,7 @@ mod tests {
         let total_power = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(Predicate::AllOf(vec![
+                of: Countable::Objects(Box::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::creature(),
                 ]))),
@@ -5152,7 +5155,7 @@ mod tests {
         use deckmaste_core::SymbolPred;
 
         let your_permanents = || {
-            Predicate::AllOf(vec![
+            Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
@@ -5345,7 +5348,7 @@ mod tests {
         state.zones.battlefield.push(b);
 
         let frame = frame_src(a);
-        let filter = Predicate::AllOf(vec![
+        let filter = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -5385,7 +5388,7 @@ mod tests {
         assert_eq!(got, want, "each player takes 20 damage, one event apiece");
     }
 
-    /// `Each(AllOf([InZone(Battlefield), Type(Creature)]), DealDamage(
+    /// `Each(And([InZone(Battlefield), Type(Creature)]), DealDamage(
     /// It, 2))` deals 2 damage to each of the two battlefield creatures
     /// — one `DamageDealt` per iterated element (the verb's patient is a single
     /// `Reference`).
@@ -5411,7 +5414,7 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Predicate::AllOf(vec![
+            binder: Binder::Existing(Selection::SelectAll(Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::creature(),
             ]))),
@@ -5470,7 +5473,7 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Predicate::AllOf(vec![
+            binder: Binder::Existing(Selection::SelectAll(Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::creature(),
             ]))),
@@ -5525,7 +5528,7 @@ mod tests {
         let effect = OneShotEffect::Noting(deckmaste_core::Noting {
             key: "destroyed".into(),
             effect: Box::new(OneShotEffect::Each(deckmaste_core::Each {
-                binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Predicate::AllOf(
+                binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Predicate::And(
                     vec![
                         Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
                         Predicate::creature(),
@@ -5705,9 +5708,9 @@ mod tests {
         use deckmaste_core::Stat;
         use deckmaste_core::StatePredicate;
         let is_creature = |r: &Reference| {
-            Condition::Is(
+            Condition::Matches(
                 r.clone(),
-                Predicate::AllOf(vec![
+                Predicate::And(vec![
                     Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 ]),
@@ -5723,7 +5726,7 @@ mod tests {
         OneShotEffect::Act(Action::Composite {
             name: "Fight".into(),
             body: Box::new(OneShotEffect::If(deckmaste_core::If {
-                condition: Condition::AllOf(vec![is_creature(x), is_creature(y)]),
+                condition: Condition::And(vec![is_creature(x), is_creature(y)]),
                 then: Box::new(OneShotEffect::Simultaneously(vec![half(y, x), half(x, y)])),
                 otherwise: None,
             })),
@@ -6607,7 +6610,7 @@ mod tests {
         let frame = frame_src(a);
         let effect = OneShotEffect::Distribute(Distribute {
             amount: Count::Literal(3),
-            binder: Binder::Existing(Selection::SelectAll(Predicate::AllOf(vec![
+            binder: Binder::Existing(Selection::SelectAll(Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::creature(),
             ]))),
@@ -6754,7 +6757,7 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -6814,7 +6817,7 @@ mod tests {
     fn nested_each_clears_outer_divide_among_allotment() {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src(a);
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -7233,7 +7236,7 @@ mod tests {
         // Bare subtype (the pre-fix parser output): the Stack-zone copy is a
         // Goblin you control too, so it over-counts → 4.
         assert_eq!(
-            tokens_made("AllOf([Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            tokens_made("And([Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
             4,
             "the unzoned filter wrongly counts the on-stack copy"
         );
@@ -7242,7 +7245,7 @@ mod tests {
         // the Stack-zone copy is excluded → exactly the three battlefield
         // Goblins.
         assert_eq!(
-            tokens_made("AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            tokens_made("And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
             3,
             "[CR#109.2]: the Permanent scope counts only battlefield Goblins"
         );
@@ -7840,7 +7843,7 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -7867,7 +7870,7 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::AllOf(vec![
+        let creatures = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ]);
@@ -8220,9 +8223,9 @@ mod tests {
         use deckmaste_core::Condition;
         use deckmaste_core::RelationPredicate;
 
-        Condition::AllOf(vec![
+        Condition::And(vec![
             Condition::Compare(
-                Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
+                Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
@@ -8231,7 +8234,7 @@ mod tests {
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),
-            Condition::Not(Box::new(Condition::Is(
+            Condition::Not(Box::new(Condition::Matches(
                 Reference::You,
                 Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
             ))),
@@ -8261,7 +8264,7 @@ mod tests {
                 otherwise: None,
             }),
             OneShotEffect::If(If {
-                condition: Condition::Is(
+                condition: Condition::Matches(
                     Reference::You,
                     Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                 ),
@@ -8955,11 +8958,11 @@ mod tests {
         let source = state.player(p0).object;
         let frame = Frame::bare(source, p0);
 
-        // TopOfLibrary(count:2, of:You) → top two in order.
+        // TopOfLibrary(count:2, whose:You) → top two in order.
         let top2 = state.eval_selection_set(
             &Selection::TopOfLibrary {
                 count: Count::Literal(2),
-                of: deckmaste_core::Reference::You,
+                whose: deckmaste_core::Reference::You,
             },
             &frame,
         );
@@ -8987,7 +8990,7 @@ mod tests {
             OneShotEffect::With(With {
                 binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
-                    of: deckmaste_core::Reference::You,
+                    whose: deckmaste_core::Reference::You,
                 }),
                 body: Box::new(OneShotEffect::Sequentially(vec![])),
             }),
@@ -9038,7 +9041,7 @@ mod tests {
         let bottom2 = state.eval_selection_set(
             &Selection::BottomOfLibrary {
                 count: Count::Literal(2),
-                of: deckmaste_core::Reference::You,
+                whose: deckmaste_core::Reference::You,
             },
             &frame,
         );
@@ -9050,11 +9053,11 @@ mod tests {
             &Selection::Union(vec![
                 Selection::TopOfLibrary {
                     count: Count::Literal(2),
-                    of: deckmaste_core::Reference::You,
+                    whose: deckmaste_core::Reference::You,
                 },
                 Selection::BottomOfLibrary {
                     count: Count::Literal(2),
-                    of: deckmaste_core::Reference::You,
+                    whose: deckmaste_core::Reference::You,
                 },
             ]),
             &frame,
@@ -9105,7 +9108,7 @@ mod tests {
             body: Box::new(OneShotEffect::Each(deckmaste_core::Each {
                 binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(n),
-                    of: Reference::You,
+                    whose: Reference::You,
                 }),
                 effect: Box::new(OneShotEffect::Modal(deckmaste_core::Modal {
                     choose: deckmaste_core::ChooseSpec {
@@ -9473,7 +9476,7 @@ mod tests {
     /// their own zone narrowing) — keeps the deck's hand/library bears out of
     /// the matched set.
     fn creatures_in_play() -> Predicate {
-        Predicate::AllOf(vec![
+        Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::creature(),
         ])

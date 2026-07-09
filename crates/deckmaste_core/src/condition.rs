@@ -52,8 +52,9 @@ pub enum Condition {
     Compare(Count, Cmp, Count),
     /// At least one object matches ([CR#603.4], "if you control a …").
     Exists(Predicate),
-    /// A referenced object matches a filter ([CR#603.4], "if it is a …").
-    Is(Reference, Predicate),
+    /// A referenced object matches a predicate ([CR#603.4], "if it is a …").
+    /// Idris `Matches`.
+    Matches(Reference, Predicate),
     /// The referenced attachment is LEGALLY attached ([CR#701.3b,303.4d]): it
     /// has a host AND that (attachment, host) pair passes the attachment
     /// legality predicate (host-type / protection / `Cant(Attach)`). False when
@@ -110,9 +111,9 @@ pub enum Condition {
     /// needs it.
     DuringPhase(crate::PhaseStep),
     /// All sub-conditions hold.
-    AllOf(Vec<Condition>),
+    And(Vec<Condition>),
     /// At least one sub-condition holds.
-    OneOf(Vec<Condition>),
+    Or(Vec<Condition>),
     /// The sub-condition does not hold.
     Not(Box<Condition>),
     /// A remembered `Condition` macro invocation (ability words: `Threshold`,

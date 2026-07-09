@@ -17,7 +17,7 @@
 //     forces Modular and Enchant to inline. The count is the printed N.
 //   - TRIGGERED move-a-counter [CR#702.58a]: "whenever ANOTHER creature
 //     enters" is the `Enters` ETB event ([CR#603.6]) filtered to OTHER
-//     creatures, `AllOf([Creature, Not(Ref(This))])` (no "you control"
+//     creatures, `And([Creature, Not(Ref(This))])` (no "you control"
 //     restriction — graft watches every other creature's entry, unlike
 //     Evolve). The matched entering creature binds to `EventObject` — the
 //     zone-change trigger's "that object" ([CR#603.6], "do something to that
@@ -48,7 +48,7 @@
             // [CR#702.58a]: another creature enters, if This has a +1/+1
             // counter → may move one from This onto that creature.
             Triggered(
-                event: Enters(AllOf([Creature, Not(Ref(This))])),
+                event: Enters(And([Creature, Not(Ref(This))])),
                 condition: Compare(CounterCount(This, P1P1Counter), Greater, Literal(0)),
                 effect: May(effect: Sequentially([
                     RemoveCounters(This, P1P1Counter, 1),

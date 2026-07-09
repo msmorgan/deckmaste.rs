@@ -2,5 +2,5 @@
     name: "Planeswalker",
     template: "planeswalker",
     kinds: [Predicate],
-    body: AllOf([Permanent, Type(Planeswalker)]),
+    body: And([Permanent, Type(Planeswalker)]),
 )

@@ -8,7 +8,7 @@
 //   - trigger:    `StepBegins(at: Beginning(Upkeep), whose: Your)` — same
 //                 upkeep trigger Echo uses [CR#603.2].
 //   - intervening-if [CR#603.4]: "if this permanent is on the battlefield" =
-//                 `Is(This, InZone(Battlefield))`.
+//                 `Matches(This, InZone(Battlefield))`.
 //   - resolution: a `Sequentially` — first `PutCounters(This, AgeCounter, 1)` (the
 //                 new age counter, [CR#702.24a], a player action by you), then
 //                 `MustPay(cost: <cost>, or_else: Sacrifice(This))` — the same
@@ -44,7 +44,7 @@
         name: "CumulativeUpkeep",
         abilities: [Triggered(
             event: StepBegins(at: Beginning(Upkeep), whose: Your),
-            condition: Is(This, InZone(Battlefield)),
+            condition: Matches(This, InZone(Battlefield)),
             effect: Sequentially([
                 PutCounters(This, AgeCounter, 1),
                 MustPay(

@@ -14,7 +14,7 @@ Normal(
         Triggered(
             event: ThisEnters,
             effect: GainLife(Aggregate(SumOf, (
-                of: Objects(AllOf([Permanent, ControlledBy(Ref(You))])),
+                of: Objects(And([Permanent, ControlledBy(Ref(You))])),
                 by: CountOf(ManaSymbols(It, CountsAs(Green))),
             ))),
         ),

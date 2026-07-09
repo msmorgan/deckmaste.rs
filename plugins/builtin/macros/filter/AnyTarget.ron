@@ -3,7 +3,7 @@
     name: "AnyTarget",
     template: "any target",
     kinds: [Predicate],
-    body: OneOf([
+    body: Or([
         Battle,
         Creature,
         Planeswalker,

@@ -14,6 +14,6 @@ Normal(
     types: [Sorcery],
     abilities: [
         Spell(effect: Draw(1)),
-        Static(PayPips(Generic, ExileToPay(AllOf([InZone(Graveyard), Owner(Ref(You))])))),
+        Static(PayPips(Generic, ExileToPay(And([InZone(Graveyard), Owner(Ref(You))])))),
     ],
 )

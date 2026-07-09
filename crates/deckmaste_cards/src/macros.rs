@@ -209,7 +209,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "AnyTargetish",
                     kinds: [Predicate],
-                    body: OneOf([Kind(Player), AllOf([InZone(Battlefield), Type(Creature)])]),
+                    body: Or([Kind(Player), And([InZone(Battlefield), Type(Creature)])]),
                 )"#))
             .unwrap();
         let filter: Predicate = macros.read_str("AnyTargetish").unwrap();
@@ -218,15 +218,15 @@ mod tests {
             panic!("expected a remembered filter, got {filter:?}");
         };
         assert_eq!(expanded.name, "AnyTargetish");
-        let Predicate::OneOf(arms) = *expanded.value else {
-            panic!("expected OneOf, got {:?}", expanded.value);
+        let Predicate::Or(arms) = *expanded.value else {
+            panic!("expected Or, got {:?}", expanded.value);
         };
         assert_eq!(arms[0], Predicate::Kind(ObjectKind::Player));
         // The nested arm proves Predicate positions *inside* an expansion stay
         // macro-aware too.
         assert_eq!(
             arms[1],
-            Predicate::AllOf(vec![
+            Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::creature(),
             ])
@@ -844,7 +844,7 @@ mod tests {
         let mut macros = macro_set();
         macros
             .insert(&def(
-                r#"(name: "Always", kinds: [Condition], body: AllOf([]))"#,
+                r#"(name: "Always", kinds: [Condition], body: And([]))"#,
             ))
             .unwrap();
         let s: Strategy = macros

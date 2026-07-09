@@ -7,5 +7,5 @@
     name: "OtherCreaturesYouControl",
     template: "each other creature you control",
     kinds: [Selection],
-    body: SelectAll(AllOf([Creature, Not(Ref(This)), ControlledBy(Ref(You))])),
+    body: SelectAll(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])),
 )

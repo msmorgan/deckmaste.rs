@@ -29,7 +29,7 @@ pub enum TargetSpec {
     /// sibling specs at the given indices. Evaluated on the FINAL target
     /// set — retargeting may swap members; only the whole set is checked,
     /// at announce and at the [CR#608.2b] re-check. Never a fixed-binding
-    /// exclusion (that is `AllOf([…, Not(Ref(…))])` inside the filter).
+    /// exclusion (that is `And([…, Not(Ref(…))])` inside the filter).
     Distinct(Vec<usize>, Box<TargetSpec>),
     /// A remembered `TargetSpec` macro invocation.
     #[macro_ron(expanded)]

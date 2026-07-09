@@ -200,7 +200,7 @@ impl PredefinedToken {
         // rider ([CR#106.6]) whose filter admits everything EXCEPT a
         // nonartifact spell (abilities and artifact spells stay payable).
         let restricted_colorless = || {
-            let nonartifact_spell = Predicate::AllOf(vec![
+            let nonartifact_spell = Predicate::And(vec![
                 Predicate::Kind(ObjectKind::Spell),
                 Predicate::Not(Box::new(Predicate::type_(Type::Artifact))),
             ]);
