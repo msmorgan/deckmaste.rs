@@ -75,6 +75,16 @@ tZoneSorts : map Core.zoneSort [Battlefield, Stack, Graveyard, Hand, Library, Ex
            = the (List Sort) [Permanent, Spell, Card, Card, Card, Card, Card, Card]
 tZoneSorts = Refl
 
+-- the planar-die union LOSES the amount ([CR#706.7]): "roll one or more dice" incl. planar can't read a
+-- numeric result, because `RollPlanarDie` carries none ([CR#901.9d]).
+tRollUnionAmountless : kindsHaveAmount [RollDice, RollPlanarDie Nothing] = False
+tRollUnionAmountless = Refl
+
+-- a pure numeric-die query keeps its amount; `RollDice`/`FlipCoin` alone are roll-more-eligible
+-- randomness ([CR#614.3]), the planar die is not ([CR#901.9d]).
+tRollDiceAloneHasAmount : kindsHaveAmount [RollDice] = True
+tRollDiceAloneHasAmount = Refl
+
 -- THE stack-weakening lemma, exercised ([type-theory#4]): pushing a
 -- NON-candidate (here a player role antecedent, against a "that card" read)
 -- moves no resolution — one lemma over the one resolve function. Sorted

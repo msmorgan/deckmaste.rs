@@ -1335,4 +1335,10 @@ vlxVorinclex : Ability b     -- add one mana of any type the tapped land produce
 vlxVorinclex = Triggered (MkEventQuery [TapForMana] [Actor you, Agent (hasType Land)])
                  (Act (AddMana (^1) ProducedByEvent))
 
+-- value-language-extensions Task 10 probe (randomness event kinds RollDice/FlipCoin/RollPlanarDie)
+vlxCoinTrig : Ability b      -- Chance Encounter: whenever you win a coin flip
+vlxCoinTrig = Triggered (MkEventQuery [FlipCoin (Just True)] [Actor you]) (Act (Draw (^1)))
+vlxRollUnion : EventQuery b  -- "roll one or more dice" incl. planar [CR#706.7]
+vlxRollUnion = MkEventQuery [RollDice, RollPlanarDie Nothing] [Actor you]
+
 --:vim:sts=2 sw=2:

@@ -432,6 +432,13 @@ namespace Window
   public export
   data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
 
+-- the planar die's face ([CR#901.3a] — one Planeswalker symbol, one chaos symbol, four blanks) —
+-- the four blank faces collapse to one `Blank`, a no-op roll ([CR#901.9a]); `Chaos` triggers the
+-- chaos ability ([CR#901.9b,311.7]), `Planeswalker` the planeswalking ability ([CR#901.8,901.9c]).
+namespace PlanarFace
+  public export
+  data PlanarFace = Blank | Chaos | Planeswalker
+
 -- What KIND of event an `EventQuery` matches. `ZoneChanged`/`BeginStep` carry data; "dies" =
 -- ZoneChanged (Just Battlefield) (Just Graveyard). The verb-named events live in `namespace
 -- EventKind` so they REUSE the `Action` verb names — a `kinds` slot `[Draw]` pins `EventKind`, `Act (Draw …)`
@@ -479,6 +486,18 @@ namespace EventKind
     -- permanent, actor = its controller (the tapper); Vorinclex/Dictate of Karametra read the object's
     -- production via `ProducedByEvent`, Nyxbloom/Mana Reflection the amount via `ReplaceAmount`/`EventAmount`.
     TapForMana : EventKind
+    -- a numeric die roll ([CR#706.1,706.2]) — the amount is the RESULT rolled (Wyll's die-roll payoffs
+    -- read it via `EventAmount`). No object/patient; the actor is the roller.
+    RollDice : EventKind
+    -- a coin flip ([CR#705.1,705.2]) — `Just True` = won / `Just False` = lost / `Nothing` = any flip,
+    -- intrinsic event data riding the kind (like `DealDamage`'s combat flag). No amount of its own; the
+    -- ENGINE fact is win/loss, not a number ([CR#705.2] "the player who called it wins the flip").
+    FlipCoin : Maybe Bool -> EventKind
+    -- the fixed six-face planar die ([CR#901.3a]), face wildcarded like `ZoneChanged`'s zones
+    -- (`Nothing` = any face). NO amount — the face is not numeric ([CR#901.9d]), so a query unioning
+    -- this with `RollDice` loses `kindsHaveAmount` ([CR#706.7]: a "roll dice, planar die included"
+    -- effect can't read a result).
+    RollPlanarDie : Maybe PlanarFace -> EventKind
 
 -- the per-event CAPABILITIES an event provides its body's anaphora: a distinguished OBJECT ("that card"),
 -- an ACTOR ("that player"), a numeric AMOUNT. Read by `EventObject`/`EventActor`/`EventAmount` so each is
@@ -537,6 +556,13 @@ eventKindCaps (Begins r)        =
 -- the tapped land is the object, its controller the actor, the mana produced the amount, and
 -- `producesMana` (the trailing `True` — the ONLY row that's True) gates `ProducedByEvent` ([CR#106.12,106.12a]).
 eventKindCaps TapForMana        = MkEventCaps True  True  True  Nothing       False True
+-- randomness events ([CR#705.1,706.1,706.2,901.9d]): no object, actor = the roller/flipper, no
+-- patient/defender/mana. `RollDice` carries an amount (the result); the coin flip and planar die don't
+-- (a flip's fact is win/loss, the die's is a face) — this asymmetry is what makes the
+-- `[RollDice, RollPlanarDie Nothing]` union amountless ([CR#706.7]).
+eventKindCaps RollDice          = MkEventCaps False True  True  Nothing       False False
+eventKindCaps (FlipCoin _)      = MkEventCaps False True  False Nothing       False False
+eventKindCaps (RollPlanarDie _) = MkEventCaps False True  False Nothing       False False
 
 -- which event-kinds carry an AMOUNT — derived from the caps; the per-kind base for `kindsHaveAmount`.
 public export
@@ -551,6 +577,24 @@ public export
 kindsHaveAmount : List EventKind -> Bool
 kindsHaveAmount []        = False
 kindsHaveAmount (k :: ks) = eventKindHasAmount k && all eventKindHasAmount ks
+
+-- per-kind base for `isRandomnessQuery`: is this a roll-more-eligible randomness kind
+-- ([CR#614.3] Krark's Thumb-family replacements)? `RollDice`/`FlipCoin` yes; the planar die
+-- is excluded ([CR#901.9d] — no roll-more interaction for it).
+public export
+kindIsRandomness : EventKind -> Bool
+kindIsRandomness RollDice     = True
+kindIsRandomness (FlipCoin _) = True
+kindIsRandomness _            = False
+
+-- whether an event-QUERY's kind-disjunction is entirely roll-more-eligible randomness — EVERY listed
+-- kind must be `RollDice`/`FlipCoin`, and empty `kinds` (any kind) doesn't qualify. Mirrors
+-- `kindsHaveAmount`'s list-then-query split (list helper here, `EventQuery`-typed wrapper beside
+-- `eventQueryHasAmount` once `EventQuery` is in scope).
+public export
+kindsAreRandomness : List EventKind -> Bool
+kindsAreRandomness []        = False
+kindsAreRandomness (k :: ks) = kindIsRandomness k && all kindIsRandomness ks
 
 -- A VALUE-choice DOMAIN: what an as-enters "choose …" picks from when the pick is a VALUE, not a game
 -- entity ([CR#614.12]). The chosen value is bound in `Ctx.chosenKind` and read back by `OfChosen`
@@ -954,6 +998,9 @@ eventKindObjectSort GainLife = Permanent                   -- (no object cap; un
 eventKindObjectSort LoseLife = Permanent
 eventKindObjectSort GainControl = Permanent                -- the "of" permanent
 eventKindObjectSort TapForMana = Permanent                 -- the tapped land
+eventKindObjectSort RollDice = Permanent                   -- (no object cap; unused)
+eventKindObjectSort (FlipCoin _) = Permanent               -- (no object cap; unused)
+eventKindObjectSort (RollPlanarDie _) = Permanent          -- (no object cap; unused)
 
 -- one antecedent per CAPS guarantee ([CR#603.2e,608.2k]): the roles an
 -- event/payment body pushes for its anaphora — object, patient (sort fixed
@@ -1233,6 +1280,14 @@ mutual
   public export
   eventQueryHasAmount : EventQuery b -> Bool
   eventQueryHasAmount (MkEventQuery ks _) = kindsHaveAmount ks
+
+  -- whether an event-query is entirely roll-more-eligible randomness ([CR#614.3]): lifts
+  -- `kindsAreRandomness` onto the bundled query, same split as `eventQueryHasAmount`/`kindsHaveAmount`.
+  -- Gates `ReplaceRoll` — restricts it to `RollDice`/`FlipCoin`; the planar die has no roll-more
+  -- interaction ([CR#901.9d]).
+  public export
+  isRandomnessQuery : EventQuery b -> Bool
+  isRandomnessQuery (MkEventQuery ks _) = kindsAreRandomness ks
 
   -- Something countable ([CR#107]): a list of objects (existing matching ones, or top N of library),
   -- or a count of matching ones (for affinity/devotion), or a list of events.
