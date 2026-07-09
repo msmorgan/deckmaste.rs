@@ -9,6 +9,7 @@ mod deontic;
 mod effect;
 mod fragment;
 mod keyword;
+mod outcome;
 mod replacement;
 mod template;
 
@@ -120,6 +121,28 @@ fn rules(view: &CardView) -> Vec<String> {
             // `Ability::Static` carries no `ability_word` slot anymore (the
             // deleted `StaticAbility` struct did) — a static clause never
             // gets the printed "Word — " prefix.
+            body.push(merged);
+            idx += 2;
+            continue;
+        }
+        // An adjacent pair of `StaticEffect::OutcomeGate`s over complementary
+        // subjects (Platinum Angel/Abyssal Persecutor: one `who: Ref(You)`,
+        // one `who: OpponentOf(Ref(You))`) prints as the single oracle
+        // sentence "You can't lose the game and your opponents can't win the
+        // game." ([CR#104],[CR#704]) — same cross-ability-merge shape as the
+        // Pacifism block above.
+        if let Ability::Static(s) = ability
+            && let Some(Ability::Static(s2)) = view.abilities.get(idx + 1)
+            && let Some(merged) = outcome::merge_outcome_gates(
+                s,
+                s2,
+                &Ctx {
+                    subject: view.name,
+                    targets: &[],
+                    that: None,
+                },
+            )
+        {
             body.push(merged);
             idx += 2;
             continue;

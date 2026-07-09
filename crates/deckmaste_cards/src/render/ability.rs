@@ -284,6 +284,14 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
         StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
         StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
         StaticEffect::PayPips(_class, act) => Some(pay_pips_keyword(act)),
+        // A lone `OutcomeGate` (no adjacent partner for the paired-merge
+        // shape in `render/mod.rs`'s per-ability loop) still reads as its own
+        // full sentence: "You can't lose the game." ([CR#104],[CR#704]).
+        StaticEffect::OutcomeGate { who, gate } => Some(
+            super::outcome::outcome_gate_sentence(who, *gate).unwrap_or_else(|| {
+                format!("[unrendered: OutcomeGate {{ who: {who:?}, gate: {gate:?} }}].")
+            }),
+        ),
         other => Some(format!("[unrendered: {other:?}].")),
     }
 }
