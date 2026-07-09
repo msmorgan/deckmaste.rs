@@ -94,6 +94,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_pump(line, ctx)? {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_combat_restriction(line) {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_create_predefined_token(line) {
         return Ok(Some(p));
     }
@@ -547,6 +550,74 @@ fn pump_scope(subj: &str) -> Option<(modify::Target, Vec<String>)> {
 
 /// The markers that separate a pump subject from its predicate.
 const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " have ", " has "];
+
+/// "<subject> can't block this turn." / "<subject> can't be blocked this
+/// turn." -> a one-shot durational combat restriction ([CR#509.1b] —
+/// restrictions/evasion abilities checked against the declared/candidate
+/// blockers): `Continuously(effect: Cant(Block(by:/on: <ref>)), duration:
+/// FixedUntil(EndOfTurn))`. The PASSIVE "can't be blocked" clause is tried
+/// FIRST — "block" is a substring of "blocked", so trying the active clause
+/// first risks misfiring on the passive wording once either check loosens
+/// past an exact suffix match. This is the DURATIONAL sibling of
+/// [`crate::parsers::static_ability::parse_restriction`]'s always-on
+/// `Cant(Block(...))` (which declines a "this turn"/"until end of turn" line
+/// outright); the two never compete for the same input. Subject scope is
+/// [`combat_restriction_scope`]. Multi-target ("up to three target creatures
+/// …"), riders ("with power 2 or less"), and distributed class subjects
+/// ("Creatures without flying can't block this turn.") are out of scope here.
+fn parse_combat_restriction(line: &str) -> Option<ParsedEffect> {
+    let body = line.strip_suffix('.')?;
+    if let Some(subj) = body.strip_suffix(" can't be blocked this turn") {
+        let (reference, targets) = combat_restriction_scope(subj)?;
+        return Some(ParsedEffect {
+            targets,
+            effect: format!(
+                "Continuously(effect: Cant(Block(on: {reference})), \
+                 duration: FixedUntil(EndOfTurn))"
+            ),
+        });
+    }
+    let subj = body.strip_suffix(" can't block this turn")?;
+    let (reference, targets) = combat_restriction_scope(subj)?;
+    Some(ParsedEffect {
+        targets,
+        effect: format!(
+            "Continuously(effect: Cant(Block(by: {reference})), \
+             duration: FixedUntil(EndOfTurn))"
+        ),
+    })
+}
+
+/// Combat-restriction subject -> (`Cant(Block(...))`'s `by:`/`on:` `Predicate`
+/// value, target declarations) — the `Ref(<Reference>)`-wrapped sibling of
+/// [`pump_scope`]'s bare-`Reference` `Modify` target (`Cant`'s `by`/`on` slots
+/// are `Predicate`, not `Reference`, so every anchor here wraps in
+/// `Ref(...)`). "target <filter>" hoists a `TargetOne(<filter>)` declaration
+/// and anchors on `Ref(It)`; "~" anchors on `Ref(This)`; "that <type noun>"
+/// anchors on the sorted anaphor `Ref(That(<Type>))` ([CR#608.2d]-style
+/// antecedent — e.g. "Chandra deals 1 damage to … a creature… That creature
+/// can't block this turn."); bare "it" anchors on `Ref(It)` with NO new
+/// target of its own — the plain anaphor reading a target an earlier clause
+/// in a `Sequentially` chain already declared. Anything else (a distributed
+/// class subject, a rider) declines.
+fn combat_restriction_scope(subj: &str) -> Option<(String, Vec<String>)> {
+    let subj = subj.trim();
+    if let Some(rest) = modify::strip_prefix_ci(subj, "target ") {
+        let filter = filter::parse_phrase(rest)?;
+        return Some(("Ref(It)".to_owned(), vec![format!("TargetOne({filter})")]));
+    }
+    if let Some(rest) = modify::strip_prefix_ci(subj, "that ") {
+        let ty = filter::type_code(&filter::singularize(rest.trim()).to_ascii_lowercase())?;
+        return Some((format!("Ref(That({ty}))"), Vec::new()));
+    }
+    if subj.eq_ignore_ascii_case("it") {
+        return Some(("Ref(It)".to_owned(), Vec::new()));
+    }
+    if subj == "~" {
+        return Some(("Ref(This)".to_owned(), Vec::new()));
+    }
+    None
+}
 
 /// `Destroy target <subject>.` -> a `TargetOne(<filter>)` declaration (the
 /// subject parsed by the shared [`object_target_filter`] grammar — the shared
@@ -1901,6 +1972,86 @@ mod tests {
                     .to_owned()
             ))
         );
+    }
+
+    #[test]
+    fn durational_combat_restriction_can_block() {
+        // Single-target: "Target creature can't block this turn." -> TargetOne +
+        // bare `It` anchored on `by:`.
+        assert_eq!(
+            parsed("Target creature can't block this turn."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Continuously(effect: Cant(Block(by: Ref(It))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // Self: "~ can't block this turn." -> bare `This`, no target.
+        assert_eq!(
+            parsed("~ can't block this turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Cant(Block(by: Ref(This))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // "That creature" anaphor (Chandra, Torch of Defiance's corpus phrasing):
+        // the sorted anaphor `That(Creature)`, no target of its own.
+        assert_eq!(
+            parsed("That creature can't block this turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Cant(Block(by: Ref(That(Creature)))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // The static (always-on, no "this turn") sibling still declines here —
+        // this production requires the durational marker.
+        assert!(declines("Enchanted creature can't block."));
+    }
+
+    #[test]
+    fn durational_combat_restriction_cant_be_blocked() {
+        // Single-target: "Target creature can't be blocked this turn." ->
+        // TargetOne + bare `It` anchored on `on:` — the evasion/passive form.
+        assert_eq!(
+            parsed("Target creature can't be blocked this turn."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Continuously(effect: Cant(Block(on: Ref(It))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // Self: "~ can't be blocked this turn." -> bare `This`, no target.
+        assert_eq!(
+            parsed("~ can't be blocked this turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Cant(Block(on: Ref(This))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // Bare "It" anaphor: a later sentence in a `Sequentially` chain reading a
+        // target an earlier sentence already declared — no NEW target here.
+        assert_eq!(
+            parsed("It can't be blocked this turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Cant(Block(on: Ref(It))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // "can't be blocked" is checked BEFORE "can't block" — the active
+        // clause's exact suffix never fires on the passive wording.
+        assert!(declines(
+            "Creatures without flying can't be blocked this turn."
+        ));
     }
 
     #[test]

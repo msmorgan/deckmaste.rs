@@ -611,7 +611,7 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
             extra,
             affected,
         } => Some(trigger_multiplier(cause, extra, affected)),
-        StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
+        StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx)),
         StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
         StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
         StaticEffect::ReplaceRoll {

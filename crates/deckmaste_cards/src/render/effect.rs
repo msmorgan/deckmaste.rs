@@ -103,7 +103,19 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
                 || format!("[unrendered: {:?}]", c.effect),
                 |s| trim_period(&s),
             );
-            duration_qualified(&c.duration, &clause, has_dynamic_pt_delta(&c.effect))
+            // A `Deontic` restriction/permission ([CR#509.1b] "can't
+            // block"/"can't be blocked", …) reads its `FixedUntil(EndOfTurn)`
+            // trailer as "… this turn." — never the generic "… until end of
+            // turn." every other `Continuously` shape (pump, keyword grant, …)
+            // takes ([CR#611.2]). Every other duration/effect combo keeps the
+            // generic front/trail qualifier.
+            if is_deontic_restriction(&c.effect)
+                && c.duration == Duration::FixedUntil(TurnMarker::EndOfTurn)
+            {
+                format!("{clause} this turn.")
+            } else {
+                duration_qualified(&c.duration, &clause, has_dynamic_pt_delta(&c.effect))
+            }
         }
         // [CR#701.12a]: a batch of one-shot sub-effects sharing one snapshot
         // — the "Exchange" keyword action's primitive, covering both
@@ -878,6 +890,18 @@ fn has_dynamic_pt_delta(e: &StaticEffect) -> bool {
     match e {
         StaticEffect::Expanded(exp) => has_dynamic_pt_delta(&exp.value),
         StaticEffect::Modify(_, change) => modification_has_dynamic_pt_delta(change),
+        _ => false,
+    }
+}
+
+/// Whether a `StaticEffect` is a `Deontic` (`Cant`/`May`/`Must`/`Gate`)
+/// restriction/permission — the `Continuously` family that reads its
+/// `FixedUntil(EndOfTurn)` trailer as "this turn." rather than "until end of
+/// turn." ([CR#509.1b] "can't block"/"can't be blocked", et al.).
+fn is_deontic_restriction(e: &StaticEffect) -> bool {
+    match e {
+        StaticEffect::Expanded(exp) => is_deontic_restriction(&exp.value),
+        StaticEffect::Deontic(_) => true,
         _ => false,
     }
 }

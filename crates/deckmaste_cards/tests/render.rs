@@ -673,6 +673,141 @@ fn renders_continuously_pump_until_eot() {
     );
 }
 
+/// Synthesized combat-restriction spell: "Target creature can't block this
+/// turn." Exercises `OneShotEffect::Continuously` wrapping a `Deontic`
+/// (`Cant(Block(by: …))`) — the "this turn." trailer (never "until end of
+/// turn.", [CR#509.1b]) plus `deontic_subject`'s generalized `Ref(It)` ->
+/// the announced target's phrase.
+#[test]
+fn renders_continuously_cant_block_eot() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Continuously;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Duration;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::TurnMarker;
+    use deckmaste_core::Type;
+    let face = CardFace {
+        name: "Test Block Restriction".into(),
+        types: vec![Type::Instant],
+        abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
+            effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
+                OneShotEffect::Continuously(Continuously {
+                    effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+                        by: Predicate::Ref(Reference::It),
+                        on: Predicate::Any,
+                        count: None,
+                    }))),
+                    duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+                }),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Target creature can't block this turn.".to_string()]
+    );
+}
+
+/// Synthesized evasion spell: "Target creature can't be blocked this turn."
+/// The passive `on`-anchored `Cant(Block(...))` — new render arm
+/// ([CR#509.1b]).
+#[test]
+fn renders_continuously_cant_be_blocked_eot() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Continuously;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Duration;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::Reference;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::TurnMarker;
+    use deckmaste_core::Type;
+    let face = CardFace {
+        name: "Test Unblockable".into(),
+        types: vec![Type::Instant],
+        abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
+            effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
+                OneShotEffect::Continuously(Continuously {
+                    effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+                        by: Predicate::Any,
+                        on: Predicate::Ref(Reference::It),
+                        count: None,
+                    }))),
+                    duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+                }),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Target creature can't be blocked this turn.".to_string()]
+    );
+}
+
+/// Regression ([CR#509.1b] + [CR#608.2d]): the `That(<Sort>)` anaphor as a
+/// deontic sentence SUBJECT ("That creature can't block this turn.") — a
+/// non-targeted restriction referencing a prior clause's creature. Guards the
+/// `reference_subject` `Reference::That` arm; before it existed this rendered
+/// "[unrendered: That(Creature)] can't block this turn.".
+#[test]
+fn renders_that_creature_cant_block_eot() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Continuously;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Duration;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Sort;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::TurnMarker;
+    use deckmaste_core::Type;
+    let face = CardFace {
+        name: "Test That Restriction".into(),
+        types: vec![Type::Instant],
+        abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
+            effect: OneShotEffect::Continuously(Continuously {
+                effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+                    by: Predicate::Ref(Reference::That(Sort::OfType(Type::Creature))),
+                    on: Predicate::Any,
+                    count: None,
+                }))),
+                duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            }),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["That creature can't block this turn.".to_string()]
+    );
+}
+
 #[test]
 fn renders_create_one_token() {
     use deckmaste_core::Action;

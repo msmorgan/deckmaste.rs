@@ -304,7 +304,12 @@ pub(super) fn color_ident(word: &str) -> Option<&'static str> {
     })
 }
 
-fn type_code(word: &str) -> Option<&'static str> {
+/// A singular type noun -> its bare `Type` RON identifier ("creature" ->
+/// "Creature"). Shared beyond this module by the `That(<Type>)` sorted-anaphor
+/// production (`effect::combat_restriction_scope`) — the same bare identifier
+/// IS the `Sort::OfType(Type)` RON spelling ([CR#205.2a]), unlike
+/// [`type_filter`]'s always-`Type(<T>)` wrapper (a `Predicate`, not a `Sort`).
+pub(super) fn type_code(word: &str) -> Option<&'static str> {
     Some(match word.to_ascii_lowercase().as_str() {
         "creature" => "Creature",
         "artifact" => "Artifact",

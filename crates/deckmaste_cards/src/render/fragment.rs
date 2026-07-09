@@ -663,6 +663,12 @@ fn reference_subject(r: &Reference, ctx: &super::Ctx) -> String {
         Reference::AttachHostOf(inner) if matches!(**inner, Reference::This) => {
             "Enchanted creature".to_string()
         }
+        // The sorted anaphor as a sentence subject: "That creature can't block
+        // this turn." ([CR#608.2d]; capitalized for sentence-start, mirroring
+        // the noun-phrase `reference` arm but at subject position).
+        Reference::That(sort) => ctx
+            .that
+            .map_or_else(|| format!("That {}", sort.noun()), capitalize),
         other => format!("[unrendered: {other:?}]"),
     }
 }

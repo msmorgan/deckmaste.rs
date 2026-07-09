@@ -11,13 +11,12 @@ use deckmaste_core::StaticEffect;
 use super::Ctx;
 use super::fragment;
 
-/// One sentence for a deontic clause. `subject` is the host object's display
-/// name.
-pub(super) fn deontic(d: &Deontic, subject: &str) -> String {
+/// One sentence for a deontic clause.
+pub(super) fn deontic(d: &Deontic, ctx: &Ctx) -> String {
     match d {
-        Deontic::Expanded(exp) => deontic(&exp.value, subject),
-        Deontic::Must(a) => requirement(a, subject),
-        Deontic::Cant(a) => prohibition(a, subject),
+        Deontic::Expanded(exp) => deontic(&exp.value, ctx),
+        Deontic::Must(a) => requirement(a, ctx),
+        Deontic::Cant(a) => prohibition(a, ctx),
         other => format!("[unrendered: {other:?}]."),
     }
 }
@@ -45,7 +44,7 @@ pub(super) fn merged_cant_attack_block(
     }
     Some(format!(
         "{} can't attack or block.",
-        deontic_subject(attack_by, ctx.subject)
+        deontic_subject(attack_by, ctx)
     ))
 }
 
@@ -65,28 +64,23 @@ fn peel_deontic(d: &Deontic) -> &Deontic {
     }
 }
 
-fn requirement(a: &DeonticAction, subject: &str) -> String {
+fn requirement(a: &DeonticAction, ctx: &Ctx) -> String {
     match unwrap_action(a) {
         DeonticAction::Attack { by, .. } => {
-            format!(
-                "{} attacks each combat if able.",
-                deontic_subject(by, subject)
-            )
+            format!("{} attacks each combat if able.", deontic_subject(by, ctx))
         }
         // "All creatures able to block ~ do so." — the block requirement
         // aimed at THIS ([CR#509.1c] if-able arbitration): the required
         // blockers read as the set-wide subject.
         DeonticAction::Block { by, on, .. } if is_this(on) => {
             format!(
-                "All {}s able to block {subject} do so.",
-                fragment::filter_noun(by)
+                "All {}s able to block {} do so.",
+                fragment::filter_noun(by),
+                ctx.subject
             )
         }
         DeonticAction::Block { by, .. } => {
-            format!(
-                "{} blocks each combat if able.",
-                deontic_subject(by, subject)
-            )
+            format!("{} blocks each combat if able.", deontic_subject(by, ctx))
         }
         // The Flagbearer requirement ([CR#601.2c] choosing targets while
         // casting/activating): a Must(Target) whose agent is an
@@ -109,18 +103,32 @@ fn requirement(a: &DeonticAction, subject: &str) -> String {
     }
 }
 
-fn prohibition(a: &DeonticAction, subject: &str) -> String {
+fn prohibition(a: &DeonticAction, ctx: &Ctx) -> String {
     match unwrap_action(a) {
         DeonticAction::Attack { by, .. } => {
-            format!("{} can't attack.", deontic_subject(by, subject))
+            format!("{} can't attack.", deontic_subject(by, ctx))
+        }
+        // The passive "can't be blocked" evasion clause ([CR#509.1b]) anchors
+        // on `on`, leaving `by` at its default `Any` and no `count` rider —
+        // checked BEFORE the active "can't block" arm below (mirrors the
+        // parser's be-blocked-before-block guard: `by` being untouched is
+        // what distinguishes this from the active form, which anchors `by`
+        // instead). A `count`/`by`-filter rider (menace, "except by N or
+        // more creatures", …) isn't this shape — deferred, falls through.
+        DeonticAction::Block {
+            by,
+            on,
+            count: None,
+        } if is_any(by) => {
+            format!("{} can't be blocked.", deontic_subject(on, ctx))
         }
         DeonticAction::Block { by, .. } => {
-            format!("{} can't block.", deontic_subject(by, subject))
+            format!("{} can't block.", deontic_subject(by, ctx))
         }
         // "This spell can't be countered." ([CR#701.6a]) — the countered
         // object (`on`) is the subject; the any-source agent isn't named.
         DeonticAction::Counter { on, .. } => {
-            format!("{} can't be countered.", deontic_subject(on, subject))
+            format!("{} can't be countered.", deontic_subject(on, ctx))
         }
         other => format!("[unrendered: {other:?}]."),
     }
@@ -135,6 +143,13 @@ fn unwrap_action(a: &DeonticAction) -> &DeonticAction {
 
 fn is_this(f: &Predicate) -> bool {
     matches!(fragment::strip_expanded(f), Predicate::Ref(Reference::This))
+}
+
+/// The untouched `Predicate::any()` default — distinguishes an unanchored
+/// `Deontic` slot (e.g. `Block`'s `by` in the passive "can't be blocked" form)
+/// from a concrete anchor.
+fn is_any(f: &Predicate) -> bool {
+    matches!(fragment::strip_expanded(f), Predicate::Any)
 }
 
 /// `ControlledBy(OpponentOf(You))` — the "an opponent controls" agent.
@@ -163,15 +178,16 @@ fn find_subtype_noun(f: &Predicate) -> Option<String> {
     }
 }
 
-/// A `Predicate` as the singular subject of a deontic. `subject` is the host's
-/// name. `Ref(This)` -> the host's name; `Ref(AttachHostOf(This))` ->
-/// "Enchanted creature".
-fn deontic_subject(f: &Predicate, subject: &str) -> String {
+/// A `Predicate` as the singular subject of a deontic — always a sentence
+/// SUBJECT position ("X can't block.", "X can't be blocked."), so every
+/// `Ref(<Reference>)` reads through the shared [`fragment::modify_subject`]
+/// (the same sentence-start-capitalized noun phrase `Modify`'s subject uses):
+/// `This` -> the host's name, `It` -> the announced target's phrase ("Target
+/// creature") at a single-slot announce root, `AttachHostOf(This)` ->
+/// "Enchanted creature", etc.
+fn deontic_subject(f: &Predicate, ctx: &Ctx) -> String {
     match f {
-        Predicate::Ref(Reference::This) => subject.to_string(),
-        Predicate::Ref(Reference::AttachHostOf(inner)) if matches!(**inner, Reference::This) => {
-            "Enchanted creature".to_string()
-        }
+        Predicate::Ref(r) => fragment::modify_subject(r, ctx),
         other => format!("[unrendered: {other:?}]"),
     }
 }
