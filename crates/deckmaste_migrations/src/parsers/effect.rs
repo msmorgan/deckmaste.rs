@@ -281,15 +281,9 @@ fn player_verb_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
 /// [`player_verb_slot_reader`] (bounds on whitespace, for slots at a clause's
 /// tail), this bounds on the first non-digit — `/`, `+`, `-`, whitespace, or
 /// end — so a slot ahead of a `/` separator stops there instead of eating the
-/// rest of the line.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "wired into the static-ability parser's Modification fold in a later task; exercised directly by this module's tests until then"
-    )
-)]
-fn count_delim_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
+/// rest of the line. `pub(super)`: the static-ability parser's Modification
+/// fold (`static_ability::parse_pt`) is its production caller.
+pub(super) fn count_delim_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
     if ty != "Count" {
         return None;
     }

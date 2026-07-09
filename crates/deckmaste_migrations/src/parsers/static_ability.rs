@@ -10,61 +10,94 @@ use crate::parsers::modify;
 use crate::resolve::CardKind;
 use crate::resolve::ResolveCtx;
 
-#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    Ok(parse(line, ctx.kind))
+    parse(line, ctx)
 }
 
-fn parse(line: &str, kind: CardKind) -> Option<String> {
-    if kind == CardKind::Spell {
-        return None;
+/// Productions that consult the reverse template index (directly, via
+/// [`parse_pt`]'s `Modification` fold) propagate `anyhow::Result` — a
+/// same-kind ambiguous macro match is a hard generation error, not a decline;
+/// every other (`Option`-returning) production is lifted with `Ok`.
+fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    if ctx.kind == CardKind::Spell {
+        return Ok(None);
     }
     let low = line.to_ascii_lowercase();
     if low.contains("until end of turn") || low.contains("this turn") {
-        return None;
+        return Ok(None);
     }
     let body = line.strip_suffix('.').unwrap_or(line);
 
     if let Some(row) = parse_cost_modifier(body) {
-        return Some(row);
+        return Ok(Some(row));
     }
     if let Some((subj, pred)) = modify::split_marker(body, &[" can't ", " cannot "]) {
-        return parse_restriction(subj, pred);
+        return Ok(parse_restriction(subj, pred));
     }
     if let Some((subj, pred)) = modify::split_marker(body, &[" can block "]) {
-        return parse_block_permission(subj, pred);
+        return Ok(parse_block_permission(subj, pred));
     }
     if let Some((subj, pred)) = modify::split_marker(body, &[" attacks ", " attack "]) {
-        return parse_requirement(subj, pred);
+        return Ok(parse_requirement(subj, pred));
     }
     if let Some((subj, pred)) = modify::split_marker(body, &[" gets ", " get "]) {
-        return parse_pt(subj, pred);
+        return parse_pt(subj, pred, ctx);
     }
     if let Some((subj, pred)) =
         modify::split_marker(body, &[" have ", " has ", " gain ", " gains "])
     {
-        return parse_grant(subj, pred);
+        return Ok(parse_grant(subj, pred, ctx));
     }
-    None
+    Ok(None)
 }
 
-fn parse_pt(subj: &str, pred: &str) -> Option<String> {
-    let filter = modify::subject_to_filter(subj)?;
+/// "<subject> gets ±N/±M [and have/has/gain/gains <kw…>]." → the always-on P/T
+/// anthem/pump static. The change folds to its `Modification`-kind macro
+/// invocation (`PowerAndToughnessUp(N, M)`/`PowerAndToughnessDown(N, M)`) when
+/// the reverse index has a template that renders the WHOLE "gets ±N/±M"
+/// phrase — tried against `pred` as a whole, so a grant-tail combo ("gets
+/// +N/+M and have …") never fully consumes (the tail survives past the
+/// template's own "±N/±M" span) and falls straight through to the core
+/// `changes` list, unaffected. A same-kind ambiguous match from the index is a
+/// hard generation error (`?`), not a decline.
+fn parse_pt(subj: &str, pred: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    let Some(filter) = modify::subject_to_filter(subj) else {
+        return Ok(None);
+    };
     // Optional combo tail: "+N/+M and have/has/gain/gains <kw…>" → the P/T changes
     // followed by one GainAbility per granted keyword.
     let (pt_part, grant_tail) = modify::split_grant_tail(pred);
-    let mut changes = modify::parse_pt_changes(pt_part.trim())?;
+    let Some(mut changes) = modify::parse_pt_changes(pt_part.trim()) else {
+        return Ok(None);
+    };
     if let Some(tail) = grant_tail {
-        changes.extend(modify::parse_keyword_changes(tail)?);
+        let Some(kw_changes) = modify::parse_keyword_changes(tail) else {
+            return Ok(None);
+        };
+        changes.extend(kw_changes);
     }
-    let change = modify::changes_to_modification(&changes);
-    Some(format!(
+    let gets = format!("gets {}", pred.trim());
+    let change = match ctx.index.match_with(
+        "Modification",
+        &gets,
+        crate::parsers::effect::count_delim_slot_reader,
+    )? {
+        Some(m) if m.consumed == gets.len() => m.invocation,
+        _ => modify::changes_to_modification(&changes), // core fallback
+    };
+    Ok(Some(format!(
         "Static({})",
         modify::filter_to_target(&filter).wrap(&change)
-    ))
+    )))
 }
 
-fn parse_grant(subj: &str, pred: &str) -> Option<String> {
+/// "<subject> have/has/gain/gains <kw…>." → the always-on keyword-grant
+/// static. `ctx` is threaded for signature symmetry with [`parse_pt`] (a
+/// later task folds the shared SUBJECT grammar both productions call through
+/// [`modify::subject_to_filter`]); this production has no `Modification` fold
+/// of its own, so it stays `Option`-returning — it never reads the index, so
+/// it can't hit an ambiguous match.
+fn parse_grant(subj: &str, pred: &str, _ctx: &ResolveCtx) -> Option<String> {
     let filter = modify::subject_to_filter(subj)?;
     let changes = modify::parse_keyword_changes(pred)?;
     let change = modify::changes_to_modification(&changes);
@@ -207,6 +240,37 @@ mod tests {
 
     fn stat(line: &str) -> Option<String> {
         resolve_line(line, &crate::parsers::test_ctx::ctx(CardKind::Permanent)).unwrap()
+    }
+
+    /// `stat`'s twin over the REAL builtin macro index, so the
+    /// `Modification`-kind macro fold (`PowerAndToughnessUp`/`Down`) is
+    /// exercised.
+    fn stat_with_macros(line: &str) -> Option<String> {
+        resolve_line(
+            line,
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn anthem_change_folds_to_modification_macro() {
+        // The CHANGE side folds to the Modification macro invocation via the
+        // reverse template index; the SUBJECT stays the current core
+        // `SelectAll(And([...]))` shape — folding the subject to
+        // `OtherCreaturesYouControl`/`CreaturesOpponentControls` is Task 9.
+        assert_eq!(
+            stat_with_macros("Other creatures you control get +2/+2.").as_deref(),
+            Some(
+                "Static(Each(SelectAll(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), Modify(It, PowerAndToughnessUp(2, 2))))"
+            )
+        );
+        assert_eq!(
+            stat_with_macros("Creatures your opponents control get -2/-2.").as_deref(),
+            Some(
+                "Static(Each(SelectAll(And([Creature, ControlledBy(OpponentOf(Ref(You)))])), Modify(It, PowerAndToughnessDown(2, 2))))"
+            )
+        );
     }
 
     #[test]
