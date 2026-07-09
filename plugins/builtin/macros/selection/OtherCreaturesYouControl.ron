@@ -1,13 +1,14 @@
-// OtherCreaturesYouControl = the anthem-family distribution set: "each other
-// creature you control" ([CR#613.6] anthem shape). A Selection-kind macro —
-// the whole `SelectAll(...)` IS the macro body, so a card spells the anthem
-// as `Each(OtherCreaturesYouControl, Modify(It, <boost>))` directly, no
-// nested `SelectAll` at the call site. Nests the reusable
-// `OtherCreatureYouControl` Predicate atom rather than repeating its
-// `And([...])` filter inline.
+// OtherCreaturesYouControl = the anthem-family distribution set: "other
+// creatures you control" ([CR#613.6] anthem shape) — the plural-collective
+// oracle wording, matched by exact case-insensitive subject text (no
+// singularize/pluralize normalization). A Selection-kind macro — the whole
+// `SelectAll(...)` IS the macro body, so a card spells the anthem as
+// `Each(OtherCreaturesYouControl, Modify(It, <boost>))` directly, no nested
+// `SelectAll` at the call site. Nests the reusable `OtherCreatureYouControl`
+// Predicate atom rather than repeating its `And([...])` filter inline.
 (
     name: "OtherCreaturesYouControl",
-    template: "each other creature you control",
+    template: "other creatures you control",
     kinds: [Selection],
     body: SelectAll(OtherCreatureYouControl),
 )

@@ -58,8 +58,13 @@ fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
 /// phrase — tried against `pred` as a whole, so a grant-tail combo ("gets
 /// +N/+M and have …") never fully consumes (the tail survives past the
 /// template's own "±N/±M" span) and falls straight through to the core
-/// `changes` list, unaffected. A same-kind ambiguous match from the index is a
-/// hard generation error (`?`), not a decline.
+/// `changes` list, unaffected. The subject folds independently to its
+/// `Selection`-kind macro invocation (`OtherCreaturesYouControl`/
+/// `CreaturesOpponentControls`) when the raw English subject exactly matches
+/// a Selection template (plural-collective wording, no singularize/pluralize
+/// normalization); otherwise it falls back to the core
+/// `SelectAll(<filter>)` target. A same-kind ambiguous match from the index is
+/// a hard generation error (`?`), not a decline.
 fn parse_pt(subj: &str, pred: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     let Some(filter) = modify::subject_to_filter(subj) else {
         return Ok(None);
@@ -85,10 +90,14 @@ fn parse_pt(subj: &str, pred: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<S
         Some(m) if m.consumed == gets.len() => m.invocation,
         _ => modify::changes_to_modification(&changes), // core fallback
     };
-    Ok(Some(format!(
-        "Static({})",
-        modify::filter_to_target(&filter).wrap(&change)
-    )))
+    let subject = subj.trim();
+    let target = match ctx.index.match_kind("Selection", subject)? {
+        Some(m) if m.consumed == subject.len() => {
+            format!("Each({}, Modify(It, {}))", m.macro_name, change)
+        }
+        _ => modify::filter_to_target(&filter).wrap(&change), // core fallback
+    };
+    Ok(Some(format!("Static({target})")))
 }
 
 /// "<subject> have/has/gain/gains <kw…>." → the always-on keyword-grant
@@ -255,21 +264,31 @@ mod tests {
 
     #[test]
     fn anthem_change_folds_to_modification_macro() {
-        // The CHANGE side folds to the Modification macro invocation via the
-        // reverse template index; the SUBJECT stays the current core
-        // `SelectAll(And([...]))` shape — folding the subject to
-        // `OtherCreaturesYouControl`/`CreaturesOpponentControls` is Task 9.
+        // Both the CHANGE and the SUBJECT fold to macro invocations via the
+        // reverse template index — the fully-folded Elesh Norn end-state.
         assert_eq!(
             stat_with_macros("Other creatures you control get +2/+2.").as_deref(),
-            Some(
-                "Static(Each(SelectAll(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), Modify(It, PowerAndToughnessUp(2, 2))))"
-            )
+            Some("Static(Each(OtherCreaturesYouControl, Modify(It, PowerAndToughnessUp(2, 2))))")
         );
         assert_eq!(
             stat_with_macros("Creatures your opponents control get -2/-2.").as_deref(),
             Some(
-                "Static(Each(SelectAll(And([Creature, ControlledBy(OpponentOf(Ref(You)))])), Modify(It, PowerAndToughnessDown(2, 2))))"
+                "Static(Each(CreaturesOpponentControls, Modify(It, PowerAndToughnessDown(2, 2))))"
             )
+        );
+    }
+
+    #[test]
+    fn unknown_subject_falls_back_to_core_selectall() {
+        // "Creatures you control" has no Selection macro (only
+        // "other creatures you control" and "creatures your opponents
+        // control" are registered) — the subject fold misses and the target
+        // falls back to the core `SelectAll(<filter>)` shape.
+        assert_eq!(
+            stat_with_macros("Creatures you control get +1/+1.")
+                .as_deref()
+                .map(|s| s.contains("SelectAll(")),
+            Some(true)
         );
     }
 
