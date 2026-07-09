@@ -1244,6 +1244,11 @@ impl GameState {
     /// ([CR#104.4b]) needs a loop MONITOR, and the monitor needs a
     /// game-state equality predicate — UD-11, still OPEN (no rule defines
     /// when two states are "the same"; see docs/engine-adrs.md).
+    ///
+    /// [CR#104.2a]: the last-player-standing win OVERRIDES all effects that
+    /// would preclude winning — it pierces `CantWin`. This derived win must
+    /// therefore NEVER consult `gate_suppresses`; only the effect-driven
+    /// `WinGame` verb ([CR#104.2b]) is gate-checked.
     fn check_game_end(&mut self) {
         if self.outcome.is_some() {
             return;

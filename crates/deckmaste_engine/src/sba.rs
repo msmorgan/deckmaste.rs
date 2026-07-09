@@ -1936,4 +1936,65 @@ mod tests {
             "no retroactive empty-draw loss after the window lapsed"
         );
     }
+
+    /// [CR#104.2a]: the last-player-standing win pierces a `CantWin` gate —
+    /// it is a DERIVED win in `check_game_end`, never routed through the
+    /// gate-checked `WinGame` verb ([CR#104.2b]). Player 0 controls Abyssal
+    /// Persecutor ("you can't win the game"); player 1 concedes; player 0
+    /// still wins.
+    #[test]
+    fn cant_win_gated_player_still_wins_last_standing() {
+        use crate::decide::Action;
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::object::ObjectSource;
+
+        let persecutor = Arc::new(canon().card("Abyssal Persecutor").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        });
+        let card_id = state.cards.push(persecutor, PlayerId(0));
+        let obj = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(obj);
+
+        for _ in 0..500 {
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) => {
+                    let answer = if player == PlayerId(1) { Action::Concede } else { Action::Pass };
+                    state.submit_decision(Decision::Act(answer)).unwrap();
+                }
+                StepOutcome::NeedsDecision(other) => {
+                    panic!("unexpected decision before the concede resolved: {other:?}")
+                }
+                StepOutcome::GameOver(outcome) => {
+                    assert_eq!(
+                        outcome,
+                        GameOutcome::Win(PlayerId(0)),
+                        "[CR#104.2a]: the last-standing win pierces player 0's CantWin gate"
+                    );
+                    return;
+                }
+            }
+        }
+        panic!("game never ended within 500 steps");
+    }
 }
