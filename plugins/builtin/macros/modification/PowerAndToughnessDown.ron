@@ -1,0 +1,18 @@
+// "PowerAndToughnessDown" = the debuff twin of `PowerAndToughnessUp`
+// ([CR#613.4c] layer 7c): a single `Modification`-kind macro standing in a
+// `changes: [...]` slot that expands to the -N/-M power-and-toughness debuff
+// written inline as `[Power(Down(N)), Toughness(Down(M))]`. Delegates to the
+// arity-2 `PowerAndToughness(NumericOp, NumericOp)` building block, forwarding
+// its own params as `Down(Param(0))`/`Down(Param(1))` — the Task 1
+// nested-macro param-forwarding mechanism. Usage: PowerAndToughnessDown(p, t)
+// — e.g. PowerAndToughnessDown(2, 2) for a symmetric "-2/-2" debuff.
+//
+// Both params are a `Count`. Mixed "+N/-M" has no bundling macro — the
+// emitter keeps the inline pair for that case.
+(
+    name: "PowerAndToughnessDown",
+    template: "gets -${0}/-${1}",
+    kinds: [Modification],
+    params: [Count, Count],
+    body: PowerAndToughness(Down(Param(0)), Down(Param(1))),
+)

@@ -367,7 +367,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
+                if r == "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, PowerAndToughnessUp(1, 1))))"
         ));
     }
 

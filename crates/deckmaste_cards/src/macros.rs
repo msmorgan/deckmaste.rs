@@ -84,8 +84,8 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::KeywordAbility>("KeywordAbility");
     param_types.add_typed::<dc::ManaRider>("ManaRider");
     param_types.add_typed::<dc::Modification>("Modification");
-    // The numeric-axis op (`Up`/`Down`/`Set`) — a macro arg for the shared
-    // power+toughness bundler `PowerAndToughness(op)`.
+    // The numeric-axis op (`Up`/`Down`/`Set`) — a macro arg for the arity-2
+    // power+toughness building block `PowerAndToughness(op, op)`.
     param_types.add_typed::<dc::NumericOp>("NumericOp");
     param_types.add_typed::<dc::PlayerAction>("PlayerAction");
     param_types.add_typed::<dc::Quantity>("Quantity");
@@ -234,11 +234,11 @@ mod tests {
         assert_eq!(arms.len(), 2);
     }
 
-    /// A `Modification`-kind macro (`AddPowerToughness`) expands at a `changes:
-    /// [...]` slot: it is remembered as a `Modification::Expanded`, its body is
-    /// the `Several` bundle, the invocation round-trips as written, and
-    /// `Modification::flatten` (the engine boundary) splices it to the flat
-    /// two-op list. The keystone of the change-bundling design.
+    /// A `Modification`-kind macro (`PowerAndToughnessUp`) expands at a
+    /// `changes: [...]` slot: it is remembered as a `Modification::Expanded`,
+    /// its body is the `Several` bundle, the invocation round-trips as
+    /// written, and `Modification::flatten` (the engine boundary) splices it
+    /// to the flat two-op list. The keystone of the change-bundling design.
     #[test]
     fn modification_positions_expand_and_flatten() {
         use deckmaste_core::Expand as _;
@@ -248,7 +248,7 @@ mod tests {
         let mut macros = macro_set();
         macros
             .insert(&def(r#"(
-                    name: "AddPowerToughness",
+                    name: "PowerAndToughnessUp",
                     template: "gets +${0}/+${1}",
                     kinds: [Modification],
                     params: [Count, Count],
@@ -260,7 +260,7 @@ mod tests {
         // macro with a plain ability grant — the Overrun shape.
         let effect: StaticEffect = macros
             .read_str(
-                "Modify(This, Several([AddPowerToughness(3, 3), GainAbility(Keyword(Trample))]))",
+                "Modify(This, Several([PowerAndToughnessUp(3, 3), GainAbility(Keyword(Trample))]))",
             )
             .unwrap();
         let StaticEffect::Modify(of, change) = &effect else {
@@ -274,7 +274,7 @@ mod tests {
         let Modification::Expanded(exp) = &changes[0] else {
             panic!("expected a remembered modification, got {:?}", changes[0]);
         };
-        assert_eq!(exp.name, "AddPowerToughness");
+        assert_eq!(exp.name, "PowerAndToughnessUp");
         assert_eq!(
             *exp.value,
             Modification::Several(vec![
@@ -287,7 +287,7 @@ mod tests {
         let written = deckmaste_core::ron::options().to_string(&effect).unwrap();
         assert_eq!(
             written,
-            "Modify(This,Several([AddPowerToughness(3,3),GainAbility(Keyword(Trample))]))"
+            "Modify(This,Several([PowerAndToughnessUp(3,3),GainAbility(Keyword(Trample))]))"
         );
 
         // `expand_all` then `flatten` → the flat three-op engine-facing list:
@@ -310,6 +310,73 @@ mod tests {
             matches!(flat[2], Modification::GainAbility(_)),
             "the grant follows the P/T ops: {:?}",
             flat[2]
+        );
+    }
+
+    /// `PowerAndToughnessUp`/`Down` are the parse surfaces (arity-2, `Count,
+    /// Count`); each delegates to the arity-2 `PowerAndToughness(NumericOp,
+    /// NumericOp)` building block by FORWARDING its own params into the
+    /// delegate's arguments (`PowerAndToughness(Up(Param(0)), Up(Param(1)))`)
+    /// — the Task 1 nested-macro forwarding mechanism. Expanding all the way
+    /// through both macro layers must land on the flat `Several` bundle, not
+    /// stop at the delegate's own `Expanded` wrapper.
+    #[test]
+    fn pt_up_down_expand_through_delegate() {
+        use deckmaste_core::Expand as _;
+        use deckmaste_core::NumericOp;
+
+        let mut macros = macro_set();
+        macros
+            .insert(&def(r#"(
+                    name: "PowerAndToughness",
+                    kinds: [Modification],
+                    params: [NumericOp, NumericOp],
+                    body: Several([Power(Param(0)), Toughness(Param(1))]),
+                )"#))
+            .unwrap();
+        macros
+            .insert(&def(r#"(
+                    name: "PowerAndToughnessUp",
+                    template: "gets +${0}/+${1}",
+                    kinds: [Modification],
+                    params: [Count, Count],
+                    body: PowerAndToughness(Up(Param(0)), Up(Param(1))),
+                )"#))
+            .unwrap();
+        macros
+            .insert(&def(r#"(
+                    name: "PowerAndToughnessDown",
+                    template: "gets -${0}/-${1}",
+                    kinds: [Modification],
+                    params: [Count, Count],
+                    body: PowerAndToughness(Down(Param(0)), Down(Param(1))),
+                )"#))
+            .unwrap();
+
+        let up: Modification = macros.read_str("PowerAndToughnessUp(2, 2)").unwrap();
+        assert_eq!(
+            deckmaste_core::ron::options().to_string(&up).unwrap(),
+            "PowerAndToughnessUp(2,2)"
+        );
+        assert_eq!(
+            up.expand_all(),
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(Count::Literal(2))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(2))),
+            ])
+        );
+
+        let down: Modification = macros.read_str("PowerAndToughnessDown(2, 2)").unwrap();
+        assert_eq!(
+            deckmaste_core::ron::options().to_string(&down).unwrap(),
+            "PowerAndToughnessDown(2,2)"
+        );
+        assert_eq!(
+            down.expand_all(),
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Down(Count::Literal(2))),
+                Modification::Toughness(NumericOp::Down(Count::Literal(2))),
+            ])
         );
     }
 

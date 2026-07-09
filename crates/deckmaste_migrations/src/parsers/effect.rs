@@ -310,9 +310,9 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
 /// always-on static anthem ([`crate::parsers::static_ability`], which declines
 /// the marker). The ±N/±N + keyword-grant grammar is shared with that anthem
 /// parser via [`modify`]; the changes are written inline (`Modification` is
-/// not a macro kind, so no `AddPowerToughness` macro can stand here). Subject:
-/// a target ("target creature" -> bare `It` + `TargetOne(<filter>)`), or a
-/// team/self class via the shared subject grammar (a bare `Reference` or a
+/// not a macro kind, so no `PowerAndToughnessUp` macro can stand here).
+/// Subject: a target ("target creature" -> bare `It` + `TargetOne(<filter>)`),
+/// or a team/self class via the shared subject grammar (a bare `Reference` or a
 /// distributed class filter).
 fn parse_pump(line: &str) -> Option<ParsedEffect> {
     let body = line.strip_suffix('.')?;
@@ -1499,7 +1499,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([AddPowerToughness(3, 3), GainAbility(Keyword(Trample))]))), \
+                 Modify(It, Several([PowerAndToughnessUp(3, 3), GainAbility(Keyword(Trample))]))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -1513,7 +1513,7 @@ mod tests {
             parsed("~ gets +1/+1 until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Modify(This, AddPowerToughness(1, 1)), \
+                "Continuously(effect: Modify(This, PowerAndToughnessUp(1, 1)), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -1523,7 +1523,7 @@ mod tests {
             parsed("Target creature gets +3/+3 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(It, AddPowerToughness(3, 3)), \
+                "Continuously(effect: Modify(It, PowerAndToughnessUp(3, 3)), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2164,9 +2164,9 @@ mod tests {
                 String::new(),
                 "If(condition: YouHaveTheCitysBlessing, \
                  then: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, AddPowerToughness(2, 2))), duration: FixedUntil(EndOfTurn)), \
+                 Modify(It, PowerAndToughnessUp(2, 2))), duration: FixedUntil(EndOfTurn)), \
                  otherwise: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, AddPowerToughness(1, 1))), duration: FixedUntil(EndOfTurn)))".to_owned()
+                 Modify(It, PowerAndToughnessUp(1, 1))), duration: FixedUntil(EndOfTurn)))".to_owned()
             ))
         );
     }

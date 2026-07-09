@@ -687,9 +687,10 @@ fn axis_sum_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
 fn modifications_predicate(changes: &[Modification], plural: bool, one_shot: bool) -> String {
     let mut clauses: Vec<String> = Vec::new();
 
-    // Flatten change-bundling macros (`AddPowerToughness` → `Several([AddPower,
-    // AddToughness])`, looked through `Expanded`) so the grouping below renders
-    // identically to the inline pair — the graduated-RON change is cosmetic.
+    // Flatten change-bundling macros (`PowerAndToughnessUp`/`Down` →
+    // `Several([Power, Toughness])`, looked through `Expanded`) so the grouping
+    // below renders identically to the inline pair — the graduated-RON change
+    // is cosmetic.
     let changes = Modification::flatten(changes.to_vec());
     let changes = changes.as_slice();
 

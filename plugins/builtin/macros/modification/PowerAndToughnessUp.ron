@@ -1,0 +1,21 @@
+// "PowerAndToughnessUp" = the change-bundling keystone ([CR#613.4c] layer
+// 7c): a single `Modification`-kind macro standing in a `changes: [...]` slot
+// that expands to the +N/+M power-and-toughness boost the pump/anthem family
+// writes inline as `[Power(Up(N)), Toughness(Up(M))]`. Delegates to the
+// arity-2 `PowerAndToughness(NumericOp, NumericOp)` building block, forwarding
+// its own params as `Up(Param(0))`/`Up(Param(1))` — the Task 1 nested-macro
+// param-forwarding mechanism. Usage: PowerAndToughnessUp(p, t) — e.g.
+// PowerAndToughnessUp(3, 3) for the Overrun-style team pump,
+// PowerAndToughnessUp(2, 0) for a power-only anthem.
+//
+// Both params are a `Count` (the bare numeral reads as `Count::Literal`, a
+// dynamic count as `CountOf`/`StatOf`). NEGATIVE magnitudes are NOT this
+// macro: "-N/-N" debuffs use `PowerAndToughnessDown`; mixed "+N/-M" has no
+// bundling macro at all — the emitter keeps the inline pair for that case.
+(
+    name: "PowerAndToughnessUp",
+    template: "gets +${0}/+${1}",
+    kinds: [Modification],
+    params: [Count, Count],
+    body: PowerAndToughness(Up(Param(0)), Up(Param(1))),
+)

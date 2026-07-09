@@ -91,17 +91,17 @@ pub(super) fn changes_to_modification(changes: &[String]) -> String {
 }
 
 /// "+N/+M" / "-N/-M" / mixed → the `changes` list. The both-positive case
-/// (`+N/+M`) emits the single `AddPowerToughness(N, M)` bundling macro, which
-/// expands to `Several([Power(Up(N)), Toughness(Up(M))])` and renders via its
-/// `"gets +{0}/+{1}"` template — the DRY anthem/pump form. Any negative side
-/// (the `-N` debuffs, mixed `+N/-M`) has no such macro, so it keeps the inline
-/// `[Power(Up|Down(N)), Toughness(Up|Down(M))]` pair.
+/// (`+N/+M`) emits the single `PowerAndToughnessUp(N, M)` bundling macro,
+/// which expands to `Several([Power(Up(N)), Toughness(Up(M))])` and renders
+/// via its `"gets +{0}/+{1}"` template — the DRY anthem/pump form. Any
+/// negative side (the `-N` debuffs, mixed `+N/-M`) has no such macro, so it
+/// keeps the inline `[Power(Up|Down(N)), Toughness(Up|Down(M))]` pair.
 pub(super) fn parse_pt_changes(s: &str) -> Option<Vec<String>> {
     let (p, t) = s.split_once('/')?;
     let (pv, pn) = signed(p)?;
     let (tv, tn) = signed(t)?;
     if pv == "Up" && tv == "Up" {
-        return Some(vec![format!("AddPowerToughness({pn}, {tn})")]);
+        return Some(vec![format!("PowerAndToughnessUp({pn}, {tn})")]);
     }
     Some(vec![
         format!("Power({pv}({pn}))"),

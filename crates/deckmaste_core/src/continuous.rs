@@ -115,7 +115,7 @@ impl<T: Expand> Expand for CollectionOp<T> {
 /// while keeping RON readable (`Power(Up(1))`, `Colors(Add(Blue))`).
 ///
 /// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
-/// in a `changes: [...]` slot — the keystone being `AddPowerToughness(p, t)`,
+/// in a `changes: [...]` slot — the keystone being `PowerAndToughnessUp(p, t)`,
 /// which expands to `Several([Power(Up(p)), Toughness(Up(t))])`. `Several` is
 /// the `Modification` analog of `Predicate::And`: a macro expands to ONE
 /// value, so a macro that must contribute several ops bundles them into a
@@ -171,7 +171,7 @@ pub enum Modification {
     BecomeBasicLandType(Vec<Ident>),
     /// A bundle of ops contributed by one macro invocation — the analog of
     /// `Predicate::And`. A macro expands to a single value, so a
-    /// change-bundling macro (`AddPowerToughness(p, t)`) produces
+    /// change-bundling macro (`PowerAndToughnessUp(p, t)`) produces
     /// `Several([Power(Up(p)), Toughness(Up(t))])`. Semantically inert:
     /// `changes` is already a flat, layer-spanning list ([CR#613.6]), so
     /// [`Modification::flatten`] splices a `Several` into its parent list
@@ -186,7 +186,7 @@ pub enum Modification {
 impl Modification {
     /// Splice every `Several` (recursively) into the parent list, the one
     /// flatten-away pass for change-bundling macros. Run AFTER `expand_all`
-    /// (which turns `Expanded(AddPowerToughness(p, t))` into
+    /// (which turns `Expanded(PowerAndToughnessUp(p, t))` into
     /// `Several([AddPower, AddToughness])`) and BEFORE the engine consumes
     /// `changes`: `changes` is semantically a flat, layer-spanning list
     /// ([CR#613.6]), so `Several` is a pure expansion artifact normalized
@@ -266,7 +266,7 @@ fn is_affected_you_control(f: &Predicate) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum StaticEffect {
     /// Change ONE object's characteristics ([CR#613]) — `Modify(It,
-    /// PowerAndToughness(Up(2)))`. Positional — a single target [`Reference`]
+    /// PowerAndToughnessUp(2, 2))`. Positional — a single target [`Reference`]
     /// and a single [`Modification`] (bundle several ops with
     /// [`Modification::Several`]); the meaning is unambiguous, so no field
     /// names. Plurality is NEVER implicit here: to affect a set, distribute a
@@ -645,7 +645,7 @@ mod tests {
     /// `Modification::flatten` splices a `Several` bundle into its parent list
     /// (recursively) and leaves plain ops untouched — the one flatten-away pass
     /// for change-bundling macros. A `Several([Power(Up), Toughness(Up)])`
-    /// (what `AddPowerToughness(3, 3)` expands to) followed by a
+    /// (what `PowerAndToughnessUp(3, 3)` expands to) followed by a
     /// `GainAbility` becomes the flat three-op list the engine consumes.
     #[test]
     fn flatten_splices_several() {
@@ -673,13 +673,13 @@ mod tests {
 
     /// `flatten` runs `expand_all` element-wise first, so a stored `changes`
     /// list still holding an `Expanded(Several([...]))` invocation (the
-    /// `AddPowerToughness` shape) flattens to its bundled ops.
+    /// `PowerAndToughnessUp` shape) flattens to its bundled ops.
     #[test]
     fn flatten_strips_expanded_invocations() {
         use crate::Expansion;
         use crate::ExpansionArgs;
         let expanded = Modification::Expanded(Expansion {
-            name: "AddPowerToughness".into(),
+            name: "PowerAndToughnessUp".into(),
             args: ExpansionArgs::Positional(vec!["2".into(), "0".into()]),
             template: Some("gets +${0}/+${1}".into()),
             value: Box::new(Modification::Several(vec![

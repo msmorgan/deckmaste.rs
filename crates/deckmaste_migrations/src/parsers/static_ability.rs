@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(
             stat("Creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
+                "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), Modify(It, PowerAndToughnessUp(1, 1))))"
             )
         );
     }
@@ -386,12 +386,12 @@ mod tests {
         // shape as the already-wired "Enchanted creature".
         assert_eq!(
             stat("Equipped creature gets +2/+0.").as_deref(),
-            Some("Static(Modify(AttachHostOf(This), AddPowerToughness(2, 0)))")
+            Some("Static(Modify(AttachHostOf(This), PowerAndToughnessUp(2, 0)))")
         );
         assert_eq!(
             stat("Equipped creature gets +1/+1 and has trample.").as_deref(),
             Some(
-                "Static(Modify(AttachHostOf(This), Several([AddPowerToughness(1, 1), GainAbility(Keyword(Trample))])))"
+                "Static(Modify(AttachHostOf(This), Several([PowerAndToughnessUp(1, 1), GainAbility(Keyword(Trample))])))"
             )
         );
     }
@@ -437,7 +437,7 @@ mod tests {
         assert_eq!(
             stat("Other Elf creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(Each(SelectAll(And([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), Modify(It, AddPowerToughness(1, 1))))"
+                "Static(Each(SelectAll(And([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), Modify(It, PowerAndToughnessUp(1, 1))))"
             )
         );
     }
@@ -498,7 +498,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
             Some(
-                "Static(Each(SelectAll(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, Several([AddPowerToughness(1, 1), GainAbility(Keyword(Mountainwalk))]))))"
+                "Static(Each(SelectAll(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, Several([PowerAndToughnessUp(1, 1), GainAbility(Keyword(Mountainwalk))]))))"
             )
         );
     }

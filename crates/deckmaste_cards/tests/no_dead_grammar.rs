@@ -123,7 +123,7 @@ fn structurally_untagged() -> BTreeSet<Node> {
         // Every `SupportsMacros` enum's macro-invocation-remembering wrapper:
         // present on nearly every grammar enum, but its OWN tag is never
         // itself spelled — a macro invocation always serializes as the
-        // invocation (`AddPowerToughness(2, 2)`), never literally as
+        // invocation (`PowerAndToughnessUp(2, 2)`), never literally as
         // `Expanded(...)`. A text search for the tag is structurally
         // meaningless for the same reason `Act`/`Zone`/`Deontic` are above.
         ("OneShotEffect", "Expanded"),
