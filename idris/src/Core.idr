@@ -2258,7 +2258,9 @@ mutual
       WithChosenValue : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> OneShotEffect (bindChosen d b) -> OneShotEffect b
       -- a single intrinsic instruction (the verb compartment). Rust: OneShotEffect::Act.
       Act : Action b -> OneShotEffect b
-      -- end the game (or a player's part in it) — the `Outcome` compartment. Rust: OneShotEffect::Conclude.
+      -- end the game (or a player's part in it) — the `Outcome` compartment. Rust has no
+      -- `OneShotEffect::Conclude`: win/lose live in `PlayerAction::{WinGame,LoseGame}` (an
+      -- `Action`, reached via `Act`), which the idris_emit bridge maps back to `Conclude (WinGame/LoseGame …)`.
       Conclude : Outcome b -> OneShotEffect b
       -- "you may [effect]", with optional "if you do / if you don't". The "if you do" branch —
       -- and the May's right siblings (`introduces`) — see the inner effect's introductions
