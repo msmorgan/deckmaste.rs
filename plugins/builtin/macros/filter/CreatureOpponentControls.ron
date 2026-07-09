@@ -1,0 +1,9 @@
+// CreatureOpponentControls = "creature an opponent controls" — the reusable
+// Predicate atom half of the CreaturesOpponentControls selection wrapper, the
+// symmetric-anthem counterpart to `OtherCreatureYouControl`.
+(
+    name: "CreatureOpponentControls",
+    template: "creature an opponent controls",
+    kinds: [Predicate],
+    body: And([Creature, ControlledBy(OpponentOf(Ref(You)))]),
+)

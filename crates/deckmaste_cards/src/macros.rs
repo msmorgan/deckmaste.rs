@@ -405,6 +405,82 @@ mod tests {
         );
     }
 
+    /// Loads the real `plugins/builtin` corpus — the layered-predicate pin
+    /// below needs the actual on-disk `OtherCreatureYouControl`/
+    /// `OtherCreaturesYouControl` files, not a hand-inserted stand-in.
+    fn builtin() -> crate::plugin::Plugin {
+        crate::plugin::Plugin::load(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+        )
+        .unwrap()
+    }
+
+    /// `OtherCreaturesYouControl` (Selection) nullary-nests the reusable
+    /// `OtherCreatureYouControl` (Predicate) atom rather than repeating the
+    /// `And([...])` filter inline — the layered-predicate refactor. The
+    /// invocation round-trips through BOTH macro layers (each macro name
+    /// remembered, not flattened away) and the predicate atom alone expands
+    /// to its own `And([...])` filter.
+    #[test]
+    fn selection_wrappers_expand_through_predicate_atoms() {
+        use deckmaste_core::Expand as _;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::Zone;
+
+        let macros = builtin().macros;
+
+        // The invocation round-trips exactly as authored (bare name, no
+        // args) — same shape as `pt_up_down_expand_through_delegate`'s
+        // `to_string`, which preserves the OUTER invocation regardless of
+        // what its body nests.
+        let sel: Selection = macros.read_str("OtherCreaturesYouControl").unwrap();
+        assert_eq!(
+            deckmaste_core::ron::options().to_string(&sel).unwrap(),
+            "OtherCreaturesYouControl"
+        );
+
+        // One level down, `SelectAll`'s argument is itself a REMEMBERED
+        // `Predicate` macro invocation — proof the wrapper nullary-nests the
+        // atom rather than inlining its `And([...])` body.
+        let Selection::Expanded(sel_exp) = &sel else {
+            panic!("expected a remembered selection, got {sel:?}");
+        };
+        let Selection::SelectAll(inner) = sel_exp.value.as_ref() else {
+            panic!("expected SelectAll, got {:?}", sel_exp.value);
+        };
+        let Predicate::Expanded(pred_exp) = inner else {
+            panic!("expected the nested predicate atom to stay remembered, got {inner:?}");
+        };
+        assert_eq!(pred_exp.name, "OtherCreatureYouControl");
+
+        // Fully expanding through BOTH macro layers (the selection wrapper,
+        // then the predicate atom, then `Creature`'s own nested `Permanent`)
+        // lands on the flat filter — the keystone this test pins.
+        let creature = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ]);
+        let expected_atom = Predicate::And(vec![
+            creature,
+            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+        assert_eq!(
+            sel.expand_all(),
+            Selection::SelectAll(expected_atom.clone())
+        );
+
+        // The predicate atom on its own expands to the same `And([...])`.
+        let pred: Predicate = macros.read_str("OtherCreatureYouControl").unwrap();
+        assert_eq!(
+            deckmaste_core::ron::options().to_string(&pred).unwrap(),
+            "OtherCreatureYouControl"
+        );
+        assert_eq!(pred.expand_all(), expected_atom);
+    }
+
     /// A bare `Reference` reads natively at a `Reference` slot. Verb patients
     /// are single references now, so `This` / `It` /
     /// `ControllerOf(This)` read straight into `Reference` — the old

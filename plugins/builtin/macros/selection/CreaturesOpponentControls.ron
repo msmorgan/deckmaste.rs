@@ -2,10 +2,12 @@
 // symmetric-anthem counterpart to `OtherCreaturesYouControl` (a debuff over
 // the opposing team rather than a boost over your own). A Selection-kind
 // macro: the whole `SelectAll(...)` IS the macro body, so a card spells it as
-// `Each(CreaturesOpponentControls, Modify(It, <change>))` directly.
+// `Each(CreaturesOpponentControls, Modify(It, <change>))` directly. Nests the
+// reusable `CreatureOpponentControls` Predicate atom rather than repeating
+// its `And([...])` filter inline.
 (
     name: "CreaturesOpponentControls",
     template: "each creature an opponent controls",
     kinds: [Selection],
-    body: SelectAll(And([Creature, ControlledBy(OpponentOf(Ref(You)))])),
+    body: SelectAll(CreatureOpponentControls),
 )

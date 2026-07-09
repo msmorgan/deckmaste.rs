@@ -1,0 +1,10 @@
+// OtherCreatureYouControl = "other creature you control" ([CR#613.6] anthem
+// shape) as a reusable Predicate atom — the filter half of the
+// OtherCreaturesYouControl selection wrapper, split out so other card text
+// (e.g. singular references, non-`Each` uses) can nest it too.
+(
+    name: "OtherCreatureYouControl",
+    template: "other creature you control",
+    kinds: [Predicate],
+    body: And([Creature, Not(Ref(This)), ControlledBy(Ref(You))]),
+)
