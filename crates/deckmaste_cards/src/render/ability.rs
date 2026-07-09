@@ -93,7 +93,11 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     // ten or more luck counters on it", Chance Encounter) rather than the
     // bare "it" `body_ctx` uses for the effect — the condition is checked
     // independently of whatever antecedent the trigger established, so a
-    // stable self-reference is the printed convention.
+    // stable self-reference is the printed convention. Unlike `body_subject`
+    // above (scoped to the object-less-event family), `self_type_phrase(view)`
+    // is threaded here as the condition subject for EVERY triggered ability,
+    // regardless of event — inert/zero-regression for existing cards whose
+    // rendered conditions don't read the subject.
     let cond = match &t.condition {
         Some(c) => {
             let cond_ctx = Ctx {

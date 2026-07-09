@@ -2195,13 +2195,24 @@ impl GameState {
                     // referenced object's colors are known.
                     ManaSpec::AmongColorsOf(r) => {
                         let id = self.eval_reference(r, frame);
-                        let view = self.layers();
-                        let options: Vec<ColorOrColorless> = view
-                            .get(id)
-                            .colors
-                            .iter()
-                            .map(|&c| ColorOrColorless::Color(c))
-                            .collect();
+                        // `LayeredView::get` panics on an id absent from
+                        // `self.objects` — guard with the same non-panicking
+                        // lookup the devotion `ManaSymbols`/`Singleton` arms
+                        // use before ever touching `self.layers()`, so a
+                        // fully-ceased referent (a token that left the game,
+                        // an LKI-only snapshot id) fizzles instead of
+                        // crashing.
+                        let options: Vec<ColorOrColorless> = match self.objects.get(id) {
+                            Some(_) => {
+                                let view = self.layers();
+                                view.get(id)
+                                    .colors
+                                    .iter()
+                                    .map(|&c| ColorOrColorless::Color(c))
+                                    .collect()
+                            }
+                            None => vec![],
+                        };
                         // A colorless (or unresolvable/gone) referenced
                         // object has no colors to choose among — never a
                         // panic, never a fabricated fallback color: no
@@ -7513,6 +7524,44 @@ mod tests {
             .filter(|u| !u.riders.is_empty())
             .count();
         assert_eq!(units_with_riders, 1, "one unit should carry riders");
+    }
+
+    /// [CR#105.2]: `AmongColorsOf` reads the referenced object's colors off
+    /// the live layers view — `LayeredView::get` panics on an id absent from
+    /// `state.objects`. A referent that's fully CEASED (a token that left the
+    /// game, an LKI-only snapshot id with no live twin) must fizzle to no
+    /// colors — no production at all — never crash. `source` (the Chrome-Mox
+    /// stand-in mana-producing permanent) stays alive throughout — only the
+    /// REFERENCED object (`imprinted`, reached via the lone-target `It`
+    /// antecedent) goes away, mirroring how an imprinted/exiled card can
+    /// cease independently of the producing permanent.
+    #[test]
+    fn among_colors_of_gone_referent_fizzles_empty() {
+        use deckmaste_core::ManaSpec;
+
+        let (mut state, source, imprinted) = two_permanents_on_field();
+        let p0 = PlayerId(0);
+        let frame = frame_src_targets(source, vec![imprinted]);
+        state.objects.remove(imprinted);
+        assert!(
+            state.objects.get(imprinted).is_none(),
+            "the referent is gone"
+        );
+        assert!(
+            state.objects.get(source).is_some(),
+            "the mana source is still live"
+        );
+
+        let pa = PlayerAction::AddMana(
+            Count::Literal(1),
+            ManaSpec::AmongColorsOf(Reference::It).into(),
+        );
+        // Must not panic dereferencing the gone id via `self.layers().get(..)`.
+        let items = state.player_action_items(&pa, p0, &frame);
+        assert!(
+            items.is_empty(),
+            "a gone AmongColorsOf referent has no colors to choose among, so no production"
+        );
     }
 
     /// [CR#701.9b]: `Discard(2)` surfaces the card choice; a wrong-sized answer
