@@ -660,31 +660,10 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             no card fixture (and no Idris counterpart).",
         ),
         (
-            n("Countable", "ManaSymbols"),
-            "DEFERRED: the pip-count (devotion, [CR#700.5]) source is engine-\
-            eval'd and unit-tested (deckmaste_engine::resolve::tests), but the card-facing \
-            devotion fixture + render phrasing ride Count::Aggregate — a separate ticket task, not \
-            yet built.",
-        ),
-        (
-            n("Count", "Aggregate"),
-            "DEFERRED: the fold (SumOf/MinOf/MaxOf/AverageOf over a \
-            Projection, [CR#107.1]) is engine-eval'd and unit-tested \
-            (deckmaste_engine::resolve::tests::aggregate_folds_a_projection_over_a_selection) and \
-            round-trips (deckmaste_core::count::tests::aggregate_round_trips), but the card-facing \
-            devotion fixture that would exercise it end-to-end (Count::Aggregate + \
-            Countable::ManaSymbols) is a separate ticket task, not yet built.",
-        ),
-        (
-            n("AggregateOp", "SumOf"),
-            "DEFERRED: see Count::Aggregate — no accept fixture until the \
-            devotion fixture card lands.",
-        ),
-        (
             n("AggregateOp", "MinOf"),
-            "DEFERRED: see Count::Aggregate — no accept fixture until a real \
-            card uses the extremal fold (Selection::Pick already covers the extremal-ELEMENT \
-            shape; Pick unifying onto AggregateOp is a later ticket task).",
+            "DEFERRED: Count::Aggregate + SumOf + Countable::ManaSymbols are now \
+            covered by the Devotion Creature fixture, but no authored card yet spells an EXTREMAL \
+            fold or an extremal-AggregateOp Pick — MinOf/MaxOf stay deferred until one does.",
         ),
         (
             n("AggregateOp", "MaxOf"),
