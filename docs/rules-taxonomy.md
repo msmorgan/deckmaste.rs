@@ -276,7 +276,9 @@ Two layers, matching the user's Effect-vs-Action split:
 | choice | vote ([CR#701.38]), villainous choice ([CR#701.55]), choose-a-[value] (binders, §2) |
 | variant | venture ([CR#701.49]; 39 lines), planeswalk, set in motion, open an attraction, roll to visit ([CR#701.52]), roll a die (76 lines), flip a coin (72 lines) |
 
-**Compound keyword actions are macro fodder** — the CR defines them in
+**Compound keyword actions are macro fodder** — the normative intrinsic-vs-
+composite policy for actions is `docs/keyword-policy.md` Part II (native only if
+irreducible; the rest desugar). The CR defines them in
 terms of primitives: investigate = create a Clue ([CR#701.16]); populate;
 incubate; amass; explore; connive; discover; learn; forage; behold;
 manifest (+ cloak = manifest + ward); endure; earthbend; monstrosity;
@@ -671,7 +673,10 @@ graveyard-only like unearth, hand-only like cycling, stack, command,
 between two abilities on a face), and granted-vs-printed provenance
 ([CR#113.10]).
 
-**Keyword classification** — the full 260-row derivation (192 abilities +
+**Keyword classification** — this section is the descriptive derivation; the
+engine's *normative* policy built on it (the graduation rule, enum membership,
+template-param conventions, typed cycling, the `ParamShape`/`KeywordDecl`
+prune) is `docs/keyword-policy.md`. The full 260-row derivation (192 abilities +
 68 actions, each classified by what an engine must build) lives in the
 mtg-rules skill's `keyword-classification.md` + `keywords-classified.json`.
 Pinned baseline: **skill v1.7.0** (commit `31797b3e`, CR effective
