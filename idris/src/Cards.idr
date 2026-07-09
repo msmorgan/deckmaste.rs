@@ -1282,48 +1282,24 @@ card_SnapcasterMage = Normal $ ^:
   }
 
 -- value-language-extensions Task 1 probe
-vlxPow : Count b
-vlxPow = Pow (^2) (CountOf (Objects (HasChar Types Creature)))
 vlxDivMod : Count b
 vlxDivMod = Plus (Divide RoundDown X (^3)) (Mod X (^2))
 vlxStrive : Count b
 vlxStrive = Minus (TargetsOf This) (^1)
 
 -- value-language-extensions Task 2 probe
-vlxSingleton : Count b       -- Embiggen: number of card types on an object
-vlxSingleton = CountDistinct Types (Singleton This)
 vlxAdamant : Condition b     -- "if at least three white was spent"
 vlxAdamant = Compare (CountOf (ManaSpentMatching This (CountsAs White))) AtLeast (^3)
 
 -- value-language-extensions Task 3 probe
 vlxMilled : Predicate b AnObject
 vlxMilled = And [IsKind Card, InZone Graveyard, WasPutFrom Library]
-vlxAdjacent : Predicate b AnObject
-vlxAdjacent = And [HasChar Types Creature, Adjacent Above This]
-
--- value-language-extensions Task 4 probe
-vlxTopGrave : Condition b    -- Volrath's Shapeshifter: top card of your graveyard is a creature
-vlxTopGrave = Matches (Single (TopOfGraveyard (^1) You)) (And [IsKind Card, HasChar Types Creature])
 
 -- value-language-extensions Task 5 probe
 vlxRepeat : OneShotEffect b
 vlxRepeat = Repeat (^2) (Act (Draw (^1)))
 
--- value-language-extensions Task 6 probe (cascade/discover dig-until shape)
--- "It" at top level = the found card (`bindFound`'s Loop antecedent);
--- "Existing They" = the passed-over prefix (its Frame antecedent); the
--- nested "It" inside `Each` shadows to the current prefix element.
-vlxRevealUntil : OneShotEffect b
-vlxRevealUntil =
-  RevealUntil You (And [IsKind Card, Not (HasChar Types Land)])
-    (Sequentially
-      [ Act (Reveal It)
-      , Each (Existing They) (Act (Reveal It))
-      ])
-
 -- value-language-extensions Task 7 probe (cross-player Aggregate via Players)
-vlxArbiter : Count b         -- highest life total among all players
-vlxArbiter = Aggregate MaxOf (eachPlayer Anyone (PlayerStatOf It Life))
 vlxBalance : Count b         -- fewest lands any player controls
 vlxBalance = Aggregate MinOf
   (eachPlayer Anyone (CountOf (Objects (And [HasChar Types Land, ControlledBy (SameAs It)]))))
@@ -1331,13 +1307,8 @@ vlxBalance = Aggregate MinOf
 -- value-language-extensions Task 9 probe (TapForMana event + ProducedMana Ctx-index/variants)
 vlxChromeMox : Action b      -- add one mana of any of the imprinted card's colors
 vlxChromeMox = AddMana (^1) (AmongColorsOf (Only (ExiledBy This)))
-vlxVorinclex : Ability b     -- add one mana of any type the tapped land produced
-vlxVorinclex = Triggered (MkEventQuery [TapForMana] [Actor you, Agent (hasType Land)])
-                 (Act (AddMana (^1) ProducedByEvent))
 
 -- value-language-extensions Task 10 probe (randomness event kinds RollDice/FlipCoin/RollPlanarDie)
-vlxCoinTrig : Ability b      -- Chance Encounter: whenever you win a coin flip
-vlxCoinTrig = Triggered (MkEventQuery [FlipCoin (Just True)] [Actor you]) (Act (Draw (^1)))
 vlxRollUnion : EventQuery b  -- "roll one or more dice" incl. planar [CR#706.7]
 vlxRollUnion = MkEventQuery [RollDice, RollPlanarDie Nothing] [Actor you]
 
@@ -1350,9 +1321,5 @@ vlxD20 = Sequentially [ Act (RollDice (^1) 20)
 vlxFlip : OneShotEffect Base
 vlxFlip = Sequentially [ Act (FlipCoins (^1))
                        , If (Compare ThatMany AtLeast (^1)) (Act (Draw (^1))) ]
-
--- value-language-extensions Task 12 probe (StaticEffect.ReplaceRoll + IgnoreRule)
-vlxKrark : StaticEffect b    -- Krark's Thumb: flip two, ignore one
-vlxKrark = ReplaceRoll (MkEventQuery [FlipCoin Nothing] [Actor you]) (^1) (IgnoreChosen 1)
 
 --:vim:sts=2 sw=2:
