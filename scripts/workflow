@@ -29,12 +29,13 @@ Usage: $(status filename) <command> [<args>]
                          there.)
     start NAME           Spin up an ad-hoc workspace named NAME, with no todo to claim.
     abandon WORKSPACE    Abandon WORKSPACE and forget its todo claim.
-    refresh [WORKSPACE]  Rebase WORKSPACE's feature stack onto the current trunk tip
-                         (default@-), detaching it from its claim commit. With no
-                         WORKSPACE, refreshes the feature workspace you run it from.
+    refresh [WORKSPACE]  From a feature workspace (no WORKSPACE): rebase its stack onto
+                         the trunk tip (default@-), detaching it from its claim (integrate
+                         re-joins). From default with a WORKSPACE: reorder that claim to
+                         sit just under default@, feature carried along (the old behavior).
                          Always refresh before any review step.
-    refresh --all        Do that for EVERY non-default workspace (prep for a push),
-                         stopping at the first that conflicts or fails.
+    refresh --all        Reorder EVERY non-default workspace's claim under default@ (prep
+                         for a push), stopping at the first that conflicts or fails.
     integrate WORKSPACE  Refresh, re-join the claim to the feature, fold WORKSPACE's
                          work into default@, then drop the workspace.
     repair               Run FROM a feature workspace: one-stop "my branch shifted under me"
@@ -345,20 +346,24 @@ function __workflow_abandon
     and __retire_ws "$ws_dir" .abandoned
 end
 
-# refresh WORKSPACE  rebases ONE feature's stack onto the trunk tip (see __refresh_one).
-# refresh (no WORKSPACE) refreshes the feature workspace you run it from — the common
-# "get review-ready" call an agent makes in place. refresh --all / -a does every
-# non-default workspace, in turn, as prep for a push. refresh is lock-free (it only
-# rewrites the isolated feature stack, never default's shared line), so an agent never
-# waits on the workflow lock to refresh. "Stop at the first problem": the first workspace
-# that conflicts (69) or fails (1) ends a --all run and propagates its status; the rest
-# are left untouched for a clean re-run once the blocker is resolved. Refreshing an
-# already-current feature is a harmless no-op, so re-running --all after a fix simply
-# re-settles the ones it already did and continues.
+# refresh has two shapes, keyed on where it's run:
+#   • from a FEATURE WORKSPACE, no WORKSPACE arg (the common case) — DETACH: rebases that
+#     workspace's stack onto the trunk tip (default@-), separating it from its claim.
+#     integrate re-joins the claim. The in-place "get review-ready" call an agent makes.
+#   • from DEFAULT with a WORKSPACE name — the old REORDER: slides the claim to just under
+#     default@, feature stack carried along, so claim+feature stay together at the top of
+#     default's line. refresh --all reorders every non-default workspace this way (prep
+#     for a push). Both bring the feature current with trunk; they differ only in topology
+#     (detached-onto-trunk vs. claim-reordered-under-default@).
+# "Stop at the first problem": the first workspace that conflicts (69) or fails (1) ends a
+# --all run and propagates its status; the rest are left for a clean re-run. Refreshing an
+# already-current feature is a harmless no-op either way.
 function __workflow_refresh
     # -S: never abbreviate --all (standing rule — exact long opts only).
     argparse -S a/all -- $argv
     or return
+
+    set -l on_default (test "$(jj workspace root)" = "$(jj workspace root --name default)"; and echo 1)
 
     if set -q _flag_all
         if set -q argv[1]
@@ -376,7 +381,7 @@ function __workflow_refresh
         end
         for ws in $targets
             echo >&2 "$(status filename): refreshing $ws"
-            __refresh_one "$ws"; or return    # stop at the first conflict/failure
+            __refresh_reorder "$ws"; or return    # stop at the first conflict/failure
         end
         echo >&2 "$(status filename): refreshed "(count $targets)" workspace(s): "(string join ', ' $targets)"."
         return 0
@@ -384,25 +389,29 @@ function __workflow_refresh
 
     set -l name $argv[1]
     if test -z "$name"
-        # No name: refresh the workspace we're standing in (an agent's in-place
-        # "get review-ready" call). From default there's no single feature to pick.
-        set name (path basename (jj workspace root))
-        if test "$name" = default
+        # No name → refresh the workspace we're standing in (detach). Not from default.
+        if set -q on_default
             echo >&2 "$(status filename): refresh needs a WORKSPACE name (or --all), or run it from a feature workspace."
             return 2
         end
+        __refresh_detach (path basename (jj workspace root))
+    else if set -q on_default
+        # From default with a name → the old reorder-under-default@.
+        __refresh_reorder "$name"
+    else
+        # From a feature workspace with an explicit name (should be this one) → detach.
+        __refresh_detach "$name"
     end
-    __refresh_one "$name"
 end
 
-# Rebase ONE workspace's feature stack onto the current trunk tip (default@-),
-# detaching it from its claim commit (which stays put in default's line — integrate
-# re-joins it). The feature stack is everything $name@ has that default@ lacks
-# (`default@..$name@`); the claim, being an ancestor of default@, is excluded. A
+# DETACH (from a feature workspace, and from integrate): rebase $name's feature stack
+# onto the current trunk tip (default@-), detaching it from its claim commit (which stays
+# put in default's line — integrate re-joins it). The stack is everything $name@ has that
+# default@ lacks (`default@..$name@`); the claim, an ancestor of default@, is excluded. A
 # single atomic rebase — jj leaves state untouched on error, so no op-log rollback is
-# needed. Idempotent: a feature already on default@- is a jj no-op. Returns 69
-# (conflict left in place) or 1 (failed).
-function __refresh_one
+# needed. Idempotent: a feature already on default@- is a jj no-op. Returns 69 (conflict
+# left in place) or 1 (failed).
+function __refresh_detach
     set name $argv[1]
     set ws_dir (jj workspace root --name "$name"); or return 1
     # An empty stack (`default@..$name@` resolves to nothing — the feature is already
@@ -431,15 +440,59 @@ function __refresh_one
     end
 end
 
+# REORDER (from default, `refresh NAME` / `--all`): slide $name's claim commit to sit just
+# under default@, carrying its feature stack and workspace WC — the old refresh. The claim
+# lives in default@'s history, so this is a REORDER, not a rebase-onto. It rewrites
+# default's shared line, so it runs under the workflow lock (refresh from default takes
+# default's lock). Returns 69 (conflict left in place) or 1 (rolled back).
+function __refresh_reorder
+    set name $argv[1]
+    set ws_dir (jj workspace root --name "$name"); or return 1
+    # Feature-stack root: the claim commit's child on the workspace's line (the workspace
+    # WC itself when no feature commits exist yet). Capture it before the move — its
+    # change id survives the rebase even though the commit id won't.
+    set root (jj log --no-graph -r "roots(children($name) & ::$name@)" -T 'change_id.short()'); or return 1
+    if test -z "$root"
+        echo >&2 "$(status filename): could not locate $name's feature root."
+        return 1
+    end
+
+    set savepoint (jj op log -G -n1 -T 'id.short()')
+    and begin
+        # -r pulls the claim out of the chain (healing the gap) and --insert-before
+        # threads it back in just under default@.
+        jj rebase -r "$name" --insert-before default@
+        # -r reparented the claim's children — including the feature stack — onto its old
+        # parent; pull the feature stack back onto the moved claim commit.
+        and jj rebase -s "$root" -d "$name"
+        and command jj -R "$ws_dir" workspace update-stale
+        or begin
+            echo >&2 "Failed... restoring to $savepoint"
+            jj op restore "$savepoint"
+            return 1
+        end
+    end
+
+    # A rebase conflict is NOT a failure — jj records it and the rebase exits 0. It's now
+    # materialized in the workspace; leave it there and return the 69 "expected-stop"
+    # sentinel so integrate won't fold a conflict. Do NOT roll back.
+    set -l conflicted (jj log --no-graph -r "$root:: & conflicts()" -T 'change_id.short() ++ "\n"')
+    if test -n "$conflicted"
+        echo >&2 "$(status filename): $name now conflicts with default@ — resolve it in $ws_dir, then re-run."
+        return 69
+    end
+end
+
 function __integrate_steps
     set name $argv[1]
     set -l ws_dir (jj workspace root --name "$name"); or return
-    # Refresh first: rebase the feature stack onto the current trunk tip, detaching it
-    # from its claim. This re-establishes currency even if trunk advanced since the
-    # agent's last refresh (so the fold below never rewinds default@ past newer work).
-    # Propagate its status verbatim: 69 = it left a conflict in the workspace, so we
-    # must NOT fold — bail with the same sentinel, no rollback.
-    __refresh_one "$name"
+    # Refresh first: detach the feature stack onto the current trunk tip. Always the
+    # DETACH path (never the from-default reorder), so the fork_point re-join below has a
+    # detached feature to thread the claim back into. This re-establishes currency even
+    # if trunk advanced since the agent's last refresh (so the fold never rewinds default@
+    # past newer work). Propagate its status verbatim: 69 = it left a conflict in the
+    # workspace, so we must NOT fold — bail with the same sentinel, no rollback.
+    __refresh_detach "$name"
     or return
 
     # Re-join the claim to the now-current feature: thread the claim commit back in at
@@ -721,18 +774,21 @@ end
 
 # Serialize the transactional commands so two sessions sharing default@ can't
 # interleave and corrupt the shared op log — or race a ticket move out of a claim
-# commit, the window __workflow_start flags by hand. claim/start/abandon/integrate all
-# mutate the shared default line; refresh/repair/converge/resolve only rewrite an
-# isolated feature stack (refresh's single atomic rebase reads default@- but never
-# writes default's line), so they are deliberately left lock-free — an agent never
-# waits on the lock to refresh its own feature. Re-exec the whole command under an
-# flock on a per-repo lockfile in .jj/ (which jj never snapshots, so it can't leak into
-# a commit): the lock covers the ENTIRE operation — every jj step plus its rollback —
-# and is released when this process exits, even on a crash (the kernel drops the lock
-# when flock's fd closes). _WORKFLOW_LOCKED breaks the re-exec recursion. This
-# internalizes the external `flock <lock> scripts/workflow …` wrapper the
-# parallel-worker recipe used to apply by hand.
-if not set -q _WORKFLOW_LOCKED; and contains -- "$argv[1]" claim start abandon integrate
+# commit, the window __workflow_start flags by hand. claim/start/abandon/integrate and
+# `refresh NAME`/`--all` (from default) mutate the shared default line. The lock keys on
+# a per-repo lockfile in the INVOKING workspace's .jj/, which lands exactly right: a
+# from-default refresh takes default's lock (serializing its reorder against those), while
+# a from-workspace `refresh` (which only rewrites its own isolated feature stack — a single
+# atomic rebase that reads default@- but never writes default's line) takes that
+# workspace's own private, uncontended lock — effectively instant, so an agent never waits
+# to refresh. repair/converge/resolve heal an isolated feature workspace and are
+# deliberately lock-free. Re-exec the whole command under an flock on that lockfile (jj
+# never snapshots .jj/, so it can't leak into a commit): the lock covers the ENTIRE
+# operation — every jj step plus its rollback — and is released when this process exits,
+# even on a crash (the kernel drops the lock when flock's fd closes). _WORKFLOW_LOCKED
+# breaks the re-exec recursion. This internalizes the external `flock <lock>
+# scripts/workflow …` wrapper the parallel-worker recipe used to apply by hand.
+if not set -q _WORKFLOW_LOCKED; and contains -- "$argv[1]" claim start abandon refresh integrate
     set -gx _WORKFLOW_LOCKED 1
     # -w 600: wait up to 10 min (a held lock spans one op, incl. claim/start's slow
     # wizards provisioning) rather than failing fast under contention. -E 75: on
@@ -741,7 +797,7 @@ if not set -q _WORKFLOW_LOCKED; and contains -- "$argv[1]" claim start abandon i
     flock -w 600 -E 75 "$project_dir/.jj/workflow.lock" "$scripts_dir/workflow" $argv
     set -l rc $status
     if test $rc -eq 75
-        echo >&2 "$(status filename): timed out waiting for the workflow lock — another claim/start/abandon/integrate is holding it. Re-run once it finishes."
+        echo >&2 "$(status filename): timed out waiting for the workflow lock — another claim/start/abandon/refresh/integrate is holding it. Re-run once it finishes."
         return 1
     end
     return $rc
