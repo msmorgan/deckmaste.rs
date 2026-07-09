@@ -88,7 +88,7 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_attach(line) {
         return Ok(Some(p));
     }
-    if let Some(p) = parse_pump(line) {
+    if let Some(p) = parse_pump(line, ctx)? {
         return Ok(Some(p));
     }
     if let Some(p) = parse_create_predefined_token(line) {
@@ -405,15 +405,18 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect
 /// required — it's what makes this a one-shot continuous effect rather than an
 /// always-on static anthem ([`crate::parsers::static_ability`], which declines
 /// the marker). The ±N/±N + keyword-grant grammar is shared with that anthem
-/// parser via [`modify`]; the changes are written inline because this
-/// production does not consult the reverse `TemplateIndex` (a later task will
-/// fold `±N/±N` here into the `PowerAndToughnessUp`/`Down` Modification macros,
-/// as [`crate::parsers::static_ability`]'s `parse_pt` already does).
+/// parser via [`modify`]. An unscaled `±N/±N` change folds to its
+/// `PowerAndToughnessUp`/`Down` `Modification` macro via the reverse
+/// `TemplateIndex` (see [`pump_change_folded`]), exactly as
+/// [`crate::parsers::static_ability`]'s `parse_pt` folds the anthem change;
+/// a "for each" scaler or a keyword grant tail keeps the inline core changes.
 /// Subject: a target ("target creature" -> bare `It` + `TargetOne(<filter>)`),
 /// or a team/self class via the shared subject grammar (a bare `Reference` or a
 /// distributed class filter).
-fn parse_pump(line: &str) -> Option<ParsedEffect> {
-    let body = line.strip_suffix('.')?;
+fn parse_pump(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(body) = line.strip_suffix('.') else {
+        return Ok(None);
+    };
     // The required "until end of turn" marker may sit on EITHER side of a "for
     // each" count tail: "gets +1/+1 for each … until end of turn" (marker last)
     // or "gets +2/+0 until end of turn for each …" (marker mid, the
@@ -423,27 +426,70 @@ fn parse_pump(line: &str) -> Option<ParsedEffect> {
         // Marker last — peel any "for each" count off what precedes it.
         match count::strip(head) {
             Some(c) if matches!(c.binder, count::Binder::ForEach) => (c.head, Some(c.count)),
-            Some(_) => return None,
+            Some(_) => return Ok(None),
             None => (head, None),
         }
     } else {
         // Marker not trailing — it must precede a "for each" count tail.
-        let c = count::strip(body)?;
+        let Some(c) = count::strip(body) else {
+            return Ok(None);
+        };
         if !matches!(c.binder, count::Binder::ForEach) {
-            return None;
+            return Ok(None);
         }
-        (c.head.strip_suffix(" until end of turn")?, Some(c.count))
+        let Some(head) = c.head.strip_suffix(" until end of turn") else {
+            return Ok(None);
+        };
+        (head, Some(c.count))
     };
-    let changes = pump_changes(body, scaled.as_deref())?;
-    let change = modify::changes_to_modification(&changes);
-    let (target, targets) = pump_scope(pump_subject(body)?)?;
-    Some(ParsedEffect {
+    let Some(changes) = pump_changes(body, scaled.as_deref()) else {
+        return Ok(None);
+    };
+    let change = pump_change_folded(body, scaled.as_deref(), &changes, ctx)?;
+    let Some(subject) = pump_subject(body) else {
+        return Ok(None);
+    };
+    let Some((target, targets)) = pump_scope(subject) else {
+        return Ok(None);
+    };
+    Ok(Some(ParsedEffect {
         targets,
         effect: format!(
             "Continuously(effect: {}, duration: FixedUntil(EndOfTurn))",
             target.wrap(&change)
         ),
-    })
+    }))
+}
+
+/// Fold an unscaled `±N/±N` pump change to its `PowerAndToughnessUp`/`Down`
+/// `Modification` macro via the reverse
+/// [`crate::parsers::static_ability`]-style `TemplateIndex` lookup, falling
+/// back to the inline core `changes` otherwise. Two cases decline the fold: a
+/// "for each" scaler (the literal-count macro can't carry the per-count
+/// multiplier, so the scaled inline form must stand) and a keyword grant tail
+/// (`"gets +2/+2 and gain haste"` — the tail leaves the `"gets …"` phrase only
+/// partially matched, failing the full-consumption gate).
+fn pump_change_folded(
+    body: &str,
+    scaled: Option<&str>,
+    changes: &[String],
+    ctx: &ResolveCtx,
+) -> anyhow::Result<String> {
+    let gets = match (scaled, modify::split_marker(body, &[" gets ", " get "])) {
+        (None, Some((_, pred))) => format!("gets {}", pred.trim()),
+        _ => return Ok(modify::changes_to_modification(changes)),
+    };
+    // Mirror `parse_pt`: fold only on a FULL-consumption match (a grant tail
+    // leaves the phrase partially matched → keep the inline changes). A same-kind
+    // ambiguous match is a hard generation error (`?`), not a decline.
+    let change = match ctx
+        .index
+        .match_with("Modification", &gets, count_delim_slot_reader)?
+    {
+        Some(m) if m.consumed == gets.len() => m.invocation,
+        _ => modify::changes_to_modification(changes),
+    };
+    Ok(change)
 }
 
 /// The subject phrase of a pump body — everything before the first modify
@@ -1518,6 +1564,71 @@ mod tests {
         assert_eq!(m.consumed, "gets +2/+2".len());
     }
 
+    /// End-to-end through `parse_clause` with the builtin index: a plain
+    /// (unscaled, no-tail) durational pump RETAINS the change macro — the
+    /// surface-retention payoff, mirroring the static anthem's `parse_pt` fold.
+    #[test]
+    fn durational_pump_folds_change_macro() {
+        assert_eq!(
+            parsed_with_macros("Target creature gets +3/+3 until end of turn."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Continuously(effect: Modify(It, PowerAndToughnessUp(3, 3)), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+        // The debuff twin folds to `PowerAndToughnessDown`.
+        assert_eq!(
+            parsed_with_macros("Target creature gets -2/-2 until end of turn."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Continuously(effect: Modify(It, PowerAndToughnessDown(2, 2)), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    /// A "for each" scaler declines the change fold EVEN under the builtin
+    /// index: the literal-count `PowerAndToughnessUp` can't carry the per-count
+    /// multiplier, so the scaled inline `Several(...)` must stand.
+    #[test]
+    fn durational_pump_scaled_declines_change_fold() {
+        assert_eq!(
+            parsed_with_macros(
+                "Creatures you control get +1/+1 for each Goblin you control until end of turn."
+            ),
+            Some((
+                String::new(),
+                "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
+                 Toughness(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))]))), \
+                 duration: FixedUntil(EndOfTurn))".to_owned()
+            ))
+        );
+    }
+
+    /// A keyword grant tail declines the change fold EVEN under the builtin
+    /// index: `"gets +3/+3 and gain trample"` leaves the `"gets …"` phrase only
+    /// partially matched, failing the full-consumption gate, so the whole
+    /// change (P/T pair + `GainAbility`) stays inline.
+    #[test]
+    fn durational_pump_grant_tail_declines_change_fold() {
+        assert_eq!(
+            parsed_with_macros(
+                "Creatures you control get +3/+3 and gain trample until end of turn."
+            ),
+            Some((
+                String::new(),
+                "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(3)), Toughness(Up(3)), GainAbility(Keyword(Trample))]))), \
+                 duration: FixedUntil(EndOfTurn))"
+                    .to_owned()
+            ))
+        );
+    }
+
     /// The emitted invocations READ back through the builtin macros: the
     /// `PlayerAction`-kind verb macros expand to the core player actions
     /// (`Mills(2)` → `Mill(2)` under `By`), remembered with their template
@@ -2342,9 +2453,9 @@ mod tests {
                 String::new(),
                 "If(condition: YouHaveTheCitysBlessing, \
                  then: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(2)), Toughness(Up(2))]))), duration: FixedUntil(EndOfTurn)), \
+                 Modify(It, PowerAndToughnessUp(2, 2))), duration: FixedUntil(EndOfTurn)), \
                  otherwise: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))), duration: FixedUntil(EndOfTurn)))".to_owned()
+                 Modify(It, PowerAndToughnessUp(1, 1))), duration: FixedUntil(EndOfTurn)))".to_owned()
             ))
         );
     }
