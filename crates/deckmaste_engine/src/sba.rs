@@ -1940,8 +1940,10 @@ mod tests {
     /// [CR#104.2a]: the last-player-standing win pierces a `CantWin` gate —
     /// it is a DERIVED win in `check_game_end`, never routed through the
     /// gate-checked `WinGame` verb ([CR#104.2b]). Player 0 controls Abyssal
-    /// Persecutor ("you can't win the game"); player 1 concedes; player 0
-    /// still wins.
+    /// Persecutor ("you can't win the game and your opponents can't lose the
+    /// game"); player 1 concedes; player 0 still wins. This doubly exercises
+    /// [CR#104.3a]: player 1's concede-loss lands DESPITE the Persecutor's
+    /// `CantLose`-on-opponents gate — concession pierces every gate.
     #[test]
     fn cant_win_gated_player_still_wins_last_standing() {
         use crate::decide::Action;
