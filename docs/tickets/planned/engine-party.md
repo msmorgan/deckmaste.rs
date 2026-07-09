@@ -27,7 +27,7 @@ party.**
 
 ### Forks to settle in the design pass
 - **A — encoding.** (A1) reuse `CountDistinct` + `Characteristic::PartyClasses` —
-  *rejected on correctness* (ignores 700.8b matching). (A2) new
+  *rejected on correctness* (ignores the `[CR#700.8b]` matching). (A2) new
   `Count::PartySize(Reference)` primitive; engine computes the max matching over
   the 4 classes among that player's creatures, cap 4 — correct, minimal-ish,
   must be wired into BOTH count evaluators (`resolve.rs` ~2844 and `layer.rs`
