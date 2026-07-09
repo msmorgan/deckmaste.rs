@@ -165,17 +165,21 @@ fn render_modal(shape: ChooseShape, modes: &[ParsedEffect]) -> String {
 /// embedded in an activated/triggered header (e.g. Marath's
 /// "…: Choose one —"). Those bullets don't strip cleanly through `effect::
 /// parse_clause`, so such headers decline and stay `Unparsed`.
-pub(crate) fn fold_modal(face: &mut TodoCardFace, ctx: &ResolveCtx) -> bool {
+///
+/// # Errors
+/// If a bullet's effect body is an AMBIGUOUS macro match ([`effect::
+/// parse_clause`]) — a generation error, not a decline.
+pub(crate) fn fold_modal(face: &mut TodoCardFace, ctx: &ResolveCtx) -> anyhow::Result<bool> {
     // v1 frames modals as `Spell` abilities only. Permanent-borne modals
     // (activated/triggered headers carrying "… : Choose one —", e.g. Marath)
     // need the cost/trigger frame around the modal and are deferred.
     if ctx.kind != CardKind::Spell {
-        return false;
+        return Ok(false);
     }
 
     // Locate a header line whose following slots are bullets.
     let Some(header_idx) = find_modal_header(&face.abilities) else {
-        return false;
+        return Ok(false);
     };
 
     // Gather the contiguous bullet run after the header.
@@ -189,22 +193,22 @@ pub(crate) fn fold_modal(face: &mut TodoCardFace, ctx: &ResolveCtx) -> bool {
 
     // A modal has two or more modes ([CR#700.2]).
     if bodies.len() < 2 {
-        return false;
+        return Ok(false);
     }
 
     let TodoAbility::Unparsed(header) = &face.abilities[header_idx] else {
-        return false;
+        return Ok(false);
     };
     let mode_count = u32::try_from(bodies.len()).unwrap_or(u32::MAX);
     let Some(shape) = classify_header(header, mode_count) else {
-        return false;
+        return Ok(false);
     };
 
     // EVERY bullet must parse, or we decline wholesale (no partial modal).
     let mut modes = Vec::with_capacity(bodies.len());
     for body in &bodies {
-        let Some(parsed) = effect::parse_clause(body, ctx) else {
-            return false;
+        let Some(parsed) = effect::parse_clause(body, ctx)? else {
+            return Ok(false);
         };
         modes.push(parsed);
     }
@@ -213,7 +217,7 @@ pub(crate) fn fold_modal(face: &mut TodoCardFace, ctx: &ResolveCtx) -> bool {
     // Replace the header with the folded Modal, drop the bullet slots.
     face.abilities[header_idx] = TodoAbility::Parsed(ron);
     face.abilities.drain(header_idx + 1..idx);
-    true
+    Ok(true)
 }
 
 /// The index of the first `Unparsed` modal header immediately followed by at
@@ -266,7 +270,7 @@ mod tests {
             "\u{2022} You gain 3 life.",
             "\u{2022} Draw two cards.",
         ]);
-        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert_eq!(
             face.abilities.len(),
             1,
@@ -287,7 +291,7 @@ mod tests {
             "\u{2022} Destroy target artifact.",
             "\u{2022} You gain 3 life.",
         ]);
-        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert_eq!(
             parsed(&face, 0),
             "Spell(effect: Modal(choose: ChooseSpec(count: Exactly(1)), modes: [\
@@ -304,7 +308,7 @@ mod tests {
             "\u{2022} You gain 3 life.",
             "\u{2022} Draw two cards.",
         ]);
-        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(2))"));
     }
 
@@ -316,7 +320,7 @@ mod tests {
             "\u{2022} You gain 3 life.",
             "\u{2022} Draw two cards.",
         ]);
-        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(2), up_to: true)"));
     }
 
@@ -329,7 +333,7 @@ mod tests {
             "\u{2022} Draw two cards.",
             "\u{2022} Draw one card.",
         ]);
-        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert!(parsed(&face, 0).contains("ChooseSpec(count: Exactly(3), up_to: true)"));
     }
 
@@ -341,7 +345,7 @@ mod tests {
             "\u{2022} You gain 3 life.",
             "\u{2022} Draw two cards.",
         ]);
-        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert!(
             parsed(&face, 0).contains("ChooseSpec(count: Exactly(3), repeats: true)"),
             "{}",
@@ -358,7 +362,7 @@ mod tests {
             "\u{2022} You gain 3 life.",
             "\u{2022} Exile target creature, then do something inexpressible.",
         ]);
-        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert_eq!(face.abilities.len(), 3, "nothing folded");
         assert!(matches!(&face.abilities[0], TodoAbility::Unparsed(_)));
     }
@@ -367,7 +371,7 @@ mod tests {
     #[test]
     fn ignores_non_modal_choose_lines() {
         let mut face = spell_face(&["Choose target artifact. Destroy it."]);
-        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
         assert!(matches!(&face.abilities[0], TodoAbility::Unparsed(_)));
     }
 
@@ -380,7 +384,7 @@ mod tests {
             "\u{2022} Draw two cards.",
         ]);
         face.types = vec![crate::todo_card::RawIdent("Creature".into())];
-        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Permanent)));
+        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Permanent)).unwrap());
         assert_eq!(face.abilities.len(), 3);
     }
 
@@ -388,6 +392,6 @@ mod tests {
     #[test]
     fn declines_single_mode() {
         let mut face = spell_face(&["Choose one \u{2014}", "\u{2022} You gain 3 life."]);
-        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)));
+        assert!(!fold_modal(&mut face, &test_ctx::ctx(CardKind::Spell)).unwrap());
     }
 }

@@ -23,23 +23,33 @@ use crate::parsers::triggered_ability;
 use crate::resolve::CardKind;
 use crate::resolve::ResolveCtx;
 
-#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    Ok(parse(line, ctx))
+    parse(line, ctx)
 }
 
-fn parse(line: &str, ctx: &ResolveCtx) -> Option<String> {
+fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     // [CR#614.1]: a replacement is a continuous effect of a permanent's static
     // ability (or a one-shot's during-resolution clause). The permanent-side
     // templates here decline on spells.
     if ctx.kind == CardKind::Spell {
-        return None;
+        return Ok(None);
     }
-    parse_as_enters(line, ctx)
-        .or_else(|| parse_enters_with_counters(line, ctx))
-        .or_else(|| parse_instead(line, ctx))
-        .or_else(|| parse_tapped_unless(line))
-        .or_else(|| parse_tapped_if(line))
+    if let Some(s) = parse_as_enters(line, ctx)? {
+        return Ok(Some(s));
+    }
+    if let Some(s) = parse_enters_with_counters(line, ctx)? {
+        return Ok(Some(s));
+    }
+    if let Some(s) = parse_instead(line, ctx)? {
+        return Ok(Some(s));
+    }
+    if let Some(s) = parse_tapped_unless(line) {
+        return Ok(Some(s));
+    }
+    if let Some(s) = parse_tapped_if(line) {
+        return Ok(Some(s));
+    }
+    Ok(None)
 }
 
 /// `~ enters with <count> <kind> counter[s] on it.` -> an enters-with-counters
@@ -49,14 +59,19 @@ fn parse(line: &str, ctx: &ResolveCtx) -> Option<String> {
 /// before the `ZoneChanged` fact. The counter kind + fixed count are parsed by
 /// the shared [`effect::parse_counter_clause`] (so `-1/-1` -> `M1M1Counter` for
 /// free); a "for each"/`X` count or an unmodeled kind declines there.
-fn parse_enters_with_counters(line: &str, ctx: &ResolveCtx) -> Option<String> {
-    let clause = line
-        .strip_prefix("~ enters with ")?
-        .strip_suffix(" on it.")?;
-    let (count, kind) = effect::parse_counter_clause(clause, ctx)?;
-    Some(format!(
+fn parse_enters_with_counters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    let Some(clause) = line
+        .strip_prefix("~ enters with ")
+        .and_then(|c| c.strip_suffix(" on it."))
+    else {
+        return Ok(None);
+    };
+    let Some((count, kind)) = effect::parse_counter_clause(clause, ctx)? else {
+        return Ok(None);
+    };
+    Ok(Some(format!(
         "Static(Replacement(AsEnters(PutCounters(This, {kind}, {count}))))"
-    ))
+    )))
 }
 
 /// "As <subject> enters, <effect>." → `Replacement(AsEnters(<effect>))`. Only
@@ -64,13 +79,20 @@ fn parse_enters_with_counters(line: &str, ctx: &ResolveCtx) -> Option<String> {
 /// ([CR#614.12]), folded into this object's own entry. The effect clause keeps
 /// its trailing period (the shared grammar requires it) and must declare no
 /// targets (no announce list exists at a replacement).
-fn parse_as_enters(line: &str, ctx: &ResolveCtx) -> Option<String> {
-    let effect_clause = line.strip_prefix("As ~ enters, ")?;
-    let parsed = effect::parse_clause(effect_clause, ctx)?;
+fn parse_as_enters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    let Some(effect_clause) = line.strip_prefix("As ~ enters, ") else {
+        return Ok(None);
+    };
+    let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
+        return Ok(None);
+    };
     if !parsed.targets.is_empty() {
-        return None;
+        return Ok(None);
     }
-    Some(format!("Static(Replacement(AsEnters({})))", parsed.effect))
+    Ok(Some(format!(
+        "Static(Replacement(AsEnters({})))",
+        parsed.effect
+    )))
 }
 
 /// "If [subject] would [die|enter], [effect] instead." →
@@ -79,31 +101,45 @@ fn parse_as_enters(line: &str, ctx: &ResolveCtx) -> Option<String> {
 /// [`triggered_ability::parse_event`] grammar reads ("die" → "dies", "enter"
 /// → "enters"); the effect reuses the shared grammar and must not target (a
 /// replacement declares no announce list). Declines unless both halves parse.
-fn parse_instead(line: &str, ctx: &ResolveCtx) -> Option<String> {
-    let body = line.strip_suffix('.')?;
-    let rest = body.strip_prefix("If ")?;
+fn parse_instead(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    let Some(body) = line.strip_suffix('.') else {
+        return Ok(None);
+    };
+    let Some(rest) = body.strip_prefix("If ") else {
+        return Ok(None);
+    };
     // "[subject] would [pred], [effect] instead": the verb "would" splits the
     // conditional event from its tail; "instead" terminates the effect.
-    let (subject, tail) = rest.split_once(" would ")?;
-    let (would_pred, effect_clause) = tail.split_once(", ")?;
-    let effect_clause = effect_clause.strip_suffix(" instead")?;
+    let Some((subject, tail)) = rest.split_once(" would ") else {
+        return Ok(None);
+    };
+    let Some((would_pred, effect_clause)) = tail.split_once(", ") else {
+        return Ok(None);
+    };
+    let Some(effect_clause) = effect_clause.strip_suffix(" instead") else {
+        return Ok(None);
+    };
     // Map the base verb after "would" to the event grammar's present tense.
     let verb_clause = match would_pred {
         "die" => "dies",
         "enter" | "enter the battlefield" => "enters",
-        _ => return None,
+        _ => return Ok(None),
     };
-    let event = triggered_ability::parse_event(&format!("{subject} {verb_clause}"))?;
+    let Some(event) = triggered_ability::parse_event(&format!("{subject} {verb_clause}")) else {
+        return Ok(None);
+    };
     // The shared effect grammar requires the trailing period the "instead"
     // suffix consumed; restore it.
-    let parsed = effect::parse_clause(&format!("{effect_clause}."), ctx)?;
+    let Some(parsed) = effect::parse_clause(&format!("{effect_clause}."), ctx)? else {
+        return Ok(None);
+    };
     if !parsed.targets.is_empty() {
-        return None;
+        return Ok(None);
     }
-    Some(format!(
+    Ok(Some(format!(
         "Static(Replacement(Instead(would: {event}, instead: {})))",
         parsed.effect
-    ))
+    )))
 }
 
 /// `~ enters tapped unless <condition>.` ([CR#614.1d]) → an `AsEnters`

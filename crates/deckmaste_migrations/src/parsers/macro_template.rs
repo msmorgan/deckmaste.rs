@@ -16,20 +16,15 @@ use crate::resolve::ResolveCtx;
 /// `Keyword(Protection(ColorIs(Black)))`) by filling each `${i}` slot via the
 /// typed slot readers. Declines (so a bespoke parser handles the line) on no
 /// full-line match.
-// Never errors, but must match the `AbilityParser` fn-pointer type.
-#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     let line = line.trim();
-    // Nullary (param-less) keyword.
-    if let Some(m) = ctx.index.match_kind("KeywordAbility", line)
-        && m.consumed == line.len()
-    {
+    // Nullary (param-less) keyword. The matcher already judges full
+    // consumption itself (and ambiguity across it) — see `TemplateIndex`.
+    if let Some(m) = ctx.index.match_kind("KeywordAbility", line)? {
         return Ok(Some(format!("Keyword({})", m.macro_name)));
     }
     // Parameterized keyword: fill `${i}` slots via the declared-type readers.
-    if let Some(m) = ctx.index.match_with("KeywordAbility", line, slot_reader)
-        && m.consumed == line.len()
-    {
+    if let Some(m) = ctx.index.match_with("KeywordAbility", line, slot_reader)? {
         return Ok(Some(format!("Keyword({})", m.invocation)));
     }
     Ok(None)

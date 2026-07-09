@@ -16,10 +16,6 @@ use crate::resolve::ResolveCtx;
 /// (`Ok(None)`) on non-trigger lines or unrecognized events/effects.
 /// Self-identifying by the trigger word, so the card's `CardKind` is
 /// irrelevant.
-///
-/// Infallible today, but the `Result` is required by the `AbilityParser`
-/// registry signature (sibling parsers render fallibly).
-#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     // Split off a leading ability-word label ("Landfall — …",
     // "Threshold — …"). Ability words have NO rules meaning ([CR#207.2c]) —
@@ -35,7 +31,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
         let Some((event, effect_clause)) = parse_beginning_of(rest) else {
             return Ok(None);
         };
-        let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
+        let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
             return Ok(None);
         };
         return Ok(Some(render(ability_word, &event, &parsed)));
@@ -52,7 +48,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     let Some(event) = parse_event(event_clause) else {
         return Ok(None);
     };
-    let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
+    let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
         return Ok(None);
     };
     Ok(Some(render(ability_word, &event, &parsed)))

@@ -10,16 +10,11 @@ use crate::resolve::ResolveCtx;
 
 /// A registry parser: a spell's effect line -> the bare `Spell(...)` RON.
 /// Declines (`Ok(None)`) on non-spell cards or unrecognized effect lines.
-///
-/// Infallible today, but the `Result` is required by the `AbilityParser`
-/// registry signature (sibling parsers render fallibly), and future effect
-/// productions may render fallibly too.
-#[allow(clippy::unnecessary_wraps)]
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     if ctx.kind != CardKind::Spell {
         return Ok(None);
     }
-    Ok(effect::parse_clause(line, ctx).map(|parsed| render(&parsed)))
+    Ok(effect::parse_clause(line, ctx)?.map(|parsed| render(&parsed)))
 }
 
 /// Wraps a [`ParsedEffect`] in the `Spell` frame, emitting `targets:` only

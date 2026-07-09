@@ -30,29 +30,80 @@ pub(super) struct ParsedEffect {
 /// to the macro whose template renders them. [`ResolveCtx`] carries the reverse
 /// template index that the fallthrough (and the conditional's condition-phrase
 /// lookup) consults.
-pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    parse_if(line, ctx)
-        .or_else(|| parse_may(line, ctx))
-        .or_else(|| parse_sequence(line, ctx))
-        .or_else(|| parse_delayed_next_end_step(line, ctx))
-        .or_else(|| parse_exile_target(line))
-        .or_else(|| parse_return_that_card(line))
-        .or_else(|| parse_deal_damage(line))
-        .or_else(|| parse_draw(line))
-        .or_else(|| parse_lose_life(line))
-        .or_else(|| parse_gain_life(line))
-        .or_else(|| parse_counter(line))
-        .or_else(|| parse_put_counters(line, ctx))
-        .or_else(|| parse_return_to_hand(line))
-        .or_else(|| parse_tap_untap(line))
-        .or_else(|| parse_destroy(line))
-        .or_else(|| parse_sacrifice(line))
-        .or_else(|| parse_attach(line))
-        .or_else(|| parse_pump(line))
-        .or_else(|| parse_create_predefined_token(line))
-        .or_else(|| parse_create_token(line))
-        .or_else(|| parse_declarative_subject(line, ctx))
-        .or_else(|| parse_macro_effect(line, ctx))
+pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    // Productions that themselves consult the reverse template index (directly
+    // or by re-entering `parse_clause`) propagate `anyhow::Result` — an
+    // ambiguous macro match is a hard generation error, not a decline; every
+    // other (Option-returning) production is lifted with `Ok`. First-match-wins
+    // across these DISTINCT productions is unchanged — only a same-kind macro
+    // tie inside the index is now an error.
+    if let Some(p) = parse_if(line, ctx)? {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_may(line, ctx)? {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_sequence(line, ctx)? {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_delayed_next_end_step(line, ctx)? {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_exile_target(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_return_that_card(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_deal_damage(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_draw(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_lose_life(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_gain_life(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_counter(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_put_counters(line, ctx)? {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_return_to_hand(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_tap_untap(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_destroy(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_sacrifice(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_attach(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_pump(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_create_predefined_token(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_create_token(line) {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_declarative_subject(line, ctx)? {
+        return Ok(Some(p));
+    }
+    if let Some(p) = parse_macro_effect(line, ctx)? {
+        return Ok(Some(p));
+    }
+    Ok(None)
 }
 
 /// The final effect-clause fallthrough: route the whole clause back to the
@@ -67,30 +118,31 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect>
 /// Nullary templates (`investigate`) route through the bare-emittable index;
 /// slot-bearing templates (`scry ${0}`) fill each `${i}` via the typed slot
 /// readers, mirroring the whole-line keyword-template parser.
-fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    let body = line.strip_suffix('.')?.trim();
-    // Nullary (param-less) action macro — `investigate`.
-    if let Some(m) = ctx.index.match_kind("OneShotEffect", body)
-        && m.consumed == body.len()
-    {
-        return Some(ParsedEffect {
+fn parse_macro_effect(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(body) = line.strip_suffix('.') else {
+        return Ok(None);
+    };
+    let body = body.trim();
+    // Nullary (param-less) action macro — `investigate`. Full-line consumption
+    // (and same-kind ambiguity) is now judged inside the matcher itself.
+    if let Some(m) = ctx.index.match_kind("OneShotEffect", body)? {
+        return Ok(Some(ParsedEffect {
             targets: Vec::new(),
             effect: m.macro_name.to_string(),
-        });
+        }));
     }
     // Slot-bearing action macro — `scry ${0}`, with each `${i}` slot read by
     // the typed reader.
     if let Some(m) = ctx
         .index
-        .match_with("OneShotEffect", body, macro_slot_reader)
-        && m.consumed == body.len()
+        .match_with("OneShotEffect", body, macro_slot_reader)?
     {
-        return Some(ParsedEffect {
+        return Ok(Some(ParsedEffect {
             targets: Vec::new(),
             effect: m.invocation,
-        });
+        }));
     }
-    None
+    Ok(None)
 }
 
 /// Read one `OneShotEffect`-macro template slot of declared type `ty` from the
@@ -141,17 +193,23 @@ fn self_reference(phrase: &str) -> Option<String> {
 /// anaphor `It` per element ([CR#608.2d]). The second-person "you" subject
 /// is NOT handled here — its verb phrase conjugates differently ("you
 /// mill", not "mills"), so it stays with the bespoke you-productions.
-fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    let body = line.strip_suffix('.')?;
-    let (subject, verb_phrase) = player_subject(body)?;
-    let m = ctx
+fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(body) = line.strip_suffix('.') else {
+        return Ok(None);
+    };
+    let Some((subject, verb_phrase)) = player_subject(body) else {
+        return Ok(None);
+    };
+    // Full-line consumption (and same-kind ambiguity) is judged inside the
+    // matcher itself.
+    let Some(m) = ctx
         .index
-        .match_with("PlayerAction", verb_phrase, player_verb_slot_reader)?;
-    if m.consumed != verb_phrase.len() {
-        return None;
-    }
+        .match_with("PlayerAction", verb_phrase, player_verb_slot_reader)?
+    else {
+        return Ok(None);
+    };
     let inv = m.invocation;
-    Some(match subject {
+    Ok(Some(match subject {
         PlayerSubject::Target(spec) => ParsedEffect {
             targets: vec![spec],
             effect: format!("By(It, {inv})"),
@@ -160,7 +218,7 @@ fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffec
             targets: Vec::new(),
             effect: format!("Each(binder: Existing(SelectAll({filter})), effect: By(It, {inv}))"),
         },
-    })
+    }))
 }
 
 /// A parsed player-subject phrase: a targeted player slot or a distributive
@@ -241,24 +299,30 @@ fn player_verb_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
 /// v1 declines when EITHER branch declares targets: the two clauses share no
 /// announce list here, so colliding `It` references can't be expressed —
 /// a later production with a hoisted shared `Targeted` wrapper will lift that.
-fn parse_if(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
+fn parse_if(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
     // The conditional sentence opens at ". If " (the base sentence ends, the
     // "If" clause begins). Split on the LAST such boundary so a base sentence
     // that itself contains "if" survives; in practice these are single-base
     // single-override lines, so the last boundary is the only one.
-    let (base, cond_sentence) = line.rsplit_once(". If ")?;
+    let Some((base, cond_sentence)) = line.rsplit_once(". If ") else {
+        return Ok(None);
+    };
     let base = format!("{base}.");
     // "<phrase>, <override>." — the condition phrase runs to the first comma,
     // the override clause follows.
-    let cond_sentence = cond_sentence.strip_suffix('.')?;
-    let (phrase, override_clause) = cond_sentence.split_once(", ")?;
-    // Route the phrase to its `Condition` macro; the match must consume the
-    // WHOLE phrase (no trailing junk). The macro NAME is the parsed condition.
+    let Some(cond_sentence) = cond_sentence.strip_suffix('.') else {
+        return Ok(None);
+    };
+    let Some((phrase, override_clause)) = cond_sentence.split_once(", ") else {
+        return Ok(None);
+    };
+    // Route the phrase to its `Condition` macro; full-line consumption (and
+    // same-kind ambiguity) is judged inside the matcher. The macro NAME is the
+    // parsed condition.
     let phrase = phrase.trim();
-    let m = ctx.index.match_kind("Condition", phrase)?;
-    if m.consumed != phrase.len() {
-        return None;
-    }
+    let Some(m) = ctx.index.match_kind("Condition", phrase)? else {
+        return Ok(None);
+    };
     let condition = m.macro_name.to_string();
 
     // "instead" may lead the override ("instead <override>") or trail it
@@ -270,19 +334,23 @@ fn parse_if(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
         .unwrap_or(override_body);
     let override_line = format!("{override_body}.");
 
-    let base_parsed = parse_clause(&base, ctx)?;
-    let then_parsed = parse_clause(&override_line, ctx)?;
+    let Some(base_parsed) = parse_clause(&base, ctx)? else {
+        return Ok(None);
+    };
+    let Some(then_parsed) = parse_clause(&override_line, ctx)? else {
+        return Ok(None);
+    };
     // v1: neither branch may declare targets (no shared announce list).
     if !base_parsed.targets.is_empty() || !then_parsed.targets.is_empty() {
-        return None;
+        return Ok(None);
     }
-    Some(ParsedEffect {
+    Ok(Some(ParsedEffect {
         targets: Vec::new(),
         effect: format!(
             "If(condition: {condition}, then: {}, otherwise: {})",
             then_parsed.effect, base_parsed.effect
         ),
-    })
+    }))
 }
 
 /// `you may <effect>` -> the inner effect wrapped in a `May` frame
@@ -292,13 +360,17 @@ fn parse_if(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
 /// Every inner production accepts a lowercase (mid-sentence) lead, so the
 /// stripped clause re-enters them directly. Case-insensitive lead ("You may"
 /// opens a trigger effect; "you may" follows a comma).
-fn parse_may(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    let inner = strip_prefix_ci(line, "you may ")?;
-    let parsed = parse_clause(inner, ctx)?;
-    Some(ParsedEffect {
+fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(inner) = strip_prefix_ci(line, "you may ") else {
+        return Ok(None);
+    };
+    let Some(parsed) = parse_clause(inner, ctx)? else {
+        return Ok(None);
+    };
+    Ok(Some(ParsedEffect {
         targets: parsed.targets,
         effect: format!("May(effect: {})", parsed.effect),
-    })
+    }))
 }
 
 /// `<subject> gets ±N/±N [and gain(s) <kw…>] until end of turn.` (and the
@@ -417,20 +489,25 @@ const MODIFY_MARKERS: [&str; 6] = [" gets ", " get ", " gains ", " gain ", " hav
 /// collide with the first's); later sentences read the announced slot or the
 /// products through the anaphors (`That(Card)`, …). Declines unless every
 /// sentence parses.
-fn parse_sequence(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    let sentences: Vec<&str> = split_sentences(line)?;
-    let parts: Vec<ParsedEffect> = sentences
-        .iter()
-        .map(|sentence| parse_clause(sentence, ctx))
-        .collect::<Option<_>>()?;
+fn parse_sequence(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(sentences) = split_sentences(line) else {
+        return Ok(None);
+    };
+    let mut parts: Vec<ParsedEffect> = Vec::with_capacity(sentences.len());
+    for sentence in &sentences {
+        let Some(parsed) = parse_clause(sentence, ctx)? else {
+            return Ok(None);
+        };
+        parts.push(parsed);
+    }
     if parts[1..].iter().any(|p| !p.targets.is_empty()) {
-        return None;
+        return Ok(None);
     }
     let effects: Vec<String> = parts.iter().map(|p| p.effect.clone()).collect();
-    Some(ParsedEffect {
+    Ok(Some(ParsedEffect {
         targets: parts[0].targets.clone(),
         effect: format!("Sequentially([{}])", effects.join(", ")),
-    })
+    }))
 }
 
 /// Splits a multi-sentence line into its ". "-separated sentences, each with
@@ -458,23 +535,33 @@ fn split_sentences(line: &str) -> Option<Vec<&str>> {
 /// resolution (fire-once is `OneShotEffect::Delayed`'s own semantics,
 /// [CR#603.7c]). The inner clause may not declare targets (a delayed body
 /// reads products, never the spell's slots — they are dropped, [CR#603.7c]).
-fn parse_delayed_next_end_step(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    let rest = strip_prefix_ci(line, "at the beginning of the next end step, ")?;
+fn parse_delayed_next_end_step(
+    line: &str,
+    ctx: &ResolveCtx,
+) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(rest) = strip_prefix_ci(line, "at the beginning of the next end step, ") else {
+        return Ok(None);
+    };
     let mut capitalized = String::with_capacity(rest.len());
     let mut chars = rest.chars();
-    capitalized.extend(chars.next()?.to_uppercase());
+    let Some(first) = chars.next() else {
+        return Ok(None);
+    };
+    capitalized.extend(first.to_uppercase());
     capitalized.push_str(chars.as_str());
-    let inner = parse_clause(&capitalized, ctx)?;
+    let Some(inner) = parse_clause(&capitalized, ctx)? else {
+        return Ok(None);
+    };
     if !inner.targets.is_empty() {
-        return None;
+        return Ok(None);
     }
-    Some(ParsedEffect {
+    Ok(Some(ParsedEffect {
         targets: Vec::new(),
         effect: format!(
             "Delayed(event: StepBegins(at: Ending(End), whose: EachPlayers), effect: {})",
             inner.effect
         ),
-    })
+    }))
 }
 
 /// `Exile target <subject>.` -> a targeted exile: `Move(It, Exile)`
@@ -669,12 +756,18 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
 /// The kind is macro-resolved (so `-1/-1` -> `M1M1Counter` for free); fixed
 /// counts only (a "for each"/`X`/"that many" count declines — a later scaled
 /// production). Case-insensitive lead (spell clause vs. trigger comma).
-fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
-    let body = strip_prefix_ci(line, "put ")?.strip_suffix('.')?;
+fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    let Some(body) = strip_prefix_ci(line, "put ").and_then(|b| b.strip_suffix('.')) else {
+        return Ok(None);
+    };
     // Split the counter clause from its destination at the LAST " on " (a
     // counter-kind phrase never contains " on ").
-    let (counter_clause, dest) = body.rsplit_once(" on ")?;
-    let (count, kind) = parse_counter_clause(counter_clause, ctx)?;
+    let Some((counter_clause, dest)) = body.rsplit_once(" on ") else {
+        return Ok(None);
+    };
+    let Some((count, kind)) = parse_counter_clause(counter_clause, ctx)? else {
+        return Ok(None);
+    };
     // Destination -> (selection, target declarations).
     let (selection, targets) = match dest {
         // Self placement: the resolving source ("it" — a trigger anaphor — or
@@ -682,15 +775,19 @@ fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
         "it" | "~" => ("This".to_owned(), Vec::new()),
         // Targeted placement: "target <subject>".
         _ => {
-            let subject = dest.strip_prefix("target ")?;
-            let filter = object_target_filter(subject)?;
+            let Some(subject) = dest.strip_prefix("target ") else {
+                return Ok(None);
+            };
+            let Some(filter) = object_target_filter(subject) else {
+                return Ok(None);
+            };
             ("It".to_owned(), vec![format!("TargetOne({filter})")])
         }
     };
-    Some(ParsedEffect {
+    Ok(Some(ParsedEffect {
         targets,
         effect: format!("PutCounters({selection}, {kind}, {count})"),
-    })
+    }))
 }
 
 /// `<count> <kind> counter[s]` (the clause before "on …") -> `(count RON, kind
@@ -700,24 +797,35 @@ fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> Option<ParsedEffect> {
 /// phrase resolves to. Declines a non-cardinal count (`X`, "that many") and an
 /// unmodeled counter kind. Shared with the enters-with-counters replacement
 /// production ([`crate::parsers::replacement`]).
-pub(super) fn parse_counter_clause(clause: &str, ctx: &ResolveCtx) -> Option<(u32, String)> {
-    let (count_word, rest) = clause.split_once(' ')?;
-    let count = number_word(count_word)?;
+pub(super) fn parse_counter_clause(
+    clause: &str,
+    ctx: &ResolveCtx,
+) -> anyhow::Result<Option<(u32, String)>> {
+    let Some((count_word, rest)) = clause.split_once(' ') else {
+        return Ok(None);
+    };
+    let Some(count) = number_word(count_word) else {
+        return Ok(None);
+    };
     // Re-singularize the counter-noun so the singular macro template ("+1/+1
     // counter") matches regardless of the count's plurality ("two +1/+1
     // counters").
     let phrase = rest.strip_suffix('s').unwrap_or(rest);
-    let kind = counter_kind(phrase, ctx)?;
-    Some((count, kind))
+    let Some(kind) = counter_kind(phrase, ctx)? else {
+        return Ok(None);
+    };
+    Ok(Some((count, kind)))
 }
 
 /// A counter-kind phrase ("+1/+1 counter", "-1/-1 counter") -> the macro NAME
 /// it resolves to (`P1P1Counter`, `M1M1Counter`), routed through the
-/// `Counter`-kind reverse index. The match must consume the WHOLE phrase (no
-/// trailing junk); an unmodeled kind declines.
-fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> Option<String> {
-    let m = ctx.index.match_kind("Counter", phrase)?;
-    (m.consumed == phrase.len()).then(|| m.macro_name.to_string())
+/// `Counter`-kind reverse index. Full-line consumption (and same-kind
+/// ambiguity) is judged inside the matcher; an unmodeled kind declines.
+fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    Ok(ctx
+        .index
+        .match_kind("Counter", phrase)?
+        .map(|m| m.macro_name.to_string()))
 }
 
 /// Return-to-hand productions ([CR#400.7], the bounce family):
@@ -1281,21 +1389,25 @@ mod tests {
     /// the BESPOKE productions in isolation.
     fn parsed(line: &str) -> Option<(String, String)> {
         let ctx = crate::parsers::test_ctx::ctx(CardKind::Permanent);
-        parse_clause(line, &ctx).map(|p| (p.targets.join(", "), p.effect))
+        parse_clause(line, &ctx)
+            .unwrap()
+            .map(|p| (p.targets.join(", "), p.effect))
     }
 
     /// `(targets, effect)` resolved against the REAL builtin macro index, so
     /// the `OneShotEffect`-kind macro-template fallthrough is exercised.
     fn parsed_with_macros(line: &str) -> Option<(String, String)> {
         let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
-        parse_clause(line, &ctx).map(|p| (p.targets.join(", "), p.effect))
+        parse_clause(line, &ctx)
+            .unwrap()
+            .map(|p| (p.targets.join(", "), p.effect))
     }
 
     /// Whether the clause declines under the EMPTY index (pins a bespoke
     /// production's non-match without the macro fallthrough shadowing it).
     fn declines(line: &str) -> bool {
         let ctx = crate::parsers::test_ctx::ctx(CardKind::Permanent);
-        parse_clause(line, &ctx).is_none()
+        parse_clause(line, &ctx).unwrap().is_none()
     }
 
     /// The declarative-subject production (ONE arm for the whole player-verb
@@ -2108,8 +2220,16 @@ mod tests {
     #[test]
     fn macro_effect_reference_slot_declines_target_subject() {
         let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
-        assert!(parse_clause("Regenerate target creature.", &ctx).is_none());
-        assert!(parse_clause("Regenerate enchanted creature.", &ctx).is_none());
+        assert!(
+            parse_clause("Regenerate target creature.", &ctx)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            parse_clause("Regenerate enchanted creature.", &ctx)
+                .unwrap()
+                .is_none()
+        );
     }
 
     /// The fallthrough requires the WHOLE clause to be the template — a clause
@@ -2118,9 +2238,9 @@ mod tests {
     fn macro_effect_declines_on_trailing_text() {
         let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
         // "investigate twice" is a repeated-action shape, not the bare template.
-        assert!(parse_clause("investigate twice.", &ctx).is_none());
+        assert!(parse_clause("investigate twice.", &ctx).unwrap().is_none());
         // An unknown action word still declines.
-        assert!(parse_clause("teleport.", &ctx).is_none());
+        assert!(parse_clause("teleport.", &ctx).unwrap().is_none());
     }
 
     /// The bespoke productions still LEAD: a line both a bespoke parser and a
@@ -2274,6 +2394,7 @@ mod tests {
             "Counter target spell. You gain 5 life.",
             &crate::parsers::test_ctx::ctx(crate::resolve::CardKind::Spell),
         )
+        .unwrap()
         .expect("both sentences are productions");
         assert_eq!(parsed.targets, vec!["TargetOne(Spell)".to_owned()]);
         assert_eq!(parsed.effect, "Sequentially([Counter(It), GainLife(5)])");

@@ -124,7 +124,7 @@ fn resolve_face(
     // so it can't go through the per-line registry: fold it first ([CR#700.2]),
     // collapsing the header + its bullet slots into one `Spell(Modal(...))`
     // before the per-line parsers see the now-orphaned bullet lines.
-    if crate::parsers::modal::fold_modal(face, &ctx) {
+    if crate::parsers::modal::fold_modal(face, &ctx)? {
         changed = true;
     }
     for ability in &mut face.abilities {

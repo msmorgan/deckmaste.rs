@@ -32,7 +32,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     // "… and only if …" extension is a state predicate this parser does not
     // yet structure, so it stays attached and the body parse declines below.
     let (effect_clause, limits) = peel_use_limit(effect_clause);
-    let Some(parsed) = effect::parse_clause(effect_clause, ctx) else {
+    let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
         return Ok(None);
     };
     Ok(Some(render(&cost, limits, &parsed)))

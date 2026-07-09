@@ -66,19 +66,36 @@ impl TemplateIndex {
     /// and how much of `input` it consumed. Defaulted-param macros (e.g.
     /// `Hexproof`) are skipped here — they need the `Name(...)` form, not a
     /// bare nullary invocation.
-    #[must_use]
-    pub fn match_kind(&self, kind: &str, input: &str) -> Option<Match> {
-        for pattern in self.by_kind.get(kind)? {
+    ///
+    /// Judges ambiguity on FULL matches only (`consumed == input.len()`): a
+    /// second full-consuming match from a distinct macro is a generation
+    /// error (`anyhow::bail!`) — nothing in the input picks between them —
+    /// rather than the old first-match-wins tie-break.
+    ///
+    /// # Errors
+    /// If two or more distinct macros of `kind` fully match `input`.
+    pub fn match_kind(&self, kind: &str, input: &str) -> anyhow::Result<Option<Match>> {
+        let mut hit: Option<Match> = None;
+        for pattern in self.by_kind.get(kind).into_iter().flatten() {
             if pattern.emits_bare()
                 && let Some(consumed) = match_nullary(pattern, input)
+                && consumed == input.len()
             {
-                return Some(Match {
+                let m = Match {
                     macro_name: pattern.macro_name,
                     consumed,
-                });
+                };
+                if let Some(prev) = &hit {
+                    anyhow::bail!(
+                        "ambiguous template match on {input:?}: `{}` and `{}`",
+                        prev.macro_name,
+                        m.macro_name
+                    );
+                }
+                hit = Some(m);
             }
         }
-        None
+        Ok(hit)
     }
 
     /// Match `input` against the SLOT-bearing patterns of `kind`, filling each
@@ -88,19 +105,41 @@ impl TemplateIndex {
     /// invocation. Nullary / defaulted-param patterns are not matched here (see
     /// [`Self::match_kind`]); a slot whose `slot_reader` declines fails the
     /// whole pattern.
-    pub fn match_with<F>(&self, kind: &str, input: &str, mut slot_reader: F) -> Option<SlotMatch>
+    ///
+    /// Judges ambiguity on FULL matches only (`consumed == input.len()`), same
+    /// as [`Self::match_kind`]: a second full-consuming match from a distinct
+    /// macro is a generation error, not a first-match-wins tie-break.
+    ///
+    /// # Errors
+    /// If two or more distinct macros of `kind` fully match `input`.
+    pub fn match_with<F>(
+        &self,
+        kind: &str,
+        input: &str,
+        mut slot_reader: F,
+    ) -> anyhow::Result<Option<SlotMatch>>
     where
         F: FnMut(&str, &str) -> Option<(String, usize)>,
     {
-        for pattern in self.by_kind.get(kind)? {
+        let mut hit: Option<SlotMatch> = None;
+        for pattern in self.by_kind.get(kind).into_iter().flatten() {
             if pattern.is_nullary() {
                 continue;
             }
-            if let Some(m) = fill_pattern(pattern, input, &mut slot_reader) {
-                return Some(m);
+            if let Some(m) = fill_pattern(pattern, input, &mut slot_reader)
+                && m.consumed == input.len()
+            {
+                if let Some(prev) = &hit {
+                    anyhow::bail!(
+                        "ambiguous template match on {input:?}: `{}` and `{}`",
+                        prev.invocation,
+                        m.invocation
+                    );
+                }
+                hit = Some(m);
             }
         }
-        None
+        Ok(hit)
     }
 }
 
@@ -301,6 +340,7 @@ mod tests {
     fn matches_nullary_keyword() {
         let m = builtin()
             .match_kind("KeywordAbility", "flying")
+            .unwrap()
             .expect("flying matches");
         assert_eq!(m.macro_name.as_str(), "Flying");
         assert_eq!(m.consumed, "flying".len());
@@ -310,13 +350,19 @@ mod tests {
     fn matches_any_target_targetspec() {
         let m = builtin()
             .match_kind("TargetSpec", "any target")
+            .unwrap()
             .expect("any target matches");
         assert_eq!(m.macro_name.as_str(), "AnyTarget");
     }
 
     #[test]
     fn unknown_text_does_not_match() {
-        assert!(builtin().match_kind("KeywordAbility", "blinking").is_none());
+        assert!(
+            builtin()
+                .match_kind("KeywordAbility", "blinking")
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -326,6 +372,7 @@ mod tests {
         assert!(
             builtin()
                 .match_kind("KeywordAbility", "flashback {2}")
+                .unwrap()
                 .is_none()
         );
     }
@@ -339,6 +386,7 @@ mod tests {
                 assert_eq!(ty, "Predicate");
                 Some((format!("ColorIs({})", rest.trim()), rest.len()))
             })
+            .unwrap()
             .expect("protection from <x> matches");
         assert_eq!(m.invocation, "Protection(ColorIs(black))");
         assert_eq!(m.consumed, "protection from black".len());
@@ -352,14 +400,68 @@ mod tests {
                 assert_eq!(ty, "Predicate");
                 Some((format!("ColorIs({})", rest.trim()), rest.len()))
             })
+            .unwrap()
             .expect("hexproof from <x> matches");
         assert_eq!(present.invocation, "Hexproof(from: ColorIs(blue))");
         assert_eq!(present.consumed, "hexproof from blue".len());
 
         let absent = idx
             .match_with("KeywordAbility", "hexproof", |_, _| None)
+            .unwrap()
             .expect("bare hexproof matches");
         assert_eq!(absent.invocation, "Hexproof()");
         assert_eq!(absent.consumed, "hexproof".len());
+    }
+
+    /// A slot reader for a bare leading run of ASCII digits, standing in for
+    /// the typed `Count` reader in the ambiguity fixture below.
+    fn count_reader(ty: &str, rest: &str) -> Option<(String, usize)> {
+        assert_eq!(ty, "Count");
+        let n = rest
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(rest.len());
+        (n > 0).then(|| (rest[..n].to_owned(), n))
+    }
+
+    /// Two `Modification` macros registering the IDENTICAL template ("gets
+    /// +${0}/+${1}") are a generation error, not a silent first-match-wins —
+    /// nothing in the input disambiguates which macro the card meant.
+    #[test]
+    fn ambiguous_templates_error() {
+        let mut set = crate::macros::macro_set();
+        let boost = |name: &str, body: &str| -> macro_ron::MacroDef {
+            deckmaste_core::ron::options()
+                .from_str(&format!(
+                    r#"(
+                        name: "{name}",
+                        template: "gets +${{0}}/+${{1}}",
+                        kinds: [Modification],
+                        params: [Count, Count],
+                        body: {body},
+                    )"#
+                ))
+                .unwrap()
+        };
+        set.insert(&boost(
+            "BoostA",
+            "PowerAndToughness(Up(Param(0)), Up(Param(1)))",
+        ))
+        .unwrap();
+        set.insert(&boost(
+            "BoostB",
+            "PowerAndToughness(Up(Param(1)), Up(Param(0)))",
+        ))
+        .unwrap();
+        let idx = TemplateIndex::build(&set);
+        let err = idx
+            .match_with("Modification", "gets +2/+2", count_reader)
+            .unwrap_err();
+        assert!(err.to_string().contains("ambiguous"), "{err}");
+    }
+
+    #[test]
+    fn unambiguous_still_matches() {
+        let m = builtin().match_kind("KeywordAbility", "flying").unwrap();
+        assert!(m.is_some());
     }
 }
