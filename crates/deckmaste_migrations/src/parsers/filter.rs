@@ -119,6 +119,38 @@ pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
     Some(combine(atoms))
 }
 
+/// A damage-event RECIPIENT phrase ("a player", "an opponent", "you", "a
+/// player or planeswalker") → a `Predicate` RON string, or `None`. The
+/// restricted "any target" family a combat/noncombat damage event's `to:`
+/// draws from ([CR#115.4]: player, planeswalker, battle, or creature) plus
+/// the player-identity pronouns ("you", "an opponent") [`parse_phrase`]'s
+/// noun-phrase grammar doesn't model (no article, no head noun — a
+/// relational/self reference instead). An "X or Y" disjunction (Lava
+/// Spike's "a player or planeswalker") recurses on each half and wraps the
+/// pair in `Or([...])`, mirroring the hardcoded `Or([Player, Planeswalker])`
+/// spelling `effect::damage_target`'s "target player or planeswalker" arm
+/// already emits. Anything else (a bare object description like "a
+/// creature", "a planeswalker") falls through to [`parse_phrase`].
+pub(crate) fn recipient_phrase(phrase: &str) -> Option<String> {
+    let phrase = phrase.trim();
+    if let Some((a, b)) = phrase.split_once(" or ") {
+        return Some(format!(
+            "Or([{}, {}])",
+            recipient_phrase(a)?,
+            recipient_phrase(b)?
+        ));
+    }
+    match phrase {
+        "a player" => Some("Player".to_owned()),
+        "you" => Some("Ref(You)".to_owned()),
+        // "an opponent" ([CR#102.2]) / "one of your opponents" — the same
+        // recipient predicate either way, matching `effect::damage_target`'s
+        // "each opponent"/"target opponent" spelling.
+        "an opponent" | "one of your opponents" => Some("OpponentOf(Ref(You))".to_owned()),
+        _ => parse_phrase(phrase),
+    }
+}
+
 /// Whether `word` is a known catalog subtype (any case-sensitive catalog
 /// entry). The dual-land subtype-disjunction grammar
 /// ([`crate::parsers::replacement`]) gates on this so "a Swamp or a Mountain"

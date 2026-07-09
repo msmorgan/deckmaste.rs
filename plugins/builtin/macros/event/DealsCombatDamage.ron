@@ -1,0 +1,14 @@
+// "DealsCombatDamage" = combat damage is dealt to a recipient ([CR#510.2] —
+// "all combat damage that's been assigned is dealt simultaneously"; the
+// triggering abilities this event backs go on the stack afterward
+// [CR#510.3a]). The recipient is the kind-poly damage patient ([CR#510.1b]
+// a player/planeswalker/battle when unblocked, [CR#510.1c] a blocking
+// creature when blocked). Mirrors event/Attacks + event/Dies. Usage:
+// DealsCombatDamage(source, to) — e.g. DealsCombatDamage(Ref(This), Player).
+(
+    name: "DealsCombatDamage",
+    template: "${0} deals combat damage to ${1}",
+    kinds: [EventFilter],
+    params: [Predicate, Predicate],
+    body: Damage(source: Param(0), to: Param(1), combat: true),
+)

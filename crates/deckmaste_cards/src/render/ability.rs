@@ -11,11 +11,13 @@ use deckmaste_core::EventFilter;
 use deckmaste_core::IgnoreRule;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
+use deckmaste_core::ObjectKind;
 use deckmaste_core::PayAct;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
+use deckmaste_core::RelationPredicate;
 use deckmaste_core::StateChange;
 use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
@@ -323,6 +325,24 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
             by: Predicate::Ref(Reference::You),
             won: Some(true),
         } => ("Whenever", "you win a coin flip".to_string()),
+        // Combat damage dealt ([CR#510.2]) to a recipient — the
+        // `DealsCombatDamage` macro's expansion. Only the `combat: true`
+        // narrowing is recognized here (noncombat damage has no oracle
+        // "deals combat damage" phrasing); `amount` isn't printed by this
+        // family (no card in this corpus narrows it).
+        EventFilter::Damage {
+            source,
+            to,
+            combat: Some(true),
+            amount: None,
+        } => (
+            "Whenever",
+            format!(
+                "{} deals combat damage to {}",
+                subject_of(source, ctx),
+                recipient_of(to, ctx)
+            ),
+        ),
         other => ("When", format!("[unrendered: {other:?}]")),
     }
 }
@@ -395,6 +415,46 @@ fn subject_of(f: &Predicate, ctx: &Ctx) -> String {
         return format!("a {}", super::card::type_str(t).to_lowercase());
     }
     format!("[unrendered: {f:?}]")
+}
+
+/// The recipient phrase for a [`EventFilter::Damage`]'s `to` coordinate: the
+/// restricted "any target" family a combat-damage recipient draws from
+/// ([CR#115.4]: player, planeswalker, battle, creature) plus the
+/// player-identity forms (`you`, `an opponent`) [`subject_of`] doesn't reach —
+/// the render-direction mirror of the migration parser's
+/// `filter::recipient_phrase`. An `Or([...])` disjunction (Lava Spike's "a
+/// player or planeswalker") joins its members with "or"; anything else falls
+/// back to [`subject_of`]'s bare object-type reading ("a creature").
+fn recipient_of(f: &Predicate, ctx: &Ctx) -> String {
+    match super::fragment::strip_expanded(f) {
+        Predicate::Kind(ObjectKind::Player) => "a player".to_string(),
+        Predicate::Ref(Reference::You) => "you".to_string(),
+        Predicate::Relation(RelationPredicate::OpponentOf(inner))
+            if matches!(
+                super::fragment::strip_expanded(inner),
+                Predicate::Ref(Reference::You)
+            ) =>
+        {
+            "an opponent".to_string()
+        }
+        // "a player or planeswalker" / "a player or battle" ([CR#115.4]): the
+        // article rides once, on the first member — every printed disjunction
+        // in this corpus leads with "a player", so only that member keeps its
+        // "a "/"an " prefix; later members print as the bare noun.
+        Predicate::Or(members) => {
+            let mut parts = members.iter().map(|m| recipient_of(m, ctx));
+            let head = parts.next().unwrap_or_default();
+            std::iter::once(head)
+                .chain(parts.map(|p| {
+                    p.strip_prefix("a ")
+                        .or_else(|| p.strip_prefix("an "))
+                        .map_or(p.clone(), str::to_string)
+                }))
+                .collect::<Vec<_>>()
+                .join(" or ")
+        }
+        other => subject_of(other, ctx),
+    }
 }
 
 fn state_word(s: &StateChange) -> &'static str {
@@ -1071,5 +1131,72 @@ mod tests {
             PayAct::ExileToPay(Predicate::State(StatePredicate::InZone(Zone::Graveyard))),
         );
         assert_eq!(static_effect(&delve, &ctx).as_deref(), Some("Delve"));
+    }
+
+    /// `EventFilter::Damage { combat: Some(true), .. }` — the
+    /// `DealsCombatDamage` macro's expansion — renders back to oracle
+    /// "deals combat damage to <recipient>" text, over the recipient forms
+    /// [`recipient_of`] models: the dominant "a player", a bare object type
+    /// ("a creature"), the player-identity "an opponent", and an `Or([...])`
+    /// disjunction ("a player or planeswalker", [CR#115.4]).
+    #[test]
+    fn damage_combat_event_clause_renders_recipients() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let this = || Predicate::Ref(Reference::This);
+        let event = |to| EventFilter::Damage {
+            source: this(),
+            to,
+            combat: Some(true),
+            amount: None,
+        };
+
+        assert_eq!(
+            event_clause(&event(Predicate::Kind(ObjectKind::Player)), &ctx),
+            (
+                "Whenever",
+                "Test deals combat damage to a player".to_string()
+            )
+        );
+        assert_eq!(
+            event_clause(
+                &event(Predicate::Characteristic(CharacteristicPredicate::Type(
+                    Type::Creature
+                ))),
+                &ctx
+            ),
+            (
+                "Whenever",
+                "Test deals combat damage to a creature".to_string()
+            )
+        );
+        assert_eq!(
+            event_clause(
+                &event(Predicate::Relation(RelationPredicate::OpponentOf(
+                    Box::new(Predicate::Ref(Reference::You))
+                ))),
+                &ctx
+            ),
+            (
+                "Whenever",
+                "Test deals combat damage to an opponent".to_string()
+            )
+        );
+        assert_eq!(
+            event_clause(
+                &event(Predicate::Or(vec![
+                    Predicate::Kind(ObjectKind::Player),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Planeswalker)),
+                ])),
+                &ctx
+            ),
+            (
+                "Whenever",
+                "Test deals combat damage to a player or planeswalker".to_string()
+            )
+        );
     }
 }

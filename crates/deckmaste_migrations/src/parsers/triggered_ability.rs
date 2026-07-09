@@ -139,6 +139,28 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
     if let Some(event) = parse_cast_event(clause) {
         return Some(event);
     }
+    // Combat-damage trigger: "<subject> deals combat damage to <recipient>" —
+    // combat damage dealt ([CR#510.2]) to a recipient, the `DealsCombatDamage`
+    // event macro. Its own mid-clause verb phrase (matched by
+    // `split_once`, not a suffix), so it can't be shadowed by the generic
+    // enters/dies/attacks suffix matcher below. Two-slot event (source +
+    // recipient) — unlike those single-slot events, `~` fills only the
+    // SOURCE slot with `Ref(This)`, not a nullary `This<Verb>` shorthand
+    // (there is no single verb-only macro shape with two slots). The
+    // recipient is parsed by [`filter::recipient_phrase`] (player/opponent/
+    // you forms `parse_phrase` doesn't reach); either side declining
+    // declines the whole clause.
+    if let Some((subject, recipient)) = clause.split_once(" deals combat damage to ") {
+        let source = if subject == "~" {
+            "Ref(This)".to_owned()
+        } else {
+            filter::parse_phrase(subject)?
+        };
+        return Some(format!(
+            "DealsCombatDamage({source}, {})",
+            filter::recipient_phrase(recipient)?
+        ));
+    }
     // Becomes-target trigger: "<subject> becomes the target of a spell or
     // ability" — the `BecomesTarget` event ([CR#601.2c] announce-time; ward is
     // the family exemplar). "a spell or ability" carries no controller
@@ -640,6 +662,62 @@ mod tests {
         assert!(
             trig("When ~ becomes the target of a spell or ability an opponent controls, sacrifice it.")
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn combat_damage_self_to_player() {
+        // Poisonous/Renown/Ingest's shared trigger clause
+        // [CR#702.70a,702.112a,702.115a]: "~ deals combat damage to a
+        // player" — the dominant recipient form (625 corpus cards).
+        assert_eq!(
+            trig_builtin("Whenever ~ deals combat damage to a player, draw a card.").as_deref(),
+            Some("Triggered(event: DealsCombatDamage(Ref(This), Player), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn combat_damage_filtered_subject() {
+        // Non-`~` subject: the source is parsed by the shared filter grammar,
+        // same as the enters/dies/attacks events.
+        assert_eq!(
+            trig_builtin(
+                "Whenever a creature you control deals combat damage to a player, you gain 1 life."
+            )
+            .as_deref(),
+            Some(
+                "Triggered(event: DealsCombatDamage(And([Creature, ControlledBy(Ref(You))]), \
+                 Player), effect: GainLife(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn combat_damage_alternate_recipients() {
+        // "a creature" — the recipient falls through to `filter::parse_phrase`.
+        assert_eq!(
+            trig_builtin("Whenever ~ deals combat damage to a creature, draw a card.").as_deref(),
+            Some("Triggered(event: DealsCombatDamage(Ref(This), Creature), effect: Draw(1))")
+        );
+        // "an opponent" — the player-identity form `recipient_phrase` adds.
+        assert_eq!(
+            trig_builtin("Whenever ~ deals combat damage to an opponent, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: DealsCombatDamage(Ref(This), OpponentOf(Ref(You))), \
+                 effect: Draw(1))"
+            )
+        );
+        // "a player or planeswalker" (Lava Spike's restricted-any-target
+        // shape, [CR#115.4]) — an "X or Y" disjunction over two recipients.
+        assert_eq!(
+            trig_builtin(
+                "Whenever ~ deals combat damage to a player or planeswalker, draw a card."
+            )
+            .as_deref(),
+            Some(
+                "Triggered(event: DealsCombatDamage(Ref(This), Or([Player, Planeswalker])), \
+                 effect: Draw(1))"
+            )
         );
     }
 }
