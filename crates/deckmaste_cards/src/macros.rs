@@ -77,6 +77,11 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::Condition>("Condition");
     param_types.add_typed::<dc::CostComponent>("CostComponent");
     param_types.add_typed::<dc::Count>("Count");
+    // The enters-with-counters macro's counter-kind argument
+    // (`EntersWithCounters(P1P1Counter, 1)`) — a bare `CounterRef` ident, not a
+    // `Counter`-kind macro invocation (`Counter` is decl-only/name-erasing;
+    // nothing at a card position reads it — see `kinds()`'s doc comment).
+    param_types.add_typed::<dc::CounterRef>("CounterRef");
     param_types.add_typed::<dc::Destination>("Destination");
     param_types.add_typed::<dc::OneShotEffect>("OneShotEffect");
     param_types.add_typed::<dc::EventFilter>("EventFilter");

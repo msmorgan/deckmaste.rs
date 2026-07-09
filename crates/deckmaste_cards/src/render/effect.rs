@@ -1165,7 +1165,7 @@ fn enter_rider_phrase(riders: &[EnterRider], ctx: &Ctx) -> String {
 /// (Undying/Persist's pip family) print their `+N/+N` symbol, exactly like
 /// the card frame does; any other named kind ("a lore counter") uses the
 /// plain word, same as `fragment`'s `counter_noun`.
-fn counter_phrase(kind: &deckmaste_core::CounterRef, count: &Count) -> String {
+pub(super) fn counter_phrase(kind: &deckmaste_core::CounterRef, count: &Count) -> String {
     let symbol = match kind.as_str() {
         "P1P1Counter" => "+1/+1".to_string(),
         "M1M1Counter" => "-1/-1".to_string(),

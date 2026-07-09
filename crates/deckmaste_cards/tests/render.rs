@@ -18,6 +18,10 @@ fn canon_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon")
 }
 
+fn builtin_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")
+}
+
 fn face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
     match plugin.card(name).unwrap() {
@@ -1048,5 +1052,98 @@ fn renders_trigger_with_turnof_intervening_if() {
     assert_eq!(
         render_card_face(&face).rules,
         vec!["Whenever a creature dies, if it's an opponent's turn, draw a card.".to_string()]
+    );
+}
+
+/// The `EntersWithCounters` macro ([CR#122.6a]) — an `Ability`-kind macro
+/// invocation (`plugins/builtin/macros/replacement/EntersWithCounters.ron`)
+/// parsed through the REAL builtin plugin, so this exercises both the
+/// `Ability::Expanded` render-peeling ([`deckmaste_cards::render`]'s
+/// `rules()`, which previously dropped an `Ability`-kind macro invocation
+/// silently — no prior card exercised that path) and the dedicated
+/// `Replacement::Also` render arm that prints the idiomatic "~ enters with
+/// ... on it." form (singular "a +1/+1 counter", plural "two +1/+1
+/// counters") rather than the generic "As ~ enters, put ... on it."
+/// fallback.
+#[test]
+fn renders_enters_with_counters_p1p1_singular_and_plural() {
+    use deckmaste_cards::plugin::Plugin;
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Type;
+
+    let plugin = Plugin::load(builtin_path()).unwrap();
+
+    let one: Ability = plugin
+        .macros
+        .read_str("EntersWithCounters(P1P1Counter, 1)")
+        .unwrap();
+    let face_one = CardFace {
+        name: "Test Permanent".into(),
+        types: vec![Type::Artifact],
+        abilities: vec![one],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face_one).rules,
+        vec!["Test Permanent enters with a +1/+1 counter on it.".to_string()]
+    );
+
+    let two: Ability = plugin
+        .macros
+        .read_str("EntersWithCounters(P1P1Counter, 2)")
+        .unwrap();
+    let face_two = CardFace {
+        name: "Test Permanent".into(),
+        types: vec![Type::Artifact],
+        abilities: vec![two],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face_two).rules,
+        vec!["Test Permanent enters with two +1/+1 counters on it.".to_string()]
+    );
+}
+
+/// A named (non-pip) counter kind — the shield-counter shape ([CR#122.1c]) —
+/// renders through the same `counter_phrase` noun derivation
+/// (`ShieldCounter` -> "shield") as the pip kinds above.
+#[test]
+fn renders_enters_with_counters_named_kind() {
+    use deckmaste_cards::plugin::Plugin;
+    use deckmaste_core::Ability;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Type;
+
+    let plugin = Plugin::load(builtin_path()).unwrap();
+
+    let shield: Ability = plugin
+        .macros
+        .read_str("EntersWithCounters(ShieldCounter, 1)")
+        .unwrap();
+    let face = CardFace {
+        name: "Test Permanent".into(),
+        types: vec![Type::Artifact],
+        abilities: vec![shield],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["Test Permanent enters with a shield counter on it.".to_string()]
+    );
+
+    let charge: Ability = plugin
+        .macros
+        .read_str("EntersWithCounters(ChargeCounter, 3)")
+        .unwrap();
+    let face3 = CardFace {
+        name: "Test Permanent".into(),
+        types: vec![Type::Artifact],
+        abilities: vec![charge],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face3).rules,
+        vec!["Test Permanent enters with three charge counters on it.".to_string()]
     );
 }

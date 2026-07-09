@@ -100,7 +100,7 @@ fn rules(view: &CardView) -> Vec<String> {
     let mut body: Vec<String> = Vec::new();
     let mut idx = 0;
     while idx < view.abilities.len() {
-        let ability = &view.abilities[idx];
+        let ability = peel_expanded(&view.abilities[idx]);
         // An adjacent can't-attack + can't-block pair, each its OWN
         // `Ability::Static` (one effect per `Static` now), over the same
         // subject prints as the single oracle clause "… can't attack or
@@ -215,6 +215,28 @@ fn rules(view: &CardView) -> Vec<String> {
     }
     out.extend(body);
     out
+}
+
+/// Peel a macro-remembered `Ability::Expanded` (`EntersWithCounters(...)`, any
+/// other `Ability`-kind macro invocation) down to the concrete value it
+/// expanded to, so the per-ability dispatch below sees the same shape a
+/// hand-written RON ability would — mirrors every other `Expanded` arm in this
+/// renderer (`Replacement::Expanded`, `Condition::Expanded`,
+/// `Selection::Expanded`, …), which peel structurally rather than trying to
+/// re-derive the rendering from the macro's own `template:` metadata.
+///
+/// This peels ONLY `Expanded`, so it reaches a macro whose expansion is a
+/// directly-dispatched arm (`EntersWithCounters` → `Ability::Static`). It does
+/// NOT peel `Ability::Innate`: a macro like `Chapter(...)` expands to
+/// `Innate(Triggered(...))`, which has no arm in `rules()` and so still falls
+/// through the silent `_ => {}` catch-all. Rendering it as a bare triggered
+/// ability would drop the Saga chapter framing, so faithful Chapter/Saga
+/// rendering stays a separate task — no canon card invokes `Chapter` today.
+fn peel_expanded(ability: &Ability) -> &Ability {
+    match ability {
+        Ability::Expanded(exp) => peel_expanded(&exp.value),
+        other => other,
+    }
 }
 
 /// Prefix a rendered ability line with its printed ability word

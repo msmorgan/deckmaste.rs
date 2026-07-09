@@ -1,0 +1,25 @@
+// "EntersWithCounters" — the enters-with-counters self-replacement
+// ([CR#122.6a]: "If an object enters the battlefield with counters on it,
+// the effect causing the object to be given counters may specify which
+// player puts those counters on it..."; [CR#614.1c,614.12] — a replacement
+// applied as the permanent's own entry): "~ enters with a +1/+1 counter on
+// it." / "~ enters with three charge counters on it." Unlike `AsEnters`
+// (whose `also:` argument is a full effect a card author supplies), this
+// macro is kind `Ability` rather than `Replacement` — it fills the WHOLE
+// ability slot itself (mirrors `Chapter`'s shape), so the parser can emit the
+// bare invocation `EntersWithCounters(P1P1Counter, 1)` and have it round-trip
+// through its own render arm, exactly like the `DealsDamageToEach` mass-burn
+// macro. `Param(0)`/`Param(1)` splice into `PutCounters`, a CORE primitive
+// slot — never into another macro's argument.
+//
+// Usage: EntersWithCounters(P1P1Counter, 1) / EntersWithCounters(ShieldCounter,
+// 1) / EntersWithCounters(ChargeCounter, 3).
+(
+    name: "EntersWithCounters",
+    kinds: [Ability],
+    params: [CounterRef, Count],
+    body: Static(Replacement(Also(
+        would: ThisEnters,
+        also: PutCounters(This, Param(0), Param(1)),
+    ))),
+)

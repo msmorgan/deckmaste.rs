@@ -11,6 +11,12 @@
 //!   ([CR#614.1a]): `Replacement(Instead(would: <event>, instead: <effect>))`.
 //!   The event clause shares [`triggered_ability::parse_event`]; the effect
 //!   shares [`effect`].
+//! * **"~ enters with [a|N] <kind> counter(s) on it."** (also "enters the
+//!   battlefield with ...") — the enters-with-counters self-replacement
+//!   ([CR#122.6a,614.1c]): the `EntersWithCounters(<kind>, <count>)` macro
+//!   invocation, which expands to `Static(Replacement(Also(would: ThisEnters,
+//!   also: PutCounters(This, <kind>, <count>))))`. A dynamic (`X`) count or an
+//!   unmodeled counter kind declines.
 //!
 //! `~ enters tapped.` (the bare self case) is already structured by the
 //! mana-ability parser; this module declines it so the two never both match.
@@ -52,26 +58,30 @@ fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     Ok(None)
 }
 
-/// `~ enters with <count> <kind> counter[s] on it.` -> an enters-with-counters
-/// self-replacement ([CR#122.6a,614.1c]): `Replacement(AsEnters(PutCounters(
-/// This, <kind>, <count>)))`. The engine folds an `AsEnters(PutCounters(This,
-/// …))` into the permanent's entry, placing the counters atomically at mint
-/// before the `ZoneChanged` fact. The counter kind + fixed count are parsed by
-/// the shared [`effect::parse_counter_clause`] (so `-1/-1` -> `M1M1Counter` for
-/// free); a "for each"/`X` count or an unmodeled kind declines there.
+/// `~ enters with <count> <kind> counter[s] on it.` (and the older "enters
+/// the battlefield with ..." wording) -> the `EntersWithCounters` macro
+/// invocation ([CR#122.6a,614.1c]): `EntersWithCounters(<kind>, <count>)`,
+/// which itself expands to `Static(Replacement(Also(would: ThisEnters, also:
+/// PutCounters(This, <kind>, <count>))))` — the engine folds that `Also` into
+/// the permanent's entry, placing the counters atomically at mint before the
+/// `ZoneChanged` fact. Emitting the macro invocation (rather than inlining the
+/// expansion here) is what lets this shape render back through its own
+/// dedicated render arm — mirrors the `DealsDamageToEach` mass-burn family's
+/// pattern. The counter kind + fixed count are parsed by the shared
+/// [`effect::parse_counter_clause`] (so `-1/-1` -> `M1M1Counter` for free); a
+/// "for each"/`X` count or an unmodeled kind declines there.
 fn parse_enters_with_counters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    let Some(clause) = line
+    let clause = line
         .strip_prefix("~ enters with ")
-        .and_then(|c| c.strip_suffix(" on it."))
-    else {
+        .or_else(|| line.strip_prefix("~ enters the battlefield with "))
+        .and_then(|c| c.strip_suffix(" on it."));
+    let Some(clause) = clause else {
         return Ok(None);
     };
     let Some((count, kind)) = effect::parse_counter_clause(clause, ctx)? else {
         return Ok(None);
     };
-    Ok(Some(format!(
-        "Static(Replacement(AsEnters(PutCounters(This, {kind}, {count}))))"
-    )))
+    Ok(Some(format!("EntersWithCounters({kind}, {count})")))
 }
 
 /// "As <subject> enters, <effect>." → `Replacement(AsEnters(<effect>))`. Only
@@ -360,24 +370,58 @@ mod tests {
 
     #[test]
     fn enters_with_counters_fixed_counts() {
-        // "~ enters with a +1/+1 counter on it." -> an AsEnters self-replacement
-        // that places one P1P1Counter at entry ([CR#122.6a,614.1c]).
+        // "~ enters with a +1/+1 counter on it." -> the `EntersWithCounters`
+        // macro invocation ([CR#122.6a,614.1c]), placing one P1P1Counter at
+        // entry.
         assert_eq!(
             rep_with_macros("~ enters with a +1/+1 counter on it.").as_deref(),
-            Some("Static(Replacement(AsEnters(PutCounters(This, P1P1Counter, 1))))")
+            Some("EntersWithCounters(P1P1Counter, 1)")
         );
         assert_eq!(
             rep_with_macros("~ enters with two +1/+1 counters on it.").as_deref(),
-            Some("Static(Replacement(AsEnters(PutCounters(This, P1P1Counter, 2))))")
+            Some("EntersWithCounters(P1P1Counter, 2)")
         );
         assert_eq!(
             rep_with_macros("~ enters with three +1/+1 counters on it.").as_deref(),
-            Some("Static(Replacement(AsEnters(PutCounters(This, P1P1Counter, 3))))")
+            Some("EntersWithCounters(P1P1Counter, 3)")
+        );
+        assert_eq!(
+            rep_with_macros("~ enters with four +1/+1 counters on it.").as_deref(),
+            Some("EntersWithCounters(P1P1Counter, 4)")
         );
         // "-1/-1 counters" generalizes to M1M1Counter for free.
         assert_eq!(
             rep_with_macros("~ enters with two -1/-1 counters on it.").as_deref(),
-            Some("Static(Replacement(AsEnters(PutCounters(This, M1M1Counter, 2))))")
+            Some("EntersWithCounters(M1M1Counter, 2)")
+        );
+    }
+
+    #[test]
+    fn enters_with_counters_named_kinds() {
+        // Named (non-pip) counter kinds resolve through the same `Counter`
+        // reverse index ([CR#122.1c] shield; [CR#721.2a] charge).
+        assert_eq!(
+            rep_with_macros("~ enters with a shield counter on it.").as_deref(),
+            Some("EntersWithCounters(ShieldCounter, 1)")
+        );
+        assert_eq!(
+            rep_with_macros("~ enters with three charge counters on it.").as_deref(),
+            Some("EntersWithCounters(ChargeCounter, 3)")
+        );
+        assert_eq!(
+            rep_with_macros("~ enters with two oil counters on it.").as_deref(),
+            Some("EntersWithCounters(OilCounter, 2)")
+        );
+    }
+
+    #[test]
+    fn enters_with_counters_tolerates_battlefield_wording() {
+        // The older "enters the battlefield with ..." phrasing is the same
+        // shape as "~ enters with ..." — strip the extra " the battlefield".
+        assert_eq!(
+            rep_with_macros("~ enters the battlefield with three charge counters on it.")
+                .as_deref(),
+            Some("EntersWithCounters(ChargeCounter, 3)")
         );
     }
 

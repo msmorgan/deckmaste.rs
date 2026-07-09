@@ -1,6 +1,8 @@
 //! Replacement effects as sentences.
 
 use deckmaste_core::Action;
+use deckmaste_core::Count;
+use deckmaste_core::CounterRef;
 use deckmaste_core::EventFilter;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
@@ -21,6 +23,19 @@ pub(super) fn replacement(r: &Replacement, ctx: &Ctx) -> String {
             // oracle form: "~ enters tapped."
             if is_this_enters(would) && is_tap_this(also) {
                 return format!("{} enters tapped.", ctx.subject);
+            }
+            // "~ enters with a +1/+1 counter on it." ([CR#122.6a] — the
+            // `EntersWithCounters` macro's expansion) — printed in its
+            // idiomatic oracle form rather than the generic "As ~ enters, put
+            // ... on it." fallback below.
+            if is_this_enters(would)
+                && let Some((kind, count)) = put_counters_on_this(also)
+            {
+                return format!(
+                    "{} enters with {} on it.",
+                    ctx.subject,
+                    effect::counter_phrase(kind, count)
+                );
             }
             // "As <subject> enters, <also>." — the also-effect refers to the host as "it".
             let (_lead, when) = ability::event_clause(would, ctx);
@@ -75,5 +90,18 @@ fn is_tap_this(e: &OneShotEffect) -> bool {
         OneShotEffect::Expanded(exp) => is_tap_this(&exp.value),
         OneShotEffect::Act(Action::By(_, PlayerAction::Tap(Reference::This))) => true,
         _ => false,
+    }
+}
+
+/// A lone "put N of `<kind>` on this" rider body — the enters-with-counters
+/// self-replacement's `also` clause ([CR#122.6a]).
+fn put_counters_on_this(e: &OneShotEffect) -> Option<(&CounterRef, &Count)> {
+    match e {
+        OneShotEffect::Expanded(exp) => put_counters_on_this(&exp.value),
+        OneShotEffect::Act(Action::By(
+            _,
+            PlayerAction::PutCounters(Reference::This, kind, count),
+        )) => Some((kind, count)),
+        _ => None,
     }
 }
