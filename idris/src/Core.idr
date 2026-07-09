@@ -1349,10 +1349,20 @@ mutual
       WasCastFrom : Zone -> Predicate b AnObject -- the object was cast from this zone (cast provenance)
       WasCastWith : KeywordSpec b -> Predicate b AnObject  -- cast using the keyword's ALTERNATIVE cost ("if its dash cost was paid",
                                                  -- [CR#702.109a] etc.) — the alt-cost twin of `WasCastFrom`; engine records the `MayCastFor` tag used
+      WasPutFrom : Zone -> Predicate b AnObject  -- the object was PUT into its current zone directly from this zone
+                                                 -- (move provenance) — the move-provenance twin of `WasCastFrom`; engine-held,
+                                                 -- turn-scoped (like `DamagedBy`). "milled" = And [InZone Graveyard,
+                                                 -- WasPutFrom Library] ([CR#701.17a]); "discarded" = WasPutFrom Hand
+                                                 -- ([CR#701.9a]); `WasMilled`/`WasDiscarded` decompose over this, not minted.
       ExiledBy : Reference b AnObject -> Predicate b AnObject   -- set aside by r's effect ("cards exiled by this" = ExiledBy
                                                  -- This); the engine holds the association ([CR#607] linked abilities)
       DamagedBy : Reference b AnObject -> Predicate b AnObject  -- was dealt damage by r THIS TURN ("a creature dealt damage
                                                  -- by ~ this turn" = And [creature, DamagedBy This]); engine-held, like ExiledBy. Turn-scoped reset is the engine's.
+      Adjacent : Adjacency -> Reference b AnObject -> Predicate b AnObject   -- the candidate is directly Above/Below r in
+                                                 -- an ORDERED zone, nothing between (Death Spark's "directly above a
+                                                 -- Spirit card in your graveyard", [CR#404.2]); object-relative, unlike
+                                                 -- the end-relative `Anchor` (FromTop/FromBottom), which can't express
+                                                 -- this. Engine-held, like `DamagedBy`.
       HasName : String -> Predicate b AnObject   -- named a specific card (tutors / token names)
       HasCounter : (c : CounterKind) -> Predicate b (counterKindScope c)   -- has ≥1 of this counter; the candidate's kind follows the carrier ("ten poison" tests a player)
       HasState : ObjectState -> Predicate b AnObject      -- runtime state: "target ATTACKING / TAPPED creature"
@@ -1651,6 +1661,13 @@ mutual
   namespace OutcomeGateKind
     public export
     data OutcomeGateKind = CantLose | CantWin
+
+  -- Relative position between two objects in an ORDERED zone ([CR#404.2] — a graveyard is kept in a
+  -- single face-up pile with a fixed order): OBJECT-relative, unlike the end-relative `Anchor` below.
+  -- Gates `Predicate.Adjacent` (Death Spark's "directly above").
+  namespace Adjacency
+    public export
+    data Adjacency = Above | Below
 
   -- A position in an ORDERED zone ([CR#401]) — an END plus an offset. `FromTop (^0)` = on top. Named
   -- `Anchor` (general over ordered zones — currently the library) rather than `LibraryPosition`.

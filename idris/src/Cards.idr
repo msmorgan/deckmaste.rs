@@ -1295,4 +1295,10 @@ vlxSingleton = CountDistinct Types (Singleton This)
 vlxAdamant : Condition b     -- "if at least three white was spent"
 vlxAdamant = Compare (CountOf (ManaSpentMatching This (CountsAs White))) AtLeast (^3)
 
+-- value-language-extensions Task 3 probe
+vlxMilled : Predicate b AnObject
+vlxMilled = And [IsKind Card, InZone Graveyard, WasPutFrom Library]
+vlxAdjacent : Predicate b AnObject
+vlxAdjacent = And [HasChar Types Creature, Adjacent Above This]
+
 --:vim:sts=2 sw=2:
