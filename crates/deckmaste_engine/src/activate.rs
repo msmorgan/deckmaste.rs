@@ -544,7 +544,7 @@ impl GameState {
     fn verb_cost_payable(&self, verb: &PlayerAction, player: PlayerId, frame: &Frame) -> bool {
         #[expect(
             clippy::match_same_arms,
-            reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope RemoveCounters/Reveal seam)"
+            reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope Reveal seam)"
         )]
         match verb {
             // [CR#119.4]: pay-life needs life ≥ the amount; [CR#119.4b]: paying
@@ -586,13 +586,29 @@ impl GameState {
             // loyalty counters to its source, [CR#606.4]) is always
             // payable — adding counters needs no prior resource.
             PlayerAction::PutCounters(..) => true,
-            // Out of this ticket's listed scope — counter storage and the
-            // reveal window are unbuilt, so treat as payable for now.
-            // TODO(engine-cost-payment follow-up): payability for RemoveCounters
-            // (needs counter storage — the loyalty `−N`/`pay {E}` "enough
-            // counters present" check, [CR#606.6]) and Reveal (needs the reveal
-            // window).
-            PlayerAction::RemoveCounters(..) | PlayerAction::Reveal { .. } => true,
+            // [CR#601.2h,107.14]: removing counters as a cost needs at least
+            // that many present on the carrier — the loyalty `−N` ability
+            // ([CR#606.6]) and "pay {E}" ([CR#107.14]: paying {E} removes an
+            // energy counter from the player). The carrier is the resolved
+            // object OR player proxy ([CR#122.1f] — energy/poison sit on the
+            // player), so `RemoveCounters(You, Energy, N)` reads the payer's
+            // proxy counter map. An absent kind reads zero, so an unfunded
+            // "pay {E}" is unpayable (partial payment forbidden, [CR#601.2h]).
+            PlayerAction::RemoveCounters(sel, kind, count) => {
+                let need = self.eval_count(count, frame);
+                self.eval_reference_set(sel, frame).iter().all(|&id| {
+                    self.objects
+                        .get(id)
+                        .and_then(|o| o.counters.get(kind.as_str()).copied())
+                        .unwrap_or(0)
+                        >= need
+                })
+            }
+            // Out of this ticket's listed scope — the reveal window is unbuilt,
+            // so treat as payable for now.
+            // TODO(engine-cost-payment follow-up): payability for Reveal (needs
+            // the reveal window).
+            PlayerAction::Reveal { .. } => true,
             // Look through a remembered macro invocation.
             PlayerAction::Expanded(e) => self.verb_cost_payable(&e.value, player, frame),
             // `cost_summary` only collects cost-eligible verbs, so nothing else
@@ -1313,6 +1329,85 @@ mod tests {
         assert!(
             state.can_pay_verbs(player, &[PlayerAction::Sacrifice(Reference::This)], obj,),
             "a self-sacrifice always has its one object to pay with"
+        );
+    }
+
+    /// [CR#107.14,601.2h]: "pay {E}" is `RemoveCounters(You, Energy, N)` — a
+    /// player-borne counter cost. It is payable only when the payer's proxy
+    /// holds at least N energy counters ([CR#122.1f] energy sits on the
+    /// player); an unfunded pay is unpayable (partial payment forbidden).
+    #[test]
+    fn pay_energy_cost_needs_enough_energy() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        let proxy = state.player(player).object;
+        let verbs = [PlayerAction::RemoveCounters(
+            Reference::You,
+            deckmaste_core::CounterRef::from("Energy"),
+            deckmaste_core::Count::Literal(2),
+        )];
+
+        // Zero energy: pay {E}{E} is unpayable.
+        assert!(
+            !state.can_pay_verbs(player, &verbs, obj),
+            "pay {{E}}{{E}} is unpayable with no energy [CR#601.2h]"
+        );
+
+        // One energy < two needed: still unpayable (no partial payment).
+        state
+            .objects
+            .obj_mut(proxy)
+            .counters
+            .insert("Energy".into(), 1);
+        assert!(
+            !state.can_pay_verbs(player, &verbs, obj),
+            "pay {{E}}{{E}} is unpayable with only one energy [CR#601.2h]"
+        );
+
+        // Exactly two energy: payable.
+        state
+            .objects
+            .obj_mut(proxy)
+            .counters
+            .insert("Energy".into(), 2);
+        assert!(
+            state.can_pay_verbs(player, &verbs, obj),
+            "pay {{E}}{{E}} is payable with two energy [CR#107.14]"
+        );
+    }
+
+    /// A loyalty `−N` cost on a permanent (`RemoveCounters(This, …)`) now
+    /// reads the object's counter map too ([CR#606.6]): it is payable only
+    /// when the source holds at least N loyalty counters. This is the same
+    /// player/object-agnostic payability check the energy cost exercises,
+    /// pinned on the `This` carrier.
+    #[test]
+    fn remove_loyalty_cost_needs_enough_counters_on_source() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let obj = make_object_on_battlefield(&mut state, player);
+        let verbs = [PlayerAction::RemoveCounters(
+            Reference::This,
+            deckmaste_core::CounterRef::from("LoyaltyCounter"),
+            deckmaste_core::Count::Literal(3),
+        )];
+
+        // No loyalty counters: −3 is unpayable.
+        assert!(
+            !state.can_pay_verbs(player, &verbs, obj),
+            "a −3 loyalty cost is unpayable with no loyalty counters"
+        );
+
+        // Three loyalty counters: payable.
+        state
+            .objects
+            .obj_mut(obj)
+            .counters
+            .insert("LoyaltyCounter".into(), 3);
+        assert!(
+            state.can_pay_verbs(player, &verbs, obj),
+            "a −3 loyalty cost is payable at three loyalty [CR#606.6]"
         );
     }
 

@@ -6618,6 +6618,69 @@ mod tests {
         );
     }
 
+    /// [CR#107.14,122.1f]: "you get {E}{E}" is `PutCounters(You, Energy, N)` —
+    /// a player-borne counter placement. `Reference::You` resolves to the
+    /// controller's proxy object, so the same apply path lands the energy on
+    /// the PLAYER (energy is player-borne, [CR#122.1f]), and a second gain
+    /// sums ([CR#122.1] — counters are interchangeable).
+    #[test]
+    fn get_energy_adds_counters_to_the_player_proxy() {
+        let (mut state, bear) = bear_on_field();
+        let proxy = state.player(PlayerId(0)).object;
+        let frame = frame_src(bear); // controller is player 0, so `You` = P0's proxy
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                Reference::You,
+                "Energy".into(),
+                Count::Literal(2),
+            )),
+            &frame,
+        );
+        let _ = state.step(); // applies CounterPlaced onto the player proxy
+        assert_eq!(
+            state
+                .objects
+                .obj(proxy)
+                .counters
+                .get(&deckmaste_core::Ident::from("Energy"))
+                .copied(),
+            Some(2),
+            "you get {{E}}{{E}} places two energy on the player's proxy"
+        );
+
+        // A second "get {E}" sums with the first.
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                Reference::You,
+                "Energy".into(),
+                Count::Literal(1),
+            )),
+            &frame,
+        );
+        let _ = state.step();
+        assert_eq!(
+            state
+                .objects
+                .obj(proxy)
+                .counters
+                .get(&deckmaste_core::Ident::from("Energy"))
+                .copied(),
+            Some(3),
+            "energy gains accumulate on the player [CR#122.1]"
+        );
+
+        // And `Count::CounterCount(You, Energy)` reads it back — "if you have
+        // N energy" ([CR#107.14]).
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::You), "Energy".into()),
+                &frame
+            ),
+            3,
+            "CounterCount(You, Energy) reads the player's energy total"
+        );
+    }
+
     /// Removing more counters than present clamps to zero and DROPS the key,
     /// so `HasCounter` and the layer-7c P/T read both see absence ([CR#122.1]).
     #[test]
