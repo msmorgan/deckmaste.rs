@@ -828,7 +828,18 @@ fn eval_divide(mode: deckmaste_core::RoundMode, a: Int, b: Int) -> Int {
         0
     } else {
         match mode {
-            deckmaste_core::RoundMode::RoundUp => (a + b - 1) / b,
+            // `a as i64 + b as i64 - 1` cannot overflow i64, and the quotient
+            // is bounded by `a <= i32::MAX`, so this never truncates in the
+            // reachable non-negative domain; widening avoids i32 overflow
+            // near `i32::MAX` because signed `div_ceil` is unstable
+            // (int_roundings) on stable.
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "quotient is bounded by a <= i32::MAX; see comment above"
+            )]
+            deckmaste_core::RoundMode::RoundUp => {
+                ((i64::from(a) + i64::from(b) - 1) / i64::from(b)) as i32
+            }
             deckmaste_core::RoundMode::RoundDown => a / b,
         }
     }
@@ -1039,7 +1050,14 @@ fn eval_count(
         Count::Half(mode, inner) => {
             let v = eval_count(inner, state, working, watcher).max(0);
             match mode {
-                deckmaste_core::RoundMode::RoundUp => (v + 1) / 2,
+                // Widened to i64 to avoid overflow near i32::MAX (signed
+                // div_ceil is unstable on stable); the quotient is bounded
+                // by `v <= i32::MAX`, so this never truncates.
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "quotient is bounded by v <= i32::MAX; see comment above"
+                )]
+                deckmaste_core::RoundMode::RoundUp => ((i64::from(v) + 1) / 2) as i32,
                 deckmaste_core::RoundMode::RoundDown => v / 2,
             }
         }
