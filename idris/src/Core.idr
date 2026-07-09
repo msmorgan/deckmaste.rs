@@ -1508,6 +1508,11 @@ mutual
       Random : Quantity b -> Predicate b k -> Selection b k
       TopOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
       BottomOfLibrary : (count : Count b) -> {default You whose : Reference b APlayer} -> Selection b AnObject
+      -- the top `count` card(s) of `whose` GRAVEYARD ([CR#404.1,404.2] — cards are put on top of an
+      -- ordered graveyard pile). Mirror of `TopOfLibrary`, but `whose` is EXPLICIT (not `{default You}`) —
+      -- graveyard-topped effects (Volrath's Shapeshifter) name the player they inspect, unlike library
+      -- manipulation's usual "your" default. No `BottomOfGraveyard` (no consumer).
+      TopOfGraveyard : (count : Count b) -> (whose : Reference b APlayer) -> Selection b AnObject
       -- the extremal ELEMENT(s) of a `Projection` ("the creature with the greatest power" = `Pick MaxOf (eachOf
       -- yourCreatures (StatOf It Power))`). The element-twin of `Aggregate` (which folds the same `Projection` to
       -- a value); the op is gated to the extremal ones by `IsExtremal` (no `Pick SumOf`); ties yield the whole
@@ -1926,6 +1931,7 @@ mutual
   selectionSort (Random _ p) = filterSort p
   selectionSort (TopOfLibrary c) = Card
   selectionSort (BottomOfLibrary c) = Card
+  selectionSort (TopOfGraveyard _ _) = Card
   selectionSort (Pick op prj) = projSort prj
   selectionSort (Union gs) = unionSort gs
   selectionSort They = Permanent

@@ -1301,4 +1301,8 @@ vlxMilled = And [IsKind Card, InZone Graveyard, WasPutFrom Library]
 vlxAdjacent : Predicate b AnObject
 vlxAdjacent = And [HasChar Types Creature, Adjacent Above This]
 
+-- value-language-extensions Task 4 probe
+vlxTopGrave : Condition b    -- Volrath's Shapeshifter: top card of your graveyard is a creature
+vlxTopGrave = Matches (Single (TopOfGraveyard (^1) You)) (And [IsKind Card, HasChar Types Creature])
+
 --:vim:sts=2 sw=2:
