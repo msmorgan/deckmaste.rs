@@ -5,6 +5,9 @@
 //!
 //! Regular rules only: `+s`; `+es` after `s`/`x`/`z`/`ch`/`sh`; a
 //! consonant-preceding `y` becomes `ies`; a trailing `f`/`fe` becomes `ves`.
+//! The `es`/`ves` rules are lossy heuristics — they mis-plural nouns such as
+//! `roof`->`rooves`, `chief`->`chieves`, and `monarch`->`monarches`; such nouns
+//! must carry a `plural:` override.
 //! A macro whose noun is irregular (or simply not covered by these rules)
 //! declares its own `plural:` field instead (see `macro_ron::MacroDef`),
 //! which always wins over this fallback.

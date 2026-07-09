@@ -2,7 +2,7 @@
 // for each supertype, card type, and subtype it has." ([CR#105.2]
 // `Countable::Singleton` — the per-object twin of `Objects`, letting
 // `CountDistinct` read a characteristic off ONE object rather than a
-// filtered many). The pump is `AddPowerToughness(n, n)` where `n` sums three
+// filtered many). The pump is `PowerAndToughnessUp(n, n)` where `n` sums three
 // `CountDistinct(<axis>, Singleton(It))` reads, one per axis the oracle
 // text names (supertypes, card types, subtypes).
 Normal(
@@ -18,7 +18,7 @@ Normal(
       effect: Targeted(
         targets: [TargetOne(And([Creature, Not(Subtype("Brushwagg"))]))],
         effect: Until(FixedUntil(EndOfTurn), [
-          Modify(It, AddPowerToughness(
+          Modify(It, PowerAndToughnessUp(
             Plus(Plus(CountDistinct(Supertypes, Singleton(It)), CountDistinct(Types, Singleton(It))), CountDistinct(Subtypes, Singleton(It))),
             Plus(Plus(CountDistinct(Supertypes, Singleton(It)), CountDistinct(Types, Singleton(It))), CountDistinct(Subtypes, Singleton(It))),
           )),

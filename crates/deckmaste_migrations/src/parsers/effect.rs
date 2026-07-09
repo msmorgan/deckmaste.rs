@@ -405,8 +405,10 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect
 /// required — it's what makes this a one-shot continuous effect rather than an
 /// always-on static anthem ([`crate::parsers::static_ability`], which declines
 /// the marker). The ±N/±N + keyword-grant grammar is shared with that anthem
-/// parser via [`modify`]; the changes are written inline (`Modification` is
-/// not a macro kind, so no `PowerAndToughnessUp` macro can stand here).
+/// parser via [`modify`]; the changes are written inline because this
+/// production does not consult the reverse `TemplateIndex` (a later task will
+/// fold `±N/±N` here into the `PowerAndToughnessUp`/`Down` Modification macros,
+/// as [`crate::parsers::static_ability`]'s `parse_pt` already does).
 /// Subject: a target ("target creature" -> bare `It` + `TargetOne(<filter>)`),
 /// or a team/self class via the shared subject grammar (a bare `Reference` or a
 /// distributed class filter).

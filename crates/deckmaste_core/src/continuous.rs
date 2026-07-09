@@ -187,11 +187,11 @@ impl Modification {
     /// Splice every `Several` (recursively) into the parent list, the one
     /// flatten-away pass for change-bundling macros. Run AFTER `expand_all`
     /// (which turns `Expanded(PowerAndToughnessUp(p, t))` into
-    /// `Several([AddPower, AddToughness])`) and BEFORE the engine consumes
-    /// `changes`: `changes` is semantically a flat, layer-spanning list
-    /// ([CR#613.6]), so `Several` is a pure expansion artifact normalized
-    /// away exactly once here. The engine's `layer_of`/`apply` then never
-    /// see `Several`/`Expanded`.
+    /// `Several([Power(Up(p)), Toughness(Up(t))])`) and BEFORE the engine
+    /// consumes `changes`: `changes` is semantically a flat, layer-spanning
+    /// list ([CR#613.6]), so `Several` is a pure expansion artifact
+    /// normalized away exactly once here. The engine's `layer_of`/`apply`
+    /// then never see `Several`/`Expanded`.
     ///
     /// Element-wise `expand_all` first (a stored `changes` list may still hold
     /// `Expanded` invocations), then splice: a plain element passes through, a
