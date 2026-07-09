@@ -544,7 +544,7 @@ impl GameState {
     fn verb_cost_payable(&self, verb: &PlayerAction, player: PlayerId, frame: &Frame) -> bool {
         #[expect(
             clippy::match_same_arms,
-            reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the out-of-scope RemoveCounters/Reveal seam)"
+            reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope RemoveCounters/Reveal seam)"
         )]
         match verb {
             // [CR#119.4]: pay-life needs life ≥ the amount; [CR#119.4b]: paying
@@ -582,10 +582,16 @@ impl GameState {
             | PlayerAction::Move(..)
             | PlayerAction::Tap(_)
             | PlayerAction::Untap(_) => true,
+            // `PutCounters` as a cost (a loyalty `+N` ability adds that many
+            // loyalty counters to its source, [CR#606.4]) is always
+            // payable — adding counters needs no prior resource.
+            PlayerAction::PutCounters(..) => true,
             // Out of this ticket's listed scope — counter storage and the
             // reveal window are unbuilt, so treat as payable for now.
             // TODO(engine-cost-payment follow-up): payability for RemoveCounters
-            // (needs counter storage) and Reveal (needs the reveal window).
+            // (needs counter storage — the loyalty `−N`/`pay {E}` "enough
+            // counters present" check, [CR#606.6]) and Reveal (needs the reveal
+            // window).
             PlayerAction::RemoveCounters(..) | PlayerAction::Reveal { .. } => true,
             // Look through a remembered macro invocation.
             PlayerAction::Expanded(e) => self.verb_cost_payable(&e.value, player, frame),

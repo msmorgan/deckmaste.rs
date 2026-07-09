@@ -994,6 +994,95 @@ fn activated_ability_pays_life_cost() {
     );
 }
 
+/// [CR#606.4]: a loyalty `+N` ability's cost is to put that many loyalty
+/// counters on the ability's source. Modeled as a `Do(PutCounters(This,
+/// LoyaltyCounter, N))` cost (no dedicated loyalty-cost verb — see
+/// `idris/src/Core.idr`'s `Cost` `Do` ruling). This exercises `PutCounters`
+/// being cost-eligible: the counters are ADDED to whatever loyalty is already
+/// present during the payment window.
+#[test]
+fn activated_ability_pays_loyalty_plus_cost() {
+    const NAME: &str = "Loyalty-plus-cost test artifact";
+    let card = artifact_with_cost(
+        NAME,
+        vec![
+            CostComponent::Mana("{0}".parse().unwrap()),
+            CostComponent::do_(PlayerAction::PutCounters(
+                Reference::This,
+                "LoyaltyCounter".into(),
+                Count::Literal(2),
+            )),
+        ],
+    );
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    // Seed the source with 3 loyalty so the `+2` cost proves it ADDS ([CR#606.4]).
+    state
+        .objects
+        .obj_mut(obj)
+        .counters
+        .insert("LoyaltyCounter".into(), 3);
+
+    activate_and_pay_zero(&mut state, obj);
+
+    // Drive to the next priority: the `+2` cost must have fired during payment.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(
+        state
+            .objects
+            .obj(obj)
+            .counters
+            .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+            .copied(),
+        Some(5),
+        "the `+2` loyalty cost added two loyalty counters (3 -> 5)"
+    );
+}
+
+/// [CR#606.4,606.6]: a loyalty `−N` ability's cost is to remove that many
+/// loyalty counters from the source (which must have at least that many,
+/// [CR#606.6]). Modeled as `Do(RemoveCounters(This, LoyaltyCounter, N))` —
+/// `RemoveCounters` was already cost-eligible, so this pins that `−N` pays with
+/// no code change.
+#[test]
+fn activated_ability_pays_loyalty_minus_cost() {
+    const NAME: &str = "Loyalty-minus-cost test artifact";
+    let card = artifact_with_cost(
+        NAME,
+        vec![
+            CostComponent::Mana("{0}".parse().unwrap()),
+            CostComponent::do_(PlayerAction::RemoveCounters(
+                Reference::This,
+                "LoyaltyCounter".into(),
+                Count::Literal(2),
+            )),
+        ],
+    );
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    // Seed the source with 5 loyalty so the `−2` cost has counters to remove.
+    state
+        .objects
+        .obj_mut(obj)
+        .counters
+        .insert("LoyaltyCounter".into(), 5);
+
+    activate_and_pay_zero(&mut state, obj);
+
+    // Drive to the next priority: the `−2` cost must have fired during payment.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(
+        state
+            .objects
+            .obj(obj)
+            .counters
+            .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+            .copied(),
+        Some(3),
+        "the `−2` loyalty cost removed two loyalty counters (5 -> 3)"
+    );
+}
+
 /// [CR#601.2b,601.2h,608.2d]: a `With(ChooseOne(creature), Do(Sacrifice(That)))`
 /// cost surfaces a `ChooseObjects` decision during payment — choosing is the
 /// cost-side `With` pre-step, never part of the verb; the chosen creature is

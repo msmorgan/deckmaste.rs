@@ -423,9 +423,19 @@ impl PlayerAction {
     /// payer performs it, nothing targets ([CR#601.2b..601.2c]). Cost-eligible
     /// verbs are the self-directed ones a player can pay with — sacrifice,
     /// relocate (`Move`, e.g. self-exile to pay — [CR#701.13]), tap, untap,
-    /// discard, pay-life (`LoseLife`), and reveal ("reveal a blue card from
+    /// discard, pay-life (`LoseLife`), reveal ("reveal a blue card from
     /// your hand:" — a reveal that is part of a cost stays shown until the
-    /// spell leaves the stack, [CR#701.20a]).
+    /// spell leaves the stack, [CR#701.20a]), and put/remove counters. Counter
+    /// costs ride these two verbs rather than a dedicated cost verb: "remove a
+    /// +1/+1 counter:" is `RemoveCounters`, "pay {E}" is `RemoveCounters` on a
+    /// player, and a planeswalker loyalty ability's `+N`/`−N` cost is
+    /// `PutCounters`/`RemoveCounters` of the loyalty counter on its source
+    /// ([CR#606.4] — the cost to activate a loyalty ability is to put on or
+    /// remove that many loyalty counters). The Idris grammar makes the same
+    /// call: loyalty costs reuse `Do (PutCounters/RemoveCounters
+    /// loyaltyCounter N This)`, "so there is no duplicate counter-cost
+    /// verb" (`idris/src/Core.idr`, the `Cost` `Do` and
+    /// `PutCounters`/`RemoveCounters` doc comments).
     #[must_use]
     pub fn is_cost_eligible(&self) -> bool {
         matches!(
@@ -436,6 +446,7 @@ impl PlayerAction {
                 | PlayerAction::Untap(_)
                 | PlayerAction::Discard { .. }
                 | PlayerAction::LoseLife(_)
+                | PlayerAction::PutCounters(..)
                 | PlayerAction::RemoveCounters(..)
                 | PlayerAction::Reveal { .. }
         )
@@ -478,6 +489,25 @@ mod tests {
             .is_cost_eligible()
         );
         assert!(PlayerAction::LoseLife(Count::Literal(1)).is_cost_eligible());
+        // Counter costs ride these two verbs (loyalty `+N`/`−N`, "remove a
+        // counter:", "pay {E}") — no dedicated counter-cost verb
+        // ([CR#606.4]).
+        assert!(
+            PlayerAction::PutCounters(
+                Reference::This,
+                crate::CounterRef::from("LoyaltyCounter"),
+                Count::Literal(1),
+            )
+            .is_cost_eligible()
+        );
+        assert!(
+            PlayerAction::RemoveCounters(
+                Reference::This,
+                crate::CounterRef::from("LoyaltyCounter"),
+                Count::Literal(2),
+            )
+            .is_cost_eligible()
+        );
 
         assert!(!PlayerAction::Draw(Count::Literal(1)).is_cost_eligible());
         assert!(!PlayerAction::GainLife(Count::Literal(3)).is_cost_eligible());
