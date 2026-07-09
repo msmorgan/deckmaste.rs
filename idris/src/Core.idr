@@ -498,48 +498,49 @@ record EventCaps where
   hasAmount : Bool
   patientKind : Maybe RefKind   -- the ACTED-UPON thing's kind when the event FIXES one (gates `EventPatient`); distinct from the Agent exposed via `hasObject`. `Nothing` = no sound patient binder
   hasDefender : Bool            -- combat scope: a defending player is in scope (gates `DefendingPlayer`) ([CR#506.2])
+  producesMana : Bool           -- the event IS a mana ability resolving and producing mana (gates `ProducedByEvent`) ([CR#106.12a])
 
 public export
 NoCaps : EventCaps
-NoCaps = MkEventCaps False False False Nothing False
+NoCaps = MkEventCaps False False False Nothing False False
 
 -- what each event-kind supplies. Damage/token/counter carry an amount; a step-begin carries nothing; a
 -- zone-change/destroy/becomes has an object but no actor; a cast/draw/discard/sacrifice has an actor.
 public export
 eventKindCaps : EventKind -> EventCaps
-eventKindCaps Sacrifice         = MkEventCaps True  True  False Nothing       False
+eventKindCaps Sacrifice         = MkEventCaps True  True  False Nothing       False False
 -- a draw's per-fact amount is ONE card ([CR#121.2] -- drawn one at a time):
 -- the fact channel sums draws ("for each card drawn"), while the multi-card
 -- amount BOUND stays bridge-capped (`Drawn:amount`).
-eventKindCaps Draw              = MkEventCaps False True  True  Nothing       False
-eventKindCaps GainLife          = MkEventCaps False True  True  Nothing       False
-eventKindCaps LoseLife          = MkEventCaps False True  True  Nothing       False
-eventKindCaps GainControl       = MkEventCaps True  True  False Nothing       False
+eventKindCaps Draw              = MkEventCaps False True  True  Nothing       False False
+eventKindCaps GainLife          = MkEventCaps False True  True  Nothing       False False
+eventKindCaps LoseLife          = MkEventCaps False True  True  Nothing       False False
+eventKindCaps GainControl       = MkEventCaps True  True  False Nothing       False False
 -- a discard's amount is its card count ([CR#701.9a]; the engine's apply
 -- funnel fixes the batch size) -- Collective Defiance's "then draws that
 -- many cards" reads it.
-eventKindCaps Discard           = MkEventCaps True  True  True  Nothing       False
+eventKindCaps Discard           = MkEventCaps True  True  True  Nothing       False False
 -- damage: the source object is the Agent (`hasObject`), its controller the actor, the amount the amount,
 -- and the RECIPIENT's kind rides the kind as `toKind` → the patient (`EventPatient`).
-eventKindCaps (DealDamage _ {toKind}) = MkEventCaps True True True toKind False
-eventKindCaps CreateToken       = MkEventCaps True  True  True  Nothing       False
-eventKindCaps PutCounters       = MkEventCaps True  True  True  Nothing       False
-eventKindCaps RemoveCounters    = MkEventCaps True  True  True  Nothing       False
-eventKindCaps Destroy           = MkEventCaps True  False False Nothing       False
-eventKindCaps (ZoneChanged _ _) = MkEventCaps True  False False Nothing       False
-eventKindCaps (BeginStep _)     = MkEventCaps False False False Nothing       False
-eventKindCaps (Becomes _)       = MkEventCaps True  False False Nothing       False
+eventKindCaps (DealDamage _ {toKind}) = MkEventCaps True True True toKind False False
+eventKindCaps CreateToken       = MkEventCaps True  True  True  Nothing       False False
+eventKindCaps PutCounters       = MkEventCaps True  True  True  Nothing       False False
+eventKindCaps RemoveCounters    = MkEventCaps True  True  True  Nothing       False False
+eventKindCaps Destroy           = MkEventCaps True  False False Nothing       False False
+eventKindCaps (ZoneChanged _ _) = MkEventCaps True  False False Nothing       False False
+eventKindCaps (BeginStep _)     = MkEventCaps False False False Nothing       False False
+eventKindCaps (Becomes _)       = MkEventCaps True  False False Nothing       False False
 -- a relation-ONSET supplies the agent's player as "that player" ONLY when the agent IS a player
 -- (cast/activate/play); an object-agent onset (combat/attach/target/counter) reaches the controller via
 -- `ControlledBy`. There is always a distinguished object, never an amount. Combat onsets (`Attack`/`Block`)
 -- additionally put the DEFENDING PLAYER in scope (`DefendingPlayer`) — always a player, even vs a
 -- planeswalker/battle ([CR#506.2,508.5]).
-eventKindCaps (Begins Attack)   = MkEventCaps True  False False Nothing       True
-eventKindCaps (Begins Block)    = MkEventCaps True  False False Nothing       True
+eventKindCaps (Begins Attack)   = MkEventCaps True  False False Nothing       True  False
+eventKindCaps (Begins Block)    = MkEventCaps True  False False Nothing       True  False
 eventKindCaps (Begins r)        =
   case agentScope r of
-    APlayer => MkEventCaps True True  False Nothing       False
-    _       => MkEventCaps True False False Nothing       False
+    APlayer => MkEventCaps True True  False Nothing       False False
+    _       => MkEventCaps True False False Nothing       False False
 
 -- which event-kinds carry an AMOUNT — derived from the caps; the per-kind base for `kindsHaveAmount`.
 public export
@@ -963,7 +964,7 @@ eventKindObjectSort GainControl = Permanent                -- the "of" permanent
 -- Rust walker (later pushes land nearer).
 public export
 roleAntes : EventCaps -> (objectSort : Sort) -> List Ant
-roleAntes (MkEventCaps o a m p d) objSort =
+roleAntes (MkEventCaps o a m p d _) objSort =
   (if o then [MkAnt objSort AnObject One EventRole Nothing Nothing] else [])
   ++ (case p of
         Just k => [MkAnt (kindSort k) k One EventRole Nothing Nothing]
@@ -1595,14 +1596,14 @@ mutual
 
   public export
   andCaps : EventCaps -> EventCaps -> EventCaps
-  andCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2) (sameKind p1 p2) (d1 && d2)
+  andCaps (MkEventCaps o1 a1 m1 p1 d1 pm1) (MkEventCaps o2 a2 m2 p2 d2 pm2) = MkEventCaps (o1 && o2) (a1 && a2) (m1 && m2) (sameKind p1 p2) (d1 && d2) (pm1 && pm2)
 
   -- the UNION twin of `andCaps`: a body gets an anaphor if ANY combined source supplies it. Used to fold the
   -- caps of a composite COST (`Costs […]`) — if one component sacrifices an object, the payment event binds it.
   -- The patient kind still needs agreement (`sameKind`), since a kind can't be unioned soundly.
   public export
   orCaps : EventCaps -> EventCaps -> EventCaps
-  orCaps (MkEventCaps o1 a1 m1 p1 d1) (MkEventCaps o2 a2 m2 p2 d2) = MkEventCaps (o1 || o2) (a1 || a2) (m1 || m2) (sameKind p1 p2) (d1 || d2)
+  orCaps (MkEventCaps o1 a1 m1 p1 d1 pm1) (MkEventCaps o2 a2 m2 p2 d2 pm2) = MkEventCaps (o1 || o2) (a1 || a2) (m1 || m2) (sameKind p1 p2) (d1 || d2) (pm1 || pm2)
 
   -- the caps a whole event-QUERY guarantees its body: the INTERSECTION over its kind-disjunction — the
   -- body gets only anaphora that EVERY listed kind supplies. Empty `kinds` (any kind) ⇒ `NoCaps`. So a

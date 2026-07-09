@@ -69,7 +69,7 @@ optZone (Just z) = "Some(" ++ zoneName z ++ ")"
 entailRow : (verb : String) -> (kind : String)
          -> (from : Maybe Zone) -> (to : Maybe Zone)
          -> EventCaps -> (cite : String) -> String
-entailRow verb kind from to (MkEventCaps o a m _ _) cite =
+entailRow verb kind from to (MkEventCaps o a m _ _ _) cite =
   "        (verb: " ++ quoted verb
   ++ ", kind: " ++ quoted kind
   ++ ", from: " ++ optZone from
@@ -95,17 +95,17 @@ entailmentRows =
   , entailRow "Discard" "ZoneChange" (Just Hand) (Just Graveyard)
       (eventKindCaps Discard) "[CR#701.9a]"
   , entailRow "Exile" "ZoneChange" Nothing (Just Exile)
-      (MkEventCaps True False False Nothing False) "[CR#701.13a]"
+      (MkEventCaps True False False Nothing False False) "[CR#701.13a]"
   , entailRow "Mill" "ZoneChange" (Just Library) (Just millTo)
-      (MkEventCaps True True False Nothing False) "[CR#701.17a]"
+      (MkEventCaps True True False Nothing False False) "[CR#701.17a]"
   , entailRow "Play" "ZoneChange" Nothing (Just Battlefield)
       (eventKindCaps (Begins Play)) "[CR#701.18a]"
     -- fight damage is noncombat damage dealt by the fighting creature
   , entailRow "Fight" "Damage" Nothing Nothing
-      (MkEventCaps True False True Nothing False) "[CR#701.14a]"
+      (MkEventCaps True False True Nothing False False) "[CR#701.14a]"
     -- explore reveals from the library; the card lands in hand or graveyard
   , entailRow "Explore" "ZoneChange" (Just Library) Nothing
-      (MkEventCaps True True False Nothing False) "[CR#701.44a]"
+      (MkEventCaps True True False Nothing False False) "[CR#701.44a]"
     -- an applied regeneration shield's visible fact is the tap
   , entailRow "Regenerate" "StateBecame:Tapped" Nothing Nothing
       (eventKindCaps (Begins Regenerate)) "[CR#701.19a]"
