@@ -1309,6 +1309,10 @@ mutual
       Half : RoundMode -> Count b -> Count b               -- half, rounded per `RoundMode` ([CR#107.1a]); one rounding vocabulary, shared with `AverageOf`
       Min : Count b -> Count b -> Count b                  -- the lesser ([CR#704.5q] +1/+1 vs −1/−1 annihilation; "the lesser of X and Y")
       Max : Count b -> Count b -> Count b                  -- the greater
+      Divide : RoundMode -> Count b -> Count b -> Count b  -- divide the first by the second, rounded per `RoundMode` ([CR#107.1a]); `Half` stays the dedicated /2 constructor
+      Mod : Count b -> Count b -> Count b                  -- remainder of the first divided by the second (parity: `Compare (Mod x (^2)) Eq (^0)`)
+      Pow : Count b -> Count b -> Count b                  -- base raised to exponent (exponential growth effects; Mathemagics)
+      TargetsOf : Reference b AnObject -> Count b          -- the number of times r was chosen as a target when put on the stack ([CR#115.9a]); Strive: `Minus (TargetsOf This) (^1)`
       EventAmount : {auto 0 prf : hasAmount (eventCaps b) = True} -> Count b   -- the event's amount — valid only where the event SUPPLIES one
       -- the VALUE anaphor — "that many"/"that much" ([CR#608.2i]): the unique
       -- `Amount` antecedent a producing clause pushed (a draw's card count,

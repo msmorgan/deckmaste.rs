@@ -1281,4 +1281,12 @@ card_SnapcasterMage = Normal $ ^:
   , toughness := Just 1
   }
 
+-- value-language-extensions Task 1 probe
+vlxPow : Count b
+vlxPow = Pow (^2) (CountOf (Objects (HasChar Types Creature)))
+vlxDivMod : Count b
+vlxDivMod = Plus (Divide RoundDown X (^3)) (Mod X (^2))
+vlxStrive : Count b
+vlxStrive = Minus (TargetsOf This) (^1)
+
 --:vim:sts=2 sw=2:
