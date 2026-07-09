@@ -938,6 +938,12 @@ fn emit_phase_step(p: PhaseStep) -> R {
 fn emit_countable(c: &Countable) -> R {
     Ok(match c {
         Countable::Objects(f) => format!("(Objects {})", emit_filter(f)?),
+        // [CR#119.1]: the cross-player fold source (Arbiter of Knollridge/
+        // Balance) — `Count::Aggregate`'s emission arm below prefers the
+        // `eachPlayer` sugar over this raw spelling; this arm still backs
+        // `Count::CountOf(Players(..))` (Idris's `CountOf (Players ..)`,
+        // e.g. opponent counts) and any other bare-`Countable` position.
+        Countable::Players(f) => format!("(Players {})", emit_filter(f)?),
         Countable::ManaSymbols(r, pred) => app(
             "ManaSymbols",
             vec![emit_reference(r)?, emit_symbol_pred(pred)?],
@@ -992,17 +998,24 @@ fn emit_count(c: &Count) -> R {
             app("CountDistinct", vec![c, src])
         }
         // [CR#107.1]: fold a per-element `Project` — devotion's own shape
-        // ([CR#700.5]).
-        Count::Aggregate(op, proj) => app(
-            "Aggregate",
-            vec![
-                emit_aggregate_op(op),
-                app(
-                    "Project",
-                    vec![emit_countable(&proj.of)?, emit_count(&proj.by)?],
+        // ([CR#700.5]). A `Players`-sourced projection ([CR#119.1] Arbiter of
+        // Knollridge/Balance) emits through the Idris `eachPlayer` sugar
+        // (`eachPlayer p acc = Project (Players p) acc`) rather than the raw
+        // `Project (Players ..)` spelling — every other source stays the raw
+        // `Project` application.
+        Count::Aggregate(op, proj) => {
+            let projected = match &proj.of {
+                Countable::Players(filter) => app(
+                    "eachPlayer",
+                    vec![emit_filter(filter)?, emit_count(&proj.by)?],
                 ),
-            ],
-        ),
+                other => app(
+                    "Project",
+                    vec![emit_countable(other)?, emit_count(&proj.by)?],
+                ),
+            };
+            app("Aggregate", vec![emit_aggregate_op(op), projected])
+        }
         Count::StatOf(r, stat) => {
             use deckmaste_core::Stat as S;
             match stat {
@@ -1210,17 +1223,29 @@ fn emit_selection(s: &Selection) -> R {
         // [CR#107.1]: the extremal element(s) of `proj` — shares `Project`
         // emission with `Count::Aggregate`; `op` is identity on the Idris
         // `AggregateOp` name (gated to `MinOf`/`MaxOf` at the Rust type by
-        // the eval fizzle, not here).
-        Selection::Pick { op, proj } => app(
-            "Pick",
-            vec![
-                emit_aggregate_op(op),
-                app(
-                    "Project",
-                    vec![emit_countable(&proj.of)?, emit_count(&proj.by)?],
-                ),
-            ],
-        ),
+        // the eval fizzle, not here). Idris's `Pick` is pinned to `Projection
+        // b AnObject` ([CR#107.1] — a player-`Pick` has no consumer and no
+        // Idris counterpart), so a `Players`-sourced `proj` here is an
+        // authoring mistake, not a representable card — reported as a gap
+        // rather than emitted as ill-typed Idris.
+        Selection::Pick { op, proj } => {
+            if matches!(proj.of, Countable::Players(_)) {
+                return Err(gap(
+                    "Selection::Pick is pinned to AnObject in Idris; a Players-sourced \
+                     projection has no counterpart",
+                ));
+            }
+            app(
+                "Pick",
+                vec![
+                    emit_aggregate_op(op),
+                    app(
+                        "Project",
+                        vec![emit_countable(&proj.of)?, emit_count(&proj.by)?],
+                    ),
+                ],
+            )
+        }
         Selection::Expanded(_) => {
             return Err(gap(
                 "unexpanded Selection macro invocation remained after expand_all",

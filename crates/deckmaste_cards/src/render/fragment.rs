@@ -182,27 +182,35 @@ pub(super) fn count(c: &Count) -> String {
         // [CR#107.1] the fold over a projection — "the total/greatest/
         // least/average [by] among [of]". A devotion-shaped fold (`SumOf`
         // over permanents you control's matching mana symbols, [CR#700.5])
-        // is recognized first and reads as "your devotion to <color>"; every
-        // other shape stays structural. A `ManaSymbols`-sourced `of` is not
-        // projectable — falls through to the generic `[unrendered: …]`.
-        Count::Aggregate(op, proj) => match devotion_phrase(*op, proj) {
-            Some(phrase) => phrase,
-            None => match &proj.of {
-                Countable::Objects(filter) => {
-                    let fold_word = match op {
-                        AggregateOp::SumOf => "total",
-                        AggregateOp::MinOf => "least",
-                        AggregateOp::MaxOf => "greatest",
-                        AggregateOp::AverageOf(_) => "average",
-                    };
-                    let group = super::ability::lower_first(&filter_subject(filter));
-                    format!("the {fold_word} {} among {group}", count(&proj.by))
-                }
-                Countable::ManaSymbols(..)
-                | Countable::Singleton(..)
-                | Countable::ManaSpentMatching(..) => format!("[unrendered: {c:?}]"),
-            },
-        },
+        // is recognized first and reads as "your devotion to <color>"; a
+        // cross-player fold ([CR#119.1]) over a player's numeric attribute is
+        // recognized next and reads "the highest life total among all
+        // players" (Arbiter of Knollridge); every other shape stays
+        // structural. A `ManaSymbols`/`Singleton`/`ManaSpentMatching`-sourced
+        // `of` is not projectable — falls through to the generic
+        // `[unrendered: …]`, as does a `Players`-sourced fold the recognizer
+        // doesn't cover (a non-`Life` attribute, a non-"all players" group).
+        Count::Aggregate(op, proj) => {
+            match devotion_phrase(*op, proj).or_else(|| player_aggregate_phrase(*op, proj)) {
+                Some(phrase) => phrase,
+                None => match &proj.of {
+                    Countable::Objects(filter) => {
+                        let fold_word = match op {
+                            AggregateOp::SumOf => "total",
+                            AggregateOp::MinOf => "least",
+                            AggregateOp::MaxOf => "greatest",
+                            AggregateOp::AverageOf(_) => "average",
+                        };
+                        let group = super::ability::lower_first(&filter_subject(filter));
+                        format!("the {fold_word} {} among {group}", count(&proj.by))
+                    }
+                    Countable::Players(..)
+                    | Countable::ManaSymbols(..)
+                    | Countable::Singleton(..)
+                    | Countable::ManaSpentMatching(..) => format!("[unrendered: {c:?}]"),
+                },
+            }
+        }
         // The value anaphor's two spellings ([CR#107.3,608.2i]).
         Count::ThatMany => "that many".to_string(),
         Count::ThatMuch => "that much".to_string(),
@@ -796,6 +804,47 @@ fn devotion_phrase(op: AggregateOp, proj: &Projection) -> Option<String> {
     devotion_color_words(pred).map(|colors| format!("your devotion to {colors}"))
 }
 
+/// The cross-player fold recognizer ([CR#119.1]): an `Aggregate` over a
+/// `Players` projection whose body reads `PlayerStatOf(It, attr)` off each
+/// matching player reads "the highest/lowest/total/average <attr> among
+/// <group>" — "the highest life total among all players" (Arbiter of
+/// Knollridge). `None` for any other player-projection shape (a non-`It`
+/// reference, an attribute with no noun phrase here, or a group this reader
+/// doesn't recognize) — the caller falls back to the generic
+/// `[unrendered: …]` (no other shape has a real card yet).
+fn player_aggregate_phrase(op: AggregateOp, proj: &Projection) -> Option<String> {
+    let Countable::Players(filter) = &proj.of else {
+        return None;
+    };
+    let Count::PlayerStatOf(Reference::It, attr) = proj.by.as_ref() else {
+        return None;
+    };
+    let attr_word = match attr {
+        PlayerAttr::Life => "life total",
+        PlayerAttr::HandSize => "hand size",
+        PlayerAttr::HandSizeLimit | PlayerAttr::LandPlaysPerTurn => return None,
+    };
+    let fold_word = match op {
+        AggregateOp::SumOf => "total",
+        AggregateOp::MinOf => "lowest",
+        AggregateOp::MaxOf => "highest",
+        AggregateOp::AverageOf(_) => "average",
+    };
+    let group = player_group_phrase(filter)?;
+    Some(format!("the {fold_word} {attr_word} among {group}"))
+}
+
+/// The player-group noun phrase a `Players` projection folds over — "all
+/// players" for the unrestricted top predicate ([CR#119.1] Arbiter of
+/// Knollridge/Balance's own fold). `None` for any other filter shape — no
+/// other real card needs one yet.
+fn player_group_phrase(filter: &Predicate) -> Option<String> {
+    match strip_expanded(filter) {
+        Predicate::Kind(ObjectKind::Player) => Some("all players".to_string()),
+        _ => None,
+    }
+}
+
 // ── PutInLibrary helpers ─────────────────────────────────────────────────────
 
 /// A `Selection` GROUP as the object of "put __": "them" for a bound group.
@@ -1005,5 +1054,41 @@ mod tests {
             count(&total_power),
             "the total [unrendered: StatOf(It, Power)] among all creatures"
         );
+    }
+
+    /// The cross-player fold recognizer ([CR#119.1]): `Aggregate(MaxOf, (of:
+    /// Players(Player), by: PlayerStatOf(It, Life)))` reads "the highest life
+    /// total among all players" — Arbiter of Knollridge's own shape.
+    #[test]
+    fn count_renders_highest_life_total_among_all_players() {
+        use deckmaste_core::PlayerAttr;
+
+        let highest_life = Count::Aggregate(
+            AggregateOp::MaxOf,
+            Projection {
+                of: Countable::Players(Box::new(Predicate::Kind(ObjectKind::Player))),
+                by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+            },
+        );
+        assert_eq!(
+            count(&highest_life),
+            "the highest life total among all players"
+        );
+    }
+
+    /// A `Players`-sourced `Aggregate` whose body reads something other than
+    /// `PlayerStatOf(It, ..)` (or over a filter the recognizer doesn't name)
+    /// is not "devotion" or the player-fold shape — falls back to the
+    /// generic `[unrendered: …]`, same as any other unrecognized `Aggregate`.
+    #[test]
+    fn count_renders_non_player_stat_players_aggregate_structurally() {
+        let odd_fold = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Players(Box::new(Predicate::Kind(ObjectKind::Player))),
+                by: Box::new(Count::Literal(3)),
+            },
+        );
+        assert_eq!(count(&odd_fold), format!("[unrendered: {odd_fold:?}]"));
     }
 }

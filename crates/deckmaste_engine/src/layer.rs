@@ -928,7 +928,10 @@ fn eval_count(
         // matched the same way scopes are ([CR#613.6] — `matches_derived`), so a
         // count over types/colors sees the values earlier layers produced.
         Count::CountOf(source) => match source {
-            Countable::Objects(filter) => {
+            // [CR#119.1]: a player-filter's cardinality reads exactly like an
+            // object filter's — players are objects too
+            // (`ObjectKind::Player`), matched by the same `matches_derived`.
+            Countable::Objects(filter) | Countable::Players(filter) => {
                 let count = working
                     .keys()
                     .copied()
@@ -1114,10 +1117,14 @@ fn eval_count(
                 let n = distinct_keys_derived(state, working, id, *characteristic).len();
                 Int::try_from(n).expect("distinct count fits Int")
             }
-            // Neither is a forced distinct-union path yet ([CR#700.5]
+            // None of these is a forced distinct-union path ([CR#700.5]
             // devotion has no distinct-union reading; `ManaSpentMatching` has
-            // no engine tracking either) — fizzle to 0.
-            Countable::ManaSymbols(..) | Countable::ManaSpentMatching(..) => 0,
+            // no engine tracking either; Idris's `readableOn` never grants
+            // `Players` a characteristic axis — a player has no printed
+            // characteristic to distinctly union) — fizzle to 0.
+            Countable::ManaSymbols(..)
+            | Countable::ManaSpentMatching(..)
+            | Countable::Players(..) => 0,
         },
         Count::Expanded(e) => eval_count(&e.value, state, working, watcher),
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,

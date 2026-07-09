@@ -74,15 +74,28 @@ pub enum Characteristic {
 /// (layer/resolve distinct-key evaluation).
 pub const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain", "Forest"];
 
-/// The domain a count ranges over ([CR#107.3]) — the Idris `Countable`. Today
-/// the two card-forced sources: a set of objects (the common case) and the mana
-/// symbols in an object's mana cost (devotion). `Players`/`Events`/`ManaSpent`
-/// are deferred until a card forces them.
+/// The domain a count ranges over ([CR#107.3]) — the Idris `Countable`. Wired
+/// today: a set of objects (the common case), a set of players (a
+/// cross-player fold, [CR#119.1] — Arbiter of Knollridge/Balance), and the
+/// mana symbols in an object's mana cost (devotion). Plain `Events`/
+/// unfiltered `ManaSpent` are deferred until a card forces them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Countable {
     /// Objects matching a filter — the common count domain. Boxed `Predicate`
     /// to break the `Predicate` → `Count` size cycle.
     Objects(Box<Predicate>),
+    /// Players matching a filter — the cross-player fold domain ([CR#119.1]):
+    /// `Aggregate(MaxOf, Projection { of: Players(<all players>), by:
+    /// PlayerStatOf(It, Life) })` reads "the highest life total among all
+    /// players" (Arbiter of Knollridge). The boxed `Predicate` is the SAME
+    /// unified type `Objects` boxes — players are objects too
+    /// ([`crate::ObjectKind::Player`]) — boxed for the same size reason.
+    /// Idris's `Projectable`/`readableOn` gate what a `Players` source can
+    /// feed (`Aggregate`/`CountOf`, never `CountDistinct`/`Pick` — those stay
+    /// pinned to `Objects`/`Singleton`); the engine mirrors that by fizzling
+    /// the ungated combinations rather than enforcing it at the Rust type
+    /// level (never-crash on an authoring mistake).
+    Players(Box<Predicate>),
     /// The mana symbols in a referenced object's mana cost, filtered by a
     /// [`SymbolPred`](crate::SymbolPred) ([CR#700.5] devotion) —
     /// `CountOf(ManaSymbols(It, CountsAs(Green)))` counts that object's green
@@ -128,7 +141,9 @@ pub enum AggregateOp {
 /// [`Selection::Pick`](crate::Selection::Pick) (the extremal element).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Projection {
-    /// The folded set. Only `Countable::Objects` is projectable today.
+    /// The folded set. `Countable::Objects` (the per-permanent fold) and
+    /// `Countable::Players` (the cross-player fold, [CR#119.1]) are
+    /// projectable today — Idris's `Projectable` proof.
     pub of: Countable,
     /// The per-element read, over `Reference::It`.
     pub by: Box<Count>,
@@ -276,7 +291,11 @@ pub enum Count {
     /// "the total power of creatures you control" = `Aggregate(SumOf, (of:
     /// Objects(<your creatures>), by: StatOf(It, Power)))`; devotion to green
     /// = `Aggregate(SumOf, (of: Objects(<your permanents>), by: CountOf(
-    /// ManaSymbols(It, CountsAs(Green)))))` ([CR#700.5]).
+    /// ManaSymbols(It, CountsAs(Green)))))` ([CR#700.5]). Poly over the
+    /// projected element kind, so a cross-player fold works too ([CR#119.1]):
+    /// "the highest life total among all players" (Arbiter of Knollridge) =
+    /// `Aggregate(MaxOf, (of: Players(<all players>), by: PlayerStatOf(It,
+    /// Life)))`.
     Aggregate(AggregateOp, Projection),
     /// A remembered `Count` macro invocation.
     #[macro_ron(expanded)]

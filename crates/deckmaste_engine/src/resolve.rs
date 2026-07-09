@@ -2356,9 +2356,14 @@ impl GameState {
                         let watcher = self.frame_watcher(frame);
                         crate::target::candidates_with(self, filter, Some(watcher))
                     }
-                    // Neither is a `Projectable` source — fizzle to the
-                    // empty group, like `ManaSymbols`.
-                    Countable::ManaSymbols(..)
+                    // Idris's `Pick` is pinned to `Projection b AnObject`
+                    // ([CR#107.1] — no player-`Pick` consumer exists), so a
+                    // `Players`-sourced `proj` here is authoring-invalid, like
+                    // the non-`Projectable` `ManaSymbols`/`Singleton`/
+                    // `ManaSpentMatching` sources — fizzle to the empty group
+                    // (never-crash on an authoring mistake).
+                    Countable::Players(..)
+                    | Countable::ManaSymbols(..)
                     | Countable::Singleton(..)
                     | Countable::ManaSpentMatching(..) => Vec::new(),
                 };
@@ -2817,7 +2822,11 @@ impl GameState {
             // zone/kind narrowing. The watcher anchors `Ref(This)` to the
             // frame's announce-time self, the way `eval_reference` does.
             Count::CountOf(source) => match source {
-                Countable::Objects(filter) => {
+                // [CR#119.1]: a player filter's cardinality — players are
+                // objects too (proxies in `self.objects`), matched by the
+                // same live filter (`CountOf (Players OpponentOf)` = "the
+                // number of opponents you have").
+                Countable::Objects(filter) | Countable::Players(filter) => {
                     let watcher = self.frame_watcher(frame);
                     let n = self
                         .objects
@@ -3046,12 +3055,16 @@ impl GameState {
                         None => 0,
                     }
                 }
-                // Neither is a forced distinct-union path yet ([CR#700.5]
+                // None of these is a forced distinct-union path ([CR#700.5]
                 // devotion has no distinct-union reading; Idris's
                 // `readableOn` doesn't gate `ManaSpentMatching` either, but
-                // the engine has no mana-spent tracking to read) — fizzle to
-                // 0.
-                Countable::ManaSymbols(..) | Countable::ManaSpentMatching(..) => 0,
+                // the engine has no mana-spent tracking to read; `readableOn`
+                // never grants `Players` a characteristic axis at all — a
+                // player has no printed characteristic to distinctly union)
+                // — fizzle to 0.
+                Countable::ManaSymbols(..)
+                | Countable::ManaSpentMatching(..)
+                | Countable::Players(..) => 0,
             },
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
@@ -3147,26 +3160,33 @@ impl GameState {
             Count::ManaAvailable(reference) => self.floated_mana(reference, frame),
             // [CR#107.1]: fold the per-element projection over the set —
             // devotion = `Aggregate(SumOf, Project(<your permanents>,
-            // CountOf(ManaSymbols(It, CountsAs(Green)))))` ([CR#700.5]).
-            // Only `Countable::Objects` is a projectable source; a
-            // `ManaSymbols` source fizzles to the empty set. Each candidate
-            // binds `It` in a cloned sub-frame, exactly as `Selection::Pick`
-            // does. Unlike `Pick`'s frameless `candidates` (it has no real
-            // card needing a carrier-relative `of` yet), a devotion-shaped
-            // `of` ("permanents YOU control") needs `Ref(You)`/`Ref(This)`
-            // anchored, so this passes the frame's watcher, same as
-            // `CountOf`/`CountDistinct` above. Empty folds are 0
-            // (never-crash); `Min`/`Max`/`Average` over ∅ are 0 by
-            // convention.
+            // CountOf(ManaSymbols(It, CountsAs(Green)))))` ([CR#700.5]); a
+            // cross-player fold = `Aggregate(MaxOf, Project(<all players>,
+            // PlayerStatOf(It, Life)))` ([CR#119.1] — "the highest life total
+            // among all players", Arbiter of Knollridge). `Countable::Objects`
+            // and `Countable::Players` are the two `Projectable` sources
+            // (Idris's own gate); a `ManaSymbols`/`Singleton`/
+            // `ManaSpentMatching` source fizzles to the empty set. Each
+            // candidate — object OR player proxy, `candidates_with` doesn't
+            // distinguish (players are objects too) — binds `It` in a cloned
+            // sub-frame, exactly as `Selection::Pick` does. Unlike `Pick`'s
+            // frameless `candidates` (it has no real card needing a
+            // carrier-relative `of` yet), a devotion-shaped `of` ("permanents
+            // YOU control") needs `Ref(You)`/`Ref(This)` anchored, so this
+            // passes the frame's watcher, same as `CountOf`/`CountDistinct`
+            // above. Empty folds are 0 (never-crash); `Min`/`Max`/`Average`
+            // over ∅ are 0 by convention (`Iterator::min`/`max`'s `None`
+            // mapped to 0 below — safe on any input, not just the ≥1-player
+            // case every real fixture happens to hit).
             Count::Aggregate(op, proj) => {
                 let ids = match &proj.of {
-                    Countable::Objects(filter) => {
+                    Countable::Objects(filter) | Countable::Players(filter) => {
                         let watcher = self.frame_watcher(frame);
                         crate::target::candidates_with(self, filter, Some(watcher))
                     }
-                    // Neither is a `Projectable` source (Idris gates
+                    // Not a `Projectable` source (Idris gates
                     // `Aggregate`/`Project` to `Objects`/`Players`) — fizzle
-                    // to the empty set, like `ManaSymbols`.
+                    // to the empty set.
                     Countable::ManaSymbols(..)
                     | Countable::Singleton(..)
                     | Countable::ManaSpentMatching(..) => Vec::new(),
@@ -5325,6 +5345,81 @@ mod tests {
                 power_state.eval_count(&empty_fold, &frame),
                 0,
                 "{op:?} over the empty set is 0"
+            );
+        }
+    }
+
+    /// The cross-player fold ([CR#119.1] Arbiter of Knollridge): `Aggregate`
+    /// over a `Countable::Players` source reads each matching player's
+    /// `PlayerStatOf(It, Life)` and folds per `AggregateOp` — the
+    /// player-sourced twin of `aggregate_folds_a_projection_over_a_selection`'s
+    /// object-sourced coverage above. `MaxOf` reads the higher of the two
+    /// players' life totals ("the highest life total among all players");
+    /// every `AggregateOp` folds an EMPTY player set to 0 (never-crash) —
+    /// exercised on a real `Countable::Players` source, not just the object
+    /// analog, since `Iterator::min`/`max`'s `None` case is the concrete
+    /// panic risk (`.unwrap()` on an empty iterator) the never-crash ruling
+    /// guards against.
+    #[test]
+    fn player_aggregate_folds_life_totals_and_fizzles_to_zero_on_empty() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::ObjectKind;
+        use deckmaste_core::PlayerAttr;
+        use deckmaste_core::Projection;
+
+        let mut state = game();
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(src);
+        state.player_mut(PlayerId(0)).life = 12;
+        state.player_mut(PlayerId(1)).life = 20;
+
+        let all_players = Predicate::Kind(ObjectKind::Player);
+        let highest_life = |op: AggregateOp| {
+            Count::Aggregate(
+                op,
+                Projection {
+                    of: Countable::Players(Box::new(all_players.clone())),
+                    by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                },
+            )
+        };
+        assert_eq!(
+            state.eval_count(&highest_life(AggregateOp::MaxOf), &frame),
+            20,
+            "the highest life total among all players"
+        );
+        assert_eq!(
+            state.eval_count(&highest_life(AggregateOp::MinOf), &frame),
+            12,
+            "the lowest life total among all players"
+        );
+        assert_eq!(
+            state.eval_count(&highest_life(AggregateOp::SumOf), &frame),
+            32,
+            "the total life across all players"
+        );
+
+        // An empty player set (an authoring mistake, but must stay safe on
+        // ANY input, not just the real ≥1-player fixtures) folds every op to
+        // 0 rather than panicking on `Iterator::min`/`max` of an empty set.
+        let no_players = Predicate::Not(Box::new(Predicate::Any));
+        for op in [
+            AggregateOp::SumOf,
+            AggregateOp::MinOf,
+            AggregateOp::MaxOf,
+            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
+        ] {
+            let empty_fold = Count::Aggregate(
+                op,
+                Projection {
+                    of: Countable::Players(Box::new(no_players.clone())),
+                    by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                },
+            );
+            assert_eq!(
+                state.eval_count(&empty_fold, &frame),
+                0,
+                "{op:?} over the empty player set is 0"
             );
         }
     }

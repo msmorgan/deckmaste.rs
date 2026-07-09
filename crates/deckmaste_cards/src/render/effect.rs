@@ -630,6 +630,17 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         Action::By(_, PlayerAction::Untap(Reference::It)) => {
             Some(format!("Untap {}.", each_group()))
         }
+        // [CR#119.1,119.5]: "Each player's life total becomes N." — a
+        // possessive-subject sentence (the value belongs to the loop
+        // element), unlike the subject-verb pattern the generic `By(It, pa)`
+        // arm below handles ("Each player mills …"). Arbiter of Knollridge's
+        // own shape: `count` is typically a cross-player `Aggregate`
+        // ([CR#119.1]) reading "the highest life total among all players".
+        Action::By(Reference::It, PlayerAction::SetLife(count)) => Some(format!(
+            "{}'s life total becomes {}.",
+            capitalize_first(&each_group()),
+            fragment::count(count)
+        )),
         // Subject-declarative player verbs over the loop element as AGENT
         // ([CR#608.2d] distributive each; [CR#701.17a,701.9,121.1,119.3]):
         // "Each player mills two cards." / "Each opponent loses 2 life."
@@ -1844,6 +1855,44 @@ mod tests {
             ))),
         });
         assert_eq!(effect(&gain, &ctx), "For each creature, you gain 1 life.");
+    }
+
+    /// [CR#119.1,119.5]: "Each player's life total becomes N." — the
+    /// possessive-subject collective, Arbiter of Knollridge's own shape
+    /// (`N` = a cross-player `Aggregate` reading "the highest life total
+    /// among all players").
+    #[test]
+    fn each_player_set_life_renders_possessive_becomes_clause() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Countable;
+        use deckmaste_core::ObjectKind;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::PlayerAttr;
+        use deckmaste_core::Projection;
+
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+        };
+        let highest_life = Count::Aggregate(
+            AggregateOp::MaxOf,
+            Projection {
+                of: Countable::Players(Box::new(Predicate::Kind(ObjectKind::Player))),
+                by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+            },
+        );
+        let set_life = OneShotEffect::Each(Each {
+            binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
+            effect: Box::new(OneShotEffect::Act(Action::By(
+                Reference::It,
+                PlayerAction::SetLife(highest_life),
+            ))),
+        });
+        assert_eq!(
+            effect(&set_life, &ctx),
+            "Each player's life total becomes the highest life total among all players."
+        );
     }
 
     /// A player `Move` to the exile zone renders "Exile <subject>." — exiling

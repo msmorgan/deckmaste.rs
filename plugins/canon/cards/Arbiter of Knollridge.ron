@@ -1,0 +1,35 @@
+// The cross-player fold fixture ([CR#119.1]): "each player's life total
+// becomes the highest life total among all players" is `Aggregate(MaxOf,
+// (of: Players(Player), by: PlayerStatOf(It, Life)))` folded over EVERY
+// player, then applied to each player in turn via the enclosing `Each` —
+// exercises `Countable::Players`/`Count::Aggregate`'s player-source path end
+// to end (engine fold, render, Idris re-emit).
+Normal(
+  name: "Arbiter of Knollridge",
+  mana_cost: [
+    Generic(6),
+    White,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Giant,
+    Wizard,
+  ],
+  abilities: [
+    Keyword(Vigilance),
+    Triggered(
+      event: ThisEnters,
+      effect: Each(
+        binder: Existing(SelectAll(Player)),
+        effect: By(It, SetLife(Aggregate(MaxOf, (
+          of: Players(Player),
+          by: PlayerStatOf(It, Life),
+        )))),
+      ),
+    ),
+  ],
+  power: 5,
+  toughness: 5,
+)
