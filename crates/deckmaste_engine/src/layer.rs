@@ -833,13 +833,65 @@ fn resolve_count_ref(
 /// CDA counting creatures reads the post-L4 types). A count depending on
 /// another object's SAME-or-LATER-layer derived value is the separate
 /// `engine-layers-fixpoint` ticket; this evaluator does not iterate.
+/// [CR#107.1b,613] "equal to its power" and friends: resolve `reference`, read
+/// the DERIVED stat off `working` (mana value / loyalty / defense are
+/// layer-stable base state), clamping a negative magnitude to 0. Factored out
+/// of [`eval_count`]'s dispatch so that match stays within the line budget.
+fn eval_stat_of(
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    reference: &deckmaste_core::Reference,
+    stat: deckmaste_core::Stat,
+    watcher: Option<ObjectSource>,
+) -> Int {
+    use deckmaste_core::Stat;
+    let Some(id) = resolve_count_ref(state, reference, watcher) else {
+        return 0;
+    };
+    let value = match stat {
+        Stat::Power => working
+            .get(&id)
+            .and_then(|d| d.characteristics.power)
+            .unwrap_or(0),
+        Stat::Toughness => working
+            .get(&id)
+            .and_then(|d| d.characteristics.toughness)
+            .unwrap_or(0),
+        Stat::ManaValue => Int::try_from(crate::derive::face(state.def(id)).mana_cost.mana_value())
+            .expect("mana value fits Int"),
+        // [CR#122.1e,122.1g]: loyalty/defense ARE the loyalty-/defense-
+        // counter counts (read off the counter map, base state).
+        Stat::Loyalty => Int::try_from(
+            state
+                .objects
+                .obj(id)
+                .counters
+                .get("LoyaltyCounter")
+                .copied()
+                .unwrap_or(0),
+        )
+        .expect("loyalty fits Int"),
+        Stat::Defense => Int::try_from(
+            state
+                .objects
+                .obj(id)
+                .counters
+                .get("DefenseCounter")
+                .copied()
+                .unwrap_or(0),
+        )
+        .expect("defense fits Int"),
+    };
+    // [CR#107.1b,613]: a stat used as a magnitude clamps negative to 0.
+    value.max(0)
+}
+
 fn eval_count(
     n: &Count,
     state: &GameState,
     working: &BTreeMap<ObjectId, DerivedObject>,
     watcher: Option<ObjectSource>,
 ) -> Int {
-    use deckmaste_core::Stat;
     match n {
         Count::Literal(v) => (*v).cast_signed(),
         // "For each …": the filter's cardinality over the working derived map,
@@ -880,49 +932,7 @@ fn eval_count(
         // `working`. Mana value / loyalty / defense are layer-stable base state
         // (read off the card face / counter map, as `resolve.rs` does). A
         // negative result counts as `0` ([CR#107.1b,613]).
-        Count::StatOf(reference, stat) => {
-            let Some(id) = resolve_count_ref(state, reference, watcher) else {
-                return 0;
-            };
-            let value = match stat {
-                Stat::Power => working
-                    .get(&id)
-                    .and_then(|d| d.characteristics.power)
-                    .unwrap_or(0),
-                Stat::Toughness => working
-                    .get(&id)
-                    .and_then(|d| d.characteristics.toughness)
-                    .unwrap_or(0),
-                Stat::ManaValue => {
-                    Int::try_from(crate::derive::face(state.def(id)).mana_cost.mana_value())
-                        .expect("mana value fits Int")
-                }
-                // [CR#122.1e,122.1g]: loyalty/defense ARE the loyalty-/defense-
-                // counter counts (read off the counter map, base state).
-                Stat::Loyalty => Int::try_from(
-                    state
-                        .objects
-                        .obj(id)
-                        .counters
-                        .get("LoyaltyCounter")
-                        .copied()
-                        .unwrap_or(0),
-                )
-                .expect("loyalty fits Int"),
-                Stat::Defense => Int::try_from(
-                    state
-                        .objects
-                        .obj(id)
-                        .counters
-                        .get("DefenseCounter")
-                        .copied()
-                        .unwrap_or(0),
-                )
-                .expect("defense fits Int"),
-            };
-            // [CR#107.1b,613]: a stat used as a magnitude clamps negative to 0.
-            value.max(0)
-        }
+        Count::StatOf(reference, stat) => eval_stat_of(state, working, reference, *stat, watcher),
         // [CR#119.1,402.2]: a player's numeric attribute — read straight off
         // state (players have no [CR#613] layers). A non-player or unresolved
         // reference contributes 0.
