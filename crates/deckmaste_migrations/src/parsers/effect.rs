@@ -76,6 +76,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_return_to_hand(line) {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_reanimate(line) {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_tap_untap(line) {
         return Ok(Some(p));
     }
@@ -977,6 +980,58 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
         effect: "Move(It, Hand)".to_owned(),
+    })
+}
+
+/// Graveyard reanimation ([CR#400.7]) — the graveyard→BATTLEFIELD twin of
+/// [`parse_return_to_hand`]'s graveyard→hand arm, reusing the same
+/// [`graveyard_card_filter`] helper and only swapping the destination:
+/// - `Return target <subject> card from your graveyard to the battlefield.` ->
+///   `TargetOne(graveyard_card_filter(<subject>))` + `Move(It, Battlefield)`.
+/// - `Return ~ from your graveyard to the battlefield.` / `Return it from your
+///   graveyard to the battlefield.` -> self-reanimation, no target (`Move(This,
+///   Battlefield)`).
+///
+/// No [`EnterRider`](deckmaste_core::EnterRider) is emitted: a "your
+/// graveyard" subject is already owned by the resolving player, and the
+/// engine derives battlefield-entry control from the object's stored
+/// `controller` field, which is forced to the owner while off the
+/// battlefield — so a bare arrival already lands under the owner's control.
+/// `UnderOwnersControl` would be redundant here, and riders aren't executed
+/// by the engine yet (a `todo!()` in the zone-move apply path), so adding one
+/// would invite a panic rather than express anything true. "entering
+/// tapped", "with a finality counter on it", "attached to that creature"
+/// (riders), a mana-value filter, and "up to two target … cards"
+/// (multi-target) all leave a trailing/leading clause neither match arm
+/// below strips, so those decline (`None`) rather than mis-parse — reported
+/// as a follow-up, not built here.
+fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "return ")?.strip_suffix('.')?;
+    // Self-reanimation: "Return ~/it from your graveyard to the
+    // battlefield." — the activated/triggered effect body naming its own
+    // source permanent ([CR#113.7]).
+    if matches!(
+        body,
+        "~ from your graveyard to the battlefield" | "it from your graveyard to the battlefield"
+    ) {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: "Move(This, Battlefield)".to_owned(),
+        });
+    }
+    // Targeted reanimation: "target <subject> card from your graveyard to
+    // the battlefield." Mirrors `parse_return_to_hand`'s graveyard-to-hand
+    // arm exactly, down to the "<subject> card" noun-phrase split.
+    let noun = body
+        .strip_suffix(" from your graveyard to the battlefield")
+        .and_then(|s| s.strip_prefix("target "))?;
+    let subject = noun
+        .strip_suffix(" card")
+        .or_else(|| (noun == "card").then_some(""))?;
+    let card_filter = graveyard_card_filter(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({card_filter})")],
+        effect: "Move(It, Battlefield)".to_owned(),
     })
 }
 
@@ -2705,6 +2760,67 @@ mod tests {
                 "Move(It, Hand)".to_owned()
             ))
         );
+    }
+
+    #[test]
+    fn return_target_card_from_graveyard_to_battlefield() {
+        // Reanimation ([CR#400.7]): the same `graveyard_card_filter` shape as
+        // the hand twin, landing on the battlefield instead — no rider (the
+        // owner-control default already applies).
+        assert_eq!(
+            parsed("Return target creature card from your graveyard to the battlefield."),
+            Some((
+                "TargetOne(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "Move(It, Battlefield)".to_owned()
+            ))
+        );
+        // Bare "card" (no type qualifier) — any card you own there.
+        assert_eq!(
+            parsed("Return target card from your graveyard to the battlefield."),
+            Some((
+                "TargetOne(And([InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "Move(It, Battlefield)".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn return_self_from_graveyard_to_battlefield() {
+        // Self-reanimation, no target — `{cost}: Return ~ from your
+        // graveyard to the battlefield.` (an activated ability's cost is
+        // the activated-frame's job, not this clause's).
+        assert_eq!(
+            parsed("Return ~ from your graveyard to the battlefield."),
+            Some((String::new(), "Move(This, Battlefield)".to_owned()))
+        );
+        assert_eq!(
+            parsed("Return it from your graveyard to the battlefield."),
+            Some((String::new(), "Move(This, Battlefield)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn reanimate_declines_riders_and_multi_target() {
+        // A trailing rider leaves text the base match doesn't strip — the
+        // clause declines rather than mis-parse the base reanimation shape.
+        assert!(declines(
+            "Return target creature card from your graveyard to the battlefield tapped."
+        ));
+        assert!(declines(
+            "Return ~ from your graveyard to the battlefield tapped."
+        ));
+        assert!(declines(
+            "Return target creature card from your graveyard to the battlefield with a finality counter on it."
+        ));
+        // Multi-target ("up to two target … cards") isn't a single `target`
+        // subject — declines.
+        assert!(declines(
+            "Return up to two target creature cards from your graveyard to the battlefield."
+        ));
+        // A mana-value filter isn't modeled by `graveyard_card_filter` yet.
+        assert!(declines(
+            "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
+        ));
     }
 
     #[test]

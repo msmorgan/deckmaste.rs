@@ -1015,12 +1015,32 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         Action::Move(r, Destination::Zone(Zone::Hand), riders) if riders.is_empty() => {
             format!("Return {} to your hand.", fragment::reference(r, ctx))
         }
+        // [CR#400.7]: graveyard reanimation — the empty-rider battlefield
+        // case (the migrations `parse_reanimate` production's `Move(It|This,
+        // Battlefield)`, no rider since the owner-control default already
+        // applies to a "your graveyard" subject). "from your graveyard" is
+        // static text here, not derived from the reference: a bare `Move`
+        // carries no origin-zone field. The reference SHAPE — `It`/`This`,
+        // the only forms `parse_reanimate` emits — is what reserves this
+        // phrasing for the graveyard-recursion family. It must NOT catch a
+        // bare-reference return from another origin: `parse_return_that_card`
+        // emits a riderless `Move(That(Card), Battlefield)` for an exile
+        // return (Otherworldly Journey), which is not graveyard-sourced and
+        // would be mislabelled here — so the guard excludes `That`/`Target`,
+        // letting those fall through to the zone-agnostic/unrendered path.
+        Action::Move(
+            r @ (Reference::It | Reference::This),
+            Destination::Zone(Zone::Battlefield),
+            riders,
+        ) if riders.is_empty() => {
+            format!(
+                "Return {} from your graveyard to the battlefield.",
+                fragment::reference(r, ctx)
+            )
+        }
         // A battlefield destination WITH arrival riders ([CR#614.12],
         // Otherworldly Journey's delayed return): "Return <r> to the
-        // battlefield <rider phrase>." — the empty-rider battlefield case
-        // has no oracle text of its own (a plain `Move(_, Battlefield, [])`
-        // reads as a reanimation-family verb this corpus doesn't have yet),
-        // so this arm is deliberately riders-non-empty.
+        // battlefield <rider phrase>."
         Action::Move(r, Destination::Zone(Zone::Battlefield), riders) if !riders.is_empty() => {
             format!(
                 "Return {} to the battlefield{}.",
@@ -1869,6 +1889,101 @@ mod tests {
         assert_eq!(
             action(&bottom, &ctx),
             "Put it on the bottom of your library."
+        );
+    }
+
+    /// Graveyard reanimation ([CR#400.7]) — the empty-rider `Move(_,
+    /// Battlefield)` shape `parse_reanimate` (migrations effect.rs) emits —
+    /// round-trips both the targeted and self forms. The targeted form
+    /// exercises `filter_noun`'s graveyard-card "card" noun (both typed and
+    /// bare); a rider-carrying return (Otherworldly Journey's delayed
+    /// return) stays on the OTHER arm and never gets the "from your
+    /// graveyard" clause.
+    #[test]
+    fn reanimate_from_graveyard_round_trips() {
+        use deckmaste_core::EnterRider;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+
+        let graveyard_creature = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+            Predicate::Relation(RelationPredicate::Owner(Box::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+        let target = TargetSpec::Target(Quantity::one(), graveyard_creature);
+        let ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&target),
+            that: None,
+        };
+        let targeted = Action::Move(Reference::It, Destination::Zone(Zone::Battlefield), vec![]);
+        assert_eq!(
+            action(&targeted, &ctx),
+            "Return target creature card from your graveyard to the battlefield."
+        );
+
+        // Bare "card" (no type qualifier).
+        let bare_card = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+            Predicate::Relation(RelationPredicate::Owner(Box::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+        let bare_target = TargetSpec::Target(Quantity::one(), bare_card);
+        let bare_ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&bare_target),
+            that: None,
+        };
+        assert_eq!(
+            action(&targeted, &bare_ctx),
+            "Return target card from your graveyard to the battlefield."
+        );
+
+        // Self-reanimation, no target.
+        let self_ctx = Ctx {
+            subject: "Ashputtle",
+            targets: &[],
+            that: None,
+        };
+        let self_move = Action::Move(
+            Reference::This,
+            Destination::Zone(Zone::Battlefield),
+            vec![],
+        );
+        assert_eq!(
+            action(&self_move, &self_ctx),
+            "Return Ashputtle from your graveyard to the battlefield."
+        );
+
+        // A rider-carrying battlefield return is a DIFFERENT family (exile,
+        // not graveyard) and keeps its own phrasing, no "from your
+        // graveyard" clause.
+        let riders = Action::Move(
+            Reference::That(deckmaste_core::Sort::Card),
+            Destination::Zone(Zone::Battlefield),
+            vec![EnterRider::UnderOwnersControl],
+        );
+        assert_eq!(
+            action(&riders, &self_ctx),
+            "Return that card to the battlefield under its owner's control."
+        );
+
+        // Regression guard: a RIDERLESS `Move(That(Card), Battlefield)` is the
+        // exile-return family's no-adjunct form (`parse_return_that_card`), NOT
+        // graveyard reanimation. The reanimation arm is guarded to `It`/`This`,
+        // so this must NOT be mislabelled "from your graveyard".
+        let riderless_that = Action::Move(
+            Reference::That(deckmaste_core::Sort::Card),
+            Destination::Zone(Zone::Battlefield),
+            vec![],
+        );
+        assert!(
+            !action(&riderless_that, &self_ctx).contains("from your graveyard"),
+            "riderless That(Card) reanimation-arm leak: {}",
+            action(&riderless_that, &self_ctx)
         );
     }
 

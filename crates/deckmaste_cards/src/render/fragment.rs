@@ -457,13 +457,28 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
     {
         return noun;
     }
+    // A graveyard-scoped card ([`graveyard_card_filter`]'s shape, migrations
+    // effect.rs) rides the noun as a trailing "card" — a graveyard object is
+    // a card, not a permanent, so "target creature card"/"target card" reads
+    // distinctly from the battlefield-scoped "target creature". The zone
+    // itself ("from your graveyard") is NOT this function's job — that
+    // clause is the caller's static boilerplate (the graveyard-recursion
+    // family, [CR#400.7]).
+    let is_graveyard_card = flatten_all_of(filter).into_iter().any(|p| {
+        matches!(
+            strip_expanded(p),
+            Predicate::State(StatePredicate::InZone(Zone::Graveyard))
+        )
+    });
     // The base noun: a card TYPE atom ("creature") or, failing that, a bare
     // macro-provenance noun among the `And` parts ("permanent" — the
     // `Permanent` filter macro has no `Type(_)` atom of its own to key off
-    // of, [CR#110.1]; "target nonland permanent", Avarice Totem).
+    // of, [CR#110.1]; "target nonland permanent", Avarice Totem), or (for a
+    // graveyard-scoped filter with no type qualifier) the bare "card" noun.
     let base_noun = find_card_type(filter)
         .map(|t| super::card::type_str(t).to_lowercase())
-        .or_else(|| find_macro_noun(filter));
+        .or_else(|| find_macro_noun(filter))
+        .or_else(|| is_graveyard_card.then(|| "card".to_string()));
     if let Some(base) = base_noun {
         // A negated-subtype/-card-type exclusion rides the noun as a prefix
         // ([CR#205.2,205.3] — subtype "non-Brushwagg creature"; a card-type
@@ -474,6 +489,9 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
             Some(prefix) => format!("{prefix} {base}"),
             None => base,
         };
+        // The trailing "card" noun (skipped when the base noun already IS
+        // "card" — the untyped graveyard case above).
+        let base = if is_graveyard_card && base != "card" { format!("{base} card") } else { base };
         // A controller restrictor rides the noun: "creature you control",
         // "creature you don't control", "creature an opponent controls" —
         // the restrictor is printed text, never dropped.
