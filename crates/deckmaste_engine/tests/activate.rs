@@ -1083,6 +1083,75 @@ fn activated_ability_pays_loyalty_minus_cost() {
     );
 }
 
+/// [CR#601.2b,107.3a,606.6]: a loyalty `−X` cost —
+/// `Do(RemoveCounters(This, LoyaltyCounter, X))` — carries a `Count::X` operand
+/// but NO `{X}` mana symbol. The activate-time X-announce trigger must still
+/// fire (a `ChooseXValue` surfaces), and the announced value must bind the cost
+/// verb so it removes exactly X counters. This pins the non-mana X-cost
+/// announce surface (engine-nonmana-x-cost-announce), extending the mana-only
+/// `{X}` trigger from engine-x-costs.
+#[test]
+fn activated_ability_announces_and_pays_nonmana_x_cost() {
+    const NAME: &str = "Loyalty-minus-X-cost test artifact";
+    let card = artifact_with_cost(
+        NAME,
+        vec![
+            CostComponent::Mana("{0}".parse().unwrap()),
+            CostComponent::do_(PlayerAction::RemoveCounters(
+                Reference::This,
+                "LoyaltyCounter".into(),
+                Count::X,
+            )),
+        ],
+    );
+    let mut state = cost_game(7, &card);
+    let obj = force_into_play(&mut state, PlayerId(0), NAME);
+    // Seed 5 loyalty so a `−X` for X=3 has counters to remove.
+    state
+        .objects
+        .obj_mut(obj)
+        .counters
+        .insert("LoyaltyCounter".into(), 5);
+
+    // Activate the ability — even with no `{X}` mana, the cost's `Count::X`
+    // verb operand must trigger the X announcement.
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    let activate =
+        activate_action(&legal, obj).expect("the loyalty −X ability is offered at priority");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    // [CR#601.2b]: X is announced first — driven by the cost verb, not mana.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { player }) = stop else {
+        panic!("expected ChooseXValue for the non-mana X cost, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0), "the activating player announces X");
+    state.submit_decision(Decision::XValue(3)).unwrap();
+
+    // The `{0}` mana component still surfaces its (zero) PayMana acknowledgment.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
+        panic!("expected the {{0}} PayMana after X, got {stop:?}");
+    };
+    assert_eq!(cost, "{0}".parse().unwrap(), "the mana component is {{0}}");
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
+
+    // Drive to the next priority: the `−X` cost fired during payment, reading
+    // the announced X=3, so 3 loyalty counters were removed (5 -> 2).
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(
+        state
+            .objects
+            .obj(obj)
+            .counters
+            .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+            .copied(),
+        Some(2),
+        "the announced X=3 bound the cost verb: it removed three loyalty counters (5 -> 2)"
+    );
+}
+
 /// [CR#601.2b,601.2h,608.2d]: a `With(ChooseOne(creature), Do(Sacrifice(That)))`
 /// cost surfaces a `ChooseObjects` decision during payment — choosing is the
 /// cost-side `With` pre-step, never part of the verb; the chosen creature is

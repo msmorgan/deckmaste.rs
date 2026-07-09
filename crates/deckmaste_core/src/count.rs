@@ -317,6 +317,30 @@ impl Count {
             _ => None,
         }
     }
+
+    /// Whether this count reads the announced X ([CR#107.3a]) anywhere —
+    /// directly (`Count::X`) or nested inside an arithmetic combinator
+    /// (`Minus(TargetsOf(This), X)`, "half X", …) or a macro invocation. The
+    /// activate-time X-announce trigger asks this of a non-mana cost verb's
+    /// count operand to decide whether X must be announced for the activation
+    /// even without an `{X}` mana symbol (a loyalty `−X`).
+    #[must_use]
+    pub fn mentions_x(&self) -> bool {
+        match self {
+            Count::X => true,
+            Count::Min(a, b)
+            | Count::Max(a, b)
+            | Count::Plus(a, b)
+            | Count::Minus(a, b)
+            | Count::Times(a, b)
+            | Count::Divide(_, a, b)
+            | Count::Mod(a, b)
+            | Count::Pow(a, b) => a.mentions_x() || b.mentions_x(),
+            Count::Half(_, c) => c.mentions_x(),
+            Count::Expanded(e) => e.value.mentions_x(),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -338,6 +362,27 @@ mod tests {
     fn literal_reads_and_writes_bare() {
         assert_eq!(read("3"), Count::Literal(3));
         assert_eq!(write(&Count::Literal(3)), "3");
+    }
+
+    /// `mentions_x` sees `Count::X` directly and nested inside an arithmetic
+    /// combinator ([CR#107.3a]), and says no for an X-free count — the check
+    /// the non-mana X-cost announce trigger relies on.
+    #[test]
+    fn mentions_x_detects_direct_and_nested_x() {
+        assert!(Count::X.mentions_x(), "bare X");
+        assert!(
+            read("Minus(TargetsOf(This), X)").mentions_x(),
+            "X nested in a Minus operand"
+        );
+        assert!(
+            read("Half(RoundDown, X)").mentions_x(),
+            "X nested under a Half combinator"
+        );
+        assert!(!Count::Literal(3).mentions_x(), "a literal reads no X");
+        assert!(
+            !read("StatOf(This, Power)").mentions_x(),
+            "an X-free count reads no X"
+        );
     }
 
     #[test]

@@ -461,15 +461,47 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// cost verb names no targets and carries no trigger context). A
 /// `With(ChooseOne/Choose)` binder inside a verb surfaces its own
 /// `ChooseObjects` decision via `run_effect`'s `chosen.is_none()` path.
-fn verb_payment_items(verbs: &[PlayerAction], source: ObjectId, player: PlayerId) -> Vec<WorkItem> {
+///
+/// `x` is the value announced for this activation ([CR#601.2b]) — threaded onto
+/// each cost-verb frame so a `Count::X` operand (a loyalty `−X`'s
+/// `RemoveCounters(This, LoyaltyCounter, X)`) pays the announced amount,
+/// exactly as the effect-side frame reads X. `None` when no X was announced
+/// (the common no-X cost), leaving each `Count::X`-free verb untouched.
+fn verb_payment_items(
+    verbs: &[PlayerAction],
+    source: ObjectId,
+    player: PlayerId,
+    x: Option<Uint>,
+) -> Vec<WorkItem> {
     verbs
         .iter()
-        .map(|verb| WorkItem::RunEffect {
-            effect: Box::new(OneShotEffect::act_by_you(verb.clone())),
-            // A cost verb names no targets and reads no announced X.
-            frame: Frame::bare(source, player),
+        .map(|verb| {
+            // A cost verb names no targets; it may read the announced X.
+            let mut frame = Frame::bare(source, player);
+            frame.anaphora.x = x;
+            WorkItem::RunEffect {
+                effect: Box::new(OneShotEffect::act_by_you(verb.clone())),
+                frame,
+            }
         })
         .collect()
+}
+
+/// Whether a cost-eligible verb reads the announced X ([CR#107.3a]) in a count
+/// operand — a loyalty `−X`/`+X` (`RemoveCounters`/`PutCounters`), a
+/// pay-`X`-life (`LoseLife`), or an X-discard. Drives the non-mana X-announce
+/// trigger: an activation whose cost carries such a verb must announce X even
+/// without an `{X}` mana symbol. Looks through `Expanded` macro wrappers,
+/// mirroring `verb_cost_payable`.
+fn verb_mentions_cost_x(verb: &PlayerAction) -> bool {
+    match verb {
+        PlayerAction::LoseLife(count)
+        | PlayerAction::Discard { count, .. }
+        | PlayerAction::PutCounters(_, _, count)
+        | PlayerAction::RemoveCounters(_, _, count) => count.mentions_x(),
+        PlayerAction::Expanded(e) => verb_mentions_cost_x(&e.value),
+        _ => false,
+    }
 }
 
 /// Unwrap the `CostComponent::Do(action)` verbs `concretize` produces for
@@ -1016,8 +1048,12 @@ impl GameState {
         count
     }
 
-    /// [CR#601.2b]: surface a `ChooseXValue` if the in-flight announce's cost has
-    /// an `{X}` (`ManaSymbol::Variable`). Runs before `announce_targets`
+    /// [CR#601.2b]: surface a `ChooseXValue` if the in-flight announce's cost
+    /// reads X — either an `{X}` mana symbol (`ManaSymbol::Variable`) or a
+    /// non-mana cost verb whose count operand is `Count::X` (a loyalty `−X`'s
+    /// `RemoveCounters(This, LoyaltyCounter, X)`, which carries no `{X}` mana).
+    /// One announcement per activation covers both — the same chosen value
+    /// binds the mana and every X-cost verb. Runs before `announce_targets`
     /// ([CR#601.2c]). No-op for an X-free cost, so the step is uniform.
     ///
     /// # Panics
@@ -1030,11 +1066,19 @@ impl GameState {
             StackObject::Spell(o) => self
                 .mana_cost(*o)
                 .is_some_and(|c| c.iter().any(|s| matches!(s, ManaSymbol::Variable))),
-            StackObject::Activated { ability, .. } => crate::activate::cost_summary(&ability.cost)
-                .expect("can_activate vetted the cost")
-                .mana
-                .iter()
-                .any(|s| matches!(s, ManaSymbol::Variable)),
+            StackObject::Activated { ability, .. } => {
+                let summary = crate::activate::cost_summary(&ability.cost)
+                    .expect("can_activate vetted the cost");
+                // [CR#601.2b]: an `{X}` mana symbol OR a `Count::X` in any
+                // cost-eligible verb (the loyalty `−X` case) triggers the
+                // announcement — checked together so a cost carrying both
+                // announces X exactly once.
+                summary
+                    .mana
+                    .iter()
+                    .any(|s| matches!(s, ManaSymbol::Variable))
+                    || summary.verbs.iter().any(verb_mentions_cost_x)
+            }
             StackObject::Triggered { .. } => {
                 unreachable!("a triggered ability never occupies the announce slot")
             }
@@ -1189,7 +1233,12 @@ impl GameState {
     pub(crate) fn pay_cost(&mut self) {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
+        // `announced_x` (defaulted to 0) concretizes `{X}` mana; `x_binding`
+        // (the raw `Option`) is threaded onto cost-verb frames so a `Count::X`
+        // verb operand reads the same announced value — `None` leaves an X-free
+        // cost's verb frames exactly as before.
         let announced_x = pending.x.unwrap_or(0);
+        let x_binding = pending.x;
         // [CR#601.2b]: the announced concretization — always set by the
         // preceding `ChooseCostOptions` step.
         let (mana, extra_verbs) = pending
@@ -1209,7 +1258,7 @@ impl GameState {
                 // decision (if any) and ahead of the `SpellCast` becomes-cast
                 // step. The source is the spell object; the payer its
                 // controller.
-                let mut items = verb_payment_items(&extra_verbs, object, controller);
+                let mut items = verb_payment_items(&extra_verbs, object, controller, x_binding);
                 // [CR#601.2b]: apply the announced X to the concretized mana
                 // ({X} -> Generic(announced_x); hybrid/Phyrexian already resolved).
                 let mana = concretize_x(&mana, announced_x);
@@ -1221,7 +1270,12 @@ impl GameState {
                     match component {
                         CostComponent::Mana(m) => mana.extend(m.iter().copied()),
                         CostComponent::Do(pa) => {
-                            items.extend(verb_payment_items(&[(**pa).clone()], object, controller));
+                            items.extend(verb_payment_items(
+                                &[(**pa).clone()],
+                                object,
+                                controller,
+                                x_binding,
+                            ));
                         }
                         other => todo!(
                             "engine-alt-costs seam: an optional-cost component \
@@ -1286,8 +1340,18 @@ impl GameState {
                 // the {T}/{Q} events and before `AbilityActivated`. The
                 // ability's own verb costs come first, then the
                 // concretization's Phyrexian-life verbs.
-                items.extend(verb_payment_items(&summary.verbs, source, controller));
-                items.extend(verb_payment_items(&extra_verbs, source, controller));
+                items.extend(verb_payment_items(
+                    &summary.verbs,
+                    source,
+                    controller,
+                    x_binding,
+                ));
+                items.extend(verb_payment_items(
+                    &extra_verbs,
+                    source,
+                    controller,
+                    x_binding,
+                ));
                 // [CR#601.2b,601.2h]: pay each cost-side `With` choose-then-pay
                 // step. Rendered as an `OneShotEffect::With` (choosing kept OUT of the
                 // verb) and run over a fresh frame whose controller is the

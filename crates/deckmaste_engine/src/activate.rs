@@ -521,8 +521,14 @@ impl GameState {
     ) -> bool {
         // Same anchoring as the condition gate (`can_activate` above): the
         // payer is the controller, `~`/`This` is the live source.
-        // A cost-payability gate reads no announced X.
-        let frame = Frame::bare(subject, player);
+        // [CR#601.2b]: X has not been announced yet at the gate, so read it at
+        // its floor of 0 — the cheapest reading, mirroring how the mana gate
+        // "concretizes {X} to 0". A `Count::X` cost verb (a loyalty `−X`) is
+        // then payable for X=0 (remove 0 counters), so the ability is offered;
+        // the actual announced X is bound and paid at `pay_cost`. Without this,
+        // `eval_count(Count::X, …)` on an X-less frame would panic.
+        let mut frame = Frame::bare(subject, player);
+        frame.anaphora.x = Some(0);
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't lose
         // life, a cost that involves having that player pay life can't be paid —
