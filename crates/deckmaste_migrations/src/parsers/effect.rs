@@ -907,24 +907,48 @@ fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>
 /// hand destination is exactly as unremarkable as any other zone move):
 /// - `Return target <subject> to its owner's hand.` -> battlefield bounce via
 ///   `Move(It, Hand)`, the subject parsed by [`object_target_filter`].
-/// - `Return ~ to its owner's hand.` -> a self-bounce (`Move(This, Hand)`), no
-///   target — the effect body of `{cost}: Return ~ to its owner's hand.`
-///   activated abilities (the cost is the activated-frame's job).
+/// - `Return ~ to its owner's hand.` / `Return ~ to your hand.` -> a
+///   self-bounce (`Move(This, Hand)`), no target — the effect body of `{cost}:
+///   Return ~ to its owner's hand.` activated abilities (the cost is the
+///   activated-frame's job). "to your hand" is the equally-correct common idiom
+///   (`Move(_, Hand)` always lands in the owner's hand regardless of which
+///   possessive the oracle text prints).
+/// - `Return that card to your hand.` -> the same product-sited anaphor
+///   [`parse_return_that_card`] reads for a battlefield return ([CR#400.7j]) —
+///   `Move(That(Card), Hand)` — landing in hand instead.
 /// - `Return target <subject> card from your graveyard to your hand.` -> a
 ///   graveyard-to-hand recursion: a plain zone change ([CR#400.7]) of a card
 ///   you own in your graveyard, via `Move(It, Hand)`. The subject is a *card*
 ///   (graveyard zone), so it's the card-type spelling (`Type(Creature)`), not
 ///   the battlefield-scoped `Creature` macro, scoped `InZone(Graveyard)` +
 ///   `Owner(Ref(You))`.
+///
+/// DEFERRED (not built here): non-target *chosen-subject* bounce — "Return a
+/// land you control to its owner's hand." / "return another creature you
+/// control to its owner's hand." — these need chosen-object (not `target`)
+/// selection semantics, a design decision beyond this pass.
 fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "return ")?.strip_suffix('.')?;
-    // Self-bounce: "Return ~/it to its owner's hand." — an activated-ability
-    // effect ("~") or a trigger body whose "it" anaphor names the resolving
-    // source ([CR#113.7]); both are the source permanent (`This`).
-    if body == "~ to its owner's hand" || body == "it to its owner's hand" {
+    // Self-bounce: "Return ~/it to its owner's hand." or "...to your hand."
+    // — an activated-ability effect ("~") or a trigger body whose "it"
+    // anaphor names the resolving source ([CR#113.7]); every phrasing is the
+    // source permanent (`This`).
+    if matches!(
+        body,
+        "~ to its owner's hand" | "it to its owner's hand" | "~ to your hand" | "it to your hand"
+    ) {
         return Some(ParsedEffect {
             targets: Vec::new(),
             effect: "Move(This, Hand)".to_owned(),
+        });
+    }
+    // Self/product anaphor: "Return that card to your hand." — the same
+    // "newest object this resolution moved to a public zone" antecedent
+    // [`parse_return_that_card`] reads, just landing in hand.
+    if body == "that card to your hand" {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: "Move(That(Card), Hand)".to_owned(),
         });
     }
     // Graveyard recursion: "target <subject> card from your graveyard to your
@@ -2623,6 +2647,31 @@ mod tests {
         assert_eq!(
             parsed("Return ~ to its owner's hand."),
             Some((String::new(), "Move(This, Hand)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn return_self_to_your_hand_no_target() {
+        // "to your hand" is the common-case idiom of the same self-bounce —
+        // `Move(_, Hand)` always lands in the owner's hand either way.
+        assert_eq!(
+            parsed("Return ~ to your hand."),
+            Some((String::new(), "Move(This, Hand)".to_owned()))
+        );
+        assert_eq!(
+            parsed("Return it to your hand."),
+            Some((String::new(), "Move(This, Hand)".to_owned()))
+        );
+    }
+
+    #[test]
+    fn return_that_card_to_your_hand() {
+        // "Return that card to your hand." — the same product-sited anaphor
+        // `parse_return_that_card` reads for a battlefield return
+        // ([CR#400.7j]), landing in hand instead.
+        assert_eq!(
+            parsed("Return that card to your hand."),
+            Some((String::new(), "Move(That(Card), Hand)".to_owned()))
         );
     }
 
