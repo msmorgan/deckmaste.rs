@@ -162,8 +162,10 @@ pub enum OneShotEffect {
     /// consumes it, its announced slots read back by the anaphors
     /// (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth announced slot).
     Targeted(Targeted),
-    /// "[body], [count] times" ([CR#608.2] — the quantifier family, sibling
-    /// to [`Each`](OneShotEffect::Each)/
+    /// "[body], [count] times": resolution follows the general
+    /// spell/ability resolution walk ([CR#608.2]) — there is no dedicated CR
+    /// rule defining a "do N times" quantifier; this is engine-side
+    /// shorthand, sibling to [`Each`](OneShotEffect::Each)/
     /// [`Distribute`](OneShotEffect::Distribute) rather than the
     /// manner-adverb family
     /// ([`Simultaneously`](OneShotEffect::Simultaneously)/

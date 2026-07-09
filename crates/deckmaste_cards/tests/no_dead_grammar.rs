@@ -772,8 +772,8 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             'under their owner's control' EnterRider phrasing (only the singular \"its\" is \
             rendered), and an 'any number of' binder-quantity render — all real but unrelated to \
             this mirror task. Engine execution IS wired and covered by a direct engine test \
-            (`resolve::tests::repeat_runs_body_n_times_and_is_steppable` and \
-            `repeat_zero_is_a_no_op`); buildable as a card once Another Round's render gaps close.",
+            (`resolve::tests::repeat_over_a_choice_bearing_body_steps_each_iteration_independently` \
+            and `repeat_zero_is_a_no_op`); buildable as a card once Another Round's render gaps close.",
         ),
         (
             n("Countable", "ManaSpentMatching"),

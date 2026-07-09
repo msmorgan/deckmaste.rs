@@ -1050,33 +1050,56 @@ impl GameState {
             // choice (`Sacrifice(Choose …)`) — the paid object isn't known until
             // the choice resolves, so `EventObject` is left unbound here (it needs
             // a payment-time capture continuation).
-            // "[body], [count] times" ([CR#608.2] quantifier family, sibling
-            // to `Each`/`Distribute`): `count` is evaluated ONCE, up front,
-            // to a concrete number (Storm/Replicate-style per-iteration
-            // semantics are engine-side, per the Idris comment) — never
-            // re-evaluated per iteration, so a body that changes game state
-            // mid-loop (e.g. proliferating counters) can't skew how many
-            // iterations remain. Each iteration is its own
-            // `WorkItem::RunEffect`, scheduled in strict sequence: unlike
-            // `Each`'s all-`Emit` fast path, a `Repeat` body always gets one
-            // `RunEffect` per repetition, so a choice-bearing body pauses and
-            // resumes per iteration rather than being auto-resolved (the
-            // engine-steppable ruling). `count`'s own domain bounds the loop
-            // (the same `Uint` a `Distribute`/`Modal` count already uses,
-            // read via the same `eval_count`) — a huge-but-finite count (a
-            // storm count, a repeated proliferate) allocates a
-            // proportionally large work list but never HANGS: there is no
-            // "and continue forever" shape here to guard against, so no
-            // artificial cap is invented.
+            // "[body], [count] times": resolution of a `Repeat` node follows
+            // the general spell/ability resolution walk ([CR#608.2]); there
+            // is no dedicated CR rule for a "do N times" quantifier — this
+            // is engine-side shorthand, sibling to `Each`/`Distribute` rather
+            // than the manner-adverb family (`Simultaneously`/
+            // `Continuously`). `count` is evaluated ONCE, up front, to a
+            // concrete number (Storm/Replicate-style per-iteration semantics
+            // are engine-side, per the Idris comment) — never re-evaluated
+            // against the ORIGINAL count expression, so a body that changes
+            // game state mid-loop (e.g. proliferating counters) can't skew
+            // how many iterations remain.
+            //
+            // Scheduled as a LAZY self-rescheduling continuation, not an
+            // eager `(0..n)` materialization: `eval_count` returns a `Uint`
+            // with no clamp (arithmetic `Count`s *saturate* toward
+            // `u32::MAX`), so a mistake or a hostile huge count (e.g. a
+            // `Repeat(Literal(4_000_000_000), body)`) must never allocate
+            // count-many work items — that would OOM/hang, violating the
+            // CRITICAL never-crash ruling. Instead, for `n >= 1`, exactly
+            // TWO work items are scheduled, in order: (1) one `RunEffect`
+            // for `body` — this iteration, against the SAME frame the count
+            // was evaluated against — then (2) one `RunEffect` whose effect
+            // is `Repeat(Literal(n - 1), body)`, the remaining iterations,
+            // carrying that same frame forward. `schedule_front` preserves
+            // this order at the agenda's front, so body runs before the
+            // tail continuation is even looked at. The tail re-enters this
+            // arm and `eval_count`s the literal `n - 1` (cheap, exact,
+            // unlike the general case) — memory stays O(1) per step no
+            // matter how large `n` starts out, so a saturated count churns
+            // bounded-memory-and-interruptibly instead of OOMing. A
+            // choice-bearing body still pauses and resumes per iteration
+            // rather than being auto-resolved (the engine-steppable
+            // ruling) — unlike `Each`'s all-`Emit` fast path, a `Repeat`
+            // body always gets its own `RunEffect`. `n == 0` schedules
+            // nothing — a clean no-op.
             OneShotEffect::Repeat(count, body) => {
                 let n = self.eval_count(&count, frame);
-                let items: Vec<WorkItem> = (0..n)
-                    .map(|_| WorkItem::RunEffect {
-                        effect: body.clone(),
-                        frame: frame.clone(),
-                    })
-                    .collect();
-                self.schedule_front(items);
+                if n > 0 {
+                    let items = vec![
+                        WorkItem::RunEffect {
+                            effect: body.clone(),
+                            frame: frame.clone(),
+                        },
+                        WorkItem::RunEffect {
+                            effect: Box::new(OneShotEffect::Repeat(Count::Literal(n - 1), body)),
+                            frame: frame.clone(),
+                        },
+                    ];
+                    self.schedule_front(items);
+                }
             }
             // [CR#702.85,701.57] dig-until (cascade/discover's shape): reveal
             // cards off the top of `whose`'s library one at a time until one
@@ -5784,6 +5807,56 @@ mod tests {
         state.submit_decision(Decision::Answer(true)).unwrap();
         let _ = drain_progress(&mut state, 10);
         assert_eq!(state.player(p0).life, life0 + 6, "both iterations applied");
+    }
+
+    /// A saturated/huge count must never eagerly allocate — the CRITICAL
+    /// never-crash/never-hang ruling applies exactly as much to a mistaken
+    /// `Repeat(Literal(4_000_000_000), body)` as to a panic: `eval_count`
+    /// has no clamp (arithmetic `Count`s *saturate* toward `u32::MAX`), so
+    /// the lazy self-rescheduling continuation must schedule exactly TWO
+    /// work items per step — this iteration's `body` plus a
+    /// `Repeat(Literal(n - 1), body)` tail — never `n` of them.
+    #[test]
+    fn repeat_with_huge_count_does_not_eagerly_allocate() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let agenda_before = state.agenda.len();
+
+        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(1)));
+        state.run_effect(
+            OneShotEffect::Repeat(Count::Literal(1_000_000), Box::new(body)),
+            &frame,
+        );
+
+        assert_eq!(
+            state.agenda.len(),
+            agenda_before + 2,
+            "a single Repeat step schedules exactly two work items — this iteration's body \
+             plus a Repeat(n-1, body) tail continuation — never count-many eagerly \
+             materialized RunEffect items"
+        );
+        match (&state.agenda[0], &state.agenda[1]) {
+            (
+                WorkItem::RunEffect { effect: first, .. },
+                WorkItem::RunEffect { effect: second, .. },
+            ) => {
+                assert!(
+                    matches!(**first, OneShotEffect::Act(_)),
+                    "the front item is this iteration's own body, not another Repeat layer"
+                );
+                match &**second {
+                    OneShotEffect::Repeat(Count::Literal(n), _) => {
+                        assert_eq!(
+                            *n, 999_999,
+                            "the tail carries the DECREMENTED remaining count"
+                        )
+                    }
+                    other => panic!("expected a Repeat(Literal(n - 1), body) tail, got {other:?}"),
+                }
+            }
+            other => panic!("expected two RunEffect work items at the agenda front, got {other:?}"),
+        }
     }
 
     /// [CR#702.85,701.57] `RevealUntil` fizzles to a graceful no-op — the
