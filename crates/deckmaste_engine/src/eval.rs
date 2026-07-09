@@ -54,13 +54,8 @@ pub(crate) enum Lane {
     /// intent has NOT occurred (or been recorded) yet.
     Replacement,
     /// `Delayed.event` — fire-once against a live fact ([CR#603.7c]); same
-    /// candidate semantics as [`Lane::Trigger`]. Declared to the normative
-    /// eval signature ahead of its consumer.
-    #[expect(
-        dead_code,
-        reason = "the delayed-trigger runner is unbuilt; the lane is declared to the \
-                  normative eval signature ahead of it"
-    )]
+    /// candidate semantics as [`Lane::Trigger`]. Consumed by
+    /// [`GameState::event_matches_delayed`](crate::GameState::event_matches_delayed).
     Delayed,
     /// `Happened`/`EventCount`/`EventSum` — a recorded fact, matched against
     /// its per-fact LKI view ([CR#608.2i]).

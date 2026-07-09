@@ -656,8 +656,26 @@ impl GameState {
                 source,
                 ability,
                 controller,
+                ref created,
                 ref bindings,
             } => {
+                // A delayed/reflexive ([CR#603.7,603.12]) trigger carries its
+                // body by value: it has no printed index, so the use-limit gate
+                // and `AbilityUsed` history (both keyed by `object`+printed
+                // index) do not apply — its firing is governed by the registry
+                // (delayed) or the immediate look-back (reflexive). [CR#603.7h]
+                // — a delayed ability limited to "the Nth resolution this turn"
+                // — is not modeled. Note it and move on.
+                if let Some(created) = created {
+                    self.pending_triggers.push(crate::trigger::NotedTrigger {
+                        source,
+                        ability: 0,
+                        created: Some(created.clone()),
+                        controller,
+                        bindings: bindings.clone(),
+                    });
+                    return event;
+                }
                 // [CR#603.2h]: a "once each turn" / once-per-game triggered
                 // ability is noted at most that often. The gate lives HERE, at
                 // note time — NOT at scan-emit — because a single
@@ -695,6 +713,7 @@ impl GameState {
                 self.pending_triggers.push(crate::trigger::NotedTrigger {
                     source,
                     ability: ability as usize,
+                    created: None,
                     controller,
                     bindings: bindings.clone(),
                 });
@@ -1191,6 +1210,10 @@ impl GameState {
                 | GameEvent::ZoneWillChange { .. } => {}
                 _ => {
                     self.note_enacted(event);
+                    // [CR#603.12]: the resolution-scoped window a reflexive
+                    // triggered ability looks back over. Reset per resolution
+                    // (`resolve_object`); the same non-meta facts history keeps.
+                    self.resolution_events.push(event.clone());
                     self.record_history_fact(turn, batch, event.clone());
                 }
             }

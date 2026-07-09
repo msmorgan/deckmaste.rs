@@ -518,6 +518,7 @@ mod tests {
                 object: StackObject::Triggered {
                     source: ObjectSource::Card(card_id),
                     ability: 0,
+                    created: None,
                     bindings: TriggerBindings {
                         this: Some(LkiSnapshot::capture(&state, source)),
                         ..Default::default()

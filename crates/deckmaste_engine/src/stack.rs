@@ -22,9 +22,19 @@ pub enum StackObject {
     /// A triggered ability on the stack ([CR#603.3]). It has no card identity
     /// of its own — its `StackEntry.id` is a freshly minted token — and carries
     /// the firing object's last-known information in `bindings`.
+    ///
+    /// `ability` indexes the source's printed abilities for an ordinary
+    /// ([CR#603.2]) trigger; `created` overrides it with a by-value body for a
+    /// delayed/reflexive ([CR#603.7,603.12]) trigger, which is printed on no
+    /// permanent, so its text is carried like an `Activated` ability's rather
+    /// than re-derived from the source.
     Triggered {
         source: ObjectSource,
         ability: usize,
+        /// `Some` for a delayed/reflexive trigger created at resolution — its
+        /// authoritative body (`ability` is then a placeholder). `None` for a
+        /// printed trigger, read via `abilities_of_source(source)[ability]`.
+        created: Option<Box<deckmaste_core::TriggeredAbility>>,
         bindings: TriggerBindings,
     },
     /// An activated ability on the stack ([CR#602.2a]). Carries the ability's

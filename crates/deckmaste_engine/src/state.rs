@@ -280,6 +280,22 @@ pub struct GameState {
     /// minted and a `ChooseTargets` decision is open. The trigger analogue of
     /// `announcing`; `Some` only across that target choice.
     pub placing_trigger: Option<crate::trigger::PendingTrigger>,
+    /// [CR#603.7]: the delayed-triggered-ability registry. A delayed ability
+    /// is created during a resolution (`OneShotEffect::Delayed`) and is printed
+    /// on no permanent, so the live `abilities_of_source` scan never sees it;
+    /// the trigger scan (`scan_delayed`) consults this registry alongside live
+    /// permanents. Each entry fires ONCE — the next time its event occurs
+    /// ([CR#603.7b]) — then the scan removes it. Reflexive abilities
+    /// ([CR#603.12]) are NOT stored here (they are checked against earlier
+    /// same-resolution events immediately at creation, never persisted).
+    pub delayed_triggers: Vec<crate::trigger::CreatedTrigger>,
+    /// [CR#603.12]: the substantive facts applied SINCE the current stack entry
+    /// began resolving — the resolution-scoped window a reflexive triggered
+    /// ability ("when you do") looks back over at the instant it is created.
+    /// Cleared when a stack entry begins resolving (same lifecycle as
+    /// [`that_much`](Self::that_much) / [`moved_chain`](Self::moved_chain)),
+    /// appended to by the history recorder for every non-meta fact.
+    pub resolution_events: Vec<GameEvent>,
     /// Combat-phase designations ([CR#506]): attackers, blocks, and
     /// damage-assignment order. Cleared at end of combat ([CR#511.3]).
     pub combat: CombatState,
@@ -468,6 +484,8 @@ impl GameState {
             outcome: None,
             pending_triggers: Vec::new(),
             placing_trigger: None,
+            delayed_triggers: Vec::new(),
+            resolution_events: Vec::new(),
             combat: CombatState::default(),
             combat_damage: None,
             rng,

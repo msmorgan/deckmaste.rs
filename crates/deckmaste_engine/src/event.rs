@@ -342,6 +342,10 @@ pub enum GameEvent {
         source: ObjectSource,
         ability: Uint,
         controller: PlayerId,
+        /// `Some` for a delayed/reflexive ([CR#603.7,603.12]) trigger created
+        /// at resolution — its by-value body, printed on no permanent. `None`
+        /// for a printed trigger (`ability` indexes `abilities_of_source`).
+        created: Option<Box<deckmaste_core::TriggeredAbility>>,
         bindings: crate::trigger::TriggerBindings,
     },
     /// A triggered ability fired ([CR#603.2]) or an activated ability became

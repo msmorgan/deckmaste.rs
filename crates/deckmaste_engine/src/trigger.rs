@@ -91,7 +91,37 @@ pub struct TriggerBindings {
 pub struct NotedTrigger {
     pub source: ObjectSource,
     pub ability: usize,
+    /// `Some` for a delayed/reflexive trigger ([CR#603.7,603.12]) — its
+    /// by-value body carried from creation (see [`CreatedTrigger`]); `None`
+    /// for a printed trigger indexed by `ability`.
+    pub created: Option<Box<deckmaste_core::TriggeredAbility>>,
     pub controller: PlayerId,
+    pub bindings: TriggerBindings,
+}
+
+/// A delayed or reflexive triggered ability ([CR#603.7,603.12]) created during
+/// a spell's or ability's resolution. Because it is printed on no permanent,
+/// the live `abilities_of_source` scan never sees it — the engine keeps its
+/// body plus the context it fires in (source/controller per [CR#603.7d,603.7e],
+/// and the [`TriggerBindings`] that anchor `~`/`This`) on `GameState`.
+///
+/// A DELAYED ability is stored in `GameState::delayed_triggers` and fires once,
+/// the next time its `ability.event` occurs ([CR#603.7b]); the scan removes it
+/// then. A REFLEXIVE ability is never stored — [CR#603.12] checks it against
+/// events that already occurred earlier in the SAME resolution, immediately at
+/// creation, so it fires (or not) on the spot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatedTrigger {
+    /// The delayed/reflexive ability's source ([CR#603.7d,603.7e]).
+    pub source: ObjectSource,
+    /// The player who controlled the creating spell/ability as it resolved
+    /// ([CR#603.7d,603.7e]).
+    pub controller: PlayerId,
+    /// The ability body — its `event` is the fire pattern, its `effect` runs
+    /// on the stack when it fires.
+    pub ability: Box<deckmaste_core::TriggeredAbility>,
+    /// The context captured at creation: `~`/`This` (the creating object's
+    /// last-known self) and any event roles it should carry to resolution.
     pub bindings: TriggerBindings,
 }
 
@@ -106,6 +136,9 @@ pub struct PendingTrigger {
     pub id: ObjectId,
     pub source: ObjectSource,
     pub ability: usize,
+    /// `Some` for a delayed/reflexive trigger ([CR#603.7,603.12]) — carried
+    /// through placement to the committed `StackEntry`.
+    pub created: Option<Box<deckmaste_core::TriggeredAbility>>,
     pub controller: PlayerId,
     pub bindings: TriggerBindings,
 }
@@ -139,6 +172,32 @@ impl GameState {
             pattern,
             &fact,
             crate::eval::Lane::Trigger,
+            &crate::eval::Bindings::watcher(watcher),
+        )
+    }
+
+    /// [CR#603.7c]: does a DELAYED/reflexive trigger's `pattern` match `event`?
+    /// The fire-once lane ([`crate::eval::Lane::Delayed`]): same live-fact
+    /// candidate semantics as [`event_matches`](Self::event_matches), but the
+    /// pattern belongs to an ability the live scan never sees (it is printed on
+    /// no permanent — see [`CreatedTrigger`]). `watcher` anchors
+    /// `Ref(This)`/`Ref(You)` to the ability's captured source.
+    pub(crate) fn event_matches_delayed(
+        &self,
+        pattern: &EventFilter,
+        event: &GameEvent,
+        watcher: ObjectSource,
+    ) -> bool {
+        if crate::eval::shadowed_by_fact(event) {
+            return false;
+        }
+        let Some(fact) = crate::eval::FactView::of(self, event) else {
+            return false;
+        };
+        self.eval(
+            pattern,
+            &fact,
+            crate::eval::Lane::Delayed,
             &crate::eval::Bindings::watcher(watcher),
         )
     }
@@ -362,6 +421,12 @@ impl GameState {
         // of THIS occurrence are skipped for its later members.
         let mut batch_fired: std::collections::HashSet<(ObjectSource, usize)> =
             std::collections::HashSet::new();
+        // [CR#603.7b]: the indices of `delayed_triggers` that fired this
+        // occurrence — a delayed trigger fires ONCE (the next time its event
+        // occurs), then is removed. Collected across the occurrence's facts so
+        // one delayed trigger never fires twice within a batch, and drained
+        // after the scan (a `&self` `scan_event` cannot mutate the registry).
+        let mut fired_delayed: Vec<usize> = Vec::new();
         for event in events {
             // Skip facts no trigger pattern watches; never scan a `TriggerFired`
             // (avoids any chance of recursion). `ZoneWillChange` is skipped because
@@ -382,9 +447,157 @@ impl GameState {
                 _ => {}
             }
             self.scan_event(event, &mut emits, &mut batch_fired);
+            self.scan_delayed(event, &mut emits, &mut fired_delayed);
+        }
+        // [CR#603.7b]: retire the delayed triggers that fired (highest index
+        // first, so earlier removals don't shift the ones still to remove).
+        fired_delayed.sort_unstable();
+        fired_delayed.dedup();
+        for idx in fired_delayed.into_iter().rev() {
+            self.delayed_triggers.remove(idx);
         }
         if !emits.is_empty() {
             self.schedule_front(emits);
+        }
+    }
+
+    /// [CR#603.7]: scan the delayed-trigger registry against one occurred
+    /// `event`, pushing a `TriggerFired` (carrying the delayed ability by
+    /// value) per newly-matching entry onto `emits` and recording its index in
+    /// `fired` so the caller retires it. A registry entry already in `fired`
+    /// (matched an earlier fact of THIS occurrence) is skipped — a delayed
+    /// trigger fires once ([CR#603.7b]).
+    ///
+    /// Unlike a printed trigger there is no live watcher: the ability watches
+    /// its `event` regardless of where (or whether) its source still is — the
+    /// "no longer in the expected zone" check is [CR#603.7c]'s RESOLUTION-time
+    /// concern, not a fire gate. The event's provenance roles (the moved
+    /// object, magnitude, …) are merged onto the captured bindings so the fired
+    /// body can read them ("… deals that much", "when ~ leaves, exile it").
+    fn scan_delayed(&self, event: &GameEvent, emits: &mut Vec<WorkItem>, fired: &mut Vec<usize>) {
+        let roles = self.event_roles(event);
+        for (idx, ct) in self.delayed_triggers.iter().enumerate() {
+            if fired.contains(&idx) {
+                continue;
+            }
+            if !self.event_matches_delayed(&ct.ability.event, event, ct.source) {
+                continue;
+            }
+            let bindings = roles.bindings_over(ct.bindings.clone());
+            // [CR#603.4]: an intervening-if is checked as the event occurs; it
+            // is rechecked at resolution (the shared `Triggered` resolve arm).
+            if let Some(c) = &ct.ability.condition {
+                let frame = self.created_gate_frame(ct, &bindings);
+                if !self.condition_holds(c, &frame) {
+                    continue;
+                }
+            }
+            emits.push(WorkItem::Emit(Occurrence::single(
+                GameEvent::TriggerFired {
+                    source: ct.source,
+                    ability: 0,
+                    controller: ct.controller,
+                    created: Some(ct.ability.clone()),
+                    bindings,
+                },
+            )));
+            fired.push(idx);
+        }
+    }
+
+    /// The intervening-if gate frame ([CR#603.4]) for a created (delayed/
+    /// reflexive) trigger: `~`/`This` from its captured snapshot, the
+    /// controller from [CR#603.7d,603.7e], and the firing event's endophoric
+    /// roles (no targets chosen at the gate). Mirrors the printed-trigger
+    /// gate in `scan_event`.
+    fn created_gate_frame(&self, ct: &CreatedTrigger, bindings: &TriggerBindings) -> Frame {
+        Frame {
+            source: bindings
+                .this
+                .as_ref()
+                .map_or_else(|| self.player(ct.controller).object, |s| s.object),
+            controller: ct.controller,
+            this: bindings.this.clone(),
+            defending_player: bindings.defending_player,
+            anaphora: Anaphora {
+                that_object: bindings.that_object.clone(),
+                that_player: bindings.that_player,
+                that_patient: bindings.that_patient.clone(),
+                crossed: bindings.crossed,
+                ..Anaphora::empty()
+            },
+        }
+    }
+
+    /// The firing event's provenance roles ([CR#603.2e,608.2k,120.3,714.2b]) —
+    /// the AGENT (the acting/moved object) as `that_object` with its
+    /// responsible-player ACTOR as `that_player`, the kind-poly PATIENT as
+    /// `that_patient`, the combat DEFENDING player, the amount-carrying
+    /// MAGNITUDE (`that_much`), and a counter event's before/after totals
+    /// (`crossed`). Derived per `GameEvent` kind once; shared by the printed
+    /// (`scan_event`) and delayed (`scan_delayed`) scans so both fire bodies
+    /// read the same `EventObject`/`EventActor`/`EventPatient`/`ThatMuch`/…
+    /// roles. Card-backed roles carry an LKI snapshot ([CR#603.10a]); a
+    /// player-proxy id is zoneless and never snapshotted ([CR#120.3]); a
+    /// stale/missing id yields no role.
+    pub(crate) fn event_roles(&self, event: &GameEvent) -> EventRoles {
+        let (that_object, that_player, that_patient) = match event {
+            // The zone-change FACT carries the moved object's snapshot.
+            GameEvent::ZoneChanged { snapshot, .. } => (Some(snapshot.clone()), None, None),
+            // [CR#603.2e] becomes-state transitions: the transitioning object
+            // is the agent ("it") with its controller the actor — Exalted
+            // ([CR#702.83a]) reads the lone attacker via `EventObject`.
+            GameEvent::Attacking(o)
+            | GameEvent::Untapped(o)
+            | GameEvent::Tapped { object: o, .. } => {
+                let (agent, actor) = self.event_agent(*o);
+                (agent, actor, None)
+            }
+            // [CR#601.2c] becomes-target / [CR#120.3] damage: the source/agent
+            // binds as `EventObject`, the recipient (object or player) as the
+            // kind-poly patient. Ward's `Counter(EventObject)` ([CR#702.21a])
+            // counters "it" (the source on the stack), not the warded permanent.
+            GameEvent::BecameTarget { target, source }
+            | GameEvent::DamageDealt { source, target, .. } => {
+                let (agent, actor) = self.event_agent(*source);
+                (agent, actor, self.event_patient(*target))
+            }
+            // [CR#109.5] control change: the moved object is the agent, the new
+            // controller the responsible actor.
+            GameEvent::ControlChanged { object, to } => {
+                let (agent, _) = self.event_agent(*object);
+                (agent, Some(*to), None)
+            }
+            _ => (None, None, None),
+        };
+        // The combat DEFENDING player of an attack-declaration fact
+        // ([CR#506.2,508.5]) — in a 2-player game the sole opponent of the
+        // attacker's controller.
+        let defending_player = match event {
+            GameEvent::Attacking(o) => Some(self.next_live_after(self.objects.obj(*o).controller)),
+            _ => None,
+        };
+        // The event MAGNITUDE — the amount-carrying set the apply funnel fixes
+        // into the `that_much` register ("whenever you gain life, … that much").
+        let that_much = match event {
+            GameEvent::DamageDealt { amount, .. }
+            | GameEvent::LifeLost { amount, .. }
+            | GameEvent::LifeGained { amount, .. } => Some(*amount),
+            _ => None,
+        };
+        // The counter event's before/after totals ([CR#714.2b]) — the
+        // `Condition::Crossed` channel.
+        let crossed = match event {
+            GameEvent::CounterPlaced { before, after, .. } => Some((*before, *after)),
+            _ => None,
+        };
+        EventRoles {
+            that_object,
+            that_player,
+            that_patient,
+            defending_player,
+            that_much,
+            crossed,
         }
     }
 
@@ -423,82 +636,10 @@ impl GameState {
         emits: &mut Vec<WorkItem>,
         batch_fired: &mut std::collections::HashSet<(ObjectSource, usize)>,
     ) {
-        // The firing event's provenance ([CR#603.2e,608.2k]) — the AGENT (the
-        // acting/moved object) bound as `that_object` with its responsible-
-        // player ACTOR as `that_player`, and the kind-poly PATIENT (the acted-
-        // upon thing, [CR#120.3]) as `that_patient`. Derived per `GameEvent`
-        // kind, symmetric with `defending_player` below; read by
-        // `Reference::EventObject`/`EventObject`, `EventActor`/`EventActor`, and
-        // `EventPatient`. A `ZoneChanged` keeps using the fact's own carried
-        // snapshot; kinds with no clear agent/patient leave every slot `None`
-        // (status quo). Card-backed roles carry an LKI snapshot ([CR#603.10a]);
-        // a player-proxy id is zoneless and is NEVER snapshotted ([CR#120.3] —
-        // `LkiSnapshot::capture` would panic), and a stale/missing id yields no
-        // role (the actor already left).
-        let (that_object, that_player, that_patient): (
-            Option<LkiSnapshot>,
-            Option<PlayerId>,
-            Option<EventPatient>,
-        ) = match event {
-            // The zone-change FACT carries the moved object's snapshot.
-            GameEvent::ZoneChanged { snapshot, .. } => (Some(snapshot.clone()), None, None),
-            // [CR#603.2e] becomes-state transitions: the transitioning object
-            // is the agent ("it") with its controller the actor — Exalted
-            // ([CR#702.83a]) reads the lone attacker via `EventObject`.
-            GameEvent::Attacking(o)
-            | GameEvent::Untapped(o)
-            | GameEvent::Tapped { object: o, .. } => {
-                let (agent, actor) = self.event_agent(*o);
-                (agent, actor, None)
-            }
-            // [CR#601.2c] becomes-target / [CR#120.3] damage: the source/agent
-            // (the targeting spell-or-ability, or the damage source) binds as
-            // `EventObject`, the recipient (the targeted permanent, or the damage
-            // recipient — object or player) as the kind-poly patient. Ward's
-            // `Counter(EventObject)` ([CR#702.21a]) counters "it" (the source on
-            // the stack), not the warded permanent.
-            GameEvent::BecameTarget { target, source }
-            | GameEvent::DamageDealt { source, target, .. } => {
-                let (agent, actor) = self.event_agent(*source);
-                (agent, actor, self.event_patient(*target))
-            }
-            // [CR#109.5] control change: the moved object is the agent, the new
-            // controller the responsible actor.
-            GameEvent::ControlChanged { object, to } => {
-                let (agent, _) = self.event_agent(*object);
-                (agent, Some(*to), None)
-            }
-            _ => (None, None, None),
-        };
-
-        // The combat DEFENDING player of an attack-declaration fact
-        // ([CR#506.2,508.5]) — always a player; in a 2-player game the sole
-        // opponent of the attacker's controller. Read by
-        // `Reference::DefendingPlayer`. Purely additive: it sits in a role no
-        // pre-provenance body read.
-        let defending_player: Option<PlayerId> = match event {
-            GameEvent::Attacking(o) => Some(self.next_live_after(self.objects.obj(*o).controller)),
-            _ => None,
-        };
-
-        // The event MAGNITUDE — the same amount-carrying set the apply funnel
-        // fixes into the `that_much` register, captured here so the fired
-        // ability's resolution can read `Count::ThatMuch` ("whenever you gain
-        // life, … that much").
-        let that_much: Option<Uint> = match event {
-            GameEvent::DamageDealt { amount, .. }
-            | GameEvent::LifeLost { amount, .. }
-            | GameEvent::LifeGained { amount, .. } => Some(*amount),
-            _ => None,
-        };
-
-        // The counter event's before/after totals ([CR#714.2b]) — the
-        // `Condition::Crossed` channel: a chapter gate reads "was less than
-        // N and became at least N" off the ONE fired fact.
-        let crossed: Option<(Uint, Uint)> = match event {
-            GameEvent::CounterPlaced { before, after, .. } => Some((*before, *after)),
-            _ => None,
-        };
+        // The firing event's provenance roles ([CR#603.2e,608.2k,120.3]) —
+        // agent/actor/patient, combat defender, magnitude, counter totals —
+        // derived once per fact and shared with the delayed-trigger scan.
+        let roles = self.event_roles(event);
 
         // The watcher set ([CR#603.6,113.6b]): every live battlefield permanent,
         // plus every object in a graveyard or hand (for graveyard/hand-
@@ -568,15 +709,10 @@ impl GameState {
                 }
                 // [CR#603.10a,608.2]: the bindings the fired trigger carries —
                 // also the context for the intervening-if gate ([CR#603.4]).
-                let bindings = TriggerBindings {
+                let bindings = roles.bindings_over(TriggerBindings {
                     this: Some(this.clone()),
-                    that_object: that_object.clone(),
-                    that_player,
-                    that_patient: that_patient.clone(),
-                    defending_player,
-                    that_much,
-                    crossed,
-                };
+                    ..TriggerBindings::default()
+                });
                 // [CR#603.4]: the intervening-if gate — the condition is checked
                 // when the event occurs (no targets are chosen yet, so the gate
                 // frame carries none); it is rechecked at resolution.
@@ -610,6 +746,7 @@ impl GameState {
                     source,
                     ability: Uint::try_from(idx).expect("ability index fits in Uint"),
                     controller,
+                    created: None,
                     bindings,
                 };
                 for _ in 0..=extra {
@@ -772,7 +909,7 @@ impl GameState {
     /// If it does not target, push the committed `StackEntry` directly (returns
     /// `true`).
     pub(crate) fn place_one_trigger(&mut self, noted: NotedTrigger) -> bool {
-        let specs = self.trigger_targets(noted.source, noted.ability);
+        let specs = self.trigger_targets(noted.source, noted.ability, noted.created.as_deref());
         if specs.is_empty() {
             // No targets — push directly with a freshly minted stack id.
             let id = self
@@ -784,6 +921,7 @@ impl GameState {
                 object: StackObject::Triggered {
                     source: noted.source,
                     ability: noted.ability,
+                    created: noted.created,
                     bindings: noted.bindings,
                 },
                 controller: noted.controller,
@@ -823,17 +961,28 @@ impl GameState {
             id,
             source: noted.source,
             ability: noted.ability,
+            created: noted.created,
             controller,
             bindings: noted.bindings,
         });
         false
     }
 
-    /// The `TriggeredAbility.targets` for ability `ability` of `source`'s
-    /// printed face. Empty when the ability is non-targeting.
-    fn trigger_targets(&self, source: ObjectSource, ability: usize) -> Vec<TargetSpec> {
+    /// The `TriggeredAbility.targets` of a noted trigger's ability. For a
+    /// delayed/reflexive trigger the body is `created` (carried by value); for
+    /// a printed trigger it is `abilities_of_source(source)[ability]`. Empty
+    /// when the ability is non-targeting.
+    fn trigger_targets(
+        &self,
+        source: ObjectSource,
+        ability: usize,
+        created: Option<&deckmaste_core::TriggeredAbility>,
+    ) -> Vec<TargetSpec> {
+        // Targets live on a top-level `OneShotEffect::Targeted` wrapper ([CR#115.1]).
+        if let Some(t) = created {
+            return crate::resolve::top_targets(&t.effect).to_vec();
+        }
         match &crate::derive::abilities_of_source(self, source)[ability] {
-            // Targets live on a top-level `OneShotEffect::Targeted` wrapper ([CR#115.1]).
             Ability::Triggered(t) => crate::resolve::top_targets(&t.effect).to_vec(),
             _ => unreachable!("a noted trigger indexes a Triggered ability"),
         }
@@ -858,6 +1007,7 @@ impl GameState {
             object: StackObject::Triggered {
                 source: staged.source,
                 ability: staged.ability,
+                created: staged.created,
                 bindings: staged.bindings,
             },
             controller: staged.controller,
@@ -872,6 +1022,37 @@ impl GameState {
 enum Watcher {
     Live(ObjectId),
     Leaving(LkiSnapshot),
+}
+
+/// The firing event's provenance roles ([CR#603.2e,608.2k,120.3,714.2b]),
+/// derived once by [`GameState::event_roles`] and folded onto a trigger's
+/// bindings by [`EventRoles::bindings_over`]. Shared by the printed and the
+/// delayed/reflexive scans so both carry identical event context to
+/// resolution.
+pub(crate) struct EventRoles {
+    that_object: Option<LkiSnapshot>,
+    that_player: Option<PlayerId>,
+    that_patient: Option<EventPatient>,
+    defending_player: Option<PlayerId>,
+    that_much: Option<Uint>,
+    crossed: Option<(Uint, Uint)>,
+}
+
+impl EventRoles {
+    /// Fold these event roles onto `base` — the trigger's own captured
+    /// context (its `this`/`~` snapshot) — producing the bindings the fired
+    /// ability carries. `base.this` is preserved; every event role overwrites.
+    pub(crate) fn bindings_over(&self, base: TriggerBindings) -> TriggerBindings {
+        TriggerBindings {
+            this: base.this,
+            that_object: self.that_object.clone(),
+            that_player: self.that_player,
+            that_patient: self.that_patient.clone(),
+            defending_player: self.defending_player,
+            that_much: self.that_much,
+            crossed: self.crossed,
+        }
+    }
 }
 
 /// A `TriggerMultiplier`'s `extra` count as a literal. Only `Count::Literal` is
@@ -3048,6 +3229,177 @@ mod tests {
         );
     }
 
+    /// A frameless "draw a card" delayed/reflexive triggered-ability body that
+    /// fires on `event` — the shape both the delayed and reflexive tests
+    /// register.
+    fn draw_on(event: EventFilter) -> deckmaste_core::TriggeredAbility {
+        use deckmaste_core::Action;
+        use deckmaste_core::Count;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Reference;
+
+        deckmaste_core::TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            from: None,
+            event,
+            condition: None,
+            limits: Vec::new(),
+            effect: OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Draw(Count::Literal(1)),
+            )),
+        }
+    }
+
+    /// How many `TriggerFired` emits the scan/resolution left on the agenda.
+    fn total_fired(state: &GameState) -> usize {
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+        state
+            .agenda
+            .iter()
+            .filter(|w| {
+                matches!(
+                    w,
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                )
+            })
+            .count()
+    }
+
+    /// [CR#603.7,603.7b]: a delayed triggered ability in the registry fires the
+    /// NEXT time its event occurs — exactly once — and the scan then removes
+    /// it.
+    #[test]
+    fn delayed_trigger_fires_once_on_the_later_event_then_is_gone() {
+        use deckmaste_core::EndingStep;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::PhaseStep;
+        use deckmaste_core::WhoseTurn;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let mut state = empty_game();
+        // "At the beginning of the next end step, draw a card" — created at a
+        // prior resolution, so it lives in the registry, not on any permanent.
+        state.delayed_triggers.push(super::CreatedTrigger {
+            source: ObjectSource::Player(PlayerId(0)),
+            controller: PlayerId(0),
+            ability: Box::new(draw_on(EventFilter::StepBegins {
+                at: PhaseStep::Ending(EndingStep::End),
+                whose: WhoseTurn::EachPlayers,
+            })),
+            bindings: super::TriggerBindings::default(),
+        });
+
+        // A different step onset does NOT fire it (and does not consume it).
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Beginning(deckmaste_core::BeginningStep::Upkeep),
+        )));
+        assert_eq!(
+            total_fired(&state),
+            0,
+            "wrong step must not fire a delayed trigger"
+        );
+        assert_eq!(
+            state.delayed_triggers.len(),
+            1,
+            "an unmatched delayed trigger stays registered"
+        );
+
+        // The end step begins: it fires exactly once, carrying its body by value.
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Ending(EndingStep::End),
+        )));
+        assert_eq!(
+            total_fired(&state),
+            1,
+            "the delayed trigger fires on its event"
+        );
+        assert!(
+            state.delayed_triggers.is_empty(),
+            "[CR#603.7b]: a delayed trigger is removed once it fires"
+        );
+        let fired = state
+            .agenda
+            .iter()
+            .find_map(|w| match w {
+                WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { created, .. })) => {
+                    Some(created)
+                }
+                _ => None,
+            })
+            .expect("a TriggerFired emit");
+        assert!(
+            fired.is_some(),
+            "a delayed trigger carries its body by value"
+        );
+
+        // A SECOND end step must not re-fire it — the registry is empty.
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Ending(EndingStep::End),
+        )));
+        assert_eq!(
+            total_fired(&state),
+            1,
+            "[CR#603.7b]: a delayed trigger fires only once — the later event is a no-op"
+        );
+    }
+
+    /// [CR#603.12]: a reflexive triggered ability is checked immediately when
+    /// created, against events that occurred EARLIER in the same resolution —
+    /// it fires on the spot and is never persisted.
+    #[test]
+    fn reflexive_trigger_fires_on_the_same_resolution_event_then_is_gone() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+
+        use crate::stack::Frame;
+
+        let mut state = empty_game();
+        let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
+        let frame = Frame::bare(src, PlayerId(0));
+        let ability = draw_on(EventFilter::LifeGained {
+            who: Predicate::any(),
+            amount: None,
+        });
+
+        // No earlier event in this resolution yet → the "when you do" window is
+        // empty, so the reflexive trigger does NOT fire (it never waits for a
+        // future event — [CR#603.12]).
+        state.run_effect(OneShotEffect::Reflexive(Box::new(ability.clone())), &frame);
+        assert_eq!(
+            total_fired(&state),
+            0,
+            "a reflexive trigger fires only on an EARLIER event"
+        );
+        assert!(
+            state.delayed_triggers.is_empty(),
+            "[CR#603.12]: a reflexive trigger is never added to the delayed registry"
+        );
+
+        // Now an event occurs earlier in the resolution, THEN the reflexive
+        // ability is created: it fires immediately on that event.
+        state.resolution_events.push(GameEvent::LifeGained {
+            player: PlayerId(0),
+            amount: 3,
+        });
+        state.run_effect(OneShotEffect::Reflexive(Box::new(ability)), &frame);
+        assert_eq!(
+            total_fired(&state),
+            1,
+            "[CR#603.12]: a reflexive trigger fires on the same-resolution event"
+        );
+        assert!(
+            state.delayed_triggers.is_empty(),
+            "[CR#603.12]: a reflexive trigger is checked immediately, never persisted"
+        );
+    }
+
     /// A synthetic creature whose sole ability is an "at the beginning of your
     /// upkeep, draw a card" trigger that FUNCTIONS from the given zone
     /// (`from`).
@@ -3299,6 +3651,7 @@ mod tests {
         state.pending_triggers.push(super::NotedTrigger {
             source,
             ability: 0,
+            created: None,
             controller,
             bindings: super::TriggerBindings::default(),
         });
@@ -3337,6 +3690,7 @@ mod tests {
         state.pending_triggers.push(super::NotedTrigger {
             source,
             ability: 0,
+            created: None,
             controller,
             bindings: super::TriggerBindings::default(),
         });
@@ -3383,6 +3737,7 @@ mod tests {
         state.pending_triggers.push(super::NotedTrigger {
             source,
             ability: 0,
+            created: None,
             controller,
             bindings: super::TriggerBindings::default(),
         });
@@ -3424,6 +3779,7 @@ mod tests {
         state.pending_triggers.push(super::NotedTrigger {
             source,
             ability: 0,
+            created: None,
             controller,
             bindings: super::TriggerBindings::default(),
         });
@@ -3500,6 +3856,7 @@ mod tests {
         state.pending_triggers.push(super::NotedTrigger {
             source: state.objects.obj(pinger).source,
             ability: 0,
+            created: None,
             controller: PlayerId(0),
             bindings: super::TriggerBindings::default(),
         });
@@ -3548,12 +3905,14 @@ mod tests {
         state.pending_triggers.push(super::NotedTrigger {
             source,
             ability: 0,
+            created: None,
             controller: PlayerId(0),
             bindings: bindings(),
         });
         state.pending_triggers.push(super::NotedTrigger {
             source,
             ability: 0,
+            created: None,
             controller: PlayerId(0),
             bindings: bindings(),
         });
@@ -3958,6 +4317,7 @@ mod tests {
             object: StackObject::Triggered {
                 source: noted.source,
                 ability: noted.ability,
+                created: noted.created.clone(),
                 bindings: noted.bindings.clone(),
             },
             controller: noted.controller,

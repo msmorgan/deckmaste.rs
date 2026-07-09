@@ -84,6 +84,9 @@ impl GameState {
         // an empty move record, so a later effect can never find (or follow)
         // an earlier effect's moves.
         self.moved_chain.clear();
+        // [CR#603.12]: a reflexive trigger looks back only over events of the
+        // resolution that CREATES it, so the window resets each resolution.
+        self.resolution_events.clear();
         match &entry.object {
             StackObject::Spell(spell) => {
                 let spell = *spell;
@@ -168,13 +171,20 @@ impl GameState {
             StackObject::Triggered {
                 source,
                 ability,
+                created,
                 bindings,
             } => {
-                let t = match &crate::derive::abilities_of_source(self, *source)[*ability] {
-                    Ability::Triggered(t) => t.clone(),
-                    other => unreachable!(
-                        "a Triggered stack object indexes a Triggered ability, got {other:?}"
-                    ),
+                // A delayed/reflexive trigger carries its body by value
+                // ([CR#603.7,603.12]); a printed one is read by index — its
+                // text may have changed under layers, so re-derive it fresh.
+                let t = match created {
+                    Some(t) => (**t).clone(),
+                    None => match &crate::derive::abilities_of_source(self, *source)[*ability] {
+                        Ability::Triggered(t) => t.clone(),
+                        other => unreachable!(
+                            "a Triggered stack object indexes a Triggered ability, got {other:?}"
+                        ),
+                    },
                 };
                 let frame = Frame {
                     // [CR#608.2,603.10a]: `~`/`This` is the firing object's
@@ -1062,8 +1072,79 @@ impl GameState {
                 });
                 self.schedule_front(items);
             }
+            // [CR#603.7]: create a delayed triggered ability. It is printed on
+            // no permanent, so it goes into the `delayed_triggers` registry
+            // (the trigger scan consults it alongside live permanents) and
+            // fires ONCE, the next time its event occurs ([CR#603.7b]). Source
+            // and controller follow [CR#603.7d,603.7e] — the creating spell/ability
+            // and the player who controlled it as it resolved (`frame`); `~`/
+            // `This` is the creating object's snapshot, carried so the delayed
+            // body reads it at the later resolution ([CR#603.7c]).
+            OneShotEffect::Delayed(ability) => {
+                let (source, bindings) = self.created_trigger_context(frame);
+                self.delayed_triggers.push(crate::trigger::CreatedTrigger {
+                    source,
+                    controller: frame.controller,
+                    ability,
+                    bindings,
+                });
+            }
+            // [CR#603.12]: create a reflexive triggered ability ("when you
+            // do"). It follows the delayed rules EXCEPT it is checked
+            // immediately against events that occurred EARLIER in THIS
+            // resolution — never persisted, never firing on a future event. So
+            // it is not registered: scan the resolution-scoped window now and
+            // emit a `TriggerFired` (carrying the body by value) per match
+            // ([CR#603.12a] — once per occurrence of the trigger event).
+            OneShotEffect::Reflexive(ability) => {
+                let (source, base) = self.created_trigger_context(frame);
+                let mut emits = Vec::new();
+                for event in self.resolution_events.clone() {
+                    if self.event_matches_delayed(&ability.event, &event, source) {
+                        let roles = self.event_roles(&event);
+                        emits.push(WorkItem::Emit(Occurrence::single(
+                            GameEvent::TriggerFired {
+                                source,
+                                ability: 0,
+                                controller: frame.controller,
+                                created: Some(ability.clone()),
+                                bindings: roles.bindings_over(base.clone()),
+                            },
+                        )));
+                    }
+                }
+                if !emits.is_empty() {
+                    self.schedule_front(emits);
+                }
+            }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
+    }
+
+    /// [CR#603.7d,603.7e]: the source and captured `~`/`This` context for a
+    /// delayed/reflexive triggered ability created while `frame` resolves. The
+    /// source is the creating object (the trigger/activated ability's own
+    /// source snapshot when `frame` has one — [CR#603.7e]; otherwise the
+    /// resolving spell — [CR#603.7d]). `~`/`This` is that same object's
+    /// snapshot, so the created body reads it at its later resolution.
+    fn created_trigger_context(
+        &self,
+        frame: &Frame,
+    ) -> (ObjectSource, crate::trigger::TriggerBindings) {
+        let this = frame.this.clone().or_else(|| {
+            self.objects
+                .get(frame.source)
+                .map(|_| crate::lki::LkiSnapshot::capture(self, frame.source))
+        });
+        let source = this
+            .as_ref()
+            .map_or_else(|| ObjectSource::Player(frame.controller), |s| s.source);
+        let bindings = crate::trigger::TriggerBindings {
+            this,
+            defending_player: frame.defending_player,
+            ..crate::trigger::TriggerBindings::default()
+        };
+        (source, bindings)
     }
 
     /// The last-known snapshot of the object an
@@ -3140,10 +3221,17 @@ impl GameState {
             // top-level `OneShotEffect::Targeted` wrapper ([CR#115.1,601.2c]).
             StackObject::Activated { ability, .. } => top_targets(&ability.effect).to_vec(),
             StackObject::Triggered {
-                source, ability, ..
-            } => match &crate::derive::abilities_of_source(self, *source)[*ability] {
-                Ability::Triggered(t) => top_targets(&t.effect).to_vec(),
-                _ => unreachable!(),
+                source,
+                ability,
+                created,
+                ..
+            } => match created {
+                // The delayed/reflexive body is authoritative ([CR#603.7,603.12]).
+                Some(t) => top_targets(&t.effect).to_vec(),
+                None => match &crate::derive::abilities_of_source(self, *source)[*ability] {
+                    Ability::Triggered(t) => top_targets(&t.effect).to_vec(),
+                    _ => unreachable!(),
+                },
             },
         };
         debug_assert_eq!(
@@ -6371,6 +6459,7 @@ mod tests {
             object: StackObject::Triggered {
                 source: ObjectSource::Card(state.objects.obj(bear).card_id().unwrap()),
                 ability: 0,
+                created: None,
                 bindings: TriggerBindings::default(),
             },
             controller: PlayerId(0),

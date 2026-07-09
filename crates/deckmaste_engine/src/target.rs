@@ -1130,6 +1130,7 @@ mod tests {
             object: StackObject::Triggered {
                 source: ObjectSource::Card(cid),
                 ability: 0,
+                created: None,
                 bindings: TriggerBindings::default(),
             },
             controller: PlayerId(0),
