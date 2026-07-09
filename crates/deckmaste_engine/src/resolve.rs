@@ -2843,6 +2843,61 @@ impl GameState {
                 self.objects.obj(id).damage
             }
             Count::ManaAvailable(reference) => self.floated_mana(reference, frame),
+            // [CR#107.1]: fold the per-element projection over the set —
+            // devotion = `Aggregate(SumOf, Project(<your permanents>,
+            // CountOf(ManaSymbols(It, CountsAs(Green)))))` ([CR#700.5]).
+            // Only `Countable::Objects` is a projectable source; a
+            // `ManaSymbols` source fizzles to the empty set. Each candidate
+            // binds `It` in a cloned sub-frame, exactly as `Selection::Pick`
+            // does. Unlike `Pick`'s frameless `candidates` (it has no real
+            // card needing a carrier-relative `of` yet), a devotion-shaped
+            // `of` ("permanents YOU control") needs `Ref(You)`/`Ref(This)`
+            // anchored, so this passes the frame's watcher, same as
+            // `CountOf`/`CountDistinct` above. Empty folds are 0
+            // (never-crash); `Min`/`Max`/`Average` over ∅ are 0 by
+            // convention.
+            Count::Aggregate(op, proj) => {
+                let ids = match &proj.of {
+                    Countable::Objects(filter) => {
+                        let watcher = self.frame_watcher(frame);
+                        crate::target::candidates_with(self, filter, Some(watcher))
+                    }
+                    Countable::ManaSymbols(..) => Vec::new(),
+                };
+                let values: Vec<Uint> = ids
+                    .into_iter()
+                    .map(|id| {
+                        let sub = Frame {
+                            anaphora: Anaphora {
+                                it: Some(self.it_binding(id)),
+                                allotment: None,
+                                ..frame.anaphora.clone()
+                            },
+                            ..frame.clone()
+                        };
+                        self.eval_count(&proj.by, &sub)
+                    })
+                    .collect();
+                match op {
+                    deckmaste_core::AggregateOp::SumOf => {
+                        values.iter().fold(0, |a, v| a.saturating_add(*v))
+                    }
+                    deckmaste_core::AggregateOp::MinOf => values.iter().copied().min().unwrap_or(0),
+                    deckmaste_core::AggregateOp::MaxOf => values.iter().copied().max().unwrap_or(0),
+                    deckmaste_core::AggregateOp::AverageOf(mode) => {
+                        if values.is_empty() {
+                            0
+                        } else {
+                            let sum: Uint = values.iter().fold(0, |a, v| a.saturating_add(*v));
+                            let n = Uint::try_from(values.len()).expect("count fits Uint");
+                            match mode {
+                                deckmaste_core::RoundMode::RoundUp => sum.div_ceil(n),
+                                deckmaste_core::RoundMode::RoundDown => sum / n,
+                            }
+                        }
+                    }
+                }
+            }
             Count::Expanded(e) => self.eval_count(&e.value, frame),
         }
     }
@@ -4853,6 +4908,111 @@ mod tests {
             2,
             "Or([White, Black]) over {{G/W}}{{G/W}} matches on the White half of each pip"
         );
+    }
+
+    /// Mint a battlefield creature with an explicit power/toughness — the
+    /// fixture the aggregate-fold (`SumOf` over `StatOf`) test drives.
+    fn creature_with_power(state: &mut GameState, power: deckmaste_core::Int) -> ObjectId {
+        let card = Card::Normal(CardFace {
+            name: "Test Creature".into(),
+            types: vec![Type::Creature],
+            power: Some(deckmaste_core::StatValue::Number(power)),
+            toughness: Some(deckmaste_core::StatValue::Number(power)),
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let obj = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(obj);
+        obj
+    }
+
+    /// `Count::Aggregate(op, Projection)` folds a per-element `Count` over the
+    /// projected set ([CR#107.1]), mirroring `Selection::Pick`'s per-candidate
+    /// `It` binding. Devotion decomposes to `Aggregate(SumOf, Project(<your
+    /// permanents>, CountOf(ManaSymbols(It, CountsAs(Green)))))`
+    /// ([CR#700.5]); `SumOf` over `StatOf(It, Power)` totals power; every
+    /// `AggregateOp` folds the empty set to 0 (never-crash).
+    #[test]
+    fn aggregate_folds_a_projection_over_a_selection() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::Projection;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+        use deckmaste_core::SymbolPred;
+
+        let mut state = game();
+        let _ = permanent_with_cost(&mut state, "{2}{G}");
+        let _ = permanent_with_cost(&mut state, "{G}{G}");
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(src);
+
+        let your_permanents = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+
+        let devotion_green = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(your_permanents)),
+                by: Box::new(Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::It),
+                    SymbolPred::CountsAs(Color::Green),
+                ))),
+            },
+        );
+        assert_eq!(
+            state.eval_count(&devotion_green, &frame),
+            3,
+            "{{2}}{{G}} + {{G}}{{G}} + {{1}} = 3 green pips total"
+        );
+
+        // `SumOf` over `StatOf(It, Power)`: total power of your creatures.
+        let mut power_state = game();
+        let src = permanent_with_cost(&mut power_state, "{1}");
+        let _ = creature_with_power(&mut power_state, 2);
+        let _ = creature_with_power(&mut power_state, 5);
+        let frame = frame_src(src);
+        let total_power = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(Predicate::AllOf(vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::creature(),
+                ]))),
+                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            },
+        );
+        assert_eq!(power_state.eval_count(&total_power, &frame), 7);
+
+        // The empty set folds every `AggregateOp` to 0.
+        let empty = Countable::Objects(Box::new(Predicate::Not(Box::new(Predicate::Any))));
+        for op in [
+            AggregateOp::SumOf,
+            AggregateOp::MinOf,
+            AggregateOp::MaxOf,
+            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
+        ] {
+            let empty_fold = Count::Aggregate(
+                op,
+                Projection {
+                    of: empty.clone(),
+                    by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+                },
+            );
+            assert_eq!(
+                power_state.eval_count(&empty_fold, &frame),
+                0,
+                "{op:?} over the empty set is 0"
+            );
+        }
     }
 
     /// `StatOf` reads the DERIVED stat (a pump shows through) and the

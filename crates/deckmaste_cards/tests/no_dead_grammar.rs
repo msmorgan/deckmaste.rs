@@ -667,6 +667,35 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             yet built.",
         ),
         (
+            n("Count", "Aggregate"),
+            "DEFERRED: the fold (SumOf/MinOf/MaxOf/AverageOf over a \
+            Projection, [CR#107.1]) is engine-eval'd and unit-tested \
+            (deckmaste_engine::resolve::tests::aggregate_folds_a_projection_over_a_selection) and \
+            round-trips (deckmaste_core::count::tests::aggregate_round_trips), but the card-facing \
+            devotion fixture that would exercise it end-to-end (Count::Aggregate + \
+            Countable::ManaSymbols) is a separate ticket task, not yet built.",
+        ),
+        (
+            n("AggregateOp", "SumOf"),
+            "DEFERRED: see Count::Aggregate — no accept fixture until the \
+            devotion fixture card lands.",
+        ),
+        (
+            n("AggregateOp", "MinOf"),
+            "DEFERRED: see Count::Aggregate — no accept fixture until a real \
+            card uses the extremal fold (Selection::Pick already covers the extremal-ELEMENT \
+            shape; Pick unifying onto AggregateOp is a later ticket task).",
+        ),
+        (
+            n("AggregateOp", "MaxOf"),
+            "DEFERRED: see AggregateOp::MinOf.",
+        ),
+        (
+            n("AggregateOp", "AverageOf"),
+            "DEFERRED: see Count::Aggregate — no accept fixture until a real \
+            card uses the average fold.",
+        ),
+        (
             n("Condition", "Exists"),
             "DEFERRED: no 'if you control a ...' conditional real card in \
             this batch.",

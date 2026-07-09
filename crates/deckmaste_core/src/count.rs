@@ -91,6 +91,33 @@ pub enum Countable {
     ManaSymbols(Box<Reference>, crate::SymbolPred),
 }
 
+/// A fold operator over a projected set ([CR#107.1]) — the Idris `AggregateOp`.
+/// The extremal ops (`MinOf`/`MaxOf`) are also the only ones `Selection::Pick`
+/// admits (an extremal ELEMENT is well-defined; a sum/average element is not).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum AggregateOp {
+    /// Sum of the projected values (devotion, total power).
+    SumOf,
+    /// Least projected value (0 over the empty set).
+    MinOf,
+    /// Greatest projected value (0 over the empty set).
+    MaxOf,
+    /// Mean of the projected values, rounded per [`RoundMode`] (0 over ∅).
+    AverageOf(RoundMode),
+}
+
+/// A per-element numeric projection over a set ([CR#107.1]) — the Idris
+/// `Project`. Each element of `of` binds [`Reference::It`] while `by` is
+/// read. Shared by [`Count::Aggregate`] (the value fold) and
+/// [`Selection::Pick`](crate::Selection::Pick) (the extremal element).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct Projection {
+    /// The folded set. Only `Countable::Objects` is projectable today.
+    pub of: Countable,
+    /// The per-element read, over `Reference::It`.
+    pub by: Box<Count>,
+}
+
 /// A scalar magnitude an effect computes at resolution: an amount, never an
 /// object (objects are `Reference`s, [CR#107.1,107.3]).
 ///
@@ -212,6 +239,12 @@ pub enum Count {
     /// resolves to a player proxy; a non-player reference fizzles to 0
     /// (never-crash), like its `Opponents`/`PlayerStatOf` peers.
     ManaAvailable(Reference),
+    /// Fold a [`Projection`] to one value per [`AggregateOp`] ([CR#107.1]):
+    /// "the total power of creatures you control" = `Aggregate(SumOf, (of:
+    /// Objects(<your creatures>), by: StatOf(It, Power)))`; devotion to green
+    /// = `Aggregate(SumOf, (of: Objects(<your permanents>), by: CountOf(
+    /// ManaSymbols(It, CountsAs(Green)))))` ([CR#700.5]).
+    Aggregate(AggregateOp, Projection),
     /// A remembered `Count` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<Count>),
@@ -409,6 +442,39 @@ mod tests {
         );
         let value = Count::ManaAvailable(Reference::You);
         assert_eq!(read(&write(&value)), value);
+    }
+
+    /// `Aggregate(AggregateOp, Projection)` — the fold — round-trips for
+    /// devotion (an `Objects` source over `CountOf(ManaSymbols(..))`) and for
+    /// every `AggregateOp` over a `StatOf` projection.
+    #[test]
+    fn aggregate_round_trips() {
+        use crate::Color;
+        use crate::RelationPredicate;
+        use crate::StatePredicate;
+        use crate::Zone;
+
+        let devotion_green = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(Predicate::AllOf(vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ]))),
+                by: Box::new(Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::It),
+                    crate::SymbolPred::CountsAs(Color::Green),
+                ))),
+            },
+        );
+        assert_eq!(read(&write(&devotion_green)), devotion_green);
+        for op in ["SumOf", "MinOf", "MaxOf", "AverageOf(RoundUp)"] {
+            let src =
+                format!("Aggregate({op}, (of: Objects(Type(Creature)), by: StatOf(It, Power)))");
+            assert_eq!(read(&write(&read(&src))), read(&src), "round-trip {op}");
+        }
     }
 
     /// `EventSum(EventFilter, Lookback)` parses and round-trips — the

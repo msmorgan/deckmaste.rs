@@ -914,6 +914,39 @@ fn emit_phase_step(p: PhaseStep) -> R {
 // Count / Quantity
 // ===========================================================================
 
+/// A [`Countable`] as the Idris `Countable`/`Project` source. `Objects` wraps
+/// the filter; `ManaSymbols` names the pip source ([CR#700.5] devotion).
+fn emit_countable(c: &Countable) -> R {
+    Ok(match c {
+        Countable::Objects(f) => format!("(Objects {})", emit_filter(f)?),
+        Countable::ManaSymbols(r, pred) => app(
+            "ManaSymbols",
+            vec![emit_reference(r)?, emit_symbol_pred(pred)?],
+        ),
+    })
+}
+
+/// An [`AggregateOp`] as its Idris twin — identity on the fold operator name,
+/// `AverageOf` carrying its [`RoundMode`](deckmaste_core::RoundMode).
+fn emit_aggregate_op(op: &deckmaste_core::AggregateOp) -> String {
+    use deckmaste_core::AggregateOp;
+    match op {
+        AggregateOp::SumOf => "SumOf".to_string(),
+        AggregateOp::MinOf => "MinOf".to_string(),
+        AggregateOp::MaxOf => "MaxOf".to_string(),
+        AggregateOp::AverageOf(mode) => app(
+            "AverageOf",
+            vec![
+                match mode {
+                    deckmaste_core::RoundMode::RoundUp => "RoundUp",
+                    deckmaste_core::RoundMode::RoundDown => "RoundDown",
+                }
+                .to_string(),
+            ],
+        ),
+    }
+}
+
 fn emit_count(c: &Count) -> R {
     Ok(match c {
         Count::X => "X".to_string(),
@@ -941,6 +974,18 @@ fn emit_count(c: &Count) -> R {
             };
             app("CountDistinct", vec![c, src])
         }
+        // [CR#107.1]: fold a per-element `Project` — devotion's own shape
+        // ([CR#700.5]).
+        Count::Aggregate(op, proj) => app(
+            "Aggregate",
+            vec![
+                emit_aggregate_op(op),
+                app(
+                    "Project",
+                    vec![emit_countable(&proj.of)?, emit_count(&proj.by)?],
+                ),
+            ],
+        ),
         Count::StatOf(r, stat) => {
             use deckmaste_core::Stat as S;
             match stat {

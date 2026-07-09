@@ -1016,6 +1016,12 @@ fn eval_count(
         // `EventSum`, `Noted`) is unavailable during layer derivation — those
         // need a resolution `Frame` (`resolve.rs::eval_count`), so a continuous
         // effect built on one defaults to `0` here (a documented seam).
+        //
+        // [CR#107.1]: `Aggregate`'s per-element fold binds `It` via a resolution
+        // `Frame` sub-binding (`resolve.rs::eval_count`'s `Selection::Pick`-style
+        // loop) — the layer pass has no `Frame` to bind against, so a CDA built
+        // on an aggregate fold defaults to `0` here too (unforced: no CDA needs
+        // one yet).
         Count::X
         | Count::ThatMany
         | Count::ThatMuch
@@ -1023,7 +1029,8 @@ fn eval_count(
         | Count::EventCount(..)
         | Count::EventSum(..)
         | Count::TimesPaid(_)
-        | Count::Noted(_) => 0,
+        | Count::Noted(_)
+        | Count::Aggregate(..) => 0,
     }
 }
 

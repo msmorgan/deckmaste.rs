@@ -1,5 +1,6 @@
 //! Shared noun-phrase / count fragment renderers.
 
+use deckmaste_core::AggregateOp;
 use deckmaste_core::Anchor;
 use deckmaste_core::Characteristic;
 use deckmaste_core::CharacteristicPredicate;
@@ -169,6 +170,24 @@ pub(super) fn count(c: &Count) -> String {
             let group = super::ability::lower_first(&filter_subject(filter));
             format!("the number of {axis_word} among {group}")
         }
+        // [CR#107.1] the fold over a projection — "the total/greatest/
+        // least/average [by] among [of]". Structural phrasing; the
+        // devotion-specific "your devotion to green" recognizer lands with
+        // the fixture card (a later task). A `ManaSymbols`-sourced `of` is
+        // not projectable — falls through to the generic `[unrendered: …]`.
+        Count::Aggregate(op, proj) => match &proj.of {
+            Countable::Objects(filter) => {
+                let fold_word = match op {
+                    AggregateOp::SumOf => "total",
+                    AggregateOp::MinOf => "least",
+                    AggregateOp::MaxOf => "greatest",
+                    AggregateOp::AverageOf(_) => "average",
+                };
+                let group = super::ability::lower_first(&filter_subject(filter));
+                format!("the {fold_word} {} among {group}", count(&proj.by))
+            }
+            Countable::ManaSymbols(..) => format!("[unrendered: {c:?}]"),
+        },
         // The value anaphor's two spellings ([CR#107.3,608.2i]).
         Count::ThatMany => "that many".to_string(),
         Count::ThatMuch => "that much".to_string(),
