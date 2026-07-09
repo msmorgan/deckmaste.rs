@@ -351,3 +351,26 @@ flashback costs = Keyword (Composite Flashback [ Static (MayCastFor costs {from 
 public export
 typesInGraveyards : Count b
 typesInGraveyards = CountDistinct Types (Objects (InZone Graveyard))
+
+-- "exchange life totals" (Axis of Mortality): two ANNOUNCED targets (`Target 0`/`Target 1`) each set to
+-- the OTHER's current life ([CR#701.12a,701.12c] "Exchange" — the general exchange-keyword-action rule
+-- covers both life totals and control, [CR#701.12b] below). `SetLifeTo` reads a snapshot via
+-- `PlayerStatOf _ Life` BEFORE either write, so the pair is wrapped `Simultaneously` rather than
+-- `Sequentially` — writing them in sequence would have the second `SetLifeTo` read the first's
+-- already-updated total.
+public export
+exchangeLife : OneShotEffect b
+exchangeLife = Simultaneously
+  [ Act (SetLifeTo {actor = Target 0} (PlayerStatOf (Target 1) Life))
+  , Act (SetLifeTo {actor = Target 1} (PlayerStatOf (Target 0) Life)) ]
+
+-- "exchange control of [This] and target [permanent]" (Avarice Totem): a permanent CONTROL-SWAP, built
+-- from two `Forever` continuous effects rather than one atomic action — each side independently GAINS
+-- CONTROL of the other's pre-swap controller ([CR#701.12a,701.12b] — the exchange resolves as one
+-- SIMULTANEOUS batch, so reading `ControllerOf` on the OTHER side inside the same `Simultaneously` still
+-- yields each side's ORIGINAL controller; no snapshot needed the way `exchangeLife` does).
+public export
+exchangeControl : OneShotEffect b
+exchangeControl = Simultaneously
+  [ Continuously Forever (Modify This       (GainControl (ControllerOf (Target 0))))
+  , Continuously Forever (Modify (Target 0) (GainControl (ControllerOf This))) ]

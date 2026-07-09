@@ -321,11 +321,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             from a search's shuffle-after) in this batch.",
         ),
         (
-            n("PlayerAction", "SetLife"),
-            "DEFERRED: no life-total-SET real card (e.g. 'set your life \
-            total to 1') in this batch.",
-        ),
-        (
             n("PlayerAction", "Reveal"),
             "DEFERRED: no bare Reveal-only real card in this batch \
             (canon's reveal-adjacent cards fold revealing into SeparatePiles).",
@@ -339,11 +334,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("Duration", "ForAsLongAs"),
             "DEFERRED: no 'for as long as (condition)' one-shot-duration \
             real card in this batch.",
-        ),
-        (
-            n("Duration", "EndOfGame"),
-            "DEFERRED: no one-shot (non-static) permanent grant in this \
-            batch — the corpus's permanent effects all ride genuine static abilities.",
         ),
         (
             n("CollectionOp", "Remove"),
@@ -364,11 +354,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("Modification", "CantHaveAbility"),
             "DEFERRED: no \"can't have or gain abilities\" real \
             card in this batch.",
-        ),
-        (
-            n("Modification", "SetController"),
-            "DEFERRED: no one-shot control-change-via-Modify real \
-            card in this batch (canon has no control magic yet).",
         ),
         (
             n("Modification", "SetText"),

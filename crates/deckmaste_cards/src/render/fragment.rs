@@ -457,12 +457,20 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
     {
         return noun;
     }
-    if let Some(t) = find_card_type(filter) {
-        let base = super::card::type_str(t).to_lowercase();
-        // A negated-subtype exclusion rides the noun as a "non-" prefix
-        // ([CR#205.3] — "non-Brushwagg creature"), ahead of any controller
+    // The base noun: a card TYPE atom ("creature") or, failing that, a bare
+    // macro-provenance noun among the `AllOf` parts ("permanent" — the
+    // `Permanent` filter macro has no `Type(_)` atom of its own to key off
+    // of, [CR#110.1]; "target nonland permanent", Avarice Totem).
+    let base_noun = find_card_type(filter)
+        .map(|t| super::card::type_str(t).to_lowercase())
+        .or_else(|| find_macro_noun(filter));
+    if let Some(base) = base_noun {
+        // A negated-subtype/-card-type exclusion rides the noun as a prefix
+        // ([CR#205.3] — "non-Brushwagg creature"; a card-type exclusion
+        // elides the hyphen, "nonland permanent"), ahead of any controller
         // suffix.
-        let base = match subtype_exclusion_prefix(filter) {
+        let base = match subtype_exclusion_prefix(filter).or_else(|| type_exclusion_prefix(filter))
+        {
             Some(prefix) => format!("{prefix} {base}"),
             None => base,
         };
@@ -543,6 +551,37 @@ fn subtype_exclusion_prefix(filter: &Predicate) -> Option<String> {
         }
     }
     None
+}
+
+/// A negated CARD-TYPE exclusion among a filter's `AllOf` parts ([CR#205.3]):
+/// `Not(Type(Land))` -> "nonland", prefixed onto the base noun ("nonland
+/// permanent", Avarice Totem). Unlike [`subtype_exclusion_prefix`]'s
+/// hyphenated "non-Brushwagg", a card-type exclusion elides the hyphen —
+/// oracle templating's own convention ("nonland", "noncreature",
+/// "nonbasic"). `None` when the filter carries no such exclusion.
+fn type_exclusion_prefix(filter: &Predicate) -> Option<String> {
+    for part in flatten_all_of(filter) {
+        if let Predicate::Not(negated) = strip_expanded(part)
+            && let Predicate::Characteristic(CharacteristicPredicate::Type(t)) =
+                strip_expanded(negated)
+        {
+            return Some(format!("non{}", super::card::type_str(*t).to_lowercase()));
+        }
+    }
+    None
+}
+
+/// A bare macro-provenance noun among a filter's `AllOf` parts — the
+/// non-card-type twin of [`find_card_type`]: `Permanent`'s
+/// `InZone(Battlefield)` expansion carries no `Type(_)` atom of its own, so the
+/// noun comes off its template ("permanent") instead. `None` for a filter with
+/// no such macro part (or one whose macro carries no nullary template).
+fn find_macro_noun(f: &Predicate) -> Option<String> {
+    match f {
+        Predicate::Expanded(exp) => super::template::expanded(exp, ""),
+        Predicate::AllOf(parts) => parts.iter().find_map(find_macro_noun),
+        _ => None,
+    }
 }
 
 // ── Static-ability subject phrases ──────────────────────────────────────────

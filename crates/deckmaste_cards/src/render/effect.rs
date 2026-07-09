@@ -16,12 +16,14 @@ use deckmaste_core::EnterRider;
 use deckmaste_core::Modification;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::PlayerAttr;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::Sort;
 use deckmaste_core::Stat;
 use deckmaste_core::StatValue;
 use deckmaste_core::StaticEffect;
+use deckmaste_core::TargetSpec;
 use deckmaste_core::Token;
 use deckmaste_core::TokenSpec;
 use deckmaste_core::TurnMarker;
@@ -102,6 +104,27 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
                 |s| trim_period(&s),
             );
             duration_qualified(&c.duration, &clause, has_dynamic_pt_delta(&c.effect))
+        }
+        // [CR#701.12a]: a batch of one-shot sub-effects sharing one snapshot
+        // — the "Exchange" keyword action's primitive, covering both
+        // "exchange control" ([CR#701.12b]) and "exchange life totals"
+        // ([CR#701.12c]). Both current consumers are two MIRRORED halves of
+        // one symmetric verb, so this dispatches to their dedicated phrasing
+        // rather than joining the parts generically; a `Simultaneously`
+        // outside those two shapes has no oracle-text precedent yet.
+        OneShotEffect::Simultaneously(parts) => exchange_control_phrase(parts, ctx)
+            .or_else(|| exchange_life_phrase(parts, ctx))
+            .unwrap_or_else(|| format!("[unrendered: {e:?}].")),
+        // [CR#608.2d]: "You may [effect]." — the bare optional-effect wrapper
+        // (distinct from `MayPay`'s pay-a-cost kicker; this rule's own
+        // example, "You may sacrifice a creature. If you don't, you lose 4
+        // life.", is this exact "may … if you don't" shape). `if_did`/
+        // `if_not` are unused by any current fixture; the base "You may …"
+        // form is the
+        // only shape rendered so far.
+        OneShotEffect::May(m) => {
+            let inner = super::ability::lower_first(&trim_period(&effect(&m.effect, ctx)));
+            format!("You may {inner}.")
         }
         // The multi-part spelling of `Continuously` ([CR#611.2c] — a list of
         // static parts sharing one duration, the Boros Charm mode-2 shape).
@@ -716,6 +739,123 @@ fn duration_prefix(d: &Duration) -> Option<String> {
 /// pump / ability-grant shape (Giant Growth, Collective Resistance) —
 /// `leads` carries that call from the caller, which has the effect shape in
 /// hand.
+/// Structural match for one HALF of an "exchange control" pair ([CR#701.12a],
+/// Avarice Totem): `Continuously(Forever, Modify(<target>, SetController(
+/// ControllerOf(<other>))))`. Returns `(target, other)` — the modified
+/// permanent and the permanent whose controller it's assuming. `None` for any
+/// other shape (a plain duration-bounded control grant, e.g., isn't this).
+fn exchange_control_half(e: &OneShotEffect) -> Option<(&Reference, &Reference)> {
+    let OneShotEffect::Continuously(c) = e else {
+        return None;
+    };
+    if c.duration != Duration::EndOfGame {
+        return None;
+    }
+    let StaticEffect::Modify(target, Modification::SetController(source)) = c.effect.as_ref()
+    else {
+        return None;
+    };
+    let Reference::ControllerOf(other) = source else {
+        return None;
+    };
+    Some((target, other.as_ref()))
+}
+
+/// Whether a `Simultaneously`'s two parts are a mirrored "exchange control"
+/// pair — used both by the phrase renderer below and by
+/// [`super::ability::effect_wants_self_type_phrase`] (the activated
+/// ability's `Ctx.subject` needs "this artifact", not the printed name, for
+/// this one shape).
+pub(super) fn exchange_control_refs(parts: &[OneShotEffect]) -> Option<(&Reference, &Reference)> {
+    let [a, b] = parts else { return None };
+    let (target_a, other_a) = exchange_control_half(a)?;
+    let (target_b, other_b) = exchange_control_half(b)?;
+    if target_a == other_b && target_b == other_a {
+        Some((target_a, target_b))
+    } else {
+        None
+    }
+}
+
+/// "Exchange control of {a} and {b}." ([CR#701.12a,701.12b]) — Avarice
+/// Totem's activated ability body. The `Simultaneously`-of-two-`Continuously`
+/// primitive shape has no generic oracle phrasing of its own (see the
+/// `Simultaneously` dispatch above), so this recognizes the mirrored pair
+/// structurally rather than walking each half independently.
+fn exchange_control_phrase(parts: &[OneShotEffect], ctx: &Ctx) -> Option<String> {
+    let (a, b) = exchange_control_refs(parts)?;
+    Some(format!(
+        "Exchange control of {} and {}.",
+        fragment::reference(a, ctx),
+        fragment::reference(b, ctx),
+    ))
+}
+
+/// Structural match for one HALF of an "exchange life totals" pair
+/// ([CR#701.12a,701.12c], Axis of Mortality): `By(<actor>, SetLife(
+/// PlayerStatOf(<other>, Life)))`. Returns `(actor, other)` — the player
+/// whose life is being set and the player whose (pre-exchange) total it's
+/// copying.
+fn exchange_life_half(e: &OneShotEffect) -> Option<(&Reference, &Reference)> {
+    let OneShotEffect::Act(Action::By(actor, PlayerAction::SetLife(count))) = e else {
+        return None;
+    };
+    let Count::PlayerStatOf(other, PlayerAttr::Life) = count else {
+        return None;
+    };
+    Some((actor, other))
+}
+
+/// "have two target players exchange life totals" ([CR#701.12a,701.12c],
+/// Axis of Mortality's `May`-wrapped trigger body): the mirrored `SetLife`/
+/// `PlayerStatOf` pair reads as one collective verb over the announced
+/// targets, not two separate "X's life total becomes Y" sentences — the
+/// per-half phrasing (`Action::By(Reference::It, PlayerAction::SetLife(_))`,
+/// used by the distributive-`Each` "Each player's life total becomes N")
+/// doesn't apply here since neither half's actor is the loop anaphor `It`.
+fn exchange_life_phrase(parts: &[OneShotEffect], ctx: &Ctx) -> Option<String> {
+    let [a, b] = parts else { return None };
+    let (actor_a, other_a) = exchange_life_half(a)?;
+    let (actor_b, other_b) = exchange_life_half(b)?;
+    if actor_a != other_b || actor_b != other_a {
+        return None;
+    }
+    let targets_phrase = two_same_targets_phrase(ctx.targets).unwrap_or_else(|| {
+        format!(
+            "{} and {}",
+            fragment::reference(actor_a, ctx),
+            fragment::reference(actor_b, ctx)
+        )
+    });
+    Some(format!("have {targets_phrase} exchange life totals"))
+}
+
+/// Two SEPARATELY-announced target slots sharing one predicate collapse to a
+/// single count phrase ([CR#115.3]): `[TargetOne(Player), TargetOne(Player)]`
+/// -> "two target players" — distinct from
+/// [`fragment::announced_group_phrase`], which reads ONE slot's plural
+/// `Quantity` ("one, two, or three targets"). `None` for any other target
+/// list shape (different predicates, a non-singleton quantity, …).
+fn two_same_targets_phrase(targets: &[TargetSpec]) -> Option<String> {
+    // Peel macro provenance first — `TargetOne`/`Exactly`/… (the RON-surface
+    // spellings every fixture actually authors) are builtin macros expanding
+    // to the raw `Target(Quantity, Predicate)` node, not that node directly.
+    fn peel(t: &TargetSpec) -> &TargetSpec {
+        match t {
+            TargetSpec::Expanded(exp) => peel(&exp.value),
+            other => other,
+        }
+    }
+    let [a, b] = targets else { return None };
+    let (TargetSpec::Target(qa, fa), TargetSpec::Target(qb, fb)) = (peel(a), peel(b)) else {
+        return None;
+    };
+    if !qa.is_one() || !qb.is_one() || fa != fb {
+        return None;
+    }
+    Some(format!("two target {}s", fragment::filter_noun(fa)))
+}
+
 fn duration_qualified(d: &Duration, clause: &str, leads: bool) -> String {
     if leads {
         match duration_prefix(d) {

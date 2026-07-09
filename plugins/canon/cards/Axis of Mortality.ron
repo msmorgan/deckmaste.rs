@@ -1,0 +1,29 @@
+// The "exchange life totals" fixture ([CR#701.12a,701.12c]): a `May`-wrapped,
+// two-target upkeep trigger whose body is the `Simultaneously` pair of
+// mirrored `SetLife`/`PlayerStatOf` reads — the Idris `exchangeLife` macro's
+// exact shape (`Macros.idr`). Both targets share the bare `Player` predicate,
+// so the render collapses them to "two target players" rather than repeating
+// the announce phrase twice.
+Normal(
+  name: "Axis of Mortality",
+  mana_cost: [
+    Generic(4),
+    White,
+    White,
+  ],
+  types: [
+    Enchantment,
+  ],
+  abilities: [
+    Triggered(
+      event: StepBegins(at: Beginning(Upkeep), whose: Your),
+      effect: May(effect: Targeted(
+        targets: [TargetOne(Player), TargetOne(Player)],
+        effect: Simultaneously([
+          By(Target(0), SetLife(PlayerStatOf(Target(1), Life))),
+          By(Target(1), SetLife(PlayerStatOf(Target(0), Life))),
+        ]),
+      )),
+    ),
+  ],
+)

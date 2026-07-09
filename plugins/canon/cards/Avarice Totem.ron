@@ -1,0 +1,37 @@
+// The "exchange control" fixture ([CR#701.12a,701.12b]): a mana-only
+// activated ability whose body is the `Simultaneously` pair of mirrored
+// `Continuously(EndOfGame, Modify(_, SetController(ControllerOf(_))))`
+// halves — the Idris `exchangeControl` macro's exact shape (`Macros.idr`).
+// Deliberately NOT the pre-existing `ExchangeControl` builtin macro
+// (`plugins/builtin/macros/effect/ExchangeControl.ron`): that one expands to
+// the one-shot `Action::GainControl`, which `idris_emit` explicitly declines
+// ("has no Idris one-shot Action counterpart — only the continuous
+// Modification"). The continuous-modification spelling here is the one form
+// with a real Idris emit path, so it's what an idris-check-passing fixture
+// has to use.
+//
+// The self-reference in the body ("this artifact") is a battlefield-context
+// type-noun, not the printed name — `ability::activated`'s `Ctx.subject`
+// override for exactly this `Simultaneously` shape (see
+// `render/ability.rs::effect_wants_self_type_phrase`).
+Normal(
+  name: "Avarice Totem",
+  mana_cost: [
+    Generic(1),
+  ],
+  types: [
+    Artifact,
+  ],
+  abilities: [
+    Activated(
+      cost: [Mana([Generic(5)])],
+      effect: Targeted(
+        targets: [TargetOne(AllOf([Permanent, Not(Type(Land))]))],
+        effect: Simultaneously([
+          Continuously(effect: Modify(This, SetController(ControllerOf(Target(0)))), duration: EndOfGame),
+          Continuously(effect: Modify(Target(0), SetController(ControllerOf(This))), duration: EndOfGame),
+        ]),
+      ),
+    ),
+  ],
+)

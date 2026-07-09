@@ -161,14 +161,38 @@ fn adjacent_in_zone_if_clause(
 /// renderer; a cost with no clean symbol rendering falls back to the
 /// structural form.
 pub(super) fn activated(a: &deckmaste_core::ActivatedAbility, view: &CardView) -> String {
+    // Battlefield-context self-reference conventionally names the card by
+    // TYPE ("this artifact"), never by repeating its own printed name — the
+    // one activated-ability shape that reads its own `This` in the body is
+    // the "exchange control" pair (Avarice Totem's "Exchange control of
+    // this artifact and target nonland permanent"), so this only overrides
+    // the default `view.name` subject for that shape; every other activated
+    // ability keeps today's behavior unchanged.
+    let subject = if effect_wants_self_type_phrase(&a.effect) {
+        self_type_phrase(view)
+    } else {
+        view.name.to_string()
+    };
     let ctx = Ctx {
-        subject: view.name,
+        subject: &subject,
         targets: &[],
         that: None,
     };
     let cost = effect::activated_cost(&a.cost.0, &ctx);
     let body = effect::effect(&a.effect, &ctx);
     from_zone_qualified(a.from, view.name, format!("{cost}: {body}"))
+}
+
+/// Whether an activated ability's effect (through its `Targeted` wrapper, if
+/// any) is the "exchange control" `Simultaneously` shape — see
+/// [`activated`]'s doc comment for why this drives the `Ctx.subject` choice.
+fn effect_wants_self_type_phrase(e: &deckmaste_core::OneShotEffect) -> bool {
+    use deckmaste_core::OneShotEffect;
+    let inner: &OneShotEffect = match e {
+        OneShotEffect::Targeted(t) => &t.effect,
+        other => other,
+    };
+    matches!(inner, OneShotEffect::Simultaneously(parts) if effect::exchange_control_refs(parts).is_some())
 }
 
 /// Prefix a "While ~ is in your <zone>," function-zone qualifier
