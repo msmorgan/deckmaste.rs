@@ -1,0 +1,7 @@
+// "ThisBecomesTapped" = this object transitions untapped -> tapped
+// ([CR#603.2e]). Mirrors event/ThisDies + event/ThisEnters + event/ThisAttacks.
+(
+    name: "ThisBecomesTapped",
+    kinds: [EventFilter],
+    body: StateBecame(of: Ref(This), becomes: Tapped),
+)

@@ -1,6 +1,8 @@
-// Hand-written ability: the becomes-tapped event shape is beyond the
-// triggered-ability parser today ("Whenever ~ becomes tapped, it deals
-// 1 damage to any target.").
+// Hand-written ability ("Whenever ~ becomes tapped, it deals 1 damage to
+// any target."). The triggered-ability parser now covers this becomes-tapped
+// event shape too (`BecomesTapped`/`ThisBecomesTapped` macros,
+// misc-event-trigger wave) — this card just hasn't been re-migrated through
+// it.
 Normal(
   name: "Goblin Medics",
   mana_cost: [

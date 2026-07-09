@@ -491,11 +491,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             this batch.",
         ),
         (
-            n("StateChange", "Untapped"),
-            "DEFERRED: no untap-event-triggered real card in this \
-            batch.",
-        ),
-        (
             n("StateChange", "Phased"),
             "DEFERRED: no phasing-event-triggered real card in this \
             batch.",
@@ -551,49 +546,44 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             event-conjunction shape has no natural single-card use yet.",
         ),
         (
-            n("EventFilter", "LifeGained"),
-            "DEFERRED: no life-gain-triggered real card in this \
-            batch (canon's existing triggers are all ZoneChange-shaped: dies/enters).",
-        ),
-        (
             n("EventFilter", "LifeLost"),
-            "DEFERRED: see EventFilter::LifeGained.",
-        ),
-        (
-            n("EventFilter", "Drawn"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: no life-LOSS-triggered real card in this batch \
+            (life GAIN — EventFilter::LifeGained, the `GainsLife` macro — is covered by \
+            the misc-event-trigger wave's 'you gain life'/'an opponent gains life' \
+            productions; `Drawn`, the `Draws` macro's expansion, is covered by the same \
+            wave's draw-a-card productions).",
         ),
         (
             n("EventFilter", "CounterRemoved"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "Played"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "ActivatedAb"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "Attached"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "DesignationChanged"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "TokenCreated"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "Used"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "DiceRolled"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "RollPlanarDie"),
@@ -605,11 +595,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("EventFilter", "BecameDay"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "BecameNight"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            "DEFERRED: see EventFilter::LifeLost.",
         ),
         (
             n("EventFilter", "Nth"),

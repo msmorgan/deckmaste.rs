@@ -1,0 +1,15 @@
+// "GainsLife" = a player gained life ([CR#119.3]: an effect causing a
+// player to gain life adjusts their life total accordingly). Mirrors
+// event/Attacks + event/Dies (single Predicate-typed subject slot); the
+// subject is a PLAYER identity, not an object, so it's parsed by
+// `filter::recipient_phrase` (the "you"/"an opponent"/"a player" grammar),
+// not `filter::parse_phrase` — there's no `~` self shorthand, since a
+// permanent is never "you".
+// Usage: GainsLife(who) — e.g. GainsLife(Ref(You)), GainsLife(OpponentOf(Ref(You))).
+(
+    name: "GainsLife",
+    template: "${0} gain life",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: LifeGained(who: Param(0)),
+)

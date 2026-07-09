@@ -343,6 +343,60 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
                 recipient_of(to, ctx)
             ),
         ),
+        // Generic (non-combat-narrowed) damage dealt to a recipient
+        // ([CR#120.1]) — the passive-voice `DealtDamage` macro's expansion:
+        // the recipient itself is the trigger's subject ("<recipient> is
+        // dealt damage"), unlike the active-voice `DealsCombatDamage` arm
+        // above ("<source> deals combat damage to <recipient>"). `source`
+        // stays unnarrowed (any source) and `combat` unset (fires on
+        // combat OR noncombat damage) — matching the plain "is dealt
+        // damage" oracle phrasing (no card in this corpus narrows source,
+        // combat, or amount for this event).
+        EventFilter::Damage {
+            source: Predicate::Any,
+            to,
+            combat: None,
+            amount: None,
+        } => (
+            lead_for(to),
+            format!("{} is dealt damage", recipient_of(to, ctx)),
+        ),
+        // A player gained life ([CR#119.3]) — the `GainsLife` macro's
+        // expansion. Both verb agreements a real card narrows to:
+        // 2nd-person "you gain life" and 3rd-person-singular "an opponent
+        // gains life"; any other subject falls through to the unrendered
+        // marker.
+        EventFilter::LifeGained {
+            who: Predicate::Ref(Reference::You),
+            amount: None,
+        } => ("Whenever", "you gain life".to_string()),
+        EventFilter::LifeGained {
+            who: Predicate::Relation(RelationPredicate::OpponentOf(inner)),
+            amount: None,
+        } if matches!(
+            super::fragment::strip_expanded(inner),
+            Predicate::Ref(Reference::You)
+        ) =>
+        {
+            ("Whenever", "an opponent gains life".to_string())
+        }
+        // A player drew ([CR#121.1]) — the `Draws` macro's expansion (mind
+        // the underlying event: `Drawn`, not `Draws`). Same two
+        // verb-agreement shapes as `LifeGained` above.
+        EventFilter::Drawn {
+            who: Predicate::Ref(Reference::You),
+            amount: None,
+        } => ("Whenever", "you draw a card".to_string()),
+        EventFilter::Drawn {
+            who: Predicate::Relation(RelationPredicate::OpponentOf(inner)),
+            amount: None,
+        } if matches!(
+            super::fragment::strip_expanded(inner),
+            Predicate::Ref(Reference::You)
+        ) =>
+        {
+            ("Whenever", "an opponent draws a card".to_string())
+        }
         // Cast onset ([CR#601.2i]) — "you cast X", the controller's own
         // filtered cast (Prowess/Cascade shape). Only the `who: Ref(You)`
         // narrowing is recognized (an opponent's/any-player's cast has no
@@ -1252,6 +1306,132 @@ mod tests {
                 "Whenever",
                 "Test deals combat damage to a player or planeswalker".to_string()
             )
+        );
+    }
+
+    /// `EventFilter::Damage { source: Any, combat: None, .. }` — the
+    /// `DealtDamage` macro's expansion (generic, non-combat-narrowed damage;
+    /// the recipient-subject passive phrasing "<recipient> is dealt
+    /// damage"). Round-trips the self ("When" lead) and object/player-
+    /// identity recipient forms.
+    #[test]
+    fn dealt_damage_event_clause_renders_recipients() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let event = |to| EventFilter::Damage {
+            source: Predicate::Any,
+            to,
+            combat: None,
+            amount: None,
+        };
+
+        assert_eq!(
+            event_clause(&event(Predicate::Ref(Reference::This)), &ctx),
+            ("When", "Test is dealt damage".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &event(Predicate::Characteristic(CharacteristicPredicate::Type(
+                    Type::Creature
+                ))),
+                &ctx
+            ),
+            ("Whenever", "a creature is dealt damage".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &event(Predicate::Relation(RelationPredicate::OpponentOf(
+                    Box::new(Predicate::Ref(Reference::You))
+                ))),
+                &ctx
+            ),
+            ("Whenever", "an opponent is dealt damage".to_string())
+        );
+    }
+
+    /// `EventFilter::LifeGained` / `EventFilter::Drawn` — the `GainsLife` /
+    /// `Draws` macros' expansions. Both events share the same two
+    /// player-identity subject shapes a real card narrows to (2nd-person
+    /// "you", 3rd-person-singular "an opponent"); always "Whenever" (a
+    /// player is never `Ref(This)`, so `lead_for` doesn't apply here).
+    #[test]
+    fn gains_life_and_draws_event_clause_renders_subjects() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let opponent = || {
+            Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Ref(
+                Reference::You,
+            ))))
+        };
+
+        assert_eq!(
+            event_clause(
+                &EventFilter::LifeGained {
+                    who: Predicate::Ref(Reference::You),
+                    amount: None,
+                },
+                &ctx
+            ),
+            ("Whenever", "you gain life".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &EventFilter::LifeGained {
+                    who: opponent(),
+                    amount: None,
+                },
+                &ctx
+            ),
+            ("Whenever", "an opponent gains life".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &EventFilter::Drawn {
+                    who: Predicate::Ref(Reference::You),
+                    amount: None,
+                },
+                &ctx
+            ),
+            ("Whenever", "you draw a card".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &EventFilter::Drawn {
+                    who: opponent(),
+                    amount: None,
+                },
+                &ctx
+            ),
+            ("Whenever", "an opponent draws a card".to_string())
+        );
+    }
+
+    /// `EventFilter::StateBecame { becomes: Untapped, .. }` — the
+    /// `BecomesUntapped`/`ThisBecomesUntapped` macros' expansion. The
+    /// `Tapped` half of this render arm is already exercised by Goblin
+    /// Medics' hand-authored card; this pins the new `Untapped` state word.
+    #[test]
+    fn state_became_renders_untapped() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        assert_eq!(
+            event_clause(
+                &EventFilter::StateBecame {
+                    of: Predicate::Ref(Reference::This),
+                    becomes: StateChange::Untapped,
+                },
+                &ctx
+            ),
+            ("Whenever", "Test becomes untapped".to_string())
         );
     }
 

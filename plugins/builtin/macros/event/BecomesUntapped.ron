@@ -1,0 +1,11 @@
+// "BecomesUntapped" = an object transitions tapped -> untapped ([CR#603.2e]
+// — a "becomes" trigger fires only at the transition itself). Mirrors
+// event/BecomesTapped. Usage: BecomesUntapped(what) — e.g.
+// BecomesUntapped(Type(Creature)), BecomesUntapped(Ref(This)).
+(
+    name: "BecomesUntapped",
+    template: "${0} becomes untapped",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: StateBecame(of: Param(0), becomes: Untapped),
+)

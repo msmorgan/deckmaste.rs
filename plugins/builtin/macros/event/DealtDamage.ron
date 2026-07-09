@@ -1,0 +1,18 @@
+// "DealtDamage" = generic (non-combat-narrowed) damage dealt to a recipient
+// ([CR#120.1]) — the passive-voice recipient-subject phrasing ("<subject>
+// is dealt damage"), as opposed to event/DealsCombatDamage's active-voice
+// source-subject "<subject> deals combat damage to <recipient>". `source`
+// and `combat` are left at their defaults (any source, combat unnarrowed),
+// so this event fires on BOTH combat and noncombat damage to the recipient
+// — matching the plain "is dealt damage" oracle phrasing (no card in this
+// corpus narrows this event's source or amount). The recipient draws from
+// the same player-identity/object grammar as DealsCombatDamage's recipient
+// ([`filter::recipient_phrase`] on the migration-parser side).
+// Usage: DealtDamage(to) — e.g. DealtDamage(Ref(This)), DealtDamage(Type(Creature)).
+(
+    name: "DealtDamage",
+    template: "${0} is dealt damage",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: Damage(to: Param(0)),
+)

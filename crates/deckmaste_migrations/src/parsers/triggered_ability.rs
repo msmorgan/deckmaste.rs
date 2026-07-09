@@ -122,13 +122,18 @@ fn target_slot_reads(body: &str) -> String {
 }
 
 /// Parses a trigger's event clause (the text between the trigger word and the
-/// comma) into the event RON, or `None`. v1 verbs: ETB, dies, attacks, and the
-/// "you cast X" cast trigger family ([`parse_cast_event`]). The
-/// state-transition verbs (enters/dies/attacks) take a subject: self (`~`)
-/// uses the `This{Verb}` shorthand macro; any other subject is parsed by the
-/// shared [`filter`] grammar and applied to the event macro — so "a creature
-/// you control", "a Goblin", etc. all resolve (declining when the filter
-/// grammar can't parse the subject).
+/// comma) into the event RON, or `None`. v1 verbs: ETB, dies, attacks, becomes
+/// tapped/untapped, is dealt damage, gains life, draws, and the "you cast X"
+/// cast trigger family ([`parse_cast_event`]). The state-transition verbs
+/// (enters/dies/attacks/becomes tapped/becomes untapped) take an OBJECT
+/// subject: self (`~`) uses the `This{Verb}` shorthand macro; any other
+/// subject is parsed by the shared [`filter`] grammar and applied to the
+/// event macro — so "a creature you control", "a Goblin", etc. all resolve
+/// (declining when the filter grammar can't parse the subject). The
+/// damage/gain-life/draw verbs instead take a PLAYER-identity (damage
+/// recipient) or player (gain-life/draw) subject, parsed by
+/// [`filter::recipient_phrase`] — no `~` shorthand, since a permanent is
+/// never "you"/"an opponent"/"a player".
 ///
 /// Shared with [`crate::parsers::replacement`]: an `Instead`/`Also`
 /// replacement's `would:` is the same `EventFilter`, parsed from the same
@@ -162,6 +167,25 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
             filter::recipient_phrase(recipient)?
         ));
     }
+    // Damage-dealt trigger (generic, non-combat-narrowed): "<subject> is
+    // dealt damage" — damage dealt ([CR#120.1]), passive-voice
+    // recipient-subject phrasing, the `DealtDamage` event macro. Distinct
+    // from the "deals combat damage to" arm above: "is dealt COMBAT
+    // damage" is never a suffix match here (the word "combat" sits between
+    // "dealt" and "damage", so the literal " is dealt damage" tail never
+    // appears in that clause) — neither arm can shadow the other, so "is
+    // dealt combat damage" clauses fall through this arm undisturbed (left
+    // unhandled, same as before this wave). The recipient draws from the
+    // same player-identity/object grammar as the combat-damage recipient
+    // ([`filter::recipient_phrase`]).
+    if let Some(subject) = clause.strip_suffix(" is dealt damage") {
+        let to = if subject == "~" {
+            "Ref(This)".to_owned()
+        } else {
+            filter::recipient_phrase(subject)?
+        };
+        return Some(format!("DealtDamage({to})"));
+    }
     // Becomes-target trigger: "<subject> becomes the target of a spell or
     // ability" — the `BecomesTarget` event ([CR#601.2c] announce-time; ward is
     // the family exemplar). "a spell or ability" carries no controller
@@ -174,6 +198,30 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
         } else {
             format!("BecomesTarget(what: {})", filter::parse_phrase(subject)?)
         });
+    }
+    // Gain-life trigger: "you gain life" / "an opponent gains life" — a
+    // player's own life gain ([CR#119.3]), the `GainsLife` event macro. The
+    // subject is a PLAYER identity (parsed by
+    // [`filter::recipient_phrase`], the same "you"/"an opponent"/"a
+    // player" grammar the damage recipient above uses) — there's no `~`
+    // shorthand, since a permanent is never "you". Both the 2nd-person
+    // ("you gain") and 3rd-person-singular ("an opponent gains") verb
+    // agreements appear in real oracle text.
+    if let Some(subject) = clause
+        .strip_suffix(" gain life")
+        .or_else(|| clause.strip_suffix(" gains life"))
+    {
+        return Some(format!("GainsLife({})", filter::recipient_phrase(subject)?));
+    }
+    // Draw trigger: "you draw a card" / "an opponent draws a card" — a
+    // player's own draw ([CR#121.1]), the `Draws` event macro (mirrors
+    // `GainsLife`'s shape; mind the underlying event — the macro body
+    // expands to `Drawn`, not `Draws`).
+    if let Some(subject) = clause
+        .strip_suffix(" draw a card")
+        .or_else(|| clause.strip_suffix(" draws a card"))
+    {
+        return Some(format!("Draws({})", filter::recipient_phrase(subject)?));
     }
     // "dies" also spells out as "is put into a graveyard from the battlefield"
     // ([CR#700.4]: the long form IS the definition of dies) — fold it onto the
@@ -195,6 +243,10 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
         (subject, "Dies")
     } else if let Some(subject) = clause.strip_suffix(" attacks") {
         (subject, "Attacks")
+    } else if let Some(subject) = clause.strip_suffix(" becomes tapped") {
+        (subject, "BecomesTapped")
+    } else if let Some(subject) = clause.strip_suffix(" becomes untapped") {
+        (subject, "BecomesUntapped")
     } else {
         return None;
     };
@@ -813,6 +865,115 @@ mod tests {
                 "Triggered(event: DealsCombatDamage(Ref(This), Or([Player, Planeswalker])), \
                  effect: Draw(1))"
             )
+        );
+    }
+
+    #[test]
+    fn dealt_damage_self_and_filtered() {
+        // "~ is dealt damage" — the generic (non-combat-narrowed) damage-dealt
+        // event ([CR#120.1]), passive-voice recipient-subject phrasing. Real
+        // corpus text: Goblin Medics-adjacent "Enrage" cards' "Whenever this
+        // creature is dealt damage, …".
+        assert_eq!(
+            trig_builtin("Whenever ~ is dealt damage, draw a card.").as_deref(),
+            Some("Triggered(event: DealtDamage(Ref(This)), effect: Draw(1))")
+        );
+        // Non-`~` subject: the recipient is parsed by the shared filter
+        // grammar, same as the combat-damage recipient.
+        assert_eq!(
+            trig_builtin("Whenever a creature is dealt damage, draw a card.").as_deref(),
+            Some("Triggered(event: DealtDamage(Creature), effect: Draw(1))")
+        );
+        // "an opponent" — the player-identity form `recipient_phrase` adds
+        // (real corpus text: "Whenever an opponent is dealt damage, …").
+        assert_eq!(
+            trig_builtin("Whenever an opponent is dealt damage, draw a card.").as_deref(),
+            Some("Triggered(event: DealtDamage(OpponentOf(Ref(You))), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn dealt_damage_does_not_shadow_combat_damage_phrasing() {
+        // "is dealt COMBAT damage" is a different, currently-unhandled
+        // passive phrasing (out of this wave's scope) — the extra "combat"
+        // word means the clause never ends in the literal " is dealt
+        // damage" tail, so it correctly declines instead of being
+        // mis-routed to the generic (non-combat) `DealtDamage` event.
+        assert!(trig_builtin("Whenever ~ is dealt combat damage, draw a card.").is_none());
+    }
+
+    #[test]
+    fn gains_life_you_and_opponent() {
+        // "you gain life" — the controller's own life gain ([CR#119.3]), the
+        // `GainsLife` event macro; no `~` shorthand (a permanent is never
+        // "you").
+        assert_eq!(
+            trig_builtin("Whenever you gain life, draw a card.").as_deref(),
+            Some("Triggered(event: GainsLife(Ref(You)), effect: Draw(1))")
+        );
+        // "an opponent gains life" — the 3rd-person-singular verb agreement
+        // real oracle text uses for a non-"you" subject.
+        assert_eq!(
+            trig_builtin("Whenever an opponent gains life, draw a card.").as_deref(),
+            Some("Triggered(event: GainsLife(OpponentOf(Ref(You))), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn draws_you_and_opponent() {
+        // "you draw a card" — the controller's own draw ([CR#121.1]), the
+        // `Draws` event macro (mind the underlying event: the macro body
+        // expands to `Drawn`, not `Draws`).
+        assert_eq!(
+            trig_builtin("Whenever you draw a card, draw a card.").as_deref(),
+            Some("Triggered(event: Draws(Ref(You)), effect: Draw(1))")
+        );
+        // "an opponent draws a card" — the 3rd-person-singular verb agreement.
+        assert_eq!(
+            trig_builtin("Whenever an opponent draws a card, draw a card.").as_deref(),
+            Some("Triggered(event: Draws(OpponentOf(Ref(You))), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn becomes_tapped_self_and_filtered() {
+        assert_eq!(
+            trig("Whenever ~ becomes tapped, draw a card.").as_deref(),
+            Some("Triggered(event: ThisBecomesTapped, effect: Draw(1))")
+        );
+        // Non-`~` subject: parsed by the shared filter grammar, same as the
+        // enters/dies/attacks events.
+        assert_eq!(
+            trig("Whenever a creature becomes tapped, draw a card.").as_deref(),
+            Some("Triggered(event: BecomesTapped(Creature), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn becomes_tapped_matches_goblin_medics_real_card_text() {
+        // Goblin Medics (`plugins/canon/cards/Goblin Medics.ron`) is
+        // hand-authored today with a comment noting "the becomes-tapped
+        // event shape is beyond the triggered-ability parser today" — this
+        // production closes that gap; pin the exact real oracle line to
+        // the card's own hand-authored RON shape.
+        assert_eq!(
+            trig("Whenever ~ becomes tapped, it deals 1 damage to any target.").as_deref(),
+            Some(
+                "Triggered(event: ThisBecomesTapped, effect: Targeted(targets: [AnyTarget], \
+                 effect: DealDamage(This, 1, Target(0))))"
+            )
+        );
+    }
+
+    #[test]
+    fn becomes_untapped_self_and_filtered() {
+        assert_eq!(
+            trig("Whenever ~ becomes untapped, draw a card.").as_deref(),
+            Some("Triggered(event: ThisBecomesUntapped, effect: Draw(1))")
+        );
+        assert_eq!(
+            trig("Whenever a creature becomes untapped, draw a card.").as_deref(),
+            Some("Triggered(event: BecomesUntapped(Creature), effect: Draw(1))")
         );
     }
 }
