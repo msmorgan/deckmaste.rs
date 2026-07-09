@@ -24,48 +24,41 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     let mut actions = Vec::new();
     let view = state.layers();
 
-    // P0.W6 presence guard: an `OutcomeGate` row in the derived view must
-    // suppress matching outcomes at each check — U5 semantics: precedence,
-    // not consumption ([CR#101.2,704.3]); concession pierces it
-    // ([CR#104.3a]). An unevaluated gate must not let a loss through (or a
-    // win past "can't win") silently.
-    if crate::legal::statics_present(state, &view, |s| {
-        matches!(s, deckmaste_core::StaticEffect::OutcomeGate { .. })
-    }) {
-        todo!("P0.W6: outcome gates (suppress-per-check, [CR#101.1])");
-    }
-
     let poison: deckmaste_core::Ident = "Poison".into();
     for player in &state.players {
         if player.lost {
             continue;
         }
-        if player.life <= 0 {
-            actions.push(GameEvent::PlayerLost {
-                player: player.id,
-                reason: LossReason::LifeZero,
-            });
+        // [CR#704.5a..704.5c] loss predicates; a CantLose gate suppresses the
+        // outcome at this check ([CR#101.1,704.3], ADR U5 precedence), leaving
+        // the underlying state (a "zombie" life ≤ 0 / poison ≥ 10) intact.
+        let reason = if player.life <= 0 {
+            Some(LossReason::LifeZero)
         } else if player.drew_from_empty {
-            actions.push(GameEvent::PlayerLost {
-                player: player.id,
-                reason: LossReason::DrewFromEmpty,
-            });
+            Some(LossReason::DrewFromEmpty)
         } else if state
-            .objects
-            .obj(player.object)
-            .counters
-            .get(&poison)
-            .is_some_and(|&n| n >= 10)
-        {
             // [CR#704.5c]: player counters live on the player's PROXY
             // object ([CR#122.1] — counters go on objects and players; one
             // storage, never a parallel map), placed/removed by the
             // PutCounters/RemoveCounters apply arms. Two-Headed Giant swaps in
             // the fifteen-counter TEAM check ([CR#704.6b]) — variant-gated, not
             // built.
+            .objects
+            .obj(player.object)
+            .counters
+            .get(&poison)
+            .is_some_and(|&n| n >= 10)
+        {
+            Some(LossReason::Poison)
+        } else {
+            None
+        };
+        if let Some(reason) = reason
+            && !state.gate_suppresses(&view, player.id, deckmaste_core::OutcomeGateKind::CantLose)
+        {
             actions.push(GameEvent::PlayerLost {
                 player: player.id,
-                reason: LossReason::Poison,
+                reason,
             });
         }
     }
@@ -1780,5 +1773,116 @@ mod tests {
         // Negatives.
         assert!(!state.gate_suppresses(&view, PlayerId(0), OutcomeGateKind::CantWin));
         assert!(!state.gate_suppresses(&view, PlayerId(1), OutcomeGateKind::CantLose));
+    }
+
+    #[test]
+    fn platinum_angel_suppresses_life_zero_loss() {
+        use crate::object::ObjectSource;
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        });
+        let card_id = state.cards.push(angel, PlayerId(0));
+        let angel_obj = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(angel_obj);
+        state.players[0].life = 0;
+
+        // Gated: no loss emitted for player 0.
+        let actions = sba::sweep(&state);
+        assert!(
+            !actions.iter().any(
+                |e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == PlayerId(0))
+            ),
+            "Platinum Angel suppresses the life-zero loss"
+        );
+
+        // Remove the Angel → the loss fires the next sweep (standing predicate).
+        state.zones.battlefield.retain(|&o| o != angel_obj);
+        state.objects.obj_mut(angel_obj).zone = None;
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(
+                e,
+                GameEvent::PlayerLost { player, reason: crate::event::LossReason::LifeZero }
+                    if *player == PlayerId(0)
+            )),
+            "loss fires once the gate is gone"
+        );
+    }
+
+    #[test]
+    fn platinum_angel_suppresses_poison_loss() {
+        use crate::object::ObjectSource;
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        });
+        let card_id = state.cards.push(angel, PlayerId(0));
+        let angel_obj = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(angel_obj);
+        let p0_proxy = state.player(PlayerId(0)).object;
+        state
+            .objects
+            .obj_mut(p0_proxy)
+            .counters
+            .insert("Poison".into(), 10);
+
+        // Gated: no loss emitted for player 0.
+        let actions = sba::sweep(&state);
+        assert!(
+            !actions.iter().any(
+                |e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == PlayerId(0))
+            ),
+            "Platinum Angel suppresses the poison loss"
+        );
+
+        // Remove the Angel → the loss fires the next sweep (standing predicate).
+        state.zones.battlefield.retain(|&o| o != angel_obj);
+        state.objects.obj_mut(angel_obj).zone = None;
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(
+                e,
+                GameEvent::PlayerLost { player, reason: crate::event::LossReason::Poison }
+                    if *player == PlayerId(0)
+            )),
+            "loss fires once the gate is gone"
+        );
     }
 }
