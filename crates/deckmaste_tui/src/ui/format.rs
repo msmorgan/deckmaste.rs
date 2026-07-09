@@ -47,8 +47,9 @@ pub fn object_row(state: &GameState, view: &LayeredView, id: ObjectId) -> String
     if state.combat.is_blocked(id) {
         marks.push("blk".to_string());
     }
-    if obj.damage > 0 {
-        marks.push(format!("dmg{}", obj.damage));
+    let damage = obj.total_damage();
+    if damage > 0 {
+        marks.push(format!("dmg{damage}"));
     }
     let mut counters: Vec<(&str, &u32)> =
         obj.counters.iter().map(|(k, n)| (k.as_str(), n)).collect();

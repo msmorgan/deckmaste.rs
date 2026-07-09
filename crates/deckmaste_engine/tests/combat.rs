@@ -1486,7 +1486,7 @@ fn first_strike_kills_before_taking_damage() {
         "the first-striker killed its blocker in the first step and took no damage back ([CR#510.4])"
     );
     assert_eq!(
-        state.objects.obj(attacker).damage,
+        state.objects.obj(attacker).total_damage(),
         0,
         "the first-striker has no marked damage — the blocker never struck it"
     );

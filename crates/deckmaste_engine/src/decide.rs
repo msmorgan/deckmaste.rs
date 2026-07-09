@@ -1600,7 +1600,7 @@ impl GameState {
             Some(t) if t > 0 => {
                 #[expect(clippy::cast_sign_loss)]
                 let toughness = t as Uint;
-                toughness.saturating_sub(self.objects.obj(blocker).damage)
+                toughness.saturating_sub(self.objects.obj(blocker).total_damage())
             }
             // toughness ≤ 0 is already a destroy SBA; None is a non-creature
             // or unmodeled case — require the full amount so the player can't

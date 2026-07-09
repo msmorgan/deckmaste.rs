@@ -241,7 +241,7 @@ fn instead_redirects_destruction_to_exile() {
     let card_id = state.objects.obj(id).card_id().expect("backed by a card");
 
     // Mark lethal damage (toughness = 2, so damage ≥ 2 is lethal).
-    state.objects.obj_mut(id).damage = 2;
+    state.objects.obj_mut(id).set_marked_damage(2);
 
     // Drive SBAs: CheckSbas → sweep → WillDestroy → replace_event → exile instead.
     drive_sbas(&mut state);
@@ -280,7 +280,7 @@ fn indestructible_still_survives_via_cant_pass() {
     );
 
     // Lethal damage (toughness 1).
-    state.objects.obj_mut(id).damage = 1;
+    state.objects.obj_mut(id).set_marked_damage(1);
 
     drive_sbas(&mut state);
 
@@ -376,7 +376,7 @@ fn drive(state: &mut GameState) {
 fn two_applicable_replacements_surface_choice() {
     let (mut state, id) = creature_with_two_replacements();
     // Mark lethal damage (toughness 2).
-    state.objects.obj_mut(id).damage = 2;
+    state.objects.obj_mut(id).set_marked_damage(2);
 
     // Drive to the ChooseReplacement decision.
     let dec = drive_to_decision(&mut state);
@@ -409,7 +409,7 @@ fn two_applicable_replacements_surface_choice() {
 #[test]
 fn two_applicable_replacements_second_choice_also_survives() {
     let (mut state, id) = creature_with_two_replacements();
-    state.objects.obj_mut(id).damage = 2;
+    state.objects.obj_mut(id).set_marked_damage(2);
 
     let dec = drive_to_decision(&mut state);
     let PendingDecision::ChooseReplacement { applicable, .. } = dec else {
@@ -535,7 +535,7 @@ fn regenerated_creature_survives_lethal_damage() {
     assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
 
     // Mark lethal damage (toughness = 2).
-    state.objects.obj_mut(id).damage = 5;
+    state.objects.obj_mut(id).set_marked_damage(5);
 
     // Drive SBAs: sweep → WillDestroy → shield replaces → heal + tap.
     drive_sbas(&mut state);
@@ -548,7 +548,7 @@ fn regenerated_creature_survives_lethal_damage() {
         state.zones.battlefield
     );
     assert_eq!(
-        state.objects.obj(live).damage,
+        state.objects.obj(live).total_damage(),
         0,
         "damage must be cleared by regeneration [CR#701.19a]"
     );
@@ -563,13 +563,13 @@ fn regenerated_creature_survives_lethal_damage() {
 }
 
 /// [CR#704.5h,701.19a]: a creature that regenerates from *deathtouch* damage
-/// must survive — the deathtouch-strike window is per-SBA-check, so the marker
-/// that fired the first `WillDestroy` must be cleared before the post-heal
-/// re-check. Regression for the bug where `struck_by_deathtouch` was cleared
-/// only at cleanup: the shield replaced the first destroy and healed the
-/// damage, but the still-set flag drove a *second* `WillDestroy` on the very
-/// next check with no shield left, wrongly destroying the creature (Drudge
-/// Skeletons vs a deathtouch attacker).
+/// must survive. Deathtouch provenance now rides the damage mark itself, so
+/// regeneration's heal — which removes the marks — drops the deathtouch clause
+/// with them; the post-heal re-check sees no deathtouch source and does not
+/// re-destroy the creature. Regression for the bug where a deal-time flag,
+/// decoupled from the damage, survived the heal and drove a *second*
+/// `WillDestroy` on the very next check with no shield left, wrongly destroying
+/// the creature (Drudge Skeletons vs a deathtouch attacker).
 #[test]
 fn regenerated_creature_survives_deathtouch_strike() {
     let (mut state, id) = vanilla_creature(2, 2);
@@ -579,13 +579,19 @@ fn regenerated_creature_survives_deathtouch_strike() {
     resolve_and_drive(&mut state, regenerate_effect(Reference::This), id);
     assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
 
-    // SUBLETHAL physical damage (1 < toughness 2) but struck by a deathtouch
-    // source: only the deathtouch marker makes this lethal ([CR#704.5h]).
-    state.objects.obj_mut(id).damage = 1;
-    state.objects.obj_mut(id).struck_by_deathtouch = true;
+    // SUBLETHAL physical damage (1 < toughness 2) dealt by a DEATHTOUCH source:
+    // only the deal-time deathtouch provenance makes this lethal ([CR#704.5h]).
+    state.objects.obj_mut(id).mark_damage(
+        None,
+        vec![deckmaste_core::Ability::Keyword(
+            deckmaste_core::KeywordAbility::Deathtouch,
+        )],
+        1,
+    );
 
-    // Drive SBAs: first check → WillDestroy → shield replaces → heal (damage
-    // and the deathtouch marker cleared) + tap; re-check must see a clean flag.
+    // Drive SBAs: first check → WillDestroy → shield replaces → heal (marks
+    // cleared, taking the deathtouch provenance with them) + tap; the re-check
+    // then sees no deathtouch source and no lethal damage.
     drive_sbas(&mut state);
 
     let live = find_on_battlefield(&state, card_id);
@@ -595,14 +601,13 @@ fn regenerated_creature_survives_deathtouch_strike() {
         state.zones.battlefield
     );
     assert_eq!(
-        state.objects.obj(live).damage,
+        state.objects.obj(live).total_damage(),
         0,
-        "damage must be cleared by regeneration [CR#701.19a]"
+        "damage — and its deathtouch provenance — must be cleared by regeneration [CR#701.19a]"
     );
     assert!(
-        !state.objects.obj(live).struck_by_deathtouch,
-        "the deathtouch marker must be cleared, not carried into the next check \
-         ([CR#704.5h]) — otherwise the healed creature is re-destroyed"
+        state.objects.obj(live).damage.is_empty(),
+        "no marks remain after the heal, so the healed creature is not re-destroyed ([CR#704.5h])"
     );
     assert!(
         state.shields.is_empty(),
@@ -682,7 +687,7 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
     state.agenda.clear();
     state.pending = None;
 
-    state.objects.obj_mut(subject).damage = 5; // lethal
+    state.objects.obj_mut(subject).set_marked_damage(5); // lethal
     drive_sbas(&mut state);
 
     let live = find_on_battlefield(&state, subj_card_id);
@@ -691,7 +696,7 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
         "the targeted subject survives, not the source"
     );
     assert_eq!(
-        state.objects.obj(live).damage,
+        state.objects.obj(live).total_damage(),
         0,
         "the SUBJECT's damage is removed — the body healed That, not This"
     );
@@ -726,7 +731,7 @@ fn regeneration_shield_expires_end_of_turn() {
     );
 
     // Now a lethal hit must destroy the creature (no shield left).
-    state.objects.obj_mut(id).damage = 5;
+    state.objects.obj_mut(id).set_marked_damage(5);
     drive_sbas(&mut state);
 
     assert!(
@@ -842,7 +847,7 @@ fn umbra_armor_redirects_host_destruction_to_aura() {
     let creature = find_on_battlefield(&state, creature_card_id);
 
     // Mark lethal damage on the creature (toughness = 2).
-    state.objects.obj_mut(creature).damage = 5;
+    state.objects.obj_mut(creature).set_marked_damage(5);
 
     // Drive SBAs: SBA sweep → WillDestroy(creature) → Aura's static gathered
     // → Instead fires → RemoveDamage + Destroy(Aura).
@@ -858,7 +863,7 @@ fn umbra_armor_redirects_host_destruction_to_aura() {
     );
     // Damage must be cleared.
     assert_eq!(
-        state.objects.obj(live_creature).damage,
+        state.objects.obj(live_creature).total_damage(),
         0,
         "damage must be removed by umbra armor [CR#702.89a]"
     );
@@ -905,7 +910,7 @@ fn ordinary_destroy_goes_to_graveyard() {
     let card_id = state.objects.obj(obj).card_id().expect("backed by a card");
 
     // Lethal damage.
-    state.objects.obj_mut(obj).damage = 2;
+    state.objects.obj_mut(obj).set_marked_damage(2);
 
     drive_sbas(&mut state);
 
@@ -1097,11 +1102,11 @@ fn double_damage_lineage_terminates() {
     // The original 2-damage event was replaced away (Instead).
     // The body's 10-damage event applied once (no replacement on the fresh event).
     assert_eq!(
-        state.objects.obj(live).damage,
+        state.objects.obj(live).total_damage(),
         10,
         "the fixed-amount Instead body's damage must land exactly once; \
          actual={}",
-        state.objects.obj(live).damage,
+        state.objects.obj(live).total_damage(),
     );
 }
 
@@ -1280,7 +1285,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
             Some(4),
             "each batch member's damage became counters ([CR#702.80a])"
         );
-        assert_eq!(state.objects.obj(t).damage, 0, "no marked damage");
+        assert_eq!(state.objects.obj(t).total_damage(), 0, "no marked damage");
         assert!(
             state.zones.battlefield.contains(&t),
             "SBAs never run between a batch's members — only at the next \
@@ -1323,7 +1328,7 @@ fn wither_source_puts_minus_counters_not_marked_damage() {
         "wither damage = that many -1/-1 counters [CR#702.80a]"
     );
     assert_eq!(
-        state.objects.obj(target).damage,
+        state.objects.obj(target).total_damage(),
         0,
         "wither damage is NOT marked [CR#702.80a]"
     );
@@ -1351,7 +1356,7 @@ fn infect_source_puts_minus_counters_on_a_creature() {
         "infect damage to a creature = that many -1/-1 counters [CR#702.90c]"
     );
     assert_eq!(
-        state.objects.obj(target).damage,
+        state.objects.obj(target).total_damage(),
         0,
         "not marked [CR#702.90c]"
     );
@@ -1454,7 +1459,7 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
          damage from a different source [CR#702.80a]"
     );
     assert_eq!(
-        state.objects.obj(target).damage,
+        state.objects.obj(target).total_damage(),
         4,
         "damage from a non-wither source is marked normally [CR#120.3e]"
     );
@@ -1500,7 +1505,7 @@ fn event_patient_object_reads_the_damage_recipient_creature() {
         "EventPatient resolves to the creature recipient (object patient)"
     );
     assert_eq!(
-        state.objects.obj(target).damage,
+        state.objects.obj(target).total_damage(),
         0,
         "the damage is replaced, not marked"
     );

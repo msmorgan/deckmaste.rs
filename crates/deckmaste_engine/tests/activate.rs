@@ -358,7 +358,7 @@ fn tap_pinger_damages_target_through_stack() {
         "1 damage dealt to the bear, trace: {trace:?}"
     );
     assert_eq!(
-        state.objects.obj(bear).damage,
+        state.objects.obj(bear).total_damage(),
         1,
         "1 marked on the 2/2 — it survives"
     );

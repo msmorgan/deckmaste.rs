@@ -2625,6 +2625,13 @@ impl GameState {
                     Self::unbound_ref(reference, "AttachHostOf on an unattached object")
                 })
             }
+            // [CR#120.3]: a set-valued deal-time binding read only inside
+            // `Is(Source, …)` (which handles it before ever reaching here);
+            // there is no single live object to resolve it to, so a stray use
+            // fizzles (never crashes).
+            Reference::Source => {
+                Self::unbound_ref(reference, "Source is only meaningful inside Is(Source, …)")
+            }
         }
     }
 
@@ -2947,7 +2954,7 @@ impl GameState {
                 .unwrap_or(0),
             Count::Damage(reference) => {
                 let id = self.eval_reference(reference, frame);
-                self.objects.obj(id).damage
+                self.objects.obj(id).total_damage()
             }
             Count::ManaAvailable(reference) => self.floated_mana(reference, frame),
             // [CR#107.1]: fold the per-element projection over the set —
@@ -5261,7 +5268,7 @@ mod tests {
         for _ in 0..4 {
             let _ = state.step();
         }
-        assert_eq!(state.objects.obj(bear).damage, 3);
+        assert_eq!(state.objects.obj(bear).total_damage(), 3);
         assert_eq!(state.players[0].life, 23);
     }
 
@@ -5283,7 +5290,7 @@ mod tests {
         for _ in 0..3 {
             let _ = state.step();
         }
-        assert_eq!(state.objects.obj(bear).damage, 3);
+        assert_eq!(state.objects.obj(bear).total_damage(), 3);
     }
 
     /// `top_targets` reads the targets off a top-level `Targeted` (peeling
@@ -5756,8 +5763,8 @@ mod tests {
                 .all(|e| matches!(e, GameEvent::DamageDealt { combat: false, .. })),
             "fight damage is noncombat damage ([CR#701.14d]), got {batch:?}"
         );
-        assert_eq!(state.objects.obj(a).damage, 2, "a took b's power");
-        assert_eq!(state.objects.obj(b).damage, 2, "b took a's power");
+        assert_eq!(state.objects.obj(a).total_damage(), 2, "a took b's power");
+        assert_eq!(state.objects.obj(b).total_damage(), 2, "b took a's power");
         assert!(
             logged(&state, |e| matches!(
                 e,
@@ -5793,7 +5800,7 @@ mod tests {
             )),
             "no fight occurred, so no 'fights' fact"
         );
-        assert_eq!(state.objects.obj(a).damage, 0);
+        assert_eq!(state.objects.obj(a).total_damage(), 0);
     }
 
     /// [CR#701.14c]: a creature fighting itself deals damage to itself equal to
@@ -5809,7 +5816,7 @@ mod tests {
         );
         run_injected(&mut state);
         assert_eq!(
-            state.objects.obj(a).damage,
+            state.objects.obj(a).total_damage(),
             4,
             "a 2/2 fighting itself takes 2 x 2 = 4 ([CR#701.14c])"
         );
@@ -5844,7 +5851,7 @@ mod tests {
         );
         run_injected(&mut state);
         assert_eq!(
-            state.objects.obj(a).damage,
+            state.objects.obj(a).total_damage(),
             2,
             "a took b's power (2) in damage"
         );
@@ -6611,8 +6618,8 @@ mod tests {
         });
         state.run_effect(effect, &frame);
         run_injected(&mut state);
-        let da = state.objects.obj(a).damage;
-        let db = state.objects.obj(b).damage;
+        let da = state.objects.obj(a).total_damage();
+        let db = state.objects.obj(b).total_damage();
         assert_eq!(
             da + db,
             3,
@@ -6657,7 +6664,7 @@ mod tests {
         state.run_effect(effect, &frame);
         run_injected(&mut state);
         assert_eq!(
-            state.objects.obj(creature).damage,
+            state.objects.obj(creature).total_damage(),
             2,
             "the creature took its 2-damage share as marked damage"
         );

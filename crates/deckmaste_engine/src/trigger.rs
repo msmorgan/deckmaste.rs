@@ -2993,7 +2993,7 @@ mod tests {
 
         let (mut state, goblin) = fixture_on_field("Footlight Fiend");
         // toughness 1 → 1 damage is lethal.
-        state.objects.obj_mut(goblin).damage = 1;
+        state.objects.obj_mut(goblin).set_marked_damage(1);
 
         state.schedule_front(vec![WorkItem::CheckSbas]);
         for _ in 0..30 {
@@ -3035,7 +3035,7 @@ mod tests {
 
         let (mut state, bear) = fixture_on_field("Grizzly Bears");
         // Grizzly Bears has toughness 2; set lethal damage.
-        state.objects.obj_mut(bear).damage = 2;
+        state.objects.obj_mut(bear).set_marked_damage(2);
 
         state.schedule_front(vec![WorkItem::CheckSbas]);
         for _ in 0..30 {
@@ -4094,7 +4094,7 @@ mod tests {
 
         let (mut state, goblin) = fixture_on_field("Footlight Fiend");
         // toughness 1 → 1 damage is lethal.
-        state.objects.obj_mut(goblin).damage = 1;
+        state.objects.obj_mut(goblin).set_marked_damage(1);
 
         state.schedule_front(vec![WorkItem::CheckSbas]);
         for _ in 0..30 {
@@ -4199,7 +4199,7 @@ mod tests {
     /// with lethal damage so the next SBA sweep destroys it.
     fn doomed_bear(state: &mut GameState) -> ObjectId {
         let bear = put_on_field(state, "Grizzly Bears", PlayerId(1));
-        state.objects.obj_mut(bear).damage = 2;
+        state.objects.obj_mut(bear).set_marked_damage(2);
         bear
     }
 

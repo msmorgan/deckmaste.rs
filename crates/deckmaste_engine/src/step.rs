@@ -498,18 +498,38 @@ impl GameState {
                 // [CR#120.3]: damage to a player is life loss; to a creature it is
                 // marked damage. `Int` is `i32`; `Uint` is `u32` — `try_from`
                 // is required because u32 does not fit into i32 via `From`.
+                // One view for the mark's deal-time abilities and the lifelink
+                // check below (built before the damage lands; neither depends
+                // on the marked total).
+                let view = self.layers();
                 match self.objects.obj(target).source {
                     ObjectSource::Player(p) => {
                         self.player_mut(p).life -=
                             deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
                     }
                     ObjectSource::Card(_) => {
-                        self.objects.obj_mut(target).damage += amount;
+                        // [CR#120.3,702.2c]: mark the damage tagged with the
+                        // source's identity and abilities AS THEY ARE NOW — the
+                        // deal-time snapshot the lethal-damage SBA's deathtouch
+                        // clause reads ([CR#704.5h]), correct even if the source
+                        // later loses the ability or leaves. A stale (gone)
+                        // source contributes no abilities.
+                        let (src, abilities) = match self.objects.get(source) {
+                            // Card-backed source: capture its identity and
+                            // deal-time abilities from the layered view.
+                            Some(o) if o.card_id().is_some() => {
+                                (Some(o.source), view.get(source).abilities.as_ref().clone())
+                            }
+                            // A player proxy carries no abilities; a gone
+                            // (reminted) source contributes none either.
+                            Some(o) => (Some(o.source), Vec::new()),
+                            None => (None, Vec::new()),
+                        };
+                        self.objects
+                            .obj_mut(target)
+                            .mark_damage(src, abilities, amount);
                     }
                 }
-                // One view for the lifelink + deathtouch keyword checks below
-                // (built after the damage lands; neither keyword depends on it).
-                let view = self.layers();
                 // [CR#702.15]: if the source is a card-backed object with lifelink,
                 // its controller gains life equal to the damage dealt. This applies
                 // to combat damage and any other damage from a lifelink source.
@@ -525,24 +545,10 @@ impl GameState {
                     self.player_mut(controller).life +=
                         deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
                 }
-                // [CR#702.2]: if the source is a card-backed object with deathtouch
-                // and the amount dealt is > 0, mark the TARGET as struck by a
-                // deathtouch source. The SBA then destroys a creature with
-                // toughness > 0 so marked ([CR#704.5h]). Same guard pattern as
-                // lifelink above.
-                if amount > 0
-                    && matches!(
-                        self.objects.get(target).map(|o| o.source),
-                        Some(ObjectSource::Card(_))
-                    )
-                    && self
-                        .objects
-                        .get(source)
-                        .is_some_and(|o| o.card_id().is_some())
-                    && crate::combat::has_keyword(&view, source, &KeywordAbility::Deathtouch)
-                {
-                    self.objects.obj_mut(target).struck_by_deathtouch = true;
-                }
+                // [CR#702.2c]: deathtouch is no longer a bespoke flag — it rides
+                // the mark's captured deal-time abilities (recorded above), and
+                // the lethal-damage SBA reads it via `Is(Source, Has(Deathtouch))`
+                // ([CR#704.5h]).
                 GameEvent::DamageDealt {
                     source,
                     target,
@@ -791,15 +797,13 @@ impl GameState {
             // this is still a no-op (removal from combat is still correct —
             // the shield fired, so the permanent would have been in combat
             // when the destroy was imminent). `remove_object` is idempotent
-            // for non-combat objects. Removing damage also clears the
-            // deathtouch mark ([CR#704.5h]) — a healed creature is no longer
-            // "dealt damage by a deathtouch source", so a later SBA check must
-            // not re-destroy it on the stale flag.
+            // for non-combat objects. Clearing the marks drops their deal-time
+            // deathtouch provenance too ([CR#704.5h]) — a healed creature is no
+            // longer "dealt damage by a deathtouch source", so a later SBA check
+            // does not re-destroy it.
             GameEvent::DamageRemoved { object } => {
                 if self.objects.get(object).is_some() {
-                    let obj = self.objects.obj_mut(object);
-                    obj.damage = 0;
-                    obj.struck_by_deathtouch = false;
+                    self.objects.obj_mut(object).clear_damage();
                 }
                 self.combat.remove_object(object);
                 GameEvent::DamageRemoved { object }
@@ -1436,9 +1440,7 @@ impl GameState {
         // shared ref to `self.zones` while mutably borrowing `self.objects`).
         let ids: Vec<_> = self.zones.battlefield.clone();
         for id in ids {
-            let obj = self.objects.obj_mut(id);
-            obj.damage = 0;
-            obj.struck_by_deathtouch = false; // [CR#514.2]
+            self.objects.obj_mut(id).clear_damage(); // [CR#514.2]
         }
     }
 
@@ -1535,13 +1537,13 @@ impl GameState {
             return Progress::SbasChecked { actions: 0 };
         }
         let actions = sba::sweep(self);
-        // [CR#704.5h]: the deathtouch-damage window is per-SBA-check ("since the
-        // last time state-based actions were checked"), NOT until cleanup. The
-        // sweep has now read every `struck_by_deathtouch` flag, so close the
-        // window by clearing them. A creature that regenerates from the
-        // resulting destroy (shield consumed, damage healed) then presents a
-        // clean flag on the re-check and is not wrongly destroyed a second time.
-        self.clear_deathtouch_marks();
+        // [CR#704.5h]: deathtouch provenance now rides the damage mark itself,
+        // so a creature that regenerates (or otherwise has its damage removed)
+        // loses the deathtouch clause with the marks — no separate per-check
+        // window to close. The mark persists exactly as long as the damage
+        // does ([CR#514.2] cleanup / [CR#701.19a] heal), like lethal marked
+        // damage, and the `EmitSbaBatch` state-change guard keeps an
+        // indestructible creature's persistent destroy from looping.
         self.close_gated_draw_windows();
         let count = Uint::try_from(actions.len()).expect("action count fits in Uint");
         if count > 0 {
@@ -1549,17 +1551,6 @@ impl GameState {
             self.schedule_front(vec![WorkItem::EmitSbaBatch(actions)]);
         }
         Progress::SbasChecked { actions: count }
-    }
-
-    /// [CR#704.5h]: clear every object's deathtouch-damage marker. Called at the
-    /// end of each SBA check ([`check_sbas`]), once the sweep has consumed the
-    /// flags, so the marker only ever reflects damage dealt by a deathtouch
-    /// source since the previous check.
-    fn clear_deathtouch_marks(&mut self) {
-        let ids: Vec<_> = self.objects.iter().map(|o| o.id).collect();
-        for id in ids {
-            self.objects.obj_mut(id).struck_by_deathtouch = false;
-        }
     }
 
     /// [CR#704.5b] is a WINDOWED predicate ("since the last time SBAs were
@@ -2604,7 +2595,7 @@ mod tests {
         #[test]
         fn indestructible_lethal_damage_sba_check_terminates() {
             let (mut state, myr) = myr_on_field();
-            state.objects.obj_mut(myr).damage = 1; // toughness 1 → lethal
+            state.objects.obj_mut(myr).set_marked_damage(1); // toughness 1 → lethal
             state.schedule_front(vec![WorkItem::CheckSbas]);
             // Bounded drive: a correct SBA loop settles in a handful of steps.
             // If it hasn't settled in 50, it's the infinite loop.

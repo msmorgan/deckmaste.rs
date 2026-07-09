@@ -478,7 +478,7 @@ fn ward_counters_targeting_spell_via_that_object() {
         "the warded creature is untouched (the Bolt never resolved)"
     );
     assert_eq!(
-        state.objects.obj(ward).damage,
+        state.objects.obj(ward).total_damage(),
         0,
         "the warded creature took no damage — Counter hit the Bolt, not the creature"
     );
@@ -2284,7 +2284,7 @@ fn two_triggers_same_player_order_triggers_surfaces() {
     let bear = force_into_play(&mut state, PlayerId(0), "Grizzly Bears");
 
     // Deal lethal damage to the bear (2/2 → 2 damage = lethal).
-    state.objects.obj_mut(bear).damage = 2;
+    state.objects.obj_mut(bear).set_marked_damage(2);
 
     // Drive the engine from the start (game begins at Cleanup; each step runs
     // CheckSbas). The bear's lethal damage will be caught the first time the

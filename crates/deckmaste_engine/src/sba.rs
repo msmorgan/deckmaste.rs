@@ -535,7 +535,7 @@ mod tests {
         let (mut state, myr) = myr_on_field();
         // Load builtin rules so the lethal-damage SBA fires via the rule path.
         state.sba_rules = builtin().sba_rules;
-        state.objects.obj_mut(myr).damage = 1; // toughness 1 → lethal
+        state.objects.obj_mut(myr).set_marked_damage(1); // toughness 1 → lethal
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
         let _ = state.step(); // WillDestroy applies → replaced to nothing
@@ -557,7 +557,7 @@ mod tests {
         // the destroy as a replaceable `WillDestroy` intent (its apply commits
         // the battlefield→graveyard move when nothing replaces it), cause-tagged
         // as the SBA destruction verb ([CR#701.8b]).
-        state.objects.obj_mut(bear).damage = 2;
+        state.objects.obj_mut(bear).set_marked_damage(2);
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(
@@ -573,7 +573,7 @@ mod tests {
         );
 
         // Sublethal: damage = 1 < toughness 2.
-        state.objects.obj_mut(bear).damage = 1;
+        state.objects.obj_mut(bear).set_marked_damage(1);
         let actions = sba::sweep(&state);
         assert!(
             actions
@@ -808,7 +808,7 @@ mod tests {
         // Load builtin rules so the lethal-damage SBA fires.
         state.sba_rules = builtin().sba_rules;
         // Grizzly Bears has toughness 2; set lethal damage.
-        state.objects.obj_mut(bear).damage = 2;
+        state.objects.obj_mut(bear).set_marked_damage(2);
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
         // WillDestroy applies (nothing replaces it) → ZoneWillChange remints.
@@ -1568,37 +1568,55 @@ mod tests {
             Cmp::AtLeast,
             Count::StatOf(Reference::This, Stat::Toughness),
         );
-        state.objects.obj_mut(bear).damage = 2;
+        state.objects.obj_mut(bear).set_marked_damage(2);
         assert!(
             state.condition_holds(&lethal, &frame),
             "2 damage >= toughness 2"
         );
-        state.objects.obj_mut(bear).damage = 1;
+        state.objects.obj_mut(bear).set_marked_damage(1);
         assert!(
             !state.condition_holds(&lethal, &frame),
             "1 damage < toughness 2"
         );
     }
 
-    /// [CR#704.5h]: `Condition::DamagedByDeathtouch` reads the deal-time
-    /// `struck_by_deathtouch` flag on the referenced object. False by default;
-    /// true once the flag is set.
+    /// [CR#704.5h]: `Is(Source, Has(Deathtouch))` reads the DEAL-TIME abilities
+    /// captured on the object's damage marks — false with no marks, false for a
+    /// plain (non-deathtouch) mark, true once a deathtouch-sourced mark exists.
     #[test]
-    fn damaged_by_deathtouch_reads_the_flag() {
+    fn is_source_has_deathtouch_reads_deal_time_marks() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Condition;
+        use deckmaste_core::KeywordAbility;
+        use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
 
         let (mut state, bear) = bear_on_field();
         let frame = this_frame(&state, bear);
-        let cond = Condition::DamagedByDeathtouch(Reference::This);
+        let cond = Condition::Is(
+            Reference::Source,
+            Predicate::Characteristic(CharacteristicPredicate::Has("Deathtouch".into())),
+        );
         assert!(
             !state.condition_holds(&cond, &frame),
-            "flag clear by default"
+            "no damage marks → no deathtouch source"
         );
-        state.objects.obj_mut(bear).struck_by_deathtouch = true;
+        // A plain (non-deathtouch) source does not satisfy it.
+        state.objects.obj_mut(bear).mark_damage(None, Vec::new(), 1);
+        assert!(
+            !state.condition_holds(&cond, &frame),
+            "a non-deathtouch source does not satisfy Has(Deathtouch)"
+        );
+        // A deal-time deathtouch source does.
+        state.objects.obj_mut(bear).mark_damage(
+            None,
+            vec![Ability::Keyword(KeywordAbility::Deathtouch)],
+            1,
+        );
         assert!(
             state.condition_holds(&cond, &frame),
-            "flag set → condition holds"
+            "a deathtouch-sourced mark → condition holds"
         );
     }
 
@@ -1610,7 +1628,7 @@ mod tests {
     fn lethal_damage_rule_destroys_via_state_based_action() {
         let (mut state, bear) = bear_on_field(); // toughness 2
         state.sba_rules = builtin().sba_rules;
-        state.objects.obj_mut(bear).damage = 2;
+        state.objects.obj_mut(bear).set_marked_damage(2);
         let actions = sba::sweep(&state);
         let n = actions
             .iter()
@@ -1642,15 +1660,89 @@ mod tests {
     fn deathtouch_strike_rule_destroys() {
         let (mut state, bear) = bear_on_field();
         state.sba_rules = builtin().sba_rules;
-        // 1 damage (< toughness 2) but struck by deathtouch
-        state.objects.obj_mut(bear).damage = 1;
-        state.objects.obj_mut(bear).struck_by_deathtouch = true;
+        // 1 damage (< toughness 2), dealt by a deathtouch source.
+        state.objects.obj_mut(bear).mark_damage(
+            None,
+            vec![deckmaste_core::Ability::Keyword(
+                deckmaste_core::KeywordAbility::Deathtouch,
+            )],
+            1,
+        );
         let actions = sba::sweep(&state);
         assert!(
             actions
                 .iter()
                 .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
             "a creature struck by deathtouch must be destroyed ([CR#704.5h]); got {actions:?}"
+        );
+    }
+
+    /// [CR#702.2c,704.5h]: deal-time capture — a source that dealt deathtouch
+    /// damage and THEN left the battlefield still causes the destroy. The mark
+    /// records the source's deathtouch AT DEAL TIME (via the real `DamageDealt`
+    /// apply, which reads the layered view), so removing the source afterward
+    /// leaves the pending destroy intact.
+    #[test]
+    fn deal_time_deathtouch_survives_the_source_leaving() {
+        use deckmaste_core::KeywordAbility;
+        use deckmaste_core::Zone;
+
+        use crate::combat::has_keyword;
+        use crate::object::ObjectSource;
+
+        // Grizzly Bears (toughness 2) is the target.
+        let (mut state, bear) = bear_on_field();
+        state.sba_rules = builtin().sba_rules;
+
+        // A deathtouch source (Typhoid Rats, 1/1 deathtouch) on the battlefield.
+        let rats = Arc::new(canon().card("Typhoid Rats").unwrap());
+        let rats_card = state.cards.push(Arc::clone(&rats), PlayerId(1));
+        let source = state.objects.mint(
+            ObjectSource::Card(rats_card),
+            PlayerId(1),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(source);
+        assert!(
+            has_keyword(&state.layers(), source, &KeywordAbility::Deathtouch),
+            "pre-condition: the source carries Keyword(Deathtouch) at deal time"
+        );
+
+        // Deal 1 (sublethal vs toughness 2) damage from the deathtouch source
+        // through the real event pipeline — the apply captures the source's
+        // deal-time abilities onto the mark.
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::DamageDealt {
+                source,
+                target: bear,
+                amount: 1,
+                combat: true,
+            },
+        ))]);
+        let _ = state.step(); // the DamageDealt applies, marking the damage
+        assert_eq!(
+            state.objects.obj(bear).total_damage(),
+            1,
+            "1 sublethal point marked on the target"
+        );
+
+        // The source now LEAVES the battlefield entirely.
+        state.zones.battlefield.retain(|&o| o != source);
+        state.objects.obj_mut(source).zone = Some(Zone::Graveyard);
+        assert!(
+            !has_keyword(&state.layers(), source, &KeywordAbility::Deathtouch)
+                || !state.zones.battlefield.contains(&source),
+            "the source has left the battlefield"
+        );
+
+        // The sweep still destroys the bear: deal-time deathtouch on the mark
+        // does not depend on the (now-gone) source ([CR#704.5h]).
+        let actions = sba::sweep(&state);
+        assert!(
+            actions
+                .iter()
+                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+            "a source that dealt deathtouch damage then left still destroys the target; got {actions:?}"
         );
     }
 
@@ -1661,8 +1753,14 @@ mod tests {
     fn lethal_and_deathtouch_emits_one_destroy() {
         let (mut state, bear) = bear_on_field(); // toughness 2
         state.sba_rules = builtin().sba_rules;
-        state.objects.obj_mut(bear).damage = 2;
-        state.objects.obj_mut(bear).struck_by_deathtouch = true;
+        // Lethal marked damage AND a deathtouch source (both clauses hold).
+        state.objects.obj_mut(bear).mark_damage(
+            None,
+            vec![deckmaste_core::Ability::Keyword(
+                deckmaste_core::KeywordAbility::Deathtouch,
+            )],
+            2,
+        );
         let actions = sba::sweep(&state);
         let n = actions
             .iter()
@@ -1680,7 +1778,7 @@ mod tests {
     fn sublethal_no_deathtouch_survives() {
         let (mut state, bear) = bear_on_field();
         state.sba_rules = builtin().sba_rules;
-        state.objects.obj_mut(bear).damage = 1; // < toughness 2, no deathtouch
+        state.objects.obj_mut(bear).set_marked_damage(1); // < toughness 2, no deathtouch
         let actions = sba::sweep(&state);
         assert!(
             !actions
@@ -1704,7 +1802,7 @@ mod tests {
             .obj_mut(bear)
             .counters
             .insert("M1M1Counter".into(), 2);
-        state.objects.obj_mut(bear).damage = 5;
+        state.objects.obj_mut(bear).set_marked_damage(5);
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(

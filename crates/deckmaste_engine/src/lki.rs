@@ -51,7 +51,7 @@ impl LkiSnapshot {
             source: o.source,
             controller: o.controller,
             tapped: o.tapped,
-            damage: o.damage,
+            damage: o.total_damage(),
             counters: o.counters.clone(),
             left: o.zone.expect("a zoned object has a zone to leave"),
         }

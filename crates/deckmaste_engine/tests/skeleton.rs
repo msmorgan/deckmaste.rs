@@ -722,8 +722,8 @@ fn bear_on_field() -> (GameState, ObjectId) {
 fn cleanup_clears_marked_damage_on_battlefield_creatures() {
     let (mut state, bear) = bear_on_field();
     // Mark sublethal damage (1 < toughness 2) so the creature survives to Cleanup.
-    state.objects.obj_mut(bear).damage = 1;
-    assert_eq!(state.objects.obj(bear).damage, 1);
+    state.objects.obj_mut(bear).set_marked_damage(1);
+    assert_eq!(state.objects.obj(bear).total_damage(), 1);
 
     // Drive all-pass until the Cleanup step begins.  The cleanup step fires
     // `clear_marked_damage` as a turn-based action ([CR#514.2]) and THEN
@@ -737,7 +737,7 @@ fn cleanup_clears_marked_damage_on_battlefield_creatures() {
     });
 
     assert_eq!(
-        state.objects.obj(bear).damage,
+        state.objects.obj(bear).total_damage(),
         0,
         "[CR#514.2]: marked damage removed at start of Cleanup"
     );
@@ -787,7 +787,7 @@ fn damage_to_a_player_is_life_loss_and_to_a_creature_is_marked() {
             combat: false,
         },
     );
-    assert_eq!(state.objects.obj(bear).damage, 2);
+    assert_eq!(state.objects.obj(bear).total_damage(), 2);
 }
 
 #[test]
@@ -835,7 +835,7 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
     // [CR#400.7]: the old ObjectId is gone; a fresh one exists in the graveyard.
     // The battlefield→graveyard ZoneWillChange captures LKI and moves+remints.
     let (mut state, bear) = bear_on_field();
-    state.objects.obj_mut(bear).damage = 5;
+    state.objects.obj_mut(bear).set_marked_damage(5);
     apply_one(
         &mut state,
         GameEvent::ZoneWillChange {
@@ -860,7 +860,7 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
         Some(deckmaste_core::Zone::Graveyard)
     );
     // Fresh object starts with zero damage (never carried over).
-    assert_eq!(state.objects.obj(new).damage, 0);
+    assert_eq!(state.objects.obj(new).total_damage(), 0);
 }
 
 #[test]
@@ -868,7 +868,7 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
     // The will-change apply schedules a ZoneChanged fact carrying the leaving
     // creature's snapshot (captured before removal, while it was still live).
     let (mut state, bear) = bear_on_field();
-    state.objects.obj_mut(bear).damage = 5;
+    state.objects.obj_mut(bear).set_marked_damage(5);
     state
         .agenda
         .push_front(deckmaste_engine::WorkItem::Emit(Occurrence::single(
@@ -919,7 +919,7 @@ fn each_player_has_a_proxy_object() {
             "a player controls itself"
         );
         assert_eq!(obj.zone, None, "a player proxy is in no zone");
-        assert_eq!(obj.damage, 0);
+        assert_eq!(obj.total_damage(), 0);
     }
 }
 
@@ -1050,7 +1050,7 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
         )),
         "expected a stack→graveyard ZoneWillChange for bolt, trace: {trace:?}"
     );
-    assert_eq!(state.objects.obj(bear).damage, 3);
+    assert_eq!(state.objects.obj(bear).total_damage(), 3);
     assert!(
         state.objects.get(bolt).is_none(),
         "old bolt id must be gone after reminting"

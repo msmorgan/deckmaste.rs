@@ -552,6 +552,15 @@ fn emit_reference(r: &Reference) -> R {
             ));
         }
         Reference::Linked(_) => return Err(gap("Reference::Linked has no Idris counterpart")),
+        // A set-valued deal-time damage-source binding read only inside
+        // `Is(Source, …)` on an engine SBA rule — never authored on a card, so
+        // no Idris counterpart (the builtin SBA rules are engine data, not
+        // emitted card definitions).
+        Reference::Source => {
+            return Err(gap(
+                "Reference::Source (deal-time damage-source binding) has no Idris counterpart",
+            ));
+        }
         Reference::Expanded(_) => {
             return Err(gap(
                 "unexpanded Reference macro invocation remained after expand_all",
@@ -826,11 +835,6 @@ fn emit_condition(c: &Condition) -> R {
         Condition::Exists(f) => format!("(exists {})", emit_filter(f)?),
         Condition::Is(r, f) => app("Matches", vec![emit_reference(r)?, emit_filter(f)?]),
         Condition::LegallyAttached(r) => app("LegallyAttached", vec![emit_reference(r)?]),
-        Condition::DamagedByDeathtouch(_) => {
-            return Err(gap(
-                "Condition::DamagedByDeathtouch has no Idris counterpart",
-            ));
-        }
         Condition::Happened { .. } => {
             return Err(gap("Condition::Happened (history lookback) not yet mapped"));
         }

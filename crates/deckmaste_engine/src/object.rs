@@ -169,6 +169,28 @@ pub enum ObjectSource {
     Player(PlayerId),
 }
 
+/// One instance of marked damage on a permanent ([CR#120.3]), tagged with the
+/// source that dealt it and that source's abilities captured *at deal time*.
+/// Provenance is deal-time because damage-source effects — deathtouch most
+/// notably ([CR#702.2c]: "any nonzero amount is lethal") — are decided when the
+/// damage is dealt, not when a later SBA reads the mark: the source may have
+/// lost the ability or left the battlefield in between, and it still counts.
+/// Replaces the bespoke deal-time `struck_by_deathtouch` bool.
+#[derive(Debug, Clone)]
+pub struct DamageMark {
+    /// The source's identity the instant it dealt the damage, or `None` when
+    /// the source had already left (a dies-trigger whose source is a stale,
+    /// reminted id — [CR#603.10a]). Kept for future source-relative reads;
+    /// deathtouch reads `source_abilities`, not identity.
+    pub source: Option<ObjectSource>,
+    /// The source's derived abilities captured the instant it dealt the damage
+    /// ([CR#702.2c]) — the deal-time snapshot `Is(Source, Has(kw))` reads.
+    /// Empty when the source had already left.
+    pub source_abilities: Vec<Ability>,
+    /// How much damage this instance marked.
+    pub amount: Uint,
+}
+
 /// An object in the game ([CR#109]). An object whose `zone ==
 /// Some(Battlefield)` is a permanent ([CR#110.1]). A player proxy has `source =
 /// Player(..)` and `zone == None` (players are objects here, but in no zone).
@@ -186,14 +208,12 @@ pub struct GameObject {
     /// controller's turn start — a creature controlled continuously since the
     /// turn began is not summoning-sick. Meaningful only on the battlefield.
     pub summoning_sick: bool,
-    /// Marked damage ([CR#120.3,704.5g]) — meaningful only on the battlefield.
-    pub damage: Uint,
-    /// Set when this object has been dealt damage by a deathtouch source
-    /// ([CR#702.2]). Any nonzero damage from such a source destroys a creature
-    /// with toughness > 0; the SBA checks this flag alongside lethal marked
-    /// damage ([CR#704.5h]).
-    /// Meaningful only on the battlefield; cleared at Cleanup ([CR#514.2]).
-    pub struck_by_deathtouch: bool,
+    /// Marked damage ([CR#120.3,704.5g]) as a list of source-tagged instances
+    /// — meaningful only on the battlefield. Each [`DamageMark`] carries the
+    /// dealing source's deal-time abilities, so the lethal-damage SBA can read
+    /// deathtouch provenance ([CR#704.5h]) generically. The scalar total is
+    /// [`total_damage`](GameObject::total_damage).
+    pub damage: Vec<DamageMark>,
     /// Counters on this object, keyed by counter name ([CR#122]).
     /// `"+1/+1"` and `"-1/-1"` modify P/T in layer 7c ([CR#613.4c]).
     pub counters: HashMap<Ident, Uint>,
@@ -214,6 +234,50 @@ impl GameObject {
         match self.source {
             ObjectSource::Card(c) => Some(c),
             ObjectSource::Player(_) => None,
+        }
+    }
+
+    /// Total marked damage ([CR#120.3]) — the sum over every source-tagged
+    /// [`DamageMark`]. The scalar the lethal-marked-damage SBA ([CR#704.5g])
+    /// and LKI compare against toughness.
+    #[must_use]
+    pub fn total_damage(&self) -> Uint {
+        self.damage.iter().map(|m| m.amount).sum()
+    }
+
+    /// Record one instance of marked damage from a source, capturing the
+    /// source's deal-time abilities ([CR#120.3,702.2c]). `amount == 0` still
+    /// records a (provenance-only) mark so a 0-damage deathtouch strike is not
+    /// silently dropped — but the caller (`step.rs`) only marks nonzero damage.
+    pub fn mark_damage(
+        &mut self,
+        source: Option<ObjectSource>,
+        source_abilities: Vec<Ability>,
+        amount: Uint,
+    ) {
+        self.damage.push(DamageMark {
+            source,
+            source_abilities,
+            amount,
+        });
+    }
+
+    /// Remove all marked damage ([CR#514.2] cleanup, [CR#701.19a]
+    /// regeneration) — clears the deal-time deathtouch provenance with it, so a
+    /// healed creature is no longer "dealt damage by a deathtouch source".
+    pub fn clear_damage(&mut self) {
+        self.damage.clear();
+    }
+
+    /// Set the total marked damage to a single anonymous instance of `amount`
+    /// (no source identity, no deal-time abilities) — a scenario-setup shortcut
+    /// for tests and tools that only care about the lethal-marked-damage
+    /// total, not provenance. Deathtouch scenarios use
+    /// [`mark_damage`](GameObject::mark_damage) with a deathtouch ability.
+    pub fn set_marked_damage(&mut self, amount: Uint) {
+        self.damage.clear();
+        if amount > 0 {
+            self.mark_damage(None, Vec::new(), amount);
         }
     }
 }
@@ -262,8 +326,7 @@ impl ObjectStore {
             timestamp,
             tapped: false,
             summoning_sick: false,
-            damage: 0,
-            struck_by_deathtouch: false,
+            damage: Vec::new(),
             counters: HashMap::new(),
             attached_to: None,
             zone,

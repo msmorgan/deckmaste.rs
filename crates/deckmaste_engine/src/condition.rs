@@ -39,6 +39,22 @@ impl GameState {
             // ([CR#702.93a,702.79a]) reads the DYING object's captured counters,
             // which no live object holds. A live object takes the live path.
             Condition::Is(reference, filter) => {
+                // [CR#120.3,702.2c,704.5h]: `Source` is a set-valued binding
+                // over the marked-damage sources of the object under evaluation
+                // (the frame's `This`) — "was dealt damage by a source matching
+                // F". It reads existentially against each mark's DEAL-TIME
+                // abilities (the source may since have left or lost the
+                // ability), so no live-object resolution applies; the
+                // lethal-damage SBA's deathtouch clause is
+                // `Is(Source, Has(Deathtouch))`.
+                if let deckmaste_core::Reference::Source = reference {
+                    let this = self.eval_reference(&deckmaste_core::Reference::This, frame);
+                    return self.objects.get(this).is_some_and(|obj| {
+                        obj.damage
+                            .iter()
+                            .any(|mark| source_abilities_match(filter, &mark.source_abilities))
+                    });
+                }
                 let watcher = self.frame_watcher(frame);
                 let object = self.eval_reference(reference, frame);
                 if self.objects.get(object).is_some() {
@@ -72,15 +88,6 @@ impl GameState {
                     .obj(object)
                     .attached_to
                     .is_some_and(|host| crate::legal::attachment_legal(self, object, host))
-            }
-
-            // [CR#704.5h]: the referenced creature was dealt damage by a
-            // deathtouch source since the last SBA check — reads the deal-time
-            // `struck_by_deathtouch` flag captured by `step.rs`. (Bespoke
-            // placeholder; a later damage-provenance pass replaces this.)
-            Condition::DamagedByDeathtouch(reference) => {
-                let object = self.eval_reference(reference, frame);
-                self.objects.obj(object).struck_by_deathtouch
             }
 
             // Numeric comparison: both sides ride the one `eval_count`, so a
@@ -218,6 +225,31 @@ impl GameState {
             )
             && self.stack.is_empty()
             && self.announcing.is_none()
+    }
+}
+
+/// Does a damage source's DEAL-TIME abilities satisfy `filter`? The matcher
+/// behind `Is(Source, F)` ([CR#702.2c]): only what a mark captures — the
+/// source's abilities — is testable, so keyword predicates (`Has(Deathtouch)`)
+/// and their combinators are honored and every other predicate fizzles to
+/// `false` (an authoring mistake no-ops, never crashes). Peels
+/// `Innate`/`Expanded` via `ability_is_named`, matching the live `Has` arm.
+fn source_abilities_match(
+    filter: &deckmaste_core::Predicate,
+    abilities: &[deckmaste_core::Ability],
+) -> bool {
+    use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::Predicate;
+    if let Some(result) =
+        crate::target::walk_combinators(filter, |f| source_abilities_match(f, abilities))
+    {
+        return result;
+    }
+    match filter {
+        Predicate::Characteristic(CharacteristicPredicate::Has(name)) => abilities
+            .iter()
+            .any(|a| crate::layer::ability_is_named(a, &name.0)),
+        _ => false,
     }
 }
 

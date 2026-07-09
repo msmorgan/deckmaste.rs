@@ -9,7 +9,7 @@
             Compare(StatOf(This, Toughness), Greater, 0),
             OneOf([
                 Compare(Damage(This), AtLeast, StatOf(This, Toughness)),
-                DamagedByDeathtouch(This),
+                Is(Source, Has(Deathtouch)),
             ]),
         ]),
         then: Destroy(This),

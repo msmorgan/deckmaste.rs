@@ -955,7 +955,9 @@ fn eval_count(
         // [CR#120.3]: marked damage on the resolved object (base state).
         Count::Damage(reference) => resolve_count_ref(state, reference, watcher)
             .and_then(|id| state.objects.get(id))
-            .map_or(0, |o| Int::try_from(o.damage).expect("damage fits Int")),
+            .map_or(0, |o| {
+                Int::try_from(o.total_damage()).expect("damage fits Int")
+            }),
         // [CR#106.4]: the referenced player's total floated mana — read
         // straight off the pool (base state, no layers). A non-player or
         // unresolved reference contributes 0.
