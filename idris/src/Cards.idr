@@ -1309,4 +1309,16 @@ vlxTopGrave = Matches (Single (TopOfGraveyard (^1) You)) (And [IsKind Card, HasC
 vlxRepeat : OneShotEffect b
 vlxRepeat = Repeat (^2) (Act (Draw (^1)))
 
+-- value-language-extensions Task 6 probe (cascade/discover dig-until shape)
+-- "It" at top level = the found card (`bindFound`'s Loop antecedent);
+-- "Existing They" = the passed-over prefix (its Frame antecedent); the
+-- nested "It" inside `Each` shadows to the current prefix element.
+vlxRevealUntil : OneShotEffect b
+vlxRevealUntil =
+  RevealUntil You (And [IsKind Card, Not (HasChar Types Land)])
+    (Sequentially
+      [ Act (Reveal It)
+      , Each (Existing They) (Act (Reveal It))
+      ])
+
 --:vim:sts=2 sw=2:

@@ -1550,6 +1550,22 @@ mutual
   loopOf : {k : RefKind} -> Predicate b k -> Ant
   loopOf p = MkAnt (filterSort p) k One Loop Nothing Nothing
 
+  -- `RevealUntil`'s BODY antecedents ([CR#702.85,701.57] dig-until): the
+  -- found card (`Card` sort — a non-battlefield object, [CR#108.2] — not
+  -- `filterSort`-derived; a revealed library card, never a battlefield
+  -- noun) pushed `bindIt`-style so it re-sites to `Loop`; the passed-over
+  -- prefix pushed as a `Frame` (mirrors `PileFrame`, [CR#608.2d]). ORDER is
+  -- load-bearing: found is pushed LAST (nearest), so `resolveIt`'s
+  -- `innermostBinder` scan reaches its `Loop` before it would otherwise
+  -- reach the prefix's `Frame` (also a binder site); `resolveThey`'s
+  -- `innermostFrame` scan ignores `Loop` sites regardless, so it reaches
+  -- the prefix either way. `match` only fixes the found card's `RefKind`
+  -- (`AnObject`, from `Predicate b AnObject`'s own index) at the type level.
+  public export
+  bindFound : Predicate b AnObject -> Ctx -> Ctx
+  bindFound _ = bindIt (MkAnt Card AnObject One Product Nothing Nothing)
+              . bindThat (MkAnt Card AnObject Many Frame Nothing Nothing)
+
   -- the element antecedent a `Projection` binds (`It` = each counted
   -- object); total over `Countable`, though only `Objects` is projectable.
   public export
@@ -2368,6 +2384,15 @@ mutual
       -- resolution), `Product` antecedents — with their expected-zone stamps — survive, and the
       -- delayed event's own caps/roles bind. Rust: OneShotEffect::Delayed.
       Delayed : (q : EventQuery b) -> OneShotEffect (bindEvent (eventQueryCaps q) (queryRoles q) (unbindTargets b)) -> OneShotEffect b
+      -- the variable-length DIG-UNTIL ([CR#702.85] cascade, [CR#701.57] discover — the §13
+      -- "mint when a consumer makes desugaring painful" case; the FIXED peek-N-and-sort shape
+      -- (scry/surveil/fateseal/clash/explore/ripple/hideaway) stays watched-not-minted, expressed
+      -- via `Move`+`TopOfLibrary`+`Modal`). `whose` reveals cards off the top of their library
+      -- until one matches `match`; `body` elaborates at `bindFound match b` — the found card reads
+      -- as `It`, the passed-over prefix as `They` ([CR#608.2]). No name-tag: nothing triggers on
+      -- "cascade"/"discover" themselves, the keyword ABILITIES that wrap this name the trigger.
+      -- Reveal-nothing (no match in the library) degrades at runtime, never a compile-time gate.
+      RevealUntil : (whose : Reference b APlayer) -> (match : Predicate b AnObject) -> OneShotEffect (bindFound match b) -> OneShotEffect b
 
   -- the TELESCOPE ([CR#608.2d] — sentence order IS binder order; R3, no
   -- forward references, is structural: a clause reads only what stands to
