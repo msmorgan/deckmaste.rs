@@ -2672,8 +2672,10 @@ mutual
 
   -- which flip(s)/roll(s) a `ReplaceRoll` discards, once the extras have been rolled
   -- ([CR#706.6] "if a player is instructed to ignore a roll... the player chooses one of those
-  -- rolls to be ignored" when multiple tie for lowest). `IgnoreLowest` = Krark's Thumb (flip two,
-  -- ignore the lower); `IgnoreChosen n` = the player picks which n of the extras to discard.
+  -- rolls to be ignored" when multiple tie for lowest). `IgnoreLowest` = automatically drop the
+  -- lowest result, no choice (a "roll two, keep the higher" die effect); `IgnoreChosen n` = the
+  -- player picks which n of the extras to discard (Krark's Thumb = flip two, ignore one of the
+  -- player's choice, i.e. `IgnoreChosen 1` — matching the `ReplaceRoll` doc below).
   namespace IgnoreRule
     public export
     data IgnoreRule = IgnoreLowest | IgnoreChosen Nat
