@@ -136,19 +136,76 @@ impl From<crate::Uint> for ManaSymbol {
     }
 }
 
-/// A predicate over mana units at SPEND time — the `as_` slot of
-/// `StaticEffect::SpendAsThough` ([CR#609.4b] payment freedom: it changes
-/// only HOW a cost may be paid, never the cost). Closed and minimal; the
-/// richer symbol algebra (per-color `CountsAs`, combinators) accretes when
-/// cards demand it (the Idris model's `SymbolPred` is the reference shape).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// A predicate over mana symbols — both the SPEND-time payment-freedom slot of
+/// `StaticEffect::SpendAsThough` ([CR#609.4b]) and the devotion/pip matcher
+/// under `Countable::ManaSymbols` ([CR#700.5]). Grown from the spend-time
+/// subset (`AnyColor`/`AnyType`) into the Idris `SymbolPred` matcher algebra;
+/// Rust stays a permissive superset (the spend-time spellings have no Idris
+/// twin).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SymbolPred {
-    /// "as though it were mana of any color" — pays any COLORED pip
-    /// (colorless pips still demand colorless, [CR#107.4c]).
+    /// "as though it were mana of any color" — matches any COLORED pip
+    /// (colorless pips excluded, [CR#107.4c]).
     AnyColor,
-    /// "as though it were mana of any type" — pays any pip, colorless
-    /// included ([CR#106.1b]: types = the five colors and colorless).
+    /// "as though it were mana of any type" — matches any pip, colorless
+    /// included ([CR#106.1b]).
     AnyType,
+    /// A pip that counts as `[color]` ([CR#700.5]): a colored pip of that
+    /// color, a hybrid pip with that color as one half, or a Phyrexian pip of
+    /// that color.
+    CountsAs(Color),
+    /// A generic pip (`{2}`, `{X}`), i.e. one with no color.
+    IsGeneric,
+    /// All of the given filters (non-empty by convention; empty fizzles).
+    And(Vec<SymbolPred>),
+    /// Any of the given filters (non-empty by convention; empty = "no colors").
+    Or(Vec<SymbolPred>),
+    /// The negation of a filter.
+    Not(Box<SymbolPred>),
+}
+
+impl SymbolPred {
+    /// Whether `sym` matches this predicate ([CR#700.5] devotion counting; the
+    /// spend-time slot uses the same matcher). Hybrid counts as each of its
+    /// colors; Phyrexian as its color.
+    #[must_use]
+    pub fn matches(&self, sym: &ManaSymbol) -> bool {
+        match self {
+            SymbolPred::AnyColor => symbol_colors(sym).next().is_some(),
+            SymbolPred::AnyType => !matches!(sym, ManaSymbol::Snow),
+            SymbolPred::CountsAs(c) => symbol_colors(sym).any(|k| k == *c),
+            SymbolPred::IsGeneric => {
+                matches!(
+                    sym,
+                    ManaSymbol::Simple(SimpleManaSymbol::Generic(_)) | ManaSymbol::Variable
+                )
+            }
+            SymbolPred::And(ps) => !ps.is_empty() && ps.iter().all(|p| p.matches(sym)),
+            SymbolPred::Or(ps) => ps.iter().any(|p| p.matches(sym)),
+            SymbolPred::Not(p) => !p.matches(sym),
+        }
+    }
+}
+
+/// The colors a mana symbol counts as ([CR#105]): a colored pip is its color, a
+/// hybrid pip is both halves' colors (its `SimpleManaSymbol` half contributes a
+/// color only when it is a colored `Specific`), a Phyrexian pip its color(s).
+/// Generic/colorless/{X}/{S} contribute none.
+fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> + '_ {
+    let mut out: Vec<Color> = Vec::new();
+    match sym {
+        ManaSymbol::Simple(s) => out.extend(s.color()),
+        ManaSymbol::Hybrid(s, c) => {
+            out.extend(s.color());
+            out.push(*c);
+        }
+        ManaSymbol::Phyrexian(c, extra) => {
+            out.push(*c);
+            out.extend(*extra);
+        }
+        ManaSymbol::Variable | ManaSymbol::Snow => {}
+    }
+    out.into_iter()
 }
 
 /// A rider a producing effect attaches to the mana itself ([CR#106.6] —
@@ -535,6 +592,46 @@ mod tests {
         assert_eq!(
             read("OneOf([Colorless, Blue])"),
             ManaSpec::OneOf(vec![Colorless, Blue.into()])
+        );
+    }
+
+    #[test]
+    fn symbol_pred_round_trips_and_matches() {
+        use crate::Color;
+        let read = |s: &str| crate::ron::options().from_str::<SymbolPred>(s).unwrap();
+        let write = |p: &SymbolPred| crate::ron::options().to_string(p).unwrap();
+
+        // Round-trip the new algebra.
+        let g = SymbolPred::CountsAs(Color::Green);
+        assert_eq!(read("CountsAs(Green)"), g);
+        assert_eq!(read(&write(&g)), g);
+        let wb = SymbolPred::Or(vec![
+            SymbolPred::CountsAs(Color::White),
+            SymbolPred::CountsAs(Color::Black),
+        ]);
+        assert_eq!(read(&write(&wb)), wb);
+        assert_eq!(read("AnyColor"), SymbolPred::AnyColor); // spend-time spelling preserved
+
+        // matches: hybrid {G/W} counts as each of its colors; Phyrexian {G/P} as its
+        // color.
+        let hybrid_gw = ManaSymbol::Hybrid(
+            SimpleManaSymbol::Specific(Color::Green.into()),
+            Color::White,
+        );
+        assert!(SymbolPred::CountsAs(Color::Green).matches(&hybrid_gw));
+        assert!(SymbolPred::CountsAs(Color::White).matches(&hybrid_gw));
+        assert!(!SymbolPred::CountsAs(Color::Red).matches(&hybrid_gw));
+        let phy_g = ManaSymbol::Phyrexian(Color::Green, None);
+        assert!(SymbolPred::CountsAs(Color::Green).matches(&phy_g));
+        let generic2 = ManaSymbol::Simple(SimpleManaSymbol::Generic(2));
+        assert!(SymbolPred::IsGeneric.matches(&generic2));
+        assert!(!SymbolPred::CountsAs(Color::Green).matches(&generic2));
+        assert!(SymbolPred::AnyColor.matches(&ManaSymbol::from(Color::Green)));
+        assert!(!SymbolPred::AnyColor.matches(&generic2));
+        assert!(wb.matches(&hybrid_gw)); // Or: {G/W} is white
+        assert!(
+            SymbolPred::Not(Box::new(SymbolPred::IsGeneric))
+                .matches(&ManaSymbol::from(Color::Green))
         );
     }
 }
