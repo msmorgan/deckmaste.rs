@@ -2266,6 +2266,15 @@ mutual
       -- RECOGNIZE the action ("scry 2" = `Composite Scry (…)`) so "whenever you scry"/Aang's "whenever
       -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: OneShotEffect::KeywordAction.
       Composite : KeywordActionSpec -> OneShotEffect b -> Action b
+      -- roll `sides`-sided dice ([CR#706.1]) `count` times; the RESULT rides the pushed
+      -- `amountAnte` antecedent (a later `Compare ThatMany …` reads it, [CR#706.2]).
+      RollDice : (count : Count b) -> (sides : Nat) -> Action b
+      -- flip `count` coins ([CR#705.1]); the win/loss RESULT rides the pushed `amountAnte`
+      -- antecedent, like `RollDice` ([CR#705.2] — the flipper calls heads/tails).
+      FlipCoins : (count : Count b) -> Action b
+      -- roll the (Planechase) planar die as a special action ([CR#901.9]); NO numeric result
+      -- ([CR#901.9d]) so unlike `RollDice`/`FlipCoins` this introduces nothing for `ThatMany`.
+      RollPlanarDie : Action b
 
   -- the event-anaphor caps the PAYMENT of a cost-action supplies its `AdditionalCost` body — the cost-side
   -- twin of `eventKindCaps`, for the object-moving cost verbs. Sacrifice/Discard bind the moved object
@@ -2308,6 +2317,9 @@ mutual
   actionEventCaps (Action.ChooseNewTargets _) = NoCaps
   actionEventCaps (Action.AddMana _ _)        = NoCaps
   actionEventCaps (Action.Composite _ _)      = NoCaps
+  actionEventCaps (Action.RollDice _ _)       = eventKindCaps RollDice
+  actionEventCaps (Action.FlipCoins _)        = eventKindCaps (FlipCoin Nothing)
+  actionEventCaps Action.RollPlanarDie        = eventKindCaps (RollPlanarDie Nothing)
 
   -- the caps a COST's payment supplies its `AdditionalCost` body: an action pays via its event; a composite
   -- `Costs […]` UNIONS (any object-moving component binds), `Scaled` rides its inner cost; pure mana binds
@@ -2563,6 +2575,9 @@ mutual
   actionIntro (Action.ControlPlayer r) = refIntro r
   actionIntro (Action.AddMana _ _) = []
   actionIntro (Action.Composite _ _) = []   -- composite tags introduce nothing (no intro row)
+  actionIntro (Action.RollDice _ _) = [amountAnte]
+  actionIntro (Action.FlipCoins _) = [amountAnte]
+  actionIntro Action.RollPlanarDie = []
 
   -- the antecedents an effect INTRODUCES for its right siblings
   -- ([CR#608.2d]): a clause's products, a `May`'s inner introductions, a

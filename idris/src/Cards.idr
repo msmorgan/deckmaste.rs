@@ -1341,4 +1341,14 @@ vlxCoinTrig = Triggered (MkEventQuery [FlipCoin (Just True)] [Actor you]) (Act (
 vlxRollUnion : EventQuery b  -- "roll one or more dice" incl. planar [CR#706.7]
 vlxRollUnion = MkEventQuery [RollDice, RollPlanarDie Nothing] [Actor you]
 
+-- value-language-extensions Task 11 probe (randomness actions RollDice/FlipCoins/RollPlanarDie)
+-- (`ThatMany`'s auto-proof needs a CONCRETE stack to resolve, so `Base` here
+-- rather than a generic `b` -- same as `tThatMany` in Spec.idr.)
+vlxD20 : OneShotEffect Base  -- roll a d20; 15+ -> draw
+vlxD20 = Sequentially [ Act (RollDice (^1) 20)
+                      , If (Compare ThatMany AtLeast (^15)) (Act (Draw (^1))) ]
+vlxFlip : OneShotEffect Base
+vlxFlip = Sequentially [ Act (FlipCoins (^1))
+                       , If (Compare ThatMany AtLeast (^1)) (Act (Draw (^1))) ]
+
 --:vim:sts=2 sw=2:
