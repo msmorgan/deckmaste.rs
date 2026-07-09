@@ -999,9 +999,14 @@ impl GameState {
     /// is evaluated as a whole.
     fn apply_occurrence(&mut self, mut occ: Occurrence) -> Occurrence {
         // [CR#104.3f]: a player who would simultaneously win and lose, loses
-        // — drop any `PlayerWon{p}` the same batch also carries `PlayerLost{p}`
-        // for, before the batch is applied.
-        if let Occurrence::Batch(ref mut facts) = occ {
+        // — drop any `PlayerWon{p}` that the same batch also carries a
+        // `PlayerLost{p}` for, before the batch is applied. Guarded so the
+        // common batch (no win at all) skips the scan entirely.
+        if let Occurrence::Batch(ref mut facts) = occ
+            && facts
+                .iter()
+                .any(|e| matches!(e, GameEvent::PlayerWon { .. }))
+        {
             let losers: std::collections::HashSet<PlayerId> = facts
                 .iter()
                 .filter_map(|e| match e {
