@@ -508,6 +508,34 @@ impl GameState {
         &mut self.players[p.index()]
     }
 
+    /// Whether a battlefield `OutcomeGate` of `kind` applies to `player`
+    /// ([CR#101.1,704.3], ADR U5 — precedence, not consumption). Folds over
+    /// battlefield permanents; each gate's `who` predicate is matched against
+    /// `player`'s proxy with the gate's carrier as the watcher, so `Ref(You)`
+    /// and `OpponentOf(Ref(You))` anchor to the carrier's controller.
+    #[must_use]
+    pub fn gate_suppresses(
+        &self,
+        view: &crate::layer::LayeredView,
+        player: PlayerId,
+        kind: deckmaste_core::OutcomeGateKind,
+    ) -> bool {
+        let proxy = self.player(player).object;
+        self.zones.battlefield.iter().any(|&carrier| {
+            let source = self.objects.obj(carrier).source;
+            let mut hit = false;
+            crate::legal::for_each_static(view, carrier, |s| {
+                if let deckmaste_core::StaticEffect::OutcomeGate { who, gate } = s
+                    && *gate == kind
+                    && crate::target::matches_with(self, proxy, who, Some(source))
+                {
+                    hit = true;
+                }
+            });
+            hit
+        })
+    }
+
     /// [CR#102.4,810.1]: whether two players are on the same team — the single
     /// seam the team-relative player filters (`OpponentOf` = different team,
     /// `TeammateOf` = same team, excluding self) route through.

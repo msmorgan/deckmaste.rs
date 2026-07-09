@@ -1739,4 +1739,46 @@ mod tests {
             .count();
         assert_eq!(gates, 2, "Platinum Angel has two OutcomeGate statics");
     }
+
+    #[test]
+    fn gate_suppresses_matches_controller_and_opponent() {
+        use deckmaste_core::OutcomeGateKind;
+
+        use crate::object::ObjectSource;
+        let angel = Arc::new(canon().card("Platinum Angel").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        });
+        // Mint a Platinum Angel controlled by player 0 onto the battlefield.
+        let card_id = state.cards.push(angel, PlayerId(0));
+        let obj = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(obj);
+
+        let view = state.layers();
+        // "You can't lose": player 0 (controller) is CantLose-gated.
+        assert!(state.gate_suppresses(&view, PlayerId(0), OutcomeGateKind::CantLose));
+        // "Your opponents can't win": player 1 is CantWin-gated.
+        assert!(state.gate_suppresses(&view, PlayerId(1), OutcomeGateKind::CantWin));
+        // Negatives.
+        assert!(!state.gate_suppresses(&view, PlayerId(0), OutcomeGateKind::CantWin));
+        assert!(!state.gate_suppresses(&view, PlayerId(1), OutcomeGateKind::CantLose));
+    }
 }
