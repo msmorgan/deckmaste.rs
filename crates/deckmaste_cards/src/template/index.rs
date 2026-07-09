@@ -50,10 +50,12 @@ impl TemplateIndex {
         let mut by_kind: HashMap<Ident, Vec<ParsePattern>> = HashMap::new();
         for (kind, def) in macros.iter() {
             let Some(template) = def.template() else { continue };
-            by_kind
-                .entry(*kind)
-                .or_default()
-                .push(compile(def.name, template, &def.params));
+            by_kind.entry(*kind).or_default().push(compile(
+                def.name,
+                template,
+                &def.params,
+                def.plural(),
+            ));
         }
         for patterns in by_kind.values_mut() {
             patterns.sort_by_key(|p| std::cmp::Reverse(p.literal_len()));

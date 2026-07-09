@@ -133,6 +133,14 @@ pub struct MacroDef {
     /// card-text renderer.
     #[serde(default)]
     pub template: Option<String>,
+    /// Optional plural surface of `template`'s head noun (metadata): "Merfolk"
+    /// for a macro whose regular-rules plural (see
+    /// `deckmaste_cards::template::plural::pluralize`) is wrong or ambiguous.
+    /// Absent for the common case, where the regular rules suffice — every
+    /// existing definition file omits this field, so it reads as `None`
+    /// unchanged.
+    #[serde(default)]
+    pub plural: Option<String>,
     /// Raw RON source with `Param(...)` holes.
     #[serde(deserialize_with = "raw_body")]
     pub(crate) body: Box<str>,
@@ -201,6 +209,11 @@ impl MacroDef {
     #[must_use]
     pub fn template(&self) -> Option<&str> {
         self.template.as_deref()
+    }
+
+    #[must_use]
+    pub fn plural(&self) -> Option<&str> {
+        self.plural.as_deref()
     }
 }
 
@@ -325,6 +338,7 @@ fn decl_def(kind: &str, name: Ident, declaration: &str) -> MacroDef {
         kinds: vec![kind.into()],
         params: Params::default(),
         template: None,
+        plural: None,
         body: declaration.trim().into(),
     }
 }

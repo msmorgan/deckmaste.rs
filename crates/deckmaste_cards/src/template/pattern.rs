@@ -56,6 +56,11 @@ pub(crate) struct ParsePattern {
     /// `Hexproof`/`Landwalk`, whose templates carry no slot) needs `Name(...)`,
     /// so it must not be emitted as a bare nullary invocation.
     pub(crate) has_params: bool,
+    /// The macro's declared `plural:` override (metadata), if any — carried
+    /// through from `MacroDef::plural()` for the parse-side plural match a
+    /// future pass wires up (see `deckmaste_cards::render::template` for the
+    /// render-side twin).
+    pub(crate) plural: Option<String>,
 }
 
 impl ParsePattern {
@@ -87,11 +92,17 @@ impl ParsePattern {
     }
 }
 
-/// Compile a `template` (with the macro's `params`, for slot typing) into a
-/// [`ParsePattern`]. Mirrors [`crate::render::template::fill`]'s scanner: `~`,
-/// `${…}`, and single-brace-literal are recognized identically, so a template
-/// renders and parses by the same rules.
-pub(crate) fn compile(macro_name: Ident, template: &str, params: &Params) -> ParsePattern {
+/// Compile a `template` (with the macro's `params`, for slot typing, and its
+/// `plural` override, if any) into a [`ParsePattern`]. Mirrors
+/// [`crate::render::template::fill`]'s scanner: `~`, `${…}`, and
+/// single-brace-literal are recognized identically, so a template renders and
+/// parses by the same rules.
+pub(crate) fn compile(
+    macro_name: Ident,
+    template: &str,
+    params: &Params,
+    plural: Option<&str>,
+) -> ParsePattern {
     let mut segments = Vec::new();
     let mut lit = String::new();
     let mut chars = template.chars().peekable();
@@ -136,6 +147,7 @@ pub(crate) fn compile(macro_name: Ident, template: &str, params: &Params) -> Par
         macro_name,
         segments,
         has_params: has_params(params),
+        plural: plural.map(str::to_owned),
     }
 }
 
@@ -200,14 +212,14 @@ mod tests {
 
     #[test]
     fn compiles_nullary_literal() {
-        let p = compile("Flying".into(), "flying", &Params::default());
+        let p = compile("Flying".into(), "flying", &Params::default(), None);
         assert_eq!(p.segments, vec![Segment::Literal("flying".into())]);
         assert!(p.is_nullary());
     }
 
     #[test]
     fn compiles_self_only() {
-        let p = compile("AsEnters".into(), "as ~ enters", &Params::default());
+        let p = compile("AsEnters".into(), "as ~ enters", &Params::default(), None);
         assert_eq!(
             p.segments,
             vec![
@@ -225,6 +237,7 @@ mod tests {
             "Protection".into(),
             "protection from ${0}",
             &pos(&["Predicate"]),
+            None,
         );
         assert_eq!(
             p.segments,
@@ -245,7 +258,12 @@ mod tests {
     /// resolves the param's declared type from the bare key.
     #[test]
     fn compiles_slot_with_a_modifier_codec() {
-        let p = compile("Mill".into(), "mills ${0:card|cards}", &pos(&["Count"]));
+        let p = compile(
+            "Mill".into(),
+            "mills ${0:card|cards}",
+            &pos(&["Count"]),
+            None,
+        );
         assert_eq!(
             p.segments,
             vec![
@@ -258,7 +276,7 @@ mod tests {
             ]
         );
 
-        let sign = compile("Pump".into(), "gets ${0:+}", &pos(&["Count"]));
+        let sign = compile("Pump".into(), "gets ${0:+}", &pos(&["Count"]), None);
         assert_eq!(
             sign.segments,
             vec![
@@ -275,7 +293,7 @@ mod tests {
     #[test]
     fn single_brace_is_literal_in_pattern() {
         // mana etc. pass through as literal, same rule as the renderer.
-        let p = compile("M".into(), "add {C}", &Params::default());
+        let p = compile("M".into(), "add {C}", &Params::default(), None);
         assert_eq!(p.segments, vec![Segment::Literal("add {C}".into())]);
     }
 
@@ -289,6 +307,7 @@ mod tests {
                     .into_iter()
                     .collect(),
             ),
+            None,
         );
         assert_eq!(
             p.segments,
@@ -306,5 +325,21 @@ mod tests {
             ]
         );
         assert!(!p.is_nullary());
+    }
+
+    /// A macro's `plural:` override is carried onto the compiled pattern
+    /// verbatim; a macro without one compiles with `plural: None`.
+    #[test]
+    fn compiles_carries_the_plural_override() {
+        let p = compile(
+            "Merfolk".into(),
+            "Merfolk",
+            &Params::default(),
+            Some("Merfolk"),
+        );
+        assert_eq!(p.plural.as_deref(), Some("Merfolk"));
+
+        let none = compile("Flying".into(), "flying", &Params::default(), None);
+        assert_eq!(none.plural, None);
     }
 }

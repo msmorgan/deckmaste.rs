@@ -5,3 +5,4 @@
 
 pub mod index;
 pub mod pattern;
+pub mod plural;

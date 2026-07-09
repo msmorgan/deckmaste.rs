@@ -232,6 +232,7 @@ fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
         kinds: vec!["Subtype".into()],
         params: Params::Positional(params),
         template: None,
+        plural: None,
         body: body.trim().into(),
     }
 }
@@ -329,6 +330,7 @@ fn unknown_kinds_are_an_error() {
             kinds: vec!["Sorcery".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "()".into(),
         })
         .unwrap_err();
@@ -356,6 +358,7 @@ fn enum_positions_expand_unknown_variants() {
             kinds: vec!["Ability".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -434,6 +437,7 @@ fn macros_are_namespaced_by_kind() {
             kinds: vec!["Subtype".into(), "Filter".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
             template: None,
+            plural: None,
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -470,6 +474,7 @@ fn macros_expand_inside_expansion_bodies() {
             kinds: vec!["Filter".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "AllOf([Type(Creature)])".into(),
         })
         .unwrap();
@@ -479,6 +484,7 @@ fn macros_expand_inside_expansion_bodies() {
             kinds: vec!["Filter".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "OneOf([Any, Inner])".into(),
         })
         .unwrap();
@@ -597,6 +603,7 @@ fn effect_positions_expand_macros() {
             kinds: vec!["Effect".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "DrawCards(1)".into(),
         })
         .unwrap();
@@ -621,6 +628,7 @@ fn remembering_chains_nest_expanded() {
             kinds: vec!["Ability".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -630,6 +638,7 @@ fn remembering_chains_nest_expanded() {
             kinds: vec!["Ability".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Inner".into(),
         })
         .unwrap();
@@ -663,6 +672,7 @@ fn remembered_invocations_round_trip_as_invocations() {
             kinds: vec!["Ability".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -672,6 +682,7 @@ fn remembered_invocations_round_trip_as_invocations() {
             kinds: vec!["Filter".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
             template: None,
+            plural: None,
             body: "Type(Param(0))".into(),
         })
         .unwrap();
@@ -694,6 +705,7 @@ fn argument_source_survives_verbatim() {
             kinds: vec!["Filter".into()],
             params: Params::Positional(vec![ParamType::plain("String")]),
             template: None,
+            plural: None,
             body: "Named(Param(0))".into(),
         })
         .unwrap();
@@ -755,6 +767,7 @@ fn named_parameters_invoke_struct_shaped() {
                 .into(),
             ),
             template: None,
+            plural: None,
             body: r"CardFace(
                 name: Param(name),
                 mana_cost: [Generic(Param(cost))],
@@ -794,6 +807,7 @@ fn named_parameters_at_enum_positions() {
             kinds: vec!["Ability".into()],
             params: Params::Named([("cost".into(), ParamType::plain("String"))].into()),
             template: None,
+            plural: None,
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -865,6 +879,7 @@ fn params_resolve_as_enum_variant_contents() {
             kinds: vec!["CardFace".into()],
             params: Params::Positional(vec![ParamType::plain("String"), ParamType::plain("Any")]),
             template: None,
+            plural: None,
             body: r"CardFace(
                 name: Param(0),
                 mana_cost: [Hybrid(Generic(Param(1)), White), Green],
@@ -931,6 +946,7 @@ fn filter_macros_expand_under_quantity() {
             kinds: vec!["Filter".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "OneOf([Any, Type(Creature)])".into(),
         })
         .unwrap();
@@ -960,6 +976,7 @@ fn quantity_macros_expand_and_are_remembered() {
             kinds: vec!["Quantity".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "CountOf(Type(Creature))".into(),
         })
         .unwrap();
@@ -986,6 +1003,7 @@ fn newtype_variant_struct_content_in_a_body() {
             kinds: vec!["Filter".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Power(min: 2)".into(),
         })
         .unwrap();
@@ -1031,6 +1049,7 @@ fn param_holes_resolve_at_quantity_positions() {
             kinds: vec!["Effect".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
             template: None,
+            plural: None,
             body: "DealDamage(Target(0), Param(0))".into(),
         })
         .unwrap();
@@ -1078,6 +1097,7 @@ fn any_accepts_every_shape() {
             kinds: vec!["Filter".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
             template: None,
+            plural: None,
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -1109,6 +1129,7 @@ fn injected_param_types_validate() {
             kinds: vec!["Effect".into()],
             params: Params::Positional(vec![ParamType::plain("Number")]),
             template: None,
+            plural: None,
             body: "DrawCards(Param(0))".into(),
         })
         .unwrap();
@@ -1146,6 +1167,22 @@ fn macro_def_captures_template() {
 
     let without: MacroDef = def(r#"(name: "Bears", kinds: [Filter], body: Type(Creature))"#);
     assert_eq!(without.template(), None);
+}
+
+/// `plural:` metadata is captured in `MacroDef` when present, and `None`
+/// when absent — backward-compatible with every existing definition file,
+/// which carries no `plural:` field at all.
+#[test]
+fn plural_field_is_optional() {
+    let d = def(
+        r#"( name: "Merfolk", template: "Merfolk", plural: "Merfolk", kinds: [Subtype], body: Subtype(name: "Merfolk", types: []) )"#,
+    );
+    assert_eq!(d.plural(), Some("Merfolk"));
+
+    let d2 = def(
+        r#"( name: "Goblin", template: "goblin", kinds: [Subtype], body: Subtype(name: "Goblin", types: []) )"#,
+    );
+    assert_eq!(d2.plural(), None);
 }
 
 /// `synthesize_expanded` emits `template: Some("…")` when a template is given,
@@ -1514,6 +1551,7 @@ fn embed_host_ref_macro_routes_to_embedded_expanded() {
             kinds: vec!["EmbedRef".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Bare".into(),
         })
         .unwrap();
@@ -1537,6 +1575,7 @@ fn embed_host_own_macro_remembered_as_host_expanded() {
             kinds: vec!["EmbedHost".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Own(1)".into(),
         })
         .unwrap();
@@ -1586,6 +1625,7 @@ mod derived {
             kinds: vec!["Amount".into()],
             params: Params::Positional(vec![ParamType::plain("Any")]),
             template: None,
+            plural: None,
             body: "Twice(Param(0))".into(),
         })
         .unwrap();
@@ -1775,6 +1815,7 @@ mod derived {
             kinds: vec!["Who".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Me".into(),
         })
         .unwrap();
@@ -1935,6 +1976,7 @@ mod derived {
             kinds: vec!["Who".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Me".into(),
         })
         .unwrap();
@@ -1967,6 +2009,7 @@ mod derived {
             kinds: vec!["Who".into()],
             params: Params::default(),
             template: None,
+            plural: None,
             body: "Me".into(),
         })
         .unwrap();
