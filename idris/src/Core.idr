@@ -2353,6 +2353,14 @@ mutual
       -- counters (`Act (PutCounters c Allotment It)`); replaced the bespoke `DealDamageDivided`. (`amount`,
       -- not `total` — the latter is a reserved totality keyword.)
       Distribute : (amount : Count b) -> (among : Bindable b Many k) -> OneShotEffect (bindAllot (binderAnte among) b) -> OneShotEffect b
+      -- "[body], [count] times": count-driven repetition. Slots with the quantifier family
+      -- (`Each`/`Distribute`, which also leads with a `Count`) rather than the manner-adverb
+      -- family (`Simultaneously`/`Continuously`), since it's a `Count` over ONE body, not a
+      -- manner over a list. `body` elaborates in the SAME ctx `b` each iteration — no
+      -- iteration-index binder; Storm/Replicate per-iteration semantics are engine-side
+      -- (Storm rides `engine-copy-spells`). `Repeat (^2) (Act (Composite Proliferate …))` =
+      -- proliferate twice.
+      Repeat : (count : Count b) -> OneShotEffect b -> OneShotEffect b
       -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
       -- `That`/targets stay in scope; no event-scanning sibling. Rust: OneShotEffect::Reflexive.
       Reflexive : OneShotEffect b -> OneShotEffect b

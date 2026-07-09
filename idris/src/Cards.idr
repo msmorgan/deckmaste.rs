@@ -1305,4 +1305,8 @@ vlxAdjacent = And [HasChar Types Creature, Adjacent Above This]
 vlxTopGrave : Condition b    -- Volrath's Shapeshifter: top card of your graveyard is a creature
 vlxTopGrave = Matches (Single (TopOfGraveyard (^1) You)) (And [IsKind Card, HasChar Types Creature])
 
+-- value-language-extensions Task 5 probe
+vlxRepeat : OneShotEffect b
+vlxRepeat = Repeat (^2) (Act (Draw (^1)))
+
 --:vim:sts=2 sw=2:
