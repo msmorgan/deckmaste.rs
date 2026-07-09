@@ -83,11 +83,21 @@ pub(super) fn fill_with(
                     // (already-unescaped) `literal` `slot`-many times — the render
                     // twin of `pattern::Segment::Repeat`. `n == 0` emits nothing;
                     // a missing or non-numeric count declines to the structural
-                    // fallback.
+                    // fallback. Past five glyphs the energy convention ([CR#107.14]
+                    // — the printed `{E}` count) spells the number and prints a
+                    // single glyph ("six {E}", "fifty {E}"), so a large count reads
+                    // rather than sprawling; `fidelity::normalize` folds either form
+                    // to a run, so the diff is clean either way.
                     let raw = lookup_arg(args, key.trim())?;
                     let n: usize = raw.trim().parse().ok()?;
-                    for _ in 0..n {
+                    if n > 5 {
+                        out.push_str(&crate::energy::spell_number(n));
+                        out.push(' ');
                         out.push_str(literal);
+                    } else {
+                        for _ in 0..n {
+                            out.push_str(literal);
+                        }
                     }
                 } else {
                     let (key, modifier) = split_modifier(content.trim());
@@ -535,6 +545,33 @@ mod tests {
             &ExpansionArgs::Positional(vec!["0".into()]),
         );
         assert_eq!(zero.as_deref(), Some("Pay "));
+    }
+
+    /// Past five, the repeat construct spells the count and prints a single
+    /// literal ("six {E}", "fifty {E}") — the printed-energy convention —
+    /// rather than a sprawling glyph run; five and below stay as a run.
+    #[test]
+    fn repeat_construct_spells_counts_past_five() {
+        let five = fill(
+            "Pay ${0*\\{E\\}}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["5".into()]),
+        );
+        assert_eq!(five.as_deref(), Some("Pay {E}{E}{E}{E}{E}"));
+
+        let six = fill(
+            "Pay ${0*\\{E\\}}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["6".into()]),
+        );
+        assert_eq!(six.as_deref(), Some("Pay six {E}"));
+
+        let fifty = fill(
+            "Pay ${0*\\{E\\}}",
+            "ignored",
+            &ExpansionArgs::Positional(vec!["50".into()]),
+        );
+        assert_eq!(fifty.as_deref(), Some("Pay fifty {E}"));
     }
 
     /// A non-numeric repeat count declines to the structural fallback rather

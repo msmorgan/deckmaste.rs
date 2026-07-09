@@ -360,6 +360,10 @@ fn normalize(line: &str, name: &str) -> String {
         s = s.replace(this, "~");
         s = s.replace(&capitalize(this), "~");
     }
+    // Fold spelled-number energy ("six {E}") to a `{E}` run on BOTH sides so a
+    // count past five diffs clean regardless of which side spells it (the
+    // render threshold spells it, the oracle spells it — this makes them meet).
+    s = crate::energy::normalize_spelled_energy(&s);
     collapse_spaces(s.trim())
 }
 

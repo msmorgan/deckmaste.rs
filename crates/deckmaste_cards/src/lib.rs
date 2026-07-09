@@ -1,6 +1,7 @@
 //! Reading card data from plugin directories.
 
 pub mod deck;
+pub mod energy;
 pub mod fidelity;
 pub mod idris_emit;
 pub mod macros;
