@@ -276,6 +276,36 @@ fn player_verb_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
     Some((n.to_string(), token.len()))
 }
 
+/// The bounded `Count` slot reader for delimiter-separated templates like
+/// `"gets +${0}/+${1}"` ([`PowerAndToughnessUp`](crate) et al.): unlike
+/// [`player_verb_slot_reader`] (bounds on whitespace, for slots at a clause's
+/// tail), this bounds on the first non-digit — `/`, `+`, `-`, whitespace, or
+/// end — so a slot ahead of a `/` separator stops there instead of eating the
+/// rest of the line.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "wired into the static-ability parser's Modification fold in a later task; exercised directly by this module's tests until then"
+    )
+)]
+fn count_delim_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
+    if ty != "Count" {
+        return None;
+    }
+    // Consume the leading run of ASCII digits (Count::Literal); stop at '/',
+    // '+', '-', whitespace, or end.
+    let end = input
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(input.len());
+    if end == 0 {
+        return None;
+    }
+    let token = &input[..end];
+    let n = number_word(token)?; // validates + normalizes
+    Some((n.to_string(), end))
+}
+
 /// `<base>. If <condition>, [instead] <override> [instead].` -> a within-effect
 /// conditional: `If(condition: <cond>, then: <override>, otherwise: <base>)`.
 /// This is later text modifying earlier text in one resolving effect
@@ -1458,6 +1488,38 @@ mod tests {
             parsed_with_macros("Target player mills half their library, rounded down.").is_none()
         );
         assert!(parsed_with_macros("Each player discards a card at random.").is_none());
+    }
+
+    /// The bounded `Count` slot reader for `"gets +${0}/+${1}"`-shaped
+    /// templates: unlike [`player_verb_slot_reader`] (bounds on whitespace),
+    /// this one bounds on the first non-digit so slot 0 stops at the `/`
+    /// separator rather than swallowing the whole `"2/+2"` tail.
+    #[test]
+    fn count_reader_bounds_at_slash() {
+        assert_eq!(
+            count_delim_slot_reader("Count", "2/+2"),
+            Some(("2".to_string(), 1))
+        );
+        assert_eq!(
+            count_delim_slot_reader("Count", "2"),
+            Some(("2".to_string(), 1))
+        );
+        assert_eq!(count_delim_slot_reader("Reference", "2/+2"), None); // wrong type declines
+    }
+
+    /// End-to-end fold: `"gets +2/+2"` against the real `Modification`
+    /// templates, reading both `Count` slots via the bounded reader — proves
+    /// slot 0 stops at `/` instead of consuming past it.
+    #[test]
+    fn modification_pump_folds_via_bounded_reader() {
+        let ctx = crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent);
+        let m = ctx
+            .index
+            .match_with("Modification", "gets +2/+2", count_delim_slot_reader)
+            .unwrap()
+            .expect("folds");
+        assert_eq!(m.invocation, "PowerAndToughnessUp(2, 2)");
+        assert_eq!(m.consumed, "gets +2/+2".len());
     }
 
     /// The emitted invocations READ back through the builtin macros: the
