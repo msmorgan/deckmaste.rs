@@ -466,8 +466,8 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
         .or_else(|| find_macro_noun(filter));
     if let Some(base) = base_noun {
         // A negated-subtype/-card-type exclusion rides the noun as a prefix
-        // ([CR#205.3] — "non-Brushwagg creature"; a card-type exclusion
-        // elides the hyphen, "nonland permanent"), ahead of any controller
+        // ([CR#205.2,205.3] — subtype "non-Brushwagg creature"; a card-type
+        // exclusion elides the hyphen, "nonland permanent"), ahead of any controller
         // suffix.
         let base = match subtype_exclusion_prefix(filter).or_else(|| type_exclusion_prefix(filter))
         {
@@ -553,7 +553,7 @@ fn subtype_exclusion_prefix(filter: &Predicate) -> Option<String> {
     None
 }
 
-/// A negated CARD-TYPE exclusion among a filter's `AllOf` parts ([CR#205.3]):
+/// A negated CARD-TYPE exclusion among a filter's `AllOf` parts ([CR#205.2]):
 /// `Not(Type(Land))` -> "nonland", prefixed onto the base noun ("nonland
 /// permanent", Avarice Totem). Unlike [`subtype_exclusion_prefix`]'s
 /// hyphenated "non-Brushwagg", a card-type exclusion elides the hyphen —

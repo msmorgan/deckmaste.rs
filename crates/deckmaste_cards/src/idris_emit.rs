@@ -2605,8 +2605,8 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         // [CR#705.1,705.2]: `won` is the "won/lost the flip" cap Idris's own
         // `FlipCoin : Maybe Bool -> EventKind` carries on the KIND itself
         // (like `ZoneChanged`'s zones) — the wildcarded `Nothing` = any
-        // flip, `Just True`/`Just False` = won/lost (vlxCoinTrig's own
-        // probe: `MkEventQuery [FlipCoin (Just True)] [Actor you]`).
+        // flip, `Just True`/`Just False` = won/lost (Chance Encounter's
+        // trigger: `MkEventQuery [FlipCoin (Just True)] [Actor you]`).
         EventFilter::CoinFlipped { by, won } => (
             vec![format!("(FlipCoin {})", opt_bool(*won))],
             actor_facet(by)?,
@@ -2614,7 +2614,7 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         EventFilter::DiceRolled { by } => (vec!["RollDice".to_string()], actor_facet(by)?),
         // [CR#106.12,106.12a]: the ONE event kind whose `producesMana` cap
         // is `True` — the tapped land is the Agent, its controller the
-        // Actor (vlxVorinclex's own probe: `MkEventQuery [TapForMana]
+        // Actor (Dictate of Karametra's trigger: `MkEventQuery [TapForMana]
         // [Actor you, Agent (hasType Land)]`).
         EventFilter::TapForMana { what, by } => {
             let mut facets = actor_facet(by)?;

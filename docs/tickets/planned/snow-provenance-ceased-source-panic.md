@@ -1,9 +1,10 @@
 ---
 needs: []
 ---
-Fix a latent never-crash violation in `snow_provenance` (`crates/deckmaste_engine/src/resolve.rs`):
-it calls `self.objects.obj(frame.source)` unconditionally, which panics if `frame.source` names an
-object that has ceased to exist (a token that left the game, or an LKI-only snapshot id).
+Fix a latent never-crash violation in `snow_provenance` (`crates/deckmaste_engine/src/decide.rs:1765`,
+reached from `resolve.rs:2073`): it calls `self.objects.obj(frame.source)` unconditionally, which
+panics if `frame.source` names an object that has ceased to exist (a token that left the game, or an
+LKI-only snapshot id).
 
 ## Why
 

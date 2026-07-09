@@ -16,8 +16,9 @@ NOT in that list, so constructors declared there are invisible to the guarantee:
 
 Concretely, these already-landed constructors are currently dead-and-invisible:
 - `filter.rs`: `Predicate::WasPutFrom(Zone)` (emit-wired + unit-tested, but no fixture, engine fizzles).
-- `mana.rs`: `ManaSpec::AmongColorsOf` / `ProducedByEvent`, `enum PlanarFace` (no fixture; Chrome Mox
-  and the plane subsystem are blocked).
+- `mana.rs`: `ManaSpec::AmongColorsOf` and `enum PlanarFace`'s faces (no fixture; Chrome Mox and the
+  plane subsystem are blocked). Note `ManaSpec::ProducedByEvent` is now covered by the Dictate of
+  Karametra fixture, so it will NOT need an allowlist entry once the sweep extends.
 
 ## Scope
 
