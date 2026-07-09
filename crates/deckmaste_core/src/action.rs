@@ -333,6 +333,10 @@ pub enum PlayerAction {
     /// Roll that many dice with the given number of sides ([CR#706.1]);
     /// an IGNORED roll is considered to have never happened ([CR#706.6]).
     RollDice(Count, crate::Uint),
+    /// Roll the (Planechase) planar die as a special action ([CR#901.9]).
+    /// NO numeric result ([CR#901.9d]) — unlike `RollDice`/`FlipCoins` this
+    /// introduces nothing for a later `ThatMany` read.
+    RollPlanarDie,
     /// Put counters of the named kind on the referenced object/player
     /// ([CR#122.1] — counters go on objects AND players). The kind is a bare
     /// `CounterRef` (`PutCounters(~, P1P1Counter, 2)`), not a string.

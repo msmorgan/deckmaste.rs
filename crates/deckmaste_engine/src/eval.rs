@@ -848,6 +848,18 @@ impl GameState {
                 fact.kind == FactKind::DiceRolled && self.actor_matches(by, fact.actor, bindings)
             }
 
+            // [CR#106.12]: no engine fact for "a land was tapped for mana"
+            // exists yet — `PlayerAction::AddMana`'s resolution never
+            // records WHICH permanent produced the mana (a P0.W3-adjacent
+            // seam, alongside the coin-flip/dice-roll apply seam below).
+            // [CR#901.9]: nor does the Planechase planar die have one
+            // (Plane cards — a different game-object type — aren't modeled
+            // by this engine at all). Both never match: a documented
+            // absent-subsystem fizzle, not a soundness claim — mirrors
+            // `CoinFlipped:won`'s own unrepresentable-cap treatment just
+            // above.
+            EventFilter::TapForMana { .. } | EventFilter::RollPlanarDie { .. } => false,
+
             // [CR#731.1a]: the day/night designation transitions.
             EventFilter::BecameDay => {
                 fact.kind == FactKind::DesignationChanged

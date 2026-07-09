@@ -279,16 +279,31 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("PlayerAction", "FlipCoins"),
-            "DEFERRED: no coin-flip real card in this batch.",
+            "DEFERRED: every real coin-flip card that PERFORMS a flip \
+            branches on its own win/lose result ('If you win the flip, ...', Boompile/Mana \
+            Screw/Chaotic Goo/Karplusan Minotaur) — that branch needs a Condition reading the \
+            just-emitted flip's outcome, which is DELIBERATELY unrepresentable at the engine eval \
+            layer (eval.rs's own EventFilter::CoinFlipped arm: 'won is call-relative, the record \
+            carries only the physical outcome ... a narrowed pattern matches nothing', a \
+            documented pre-existing limit, not something this task introduces). Chance Encounter/ \
+            Tavern Scoundrel-style 'whenever you WIN a coin flip' TRIGGER cards don't need this \
+            action at all (the flip happens off-card) — see EventFilter::CoinFlipped's own fixture \
+            (Chance Encounter) for that half.",
         ),
         (
             n("PlayerAction", "RollDice"),
-            "DEFERRED: no dice-rolling real card in this batch.",
+            "DEFERRED: every real 'roll a d20' card in the corpus pairs the \
+            roll with either a 3-way modal range-table (Loathsome Troll, Cone of Cold, Contact \
+            Other Plane, Myrkul's Edict, Recruitment Drive, Thunderwave, Herald of Hadar) or a \
+            'roll and add N' modifier (Diviner's Portent, Song of Inspiration, Wyll's Reversal) — \
+            both unbuilt (branch-by-numeric-range, and a roll-then-add primitive); none is a bare \
+            unmodified roll. Buildable once either lands.",
         ),
         (
-            n("PlayerAction", "WinGame"),
-            "DEFERRED: no 'you win the game' real card (e.g. Test of \
-            Endurance) in this batch.",
+            n("PlayerAction", "RollPlanarDie"),
+            "BLOCKED: see EventFilter::RollPlanarDie — no Plane-card \
+            support exists to wire this action to either; a documented absent-subsystem no-op in \
+            resolve.rs, never a panic.",
         ),
         (
             n("PlayerAction", "LoseGame"),
@@ -573,12 +588,16 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "DEFERRED: see EventFilter::LifeGained.",
         ),
         (
-            n("EventFilter", "CoinFlipped"),
+            n("EventFilter", "DiceRolled"),
             "DEFERRED: see EventFilter::LifeGained.",
         ),
         (
-            n("EventFilter", "DiceRolled"),
-            "DEFERRED: see EventFilter::LifeGained.",
+            n("EventFilter", "RollPlanarDie"),
+            "BLOCKED: the (Planechase) planar die's whole surrounding \
+            subsystem — Plane cards, a different game-object type, and the chaos/planeswalking \
+            abilities a roll triggers — isn't modeled by this engine at all; no real permanent/\
+            spell card rolls the planar die (only Plane cards do, out of scope). Never matches at \
+            runtime (see eval.rs's documented fizzle), matching PlayerAction::RollPlanarDie below.",
         ),
         (
             n("EventFilter", "BecameDay"),

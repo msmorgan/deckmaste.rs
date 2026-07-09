@@ -2073,6 +2073,13 @@ impl GameState {
                 todo!("engine seam: venture into the dungeon ([CR#701.49a]) — dungeons unbuilt")
             }
             PlayerAction::RollDice(..) => todo!("P0.W3: die rolls (emit DieRolled)"),
+            // [CR#901.9]: the Planechase planar die is a special action
+            // whose whole surrounding subsystem (Plane cards, the chaos/
+            // planeswalking abilities it triggers) this engine doesn't
+            // model at all — a documented absent-subsystem no-op, never a
+            // panic (no real card in this corpus needs it; no Plane-card
+            // support exists to wire it TO even if a card did).
+            PlayerAction::RollPlanarDie => vec![],
             // [CR#122.1]: place/remove `n` counters of `kind` on each selected
             // object or player proxy. `n == 0` (or an empty selection) is a
             // no-op, so no event fires — a "counter is put on" trigger never
@@ -2179,6 +2186,49 @@ impl GameState {
                         amount,
                         riders,
                     }],
+                    // [CR#105.2]: Chrome Mox's imprint — the producer picks
+                    // AMONG the referenced object's own colors, resolved
+                    // fresh at activation (a live derived-characteristics
+                    // read via `self.layers()`, not a remembered snapshot).
+                    // WIRED: reusing the SAME `ChooseManaColor` choice
+                    // machinery `AnyColor`/`OneOf` already surface, once the
+                    // referenced object's colors are known.
+                    ManaSpec::AmongColorsOf(r) => {
+                        let id = self.eval_reference(r, frame);
+                        let view = self.layers();
+                        let options: Vec<ColorOrColorless> = view
+                            .get(id)
+                            .colors
+                            .iter()
+                            .map(|&c| ColorOrColorless::Color(c))
+                            .collect();
+                        // A colorless (or unresolvable/gone) referenced
+                        // object has no colors to choose among — never a
+                        // panic, never a fabricated fallback color: no
+                        // production at all ([CR#105.2] presupposes ≥1
+                        // color; an authoring/zone-changed mismatch fizzles
+                        // like any other stale reference).
+                        if options.is_empty() {
+                            vec![]
+                        } else {
+                            vec![WorkItem::ChooseManaColor {
+                                player: actor,
+                                options,
+                                amount,
+                                riders,
+                            }]
+                        }
+                    }
+                    // [CR#106.12a]: sound only inside a `TapForMana`-
+                    // triggered body ("of any type that land produced",
+                    // Dictate of Karametra/Vorinclex) — the SAME
+                    // absent-subsystem gap `EventFilter::TapForMana`
+                    // documents in `eval.rs` (no engine fact records which
+                    // permanent produced what). A documented no-op: adding
+                    // zero mana is never-crash-safe and doesn't fabricate a
+                    // plausible-but-wrong color the way falling back to
+                    // colorless would.
+                    ManaSpec::ProducedByEvent => vec![],
                 }
             }
             PlayerAction::Discard {

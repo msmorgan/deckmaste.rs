@@ -1113,7 +1113,7 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
             CostComponent::Do(pa) => {
                 flush_symbol_run(&mut symbol_run, &mut parts);
                 let phrase = trim_period(&player_action(pa, ctx));
-                // CR#602.1's printed convention capitalizes each verb-cost
+                // [CR#602.1]'s printed convention capitalizes each verb-cost
                 // segment ("{T}, Sacrifice a Goblin: ..."), unlike a body
                 // verb clause joined mid-sentence.
                 parts.push(capitalize_first(&phrase));
@@ -1192,6 +1192,19 @@ fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
         } => Some(format!("discards {}", counted_cards(count))),
         PlayerAction::LoseLife(c) => Some(format!("loses {} life", fragment::count(c))),
         PlayerAction::GainLife(c) => Some(format!("gains {} life", fragment::count(c))),
+        // Dictate of Karametra's "that land's controller adds one mana of
+        // any type that land produced" — reuse `add_mana_text`'s clause,
+        // stripped of its imperative "Add "/trailing period. A shape
+        // `add_mana_text` itself declines (`[unrendered: …]`) has no
+        // "Add "/"." to strip, so this falls through to `None` (the caller's
+        // imperative fallback) rather than fabricating a phrase.
+        PlayerAction::AddMana(count, production) => {
+            let imperative = add_mana_text(count, production);
+            imperative
+                .strip_prefix("Add ")
+                .and_then(|s| s.strip_suffix('.'))
+                .map(|s| format!("adds {s}"))
+        }
         _ => None,
     }
 }
@@ -1279,6 +1292,19 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::RemoveDamage(r) => {
             format!("Remove all damage from {}.", fragment::reference(r, ctx))
         }
+        // [CR#122.1]: "Put a luck counter on this enchantment." — reuses the
+        // same `counter_phrase` the `Distribute`/keyword-counter renderers
+        // already share.
+        PlayerAction::PutCounters(r, kind, count) => format!(
+            "Put {} on {}.",
+            counter_phrase(kind, count),
+            fragment::reference(r, ctx),
+        ),
+        // [CR#104.2b]: "You win the game." — immediate on resolution; the
+        // `CantWin` suppression is engine-side, not part of the sentence.
+        PlayerAction::WinGame => "You win the game.".to_string(),
+        // [CR#104.3e]: the loss twin of `WinGame`.
+        PlayerAction::LoseGame => "You lose the game.".to_string(),
         other => format!("[unrendered: {other:?}]."),
     }
 }
@@ -1337,6 +1363,22 @@ fn add_mana_text(count: &Count, production: &deckmaste_core::ManaProduction) -> 
                 [rest @ .., last] => format!("{}, or {last}", rest.join(", ")),
             };
             format!("Add {list}.")
+        }
+        // [CR#106.12a]: "add one mana of any type that land produced"
+        // (Dictate of Karametra, Vorinclex) — only the sound amount=1 shape
+        // is rendered; the corpus has no multi-copy `ProducedByEvent` card
+        // yet, so a larger count declines structurally rather than guessing
+        // plural wording.
+        ManaSpec::ProducedByEvent if n == 1 => {
+            "Add one mana of any type that land produced.".to_string()
+        }
+        // `AmongColorsOf` needs the referenced object's own phrase (Chrome
+        // Mox's "the exiled card", Katilda's "this creature") — no fixture
+        // in this corpus exercises it yet (both real candidates hit an
+        // unbuilt gap, see the ticket's completion notes), so it declines
+        // structurally rather than guessing a phrase.
+        ManaSpec::AmongColorsOf(_) | ManaSpec::ProducedByEvent => {
+            format!("[unrendered: AddMana({count:?}, {production:?})].")
         }
     }
 }

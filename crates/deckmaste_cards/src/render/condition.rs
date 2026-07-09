@@ -1,7 +1,9 @@
 //! Rendering for `Condition` predicates — the intervening-if / "only if"
 //! clauses around triggered and activated abilities ([CR#603.4,602.5b]).
 
+use deckmaste_core::Cmp;
 use deckmaste_core::Condition;
+use deckmaste_core::Count;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
@@ -13,13 +15,10 @@ use super::fragment::strip_expanded;
 /// after "if" / "only if": "it's your turn", "it's an opponent's turn".
 /// Unhandled conditions yield an `[unrendered: …]` marker, never a panic.
 ///
-/// `ctx` is threaded for the reference-bearing conditions (`Is`/`Exists` over a
-/// `Target(i)`/`This`) that will render here next; the timing arms below don't
-/// read it yet.
-#[expect(
-    clippy::only_used_in_recursion,
-    reason = "ctx anchors the Target/This references reference-bearing conditions will render"
-)]
+/// `ctx` anchors the reference-bearing conditions (`Compare(CounterCount(r,
+/// …), …)`'s `r`, "this enchantment has …") — the caller threads a
+/// self-type-noun subject through it for a triggered ability's
+/// intervening-if ([CR#603.4], see `ability.rs::self_type_phrase`).
 pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
     match c {
         // Look through a macro-provenance wrapper.
@@ -27,6 +26,18 @@ pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
         // `YourTurn` is sugar for `TurnOf(Ref(You))`; both render the same.
         Condition::YourTurn => "it's your turn".to_string(),
         Condition::TurnOf(filter) => format!("it's {}", turn_owner(filter)),
+        // [CR#122.1,603.4]: "this enchantment has ten or more luck counters
+        // on it" (Chance Encounter) — only the counter-count `AtLeast`
+        // shape is recognized; any other `Compare` operand/comparator falls
+        // through to the generic marker.
+        Condition::Compare(Count::CounterCount(r, kind), Cmp::AtLeast, Count::Literal(n)) => {
+            format!(
+                "{} has {} or more {} counters on it",
+                super::fragment::reference(r, ctx),
+                super::fragment::number_word(*n).map_or_else(|| n.to_string(), str::to_string),
+                super::fragment::counter_noun(kind.as_str()),
+            )
+        }
         other => format!("[unrendered: {other:?}]"),
     }
 }

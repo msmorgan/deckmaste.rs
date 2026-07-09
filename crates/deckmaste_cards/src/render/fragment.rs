@@ -224,7 +224,7 @@ pub(super) fn count(c: &Count) -> String {
 /// A counter kind's English noun: the ident minus its `Counter` suffix,
 /// lowercased — `Experience` → "experience", `LoreCounter` → "lore",
 /// `AgeCounter` → "age".
-fn counter_noun(ident: &str) -> String {
+pub(super) fn counter_noun(ident: &str) -> String {
     ident.trim_end_matches("Counter").to_lowercase()
 }
 

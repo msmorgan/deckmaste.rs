@@ -7,8 +7,25 @@ use serde::Serialize;
 use crate::Color;
 use crate::Expand;
 use crate::Expansion;
+use crate::Reference;
 use crate::SupportsMacros;
 use crate::color::ColorOrColorless;
+
+/// The (Planechase) planar die's face ([CR#901.3a] — one Planeswalker
+/// symbol, one chaos symbol, four blanks, collapsed here to one `Blank` — a
+/// no-op roll, [CR#901.9a]). `Chaos` triggers the chaos ability
+/// ([CR#901.9b,311.7]), `Planeswalker` the planeswalking ability
+/// ([CR#901.8,901.9c]). Placed here (a small companion enum) rather than in
+/// `event.rs`, mirroring `ColorOrColorless`/`SimpleManaSymbol`'s home; unlike
+/// those, `PlanarFace` isn't itself a mana concept — it rides
+/// [`EventFilter::RollPlanarDie`](crate::EventFilter::RollPlanarDie), whose
+/// own home is `event.rs`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PlanarFace {
+    Blank,
+    Chaos,
+    Planeswalker,
+}
 
 /// Produced-mana spec ([CR#106]): what colors or types a mana-adding effect
 /// may produce. Variants accrete — `AnyType`, riders later.
@@ -35,6 +52,26 @@ pub enum ManaSpec {
     /// general multi-mana form of `OneOf` (whose "runs" are each one mana);
     /// still a single mana ability, not a [CR#700.2] modal choice.
     OneOfRuns(Vec<Vec<ColorOrColorless>>),
+    /// One mana of any of a referenced object's colors ([CR#105.2]) — the
+    /// producer picks AMONG that object's colors, not a fixed authored set
+    /// (distinct from [`OneOf`](ManaSpec::OneOf)): Chrome Mox's imprint,
+    /// "add one mana of any of the exiled card's colors". Mirrors the Idris
+    /// `ProducedMana.AmongColorsOf`.
+    AmongColorsOf(Reference),
+    /// The type the ambient mana-producing event actually produced
+    /// ([CR#106.1b,106.12a]) — Dictate of Karametra/Vorinclex's "add one
+    /// mana of any type that land produced". Idris gates this behind
+    /// `producesMana (eventCaps b) = True` (sound only inside a
+    /// [`TapForMana`](crate::EventFilter::TapForMana)-triggered body, the
+    /// `EventObject`/`EventAmount` pattern) via an ERASED auto-proof; Rust
+    /// has no dependent types to carry that obligation, so this mirrors as
+    /// a plain nullary variant — an authoring mistake that reaches for it
+    /// outside a `TapForMana` body simply fails `idris-check` (the
+    /// soundness gate), and the engine fizzles gracefully if ever evaluated
+    /// without a live `TapForMana` context (see
+    /// `deckmaste_engine::resolve`). Mirrors the Idris
+    /// `ProducedMana.ProducedByEvent`.
+    ProducedByEvent,
     #[serde(untagged)]
     Specific(ColorOrColorless),
 }

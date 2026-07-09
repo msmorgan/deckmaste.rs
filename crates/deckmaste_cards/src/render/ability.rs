@@ -44,13 +44,31 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     // print "this card" instead (Flashback's "you may cast this card from
     // your graveyard" convention; Death Spark's "return this card to your
     // hand"), since the source has no permanent identity to be "it".
+    // Some triggering events introduce no object antecedent at all (only an
+    // actor and/or amount, e.g. `CoinFlipped`/`DiceRolled`/`RollPlanarDie`/
+    // `StepBegins` — mirroring Idris `EventCaps.hasObject = False`): there
+    // is no "it" for the body to point back to, so it must name itself
+    // ("this enchantment", Chance Encounter's "put a luck counter on this
+    // enchantment") the way [CR#603.4]-family bodies conventionally do when
+    // the trigger itself supplies no distinguished object. Every other
+    // event (`ZoneChange`/`StateBecame`/…) already established `This` reads
+    // as the plain anaphor "it" for real cards, so only the object-less
+    // events change here — no regression to the existing convention.
     let body_subject = if matches!(t.from, Some(z) if z != Zone::Battlefield) {
-        "this card"
+        "this card".to_string()
+    } else if matches!(
+        t.event,
+        EventFilter::CoinFlipped { .. }
+            | EventFilter::DiceRolled { .. }
+            | EventFilter::RollPlanarDie { .. }
+            | EventFilter::TapForMana { .. }
+    ) {
+        self_type_phrase(view)
     } else {
-        "it"
+        "it".to_string()
     };
     let body_ctx = Ctx {
-        subject: body_subject,
+        subject: &body_subject,
         targets: &[],
         that: None,
     };
@@ -70,13 +88,35 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         return format!("{lead} {clause}, if {cond_clause}, {body}");
     }
 
-    // Intervening-if ([CR#603.4]): "…, if <cond>, <effect>."
+    // Intervening-if ([CR#603.4]): "…, if <cond>, <effect>." The condition
+    // clause conventionally names itself by TYPE ("if this enchantment has
+    // ten or more luck counters on it", Chance Encounter) rather than the
+    // bare "it" `body_ctx` uses for the effect — the condition is checked
+    // independently of whatever antecedent the trigger established, so a
+    // stable self-reference is the printed convention.
     let cond = match &t.condition {
-        Some(c) => format!("if {}, ", super::condition::condition(c, &body_ctx)),
+        Some(c) => {
+            let cond_ctx = Ctx {
+                subject: &self_type_phrase(view),
+                targets: &[],
+                that: None,
+            };
+            format!("if {}, ", super::condition::condition(c, &cond_ctx))
+        }
         None => String::new(),
     };
     let trig = format!("{lead} {clause}, {cond}{body}");
     from_zone_qualified(t.from, view.name, trig)
+}
+
+/// "this enchantment" / "this creature" / … — a card's own type-noun
+/// self-reference, first printed type. Falls back to the plain anaphor
+/// "it" for a (structurally impossible, but never-crash) typeless card.
+fn self_type_phrase(view: &CardView) -> String {
+    view.types.first().map_or_else(
+        || "it".to_string(),
+        |t| format!("this {}", super::card::type_str(*t).to_lowercase()),
+    )
 }
 
 /// Death Spark's "if this card is in your graveyard with a creature card
@@ -233,7 +273,40 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
             ),
             None => ("When", format!("[unrendered: {e:?}]")),
         },
+        // [CR#106.12]: "Whenever a player taps a land for mana," (Dictate of
+        // Karametra) / "Whenever you tap a land for mana," (Vorinclex) — the
+        // `what` (which land) coordinate is left unrendered-generic (no real
+        // card in this corpus narrows it; the event kind is already
+        // land-scoped, so `what` almost never needs to narrow further).
+        EventFilter::TapForMana {
+            what: Predicate::Any,
+            by,
+        } => (
+            "Whenever",
+            format!("{} taps a land for mana", tap_for_mana_subject(by)),
+        ),
+        // [CR#705.1,705.2]: "Whenever you win a coin flip," (Chance
+        // Encounter, Tavern Scoundrel). Only the `by: You, won: true` shape
+        // is recognized — the only one a real card in this corpus needs;
+        // any other narrowing (an opponent's flip, a loss) falls through to
+        // the generic marker.
+        EventFilter::CoinFlipped {
+            by: Predicate::Ref(Reference::You),
+            won: Some(true),
+        } => ("Whenever", "you win a coin flip".to_string()),
         other => ("When", format!("[unrendered: {other:?}]")),
+    }
+}
+
+/// The subject phrase for a [`EventFilter::TapForMana`]'s `by` coordinate:
+/// "a player" for the unrestricted (any-player) form, "you" for the
+/// self-only form. Any other narrowing falls back to the structural marker
+/// — no real card in this corpus needs one yet.
+fn tap_for_mana_subject(by: &Predicate) -> String {
+    match super::fragment::strip_expanded(by) {
+        Predicate::Any => "a player".to_string(),
+        Predicate::Ref(Reference::You) => "you".to_string(),
+        other => format!("[unrendered: {other:?}]"),
     }
 }
 

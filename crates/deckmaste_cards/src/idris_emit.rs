@@ -1690,13 +1690,34 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             "Conclude",
             vec![app("LoseGame", vec![emit_reference(actor)?])],
         )),
+        // [CR#705.1,706.1,901.9]: Idris's `RollDice`/`FlipCoins`/
+        // `RollPlanarDie` carry NO actor slot at all (unlike
+        // `Draw`/`GainLife`/…'s `{default You actor}`) — a non-`You` agent
+        // is a gap, matching the `Tap`/`Untap`/`PutCounters`/`Create` family
+        // above.
+        PlayerAction::FlipCoins(count) => {
+            if !matches!(actor, Reference::You) {
+                return Err(gap("FlipCoins has no Idris actor slot"));
+            }
+            Ok(app("FlipCoins", vec![emit_count(count)?]))
+        }
+        PlayerAction::RollDice(count, sides) => {
+            if !matches!(actor, Reference::You) {
+                return Err(gap("RollDice has no Idris actor slot"));
+            }
+            Ok(app("RollDice", vec![emit_count(count)?, sides.to_string()]))
+        }
+        PlayerAction::RollPlanarDie => {
+            if !matches!(actor, Reference::You) {
+                return Err(gap("RollPlanarDie has no Idris actor slot"));
+            }
+            Ok("RollPlanarDie".to_string())
+        }
         PlayerAction::VentureIntoDungeon
         | PlayerAction::GetEmblem(_)
         | PlayerAction::GetDesignation(_)
         | PlayerAction::ChooseAndNote(..)
         | PlayerAction::CopySpell(_)
-        | PlayerAction::FlipCoins(_)
-        | PlayerAction::RollDice(..)
         | PlayerAction::RestartGame => Err(gap(format!(
             "{pa:?} not yet mapped (no Idris counterpart or not implemented)"
         ))),
@@ -1751,6 +1772,8 @@ fn emit_mana_spec(spec: &ManaSpec) -> R {
             )],
         ),
         ManaSpec::Specific(c) => app("OfColor", vec![emit_color_or_colorless(*c)]),
+        ManaSpec::AmongColorsOf(r) => app("AmongColorsOf", vec![emit_reference(r)?]),
+        ManaSpec::ProducedByEvent => "ProducedByEvent".to_string(),
     })
 }
 
@@ -2554,16 +2577,33 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         EventFilter::Used { .. } => {
             return Err(gap("EventFilter::Used has no Idris EventKind counterpart"));
         }
-        EventFilter::CoinFlipped { .. } => {
-            return Err(gap(
-                "EventFilter::CoinFlipped has no Idris EventKind counterpart",
-            ));
+        // [CR#705.1,705.2]: `won` is the "won/lost the flip" cap Idris's own
+        // `FlipCoin : Maybe Bool -> EventKind` carries on the KIND itself
+        // (like `ZoneChanged`'s zones) — the wildcarded `Nothing` = any
+        // flip, `Just True`/`Just False` = won/lost (vlxCoinTrig's own
+        // probe: `MkEventQuery [FlipCoin (Just True)] [Actor you]`).
+        EventFilter::CoinFlipped { by, won } => (
+            vec![format!("(FlipCoin {})", opt_bool(*won))],
+            actor_facet(by)?,
+        ),
+        EventFilter::DiceRolled { by } => (vec!["RollDice".to_string()], actor_facet(by)?),
+        // [CR#106.12,106.12a]: the ONE event kind whose `producesMana` cap
+        // is `True` — the tapped land is the Agent, its controller the
+        // Actor (vlxVorinclex's own probe: `MkEventQuery [TapForMana]
+        // [Actor you, Agent (hasType Land)]`).
+        EventFilter::TapForMana { what, by } => {
+            let mut facets = actor_facet(by)?;
+            if !matches!(what, Predicate::Any) {
+                facets.push(app("Agent", vec![emit_filter(what)?]));
+            }
+            (vec!["TapForMana".to_string()], facets)
         }
-        EventFilter::DiceRolled { .. } => {
-            return Err(gap(
-                "EventFilter::DiceRolled has no Idris EventKind counterpart",
-            ));
-        }
+        // [CR#901.9,901.9d]: the fixed six-face planar die — `face`
+        // wildcards like `ZoneChanged`'s zones (`Nothing` = any face).
+        EventFilter::RollPlanarDie { by, face } => (
+            vec![format!("(RollPlanarDie {})", opt_planar_face(*face))],
+            actor_facet(by)?,
+        ),
         EventFilter::BecameDay | EventFilter::BecameNight => {
             return Err(gap("day/night events have no Idris EventKind counterpart"));
         }
@@ -2612,6 +2652,21 @@ fn opt_bool(b: Option<bool>) -> String {
         None => "Nothing".to_string(),
         Some(true) => "(Just True)".to_string(),
         Some(false) => "(Just False)".to_string(),
+    }
+}
+
+fn emit_planar_face(f: deckmaste_core::PlanarFace) -> &'static str {
+    match f {
+        deckmaste_core::PlanarFace::Blank => "Blank",
+        deckmaste_core::PlanarFace::Chaos => "Chaos",
+        deckmaste_core::PlanarFace::Planeswalker => "Planeswalker",
+    }
+}
+
+fn opt_planar_face(f: Option<deckmaste_core::PlanarFace>) -> String {
+    match f {
+        None => "Nothing".to_string(),
+        Some(f) => format!("(Just {})", emit_planar_face(f)),
     }
 }
 
@@ -2683,6 +2738,16 @@ fn merge_one_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
 
 fn emit_effect(e: &OneShotEffect) -> R {
     Ok(match e {
+        // [CR#104.2b,104.3e]: win/lose live in Rust as `PlayerAction::
+        // {WinGame,LoseGame}` (an `Action`, reached via `Act`), but Idris's
+        // `Conclude : Outcome b -> OneShotEffect b` is its OWN top-level
+        // `OneShotEffect` constructor, never wrapped in `Act` — the bridge
+        // `emit_player_action`'s own `WinGame`/`LoseGame` arms already build
+        // `(Conclude (WinGame/LoseGame actor))` whole; this arm must not
+        // re-wrap that in `Act`.
+        OneShotEffect::Act(a @ Action::By(_, PlayerAction::WinGame | PlayerAction::LoseGame)) => {
+            emit_action(a)?
+        }
         OneShotEffect::Act(a) => app("Act", vec![emit_action(a)?]),
         OneShotEffect::Sequentially(es) => app("Sequentially", vec![map_list(es, emit_effect)?]),
         // One pre-application snapshot, one batch ([CR#701.14a]) — a plain list

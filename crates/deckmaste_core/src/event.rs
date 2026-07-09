@@ -449,6 +449,35 @@ pub enum EventFilter {
         #[serde(default = "Predicate::any")]
         by: Predicate,
     },
+    /// A land was tapped for mana ([CR#106.12]) — the ONE event whose Idris
+    /// `EventCaps.producesMana` cap is `True` (it IS a mana ability
+    /// resolving), gating
+    /// [`ManaSpec::ProducedByEvent`](crate::ManaSpec::ProducedByEvent)
+    /// (Dictate of Karametra/Vorinclex's "add one mana of any type that land
+    /// produced", [CR#106.12a]). `what` narrows the tapped permanent
+    /// (almost always left `Any` in practice — the event kind itself is
+    /// already land-scoped); `by` narrows the tapper (its controller). Rust
+    /// has no compile-time gate mirroring Idris's `producesMana` auto-proof
+    /// (the soundness check is re-emit + `idris-check`, per this repo's
+    /// established "sound data SHAPE, not soundness to Rust" policy) — an
+    /// authoring mistake that reaches for `ProducedByEvent` outside a
+    /// `TapForMana` body simply fails to typecheck on the Idris side.
+    TapForMana {
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+    },
+    /// The (Planechase) planar die was rolled ([CR#901.9]) — `face` narrows
+    /// by the rolled face ([`PlanarFace`](crate::PlanarFace); `None` = any
+    /// face). No amount of its own ([CR#901.9d] — the face is not numeric).
+    /// `by` narrows the roller.
+    RollPlanarDie {
+        #[serde(default = "Predicate::any")]
+        by: Predicate,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        face: Option<crate::PlanarFace>,
+    },
     /// "It becomes day" — the game gained the day designation
     /// ([CR#731.1,731.1a]; an expletive-"it" verb, no participants).
     BecameDay,
