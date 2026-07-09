@@ -5847,6 +5847,21 @@ mod tests {
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
 
+        // Pump steps until a decision surfaces (a `RunEffect` work item's own
+        // `step()` call only *sets* `self.pending` as a side effect and
+        // returns `Progress::Resolving` for that step; `NeedsDecision` is
+        // reported on the NEXT `step()` call, which sees `pending` already
+        // set — so this may take more than one `step()`).
+        fn step_to_decision(state: &mut GameState) -> crate::decide::PendingDecision {
+            loop {
+                match state.step() {
+                    StepOutcome::NeedsDecision(d) => return d,
+                    StepOutcome::Progress(_) => {}
+                    StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
+                }
+            }
+        }
+
         let mut state = game();
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
@@ -5865,21 +5880,6 @@ mod tests {
             OneShotEffect::Repeat(Count::Literal(2), Box::new(may_gain_3())),
             &frame,
         );
-
-        // Pump steps until a decision surfaces (a `RunEffect` work item's own
-        // `step()` call only *sets* `self.pending` as a side effect and
-        // returns `Progress::Resolving` for that step; `NeedsDecision` is
-        // reported on the NEXT `step()` call, which sees `pending` already
-        // set — so this may take more than one `step()`).
-        fn step_to_decision(state: &mut GameState) -> crate::decide::PendingDecision {
-            loop {
-                match state.step() {
-                    StepOutcome::NeedsDecision(d) => return d,
-                    StepOutcome::Progress(_) => {}
-                    StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
-                }
-            }
-        }
 
         // First iteration's decision.
         let PendingDecision::YesNo { player } = step_to_decision(&mut state) else {
@@ -5945,7 +5945,7 @@ mod tests {
                         assert_eq!(
                             *n, 999_999,
                             "the tail carries the DECREMENTED remaining count"
-                        )
+                        );
                     }
                     other => panic!("expected a Repeat(Literal(n - 1), body) tail, got {other:?}"),
                 }
