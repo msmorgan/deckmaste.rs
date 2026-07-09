@@ -112,7 +112,8 @@ backlog (needs design dialogue)*, *variant-gated*, *UD-blocked*, or
 |---|---|---|
 | linked slots / chosen-value anaphora (write side) | `NotedKind` + `ChooseAndNote(key, kind)` + `Effect::Noting{key, effect}` | ✓ grammar; slot store engine-seam (deferred from W5) |
 | noted reads | `Reference::Linked(key)`, `Count::Noted(key)` | ✓ grammar; eval engine-seam |
-| engine-tracked history counts | `Count::Query(QueryKey)` — CardsDrawn/LandsPlayed EVALUATE off live tallies; StormCount seam | ✓ |
+| engine-tracked history counts | `Count::EventCount`/`EventSum` match an `EventFilter` over the history log within a `Lookback` ([CR#608.2i]) | ✓ |
+| aggregate fold & devotion | `Count::Aggregate(AggregateOp, Projection)` folds a per-element `Count` over a `Countable`; devotion = `Aggregate(SumOf, Project(<permanents>, CountOf(ManaSymbols(It, CountsAs …))))` ([CR#700.5]); `Selection::Pick` shares the `Projection` | ✓ |
 | copy-on-stack vs cast-a-copy ([CR#707.10,707.12]) | `CopySpell(Selection)` verb; cast-a-copy rides the 601 pipeline later | ✓ grammar; execution engine-seam |
 | target re-check + fizzle ([CR#608.2b]) | `targets_still_legal` at resolution | partial — LKI fallback for departed sources is a seam |
 | ⊥ semantics ([CR#107.2] coercion, skip-on-undefined) | documented convention | partial — formalize at first ⊥ collision (UD-6 ADR) |
