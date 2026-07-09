@@ -400,19 +400,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             this batch.",
         ),
         (
-            n("StaticEffect", "OutcomeGate"),
-            "DEFERRED: no can't-win/can't-lose real card (e.g. \
-            Platinum Angel) in this batch.",
-        ),
-        (
-            n("OutcomeGateKind", "CantLose"),
-            "DEFERRED: see StaticEffect::OutcomeGate.",
-        ),
-        (
-            n("OutcomeGateKind", "CantWin"),
-            "DEFERRED: see StaticEffect::OutcomeGate.",
-        ),
-        (
             n("PlayerAttr", "Life"),
             "DEFERRED: no life-total player-attribute real card beyond \
             Exploration/Reliquary Tower's LandPlaysPerTurn/HandSizeLimit in this batch.",

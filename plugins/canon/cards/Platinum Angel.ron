@@ -1,0 +1,22 @@
+// Hand-written ability: the outcome gate is beyond the parsers today
+// ("You can't lose the game and your opponents can't win the game.").
+Normal(
+  name: "Platinum Angel",
+  mana_cost: [
+    Generic(7),
+  ],
+  types: [
+    Artifact,
+    Creature,
+  ],
+  subtypes: [
+    Angel,
+  ],
+  abilities: [
+    Keyword(Flying),
+    Static(OutcomeGate(who: Ref(You), gate: CantLose)),
+    Static(OutcomeGate(who: OpponentOf(Ref(You)), gate: CantWin)),
+  ],
+  power: 4,
+  toughness: 4,
+)

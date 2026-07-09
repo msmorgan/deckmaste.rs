@@ -1726,4 +1726,17 @@ mod tests {
              got {actions:?}"
         );
     }
+
+    #[test]
+    fn platinum_angel_parses_two_outcome_gates() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::StaticEffect;
+        let angel = canon().card("Platinum Angel").unwrap();
+        let gates = crate::derive::face(&angel)
+            .abilities
+            .iter()
+            .filter(|a| matches!(a, Ability::Static(StaticEffect::OutcomeGate { .. })))
+            .count();
+        assert_eq!(gates, 2, "Platinum Angel has two OutcomeGate statics");
+    }
 }

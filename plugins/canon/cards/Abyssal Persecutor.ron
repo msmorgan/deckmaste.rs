@@ -1,0 +1,24 @@
+// Hand-written ability: the outcome gate is beyond the parsers today
+// ("You can't win the game and your opponents can't lose the game.").
+Normal(
+  name: "Abyssal Persecutor",
+  mana_cost: [
+    Generic(2),
+    Black,
+    Black,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Demon,
+  ],
+  abilities: [
+    Keyword(Flying),
+    Keyword(Trample),
+    Static(OutcomeGate(who: Ref(You), gate: CantWin)),
+    Static(OutcomeGate(who: OpponentOf(Ref(You)), gate: CantLose)),
+  ],
+  power: 6,
+  toughness: 6,
+)
