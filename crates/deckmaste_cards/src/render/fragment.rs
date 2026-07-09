@@ -10,6 +10,7 @@ use deckmaste_core::Countable;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::Predicate;
+use deckmaste_core::Projection;
 use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
@@ -17,6 +18,7 @@ use deckmaste_core::RoundMode;
 use deckmaste_core::Selection;
 use deckmaste_core::Stat;
 use deckmaste_core::StatePredicate;
+use deckmaste_core::SymbolPred;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Zone;
 
@@ -170,22 +172,26 @@ pub(super) fn count(c: &Count) -> String {
             format!("the number of {axis_word} among {group}")
         }
         // [CR#107.1] the fold over a projection — "the total/greatest/
-        // least/average [by] among [of]". Structural phrasing; the
-        // devotion-specific "your devotion to green" recognizer lands with
-        // the fixture card (a later task). A `ManaSymbols`-sourced `of` is
-        // not projectable — falls through to the generic `[unrendered: …]`.
-        Count::Aggregate(op, proj) => match &proj.of {
-            Countable::Objects(filter) => {
-                let fold_word = match op {
-                    AggregateOp::SumOf => "total",
-                    AggregateOp::MinOf => "least",
-                    AggregateOp::MaxOf => "greatest",
-                    AggregateOp::AverageOf(_) => "average",
-                };
-                let group = super::ability::lower_first(&filter_subject(filter));
-                format!("the {fold_word} {} among {group}", count(&proj.by))
-            }
-            Countable::ManaSymbols(..) => format!("[unrendered: {c:?}]"),
+        // least/average [by] among [of]". A devotion-shaped fold (`SumOf`
+        // over permanents you control's matching mana symbols, [CR#700.5])
+        // is recognized first and reads as "your devotion to <color>"; every
+        // other shape stays structural. A `ManaSymbols`-sourced `of` is not
+        // projectable — falls through to the generic `[unrendered: …]`.
+        Count::Aggregate(op, proj) => match devotion_phrase(*op, proj) {
+            Some(phrase) => phrase,
+            None => match &proj.of {
+                Countable::Objects(filter) => {
+                    let fold_word = match op {
+                        AggregateOp::SumOf => "total",
+                        AggregateOp::MinOf => "least",
+                        AggregateOp::MaxOf => "greatest",
+                        AggregateOp::AverageOf(_) => "average",
+                    };
+                    let group = super::ability::lower_first(&filter_subject(filter));
+                    format!("the {fold_word} {} among {group}", count(&proj.by))
+                }
+                Countable::ManaSymbols(..) => format!("[unrendered: {c:?}]"),
+            },
         },
         // The value anaphor's two spellings ([CR#107.3,608.2i]).
         Count::ThatMany => "that many".to_string(),
@@ -642,6 +648,87 @@ fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
     }
 }
 
+// ── Devotion recognizer ([CR#700.5]) ────────────────────────────────────────
+
+/// Whether `filter` is (up to macro provenance) exactly "permanents you
+/// control" — `AllOf([Permanent, ControlledBy(Ref(You))])`, i.e.
+/// `InZone(Battlefield)` + `ControlledBy(Ref(You))` and nothing else. A
+/// narrower subset (e.g. "creatures you control") is a different fold, not
+/// devotion.
+fn is_permanents_you_control(filter: &Predicate) -> bool {
+    let parts = flatten_all_of(filter);
+    if parts.len() != 2 {
+        return false;
+    }
+    let has_battlefield = parts.iter().any(|p| {
+        matches!(
+            strip_expanded(p),
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield))
+        )
+    });
+    let has_you_control = parts.iter().any(|p| {
+        matches!(
+            strip_expanded(p),
+            Predicate::Relation(RelationPredicate::ControlledBy(inner))
+                if matches!(strip_expanded(inner), Predicate::Ref(Reference::You))
+        )
+    });
+    has_battlefield && has_you_control
+}
+
+/// A devotion `SymbolPred` as its English color word(s): a single
+/// `CountsAs(c)` → its color word; `Or([CountsAs(c1), CountsAs(c2), ...])` →
+/// an English list ("white and black", "white, blue, and black"). `None` for
+/// any other shape (e.g. `AnyColor`, `And`, `Not`) — devotion's oracle
+/// wording only ever names a color or a color disjunction.
+fn devotion_color_words(pred: &SymbolPred) -> Option<String> {
+    let colors: Vec<Color> = match pred {
+        SymbolPred::CountsAs(c) => vec![*c],
+        SymbolPred::Or(ps) => ps
+            .iter()
+            .map(|p| match p {
+                SymbolPred::CountsAs(c) => Some(*c),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()?,
+        _ => return None,
+    };
+    let words: Vec<&str> = colors.into_iter().map(super::effect::color_word).collect();
+    match words.as_slice() {
+        [] => None,
+        [one] => Some((*one).to_string()),
+        [a, b] => Some(format!("{a} and {b}")),
+        many => {
+            let (last, rest) = many.split_last()?;
+            Some(format!("{}, and {last}", rest.join(", ")))
+        }
+    }
+}
+
+/// The devotion recognizer ([CR#700.5]): `SumOf` over "permanents you
+/// control" (via [`is_permanents_you_control`]), folding `CountOf(
+/// ManaSymbols(It, <colors>))` per element, reads as "your devotion to
+/// <color words>". `None` for every other `Aggregate` shape — the caller
+/// falls back to the structural fold phrase.
+fn devotion_phrase(op: AggregateOp, proj: &Projection) -> Option<String> {
+    if !matches!(op, AggregateOp::SumOf) {
+        return None;
+    }
+    let Countable::Objects(filter) = &proj.of else {
+        return None;
+    };
+    if !is_permanents_you_control(filter) {
+        return None;
+    }
+    let Count::CountOf(Countable::ManaSymbols(reference, pred)) = proj.by.as_ref() else {
+        return None;
+    };
+    if !matches!(reference.as_ref(), Reference::It) {
+        return None;
+    }
+    devotion_color_words(pred).map(|colors| format!("your devotion to {colors}"))
+}
+
 // ── PutInLibrary helpers ─────────────────────────────────────────────────────
 
 /// A `Selection` GROUP as the object of "put __": "them" for a bound group.
@@ -775,5 +862,81 @@ mod tests {
             ))),
         ]);
         assert_eq!(filter_subject(&f), "Creatures your teammates control");
+    }
+
+    /// "your devotion to green" — the devotion recognizer ([CR#700.5]):
+    /// `SumOf` over permanents you control's `CountOf(ManaSymbols(It,
+    /// CountsAs(Green)))`.
+    #[test]
+    fn count_renders_single_color_devotion() {
+        let permanents_you_control = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+        let devotion_green = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(permanents_you_control)),
+                by: Box::new(Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::It),
+                    SymbolPred::CountsAs(Color::Green),
+                ))),
+            },
+        );
+        assert_eq!(count(&devotion_green), "your devotion to green");
+    }
+
+    /// A color disjunction (`Or([CountsAs(White), CountsAs(Black)])`) reads
+    /// as an English color list — "your devotion to white and black".
+    #[test]
+    fn count_renders_two_color_devotion() {
+        let permanents_you_control = Predicate::AllOf(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+        let devotion_wb = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(permanents_you_control)),
+                by: Box::new(Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::It),
+                    SymbolPred::Or(vec![
+                        SymbolPred::CountsAs(Color::White),
+                        SymbolPred::CountsAs(Color::Black),
+                    ]),
+                ))),
+            },
+        );
+        assert_eq!(count(&devotion_wb), "your devotion to white and black");
+    }
+
+    /// A non-devotion `Aggregate` (a typed subset, not "permanents you
+    /// control") keeps the structural fold phrase.
+    #[test]
+    fn count_renders_non_devotion_aggregate_structurally() {
+        let total_power = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(Predicate::AllOf(vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(
+                        deckmaste_core::Type::Creature,
+                    )),
+                ]))),
+                by: Box::new(Count::StatOf(Reference::It, Stat::Power)),
+            },
+        );
+        // `Count::StatOf` itself has no dedicated `count()` phrase yet (a
+        // pre-existing gap, orthogonal to devotion) — the point here is that
+        // the devotion recognizer does NOT fire for a typed (non-"permanents
+        // you control") `of`, so the fold stays on the structural path.
+        assert_eq!(
+            count(&total_power),
+            "the total [unrendered: StatOf(It, Power)] among all creatures"
+        );
     }
 }

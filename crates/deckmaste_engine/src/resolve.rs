@@ -5032,6 +5032,87 @@ mod tests {
         }
     }
 
+    /// Devotion end-to-end ([CR#700.5]), the two cases
+    /// `aggregate_folds_a_projection_over_a_selection` doesn't already cover:
+    /// a two-color disjunction (`Or([White, Black])`) summed across SEPARATE
+    /// permanents (not just one object's multiple pips), and an actually
+    /// empty battlefield (no permanents minted at all, not a `Not(Any)`
+    /// filter trick).
+    #[test]
+    fn devotion_sums_a_color_disjunction_across_permanents_and_fizzles_to_zero_on_empty() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::Projection;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+        use deckmaste_core::SymbolPred;
+
+        let your_permanents = || {
+            Predicate::AllOf(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ])
+        };
+        let devotion_wb = |of| {
+            Count::Aggregate(
+                AggregateOp::SumOf,
+                Projection {
+                    of,
+                    by: Box::new(Count::CountOf(Countable::ManaSymbols(
+                        Box::new(Reference::It),
+                        SymbolPred::Or(vec![
+                            SymbolPred::CountsAs(Color::White),
+                            SymbolPred::CountsAs(Color::Black),
+                        ]),
+                    ))),
+                },
+            )
+        };
+
+        // `{W}{B}{W/B}` split across three separate permanents you control =
+        // 1 + 1 + 1 = 3 (the hybrid pip counts toward both W and B devotion,
+        // but only once per object — `Or` matches, it doesn't double-count).
+        let mut state = game();
+        let _ = permanent_with_cost(&mut state, "{W}");
+        let _ = permanent_with_cost(&mut state, "{B}");
+        let src = permanent_with_cost(&mut state, "{W/B}");
+        let frame = frame_src(src);
+        assert_eq!(
+            state.eval_count(
+                &devotion_wb(Countable::Objects(Box::new(your_permanents()))),
+                &frame
+            ),
+            3,
+            "{{W}} + {{B}} + {{W/B}} = 3 devotion to white-and-black"
+        );
+
+        // An empty battlefield — no permanents at all, not an artificial
+        // never-matching filter — folds to 0 (never-crash). `src` itself
+        // lives in hand, so `InZone(Battlefield)` matches nothing.
+        let mut empty_state = game();
+        let card = Card::Normal(CardFace {
+            name: "Test Card".into(),
+            mana_cost: "{1}".parse().unwrap(),
+            types: vec![Type::Artifact],
+            ..CardFace::default()
+        });
+        let cid = empty_state.cards.push(Arc::new(card), PlayerId(0));
+        let src = empty_state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
+        let frame = frame_src(src);
+        assert_eq!(
+            empty_state.eval_count(
+                &devotion_wb(Countable::Objects(Box::new(your_permanents()))),
+                &frame
+            ),
+            0,
+            "no permanents on the battlefield → devotion 0"
+        );
+    }
+
     /// `StatOf` reads the DERIVED stat (a pump shows through) and the
     /// printed mana value ([CR#202.3]).
     #[test]

@@ -1,0 +1,22 @@
+// A minimal devotion carrier ([CR#700.5]) — "Whenever ~ enters, you gain
+// life equal to your devotion to green." No card in the canon corpus reads
+// devotion (a Theros-block mechanic never printed in the slice), so this
+// fixture isolates `Count::Aggregate(SumOf, Project(<permanents you
+// control>, CountOf(ManaSymbols(It, CountsAs(Green)))))` end to end: engine
+// fold, render ("your devotion to green"), and the Idris re-emit gate.
+Normal(
+    name: "Devotion Creature",
+    mana_cost: [Generic(1), Green],
+    types: [Creature],
+    power: 1,
+    toughness: 1,
+    abilities: [
+        Triggered(
+            event: ThisEnters,
+            effect: GainLife(Aggregate(SumOf, (
+                of: Objects(AllOf([Permanent, ControlledBy(Ref(You))])),
+                by: CountOf(ManaSymbols(It, CountsAs(Green))),
+            ))),
+        ),
+    ],
+)

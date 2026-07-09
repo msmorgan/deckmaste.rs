@@ -26,5 +26,11 @@ verified against the full corpus, not vibes. Current residents:
   trigger-provenance RESOLUTION path the engine derives per `GameEvent` kind —
   the half no canon fixture can reach.
 
+- **Devotion Creature** — a minimal devotion ([CR#700.5]) carrier: "Whenever
+  ~ enters, you gain life equal to your devotion to green." No card in the
+  canon corpus reads devotion (a Theros-block mechanic never printed in the
+  slice), so this fixture isolates `Count::Aggregate(SumOf, Project(...))`
+  over `Countable::ManaSymbols` end to end.
+
 If a mechanic lands that makes one of these encodable with a real card,
 canonize the real card and delete the mock.

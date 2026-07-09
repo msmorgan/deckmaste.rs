@@ -187,10 +187,11 @@ impl SymbolPred {
     }
 }
 
-/// The colors a mana symbol counts as ([CR#105]): a colored pip is its color, a
-/// hybrid pip is both halves' colors (its `SimpleManaSymbol` half contributes a
-/// color only when it is a colored `Specific`), a Phyrexian pip its color(s).
-/// Generic/colorless/{X}/{S} contribute none.
+/// The colors a mana symbol counts as ([CR#107.4a,107.4e,107.4f]): a colored
+/// pip is its color, a hybrid pip is both halves' colors (its
+/// `SimpleManaSymbol` half contributes a color only when it is a colored
+/// `Specific`), a Phyrexian pip its color(s). Generic/colorless/{X}/{S}
+/// contribute none.
 fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> + '_ {
     let mut out: Vec<Color> = Vec::new();
     match sym {
