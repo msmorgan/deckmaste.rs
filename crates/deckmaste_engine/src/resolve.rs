@@ -1854,8 +1854,17 @@ impl GameState {
                     player: actor,
                 }))]
             }
+            // [CR#104.3e]: "you lose the game", suppressed by a matching
+            // `CantLose` gate ([CR#101.1]).
             PlayerAction::LoseGame => {
-                todo!("P0.W6: lose outcome ([CR#104.3e]; CantLose gate check)")
+                let view = self.layers();
+                if self.gate_suppresses(&view, actor, deckmaste_core::OutcomeGateKind::CantLose) {
+                    return vec![];
+                }
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerLost {
+                    player: actor,
+                    reason: crate::event::LossReason::Effect,
+                }))]
             }
             PlayerAction::RestartGame => {
                 todo!("P0.W6: restart ([CR#727.1] — a terminal with carryover, not a reset)")
@@ -9026,6 +9035,34 @@ mod tests {
             state.action_items(&Action::by_you(PlayerAction::WinGame), &frame),
             vec![],
             "Platinum Angel's opponents-can't-win gate suppresses the WinGame verb"
+        );
+    }
+
+    /// [CR#104.3e]: `LoseGame` resolves to `PlayerLost { reason: Effect }`;
+    /// in a 2-player game the survivor wins last-standing ([CR#104.2a]).
+    #[test]
+    fn lose_game_verb_sets_loss_and_opponent_wins() {
+        let (mut state, _bear) = bear_on_field();
+        let frame = frame_for(&state, PlayerId(0));
+        state.run_effect(OneShotEffect::act_by_you(PlayerAction::LoseGame), &frame);
+        let _ = state.step();
+        assert!(state.players[0].lost);
+        assert_eq!(
+            state.outcome,
+            Some(crate::state::GameOutcome::Win(PlayerId(1)))
+        );
+    }
+
+    /// Platinum Angel's "you can't lose the game" static suppresses the
+    /// `LoseGame` verb for its controller — a graceful no-op.
+    #[test]
+    fn cant_lose_gated_lose_game_is_a_noop() {
+        let (state, _ids) = battlefield_with(&["Platinum Angel"]);
+        let frame = frame_for(&state, PlayerId(0));
+        assert_eq!(
+            state.action_items(&Action::by_you(PlayerAction::LoseGame), &frame),
+            vec![],
+            "Platinum Angel's you-can't-lose gate suppresses the LoseGame verb"
         );
     }
 

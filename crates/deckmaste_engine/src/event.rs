@@ -23,6 +23,9 @@ pub enum LossReason {
     /// gate touches it, and a controlled player's controller can't prevent
     /// it ([CR#723.6]).
     Conceded,
+    /// "A player loses the game" effect outcome ([CR#104.3e]); suppressed by
+    /// a matching `CantLose` gate.
+    Effect,
 }
 
 /// A concrete occurrence: what `Emit` pushes through the (future) cant →
