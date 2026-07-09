@@ -6618,11 +6618,12 @@ mod tests {
         );
     }
 
-    /// [CR#107.14,122.1f]: "you get {E}{E}" is `PutCounters(You, Energy, N)` —
-    /// a player-borne counter placement. `Reference::You` resolves to the
-    /// controller's proxy object, so the same apply path lands the energy on
-    /// the PLAYER (energy is player-borne, [CR#122.1f]), and a second gain
-    /// sums ([CR#122.1] — counters are interchangeable).
+    /// [CR#107.14,122.1]: "you get {E}{E}" is `PutCounters(You, Energy, N)` —
+    /// a player-borne counter placement ([CR#122.1] — a counter is a marker on
+    /// an object OR player). `Reference::You` resolves to the controller's
+    /// proxy object, so the same apply path lands the energy on the PLAYER
+    /// (energy sits on the player, [CR#107.14]), and a second gain sums
+    /// ([CR#122.1] — counters are interchangeable).
     #[test]
     fn get_energy_adds_counters_to_the_player_proxy() {
         let (mut state, bear) = bear_on_field();

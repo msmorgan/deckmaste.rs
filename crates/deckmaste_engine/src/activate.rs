@@ -590,8 +590,9 @@ impl GameState {
             // that many present on the carrier — the loyalty `−N` ability
             // ([CR#606.6]) and "pay {E}" ([CR#107.14]: paying {E} removes an
             // energy counter from the player). The carrier is the resolved
-            // object OR player proxy ([CR#122.1f] — energy/poison sit on the
-            // player), so `RemoveCounters(You, Energy, N)` reads the payer's
+            // object OR player proxy ([CR#122.1] — a counter is a marker on an
+            // object OR player, so energy/poison sit on the player), so
+            // `RemoveCounters(You, Energy, N)` reads the payer's
             // proxy counter map. An absent kind reads zero, so an unfunded
             // "pay {E}" is unpayable (partial payment forbidden, [CR#601.2h]).
             PlayerAction::RemoveCounters(sel, kind, count) => {
@@ -1334,8 +1335,8 @@ mod tests {
 
     /// [CR#107.14,601.2h]: "pay {E}" is `RemoveCounters(You, Energy, N)` — a
     /// player-borne counter cost. It is payable only when the payer's proxy
-    /// holds at least N energy counters ([CR#122.1f] energy sits on the
-    /// player); an unfunded pay is unpayable (partial payment forbidden).
+    /// holds at least N energy counters ([CR#122.1] energy, a counter, sits on
+    /// the player); an unfunded pay is unpayable (partial payment forbidden).
     #[test]
     fn pay_energy_cost_needs_enough_energy() {
         let mut state = game();
