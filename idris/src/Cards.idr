@@ -1289,4 +1289,10 @@ vlxDivMod = Plus (Divide RoundDown X (^3)) (Mod X (^2))
 vlxStrive : Count b
 vlxStrive = Minus (TargetsOf This) (^1)
 
+-- value-language-extensions Task 2 probe
+vlxSingleton : Count b       -- Embiggen: number of card types on an object
+vlxSingleton = CountDistinct Types (Singleton This)
+vlxAdamant : Condition b     -- "if at least three white was spent"
+vlxAdamant = Compare (CountOf (ManaSpentMatching This (CountsAs White))) AtLeast (^3)
+
 --:vim:sts=2 sw=2:

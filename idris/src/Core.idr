@@ -1246,6 +1246,16 @@ mutual
       Events      : EventQuery b -> Countable b
       ManaSymbols : Reference b AnObject -> SymbolPred -> Countable b
       ManaSpent   : {default This forObj : Reference b AnObject} -> Countable b   -- mana SPENT to cast/activate `forObj` (default `This`)
+      -- ONE object treated as a singleton set — the per-object twin of `Objects`, so `CountDistinct`
+      -- can read a characteristic off a SINGLE object rather than a filtered many (Embiggen's
+      -- "number of card types [this creature] has" = `CountDistinct Types (Singleton This)`;
+      -- likewise a color-count). [CR#105.2] (an object's color/colors).
+      Singleton : (ref : Reference b AnObject) -> Countable b
+      -- mana SPENT to cast/activate `forObj`, FILTERED by a `SymbolPred` — Adamant's "if at least
+      -- three white [mana symbols were spent]" ([CR#107.4]: what a mana symbol counts as, e.g. a
+      -- hybrid/Phyrexian symbol counting as its component color(s)). Used via `CountOf` (cardinality
+      -- of matching spent symbols), unlike plain `ManaSpent` which is read via `CountDistinct Colors`.
+      ManaSpentMatching : (forObj : Reference b AnObject) -> (filter : SymbolPred) -> Countable b
 
   -- which `Countable`s can be PROJECTED per-element (bind `It` to each element and read a value): only
   -- objects — an atomic mana symbol, player count, or event has no element to bind. A PROOF on the `Countable`,
@@ -1267,6 +1277,7 @@ mutual
   readableOn Colors (ManaSymbols _ _) = ()
   readableOn Colors ManaSpent         = ()
   readableOn _      (Objects _)       = ()
+  readableOn _      (Singleton _)     = ()
   readableOn _      _                 = Void
 
   -- A PROJECTION of a game property/state to a value.
