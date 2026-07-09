@@ -1,5 +1,6 @@
 /target/
 /data/
+/.superpowers/
 /plugins/*/
 !/plugins/builtin/
 !/plugins/canon/

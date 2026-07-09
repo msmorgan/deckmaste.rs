@@ -523,16 +523,15 @@ impl GameState {
         let proxy = self.player(player).object;
         self.zones.battlefield.iter().any(|&carrier| {
             let source = self.objects.obj(carrier).source;
-            let mut hit = false;
-            crate::legal::for_each_static(view, carrier, |s| {
-                if let deckmaste_core::StaticEffect::OutcomeGate { who, gate } = s
-                    && *gate == kind
-                    && crate::target::matches_with(self, proxy, who, Some(source))
-                {
-                    hit = true;
-                }
-            });
-            hit
+            let pred = |s: &deckmaste_core::StaticEffect| {
+                matches!(
+                    s,
+                    deckmaste_core::StaticEffect::OutcomeGate { who, gate }
+                        if *gate == kind
+                            && crate::target::matches_with(self, proxy, who, Some(source))
+                )
+            };
+            crate::legal::object_has_static(view, carrier, &pred)
         })
     }
 

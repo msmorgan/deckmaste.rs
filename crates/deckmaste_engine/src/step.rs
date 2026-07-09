@@ -1501,6 +1501,11 @@ impl GameState {
     /// retroactively fire once the gate leaves — unlike the standing life/
     /// poison predicates, which re-fire at the first ungated check.
     fn close_gated_draw_windows(&mut self) {
+        // Fast path: the overwhelmingly common check has no pending empty-draw,
+        // so skip the fixpoint `layers()` build entirely.
+        if !self.players.iter().any(|p| p.drew_from_empty && !p.lost) {
+            return;
+        }
         let view = self.layers();
         let gated: Vec<PlayerId> = self
             .players
