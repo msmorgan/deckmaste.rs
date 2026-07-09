@@ -2121,10 +2121,14 @@ mod tests {
                     change: Box::new(CostChange::Reduce(vec![CostComponent::Mana(
                         "{1}".parse().unwrap(),
                     )])),
-                    times: Count::CountOf(Box::new(Predicate::AllOf(vec![
-                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Artifact)),
-                    ]))),
+                    times: Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+                        Predicate::AllOf(vec![
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                            Predicate::Characteristic(CharacteristicPredicate::Type(
+                                Type::Artifact,
+                            )),
+                        ]),
+                    ))),
                 },
             })],
             ..CardFace::default()

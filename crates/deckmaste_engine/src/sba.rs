@@ -1084,6 +1084,7 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::Cmp;
         use deckmaste_core::Count;
+        use deckmaste_core::Countable;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
@@ -1095,12 +1096,12 @@ mod tests {
         // The Ascend static, built typed (mirrors the builtin macro's expansion).
         let gate = Condition::AllOf(vec![
             Condition::Compare(
-                Count::CountOf(Box::new(Predicate::AllOf(vec![
+                Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
                     )))),
-                ]))),
+                ])))),
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),
@@ -1170,6 +1171,7 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::Cmp;
         use deckmaste_core::Count;
+        use deckmaste_core::Countable;
         use deckmaste_core::PlayerAction;
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
@@ -1186,12 +1188,12 @@ mod tests {
             Ability::Static(StaticEffect::Sba {
                 when: Box::new(Condition::AllOf(vec![
                     Condition::Compare(
-                        Count::CountOf(Box::new(Predicate::AllOf(vec![
+                        Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
                                 Predicate::Ref(Reference::You),
                             ))),
-                        ]))),
+                        ])))),
                         Cmp::AtLeast,
                         Count::Literal(10),
                     ),

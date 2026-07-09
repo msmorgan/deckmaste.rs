@@ -435,6 +435,7 @@ fn ascend_macro_expands_to_static_sba() {
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
+    use deckmaste_core::Countable;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationPredicate;
@@ -486,12 +487,12 @@ fn ascend_macro_expands_to_static_sba() {
     // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
     let canonical = Condition::AllOf(vec![
         Condition::Compare(
-            Count::CountOf(Box::new(Predicate::AllOf(vec![
+            Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,
                 )))),
-            ]))),
+            ])))),
             Cmp::AtLeast,
             Count::Literal(10),
         ),

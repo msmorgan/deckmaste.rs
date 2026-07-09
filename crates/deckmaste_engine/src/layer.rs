@@ -15,6 +15,7 @@ use deckmaste_core::Ability;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
+use deckmaste_core::Countable;
 use deckmaste_core::Duration;
 use deckmaste_core::Ident;
 use deckmaste_core::Int;
@@ -844,14 +845,37 @@ fn eval_count(
         // "For each …": the filter's cardinality over the working derived map,
         // matched the same way scopes are ([CR#613.6] — `matches_derived`), so a
         // count over types/colors sees the values earlier layers produced.
-        Count::CountOf(filter) => {
-            let count = working
-                .keys()
-                .copied()
-                .filter(|&id| matches_derived(state, working, id, filter, watcher))
-                .count();
-            Int::try_from(count).expect("object count fits Int")
-        }
+        Count::CountOf(source) => match source {
+            Countable::Objects(filter) => {
+                let count = working
+                    .keys()
+                    .copied()
+                    .filter(|&id| matches_derived(state, working, id, filter, watcher))
+                    .count();
+                Int::try_from(count).expect("object count fits Int")
+            }
+            // [CR#700.5]: devotion — pip count over a resolved object's
+            // printed cost. A non-object / unresolved reference contributes
+            // 0 (never-crash), mirroring the other `resolve_count_ref`
+            // consumers above.
+            Countable::ManaSymbols(reference, pred) => {
+                let Some(id) = resolve_count_ref(state, reference, watcher) else {
+                    return 0;
+                };
+                let Some(o) = state.objects.get(id) else {
+                    return 0;
+                };
+                if o.card_id().is_none() {
+                    return 0;
+                }
+                let n = crate::derive::face(state.def(id))
+                    .mana_cost
+                    .iter()
+                    .filter(|sym| pred.matches(sym))
+                    .count();
+                Int::try_from(n).expect("pip count fits Int")
+            }
+        },
         // "Equal to its power": resolve the reference, read the DERIVED stat off
         // `working`. Mana value / loyalty / defense are layer-stable base state
         // (read off the card face / counter map, as `resolve.rs` does). A
@@ -971,17 +995,22 @@ fn eval_count(
         // [CR#107.3]: distinct-union count over the derived working set.
         // Printed axes read the card face; power/toughness read the in-progress
         // derived characteristics, matched the same way `CountOf` is.
-        Count::CountDistinct(characteristic, filter) => {
-            let mut seen = std::collections::BTreeSet::new();
-            for id in working.keys().copied() {
-                if matches_derived(state, working, id, filter, watcher) {
-                    for key in distinct_keys_derived(state, working, id, *characteristic) {
-                        seen.insert(key);
+        Count::CountDistinct(characteristic, source) => match source {
+            Countable::Objects(filter) => {
+                let mut seen = std::collections::BTreeSet::new();
+                for id in working.keys().copied() {
+                    if matches_derived(state, working, id, filter, watcher) {
+                        for key in distinct_keys_derived(state, working, id, *characteristic) {
+                            seen.insert(key);
+                        }
                     }
                 }
+                Int::try_from(seen.len()).expect("distinct count fits Int")
             }
-            Int::try_from(seen.len()).expect("distinct count fits Int")
-        }
+            // Not a forced path yet ([CR#700.5] devotion has no
+            // distinct-union reading) — fizzle to 0.
+            Countable::ManaSymbols(..) => 0,
+        },
         Count::Expanded(e) => eval_count(&e.value, state, working, watcher),
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
         // `EventSum`, `Noted`) is unavailable during layer derivation — those
@@ -1627,6 +1656,7 @@ mod tests {
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::CollectionOp;
     use deckmaste_core::Count;
+    use deckmaste_core::Countable;
     use deckmaste_core::Duration;
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::Modification;
@@ -2342,7 +2372,7 @@ mod tests {
     /// gather, not of the layer number.
     fn creature_count_cda() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Box::new(Predicate::creature()));
+        let count = Count::CountOf(Countable::Objects(Box::new(Predicate::creature())));
         Ability::Static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
@@ -2384,7 +2414,7 @@ mod tests {
     /// `Of(This)`.
     fn creature_count_pump() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Box::new(Predicate::creature()));
+        let count = Count::CountOf(Countable::Objects(Box::new(Predicate::creature())));
         Ability::Static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![

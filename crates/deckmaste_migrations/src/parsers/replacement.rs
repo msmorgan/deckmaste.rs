@@ -160,7 +160,7 @@ fn parse_board_condition(clause: &str) -> Option<String> {
     // Compare; otherwise a determiner ("a …") makes it an Exists.
     if let Some((cmp, n, subject)) = strip_count(object) {
         let filter = object_filter(subject, &controller)?;
-        Some(format!("Compare(CountOf({filter}), {cmp}, {n})"))
+        Some(format!("Compare(CountOf(Objects({filter})), {cmp}, {n})"))
     } else {
         let subject = object
             .strip_prefix("a ")
@@ -445,8 +445,8 @@ mod tests {
             rep("~ enters tapped unless you control two or more other lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(AllOf([Type(Land), Not(Ref(This)), \
-                     ControlledBy(Ref(You))])), AtLeast, 2)"
+                    "Compare(CountOf(Objects(AllOf([Type(Land), Not(Ref(This)), \
+                     ControlledBy(Ref(You))]))), AtLeast, 2)"
                 )
                 .as_str()
             )
@@ -460,8 +460,8 @@ mod tests {
             rep("~ enters tapped unless you control two or fewer other lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(AllOf([Type(Land), Not(Ref(This)), \
-                     ControlledBy(Ref(You))])), AtMost, 2)"
+                    "Compare(CountOf(Objects(AllOf([Type(Land), Not(Ref(This)), \
+                     ControlledBy(Ref(You))]))), AtMost, 2)"
                 )
                 .as_str()
             )
@@ -475,8 +475,8 @@ mod tests {
             rep("~ enters tapped unless you control two or more basic lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(AllOf([Type(Land), Supertype(Basic), \
-                     ControlledBy(Ref(You))])), AtLeast, 2)"
+                    "Compare(CountOf(Objects(AllOf([Type(Land), Supertype(Basic), \
+                     ControlledBy(Ref(You))]))), AtLeast, 2)"
                 )
                 .as_str()
             )
@@ -490,8 +490,8 @@ mod tests {
             rep("~ enters tapped unless you control three or more other Swamps.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(AllOf([Permanent, Subtype(\"Swamp\"), Not(Ref(This)), \
-                     ControlledBy(Ref(You))])), AtLeast, 3)"
+                    "Compare(CountOf(Objects(AllOf([Permanent, Subtype(\"Swamp\"), Not(Ref(This)), \
+                     ControlledBy(Ref(You))]))), AtLeast, 3)"
                 )
                 .as_str()
             )
@@ -574,8 +574,8 @@ mod tests {
             rep("~ enters tapped unless your opponents control eight or more lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(AllOf([Type(Land), \
-                     ControlledBy(OpponentOf(Ref(You)))])), AtLeast, 8)"
+                    "Compare(CountOf(Objects(AllOf([Type(Land), \
+                     ControlledBy(OpponentOf(Ref(You)))]))), AtLeast, 8)"
                 )
                 .as_str()
             )
@@ -590,7 +590,7 @@ mod tests {
             rep("If you control two or more other lands, ~ enters tapped.").as_deref(),
             Some(
                 "Static(Replacement(AsEnters(If(condition: \
-                 Compare(CountOf(AllOf([Type(Land), Not(Ref(This)), ControlledBy(Ref(You))])), \
+                 Compare(CountOf(Objects(AllOf([Type(Land), Not(Ref(This)), ControlledBy(Ref(You))]))), \
                  AtLeast, 2), then: Tap(This)))))"
             )
         );

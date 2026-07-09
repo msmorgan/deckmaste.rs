@@ -2,5 +2,5 @@
     name: "CardsInLibrary",
     kinds: [Count],
     params: [Predicate],
-    body: CountOf(AllOf([InZone(Library), Owner(Param(0))])),
+    body: CountOf(Objects(AllOf([InZone(Library), Owner(Param(0))]))),
 )

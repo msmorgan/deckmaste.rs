@@ -611,7 +611,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "DeckSize",
                     kinds: [Count],
-                    body: CountOf(InZone(Library)),
+                    body: CountOf(Objects(InZone(Library))),
                 )"#))
             .unwrap();
         let action: Action = macros

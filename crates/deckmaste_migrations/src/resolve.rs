@@ -71,8 +71,8 @@ pub const REGISTRY: &[AbilityParser] = &[
 
 /// The Ascend gate ([CR#702.131a,702.131b]) — KEEP IN SYNC with
 /// `plugins/builtin/macros/keyword/Ascend.ron`.
-const ASCEND_GATE: &str = "AllOf([Compare(CountOf(AllOf([InZone(Battlefield), \
-ControlledBy(Ref(You))])), AtLeast, 10), Not(Is(You, Designated(\"CitysBlessing\")))])";
+const ASCEND_GATE: &str = "AllOf([Compare(CountOf(Objects(AllOf([InZone(Battlefield), \
+ControlledBy(Ref(You))]))), AtLeast, 10), Not(Is(You, Designated(\"CitysBlessing\")))])";
 
 /// [CR#702.131a]: fold an Ascend keyword on a SPELL into the front of its spell
 /// effect, then drop the keyword. `effect` is the last field of the rendered
@@ -485,6 +485,7 @@ mod tests {
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
         use deckmaste_core::Count;
+        use deckmaste_core::Countable;
         use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
         use deckmaste_core::RelationPredicate;
@@ -500,12 +501,12 @@ mod tests {
 
         let canonical = Condition::AllOf(vec![
             Condition::Compare(
-                Count::CountOf(Box::new(Predicate::AllOf(vec![
+                Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
                     )))),
-                ]))),
+                ])))),
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),

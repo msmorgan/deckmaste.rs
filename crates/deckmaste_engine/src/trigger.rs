@@ -1659,16 +1659,18 @@ mod tests {
         use deckmaste_core::Stat;
         use deckmaste_core::StatePredicate;
         Condition::Compare(
-            Count::CountOf(Box::new(Predicate::AllOf(vec![
-                Predicate::creature(),
-                Predicate::State(StatePredicate::Attacking),
-                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-                Predicate::Where(Box::new(Condition::Compare(
-                    Count::StatOf(Reference::It, Stat::Power),
-                    Cmp::Greater,
-                    Count::StatOf(Reference::This, Stat::Power),
-                ))),
-            ]))),
+            Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+                Predicate::AllOf(vec![
+                    Predicate::creature(),
+                    Predicate::State(StatePredicate::Attacking),
+                    Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+                    Predicate::Where(Box::new(Condition::Compare(
+                        Count::StatOf(Reference::It, Stat::Power),
+                        Cmp::Greater,
+                        Count::StatOf(Reference::This, Stat::Power),
+                    ))),
+                ]),
+            ))),
             deckmaste_core::Cmp::AtLeast,
             Count::Literal(1),
         )

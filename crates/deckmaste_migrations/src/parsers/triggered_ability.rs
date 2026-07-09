@@ -427,7 +427,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(This, \
-                 Several([Power(Up(CountOf(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking])))), \
+                 Several([Power(Up(CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))))), \
                  Toughness(Up(0))])), duration: FixedUntil(EndOfTurn)))"
             )
         );
@@ -441,8 +441,8 @@ mod tests {
             trig("Whenever ~ attacks, you gain 1 life for each attacking Elf you control.")
                 .as_deref(),
             Some(
-                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(AllOf([Permanent, Subtype(\"Elf\"), \
-                 Attacking, ControlledBy(Ref(You))]))))"
+                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\"), \
+                 Attacking, ControlledBy(Ref(You))])))))"
             )
         );
     }

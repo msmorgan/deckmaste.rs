@@ -391,12 +391,12 @@ mod tests {
         // for one extra mana).
         assert_eq!(
             effect("{G} for each Elf you control"),
-            "AddMana(CountOf(AllOf([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])), Green)"
+            "AddMana(CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))]))), Green)"
         );
         // Priest of Titania (battlefield scope, made explicit on the head).
         assert_eq!(
             effect("{G} for each Elf on the battlefield"),
-            "AddMana(CountOf(AllOf([Permanent, Subtype(\"Elf\")])), Green)"
+            "AddMana(CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\")]))), Green)"
         );
     }
 

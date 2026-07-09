@@ -7,7 +7,7 @@
 // "attacks alone" [CR#702.83b] = "it's the only creature declared as an
 // attacker in a given combat phase" (see [CR#506.5]). That is the intervening-
 // if ([CR#603.4]): exactly one creature is attacking right now —
-// `Compare(CountOf(Attacking), Eq, 1)`. Since the lone attacker IS that
+// `Compare(CountOf(Objects(Attacking)), Eq, 1)`. Since the lone attacker IS that
 // creature, the pump targets `EventObject`, NOT the carrier: the keyword's
 // source is some other permanent (a Knight of Glory, an aura). So the pump is
 // a `Continuously(Modify(EventObject, ...))` rather than the self-
@@ -24,7 +24,7 @@ KeywordAbility(
         event: AttackDeclared(
             by: AllOf([Type(Creature), ControlledBy(Ref(You))]),
         ),
-        condition: Compare(CountOf(Attacking), Eq, 1),
+        condition: Compare(CountOf(Objects(Attacking)), Eq, 1),
         effect: Continuously(
             effect: Modify(EventObject, Several([Power(Up(1)), Toughness(Up(1))])),
             duration: FixedUntil(EndOfTurn),

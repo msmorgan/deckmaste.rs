@@ -74,6 +74,23 @@ pub enum Characteristic {
 /// (layer/resolve distinct-key evaluation).
 pub const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain", "Forest"];
 
+/// The domain a count ranges over ([CR#107.3]) — the Idris `Countable`. Today
+/// the two card-forced sources: a set of objects (the common case) and the mana
+/// symbols in an object's mana cost (devotion). `Players`/`Events`/`ManaSpent`
+/// are deferred until a card forces them.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Countable {
+    /// Objects matching a filter — the common count domain. Boxed `Predicate`
+    /// to break the `Predicate` → `Count` size cycle.
+    Objects(Box<Predicate>),
+    /// The mana symbols in a referenced object's mana cost, filtered by a
+    /// [`SymbolPred`](crate::SymbolPred) ([CR#700.5] devotion) —
+    /// `CountOf(ManaSymbols(It, CountsAs(Green)))` counts that object's green
+    /// pips. `Reference` is boxed (it is 80 bytes, like its `CounterCount`
+    /// peer) so this variant doesn't blow up `Count`/`Predicate`'s size.
+    ManaSymbols(Box<Reference>, crate::SymbolPred),
+}
+
 /// A scalar magnitude an effect computes at resolution: an amount, never an
 /// object (objects are `Reference`s, [CR#107.1,107.3]).
 ///
@@ -91,16 +108,17 @@ pub enum Count {
     /// The value chosen for {X} as the spell or ability was put on the
     /// stack ([CR#107.3]).
     X,
-    /// How many objects match a filter ([CR#107.3], "for each"). Boxed to
-    /// break the `Predicate` → `Stat` → `Count` → `Predicate` size cycle.
-    CountOf(Box<Predicate>),
-    /// The size of the DISTINCT union of a characteristic across the objects
-    /// matching a filter ([CR#107.3]): Domain = `CountDistinct(Subtypes, <your
-    /// lands>)` (distinct land subtypes), Coven = `CountDistinct(Power, <your
-    /// creatures>)` (distinct powers), Tarmogoyf = `CountDistinct(Types, <cards
-    /// in graveyards>)`. The granularity comes from the source filter; the
-    /// axis from the [`Characteristic`]. Boxed `Predicate`, like `CountOf`.
-    CountDistinct(Characteristic, Box<Predicate>),
+    /// How many objects/mana symbols match a [`Countable`] source
+    /// ([CR#107.3], "for each"; [CR#700.5] devotion).
+    CountOf(Countable),
+    /// The size of the DISTINCT union of a characteristic across a
+    /// [`Countable`] source ([CR#107.3]): Domain = `CountDistinct(Subtypes,
+    /// Objects(<your lands>))` (distinct land subtypes), Coven =
+    /// `CountDistinct(Power, Objects(<your creatures>))` (distinct powers),
+    /// Tarmogoyf = `CountDistinct(Types, Objects(<cards in graveyards>))`.
+    /// The granularity comes from the source; the axis from the
+    /// [`Characteristic`].
+    CountDistinct(Characteristic, Countable),
     /// A referenced object's stat ([CR#107.3], "equal to its power").
     StatOf(Reference, Stat),
     /// A referenced player's numeric attribute ([CR#119.1] life,
@@ -258,11 +276,20 @@ mod tests {
         assert_eq!(read(&written), value);
     }
 
-    /// The exact shape the dynamic-count parser emits must read back into core.
+    /// `CountOf(Countable)` — the `Objects` wrapper is spelled explicitly, and
+    /// a `ManaSymbols` source round-trips ([CR#700.5] devotion).
     #[test]
-    fn count_of_filter_reads() {
-        let value = read(r#"CountOf(AllOf([Subtype("Goblin"), ControlledBy(Ref(You))]))"#);
-        assert!(matches!(value, Count::CountOf(_)));
+    fn count_of_objects_and_mana_symbols_round_trip() {
+        use crate::Color;
+        let mk = Count::CountOf(Countable::ManaSymbols(
+            Box::new(Reference::It),
+            crate::SymbolPred::CountsAs(Color::Green),
+        ));
+        assert_eq!(read(&write(&mk)), mk);
+        // Objects wrapper is spelled explicitly.
+        let obj = read(r#"CountOf(Objects(AllOf([Subtype("Goblin"), ControlledBy(Ref(You))])))"#);
+        assert!(matches!(obj, Count::CountOf(Countable::Objects(_))));
+        assert_eq!(read(&write(&obj)), obj);
     }
 
     /// `EventCount(EventFilter, Lookback)` parses and round-trips — the
@@ -323,20 +350,20 @@ mod tests {
         }
     }
 
-    /// `CountDistinct(Characteristic, Predicate)` — the distinct-union count
+    /// `CountDistinct(Characteristic, Countable)` — the distinct-union count
     /// (Domain / Coven / Tarmogoyf) parses and round-trips.
     #[test]
     fn count_distinct_round_trips() {
         let value = Count::CountDistinct(
             Characteristic::Subtypes,
-            Box::new(Predicate::Characteristic(
+            Countable::Objects(Box::new(Predicate::Characteristic(
                 crate::CharacteristicPredicate::Type(crate::Type::Land),
-            )),
+            ))),
         );
         assert_eq!(read(&write(&value)), value);
         assert!(matches!(
-            read("CountDistinct(Power, Type(Creature))"),
-            Count::CountDistinct(Characteristic::Power, _)
+            read("CountDistinct(Power, Objects(Type(Creature)))"),
+            Count::CountDistinct(Characteristic::Power, Countable::Objects(_))
         ));
     }
 

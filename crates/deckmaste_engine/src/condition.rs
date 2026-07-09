@@ -724,9 +724,9 @@ mod tests {
     fn compare_counts_stack_census() {
         let mut state = game();
         let cond = Condition::Compare(
-            Count::CountOf(Box::new(Predicate::State(StatePredicate::InZone(
-                Zone::Stack,
-            )))),
+            Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+                Predicate::State(StatePredicate::InZone(Zone::Stack)),
+            ))),
             Cmp::Eq,
             Count::Literal(0),
         );
@@ -796,8 +796,8 @@ mod tests {
         );
         state.zones.battlefield.push(bear);
 
-        let creatures = Count::CountOf(Box::new(Predicate::Characteristic(
-            CharacteristicPredicate::Type(Type::Creature),
+        let creatures = Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
         )));
         assert!(
             state.condition_holds(

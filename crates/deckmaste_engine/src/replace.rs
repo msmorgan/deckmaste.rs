@@ -487,7 +487,9 @@ mod tests {
             )))),
         ]);
         let gate = Condition::Compare(
-            Count::CountOf(Box::new(other_lands_you_control)),
+            Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+                other_lands_you_control,
+            ))),
             Cmp::AtLeast,
             Count::Literal(1),
         );

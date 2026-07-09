@@ -11,9 +11,9 @@
 // resolution.
 //
 // Intervening-if ([CR#603.4]): at least one OTHER attacking creature has power
-// greater than this creature's power — `Compare(CountOf(filter), AtLeast, 1)`,
+// greater than this creature's power — `Compare(CountOf(Objects(filter)), AtLeast, 1)`,
 // the existential expressed as "the count of matching attackers is >= 1" (the
-// `CountOf` shape Exalted's `Compare(CountOf(Attacking), Eq, 1)` uses, which
+// `CountOf` shape Exalted's `Compare(CountOf(Objects(Attacking)), Eq, 1)` uses, which
 // threads the carrier watcher into its filter — so a candidate-vs-carrier
 // comparison resolves). The filter is:
 //   - `Type(Creature)` + `Attacking` ([CR#508.1a] a still-in-combat attacker);
@@ -37,12 +37,12 @@ KeywordAbility(
     abilities: [Triggered(
         event: AttackDeclared(by: Ref(This)),
         condition: Compare(
-            CountOf(AllOf([
+            CountOf(Objects(AllOf([
                 Type(Creature),
                 Attacking,
                 Not(Ref(This)),
                 Where(Compare(StatOf(It, Power), Greater, StatOf(This, Power))),
-            ])),
+            ]))),
             AtLeast,
             1,
         ),

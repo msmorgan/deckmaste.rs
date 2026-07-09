@@ -25,6 +25,7 @@ mod count;
 pub use count::BASIC_LAND_TYPES;
 pub use count::Characteristic;
 pub use count::Count;
+pub use count::Countable;
 pub use count::RoundMode;
 pub use count::Stat;
 

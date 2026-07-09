@@ -660,6 +660,13 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             no card fixture (and no Idris counterpart).",
         ),
         (
+            n("Countable", "ManaSymbols"),
+            "DEFERRED: the pip-count (devotion, [CR#700.5]) source is engine-\
+            eval'd and unit-tested (deckmaste_engine::resolve::tests), but the card-facing \
+            devotion fixture + render phrasing ride Count::Aggregate — a separate ticket task, not \
+            yet built.",
+        ),
+        (
             n("Condition", "Exists"),
             "DEFERRED: no 'if you control a ...' conditional real card in \
             this batch.",

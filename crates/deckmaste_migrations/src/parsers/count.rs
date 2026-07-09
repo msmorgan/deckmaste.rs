@@ -78,7 +78,10 @@ pub(super) fn strip(body: &str) -> Option<CountClause<'_>> {
 /// `<filter phrase>` -> `CountOf(<filter RON>)`, or `None` when the filter
 /// doesn't parse.
 fn count_of(phrase: &str) -> Option<String> {
-    Some(format!("CountOf({})", filter::parse_phrase(phrase.trim())?))
+    Some(format!(
+        "CountOf(Objects({}))",
+        filter::parse_phrase(phrase.trim())?
+    ))
 }
 
 #[cfg(test)]
@@ -91,7 +94,7 @@ mod tests {
         assert_eq!(c.head, "{G}");
         assert_eq!(
             c.count,
-            "CountOf(AllOf([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))]))"
+            "CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])))"
         );
         assert!(matches!(c.binder, Binder::ForEach));
     }
@@ -105,7 +108,7 @@ mod tests {
         assert_eq!(c.head, "Create X 1/1 red Goblin creature tokens");
         assert_eq!(
             c.count,
-            "CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))"
+            "CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))"
         );
         match c.binder {
             Binder::Variable(v) => assert_eq!(v, "X"),
@@ -119,7 +122,7 @@ mod tests {
         assert_eq!(c.head, "damage to any target");
         assert_eq!(
             c.count,
-            "CountOf(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))"
+            "CountOf(Objects(AllOf([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))"
         );
         assert!(matches!(c.binder, Binder::EqualTo));
     }
@@ -130,7 +133,10 @@ mod tests {
         // battlefield scope ([CR#109.2]) so a count never reaches a Stack-zone
         // copy of an Elf (e.g. a cast Elf spell).
         let c = strip("{G} for each Elf on the battlefield").unwrap();
-        assert_eq!(c.count, "CountOf(AllOf([Permanent, Subtype(\"Elf\")]))");
+        assert_eq!(
+            c.count,
+            "CountOf(Objects(AllOf([Permanent, Subtype(\"Elf\")])))"
+        );
     }
 
     #[test]

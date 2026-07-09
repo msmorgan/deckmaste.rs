@@ -9,6 +9,7 @@ use deckmaste_core::Anchor;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Count;
+use deckmaste_core::Countable;
 use deckmaste_core::Destination;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::Modification;
@@ -2592,15 +2593,37 @@ impl GameState {
             // filters are context-free-correct, so they carry their own
             // zone/kind narrowing. The watcher anchors `Ref(This)` to the
             // frame's announce-time self, the way `eval_reference` does.
-            Count::CountOf(filter) => {
-                let watcher = self.frame_watcher(frame);
-                let n = self
-                    .objects
-                    .iter()
-                    .filter(|ob| self.filter_matches_live(filter, ob.id, watcher))
-                    .count();
-                Uint::try_from(n).expect("object count fits Uint")
-            }
+            Count::CountOf(source) => match source {
+                Countable::Objects(filter) => {
+                    let watcher = self.frame_watcher(frame);
+                    let n = self
+                        .objects
+                        .iter()
+                        .filter(|ob| self.filter_matches_live(filter, ob.id, watcher))
+                        .count();
+                    Uint::try_from(n).expect("object count fits Uint")
+                }
+                // [CR#700.5]: devotion — count mana symbols in the
+                // referenced object's printed cost matching `pred`. A
+                // stale/absent/non-card-backed reference fizzles to 0
+                // (never-crash on an authoring mistake).
+                Countable::ManaSymbols(reference, pred) => {
+                    let id = self.eval_reference(reference, frame);
+                    let n = match self
+                        .objects
+                        .get(id)
+                        .and_then(crate::object::GameObject::card_id)
+                    {
+                        Some(_) => crate::derive::face(self.def(id))
+                            .mana_cost
+                            .iter()
+                            .filter(|sym| pred.matches(sym))
+                            .count(),
+                        None => 0,
+                    };
+                    Uint::try_from(n).expect("pip count fits Uint")
+                }
+            },
             // "Equal to its power": resolve the reference, read the DERIVED
             // stat off the layer view ([CR#613]; per-call rebuild — the same
             // documented perf seam as `target::matches`'s `Has` arm). A
@@ -2711,18 +2734,23 @@ impl GameState {
             // across the matching objects (Domain = distinct land subtypes;
             // Coven = distinct creature powers; Tarmogoyf = distinct card types
             // in graveyards). Anchors `Ref(This)` like `CountOf`.
-            Count::CountDistinct(characteristic, filter) => {
-                let watcher = self.frame_watcher(frame);
-                let mut seen = std::collections::BTreeSet::new();
-                for ob in self.objects.iter() {
-                    if self.filter_matches_live(filter, ob.id, watcher) {
-                        for key in self.distinct_keys(*characteristic, ob.id) {
-                            seen.insert(key);
+            Count::CountDistinct(characteristic, source) => match source {
+                Countable::Objects(filter) => {
+                    let watcher = self.frame_watcher(frame);
+                    let mut seen = std::collections::BTreeSet::new();
+                    for ob in self.objects.iter() {
+                        if self.filter_matches_live(filter, ob.id, watcher) {
+                            for key in self.distinct_keys(*characteristic, ob.id) {
+                                seen.insert(key);
+                            }
                         }
                     }
+                    Uint::try_from(seen.len()).expect("distinct count fits Uint")
                 }
-                Uint::try_from(seen.len()).expect("distinct count fits Uint")
-            }
+                // Not a forced path yet ([CR#700.5] devotion has no
+                // distinct-union reading) — fizzle to 0.
+                Countable::ManaSymbols(..) => 0,
+            },
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
             // happened, post-replacement) — or, for a triggered ability, the
@@ -3270,6 +3298,7 @@ mod tests {
     use deckmaste_core::Card;
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Count;
+    use deckmaste_core::Countable;
     use deckmaste_core::Lookback;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::OneShotEffect;
@@ -4723,7 +4752,10 @@ mod tests {
             Predicate::creature(),
         ]);
         assert_eq!(
-            state.eval_count(&Count::CountOf(Box::new(creatures.clone())), &frame),
+            state.eval_count(
+                &Count::CountOf(Countable::Objects(Box::new(creatures.clone()))),
+                &frame
+            ),
             2
         );
 
@@ -4735,8 +4767,91 @@ mod tests {
             ))),
         ]);
         assert_eq!(
-            state.eval_count(&Count::CountOf(Box::new(yours)), &frame),
+            state.eval_count(&Count::CountOf(Countable::Objects(Box::new(yours))), &frame),
             1
+        );
+    }
+
+    /// Mint a battlefield permanent with the given printed mana cost, with no
+    /// other characteristics — the fixture the pip-count (devotion,
+    /// [CR#700.5]) tests below drive.
+    fn permanent_with_cost(state: &mut GameState, mana_cost: &str) -> ObjectId {
+        let card = Card::Normal(CardFace {
+            name: "Test Permanent".into(),
+            mana_cost: mana_cost.parse().unwrap(),
+            types: vec![Type::Artifact],
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let obj = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(obj);
+        obj
+    }
+
+    /// `CountOf(ManaSymbols(..))` ([CR#700.5] devotion) counts matching pips
+    /// in the referenced object's printed cost: a plain colored count, a
+    /// hybrid pip counting toward EACH of its colors, and an `Or` disjunction
+    /// counting either.
+    #[test]
+    fn count_of_mana_symbols_counts_devotion_pips() {
+        use deckmaste_core::SymbolPred;
+
+        let mut state = game();
+        let gg1 = permanent_with_cost(&mut state, "{G}{G}{1}");
+        let frame = frame_src(gg1);
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::CountsAs(deckmaste_core::Color::Green),
+                )),
+                &frame,
+            ),
+            2,
+            "{{G}}{{G}}{{1}} has two green pips"
+        );
+
+        let gwgw = permanent_with_cost(&mut state, "{G/W}{G/W}");
+        let frame = frame_src(gwgw);
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::CountsAs(deckmaste_core::Color::Green),
+                )),
+                &frame,
+            ),
+            2,
+            "each {{G/W}} hybrid pip counts toward green devotion"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::CountsAs(deckmaste_core::Color::White),
+                )),
+                &frame,
+            ),
+            2,
+            "…and toward white devotion too"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::Or(vec![
+                        SymbolPred::CountsAs(deckmaste_core::Color::White),
+                        SymbolPred::CountsAs(deckmaste_core::Color::Black),
+                    ]),
+                )),
+                &frame,
+            ),
+            2,
+            "Or([White, Black]) over {{G/W}}{{G/W}} matches on the White half of each pip"
         );
     }
 
@@ -6683,7 +6798,7 @@ mod tests {
             let before = state.zones.battlefield.len();
             state.run_effect(
                 OneShotEffect::act_by_you(PlayerAction::Create(
-                    Count::CountOf(Box::new(parsed)),
+                    Count::CountOf(Countable::Objects(Box::new(parsed))),
                     deckmaste_core::Token {
                         color_indicator: vec![],
                         supertypes: vec![],
@@ -7695,12 +7810,12 @@ mod tests {
 
         Condition::AllOf(vec![
             Condition::Compare(
-                Count::CountOf(Box::new(Predicate::AllOf(vec![
+                Count::CountOf(Countable::Objects(Box::new(Predicate::AllOf(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You,
                     )))),
-                ]))),
+                ])))),
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),
@@ -8961,7 +9076,7 @@ mod tests {
         let frame = frame_for(&state, PlayerId(0));
         let powers = Count::CountDistinct(
             deckmaste_core::Characteristic::Power,
-            Box::new(creatures_in_play()),
+            Countable::Objects(Box::new(creatures_in_play())),
         );
         assert_eq!(
             state.eval_count(&powers, &frame),
@@ -8970,7 +9085,7 @@ mod tests {
         );
         let toughnesses = Count::CountDistinct(
             deckmaste_core::Characteristic::Toughness,
-            Box::new(creatures_in_play()),
+            Countable::Objects(Box::new(creatures_in_play())),
         );
         assert_eq!(
             state.eval_count(&toughnesses, &frame),

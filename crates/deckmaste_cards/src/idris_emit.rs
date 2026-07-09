@@ -58,6 +58,7 @@ use deckmaste_core::CostChange;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::CountBound;
+use deckmaste_core::Countable;
 use deckmaste_core::Counter;
 use deckmaste_core::CounterScope;
 use deckmaste_core::CounterSpec;
@@ -96,6 +97,7 @@ use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
+use deckmaste_core::SymbolPred;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Token;
 use deckmaste_core::TokenSpec;
@@ -175,6 +177,35 @@ fn emit_color(c: Color) -> String {
         Color::Green => "Green",
     }
     .to_string()
+}
+
+/// A [`SymbolPred`] as the Idris matcher algebra ([CR#700.5] devotion
+/// counting). `AnyColor` has no single Idris constructor — it emits as the
+/// disjunction over the five colors; `AnyType` (colorless included) has no
+/// devotion twin at all, so it gaps.
+fn emit_symbol_pred(p: &SymbolPred) -> R {
+    Ok(match p {
+        SymbolPred::CountsAs(c) => app("CountsAs", vec![emit_color(*c)]),
+        SymbolPred::IsGeneric => "IsGeneric".to_string(),
+        SymbolPred::And(ps) => app("And", vec![map_list(ps, emit_symbol_pred)?]),
+        SymbolPred::Or(ps) => app("Or", vec![map_list(ps, emit_symbol_pred)?]),
+        SymbolPred::Not(inner) => app("Not", vec![emit_symbol_pred(inner)?]),
+        SymbolPred::AnyColor => app(
+            "Or",
+            vec![ilist(vec![
+                app("CountsAs", vec!["White".to_string()]),
+                app("CountsAs", vec!["Blue".to_string()]),
+                app("CountsAs", vec!["Black".to_string()]),
+                app("CountsAs", vec!["Red".to_string()]),
+                app("CountsAs", vec!["Green".to_string()]),
+            ])],
+        ),
+        SymbolPred::AnyType => {
+            return Err(gap(
+                "SymbolPred::AnyType (colorless included) has no devotion twin in Idris",
+            ));
+        }
+    })
 }
 
 fn emit_color_or_colorless(c: ColorOrColorless) -> String {
@@ -887,13 +918,28 @@ fn emit_count(c: &Count) -> R {
     Ok(match c {
         Count::X => "X".to_string(),
         Count::Literal(n) => app("Literal", vec![n.to_string()]),
-        Count::CountOf(f) => format!("(CountMatching {})", emit_filter(f)?),
-        Count::CountDistinct(characteristic, f) => {
+        Count::CountOf(source) => match source {
+            Countable::Objects(f) => format!("(CountMatching {})", emit_filter(f)?),
+            // [CR#700.5]: devotion — the mana symbols in a referenced
+            // object's cost matching `pred`.
+            Countable::ManaSymbols(r, pred) => app(
+                "CountOf",
+                vec![app(
+                    "ManaSymbols",
+                    vec![emit_reference(r)?, emit_symbol_pred(pred)?],
+                )],
+            ),
+        },
+        Count::CountDistinct(characteristic, source) => {
             let c = collection_characteristic(*characteristic)?;
-            app(
-                "CountDistinct",
-                vec![c, format!("(Objects {})", emit_filter(f)?)],
-            )
+            let src = match source {
+                Countable::Objects(f) => format!("(Objects {})", emit_filter(f)?),
+                Countable::ManaSymbols(r, pred) => app(
+                    "ManaSymbols",
+                    vec![emit_reference(r)?, emit_symbol_pred(pred)?],
+                ),
+            };
+            app("CountDistinct", vec![c, src])
         }
         Count::StatOf(r, stat) => {
             use deckmaste_core::Stat as S;

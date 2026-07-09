@@ -5,6 +5,7 @@ use deckmaste_core::Characteristic;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
+use deckmaste_core::Countable;
 use deckmaste_core::Extremum;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::PlayerAttr;
@@ -152,7 +153,13 @@ pub(super) fn count(c: &Count) -> String {
         // subtype axis over a typed group names the type's own subtype
         // family ("land types"); the group reads as its plural subject
         // phrase ("lands you control").
-        Count::CountDistinct(axis, filter) => {
+        // `ManaSymbols`-sourced distinct counts have no forced card yet — the
+        // devotion-style phrasing lands with `Count::Aggregate` (a later
+        // task); render structurally for now (YAGNI).
+        Count::CountDistinct(_, Countable::ManaSymbols(..)) => {
+            format!("[unrendered: {c:?}]")
+        }
+        Count::CountDistinct(axis, Countable::Objects(filter)) => {
             let axis_word = match (axis, find_card_type(filter)) {
                 (Characteristic::Subtypes, Some(t)) => {
                     format!("{} types", super::card::type_str(t).to_lowercase())
