@@ -1,0 +1,29 @@
+// "Shuffle your graveyard into your library." — the graveyard-hate family's
+// nullary composition ([CR#701.24a] shuffle; [CR#400.7] zone change): every
+// card in your graveyard moves to your library, THEN the library shuffles —
+// the shuffle must see the moved cards, so it runs second. Not a primitive
+// verb: an `Each` distribution over the
+// your-graveyard filter (`graveyard_card_filter`'s shape, migrations
+// effect.rs — owned, not the any-graveyard exile family's owner-agnostic
+// twin) feeding `Move(It, Library(FromTop(0)))` — a library destination is
+// anchor-mandatory (a bare `Library` variant doesn't exist), and the anchor
+// is irrelevant here since the very next step destroys all order. No
+// `Composite` wrapper: "shuffle X into Y" is plain English, not a printed
+// CR#701 keyword-action verb, so there is no "whenever you ~" event to name.
+//
+// Template: the whole nullary phrase, matching the effect-clause parser's
+// `parse_macro_effect` "OneShotEffect" bare-emittable fallthrough
+// (migrations effect.rs) — no slots, so it graduates and renders without any
+// bespoke parser/render code of its own.
+(
+    name: "ShuffleYourGraveyardIntoLibrary",
+    template: "shuffle your graveyard into your library",
+    kinds: [OneShotEffect],
+    body: Sequentially([
+        Each(
+            binder: Existing(SelectAll(And([InZone(Graveyard), Owner(Ref(You))]))),
+            effect: Move(It, Library(FromTop(0))),
+        ),
+        Shuffle,
+    ]),
+)

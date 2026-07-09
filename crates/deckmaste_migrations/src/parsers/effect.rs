@@ -714,10 +714,27 @@ fn parse_delayed_next_end_step(
 /// ([CR#701.13a]; the slot spelling stays the runtime-supported read). The
 /// exile clause's PRODUCT — the exiled card — is what a following sentence's
 /// `That(Card)` resolves to ([CR#400.7j]; the Otherworldly-Journey chain).
+///
+/// A special-cased subject peels first: `Exile target [<type>] card from a
+/// graveyard.` ([CR#400.7], the graveyard-hate family) — ANY player's
+/// graveyard, unlike the graveyard-recursion family's "your graveyard"
+/// (`graveyard_card_filter`). [`any_graveyard_card_filter`] builds the
+/// owner-agnostic twin of that helper; a general (non-graveyard) subject
+/// falls through to the shared [`object_target_filter`] grammar as before.
 fn parse_exile_target(line: &str) -> Option<ParsedEffect> {
     let subject = strip_prefix_ci(line, "exile ")?
         .strip_suffix('.')?
         .strip_prefix("target ")?;
+    if let Some(noun) = subject.strip_suffix(" from a graveyard") {
+        let noun = noun
+            .strip_suffix(" card")
+            .or_else(|| (noun == "card").then_some(""))?;
+        let filter = any_graveyard_card_filter(noun)?;
+        return Some(ParsedEffect {
+            targets: vec![format!("TargetOne({filter})")],
+            effect: "Move(It, Exile)".to_owned(),
+        });
+    }
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
@@ -1223,6 +1240,28 @@ fn graveyard_card_filter(subject: &str) -> Option<String> {
     atoms.push("InZone(Graveyard)".to_owned());
     atoms.push("Owner(Ref(You))".to_owned());
     Some(format!("And([{}])", atoms.join(", ")))
+}
+
+/// The any-graveyard twin of [`graveyard_card_filter`]: a card of the given
+/// type in A graveyard — any player's, not just yours — omitting the
+/// `Owner(Ref(You))` restriction the your-graveyard sibling carries:
+/// `And([<type>, InZone(Graveyard)])`. Used by "Exile target [<type>] card
+/// from a graveyard." ([CR#701.13a]/[CR#400.7], the graveyard-hate family),
+/// whose "a graveyard" (contrast the recursion family's "your graveyard")
+/// names no owner. Reuses [`graveyard_card_type`] for the type atom, so
+/// "instant or sorcery" disjunctions parse identically. A bare "card" (no
+/// type qualifier) is the lone `InZone(Graveyard)` atom, unwrapped — the
+/// corpus convention of never nesting a singleton filter in an `And` of one
+/// (see [`graveyard_card_filter`]'s doc for the your-graveyard analog, which
+/// always carries at least the `Owner` atom alongside).
+fn any_graveyard_card_filter(subject: &str) -> Option<String> {
+    match graveyard_card_type(subject) {
+        Some(ty) => Some(format!("And([{ty}, InZone(Graveyard)])")),
+        None if subject.is_empty() => Some("InZone(Graveyard)".to_owned()),
+        // A type word the card-type grammar doesn't model -> decline (never
+        // emit a junk filter).
+        None => None,
+    }
 }
 
 /// A graveyard-card type phrase -> its card-type `Predicate` (`Type(Creature)`,
@@ -2972,6 +3011,59 @@ mod tests {
         assert!(declines(
             "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
         ));
+    }
+
+    /// Graveyard-hate exile ([CR#701.13a],[CR#400.7]): "Exile target [<type>]
+    /// card from a graveyard." — ANY player's graveyard, unlike the
+    /// graveyard-recursion family's owner-scoped filter, so no `Owner` atom
+    /// rides the predicate.
+    #[test]
+    fn exile_target_card_from_a_graveyard() {
+        assert_eq!(
+            parsed("Exile target creature card from a graveyard."),
+            Some((
+                "TargetOne(And([Type(Creature), InZone(Graveyard)]))".to_owned(),
+                "Move(It, Exile)".to_owned()
+            ))
+        );
+        // Bare "card" (no type qualifier) — any card in a graveyard, no `And`
+        // wrapper around the lone `InZone(Graveyard)` atom.
+        assert_eq!(
+            parsed("Exile target card from a graveyard."),
+            Some((
+                "TargetOne(InZone(Graveyard))".to_owned(),
+                "Move(It, Exile)".to_owned()
+            ))
+        );
+        // "instant or sorcery card" — a card-type disjunction, same as the
+        // your-graveyard sibling.
+        assert_eq!(
+            parsed("Exile target instant or sorcery card from a graveyard."),
+            Some((
+                "TargetOne(And([Or([Type(Instant), Type(Sorcery)]), InZone(Graveyard)]))"
+                    .to_owned(),
+                "Move(It, Exile)".to_owned()
+            ))
+        );
+        // The general (non-graveyard) exile production is untouched.
+        assert_eq!(
+            parsed("Exile target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Move(It, Exile)".to_owned()
+            ))
+        );
+    }
+
+    /// "Shuffle your graveyard into your library." graduates via the builtin
+    /// `ShuffleYourGraveyardIntoLibrary` macro's nullary `OneShotEffect`
+    /// bare-emittable fallthrough — no bespoke parser arm.
+    #[test]
+    fn shuffle_your_graveyard_into_your_library_macro() {
+        assert_eq!(
+            parsed_with_macros("Shuffle your graveyard into your library."),
+            Some((String::new(), "ShuffleYourGraveyardIntoLibrary".to_owned()))
+        );
     }
 
     #[test]

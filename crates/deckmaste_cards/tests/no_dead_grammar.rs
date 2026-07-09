@@ -335,11 +335,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             Liberated's -14) in this batch.",
         ),
         (
-            n("PlayerAction", "Shuffle"),
-            "DEFERRED: no bare shuffle-the-library real card (distinct \
-            from a search's shuffle-after) in this batch.",
-        ),
-        (
             n("PlayerAction", "Reveal"),
             "DEFERRED: no bare Reveal-only real card in this batch \
             (canon's reveal-adjacent cards fold revealing into SeparatePiles).",

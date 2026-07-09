@@ -1021,6 +1021,21 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // rendering — its meaning IS its body (the printed keyword name rides
         // the macro template when authored via a macro).
         Action::Composite { body, .. } => effect(body, ctx),
+        // [CR#701.13a]/[CR#400.7]: exiling a graveyard-hate target — "Exile
+        // target [<type>] card from a graveyard." — any player's graveyard,
+        // per `any_graveyard_card_filter` (migrations effect.rs), so "from a
+        // graveyard" is static text appended here, not derived from the
+        // reference. Unlike the reanimation arm's bare reference-SHAPE guard
+        // (`It`/`This` alone), this `Move(It, Exile)` shape is shared with the
+        // general "Exile target <subject>." production below, so the zone
+        // must be read off the actual target filter.
+        Action::Move(r, Destination::Zone(Zone::Exile), riders)
+            if riders.is_empty()
+                && fragment::sole_target_filter(r, ctx)
+                    .is_some_and(fragment::is_graveyard_scoped) =>
+        {
+            format!("Exile {} from a graveyard.", fragment::reference(r, ctx))
+        }
         // Exiling is a pure zone move ([CR#701.13]) — "Exile <r>." (the
         // source-agent twin of `PlayerAction::Move`'s identical exile arm).
         Action::Move(r, Destination::Zone(Zone::Exile), riders) if riders.is_empty() => {
@@ -2250,5 +2265,83 @@ mod tests {
             vec![],
         ));
         assert_eq!(action(&exile, &ctx), "Exile Scavenger.");
+    }
+
+    /// Graveyard-hate exile ([CR#701.13a]/[CR#400.7]) — the migrations
+    /// `parse_exile_target` production's `any_graveyard_card_filter` shape —
+    /// round-trips with the "from a graveyard" clause appended, both typed
+    /// and bare "card"; the plain (non-graveyard) exile production, sharing
+    /// the identical `Move(It, Exile)` shape, must NOT pick up the clause.
+    #[test]
+    fn exile_target_card_from_a_graveyard_round_trips() {
+        use deckmaste_core::StatePredicate;
+
+        let graveyard_creature = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+        ]);
+        let target = TargetSpec::Target(Quantity::one(), graveyard_creature);
+        let ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&target),
+            that: None,
+        };
+        let exiled = Action::Move(Reference::It, Destination::Zone(Zone::Exile), vec![]);
+        assert_eq!(
+            action(&exiled, &ctx),
+            "Exile target creature card from a graveyard."
+        );
+
+        // Bare "card" (no type qualifier).
+        let bare_card = Predicate::State(StatePredicate::InZone(Zone::Graveyard));
+        let bare_target = TargetSpec::Target(Quantity::one(), bare_card);
+        let bare_ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&bare_target),
+            that: None,
+        };
+        assert_eq!(
+            action(&exiled, &bare_ctx),
+            "Exile target card from a graveyard."
+        );
+
+        // Regression guard: the plain "Exile target <subject>." production
+        // shares this exact `Move(It, Exile)` shape for a NON-graveyard
+        // filter — must keep its own phrasing, no "from a graveyard" clause.
+        let plain_target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let plain_ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&plain_target),
+            that: None,
+        };
+        assert_eq!(action(&exiled, &plain_ctx), "Exile target creature.");
+    }
+
+    /// "Shuffle your graveyard into your library." ([CR#701.24a]/[CR#400.7])
+    /// — the builtin `ShuffleYourGraveyardIntoLibrary` macro invocation
+    /// actually rendered (not just structurally pinned): loaded through the
+    /// real plugin/macro registry, so this exercises the template-first
+    /// render path a bare parser-test pin would silently skip.
+    #[test]
+    fn shuffle_your_graveyard_into_your_library_renders_via_template() {
+        use std::path::Path;
+
+        use crate::plugin::Plugin;
+
+        let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
+        let plugin = Plugin::load(plugins.join("builtin")).unwrap();
+        let parsed: OneShotEffect = plugin
+            .macros
+            .read_str("ShuffleYourGraveyardIntoLibrary")
+            .unwrap();
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+        };
+        assert_eq!(
+            effect(&parsed, &ctx),
+            "Shuffle your graveyard into your library."
+        );
     }
 }

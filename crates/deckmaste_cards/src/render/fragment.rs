@@ -464,12 +464,7 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
     // itself ("from your graveyard") is NOT this function's job — that
     // clause is the caller's static boilerplate (the graveyard-recursion
     // family, [CR#400.7]).
-    let is_graveyard_card = flatten_all_of(filter).into_iter().any(|p| {
-        matches!(
-            strip_expanded(p),
-            Predicate::State(StatePredicate::InZone(Zone::Graveyard))
-        )
-    });
+    let is_graveyard_card = is_graveyard_scoped(filter);
     // The base noun: a card TYPE atom ("creature") or, failing that, a bare
     // macro-provenance noun among the `And` parts ("permanent" — the
     // `Permanent` filter macro has no `Type(_)` atom of its own to key off
@@ -784,6 +779,48 @@ fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
         Predicate::And(v) => v.iter().collect(),
         single => vec![single],
     }
+}
+
+/// Whether `filter` carries an `InZone(Graveyard)` atom — shared by
+/// `filter_noun`'s graveyard-card "card" noun and the exile-from-a-graveyard
+/// render arm (effect.rs's `Action::Move(_, Exile, _)`), which needs to know
+/// whether to append "from a graveyard" without re-deriving this zone check.
+/// Owner-agnostic by design: both the your-graveyard recursion family's filter
+/// and the any-graveyard exile family's filter carry this same atom.
+pub(super) fn is_graveyard_scoped(filter: &Predicate) -> bool {
+    flatten_all_of(filter).into_iter().any(|p| {
+        matches!(
+            strip_expanded(p),
+            Predicate::State(StatePredicate::InZone(Zone::Graveyard))
+        )
+    })
+}
+
+/// The `Predicate` a `TargetSpec` slot filters on, peeling macro-provenance
+/// (`Expanded`) and the co-target wrapper (`Distinct`) to reach the leaf
+/// `Target(Quantity, Predicate)`.
+fn target_spec_filter(spec: &TargetSpec) -> Option<&Predicate> {
+    match spec {
+        TargetSpec::Target(_, filter) => Some(filter),
+        TargetSpec::Distinct(_, inner) => target_spec_filter(inner),
+        TargetSpec::Expanded(exp) => target_spec_filter(&exp.value),
+    }
+}
+
+/// The filter behind the reference `r` when it resolves the LONE announced
+/// target slot — the same condition [`reference`]'s `Reference::It` arm reads
+/// off (the "it" pronoun-anaphor a resolving instruction reads back to an
+/// earlier-announced target, [CR#608.2c]'s own "Destroy target creature. It
+/// can't be regenerated" example). `None` when `r` isn't `It`, there's no
+/// exactly-one target, or a `that`-bound anaphor shadows the read (mirrors
+/// `reference`'s own precedence). Used by the exile-from-a-graveyard render
+/// arm to decide whether the target's filter is graveyard-scoped without
+/// re-deriving `reference`'s resolution rule.
+pub(super) fn sole_target_filter<'a>(r: &Reference, ctx: &'a Ctx) -> Option<&'a Predicate> {
+    if !matches!(r, Reference::It) || ctx.that.is_some() || ctx.targets.len() != 1 {
+        return None;
+    }
+    target_spec_filter(&ctx.targets[0])
 }
 
 // ── Devotion recognizer ([CR#700.5]) ────────────────────────────────────────
