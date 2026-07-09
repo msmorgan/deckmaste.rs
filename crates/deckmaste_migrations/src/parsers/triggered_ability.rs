@@ -582,7 +582,7 @@ mod tests {
                 "Triggered(ability_word: \"Landfall\", \
                  event: Enters(And([Type(Land), ControlledBy(Ref(You))])), \
                  effect: Continuously(effect: Modify(This, \
-                 PowerAndToughnessUp(2, 2)), duration: FixedUntil(EndOfTurn)))"
+                 Several([Power(Up(2)), Toughness(Up(2))])), duration: FixedUntil(EndOfTurn)))"
             )
         );
     }

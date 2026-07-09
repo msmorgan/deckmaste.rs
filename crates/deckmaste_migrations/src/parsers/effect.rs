@@ -1667,7 +1667,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([PowerAndToughnessUp(3, 3), GainAbility(Keyword(Trample))]))), \
+                 Modify(It, Several([Power(Up(3)), Toughness(Up(3)), GainAbility(Keyword(Trample))]))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -1681,7 +1681,7 @@ mod tests {
             parsed("~ gets +1/+1 until end of turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Modify(This, PowerAndToughnessUp(1, 1)), \
+                "Continuously(effect: Modify(This, Several([Power(Up(1)), Toughness(Up(1))])), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -1691,7 +1691,7 @@ mod tests {
             parsed("Target creature gets +3/+3 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(It, PowerAndToughnessUp(3, 3)), \
+                "Continuously(effect: Modify(It, Several([Power(Up(3)), Toughness(Up(3))])), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2340,9 +2340,9 @@ mod tests {
                 String::new(),
                 "If(condition: YouHaveTheCitysBlessing, \
                  then: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, PowerAndToughnessUp(2, 2))), duration: FixedUntil(EndOfTurn)), \
+                 Modify(It, Several([Power(Up(2)), Toughness(Up(2))]))), duration: FixedUntil(EndOfTurn)), \
                  otherwise: Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, PowerAndToughnessUp(1, 1))), duration: FixedUntil(EndOfTurn)))".to_owned()
+                 Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))), duration: FixedUntil(EndOfTurn)))".to_owned()
             ))
         );
     }
