@@ -400,21 +400,27 @@ fn duplicate_names_are_an_error() {
     );
 }
 
+/// A macro cycle declared this way used to only blow the runtime
+/// `MAX_DEPTH` expansion cap the first time it was read (see the `depth`
+/// guard in `expand.rs`, whose message is still "macros don't recurse");
+/// the static cycle check now rejects it at `declare` — which routes
+/// through `insert` — so it can no longer be constructed at all.
 #[test]
-fn recursion_is_an_error_not_a_stack_overflow() {
+fn recursion_is_rejected_at_declare_not_only_at_runtime() {
     let mut macros = macros();
-    macros
+    let error = macros
         .declare("Subtype", "Ouroboros".into(), "Ouroboros")
-        .unwrap();
+        .unwrap_err();
+    assert!(matches!(error, InsertError::Cycle { .. }), "{error}");
+
+    // `Ping` naming not-yet-declared `Pong` is fine — the walk finds no
+    // edge to a macro that doesn't exist yet — but `Pong` naming `Ping`
+    // back closes the loop.
     macros.declare("Subtype", "Ping".into(), "Pong").unwrap();
-    macros.declare("Subtype", "Pong".into(), "Ping").unwrap();
-    for cycle in ["Ouroboros", "Ping"] {
-        let error = macros.read_str::<Subtype>(cycle).unwrap_err();
-        assert!(
-            error.to_string().contains("macros don't recurse"),
-            "unexpected error: {error}"
-        );
-    }
+    let error = macros
+        .declare("Subtype", "Pong".into(), "Ping")
+        .unwrap_err();
+    assert!(matches!(error, InsertError::Cycle { .. }), "{error}");
 }
 
 #[test]
@@ -2146,6 +2152,35 @@ fn default_inner_type_must_be_registered() {
         )"#))
         .unwrap_err();
     assert!(matches!(error, InsertError::UnknownParamType { .. }));
+}
+
+/// A self-referential body — the minimal cycle — is rejected at insert
+/// rather than only tripping the runtime `MAX_DEPTH` expansion cap.
+#[test]
+fn self_referential_body_is_rejected_at_insert() {
+    let err = empty()
+        .insert(&def(r#"(
+            name: "Loop",
+            kinds: [Modification],
+            body: Loop,
+        )"#))
+        .unwrap_err();
+    assert!(matches!(err, InsertError::Cycle { .. }), "{err}");
+}
+
+/// A two-macro cycle is rejected once it closes: `A`'s body naming `B`
+/// (not yet defined) inserts fine — `B` simply isn't a macro yet, so the
+/// walk finds no edge — but `B`'s body naming `A` closes the loop back to
+/// `B` itself.
+#[test]
+fn mutually_recursive_bodies_are_rejected_at_insert() {
+    let mut set = empty();
+    set.insert(&def(r#"( name: "A", kinds: [Modification], body: B )"#))
+        .unwrap();
+    let err = set
+        .insert(&def(r#"( name: "B", kinds: [Modification], body: A )"#))
+        .unwrap_err();
+    assert!(matches!(err, InsertError::Cycle { .. }), "{err}");
 }
 
 /// The headline: an omitted defaulted arg fills from the default expression,

@@ -653,6 +653,124 @@ pub(crate) fn collect_param_keys(
     Ok(())
 }
 
+/// A macro body's own OUTERMOST identifier, if it has one — `Foo(...)`,
+/// `Foo { ... }`, or bare `Foo` all yield `Foo`; a leading `Quote(X)` stage
+/// marker unwraps to `X`'s own leading identifier; anything else (a plain
+/// struct/enum constructor for the position's real type, a scalar, a list)
+/// yields `None`.
+///
+/// Deliberately shallow — it never descends into the value's own
+/// children/arguments. Every macro-to-macro chain in this codebase is
+/// expressed as "my body's entire value is a call to the next macro" (see
+/// `body_forwards_params_into_nested_macro`'s `Pair`/`PumpUp`), so this
+/// catches every real chain. Descending into arguments was tried and
+/// reverted: a nested argument can be an ordinary bare-identifier leaf value
+/// (e.g. `CounterRef`, spelled exactly like a nullary macro invocation with
+/// no way to tell the two apart from raw text alone — `M1M1Counter`'s own
+/// body names itself that way, as data, not as a self-invocation) and
+/// mistaking one for an invocation is a false cycle, which is worse than
+/// missing a real one — a missed one still trips the runtime `MAX_DEPTH`
+/// cap, same as before this check existed.
+pub(crate) fn leading_invoked_name(body: &str, options: &ron::Options) -> Option<Ident> {
+    /// The [`IdentLed`] shape-probe, but it remembers the identifier it read
+    /// (in `last_ident`, shared across the tuple/struct retry so the
+    /// unit-variant fallback can still recover it) instead of discarding it
+    /// — [`decompose`] doesn't need the name of an ordinary struct/enum
+    /// variant, but this walk is looking for one that might *be* a macro
+    /// invocation.
+    struct IdentLedNamed<'a> {
+        entered: &'a Cell<bool>,
+        last_ident: &'a Cell<Option<Ident>>,
+        named: bool,
+    }
+
+    /// Either the leading identifier, or (for `Quote(X)`) the inner
+    /// fragment to keep unwrapping.
+    enum Shape<'de> {
+        Named(Ident),
+        Quote(&'de RawValue),
+        Other,
+    }
+
+    impl<'de> DeserializeSeed<'de> for IdentLedNamed<'_> {
+        type Value = Shape<'de>;
+
+        fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+            de.deserialize_enum("", &[], self)
+        }
+    }
+
+    impl<'de> Visitor<'de> for IdentLedNamed<'_> {
+        type Value = Shape<'de>;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("an identifier-led value")
+        }
+
+        fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+            let (ident, variant) = data.variant_seed(IdentSeed)?;
+            self.entered.set(true);
+            self.last_ident.set(Some(ident));
+            if ident == "Param" {
+                let _: ParamKey = variant.newtype_variant()?;
+                return Ok(Shape::Other);
+            }
+            if ident == QUOTE {
+                return Ok(Shape::Quote(variant.newtype_variant()?));
+            }
+            // Consumed only to leave the parser in a valid end state; the
+            // children themselves are never inspected (see the doc comment
+            // above).
+            if self.named {
+                variant.struct_variant(&[], Children)?;
+            } else {
+                variant.tuple_variant(0, Children)?;
+            }
+            Ok(Shape::Named(ident))
+        }
+    }
+
+    /// [`decompose`]'s shape-probing loop, keeping the leading identifier
+    /// instead of discarding it. A malformed fragment reads as [`Shape::Other`]
+    /// (never a hard error) — a malformed body is reported elsewhere, when
+    /// it's read for real at first invocation, so the static check simply
+    /// treats it as having nothing to walk.
+    fn shape_of<'de>(fragment: &'de str, options: &ron::Options) -> Shape<'de> {
+        let entered = Cell::new(false);
+        let last_ident: Cell<Option<Ident>> = Cell::new(None);
+        for named in [false, true] {
+            let ident_led = IdentLedNamed {
+                entered: &entered,
+                last_ident: &last_ident,
+                named,
+            };
+            match read_fragment(fragment, options, ident_led) {
+                Ok(shape) => return shape,
+                // Not identifier-led: it's an ordinary value, not a macro
+                // invocation.
+                Err(_) if !entered.get() => return Shape::Other,
+                // A shape mismatch: the struct-shaped grammar is next, or
+                // (both having failed) this is a bare unit-variant
+                // identifier — either way it was already recorded.
+                Err(_) => {}
+            }
+        }
+        let ident = last_ident
+            .get()
+            .expect("entered implies visit_enum recorded an identifier");
+        Shape::Named(ident)
+    }
+
+    let mut fragment = body;
+    loop {
+        match shape_of(fragment, options) {
+            Shape::Named(ident) => return Some(ident),
+            Shape::Quote(inner) => fragment = inner.get_ron(),
+            Shape::Other => return None,
+        }
+    }
+}
+
 /// Replaces every `Param(n)` hole in a RON fragment with the corresponding
 /// argument's source text. Two callers, distinguished by [`HoleMode`]:
 /// untagged enum content (serde buffers through its private Content type,

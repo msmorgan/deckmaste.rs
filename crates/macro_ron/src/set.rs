@@ -230,6 +230,11 @@ pub enum InsertError {
         param: Ident,
         reason: String,
     },
+    /// A definition's body invokes a macro whose expansion eventually
+    /// invokes it again — directly (a self-reference) or through a chain of
+    /// other macros. Caught here so it fails at load, not only at runtime
+    /// once the `MAX_DEPTH` expansion cap trips.
+    Cycle { name: Ident, path: Vec<Ident> },
 }
 
 impl fmt::Display for InsertError {
@@ -274,6 +279,14 @@ impl fmt::Display for InsertError {
             } => {
                 write!(f, "macro `{name}` param `{param}` default: {reason}")
             }
+            InsertError::Cycle { name, path } => write!(
+                f,
+                "macro `{name}` forms an expansion cycle: {}",
+                path.iter()
+                    .map(Ident::as_str)
+                    .collect::<Vec<_>>()
+                    .join(" -> ")
+            ),
         }
     }
 }
@@ -498,6 +511,60 @@ impl MacroSet {
         Ok(())
     }
 
+    /// Rejects `def` if its body forms an expansion cycle: invoking a macro
+    /// whose own body (directly, or through a chain of further such
+    /// top-level invocations) invokes `def` again. No graph persists
+    /// between calls — every already-registered macro was accepted by this
+    /// same check, so it's already acyclic; only the edges the new `def`
+    /// introduces need walking.
+    ///
+    /// Resolution is deliberately conservative in two ways. First, only a
+    /// body's own *outermost* value is examined ([`leading_invoked_name`]) —
+    /// never its nested arguments, which may be ordinary bare-identifier
+    /// leaf data (a `CounterRef`-style reference) indistinguishable, in raw
+    /// text, from a macro invocation. Every real macro-to-macro chain in
+    /// this codebase is written as "my body's entire value is a call to the
+    /// next macro", so this still catches every real chain. Second, a
+    /// resolved name only counts as an edge if it names `def` itself or a
+    /// macro already registered under one of `def`'s own kinds; anything
+    /// else resolves to nothing and is silently skipped. A missed edge is
+    /// at worst a cycle caught later by the runtime `MAX_DEPTH` cap
+    /// (unchanged from before this check existed); a spurious one would
+    /// reject a legitimate macro outright.
+    fn check_cycles(&self, def: &MacroDef) -> Result<(), InsertError> {
+        let mut stack = vec![def.name];
+        let mut on_stack = std::collections::HashSet::from([def.name]);
+        let mut cur = def;
+        loop {
+            let Some(name) = crate::expand::leading_invoked_name(cur.body(), &self.options) else {
+                return Ok(());
+            };
+            let target = if name == def.name {
+                def
+            } else {
+                let Some(target) = def
+                    .kinds
+                    .iter()
+                    .find_map(|kind| self.macros.get(kind).and_then(|named| named.get(&name)))
+                else {
+                    return Ok(());
+                };
+                target
+            };
+            if on_stack.contains(&target.name) {
+                let mut path = stack;
+                path.push(target.name);
+                return Err(InsertError::Cycle {
+                    name: def.name,
+                    path,
+                });
+            }
+            stack.push(target.name);
+            on_stack.insert(target.name);
+            cur = target;
+        }
+    }
+
     /// Validates `def` and registers it under each of its kinds. The shared
     /// body of [`insert`](Self::insert) and [`replace`](Self::replace): the two
     /// differ only in whether a same-kind name collision is rejected
@@ -514,6 +581,7 @@ impl MacroSet {
         self.check_kinds(def)?;
         self.check_param_types(def)?;
         self.check_defaults(def)?;
+        self.check_cycles(def)?;
         if !allow_overwrite {
             for (i, &kind) in def.kinds.iter().enumerate() {
                 let duplicate = def.kinds[..i].contains(&kind)
