@@ -903,7 +903,7 @@ failing "implementation for Void"
 -- projecting a NON-object `Countable` is rejected — only `Objects` is `Projectable`, so `Project (Events …)`
 -- has no `Projectable (Events …)` proof (you cannot bind `It` over an atomic event).
 failing "Projectable (Events"
-  tBadProjectEvents : Projection Base
+  tBadProjectEvents : Projection Base AnObject
   tBadProjectEvents = Project (Events (MkEventQuery [DealDamage Nothing] [])) (Literal 0)
 
 -- `CountDistinct` is gated by `readableOn`: an object-only characteristic over a non-object source is
@@ -931,7 +931,7 @@ failing "NonEmpty []"
 -- via `bindIt`, which clears the `Allot` antecedent, so `Allotment` has no proof there (it was indexed to
 -- a DIFFERENT loop element).
 failing "bindIt (loopOf creature)"
-  tBadAllotmentInProjection : Projection Base
+  tBadAllotmentInProjection : Projection Base AnObject
   tBadAllotmentInProjection = eachOf creature Allotment
 
 -- THE INVALID-REFERENCE GATE: an event anaphor is valid only where the event SUPPLIES it (`eventQueryCaps`).

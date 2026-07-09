@@ -1265,6 +1265,7 @@ mutual
     public export
     data Projectable : Countable b -> Type where
       ObjectsAreProjectable : Projectable (Objects p)
+      PlayersAreProjectable : Projectable (Players p)   -- cross-player fold (`It` : APlayer) — Balance/Arbiter of Knollridge [CR#119.1]
 
   -- which CHARACTERISTIC can be read off each element of a `Countable` — the gate on `CountDistinct`, mirroring
   -- `Projectable`/`eventQueryHasAmount`. `Colors` is readable off objects AND mana (Sunburst counts colours of
@@ -1280,11 +1281,13 @@ mutual
   readableOn _      (Singleton _)     = ()
   readableOn _      _                 = Void
 
-  -- A PROJECTION of a game property/state to a value.
+  -- A PROJECTION of a game property/state to a value — indexed by its element `RefKind` (`AnObject` for the
+  -- usual per-permanent fold, `APlayer` for a cross-player fold, §8) so `Pick` can pin to objects while
+  -- `Aggregate` stays poly over both.
   namespace Projection
     public export
-    data Projection : Ctx -> Type where
-      Project : (src : Countable b) -> {auto 0 prj : Projectable src} -> Count (bindIt (projElemAnte src) b) -> Projection b
+    data Projection : Ctx -> RefKind -> Type where
+      Project : (src : Countable b) -> {auto 0 prj : Projectable src} -> Count (bindIt (projElemAnte src) b) -> Projection b ((projElemAnte src).kind)
 
   -- A COUNT / mathematical expression producing a number.
   namespace Count
@@ -1303,8 +1306,10 @@ mutual
       ManaValueOf : Reference b AnObject -> Count b   -- an object's DERIVED mana value ([CR#202.3]) — a number, not a characteristic axis
       -- FOLD a `Projection` to one value, per `AggregateOp` ("greatest power among creatures you control" =
       -- `Aggregate MaxOf (eachOf yourCreatures (StatOf It Power))`; devotion sums a per-permanent pip-count).
-      -- The value-twin of `Pick` (which takes the extremal element from the same `Projection`).
-      Aggregate : AggregateOp -> Projection b -> Count b
+      -- The value-twin of `Pick` (which takes the extremal element from the same `Projection`). Poly over the
+      -- element `RefKind` (free implicit `k`) — a cross-player fold works too ([CR#119.1] Arbiter of
+      -- Knollridge/Balance, §8), unlike `Pick` which stays pinned to objects.
+      Aggregate : AggregateOp -> Projection b k -> Count b
       -- fold the matching events' AMOUNTS, per `AggregateOp` (`EventAgg SumOf q` is the old `EventSum`; events
       -- have no `It` to bind, so they fold their single amount rather than a projection). Gated by
       -- `eventQueryHasAmount`, so every queried kind must carry one (`EventAgg SumOf (MkEventQuery [Begins Cast] [])`
@@ -1516,8 +1521,10 @@ mutual
       -- the extremal ELEMENT(s) of a `Projection` ("the creature with the greatest power" = `Pick MaxOf (eachOf
       -- yourCreatures (StatOf It Power))`). The element-twin of `Aggregate` (which folds the same `Projection` to
       -- a value); the op is gated to the extremal ones by `IsExtremal` (no `Pick SumOf`); ties yield the whole
-      -- group, narrowed by the usual `Single`/choice path.
-      Pick : (op : AggregateOp) -> {auto 0 ext : IsExtremal op} -> Projection b -> Selection b AnObject
+      -- group, narrowed by the usual `Single`/choice path. Pinned to `AnObject` — a player-`Pick` ("target
+      -- player with the most X") is sound but unrepresentable for now (no consumer; §8 leaves it as a
+      -- one-line future generalization to `Projection b k`).
+      Pick : (op : AggregateOp) -> {auto 0 ext : IsExtremal op} -> Projection b AnObject -> Selection b AnObject
 
   -- conjunctive PINS off a `Predicate` (the object-kind / zone / card-type
   -- atoms a conjunction fixes) — `sortFromPins` turns them into the noun the
@@ -1567,10 +1574,11 @@ mutual
               . bindThat (MkAnt Card AnObject Many Frame Nothing Nothing)
 
   -- the element antecedent a `Projection` binds (`It` = each counted
-  -- object); total over `Countable`, though only `Objects` is projectable.
+  -- object/player); total over `Countable`, though only `Objects`/`Players` are projectable.
   public export
   projElemAnte : Countable b -> Ant
   projElemAnte (Objects p) = loopOf p
+  projElemAnte (Players p) = loopOf p
   projElemAnte _ = MkAnt Permanent AnObject One Loop Nothing Nothing
 
 
@@ -1639,8 +1647,15 @@ mutual
   CountEvents q = CountOf (Events q)
 
   public export
-  eachOf : (p : Predicate b AnObject) -> Count (bindIt (loopOf p) b) -> Projection b
+  eachOf : (p : Predicate b AnObject) -> Count (bindIt (loopOf p) b) -> Projection b AnObject
   eachOf p acc = Project (Objects p) acc
+
+  -- the PLAYER-side twin of `eachOf`: builds a cross-player `Projection` without spelling `Players`
+  -- ("highest life total among all players" = `Aggregate MaxOf (eachPlayer Anyone (PlayerStatOf It Life))`,
+  -- Arbiter of Knollridge; "fewest lands any player controls" = Balance, §8 [CR#119.1]).
+  public export
+  eachPlayer : (p : Predicate b APlayer) -> Count (bindIt (loopOf p) b) -> Projection b APlayer
+  eachPlayer p acc = Project (Players p) acc
 
   -- `exists`/`unique`: a predicate matches ≥1 / exactly-1 object. DERIVED from `CountOf` + `Compare`, not
   -- primitive constructors. `CountOf` takes a `Countable`, so `exists (During …)` is a TYPE error (a
@@ -1954,8 +1969,9 @@ mutual
   selectionSort (Them _) = Permanent
 
   public export
-  projSort : Projection b -> Sort
+  projSort : Projection b k -> Sort
   projSort (Project (Objects p) _) = filterSort p
+  projSort (Project (Players p) _) = filterSort p
   projSort (Project _ _) = Permanent
 
   public export

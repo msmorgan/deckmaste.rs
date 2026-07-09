@@ -1321,4 +1321,11 @@ vlxRevealUntil =
       , Each (Existing They) (Act (Reveal It))
       ])
 
+-- value-language-extensions Task 7 probe (cross-player Aggregate via Players)
+vlxArbiter : Count b         -- highest life total among all players
+vlxArbiter = Aggregate MaxOf (eachPlayer Anyone (PlayerStatOf It Life))
+vlxBalance : Count b         -- fewest lands any player controls
+vlxBalance = Aggregate MinOf
+  (eachPlayer Anyone (CountOf (Objects (And [HasChar Types Land, ControlledBy (SameAs It)]))))
+
 --:vim:sts=2 sw=2:
