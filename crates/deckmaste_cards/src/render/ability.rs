@@ -8,6 +8,7 @@ use deckmaste_core::Color;
 use deckmaste_core::Condition;
 use deckmaste_core::Count;
 use deckmaste_core::EventFilter;
+use deckmaste_core::IgnoreRule;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
 use deckmaste_core::PayAct;
@@ -466,6 +467,15 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
         StaticEffect::Deontic(d) => Some(super::deontic::deontic(d, ctx.subject)),
         StaticEffect::Replacement(r) => Some(super::replacement::replacement(r, ctx)),
         StaticEffect::CantHappen(_event) => Some("[can't happen]".to_string()), /* keyword cards render via their template */
+        StaticEffect::ReplaceRoll {
+            query,
+            extra,
+            ignore,
+        } => Some(replace_roll_sentence(query, extra, *ignore).unwrap_or_else(|| {
+            format!(
+                "[unrendered: ReplaceRoll {{ query: {query:?}, extra: {extra:?}, ignore: {ignore:?} }}]."
+            )
+        })),
         StaticEffect::PayPips(_class, act) => Some(pay_pips_keyword(act)),
         // A lone `OutcomeGate` (no adjacent partner for the paired-merge
         // shape in `render/mod.rs`'s per-ability loop) still reads as its own
@@ -511,6 +521,37 @@ fn pay_pips_keyword(act: &PayAct) -> String {
             "Improvise".to_string()
         }
         PayAct::TapToPay(_) => "Convoke".to_string(),
+    }
+}
+
+/// Krark's Thumb's own phrasing ([CR#614.3] roll-more replacement;
+/// [CR#706.6] "ignore one"): "If you would flip a coin, instead flip two
+/// coins and ignore one." Recognizes exactly the ONE real-card shape this
+/// grammar node has today — a plain (any-actor-narrowed) flip-coin `query`,
+/// one extra flip (`extra` literal `1`), one flip discarded by the
+/// flipper's choice (`ignore: IgnoreChosen(1)`, [CR#706.6]) — and falls back
+/// to the structural marker for any other `query`/`extra`/`ignore`
+/// combination (a die-roll query, a different extra count, `IgnoreLowest`,
+/// …), which has no established phrasing in this corpus yet.
+fn replace_roll_sentence(query: &EventFilter, extra: &Count, ignore: IgnoreRule) -> Option<String> {
+    if is_flip_coin_query(query)
+        && extra.literal_value() == Some(1)
+        && matches!(ignore, IgnoreRule::IgnoreChosen(1))
+    {
+        Some("If you would flip a coin, instead flip two coins and ignore one.".to_string())
+    } else {
+        None
+    }
+}
+
+/// A "flip a coin" query, any actor/won narrowing — looks through a
+/// remembered macro invocation the same way `is_this_enters`/`is_tap_this`
+/// (`render/replacement.rs`) look through theirs.
+fn is_flip_coin_query(e: &EventFilter) -> bool {
+    match e {
+        EventFilter::Expanded(exp) => is_flip_coin_query(&exp.value),
+        EventFilter::CoinFlipped { won: None, .. } => true,
+        _ => false,
     }
 }
 

@@ -1,0 +1,21 @@
+// "If you would flip a coin, instead flip two coins and ignore one." A
+// ROLL-MORE replacement ([CR#614.3] Krark's Thumb-family; [CR#706.6] the
+// ignore-result semantics) — exercises `StaticEffect::ReplaceRoll` (new) and
+// `IgnoreRule::IgnoreChosen` (new): the flipper picks which of the two
+// results to disregard ([CR#706.6] — not an automatic lowest-value rule, so
+// `IgnoreChosen(1)`, not `IgnoreLowest`).
+Normal(
+  name: "Krark's Thumb",
+  mana_cost: [
+    Generic(2),
+  ],
+  supertypes: [
+    Legendary,
+  ],
+  types: [
+    Artifact,
+  ],
+  abilities: [
+    Static(ReplaceRoll(query: CoinFlipped(by: Ref(You)), extra: 1, ignore: IgnoreChosen(1))),
+  ],
+)

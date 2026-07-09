@@ -394,6 +394,26 @@ pub enum StaticEffect {
     /// event can be touched only by a self-replacement, so the cant pass
     /// pre-empts the replacement registry entirely.
     CantHappen(EventFilter),
+    /// ROLL-MORE replacement ([CR#614.3] Krark's Thumb-family; [CR#706.6] the
+    /// ignore-result semantics): "if you would roll/flip `query`, instead
+    /// roll/flip `extra` more and ignore per `ignore`." Krark's Thumb =
+    /// `ReplaceRoll { query: CoinFlipped(by: Ref(You)), extra: 1, ignore:
+    /// IgnoreChosen(1) }`. Mirrors Idris `ReplaceRoll : (q : EventQuery b) ->
+    /// {auto 0 rnd : isRandomnessQuery q = True} -> (extra : Count b) ->
+    /// (ignore : IgnoreRule) -> StaticEffect b` — the `isRandomnessQuery`
+    /// erased auto-proof (gating `query` to a `FlipCoin`/`RollDice` kind
+    /// only, never the planar die, [CR#901.9d]) is Idris-ONLY, same as the
+    /// `EventCaps` proofs `EventFilter::TapForMana`/`ManaSpec::
+    /// ProducedByEvent` document: Rust holds no compile-time gate, so an
+    /// authoring mistake that reaches for `ReplaceRoll` over a non-randomness
+    /// query simply fails to typecheck on the Idris side (`idris-check`), the
+    /// intended soundness gate. Held unboxed like its `TriggerMultiplier`
+    /// sibling (same `EventFilter` + `Count` shape, already unboxed).
+    ReplaceRoll {
+        query: EventFilter,
+        extra: Count,
+        ignore: IgnoreRule,
+    },
     /// ALTERNATIVE PAYMENT of individual cost pips — NOT a cost reduction and
     /// NOT mana production. "For each [`PipClass`] pip in this spell's total
     /// cost, you may [`PayAct`] rather than pay that mana": convoke
@@ -424,6 +444,20 @@ pub enum OutcomeGateKind {
     /// Suppresses "wins the game" effect outcomes ([CR#104.2b]); the
     /// all-opponents-left win ([CR#104.2a]) bypasses it.
     CantWin,
+}
+
+/// Which flip(s)/roll(s) a [`StaticEffect::ReplaceRoll`] discards, once the
+/// extras have been rolled ([CR#706.6]: "if a player is instructed to
+/// ignore a roll ... the player chooses one of those rolls to be ignored"
+/// when multiple tie for lowest). `IgnoreLowest` = an automatic
+/// ignore-the-lower-result rule; `IgnoreChosen(n)` = the player picks which
+/// `n` of the extras to discard (Krark's Thumb's own "ignore one" —
+/// [CR#706.6] settles this as the flipper's choice, not a forced-lowest
+/// rule). Mirrors Idris `IgnoreRule = IgnoreLowest | IgnoreChosen Nat`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum IgnoreRule {
+    IgnoreLowest,
+    IgnoreChosen(crate::Uint),
 }
 
 /// Which pips of a spell's locked-in total cost a [`StaticEffect::PayPips`]

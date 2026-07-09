@@ -49,6 +49,7 @@ mod continuous;
 pub use continuous::CollectionOp;
 pub use continuous::CostChange;
 pub use continuous::Duration;
+pub use continuous::IgnoreRule;
 pub use continuous::Modification;
 pub use continuous::NumericOp;
 pub use continuous::OutcomeGateKind;

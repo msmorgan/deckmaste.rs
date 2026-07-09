@@ -2144,6 +2144,21 @@ fn emit_static_effect(se: &StaticEffect) -> R {
             let (kinds, facets) = emit_event_filter(ef)?;
             app("CantHappen", vec![event_query(&kinds, &facets)])
         }
+        StaticEffect::ReplaceRoll {
+            query,
+            extra,
+            ignore,
+        } => {
+            let (kinds, facets) = emit_event_filter(query)?;
+            app(
+                "ReplaceRoll",
+                vec![
+                    event_query(&kinds, &facets),
+                    emit_count(extra)?,
+                    emit_ignore_rule(ignore),
+                ],
+            )
+        }
         StaticEffect::PayPips(class, act) => {
             let class_s = match class {
                 deckmaste_core::PipClass::Generic => "Generic".to_string(),
@@ -2161,6 +2176,16 @@ fn emit_static_effect(se: &StaticEffect) -> R {
             ));
         }
     })
+}
+
+/// `IgnoreLowest`/`IgnoreChosen n` — the latter's `Nat` payload emits as a
+/// bare decimal literal, matching this file's other `Nat`-payload
+/// conventions (e.g. `RollDice`'s `sides.to_string()`).
+fn emit_ignore_rule(ir: &deckmaste_core::IgnoreRule) -> String {
+    match ir {
+        deckmaste_core::IgnoreRule::IgnoreLowest => "IgnoreLowest".to_string(),
+        deckmaste_core::IgnoreRule::IgnoreChosen(n) => app("IgnoreChosen", vec![n.to_string()]),
+    }
 }
 
 fn emit_deontic(d: &Deontic) -> R {

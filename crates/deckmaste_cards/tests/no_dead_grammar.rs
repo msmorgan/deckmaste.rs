@@ -800,6 +800,13 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             this batch (the plain, unfiltered mana-spent domain has no Rust \
             constructor yet either).",
         ),
+        (
+            n("IgnoreRule", "IgnoreLowest"),
+            "DEFERRED: Krark's Thumb (StaticEffect::ReplaceRoll's only \
+            fixture) uses IgnoreChosen(1) — the flipper's choice, per [CR#706.6] — not an \
+            automatic ignore-the-lower rule; no real card in this batch needs the forced-lowest \
+            reading. Buildable once one does.",
+        ),
     ]
 }
 
