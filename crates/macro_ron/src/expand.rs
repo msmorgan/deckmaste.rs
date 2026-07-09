@@ -20,15 +20,21 @@
 //! the reserved name `Param`: `Param(n)` resolves to the n-th argument,
 //! re-read at the position the hole occupies. Because `Param` is only
 //! recognized where a value is expected, string literals mentioning it are
-//! untouched. By assumption, arguments never reference an outer macro's
-//! params — frames would need a caller link to support that.
+//! untouched. A nested macro invocation's own arguments (e.g.
+//! `PowerAndToughness(Up(Param(0)), Up(Param(1)))` inside a body) are eagerly
+//! pre-substituted against the *caller's* current frame the moment they're
+//! captured — see [`read_args`] — so a body can forward its own params into a
+//! macro it invokes; holes the caller's frame can't resolve pass through
+//! unchanged, because they belong to the invoked macro's own frame once it's
+//! pushed.
 //!
 //! Captured fragments and invocation arguments are borrowed subslices of
 //! the text they were read from — the document, a macro body, or a spliced
 //! string — never copies. The one place new text is built is `Param`
-//! substitution inside untagged content; those splices are owned by the
-//! read-long [`ReadCtx`], because visitors are entitled to borrow from
-//! their input, and drop when the read finishes.
+//! substitution inside untagged content and eager nested-argument
+//! forwarding; those splices are owned by the read-long [`ReadCtx`], because
+//! visitors are entitled to borrow from their input, and drop when the read
+//! finishes.
 
 use std::cell::Cell;
 use std::fmt;
@@ -295,18 +301,20 @@ enum Invocation<'de> {
 /// the one data-model position that carries an arbitrary identifier — and
 /// resolves that identifier against the reserved name `Param` and the
 /// macros in scope.
-struct Probe<'a, 'de> {
+struct Probe<'a, 'de, 'f> {
     /// The position's struct name, if its macros may stand here.
     position: Option<&'static str>,
-    /// The read-long context: the macros in scope, and the splice arena
-    /// that owns any filled-in default argument text.
-    read: &'de ReadCtx<'de>,
+    /// The caller's context: the macros in scope, the splice arena that
+    /// owns any filled-in default (or forwarded-argument) text, and the
+    /// frame — if any — a nested invocation's own arguments pre-substitute
+    /// against (see [`read_args`]).
+    ctx: Ctx<'de, 'f>,
     /// Set once a leading identifier has been read: failures before that
     /// mean "not an invocation", failures after are real.
     entered: &'a Cell<bool>,
 }
 
-impl<'de> DeserializeSeed<'de> for Probe<'_, 'de> {
+impl<'de> DeserializeSeed<'de> for Probe<'_, 'de, '_> {
     type Value = Option<Invocation<'de>>;
 
     fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
@@ -314,7 +322,7 @@ impl<'de> DeserializeSeed<'de> for Probe<'_, 'de> {
     }
 }
 
-impl<'de> Visitor<'de> for Probe<'_, 'de> {
+impl<'de> Visitor<'de> for Probe<'_, 'de, '_> {
     type Value = Option<Invocation<'de>>;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -333,11 +341,11 @@ impl<'de> Visitor<'de> for Probe<'_, 'de> {
         // is unwrapped by `substitute_params` before it reaches here.
         let Some(def) = self
             .position
-            .and_then(|kind| self.read.macros.get(kind, &ident))
+            .and_then(|kind| self.ctx.read.macros.get(kind, &ident))
         else {
             return Ok(None);
         };
-        let args = read_args(ident, variant, &def.params, self.read)?;
+        let args = read_args(ident, variant, &def.params, self.ctx)?;
         Ok(Some(Invocation::Macro {
             name: ident,
             def,
@@ -402,7 +410,7 @@ fn probe<'de, E: serde::de::Error>(
     let entered = Cell::new(false);
     let seed = Probe {
         position,
-        read: ctx.read,
+        ctx,
         entered: &entered,
     };
     match seed.deserialize(&mut de) {
@@ -1155,16 +1163,35 @@ fn fill_defaults<'de>(
     Ok(())
 }
 
+/// Pre-substitutes a just-captured, not-yet-validated argument against the
+/// *caller's* frame (`ctx`), before it becomes the invoked macro's own
+/// argument text — the mechanism that lets a body forward its own `Param`s
+/// into a nested macro it invokes (`Pair(Up(Param(0)), Up(Param(1)))`).
+/// `HoleMode::PassThrough` leaves any hole the caller's frame can't resolve
+/// untouched, since it belongs to the invoked macro's own frame once pushed.
+/// At the top level (`ctx.frame` is `None`) there are no resolvable holes, so
+/// this always returns the input unchanged (byte-identical to before this
+/// pre-substitution step existed).
+fn forward_arg<'de>(raw: &'de str, ctx: &Ctx<'de, '_>) -> Result<&'de str, String> {
+    match substitute_params(raw, ctx, HoleMode::PassThrough)? {
+        std::borrow::Cow::Borrowed(s) => Ok(s),
+        std::borrow::Cow::Owned(s) => Ok(ctx.read.splice(s)),
+    }
+}
+
 /// Reads the arguments the definition's signature says to expect: its shape
 /// decides between the positional call grammar (unit, newtype, or tuple by
 /// arity) and the named, struct-shaped one. Omitted defaulted params are
 /// filled here — see [`fill_defaults`] — so a `Param` hole downstream never
-/// sees the difference.
-fn read_args<'de, A: VariantAccess<'de>>(
+/// sees the difference. Each captured raw argument is forwarded (see
+/// [`forward_arg`]) against `ctx` — the caller's frame, if any — before
+/// validation, so nested-macro invocations can forward the caller's own
+/// params into their own arguments.
+fn read_args<'de, 'f, A: VariantAccess<'de>>(
     name: Ident,
     variant: A,
     params: &'de Params,
-    read: &'de ReadCtx<'de>,
+    ctx: Ctx<'de, 'f>,
 ) -> Result<FrameArgs<'de>, A::Error> {
     use serde::de::Error;
 
@@ -1220,13 +1247,24 @@ fn read_args<'de, A: VariantAccess<'de>>(
                     args.len(),
                 )));
             }
+            let args: Vec<&'de str> = args
+                .into_iter()
+                .map(|raw| forward_arg(raw, &ctx))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(A::Error::custom)?;
             for (i, ty) in types.iter().enumerate() {
-                validate_arg(name, i + 1, ty, args[i], read.macros).map_err(A::Error::custom)?;
+                validate_arg(name, i + 1, ty, args[i], ctx.read.macros)
+                    .map_err(A::Error::custom)?;
             }
             Ok(FrameArgs::Positional(args))
         }
         Params::Named(signature) => {
             let args = variant.struct_variant(&[], NamedArgs)?;
+            let args: Vec<(Ident, &'de str)> = args
+                .into_iter()
+                .map(|(key, raw)| forward_arg(raw, &ctx).map(|raw| (key, raw)))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(A::Error::custom)?;
             for (i, (key, _)) in args.iter().enumerate() {
                 if !signature.contains_key(key) {
                     return Err(A::Error::custom(format_args!(
@@ -1254,11 +1292,12 @@ fn read_args<'de, A: VariantAccess<'de>>(
                 let ty = signature
                     .get(key)
                     .expect("argument keys were checked against the signature above");
-                validate_arg(name, *key, ty, arg, read.macros).map_err(A::Error::custom)?;
+                validate_arg(name, *key, ty, arg, ctx.read.macros).map_err(A::Error::custom)?;
             }
             let mut args: Vec<(Ident, &'de str, bool)> =
                 args.into_iter().map(|(k, v)| (k, v, false)).collect();
-            fill_defaults(name, signature, missing, &mut args, read).map_err(A::Error::custom)?;
+            fill_defaults(name, signature, missing, &mut args, ctx.read)
+                .map_err(A::Error::custom)?;
             Ok(FrameArgs::Named(args))
         }
     }
@@ -1320,7 +1359,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
                 self.name,
             ))
         })?;
-        let args = read_args(ident, variant, &def.params, self.ctx.read)?;
+        let args = read_args(ident, variant, &def.params, self.ctx)?;
         let frame = Frame { name: ident, args };
         let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
 

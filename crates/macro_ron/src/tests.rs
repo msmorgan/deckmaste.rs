@@ -55,11 +55,25 @@ fn kinds() -> KindSet {
             .embeds_untagged(),
     );
     kinds.add(Kind::new("EmbedRef").remembers_expansion());
+    // A non-remembering position kind (no `Expanded` variant), like
+    // deckmaste's `Modification`: exercises nested-macro param forwarding —
+    // a body invoking another macro can forward its own `Param`s into that
+    // invocation's arguments (eager pre-substitution in `read_args`).
+    kinds.add(Kind::new("Modification"));
     kinds
 }
 
 fn empty() -> MacroSet {
-    MacroSet::new(kinds()).with_options(options())
+    // `Count` and `NumericOp` back the nested-macro param-forwarding fixture
+    // (`Modification`/`NumericOp` above): a plain numeric literal and the
+    // `NumericOp` enum itself, both real registered param types like any
+    // domain type an embedder injects (mirrors `injected_param_types_validate`).
+    let mut param_types = ParamTypeSet::default();
+    param_types.add_typed::<u32>("Count");
+    param_types.add_typed::<NumericOp>("NumericOp");
+    MacroSet::new(kinds())
+        .with_options(options())
+        .with_param_types(param_types)
 }
 
 /// Parses a definition from file-shaped source, as plugin loading does.
@@ -193,6 +207,23 @@ struct CardFace {
     #[serde(default)]
     mana_cost: Vec<ManaSymbol>,
     types: Vec<Type>,
+}
+
+/// A `NumericOp`-shaped param type, like deckmaste's own: the payload a
+/// nested-macro invocation forwards a caller's numeric `Param` into.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+enum NumericOp {
+    Up(u32),
+}
+
+/// The `Modification` position kind: a non-remembering enum (unlike
+/// `Filter`/`Ability`/`Effect` above) whose `Several` variant flattens a
+/// list of modifications — the nested-macro param-forwarding fixture.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+enum Modification {
+    Power(NumericOp),
+    Toughness(NumericOp),
+    Several(Vec<Modification>),
 }
 
 fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
@@ -463,6 +494,36 @@ fn macros_expand_inside_expansion_bodies() {
         Filter::AllOf(vec![Filter::Type(Type::Creature)])
     );
     assert_eq!(arms.len(), 2);
+}
+
+/// A body invoking a nested macro can forward its OWN `Param`s into that
+/// invocation's arguments (eager pre-substitution in `read_args`, before
+/// this task frameless re-reads rejected `Up(Param(0))` with "outside any
+/// macro expansion"): `PumpUp`'s body is `Pair(Up(Param(0)), Up(Param(1)))`,
+/// and `Pair` reads those forwarded, already-resolved arguments as its own.
+#[test]
+fn body_forwards_params_into_nested_macro() {
+    let mut set = macros();
+    set.insert(&def(r#"(
+        name: "Pair",
+        kinds: [Modification],
+        params: [NumericOp, NumericOp],
+        body: Several([Power(Param(0)), Toughness(Param(1))]),
+    )"#))
+        .unwrap();
+    set.insert(&def(r#"(
+        name: "PumpUp",
+        template: "gets +${0}/+${1}",
+        kinds: [Modification],
+        params: [Count, Count],
+        body: Pair(Up(Param(0)), Up(Param(1))),
+    )"#))
+        .unwrap();
+    let m: Modification = set.read_str("PumpUp(2, 3)").unwrap();
+    assert_eq!(
+        options().to_string(&m).unwrap(),
+        "Several([Power(Up(2)),Toughness(Up(3))])"
+    );
 }
 
 #[test]
