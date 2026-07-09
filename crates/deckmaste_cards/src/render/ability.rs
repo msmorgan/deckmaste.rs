@@ -39,13 +39,37 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     };
     let (lead, clause) = event_clause(&t.event, &ctx);
     // Inside the body the oracle refers to the (already-named) source as
-    // "it" — "When ~ dies, it deals 1 damage …", "…, sacrifice it."
+    // "it" — "When ~ dies, it deals 1 damage …", "…, sacrifice it." — EXCEPT
+    // a non-battlefield function-zone ([CR#113.6]), whose self-references
+    // print "this card" instead (Flashback's "you may cast this card from
+    // your graveyard" convention; Death Spark's "return this card to your
+    // hand"), since the source has no permanent identity to be "it".
+    let body_subject = if matches!(t.from, Some(z) if z != Zone::Battlefield) {
+        "this card"
+    } else {
+        "it"
+    };
     let body_ctx = Ctx {
-        subject: "it",
+        subject: body_subject,
         targets: &[],
         that: None,
     };
     let body = lower_first(&effect::effect(&t.effect, &body_ctx));
+
+    // Death Spark's shape: the intervening-if ALREADY states the ability's
+    // own function-zone membership inline ("this card is in your graveyard
+    // with a creature card directly above it") — an old-templated
+    // self-reference that replaces BOTH the generic condition render below
+    // AND `from_zone_qualified`'s leading "As long as ~ is in your Y,"
+    // qualifier (which would otherwise double-state the zone).
+    if let Some(cond_clause) = t
+        .condition
+        .as_ref()
+        .and_then(|c| adjacent_in_zone_if_clause(c, t.from))
+    {
+        return format!("{lead} {clause}, if {cond_clause}, {body}");
+    }
+
     // Intervening-if ([CR#603.4]): "…, if <cond>, <effect>."
     let cond = match &t.condition {
         Some(c) => format!("if {}, ", super::condition::condition(c, &body_ctx)),
@@ -53,6 +77,38 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     };
     let trig = format!("{lead} {clause}, {cond}{body}");
     from_zone_qualified(t.from, view.name, trig)
+}
+
+/// Death Spark's "if this card is in your graveyard with a creature card
+/// directly above it" ([CR#404.2]): recognizes `Condition::Exists(AllOf([type
+/// filter, Adjacent(dir, Ref(This))]))` against a non-battlefield `from`, and
+/// folds the ability's own function-zone ([CR#113.6]) into the clause
+/// itself. `None` for every other condition/from shape — the generic
+/// `condition()` render (and `from_zone_qualified`'s qualifier) still apply
+/// there.
+fn adjacent_in_zone_if_clause(
+    cond: &Condition,
+    from: Option<deckmaste_core::Zone>,
+) -> Option<String> {
+    let zone = from.filter(|&z| z != Zone::Battlefield)?;
+    let Condition::Exists(Predicate::AllOf(parts)) = cond else {
+        return None;
+    };
+    let [a, b] = parts.as_slice() else { return None };
+    let ((Predicate::Adjacent(dir, Reference::This), other)
+    | (other, Predicate::Adjacent(dir, Reference::This))) = (a, b)
+    else {
+        return None;
+    };
+    let dir_word = match dir {
+        deckmaste_core::Adjacency::Above => "above",
+        deckmaste_core::Adjacency::Below => "below",
+    };
+    let noun = effect::a_an(&format!("{} card", super::fragment::filter_noun(other)));
+    Some(format!(
+        "this card is in your {} with {noun} directly {dir_word} it",
+        super::fragment::zone_word(zone),
+    ))
 }
 
 /// "{cost}: {effect}" — an activated ability's printed line ([CR#602.1]:
@@ -168,8 +224,50 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
                 subject_of(what, ctx)
             ),
         ),
+        // A turn-step onset ([CR#500.1,603.2b]) — "At the beginning of your
+        // upkeep" (Benthic Djinn, Death Spark). No subject: the step names
+        // itself, unlike an object-relative "enters"/"dies"/"becomes …".
+        EventFilter::StepBegins { at, whose } => match step_noun(*at) {
+            Some(noun) => (
+                "At the beginning of",
+                format!("{} {noun}", whose_word(*whose)),
+            ),
+            None => ("When", format!("[unrendered: {e:?}]")),
+        },
         other => ("When", format!("[unrendered: {other:?}]")),
     }
+}
+
+/// The possessive turn-owner phrase for a [`WhoseTurn`] (mirrors
+/// `condition::turn_owner`'s "your"/"an opponent's" phrasing — a templating
+/// convention, not itself a cited rule).
+fn whose_word(w: deckmaste_core::WhoseTurn) -> &'static str {
+    use deckmaste_core::WhoseTurn;
+    match w {
+        WhoseTurn::Your => "your",
+        WhoseTurn::EachPlayers => "each player's",
+        WhoseTurn::AnOpponents => "an opponent's",
+    }
+}
+
+/// The step/phase noun a [`PhaseStep`](deckmaste_core::PhaseStep) prints
+/// after its possessive owner ("your **upkeep**"). `None` for a phase/step
+/// this corpus hasn't needed phrasing for yet (a combat sub-step) — the
+/// caller falls back to the generic unrendered marker rather than guessing.
+fn step_noun(at: deckmaste_core::PhaseStep) -> Option<&'static str> {
+    use deckmaste_core::BeginningStep;
+    use deckmaste_core::EndingStep;
+    use deckmaste_core::PhaseStep;
+    Some(match at {
+        PhaseStep::Beginning(BeginningStep::Upkeep) => "upkeep",
+        PhaseStep::Beginning(BeginningStep::Untap) => "untap step",
+        PhaseStep::Beginning(BeginningStep::Draw) => "draw step",
+        PhaseStep::PrecombatMain => "precombat main phase",
+        PhaseStep::PostcombatMain => "postcombat main phase",
+        PhaseStep::Ending(EndingStep::End) => "end step",
+        PhaseStep::Ending(EndingStep::Cleanup) => "cleanup step",
+        PhaseStep::Combat(_) => return None,
+    })
 }
 
 /// One-shot enters/dies of THIS → "When"; a filtered (non-self) subject →

@@ -285,6 +285,19 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
         Selection::PilesOf { of, .. } => {
             format!("the piles {} separated", reference(of, ctx))
         }
+        // The top `count` cards of a graveyard ([CR#404.2] — Soldevi
+        // Digger's "the top card of your graveyard"); `of: You` reads
+        // "your", any other reference its possessive noun phrase.
+        Selection::TopOfGraveyard { count: n, of } => {
+            let owner = match of {
+                Reference::You => "your".to_string(),
+                other => format!("{}'s", reference(other, ctx)),
+            };
+            match n {
+                Count::Literal(1) => format!("the top card of {owner} graveyard"),
+                _ => format!("the top {} cards of {owner} graveyard", count(n)),
+            }
+        }
         // [CR#107.1] the extremal element: "the creature with the greatest
         // power". The projection's axis is named when it is a simple stat
         // read. A non-extremal `op` is malformed authoring (fizzles at

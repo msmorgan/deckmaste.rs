@@ -421,6 +421,35 @@ pub fn matches_with(
             .objects
             .iter()
             .any(|o| o.attached_to == Some(id) && matches_with(state, o.id, inner, watcher)),
+        // [CR#404.2]: the candidate is directly Above/Below `r` in the SAME
+        // ordered zone (graveyard or library), nothing between. `r` resolves
+        // only through the frameless matcher's `watcher` (`This`/`You` —
+        // Death Spark's "directly above it" only ever needs `This`);
+        // anything else, an unresolvable reference, a candidate/anchor
+        // outside an ordered zone, or a cross-zone/cross-player pair,
+        // gracefully reads `false` — never a panic on an authoring mistake
+        // or a not-yet-reachable reference shape.
+        Predicate::Adjacent(dir, r) => resolve_watcher_reference(state, r, watcher)
+            .and_then(|anchor| {
+                let a = ordered_zone_position(state, anchor)?;
+                let c = ordered_zone_position(state, id)?;
+                (a.0 == c.0).then_some((a.1, c.1))
+            })
+            .is_some_and(|(anchor_pos, cand_pos)| match dir {
+                deckmaste_core::Adjacency::Above => cand_pos + 1 == anchor_pos,
+                deckmaste_core::Adjacency::Below => anchor_pos + 1 == cand_pos,
+            }),
+        // The move-provenance twin of `WasCastFrom` ([CR#701.17a,701.9a]).
+        // `ZoneChanged` history facts key on the pre-move (stale) `ObjectId`
+        // — correlating one back to the CURRENT (post-remint) live object
+        // needs either a persistent old→new provenance map (the engine only
+        // keeps `moved_chain`, cleared at the start of every resolution,
+        // [`resolve::eval_selection_set`]'s doc) or a dedicated per-object
+        // "arrived from Z this turn" memo field `GameObject` does not carry.
+        // Genuinely absent-subsystem (like the equally-unbuilt sibling
+        // `DamagedBy`/`ExiledBy`), not a convenient-wrong default: fizzles to
+        // `false`.
+        Predicate::State(StatePredicate::WasPutFrom(_)) => false,
         // ----- Seams: backed by subsystems not yet built -----
         // [CR#702.33d..702.33e]: the paid-cost linkage has no announce
         // record yet (engine-alt-costs).
@@ -448,6 +477,59 @@ pub fn matches_with(
         Predicate::Ref(r) => todo!(
             "engine-filter-breadth: Ref({r:?}) needs a carrier Frame (matcher holds only a watcher)"
         ),
+    }
+}
+
+/// Resolve `r` to a live [`ObjectId`] using ONLY the frameless matcher's
+/// `watcher` — the shapes [`Predicate::Adjacent`] can reach without a
+/// [`crate::stack::Frame`] (`This`/`You`, mirroring the `Ref(This)`/`Ref(You)`
+/// arms above). `None` for anything else, or a gone/no-watcher carrier —
+/// never a panic.
+fn resolve_watcher_reference(
+    state: &GameState,
+    r: &Reference,
+    watcher: Option<ObjectSource>,
+) -> Option<ObjectId> {
+    match (r, watcher) {
+        (Reference::This, Some(w)) => state.objects.iter().find(|o| o.source == w).map(|o| o.id),
+        (Reference::You, Some(w)) => {
+            let controller = state.controller_of_source(w)?;
+            Some(state.player(controller).object)
+        }
+        _ => None,
+    }
+}
+
+/// The `(zone, owner)` key and top-distance (`0` = the very top) of a live
+/// object in an ORDERED zone ([CR#404.2] — a graveyard is a single face-up
+/// pile in a fixed order; a library likewise, [CR#401.2]). `None` outside
+/// Graveyard/Library (the only zones kept in a fixed physical order) or for a
+/// player proxy — [`Predicate::Adjacent`]'s never-crash fizzle reads this as
+/// "no match".
+///
+/// `zones.graveyards` is push-appended as cards are put into it, so the
+/// LAST-pushed entry sits physically on top ([`resolve::eval_selection_set`]'s
+/// `TopOfGraveyard` arm reads the same convention); `zones.libraries`'
+/// front is already the top ([CR#401.7]'s `FromTop(0)` anchor).
+fn ordered_zone_position(
+    state: &GameState,
+    id: ObjectId,
+) -> Option<((Zone, crate::player::PlayerId), usize)> {
+    let zone = state.objects.get(id)?.zone?;
+    match zone {
+        Zone::Graveyard => {
+            let owner = state.owner_of(id);
+            let pile = &state.zones.graveyards[owner.index()];
+            let idx = pile.iter().position(|&x| x == id)?;
+            Some(((zone, owner), pile.len() - 1 - idx))
+        }
+        Zone::Library => {
+            let owner = state.owner_of(id);
+            let lib = &state.zones.libraries[owner.index()];
+            let idx = lib.iter().position(|&x| x == id)?;
+            Some(((zone, owner), idx))
+        }
+        _ => None,
     }
 }
 
@@ -594,6 +676,20 @@ mod tests {
 
     fn builtin() -> Plugin {
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
+    }
+
+    /// A bare two-player game with empty decks — for tests that hand-mint
+    /// their own objects (mirrors `resolve::tests::game`).
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 7,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        })
     }
 
     fn canon() -> Plugin {
@@ -1545,5 +1641,71 @@ mod tests {
         assert!(matches_with(&state, bears, &f, carrier));
         assert!(!matches_with(&state, hunter, &f, carrier));
         assert!(!matches_with(&state, courser, &f, carrier));
+    }
+
+    /// `Adjacent` (Death Spark's "a creature card directly above it"):
+    /// three graveyard cards a→b→c bottom-to-top ([CR#404.2]); with `This`
+    /// anchored on the middle card `b`, `Adjacent(Above, This)` admits ONLY
+    /// `c` (directly above) and `Adjacent(Below, This)` admits ONLY `a`
+    /// (directly below) — never the anchor itself nor the far card.
+    #[test]
+    fn adjacent_matches_the_one_neighbor_in_the_stated_direction() {
+        use deckmaste_core::Adjacency;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
+        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
+        let card_c = state.cards.push(Arc::new(make_card("Gamma")), p0);
+        let a = state
+            .objects
+            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Graveyard));
+        let b = state
+            .objects
+            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Graveyard));
+        let c = state
+            .objects
+            .mint(ObjectSource::Card(card_c), p0, Some(Zone::Graveyard));
+        state.zones.graveyards[p0.index()].push(a);
+        state.zones.graveyards[p0.index()].push(b);
+        state.zones.graveyards[p0.index()].push(c);
+
+        let watcher = Some(state.objects.obj(b).source);
+        let above = Predicate::Adjacent(Adjacency::Above, Reference::This);
+        let below = Predicate::Adjacent(Adjacency::Below, Reference::This);
+
+        assert!(
+            matches_with(&state, c, &above, watcher),
+            "c is directly above b"
+        );
+        assert!(
+            !matches_with(&state, a, &above, watcher),
+            "a is not above b"
+        );
+        assert!(
+            !matches_with(&state, b, &above, watcher),
+            "b is not above itself"
+        );
+
+        assert!(
+            matches_with(&state, a, &below, watcher),
+            "a is directly below b"
+        );
+        assert!(
+            !matches_with(&state, c, &below, watcher),
+            "c is not below b"
+        );
+
+        // No watcher (frameless) → `This` is unresolvable → no match, never a
+        // panic.
+        assert!(!matches_with(&state, c, &above, None));
     }
 }

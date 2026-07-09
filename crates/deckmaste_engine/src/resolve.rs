@@ -2405,6 +2405,31 @@ impl GameState {
                     .copied()
                     .collect()
             }
+            // The top `count` cards of `of`'s graveyard, top→down
+            // ([CR#404.2] — a graveyard is a single face-up pile in a fixed
+            // order). `zones.graveyards` is push-appended as cards are put
+            // into it, so the LAST-pushed card sits physically on top; a
+            // front-to-back `Vec` read is bottom→up, so this reads from the
+            // END, reversed. Unlike `TopOfLibrary`/`BottomOfLibrary`
+            // (which panic on a non-player `of` — an established baseline
+            // this arm does not repeat), an `of` that fails to resolve to a
+            // player proxy fizzles to the empty group: a card-authoring
+            // mistake must never crash the engine.
+            Selection::TopOfGraveyard { count, of } => {
+                let proxy = self.eval_reference(of, frame);
+                match self.objects.get(proxy).map(|o| o.source) {
+                    Some(ObjectSource::Player(p)) => {
+                        let n = self.eval_count(count, frame) as usize;
+                        self.zones.graveyards[p.index()]
+                            .iter()
+                            .rev()
+                            .take(n)
+                            .copied()
+                            .collect()
+                    }
+                    _ => Vec::new(),
+                }
+            }
             // Several groups combined as ONE ([CR#608.2d], "each X and each
             // Y") — order-preserving concatenation; an object in more than
             // one member appears once (first position wins).
@@ -9151,6 +9176,77 @@ mod tests {
             &frame,
         );
         assert_eq!(union, vec![a, b, c], "order-preserving union, b deduped");
+    }
+
+    /// `TopOfGraveyard` reads the top `count` cards of a graveyard, top→down
+    /// ([CR#404.2]): `zones.graveyards` is push-appended, so the LAST-pushed
+    /// card (the most recent addition) is physically on top. A non-player
+    /// `of` fizzles to the empty group — never a panic, unlike
+    /// `TopOfLibrary`/`BottomOfLibrary`'s established (and here deliberately
+    /// NOT repeated) panic baseline.
+    #[test]
+    fn top_of_graveyard_resolves_top_down_and_fizzles_on_bad_of() {
+        use deckmaste_core::CardFace;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let make_card = |name: &str| {
+            Card::Normal(CardFace {
+                name: name.into(),
+                ..CardFace::default()
+            })
+        };
+        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
+        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
+        let card_c = state.cards.push(Arc::new(make_card("Gamma")), p0);
+        let a = state
+            .objects
+            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Graveyard));
+        let b = state
+            .objects
+            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Graveyard));
+        let c = state
+            .objects
+            .mint(ObjectSource::Card(card_c), p0, Some(Zone::Graveyard));
+        // Put in bottom→top order: a first (bottom), c last (top).
+        state.zones.graveyards[p0.index()].push(a);
+        state.zones.graveyards[p0.index()].push(b);
+        state.zones.graveyards[p0.index()].push(c);
+        let source = state.player(p0).object;
+        let frame = Frame::bare(source, p0);
+
+        let top1 = state.eval_selection_set(
+            &Selection::TopOfGraveyard {
+                count: Count::Literal(1),
+                of: deckmaste_core::Reference::You,
+            },
+            &frame,
+        );
+        assert_eq!(top1, vec![c], "the top card is the most recently put one");
+
+        let top2 = state.eval_selection_set(
+            &Selection::TopOfGraveyard {
+                count: Count::Literal(2),
+                of: deckmaste_core::Reference::You,
+            },
+            &frame,
+        );
+        assert_eq!(top2, vec![c, b], "top 2, top→down");
+
+        // `of` resolving to a non-player (a card, not a player proxy) fizzles
+        // to the empty group rather than panicking.
+        let bad = state.eval_selection_set(
+            &Selection::TopOfGraveyard {
+                count: Count::Literal(1),
+                of: deckmaste_core::Reference::This,
+            },
+            &Frame::bare(a, p0),
+        );
+        assert_eq!(
+            bad,
+            Vec::<ObjectId>::new(),
+            "non-player `of` fizzles, never panics"
+        );
     }
 
     // ---- scry / arrange (the recomposed keyword-action path) ----------------

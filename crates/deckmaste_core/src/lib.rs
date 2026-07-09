@@ -132,6 +132,7 @@ pub use event::StateChange;
 pub use event::WhoseTurn;
 
 mod filter;
+pub use filter::Adjacency;
 pub use filter::CharacteristicPredicate;
 pub use filter::ObjectKind;
 pub use filter::Predicate;

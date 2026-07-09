@@ -358,6 +358,16 @@ impl GameState {
             Predicate::State(StatePredicate::RelatedBy(..)) => {
                 todo!("engine-filter-breadth: snapshot RelatedBy needs a CR#607 relation registry")
             }
+            // A gone object has left its ordered zone — [`Predicate::Adjacent`]
+            // reads the LIVE `zones.graveyards`/`zones.libraries` order
+            // ([`crate::target::ordered_zone_position`]), which no longer
+            // contains it; never a panic, just no match.
+            Predicate::Adjacent(..) => false,
+            // See `target::matches_with`'s identical arm: `ZoneChanged`
+            // history keys on the pre-move stale id, with no persistent
+            // link back to a live object — genuinely unbuilt, not a
+            // convenient-wrong default.
+            Predicate::State(StatePredicate::WasPutFrom(_)) => false,
 
             // [CR#603.10a]: the candidate-relative condition bridge — the
             // GONE candidate binds as `It` (its snapshot), `This`/`You`

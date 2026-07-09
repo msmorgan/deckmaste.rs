@@ -502,7 +502,7 @@ fn binder_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     }
 }
 
-fn a_an(noun: &str) -> String {
+pub(super) fn a_an(noun: &str) -> String {
     let lowercase = noun.to_lowercase();
     let is_vowel = |c: char| "aeiou".contains(c);
     if let Some(first_char) = lowercase.chars().next()
@@ -573,9 +573,17 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
 /// prints its "in any order" rider).
 fn binder_is_plural(binder: &deckmaste_core::Binder) -> bool {
     use deckmaste_core::Binder;
+    use deckmaste_core::Count;
+    use deckmaste_core::Selection;
     match binder {
         Binder::Choose { quantity, .. } | Binder::Search { quantity, .. } => !quantity.is_one(),
         Binder::ChooseOne { .. } | Binder::SearchOne { .. } | Binder::TheRef(_) => false,
+        // A literal single-card ordered selection (Soldevi Digger's "the top
+        // card of your graveyard") is NOT plural — only a >1 (or dynamic,
+        // conservatively treated as plural) count carries the rider.
+        Binder::Existing(
+            Selection::TopOfLibrary { count, .. } | Selection::TopOfGraveyard { count, .. },
+        ) => !matches!(count, Count::Literal(1)),
         Binder::Existing(_) | Binder::Produce(_) => true,
         Binder::Expanded(e) => binder_is_plural(&e.value),
     }
@@ -770,6 +778,14 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // source-agent twin of `PlayerAction::Move`'s identical exile arm).
         Action::Move(r, Destination::Zone(Zone::Exile), riders) if riders.is_empty() => {
             format!("Exile {}.", fragment::reference(r, ctx))
+        }
+        // [CR#402.1]: a hand destination — "Return <r> to your hand." The
+        // self-referential graveyard-return idiom (Death Spark's "return
+        // this card to your hand") is the only shape this corpus exercises
+        // yet; a target-relative "to its owner's hand" (Unsummon-style
+        // bounce) is unbuilt — flagged for the next card that needs it.
+        Action::Move(r, Destination::Zone(Zone::Hand), riders) if riders.is_empty() => {
+            format!("Return {} to your hand.", fragment::reference(r, ctx))
         }
         // A battlefield destination WITH arrival riders ([CR#614.12],
         // Otherworldly Journey's delayed return): "Return <r> to the

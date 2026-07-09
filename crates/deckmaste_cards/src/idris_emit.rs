@@ -624,6 +624,7 @@ fn emit_filter(f: &Predicate) -> R {
         Predicate::State(sf) => emit_state_filter(sf)?,
         Predicate::Relation(rf) => emit_relation_filter(rf)?,
         Predicate::Ref(r) => app("SameAs", vec![emit_reference(r)?]),
+        Predicate::Adjacent(a, r) => app("Adjacent", vec![emit_adjacency(*a), emit_reference(r)?]),
         Predicate::FromSource(_) => {
             return Err(gap(
                 "Predicate::FromSource has no Idris Predicate counterpart",
@@ -760,7 +761,21 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
             })?;
             app("WasCastWith", vec![spec])
         }
+        // The move-provenance twin of `WasCastFrom` ([CR#701.17a,701.9a] —
+        // "milled"/"discarded" decompose over this).
+        StatePredicate::WasPutFrom(z) => app("WasPutFrom", vec![emit_zone(*z)]),
     })
+}
+
+/// `Above`/`Below` — [`Predicate::Adjacent`]'s direction, identity on the
+/// Idris `Adjacency` constructor name.
+fn emit_adjacency(a: deckmaste_core::Adjacency) -> String {
+    use deckmaste_core::Adjacency as A;
+    match a {
+        A::Above => "Above",
+        A::Below => "Below",
+    }
+    .to_string()
 }
 
 /// Emit a designation REFERENCE by name — `(MkDesignation <Scope> "<name>" [])`
@@ -1180,6 +1195,14 @@ fn emit_selection(s: &Selection) -> R {
         Selection::BottomOfLibrary { count, whose } => app(
             "bottomFrom",
             vec![emit_count(count)?, emit_reference(whose)?],
+        ),
+        // Unlike `TopOfLibrary`/`BottomOfLibrary`'s `topFrom`/`bottomFrom`
+        // helpers (baking a `{default You}` implicit arg), Idris
+        // `TopOfGraveyard`'s `whose` is EXPLICIT — emits as a direct `app`,
+        // no curried helper needed.
+        Selection::TopOfGraveyard { count, of } => app(
+            "TopOfGraveyard",
+            vec![emit_count(count)?, emit_reference(of)?],
         ),
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),

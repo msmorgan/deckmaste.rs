@@ -1,0 +1,20 @@
+// "Death Spark" — `Predicate::Adjacent` fixture: a graveyard-functioning
+// upkeep trigger gated on "a creature card directly above it" ([CR#404.2]).
+Normal(
+  name: "Death Spark",
+  mana_cost: [
+    Red,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, Target(0)))),
+    Triggered(
+      from: Graveyard,
+      event: StepBegins(at: Beginning(Upkeep), whose: Your),
+      condition: Exists(AllOf([Type(Creature), Adjacent(Above, This)])),
+      effect: MayPay(cost: [Mana([Generic(1)])], and_then: Move(This, Hand)),
+    ),
+  ],
+)

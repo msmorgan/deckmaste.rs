@@ -1,0 +1,26 @@
+// "Soldevi Digger" — `Selection::TopOfGraveyard` fixture: a single-card
+// ordered graveyard peek/move, no other grammar. Volrath's Shapeshifter (the
+// task's originally-named TopOfGraveyard fixture) also exercises the
+// primitive, but its "has the full text of that card" clause needs a
+// text-changing/copy-effect Modification this repo has not built yet
+// (2008-08-01 ruling: "not a copy effect" — a bespoke text-changing
+// mechanism, not `BecomeCopyOf`) — swapped for this simpler, fully-renderable
+// real card.
+Normal(
+  name: "Soldevi Digger",
+  mana_cost: [
+    Generic(2),
+  ],
+  types: [
+    Artifact,
+  ],
+  abilities: [
+    Activated(
+      cost: [Mana([Generic(2)])],
+      effect: Each(
+        binder: Existing(TopOfGraveyard(count: 1)),
+        effect: Move(It, Library(FromBottom(0))),
+      ),
+    ),
+  ],
+)

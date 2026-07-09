@@ -56,6 +56,16 @@ pub enum Selection {
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         whose: Reference,
     },
+    /// The top `count` cards of a graveyard, top → down (an ORDERED set —
+    /// [CR#404.2] a graveyard is a single face-up pile in a fixed order).
+    /// `of` names the graveyard's player; the default `You` writes bare, like
+    /// [`TopOfLibrary`](Self::TopOfLibrary)'s. Graveyard-topped effects
+    /// (Volrath's Shapeshifter, Soldevi Digger) name the player they inspect.
+    TopOfGraveyard {
+        count: Count,
+        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
+        of: Reference,
+    },
     /// The PLURAL anaphor — "they"/"them": the nearest Many antecedent on
     /// the antecedent stack, any sort (R1 nearest-compatible,
     /// R2 uniqueness gate). Pushed by a many-binder
@@ -154,6 +164,25 @@ mod tests {
         };
         assert_eq!(read("BottomOfLibrary(count:3)"), v);
         assert_eq!(read(&to_string(&v)), v);
+    }
+
+    /// `TopOfGraveyard` mirrors `TopOfLibrary`'s struct shape (same fields,
+    /// same bare-default `of`) over the graveyard instead.
+    #[test]
+    fn top_of_graveyard_round_trips() {
+        let v = Selection::TopOfGraveyard {
+            count: Count::Literal(1),
+            of: crate::Reference::You,
+        };
+        assert_eq!(read("TopOfGraveyard(count:1)"), v);
+        assert_eq!(read(&to_string(&v)), v);
+
+        let named = Selection::TopOfGraveyard {
+            count: Count::Literal(1),
+            of: crate::Reference::Opponent,
+        };
+        assert_eq!(read("TopOfGraveyard(count:1, of:Opponent)"), named);
+        assert_eq!(read(&to_string(&named)), named);
     }
 
     /// `Union` combines member selections as one group (the Idris `Union` —

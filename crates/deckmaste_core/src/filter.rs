@@ -112,6 +112,12 @@ pub enum StatePredicate {
     /// linkage; the twin of `WasPaidWith` (optional/additional costs). Idris
     /// `WasCastWith`.
     WasCastWith(crate::CostTag),
+    /// The object was PUT into its current zone directly from this zone
+    /// (move provenance) — the move-provenance twin of `WasCastFrom`;
+    /// engine-held, turn-scoped (like `DamagedBy`). "milled" =
+    /// `And([InZone(Graveyard), WasPutFrom(Library)])` ([CR#701.17a]);
+    /// "discarded" = `WasPutFrom(Hand)` ([CR#701.9a]).
+    WasPutFrom(Zone),
 }
 
 /// Structural relations the engine owns. Relations are
@@ -157,6 +163,15 @@ pub enum RelationPredicate {
 /// expanding at Predicate positions. Dispatching by name over one combined
 /// variant list keeps the RON flat *and* the positions macro-aware.
 ///
+/// Relative position between two objects in an ORDERED zone ([CR#404.2] — a
+/// graveyard is kept in a single face-up pile with a fixed order): gates
+/// [`Predicate::Adjacent`] (Death Spark's "directly above").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Adjacency {
+    Above,
+    Below,
+}
+
 /// Conjunction is explicit (`And`) — an enum position never carries a
 /// bare list. Canonical filters are context-free-correct: state the whole
 /// predicate even where engine context would make parts redundant.
@@ -170,6 +185,13 @@ pub enum Predicate {
     #[macro_ron(flatten)]
     Relation(RelationPredicate),
     Ref(Reference),
+    /// The candidate is directly Above/Below `r` in an ORDERED zone, nothing
+    /// between ([CR#404.2]) — Death Spark's "a creature card directly above
+    /// it" (a graveyard). Object-relative, unlike an end-relative `Anchor`:
+    /// both objects must occupy the SAME ordered zone (implicit — nothing
+    /// requires it explicitly since the position comparison only holds
+    /// within one zone's own order).
+    Adjacent(Adjacency, Reference),
     /// Lifts a quality to a stack ABILITY's source ([CR#702.11d] "abilities
     /// … from [quality] sources"): matches an activated/triggered ability on
     /// the stack whose SOURCE — the object that generated it ([CR#113.7]) —
@@ -443,6 +465,33 @@ mod tests {
             Predicate::Relation(RelationPredicate::Attachment(Box::new(
                 Predicate::Characteristic(CharacteristicPredicate::Type(Type::Enchantment),)
             ))),
+        );
+        assert_eq!(
+            // "milled" — [CR#701.17a].
+            read("WasPutFrom(Library)"),
+            Predicate::State(StatePredicate::WasPutFrom(Zone::Library)),
+        );
+    }
+
+    /// `Adjacent` (Death Spark's "a creature card directly above it") reads
+    /// flat with its `Adjacency` direction and round-trips both ways.
+    #[test]
+    fn adjacent_reads_and_round_trips() {
+        let above = read("Adjacent(Above, This)");
+        assert_eq!(
+            above,
+            Predicate::Adjacent(Adjacency::Above, Reference::This),
+        );
+        assert_eq!(
+            read(&crate::ron::options().to_string(&above).unwrap()),
+            above
+        );
+
+        let below = Predicate::Adjacent(Adjacency::Below, Reference::You);
+        assert_eq!(read("Adjacent(Below, You)"), below);
+        assert_eq!(
+            read(&crate::ron::options().to_string(&below).unwrap()),
+            below
         );
     }
 

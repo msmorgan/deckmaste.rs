@@ -25,7 +25,15 @@ impl GameState {
         let you = frame.controller;
         match cond {
             // "if you control a creature" / "if a creature is on the battlefield"
-            Condition::Exists(filter) => !crate::target::candidates(self, filter).is_empty(),
+            // — threads the frame's watcher (mirrors `Condition::Is` below) so
+            // a carrier-relative filter INSIDE the existential ("a creature
+            // card directly above it" = `Adjacent(Above, Ref(This))`, Death
+            // Spark) can anchor `Ref(This)`/`Ref(You)` instead of hitting the
+            // frameless-targeting seam.
+            Condition::Exists(filter) => {
+                let watcher = self.frame_watcher(frame);
+                !crate::target::candidates_with(self, filter, Some(watcher)).is_empty()
+            }
 
             // "if it is a [filter]" ([CR#603.4], "if it's a …"): resolve the
             // reference and test the filter, anchoring `Ref(This)`/`Ref(You)`
