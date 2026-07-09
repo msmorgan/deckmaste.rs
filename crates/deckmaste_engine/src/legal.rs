@@ -419,6 +419,45 @@ pub(crate) fn must_block_rows(state: &GameState, view: &LayeredView) -> Vec<Bloc
     block_rows(state, view, must_action)
 }
 
+/// Every `Cant(Untap)` row in the derived view ([CR#502.3]: "effects can
+/// keep one or more of a player's permanents from untapping"; the continuous
+/// "doesn't untap" family, e.g. the aura's "enchanted creature doesn't untap
+/// during its controller's untap step"). Each row is its carrier plus the
+/// one patient filter `what` — untapping is a turn-based action, not a deed
+/// with an agent slot. Gathered once by the untap step, then matched against
+/// each of the active player's permanents with [`untap_forbidden_by`].
+#[must_use]
+pub(crate) fn cant_untap_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Predicate)> {
+    let mut rows = Vec::new();
+    for &id in &state.zones.battlefield {
+        let source = state.objects.obj(id).source;
+        for_each_static(view, id, |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Untap { what }) = cant_action(d)
+            {
+                rows.push((source, what.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// [CR#502.3]: whether any continuous `Cant(Untap)` row (pre-gathered by
+/// [`cant_untap_rows`]) forbids `id` from untapping — the untap step's
+/// turn-based action consults this to leave a restricted permanent tapped.
+#[must_use]
+pub(crate) fn untap_forbidden_by(
+    state: &GameState,
+    rows: &[(crate::object::ObjectSource, Predicate)],
+    id: ObjectId,
+) -> bool {
+    rows.iter()
+        .any(|(carrier, what)| state.filter_matches_live(what, id, *carrier))
+}
+
 /// The single ability-tree walker. Descends an ability list with the
 /// look-through rules every static read needs (static-ability effect lists,
 /// keyword composites — flying's evasion `Cant` lives inside

@@ -2397,6 +2397,17 @@ fn emit_deed(action: &DeonticAction) -> R {
             "Enact",
             vec!["Counter".to_string(), emit_filter(by)?, deed_patient(on)?],
         ),
+        // [CR#502.3] "doesn't untap": a single-patient deed with no agent
+        // slot (untapping is a turn-based action, not a deed some object
+        // performs), so it has no `Enact Relation agent patient` counterpart
+        // in the current Idris grammar. Gapped until a card graduates and the
+        // agentless-deed shape is designed on the Idris side — no card uses
+        // it yet, so this never fires.
+        DeonticAction::Untap { .. } => {
+            return Err(gap(
+                "DeonticAction::Untap has no Idris Enact counterpart yet",
+            ));
+        }
         DeonticAction::Expanded(_) => {
             return Err(gap(
                 "unexpanded DeonticAction macro invocation remained after expand_all",

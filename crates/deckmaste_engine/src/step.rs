@@ -1368,17 +1368,50 @@ impl GameState {
     #[expect(clippy::match_same_arms)]
     fn turn_based_actions(&mut self, s: PhaseStep) -> Vec<WorkItem> {
         match s {
-            // [CR#502.3]: the active player's tapped permanents untap.
+            // [CR#502.3]: the active player determines which of their
+            // permanents untap, then untaps them all. Normally all untap, but
+            // two families of effect keep one from untapping: a continuous
+            // `Cant(Untap)` restriction (the aura's "enchanted creature
+            // doesn't untap …", "~ doesn't untap during your untap step"), and
+            // the one-shot `skip_next_untap` rider ([CR#701.43a] exert; the
+            // temple/painland "~ doesn't untap during your next untap step").
+            // The rider is consumed at this untap step whether or not the
+            // permanent is tapped — its scope is exactly this one untap step.
             PhaseStep::Beginning(BeginningStep::Untap) => {
                 let active = self.turn.active_player;
-                self.zones
-                    .battlefield
-                    .iter()
-                    .filter(|&&id| {
-                        let obj = self.objects.obj(id);
-                        obj.controller == active && obj.tapped
-                    })
-                    .map(|&id| WorkItem::Emit(Occurrence::single(GameEvent::Untapped(id))))
+                let view = self.layers();
+                let rows = crate::legal::cant_untap_rows(self, &view);
+                let ids: Vec<_> = self.zones.battlefield.clone();
+                let mut to_untap = Vec::new();
+                let mut consume_rider = Vec::new();
+                for id in ids {
+                    let obj = self.objects.obj(id);
+                    if obj.controller != active {
+                        continue;
+                    }
+                    if obj.skip_next_untap {
+                        // [CR#701.43a]: the one-shot rider fires once and is
+                        // spent — collect it to clear below (it suppresses this
+                        // untap regardless of the tapped state).
+                        consume_rider.push(id);
+                        continue;
+                    }
+                    // [CR#502.3]: a continuous "doesn't untap" restriction
+                    // keeps a tapped permanent tapped.
+                    if crate::legal::untap_forbidden_by(self, &rows, id) {
+                        continue;
+                    }
+                    if obj.tapped {
+                        to_untap.push(id);
+                    }
+                }
+                drop(view);
+                for id in consume_rider {
+                    self.objects.obj_mut(id).skip_next_untap = false;
+                }
+                to_untap
+                    .into_iter()
+                    .map(|id| WorkItem::Emit(Occurrence::single(GameEvent::Untapped(id))))
                     .collect()
             }
             // [CR#504.1]; [CR#103.8a] (two-player): turn 1 is the starting
@@ -2788,5 +2821,128 @@ mod tests {
                 StepOutcome::NeedsDecision(PendingDecision::LegendRule { .. })
             ));
         }
+    }
+
+    // --- [CR#502.3,701.43a]: untap-skip (doesn't-untap) primitive ----------
+
+    /// A card-backed battlefield permanent controlled by `controller`,
+    /// carrying `abilities`, entering tapped — the untap-step fixtures.
+    fn tapped_perm(
+        state: &mut GameState,
+        controller: PlayerId,
+        abilities: Vec<deckmaste_core::Ability>,
+    ) -> ObjectId {
+        let card = std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: "Untap Fixture".into(),
+            abilities,
+            ..deckmaste_core::CardFace::default()
+        }));
+        let card_id = state.cards.push(card, controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        state.objects.obj_mut(id).tapped = true;
+        id
+    }
+
+    /// Run the untap step's turn-based action and APPLY its untap events —
+    /// exactly what `begin_step` schedules — returning the ids that untapped.
+    fn run_untap_step(state: &mut GameState) -> Vec<ObjectId> {
+        use deckmaste_core::BeginningStep;
+        let items = state.turn_based_actions(PhaseStep::Beginning(BeginningStep::Untap));
+        let mut untapped = Vec::new();
+        for item in items {
+            if let WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(id))) = item {
+                state.apply(GameEvent::Untapped(id));
+                untapped.push(id);
+            }
+        }
+        untapped
+    }
+
+    /// A `Cant(Untap(what: Ref(This)))` continuous restriction ([CR#502.3])
+    /// keeps its carrier tapped through every untap step, while an
+    /// unrestricted permanent untaps normally.
+    #[test]
+    fn cant_untap_static_keeps_permanent_tapped() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticEffect;
+
+        let mut state = game();
+        state.turn.active_player = PlayerId(0);
+        let restricted = tapped_perm(
+            &mut state,
+            PlayerId(0),
+            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Untap {
+                    what: Predicate::Ref(Reference::This),
+                },
+            )))],
+        );
+        let plain = tapped_perm(&mut state, PlayerId(0), vec![]);
+
+        let untapped = run_untap_step(&mut state);
+        assert!(
+            untapped.contains(&plain) && !untapped.contains(&restricted),
+            "only the unrestricted permanent untaps ([CR#502.3])"
+        );
+        assert!(
+            state.objects.obj(restricted).tapped,
+            "the Cant(Untap) carrier stays tapped"
+        );
+        assert!(
+            !state.objects.obj(plain).tapped,
+            "the plain permanent untapped"
+        );
+
+        // The restriction is continuous: it holds on a later untap step too.
+        state.objects.obj_mut(restricted).tapped = true;
+        let untapped = run_untap_step(&mut state);
+        assert!(
+            !untapped.contains(&restricted) && state.objects.obj(restricted).tapped,
+            "the continuous restriction still keeps it tapped next untap step"
+        );
+    }
+
+    /// A one-shot `skip_next_untap` rider ([CR#701.43a] exert; the
+    /// temple/painland mana riders) keeps its permanent tapped for exactly
+    /// ONE untap step, is consumed, then the permanent untaps normally at the
+    /// following untap step.
+    #[test]
+    fn skip_next_untap_rider_stays_tapped_once_then_untaps() {
+        let mut state = game();
+        state.turn.active_player = PlayerId(0);
+        let perm = tapped_perm(&mut state, PlayerId(0), vec![]);
+        state.objects.obj_mut(perm).skip_next_untap = true;
+
+        // First untap step: the rider suppresses the untap and is consumed.
+        let untapped = run_untap_step(&mut state);
+        assert!(!untapped.contains(&perm), "the rider suppresses this untap");
+        assert!(
+            state.objects.obj(perm).tapped,
+            "the permanent stays tapped once"
+        );
+        assert!(
+            !state.objects.obj(perm).skip_next_untap,
+            "the one-shot rider was consumed ([CR#701.43a])"
+        );
+
+        // Next untap step: no rider left — it untaps normally.
+        let untapped = run_untap_step(&mut state);
+        assert!(
+            untapped.contains(&perm),
+            "it untaps the following untap step"
+        );
+        assert!(
+            !state.objects.obj(perm).tapped,
+            "the permanent is now untapped"
+        );
     }
 }

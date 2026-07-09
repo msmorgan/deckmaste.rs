@@ -259,6 +259,23 @@ pub enum DeonticAction {
         #[serde(default = "Predicate::any")]
         on: Predicate,
     },
+    /// `what` doesn't untap ([CR#502.3] "effects can keep one or more of a
+    /// player's permanents from untapping"). A `Cant` row over it —
+    /// `Cant(Untap(what: Ref(This)))` ("~ doesn't untap during your untap
+    /// step") or `Cant(Untap(what: <enchanted>))` ("enchanted creature
+    /// doesn't untap during its controller's untap step") — makes the untap
+    /// step's turn-based action ([CR#502.3]) not untap the matching
+    /// permanent. ONE patient slot: untapping is a turn-based action, not a
+    /// deed some object performs, so there is no agent slot. The untap step
+    /// only processes the active player's permanents, so this is inherently
+    /// scoped to "its controller's untap step". The one-shot "next untap
+    /// step" flavor ([CR#701.43a] exert; the temple/painland mana riders) is
+    /// a consumed per-object rider (`GameObject.skip_next_untap`), NOT this
+    /// continuous row.
+    Untap {
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+    },
     /// A remembered `DeonticAction` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]

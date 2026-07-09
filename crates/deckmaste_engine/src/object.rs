@@ -208,6 +208,15 @@ pub struct GameObject {
     /// controller's turn start — a creature controlled continuously since the
     /// turn began is not summoning-sick. Meaningful only on the battlefield.
     pub summoning_sick: bool,
+    /// [CR#502.3,701.43a]: the one-shot "doesn't untap during your next untap
+    /// step" rider — exert, and the temple/painland mana riders. Set by an
+    /// effect; consumed at this permanent's controller's next untap step (the
+    /// untap turn-based action clears it and suppresses that one untap),
+    /// mirroring `summoning_sick`'s set-by-arrival / cleared-by-turn-start
+    /// life-cycle. The one-shot twin of the continuous
+    /// `Cant(Untap)` restriction. Meaningful only on the battlefield; a zone
+    /// change remints a fresh object, so it never rides a leaving permanent.
+    pub skip_next_untap: bool,
     /// Marked damage ([CR#120.3,704.5g]) as a list of source-tagged instances
     /// — meaningful only on the battlefield. Each [`DamageMark`] carries the
     /// dealing source's deal-time abilities, so the lethal-damage SBA can read
@@ -326,6 +335,7 @@ impl ObjectStore {
             timestamp,
             tapped: false,
             summoning_sick: false,
+            skip_next_untap: false,
             damage: Vec::new(),
             counters: HashMap::new(),
             attached_to: None,
