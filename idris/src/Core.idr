@@ -2670,6 +2670,14 @@ mutual
       -- a 4/4") are SEPARATE higher-layer mods (Continuously/Modify on the result), not bundled here.
       BecomeCopyOf : Reference b AnObject -> Modification b
 
+  -- which flip(s)/roll(s) a `ReplaceRoll` discards, once the extras have been rolled
+  -- ([CR#706.6] "if a player is instructed to ignore a roll... the player chooses one of those
+  -- rolls to be ignored" when multiple tie for lowest). `IgnoreLowest` = Krark's Thumb (flip two,
+  -- ignore the lower); `IgnoreChosen n` = the player picks which n of the extras to discard.
+  namespace IgnoreRule
+    public export
+    data IgnoreRule = IgnoreLowest | IgnoreChosen Nat
+
   -- A continuous effect a static (or `Continuously`) ability generates ([CR#611]):
   -- modify a subject, modify a whole filter (anthem), or REPLACE an event — a
   -- replacement effect is a continuous effect too ([CR#614]). Rust: the StaticEffect family.
@@ -2724,6 +2732,13 @@ mutual
       -- `Replaces`/`Also`, gated so every queried kind carries an amount — `ReplaceAmount (MkEventQuery [Begins Cast] []) …`
       -- (a cast has no amount) is a TYPE ERROR; the query's facets add the non-kind conditions.
       ReplaceAmount : (q : EventQuery b) -> {auto 0 amt : eventQueryHasAmount q = True} -> (newAmount : Count (bindEvent (eventQueryCaps q) (queryRoles q) b)) -> StaticEffect b
+      -- ROLL-MORE replacement ([CR#614.3] Krark's Thumb-family; [CR#706.6] the ignore-result
+      -- semantics): "if you would roll/flip [q], instead roll/flip `extra` more and ignore
+      -- [ignore]". Gated to `isRandomnessQuery` — a `RollDice`/`FlipCoin` query only, NEVER the
+      -- planar die (it has no roll-more interaction, [CR#901.9d]) — so `ReplaceRoll` on a
+      -- `RollPlanarDie` query is a TYPE ERROR, not a runtime no-op. Krark's Thumb = `ReplaceRoll
+      -- (MkEventQuery [FlipCoin Nothing] [Actor you]) (^1) (IgnoreChosen 1)`.
+      ReplaceRoll : (q : EventQuery b) -> {auto 0 rnd : isRandomnessQuery q = True} -> (extra : Count b) -> (ignore : IgnoreRule) -> StaticEffect b
       -- a static OUTCOME suppressor: the matching players can't lose / can't win ([CR#104.2b,104.3e]). Platinum
       -- Angel = `OutcomeGate CantLose you` + `OutcomeGate CantWin opponent`. (Distinct from `CantHappen` —
       -- game-loss isn't a replaceable event — and from a deontic `cant` — it's not a player action.)

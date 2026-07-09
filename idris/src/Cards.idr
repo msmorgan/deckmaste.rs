@@ -1351,4 +1351,8 @@ vlxFlip : OneShotEffect Base
 vlxFlip = Sequentially [ Act (FlipCoins (^1))
                        , If (Compare ThatMany AtLeast (^1)) (Act (Draw (^1))) ]
 
+-- value-language-extensions Task 12 probe (StaticEffect.ReplaceRoll + IgnoreRule)
+vlxKrark : StaticEffect b    -- Krark's Thumb: flip two, ignore one
+vlxKrark = ReplaceRoll (MkEventQuery [FlipCoin Nothing] [Actor you]) (^1) (IgnoreChosen 1)
+
 --:vim:sts=2 sw=2:
