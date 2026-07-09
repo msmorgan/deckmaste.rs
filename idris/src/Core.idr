@@ -77,20 +77,8 @@ implementation Promote (Maybe Color) ManaSymbol where
 
 -- PRODUCED mana ([CR#106.1]) — actual mana a mana ability adds. A DIFFERENT domain from the printed
 -- cost `ManaSymbol`: you produce colored/colorless units or "any color", never `{X}`/`{W/P}`/`{S}`.
-namespace ProducedMana
-  public export
-  data ProducedMana = OfColor (Maybe Color)   -- `OfColor (Just c)` = one {c}; `OfColor Nothing` = one {C}
-                    | AnyColor                 -- one mana of any color (the producer picks)
-                    | OneOf (List (Maybe Color)) -- one mana, the producer choosing from a FIXED set ("add {W} or {U}" = `OneOf [Just White, Just Blue]`); distinct from `AnyColor` (all five) and from a heterogeneous list (add ALL) ([CR#106.1])
-                    | OneOfRuns (List (List (Maybe Color))) -- one of several multi-symbol RUNS, producer choosing on resolution ("add {W}{W}, {W}{U}, or {U}{U}" = the filterland cycle = `OneOfRuns [[Just White, Just White], [Just White, Just Blue], [Just Blue, Just Blue]]`); the chosen run's whole sequence is added ([CR#106.1b])
-
-public export
-implementation Promote Color ProducedMana where
-  promote = OfColor . Just
-
-public export
-implementation Promote (Maybe Color) ProducedMana where
-  promote = OfColor
+-- (`data ProducedMana` itself lives in the mutual block, beside `ManaRider`, so its `AmongColorsOf`/
+-- `ProducedByEvent` variants can name `Reference`/`eventCaps`.)
 
 public export
 ManaCost : Type
@@ -2071,6 +2059,26 @@ mutual
   CharacteristicsOk : Characteristics b -> Type
   CharacteristicsOk c = NonEmpty (types c)
 
+  -- PRODUCED mana ([CR#106.1]) — actual mana a mana ability adds. A DIFFERENT domain from the printed
+  -- cost `ManaSymbol`: you produce colored/colorless units or "any color", never `{X}`/`{W/P}`/`{S}`.
+  -- `Ctx`-indexed (not just an inert value type) because `AmongColorsOf`/`ProducedByEvent` name the
+  -- ambient `Reference`/`eventCaps` — hence its home in this mutual block, beside `ManaRider`.
+  namespace ProducedMana
+    public export
+    data ProducedMana : Ctx -> Type where
+      OfColor : Maybe Color -> ProducedMana b     -- `OfColor (Just c)` = one {c}; `OfColor Nothing` = one {C}
+      AnyColor : ProducedMana b                   -- one mana of any color (the producer picks)
+      OneOf : List (Maybe Color) -> ProducedMana b -- one mana, the producer choosing from a FIXED set ("add {W} or {U}" = `OneOf [Just White, Just Blue]`); distinct from `AnyColor` (all five) and from a heterogeneous list (add ALL) ([CR#106.1])
+      OneOfRuns : List (List (Maybe Color)) -> ProducedMana b -- one of several multi-symbol RUNS, producer choosing on resolution ("add {W}{W}, {W}{U}, or {U}{U}" = the filterland cycle = `OneOfRuns [[Just White, Just White], [Just White, Just Blue], [Just Blue, Just Blue]]`); the chosen run's whole sequence is added ([CR#106.1b])
+
+  public export
+  implementation Promote Color (ProducedMana b) where
+    promote = OfColor . Just
+
+  public export
+  implementation Promote (Maybe Color) (ProducedMana b) where
+    promote = OfColor
+
   -- A per-mana STRING attached to produced mana ([CR#106.6] enumerates exactly these three; they ride
   -- EACH mana the production makes, [CR#106.6a]). NOT snow (that's the source's `Snow` supertype) nor
   -- "doesn't empty" (a separate static/replacement over all your mana — Omnath/Upwelling), which would
@@ -2178,7 +2186,7 @@ mutual
       -- [CR#106.6] applied to each of the `amount` mana ([CR#106.6a]) — Cavern: a chosen color, only to cast
       -- the chosen creature type, uncounterable. (Fixed HETEROGENEOUS production — "add {R}{G}" — is a
       -- `Sequentially` of `AddMana`s, so the old per-action list is gone.)
-      AddMana : {default You actor : Reference b APlayer} -> (amount : Count b) -> ProducedMana
+      AddMana : {default You actor : Reference b APlayer} -> (amount : Count b) -> ProducedMana b
                 -> {default [] riders : List (ManaRider b)} -> Action b
       -- a COMPOSITE keyword action ([CR#701]): `tag` NAMES the verb, `body` is its primitive desugaring
       -- (`Each`/`With`/`Modal`/`Sequentially` over the verbs above). The action-side twin of
@@ -3058,7 +3066,7 @@ shuffleBy : Reference b APlayer -> Action b
 shuffleBy a = Shuffle {actor = a}
 
 public export
-addManaFull : Reference b APlayer -> Count b -> ProducedMana -> List (ManaRider b) -> Action b
+addManaFull : Reference b APlayer -> Count b -> ProducedMana b -> List (ManaRider b) -> Action b
 addManaFull a amt pm rs = AddMana {actor = a} amt pm {riders = rs}
 
 public export
