@@ -450,6 +450,7 @@ dependencies = [
  "ron",
  "serde",
  "slotmap",
+ "tempfile",
 ]
 
 [[package]]

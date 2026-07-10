@@ -708,4 +708,101 @@ mod tests {
             "the conferred replacement put 3 LoyaltyCounters on entry"
         );
     }
+
+    /// [Task 3, acceptance gate]: the same enters-with-counters behavior as
+    /// [`conferred_enters_with_counters_by_type`], but proven through the
+    /// REAL data path end to end, not a hand-built `ConferralRule` — a
+    /// `rules/grant/*.ron` file in a tempdir plugin, loaded by the real
+    /// `Plugin::load` ([Task 1]'s `load_conferral_rules`), plumbed through
+    /// `GameConfig.conferral_rules` into `GameState.conferral_rules` ([Task
+    /// 2]'s wiring), and folded by `as_enters_status` on entry. A
+    /// TEST-SCOPED fixture, not a committed builtin rule: `Literal(3)` here
+    /// would confer three loyalty counters on every real planeswalker — the
+    /// builtin rule reads `StatOf(This, Loyalty)` and is a later task, once
+    /// `Stat::Loyalty` and a printed-loyalty planeswalker card exist.
+    #[test]
+    fn data_conferred_rule_applies_at_entry_end_to_end() {
+        let root = tempfile::tempdir().unwrap();
+        let grant_dir = root.path().join("rules").join("grant");
+        std::fs::create_dir_all(&grant_dir).unwrap();
+        std::fs::write(
+            grant_dir.join("planeswalker-loyalty.ron"),
+            r"[
+                ConferralRule(
+                    scope: Type(Planeswalker),
+                    confer: Ability(Static(Replacement(Also(
+                        would: ZoneChange(what: Ref(This), to: Battlefield),
+                        also: PutCounters(This, LoyaltyCounter, Literal(3)),
+                    )))),
+                ),
+            ]",
+        )
+        .unwrap();
+
+        // The real loader (Task 1): a plugin with no `macros/`, just the
+        // `rules/grant/` fixture.
+        let plugin = Plugin::load(root.path()).unwrap();
+        assert_eq!(
+            plugin.conferral_rules.len(),
+            1,
+            "the fixture file loaded one conferral rule via load_conferral_rules"
+        );
+
+        // The real plumbing (Task 2): loader output flows into GameConfig,
+        // never a hand-set `state.conferral_rules`.
+        let mut state = GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 7,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: plugin.conferral_rules,
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        });
+
+        let card = Card::Normal(CardFace {
+            name: "Test Walker".into(),
+            types: vec![Type::Planeswalker],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let hand_id =
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
+        state.zones.hands[PlayerId(0).index()].push(hand_id);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneWillChange {
+                object: hand_id,
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))]);
+        for _ in 0..10 {
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+        let entered = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(card_id))
+            .expect("the planeswalker entered the battlefield");
+        assert_eq!(
+            state
+                .objects
+                .obj(entered)
+                .counters
+                .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+                .copied(),
+            Some(3),
+            "the data-loaded conferral rule put 3 LoyaltyCounters on entry"
+        );
+    }
 }
