@@ -465,15 +465,22 @@ mod tests {
         );
     }
 
+    /// `builtin/rules/grant/planeswalker-loyalty.ron` confers the
+    /// enters-with-loyalty replacement ([CR#306.5b]) onto every
+    /// planeswalker, as data.
     #[test]
-    fn absent_rules_grant_dir_yields_no_conferral_rules() {
-        // `builtin` has no `rules/grant/` yet — Task 1 only builds the
-        // loader, no conferral rules are authored under it.
+    fn builtin_loads_planeswalker_loyalty_conferral() {
         let plugin = Plugin::load(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
         )
         .unwrap();
-        assert_eq!(plugin.conferral_rules, vec![]);
+        assert_eq!(plugin.conferral_rules.len(), 1);
+        assert!(matches!(
+            plugin.conferral_rules[0].scope,
+            deckmaste_core::Predicate::Characteristic(
+                deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker)
+            )
+        ));
     }
 
     #[test]
@@ -653,6 +660,16 @@ mod tests {
             .err()
             .expect("expected duplicate error");
         assert!(format!("{err:#}").contains("already defined"), "{err:#}");
+    }
+
+    /// A plugin root with no `rules/grant/` directory at all loads with an
+    /// empty `conferral_rules`, mirroring the `rules/sba/` loader's
+    /// absent-directory tolerance.
+    #[test]
+    fn absent_rules_grant_dir_yields_no_conferral_rules() {
+        let root = tempfile::tempdir().unwrap();
+        let plugin = Plugin::load(root.path()).unwrap();
+        assert_eq!(plugin.conferral_rules, vec![]);
     }
 
     /// A `rules/grant/*.ron` file parses as a `Vec<ConferralRule>` and lands
