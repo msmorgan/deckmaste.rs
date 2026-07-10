@@ -384,8 +384,19 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
             Decision::Order((0..triggers.len()).collect())
         }
         // Attack with everything legal (the creature seat swings; the removal
-        // seat has no creatures, so its set is always empty).
-        PendingDecision::DeclareAttackers { legal, .. } => Decision::Attackers(legal.clone()),
+        // seat has no creatures, so its set is always empty). Each attacker
+        // attacks the defending player's proxy ([CR#508.1b]) — the sole
+        // legal target when no planeswalkers are in play.
+        PendingDecision::DeclareAttackers {
+            legal,
+            legal_targets,
+            ..
+        } => {
+            let target = *legal_targets
+                .first()
+                .expect("the defending player's proxy is always a legal target");
+            Decision::Attackers(legal.iter().map(|&a| (a, target)).collect())
+        }
         // The defender never has a creature to block with.
         PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
         // Unblocked attackers are forced (one recipient); no multi-block arises.

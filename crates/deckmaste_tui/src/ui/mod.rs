@@ -651,6 +651,7 @@ mod tests {
         let it = Interaction::Attackers {
             legal,
             chosen: vec![],
+            defender: driver.state.player(deckmaste_engine::PlayerId(1)).object,
         };
 
         let pass = PassState::new();

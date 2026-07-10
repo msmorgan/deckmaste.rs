@@ -557,7 +557,7 @@ impl GameState {
             // [CR#603.2e] becomes-state transitions: the transitioning object
             // is the agent ("it") with its controller the actor — Exalted
             // ([CR#702.83a]) reads the lone attacker via `EventObject`.
-            GameEvent::Attacking(o)
+            GameEvent::Attacking { attacker: o, .. }
             | GameEvent::Untapped(o)
             | GameEvent::Tapped { object: o, .. } => {
                 let (agent, actor) = self.event_agent(*o);
@@ -584,7 +584,11 @@ impl GameState {
         // ([CR#506.2,508.5]) — in a 2-player game the sole opponent of the
         // attacker's controller.
         let defending_player = match event {
-            GameEvent::Attacking(o) => Some(self.next_live_after(self.objects.obj(*o).controller)),
+            // The defending player controls the thing attacked ([CR#508.1b]):
+            // a planeswalker's controller, or the attacked player's own proxy.
+            GameEvent::Attacking { defending, .. } => {
+                self.objects.get(*defending).map(|o| o.controller)
+            }
             _ => None,
         };
         // The event MAGNITUDE — the amount-carrying set the apply funnel fixes
@@ -1821,7 +1825,10 @@ mod tests {
                 Some(Zone::Battlefield),
             );
             state.zones.battlefield.push(id);
-            state.combat.declare_attacker(id);
+            let def = state
+                .player(state.next_live_after(state.objects.obj(id).controller))
+                .object;
+            state.combat.declare_attacker(id, def);
             id
         };
         let carrier = put(&mut state, "Centaur Courser"); // 3/3

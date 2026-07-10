@@ -288,6 +288,21 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .collect()
 }
 
+/// [CR#506.3,508.1b]: what the active player may attack in the two-player
+/// game — the sole `defender`'s player-proxy object plus every planeswalker
+/// (`Type::Planeswalker`) that `defender` controls ([CR#508.1b]). Battles and
+/// multi-defender games are separate tickets. Planeswalker type is read from
+/// the derived layer view so animated/type-changed permanents are honored.
+#[must_use]
+pub fn legal_attack_targets(state: &GameState, defender: PlayerId) -> Vec<ObjectId> {
+    let view = state.layers();
+    let mut targets = vec![state.player(defender).object];
+    targets.extend(state.zones.battlefield.iter().copied().filter(|&id| {
+        view.controller(id) == defender && view.get(id).card_types.contains(&Type::Planeswalker)
+    }));
+    targets
+}
+
 /// Every `Attack` row of the polarity `pick` extracts in the derived view,
 /// with its carrier — point-wise by construction (`Attack{by, on}` carries
 /// no arrangement bound).

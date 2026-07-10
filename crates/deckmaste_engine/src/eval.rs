@@ -385,14 +385,20 @@ impl<'a> FactView<'a> {
                 v.object = Some(part(*source));
                 v.actor = controller_of(*source);
             }
-            // [CR#508.1k]: the attacker; the DEFENDING player
-            // ([CR#506.2,508.5]) is the patient — captured here (not read
-            // back live) so a history view keeps the defender of record.
-            GameEvent::Attacking(o) => {
+            // [CR#508.1k]: the attacker is the object; the thing attacked
+            // ([CR#508.1b,506.3]) is the patient — the defending player's
+            // proxy (read as a `Player` part, [CR#508.5]) or a planeswalker
+            // they control (an `Obj` part, [CR#508.1b]). Captured from the
+            // declaration (not read back live) so a history view keeps the
+            // defender of record.
+            GameEvent::Attacking {
+                attacker,
+                defending,
+            } => {
                 v = FactView::bare(FactKind::AttackDeclared, state);
-                v.object = Some(part(*o));
-                v.actor = controller_of(*o);
-                v.patient = controller_of(*o).map(|c| Part::Player(state.next_live_after(c)));
+                v.object = Some(part(*attacker));
+                v.actor = controller_of(*attacker);
+                v.patient = Some(part(*defending));
             }
             // [CR#509.1g..509.1h]: one fact, two views — the blocker is the
             // object, the blocked attacker the patient.

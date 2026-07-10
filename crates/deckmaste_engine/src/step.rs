@@ -625,8 +625,11 @@ impl GameState {
             // [CR#508.1a]: record the attacker; [CR#508.1f]: declaring it as an
             // attacker taps it (not a cost — attacking simply taps).
             // [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
-            GameEvent::Attacking(o) => {
-                self.combat.declare_attacker(o);
+            GameEvent::Attacking {
+                attacker: o,
+                defending,
+            } => {
+                self.combat.declare_attacker(o, defending);
                 if !crate::combat::has_keyword(&self.layers(), o, &KeywordAbility::Vigilance)
                     && !self.objects.obj(o).tapped
                 {
@@ -646,7 +649,10 @@ impl GameState {
                         },
                     ))]);
                 }
-                GameEvent::Attacking(o)
+                GameEvent::Attacking {
+                    attacker: o,
+                    defending,
+                }
             }
             // [CR#509.1a]: record the block; [CR#509.1h]: the attacker becomes a
             // blocked creature (sticky). Declaring a blocker does NOT tap it. The
@@ -1885,10 +1891,16 @@ impl GameState {
     fn declare_attackers(&mut self) -> Progress {
         let active = self.turn.active_player;
         let legal = legal_attackers(self, active);
+        // [CR#508.1b]: in the two-player game the sole defender is the
+        // non-active player; the legal attack targets are their proxy plus
+        // every planeswalker they control ([CR#506.3]).
+        let defender = self.next_live_after(active);
+        let legal_targets = crate::legal::legal_attack_targets(self, defender);
         let count = Uint::try_from(legal.len()).expect("attacker count fits in Uint");
         self.pending = Some(PendingDecision::DeclareAttackers {
             player: active,
             legal,
+            legal_targets,
         });
         Progress::DeclareAttackersOpened { legal: count }
     }

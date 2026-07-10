@@ -101,6 +101,9 @@ pub struct CombatState {
     blocks: BTreeMap<ObjectId, ObjectId>, // blocker -> the attacker it blocks
     blockers: BTreeMap<ObjectId, Vec<ObjectId>>, // attacker -> its live blockers
     blocked: BTreeSet<ObjectId>,          // sticky blocked status ([CR#509.1h])
+    // attacker -> what it is attacking ([CR#508.1b]): the defending player's
+    // proxy object or a planeswalker they control ([CR#506.3,508.1b]).
+    attack_target: BTreeMap<ObjectId, ObjectId>,
 }
 
 impl CombatState {
@@ -138,11 +141,22 @@ impl CombatState {
         self.blocks.get(&blocker).copied()
     }
 
-    /// Declares `o` as an attacker. Does nothing if already an attacker.
-    pub(crate) fn declare_attacker(&mut self, o: ObjectId) {
+    /// What `attacker` is attacking ([CR#508.1b]) — the defending player's
+    /// proxy object or a planeswalker they control ([CR#506.3,508.1b]), if
+    /// `attacker` has been declared.
+    #[must_use]
+    pub fn target_of(&self, attacker: ObjectId) -> Option<ObjectId> {
+        self.attack_target.get(&attacker).copied()
+    }
+
+    /// Declares `o` as an attacker attacking `target` ([CR#508.1b]). Records
+    /// the target either way; appends to the attacker list only once
+    /// (idempotent on the attacker, though the target is refreshed).
+    pub(crate) fn declare_attacker(&mut self, o: ObjectId, target: ObjectId) {
         if !self.attackers.contains(&o) {
             self.attackers.push(o);
         }
+        self.attack_target.insert(o, target);
     }
 
     /// Records `blocker` as blocking `attacker`: inserts into `blocks`, appends
@@ -163,6 +177,7 @@ impl CombatState {
         self.blocked.remove(&o);
         self.blockers.remove(&o);
         self.blocks.remove(&o);
+        self.attack_target.remove(&o);
         for blockers in self.blockers.values_mut() {
             blockers.retain(|&b| b != o);
         }
@@ -174,6 +189,7 @@ impl CombatState {
         self.blocks.clear();
         self.blockers.clear();
         self.blocked.clear();
+        self.attack_target.clear();
     }
 }
 
@@ -188,19 +204,21 @@ mod tests {
     #[test]
     fn declaring_attacker_makes_is_attacking_true() {
         let mut cs = CombatState::default();
-        let a = id(1);
+        let (a, t) = (id(1), id(9));
         assert!(!cs.is_attacking(a));
-        cs.declare_attacker(a);
+        assert_eq!(cs.target_of(a), None);
+        cs.declare_attacker(a, t);
         assert!(cs.is_attacking(a));
         assert_eq!(cs.attackers(), &[a]);
+        assert_eq!(cs.target_of(a), Some(t));
     }
 
     #[test]
     fn declare_attacker_is_idempotent() {
         let mut cs = CombatState::default();
-        let a = id(1);
-        cs.declare_attacker(a);
-        cs.declare_attacker(a);
+        let (a, t) = (id(1), id(9));
+        cs.declare_attacker(a, t);
+        cs.declare_attacker(a, t);
         assert_eq!(cs.attackers(), &[a]);
     }
 
@@ -208,7 +226,7 @@ mod tests {
     fn declare_block_records_attacker_of_blockers_of_and_blocked() {
         let mut cs = CombatState::default();
         let (a, b) = (id(1), id(2));
-        cs.declare_attacker(a);
+        cs.declare_attacker(a, id(0));
         cs.declare_block(b, a);
         assert_eq!(cs.attacker_of(b), Some(a));
         assert_eq!(cs.blockers_of(a), &[b]);
@@ -219,7 +237,7 @@ mod tests {
     fn multiple_blockers_on_one_attacker() {
         let mut cs = CombatState::default();
         let (a, b1, b2) = (id(1), id(2), id(3));
-        cs.declare_attacker(a);
+        cs.declare_attacker(a, id(0));
         cs.declare_block(b1, a);
         cs.declare_block(b2, a);
         assert_eq!(cs.blockers_of(a), &[b1, b2]);
@@ -244,7 +262,7 @@ mod tests {
     fn blocked_status_is_sticky_after_blocker_removed() {
         let mut cs = CombatState::default();
         let (a, b) = (id(1), id(2));
-        cs.declare_attacker(a);
+        cs.declare_attacker(a, id(0));
         cs.declare_block(b, a);
         cs.remove_object(b);
         // The lone blocker is gone, but the attacker is still a blocked creature.
@@ -257,19 +275,21 @@ mod tests {
     fn remove_object_prunes_attacker_including_blocked() {
         let mut cs = CombatState::default();
         let (a, b) = (id(1), id(2));
-        cs.declare_attacker(a);
+        cs.declare_attacker(a, id(5));
         cs.declare_block(b, a);
+        assert_eq!(cs.target_of(a), Some(id(5)));
         cs.remove_object(a);
         assert!(!cs.is_attacking(a));
         assert!(!cs.is_blocked(a));
         assert_eq!(cs.blockers_of(a), &[] as &[ObjectId]);
+        assert_eq!(cs.target_of(a), None, "the target entry is dropped");
     }
 
     #[test]
     fn remove_object_prunes_blocker_from_blocks_and_live_blockers() {
         let mut cs = CombatState::default();
         let (a, b1, b2) = (id(1), id(2), id(3));
-        cs.declare_attacker(a);
+        cs.declare_attacker(a, id(0));
         cs.declare_block(b1, a);
         cs.declare_block(b2, a);
         cs.remove_object(b1);
@@ -287,8 +307,8 @@ mod tests {
         let (a1, a2, x) = (id(1), id(2), id(3));
         // x blocks a1, and x is itself a blocked attacker (blocked by a2... in
         // v1 a creature isn't both, but the registry must still prune cleanly).
-        cs.declare_attacker(a1);
-        cs.declare_attacker(x);
+        cs.declare_attacker(a1, id(0));
+        cs.declare_attacker(x, id(0));
         cs.declare_block(x, a1); // x blocks a1  -> x is a value in blockers[a1]
         cs.declare_block(a2, x); // a2 blocks x  -> x is a key in blockers, and blocked
         assert!(cs.is_blocked(x));
@@ -304,7 +324,7 @@ mod tests {
     fn clear_empties_everything() {
         let mut cs = CombatState::default();
         let (a, b) = (id(1), id(2));
-        cs.declare_attacker(a);
+        cs.declare_attacker(a, id(5));
         cs.declare_block(b, a);
         cs.clear();
         assert!(!cs.is_attacking(a));
@@ -312,6 +332,7 @@ mod tests {
         assert_eq!(cs.blockers_of(a), &[] as &[ObjectId]);
         assert_eq!(cs.attacker_of(b), None);
         assert_eq!(cs.attackers(), &[] as &[ObjectId]);
+        assert_eq!(cs.target_of(a), None, "the target entry is cleared");
     }
 
     use deckmaste_core::Expansion;

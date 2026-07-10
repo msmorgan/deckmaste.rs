@@ -240,7 +240,7 @@ impl StrategyEvaluator {
     /// preference's `among` filter (the whole legal set when `among` is
     /// `None`). No `Attack` rule → declare none. `pick`/`by` are unused
     /// here — attacking is a set decision, so only `among` narrows it.
-    fn decide_attackers(&self, state: &GameState, legal: &[ObjectId]) -> Vec<ObjectId> {
+    fn decide_attackers(&self, state: &GameState, legal: &[ObjectId]) -> Vec<(ObjectId, ObjectId)> {
         self.first_applicable(state, |p| match p {
             Preference::Attack { what } => Some(what),
             _ => None,
@@ -250,6 +250,13 @@ impl StrategyEvaluator {
                 .iter()
                 .copied()
                 .filter(|&o| self.matches_among(state, what, o))
+                // [CR#508.1b]: this baseline AI always attacks the defending
+                // player — each attacker is paired with the sole opponent's
+                // player proxy. Planeswalker-target selection is a follow-up.
+                .map(|o| {
+                    let controller = state.objects.obj(o).controller;
+                    (o, state.player(state.next_live_after(controller)).object)
+                })
                 .collect()
         })
         .unwrap_or_default()
@@ -753,9 +760,11 @@ mod tests {
         let mut state = empty_two_player();
         let a = put_creature(&mut state, &bears, PlayerId(0));
         let b = put_creature(&mut state, &bears, PlayerId(0));
+        let p1_proxy = state.player(PlayerId(1)).object;
         let pending = PendingDecision::DeclareAttackers {
             player: PlayerId(0),
             legal: vec![a, b],
+            legal_targets: vec![p1_proxy],
         };
 
         let attacker = StrategyEvaluator::new(
@@ -768,9 +777,10 @@ mod tests {
             }),
             PlayerId(0),
         );
+        // The baseline AI attacks the sole opponent's player proxy.
         assert_eq!(
             attacker.decide(&state, &pending),
-            Decision::Attackers(vec![a, b]),
+            Decision::Attackers(vec![(a, p1_proxy), (b, p1_proxy)]),
         );
 
         let passive = StrategyEvaluator::new(always_prefer(Preference::Pass), PlayerId(0));

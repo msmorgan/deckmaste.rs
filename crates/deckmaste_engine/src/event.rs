@@ -287,10 +287,15 @@ pub enum GameEvent {
         player: PlayerId,
         amount: Uint,
     },
-    /// [CR#508.1a]: a creature was declared as an attacker. Its apply records
-    /// it in `CombatState` and taps it ([CR#508.1f]). The "whenever ~ attacks"
-    /// trigger seam (`EventFilter::AttackDeclared`).
-    Attacking(ObjectId),
+    /// [CR#508.1a,508.1b]: `attacker` was declared as an attacker attacking
+    /// `defending` — the defending player's proxy object or a planeswalker they
+    /// control ([CR#506.3,508.1b]). Its apply records both in `CombatState` and
+    /// taps the attacker ([CR#508.1f]). The "whenever ~ attacks" trigger seam
+    /// (`EventFilter::AttackDeclared`) reads `defending` as the against-target.
+    Attacking {
+        attacker: ObjectId,
+        defending: ObjectId,
+    },
     /// [CR#509.1a]: a creature was declared as a blocker against `attacker`. Its
     /// apply records the block in `CombatState` and marks `attacker` blocked
     /// ([CR#509.1h]). The "whenever ~ blocks / becomes blocked" trigger seam.

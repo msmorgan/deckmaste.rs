@@ -1058,7 +1058,10 @@ mod tests {
         ));
 
         // Declare the attacker — attacking and (no blocker yet) unblocked.
-        state.combat.declare_attacker(attacker);
+        let def = state
+            .player(state.next_live_after(state.objects.obj(attacker).controller))
+            .object;
+        state.combat.declare_attacker(attacker, def);
         assert!(matches(
             &state,
             attacker,
@@ -1577,7 +1580,10 @@ mod tests {
         let bears = put_canon_creature(&mut state, "Grizzly Bears"); // 2/2 lesser
         let hunter = put_canon_creature(&mut state, "Fangren Hunter"); // 4/4 greater
         for &id in &[courser, bears, hunter] {
-            state.combat.declare_attacker(id);
+            let def = state
+                .player(state.next_live_after(state.objects.obj(id).controller))
+                .object;
+            state.combat.declare_attacker(id, def);
         }
         (state, courser, bears, hunter)
     }

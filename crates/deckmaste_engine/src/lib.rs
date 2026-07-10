@@ -61,6 +61,7 @@ mod lki;
 pub use lki::LkiSnapshot;
 
 mod legal;
+pub use legal::legal_attack_targets;
 pub use legal::legal_attackers;
 pub use legal::legal_blockers;
 

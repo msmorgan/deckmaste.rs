@@ -35,6 +35,7 @@ use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
 use deckmaste_engine::has_keyword;
 use deckmaste_engine::has_keyword_named;
+use deckmaste_engine::legal_attack_targets;
 use deckmaste_engine::legal_attackers;
 use deckmaste_engine::legal_blockers;
 
@@ -292,6 +293,23 @@ fn pass_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
     }
 }
 
+/// The declare-attackers answer that sends each of `attackers` at the sole
+/// opponent's player proxy — the default "attack the player" target
+/// ([CR#508.1b]) that preserves pre-planeswalker behavior. Each attacker must
+/// already be a real battlefield object (its controller is read to find the
+/// defending player).
+fn attack_player(state: &GameState, attackers: &[ObjectId]) -> Decision {
+    Decision::Attackers(
+        attackers
+            .iter()
+            .map(|&a| {
+                let def = state.next_live_after(state.objects.obj(a).controller);
+                (a, state.player(def).object)
+            })
+            .collect(),
+    )
+}
+
 /// [CR#508.1a], [CR#508.1f]: the Declare Attackers step surfaces a
 /// `DeclareAttackers` decision for the active player; declaring an attacker
 /// taps it, records it in `CombatState`, and fires an `Attacking` event.
@@ -304,7 +322,11 @@ fn declare_attackers_taps_records_and_fires_attacking() {
 
     // Drive (passing priorities) to the Declare Attackers step's decision.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers {
+        player,
+        legal,
+        legal_targets,
+    }) = stop
     else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
@@ -317,25 +339,30 @@ fn declare_attackers_taps_records_and_fires_attacking() {
         legal.contains(&bear),
         "the de-sickened creature is a surfaced legal attacker"
     );
+    let opp_proxy = state.player(PlayerId(1)).object;
+    assert!(
+        legal_targets.contains(&opp_proxy),
+        "the defending player's proxy is a legal attack target ([CR#508.1b])"
+    );
 
     // Declaring an attacker that isn't in `legal` is rejected.
     assert!(
         state
-            .submit_decision(Decision::Attackers(vec![ObjectId::default()]))
+            .submit_decision(Decision::Attackers(vec![(ObjectId::default(), opp_proxy)]))
             .is_err(),
         "an id outside the legal set is rejected"
     );
     // A duplicate is rejected.
     assert!(
         state
-            .submit_decision(Decision::Attackers(vec![bear, bear]))
+            .submit_decision(attack_player(&state, &[bear, bear]))
             .is_err(),
         "duplicate attackers are rejected"
     );
 
     // Declare the bear.
     state
-        .submit_decision(Decision::Attackers(vec![bear]))
+        .submit_decision(attack_player(&state, &[bear]))
         .unwrap();
 
     // The Attacking event fires; the bear ends up attacking and tapped.
@@ -344,7 +371,7 @@ fn declare_attackers_taps_records_and_fires_attacking() {
         trace.iter().any(|p| matches!(
             p,
             Progress::Applied(Occurrence::Batch(events))
-                if events.contains(&GameEvent::Attacking(bear))
+                if events.contains(&GameEvent::Attacking { attacker: bear, defending: opp_proxy })
         )),
         "an Attacking(bear) event appears in the step trace: {trace:?}"
     );
@@ -368,7 +395,7 @@ fn declare_attackers_emits_tapped_fact_with_attack_cause() {
 
     let (_trace, _stop) = pass_to_stop(&mut state);
     state
-        .submit_decision(Decision::Attackers(vec![bear]))
+        .submit_decision(attack_player(&state, &[bear]))
         .unwrap();
 
     let (trace, _stop) = step_to_stop(&mut state);
@@ -395,7 +422,7 @@ fn vigilant_attacker_emits_no_tapped_fact() {
 
     let (_trace, _stop) = pass_to_stop(&mut state);
     state
-        .submit_decision(Decision::Attackers(vec![vigilant]))
+        .submit_decision(attack_player(&state, &[vigilant]))
         .unwrap();
 
     let (trace, _stop) = step_to_stop(&mut state);
@@ -416,16 +443,17 @@ fn declare_attackers_with_no_legal_attacker_accepts_empty() {
     let mut state = two_player_with("Grizzly Bears", 7, 20);
     // No creature on the battlefield: an empty legal set.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal, .. }) = stop
     else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     assert_eq!(player, PlayerId(0));
     assert!(legal.is_empty(), "no legal attackers");
     // A nonempty vec is rejected; the empty vec is accepted.
+    let opp_proxy = state.player(PlayerId(1)).object;
     assert!(
         state
-            .submit_decision(Decision::Attackers(vec![ObjectId::default()]))
+            .submit_decision(Decision::Attackers(vec![(ObjectId::default(), opp_proxy)]))
             .is_err()
     );
     state.submit_decision(Decision::Attackers(vec![])).unwrap();
@@ -437,14 +465,14 @@ fn declare_attackers_with_no_legal_attacker_accepts_empty() {
 /// the defending player and the surfaced legal-blocker set.
 fn drive_to_declare_blockers(
     state: &mut GameState,
-    attackers: Vec<ObjectId>,
+    attackers: &[ObjectId],
 ) -> (PlayerId, Vec<ObjectId>) {
     let (_trace, stop) = pass_to_stop(state);
     let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Attackers(attackers))
+        .submit_decision(attack_player(state, attackers))
         .unwrap();
     let (_trace, stop) = pass_to_stop(state);
     let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { player, legal }) = stop
@@ -469,7 +497,7 @@ fn declare_blockers_records_blocks_and_fires_blocked() {
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
-    let (defender, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    let (defender, legal) = drive_to_declare_blockers(&mut state, &[attacker]);
     assert_eq!(
         defender,
         PlayerId(1),
@@ -553,7 +581,7 @@ fn declare_blockers_single_blocker_blocks_attacker() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
-    let (defender, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    let (defender, legal) = drive_to_declare_blockers(&mut state, &[attacker]);
     assert_eq!(defender, PlayerId(1));
     assert!(legal.contains(&b1));
 
@@ -585,7 +613,7 @@ fn on_battlefield(state: &GameState, id: ObjectId) -> bool {
 /// source is forced, the priority decision that opens after damage is dealt.
 fn drive_through_blocks(
     state: &mut GameState,
-    attackers: Vec<ObjectId>,
+    attackers: &[ObjectId],
     blocks: Vec<(ObjectId, ObjectId)>,
 ) -> StepOutcome {
     let (_t, stop) = pass_to_stop(state);
@@ -593,7 +621,7 @@ fn drive_through_blocks(
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Attackers(attackers))
+        .submit_decision(attack_player(state, attackers))
         .unwrap();
     let (_t, stop) = pass_to_stop(state);
     // With attackers declared the blockers step surfaces; declare the blocks.
@@ -616,7 +644,7 @@ fn combat_damage_one_block_trades() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     // A forced assignment surfaces NO AssignCombatDamage decision.
     assert!(
         !matches!(
@@ -649,7 +677,7 @@ fn combat_damage_two_blockers_split_one_one() {
 
     let stop = drive_through_blocks(
         &mut state,
-        vec![attacker],
+        &[attacker],
         vec![(b1, attacker), (b2, attacker)],
     );
     let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
@@ -710,7 +738,7 @@ fn combat_damage_two_blockers_split_two_zero() {
 
     let stop = drive_through_blocks(
         &mut state,
-        vec![attacker],
+        &[attacker],
         vec![(b1, attacker), (b2, attacker)],
     );
     let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. }) = stop else {
@@ -748,7 +776,7 @@ fn greedy_demo_divides_a_multi_blocked_attacker() {
 
     let stop = drive_through_blocks(
         &mut state,
-        vec![attacker],
+        &[attacker],
         vec![(b1, attacker), (b2, attacker)],
     );
     let StepOutcome::NeedsDecision(pending @ PendingDecision::AssignCombatDamage { .. }) = stop
@@ -788,7 +816,7 @@ fn combat_damage_unblocked_hits_defender() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
 
     assert_eq!(state.players[1].life, 20);
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![]);
     assert!(
         !matches!(
             stop,
@@ -842,7 +870,7 @@ fn pass_to_postcombat_main(state: &mut GameState) {
 /// passing it onward.)
 fn drive_to_combat_damage_done(
     state: &mut GameState,
-    attackers: Vec<ObjectId>,
+    attackers: &[ObjectId],
     blocks: Vec<(ObjectId, ObjectId)>,
 ) {
     let (_t, stop) = pass_to_stop(state);
@@ -850,7 +878,7 @@ fn drive_to_combat_damage_done(
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Attackers(attackers))
+        .submit_decision(attack_player(state, attackers))
         .unwrap();
     // Reach the Declare Blockers decision and declare the blocks.
     let mut blocks = Some(blocks);
@@ -891,7 +919,7 @@ fn end_of_combat_clears_combat_state() {
     // Attack with the 3/3; the 2/2 blocks it. The 3/3 deals 3 (lethal to the
     // 2/2) and takes 2 — it survives the phase. Drive just past damage, with
     // combat still live.
-    drive_to_combat_damage_done(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    drive_to_combat_damage_done(&mut state, &[attacker], vec![(blocker, attacker)]);
     // While combat is live the surviving attacker is still recorded.
     assert!(
         on_battlefield(&state, attacker),
@@ -936,7 +964,7 @@ fn mid_combat_death_prunes_combat_state() {
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
-    let _stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let _stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
 
     // Both 2/2s took 2 and died in the damage SBA.
     assert!(
@@ -981,7 +1009,7 @@ fn attacks_trigger_fires_and_resolves() {
     };
     let p0_hand_before = state.zones.hands[0].len();
     state
-        .submit_decision(Decision::Attackers(vec![attacker]))
+        .submit_decision(attack_player(&state, &[attacker]))
         .unwrap();
 
     // The Attacking event reaches the trigger stage: a TriggerFired for this
@@ -1034,7 +1062,7 @@ fn exalted_lone_attacker_pumps_via_that_object() {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Attackers(vec![exalted]))
+        .submit_decision(attack_player(&state, &[exalted]))
         .unwrap();
 
     // The Attacking fact fires Exalted; its trigger places (no target) and
@@ -1069,7 +1097,7 @@ fn becomes_tapped_trigger_fires_on_attack_tap() {
 
     let (_trace, _stop) = pass_to_stop(&mut state);
     state
-        .submit_decision(Decision::Attackers(vec![medics]))
+        .submit_decision(attack_player(&state, &[medics]))
         .unwrap();
 
     // The cause-tagged Tapped fact fires the trigger; placement surfaces
@@ -1105,7 +1133,7 @@ fn becomes_blocked_trigger_fires_once_for_double_block() {
     let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
     let life_before = state.players[0].life;
-    let _stop = drive_through_blocks(&mut state, vec![tantiv], vec![(b1, tantiv), (b2, tantiv)]);
+    let _stop = drive_through_blocks(&mut state, &[tantiv], vec![(b1, tantiv), (b2, tantiv)]);
     assert_eq!(
         state.players[0].life,
         life_before + 2,
@@ -1128,7 +1156,7 @@ fn vigilance_attacker_is_not_tapped() {
 
     // Drive (passing priorities) to the Declare Attackers step's decision.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal, .. }) = stop
     else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
@@ -1140,7 +1168,7 @@ fn vigilance_attacker_is_not_tapped() {
 
     // Declare the vigilance creature as the sole attacker.
     state
-        .submit_decision(Decision::Attackers(vec![vigilant]))
+        .submit_decision(attack_player(&state, &[vigilant]))
         .unwrap();
     let (_trace, _stop) = step_to_stop(&mut state);
 
@@ -1174,7 +1202,7 @@ fn lifelink_unblocked_attacker_gains_life_for_controller() {
     );
     assert_eq!(state.players[1].life, 20, "defender starts at 20");
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![]);
     assert!(
         !matches!(
             stop,
@@ -1211,7 +1239,7 @@ fn deathtouch_one_damage_kills_five_five() {
         "pre-condition: the fixture carries Keyword(Deathtouch)"
     );
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     // Forced assignment (one recipient each) — no assignment decision.
     assert!(
         !matches!(
@@ -1249,7 +1277,7 @@ fn trample_over_one_blocker_spills_excess_to_player() {
     );
     let player_proxy = state.players[1].object;
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     // [CR#702.19b]: a single-blocked trampler is a real choice — the decision
     // surfaces with the blocker AND the defending player's proxy as recipients.
     let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
@@ -1308,7 +1336,7 @@ fn trample_all_to_blocker_is_legal_no_player_damage() {
     let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     let player_proxy = state.players[1].object;
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. }) = stop else {
         panic!("expected an AssignCombatDamage decision, got {stop:?}");
     };
@@ -1346,7 +1374,7 @@ fn deathtouch_trample_lethal_is_one_so_one_three_split_is_legal() {
     );
     let player_proxy = state.players[1].object;
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { recipients, .. }) = stop
     else {
         panic!("expected an AssignCombatDamage decision, got {stop:?}");
@@ -1390,7 +1418,7 @@ fn trample_no_live_blockers_assigns_all_to_player() {
 
     // Declare the attack and the block; the `Blocked` event applies (sticky
     // blocked status + a live-blocker entry).
-    let (_defender, _legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    let (_defender, _legal) = drive_to_declare_blockers(&mut state, &[attacker]);
     state
         .submit_decision(Decision::Blocks(vec![(blocker, attacker)]))
         .unwrap();
@@ -1465,7 +1493,7 @@ fn first_strike_kills_before_taking_damage() {
         "pre-condition: the fixture carries Keyword(FirstStrike)"
     );
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     // Every source is forced (one recipient each) → no assignment decision in
     // either pass.
     assert!(
@@ -1510,7 +1538,7 @@ fn double_strike_deals_twice() {
         "pre-condition: the fixture carries Keyword(DoubleStrike)"
     );
 
-    let stop = drive_through_blocks(&mut state, vec![attacker], vec![(blocker, attacker)]);
+    let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     assert!(
         !matches!(
             stop,
@@ -1548,7 +1576,7 @@ fn no_first_strike_elides_first_combat_damage_step() {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Attackers(vec![attacker]))
+        .submit_decision(attack_player(&state, &[attacker]))
         .unwrap();
     let (trace2, stop) = pass_to_stop(&mut state);
     let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) = stop else {
@@ -1662,7 +1690,7 @@ fn flying_attacker_blockable_only_by_flying_or_reach() {
     let bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     let spider = force_onto_battlefield(&mut state, PlayerId(1), "Giant Spider");
 
-    let (_, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    let (_, legal) = drive_to_declare_blockers(&mut state, &[attacker]);
     assert!(legal.contains(&bear) && legal.contains(&spider));
 
     // A ground creature can't block the flier ([CR#702.9b]).
@@ -1705,7 +1733,7 @@ fn menace_attacker_needs_two_blockers() {
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
-    let (_, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    let (_, legal) = drive_to_declare_blockers(&mut state, &[attacker]);
     assert!(legal.contains(&b1) && legal.contains(&b2));
 
     // A lone blocker is a forbidden arrangement ([CR#702.111b]).
@@ -1757,11 +1785,11 @@ fn defender_cannot_be_declared_as_an_attacker() {
     );
     // Submission re-validates against the legal set ([CR#508.1a]).
     assert!(matches!(
-        state.submit_decision(Decision::Attackers(vec![wall])),
+        state.submit_decision(attack_player(&state, &[wall])),
         Err(DecisionError::Illegal { .. })
     ));
     state
-        .submit_decision(Decision::Attackers(vec![bear]))
+        .submit_decision(attack_player(&state, &[bear]))
         .unwrap();
 }
 
@@ -1804,12 +1832,12 @@ fn must_attack_requires_the_able_creature() {
         Err(DecisionError::Illegal { .. })
     ));
     assert!(matches!(
-        state.submit_decision(Decision::Attackers(vec![bear])),
+        state.submit_decision(attack_player(&state, &[bear])),
         Err(DecisionError::Illegal { .. })
     ));
     // The requirement binds only its carrier — the bear may stay home.
     state
-        .submit_decision(Decision::Attackers(vec![brigand]))
+        .submit_decision(attack_player(&state, &[brigand]))
         .unwrap();
 }
 
@@ -1881,7 +1909,7 @@ fn must_block_requires_every_able_blocker() {
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
     let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
 
-    let (_, legal) = drive_to_declare_blockers(&mut state, vec![attacker]);
+    let (_, legal) = drive_to_declare_blockers(&mut state, &[attacker]);
     assert!(legal.contains(&b1) && legal.contains(&b2));
 
     // Leaving any able blocker home is an illegal declaration ([CR#509.1c]).
@@ -1896,4 +1924,145 @@ fn must_block_requires_every_able_blocker() {
     state
         .submit_decision(Decision::Blocks(vec![(b1, attacker), (b2, attacker)]))
         .unwrap();
+}
+
+// --- attack targets: player vs. planeswalker ([CR#506.3,508.1b])
+// -----------
+
+/// The testing planeswalker mock (two loyalty abilities, base loyalty 5). No
+/// canon card is a planeswalker yet, so combat-target tests use this fixture.
+const LOYALTY_PW: &str = "Planeswalker two loyalty abilities";
+
+/// [CR#506.3,508.1b]: a creature may attack a planeswalker the defending
+/// player controls. Declaring it records the planeswalker as the attack target
+/// and the `Attacking` event carries it as `defending`; the active player's own
+/// proxy is NOT a legal target, and an illegal target is rejected.
+#[test]
+fn attacker_can_attack_opponents_planeswalker() {
+    let mut state = two_player_decks("Grizzly Bears", LOYALTY_PW, 7, 20);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let pw = force_onto_battlefield(&mut state, PlayerId(1), LOYALTY_PW);
+    // Give the walker loyalty so the 0-loyalty SBA ([CR#704.5i]) does not
+    // destroy it before combat (it entered via a forced put, bypassing ETB).
+    state
+        .objects
+        .obj_mut(pw)
+        .counters
+        .insert("LoyaltyCounter".into(), 5);
+
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers {
+        player,
+        legal,
+        legal_targets,
+    }) = stop
+    else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(0));
+    assert!(legal.contains(&bear), "the bear is a legal attacker");
+
+    let p0_proxy = state.player(PlayerId(0)).object;
+    let p1_proxy = state.player(PlayerId(1)).object;
+    // [CR#508.1b]: legal targets = the defending player's proxy + their walker.
+    assert!(
+        legal_targets.contains(&p1_proxy),
+        "the defending player's proxy is a legal target"
+    );
+    assert!(
+        legal_targets.contains(&pw),
+        "the opponent's planeswalker is a legal attack target ([CR#508.1b])"
+    );
+    assert!(
+        !legal_targets.contains(&p0_proxy),
+        "the active player's own proxy is not a legal target"
+    );
+
+    // [CR#508.1b]: a target outside the surfaced set is rejected.
+    assert!(
+        matches!(
+            state.submit_decision(Decision::Attackers(vec![(bear, p0_proxy)])),
+            Err(DecisionError::Illegal { .. })
+        ),
+        "attacking a non-legal target (the active player's own proxy) is rejected"
+    );
+
+    // Attack the planeswalker.
+    state
+        .submit_decision(Decision::Attackers(vec![(bear, pw)]))
+        .unwrap();
+    let (trace, _stop) = step_to_stop(&mut state);
+    assert_eq!(
+        state.combat.target_of(bear),
+        Some(pw),
+        "the recorded attack target is the planeswalker ([CR#508.1b])"
+    );
+    assert!(
+        trace.iter().any(|p| matches!(
+            p,
+            Progress::Applied(Occurrence::Batch(events))
+                if events.contains(&GameEvent::Attacking { attacker: bear, defending: pw })
+        )),
+        "the Attacking event carries the planeswalker as `defending`: {trace:?}"
+    );
+}
+
+/// Regression ([CR#508.1b]): attacking the defending player still works — the
+/// recorded target is that player's proxy object.
+#[test]
+fn attacker_attacking_the_player_records_the_player_proxy() {
+    let mut state = two_player_decks("Grizzly Bears", LOYALTY_PW, 7, 20);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let pw = force_onto_battlefield(&mut state, PlayerId(1), LOYALTY_PW);
+    state
+        .objects
+        .obj_mut(pw)
+        .counters
+        .insert("LoyaltyCounter".into(), 5);
+
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    let p1_proxy = state.player(PlayerId(1)).object;
+    state
+        .submit_decision(Decision::Attackers(vec![(bear, p1_proxy)]))
+        .unwrap();
+    let _ = step_to_stop(&mut state);
+    assert_eq!(
+        state.combat.target_of(bear),
+        Some(p1_proxy),
+        "attacking the player records the player's proxy as the target"
+    );
+}
+
+/// [CR#508.1b]: the legal attack targets are the defending player and the
+/// planeswalkers THEY control — a planeswalker the ACTIVE player controls is
+/// never a legal target.
+#[test]
+fn legal_attack_targets_excludes_the_active_players_own_planeswalker() {
+    let mut state = two_player_with(LOYALTY_PW, 7, 20);
+    let p0_pw = force_onto_battlefield(&mut state, PlayerId(0), LOYALTY_PW);
+    let p1_pw = force_onto_battlefield(&mut state, PlayerId(1), LOYALTY_PW);
+
+    // P0 is the attacker; P1 is the sole defender.
+    let targets = legal_attack_targets(&state, PlayerId(1));
+    let p0_proxy = state.player(PlayerId(0)).object;
+    let p1_proxy = state.player(PlayerId(1)).object;
+    assert!(
+        targets.contains(&p1_proxy),
+        "the defending player's proxy is a legal target"
+    );
+    assert!(
+        targets.contains(&p1_pw),
+        "the defending player's planeswalker is a legal target ([CR#508.1b])"
+    );
+    assert!(
+        !targets.contains(&p0_pw),
+        "the active player's own planeswalker is not a legal target"
+    );
+    assert!(
+        !targets.contains(&p0_proxy),
+        "the active player themself is not a legal target"
+    );
 }

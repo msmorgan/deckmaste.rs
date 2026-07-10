@@ -208,11 +208,15 @@ pub enum PendingDecision {
         player: PlayerId,
         triggers: Vec<crate::trigger::NotedTrigger>,
     },
-    /// [CR#508.1a]: the active player declares attackers. `legal` is the
-    /// surfaced candidate set; `submit_decision` re-validates against it.
+    /// [CR#508.1a,508.1b]: the active player declares attackers, and what each
+    /// attacks. `legal` is the surfaced candidate attacker set; `legal_targets`
+    /// is what may be attacked — the defending player's proxy object plus every
+    /// planeswalker they control ([CR#506.3,508.1b]). `submit_decision`
+    /// re-validates each declared pair against both.
     DeclareAttackers {
         player: PlayerId,
         legal: Vec<ObjectId>,
+        legal_targets: Vec<ObjectId>,
     },
     /// [CR#509.1a]: the **defending** player declares blockers. `player` is the
     /// defender (the non-active player); `legal` is the surfaced candidate set
@@ -339,8 +343,11 @@ pub enum Decision {
     /// Answers `OrderTriggers`: a permutation of `0..triggers.len()` giving the
     /// placement order ([CR#603.3b]).
     Order(Vec<usize>),
-    /// Answers `DeclareAttackers`: which creatures attack (possibly empty).
-    Attackers(Vec<ObjectId>),
+    /// Answers `DeclareAttackers` ([CR#508.1a,508.1b]): `(attacker, target)`
+    /// pairs (possibly empty). Each `target` is what that attacker is attacking
+    /// — the defending player's proxy object or a planeswalker they control
+    /// ([CR#506.3,508.1b]).
+    Attackers(Vec<(ObjectId, ObjectId)>),
     /// Answers `DeclareBlockers`: `(blocker, the attacker it blocks)` pairs
     /// (possibly empty). Each blocker blocks exactly one attacker
     /// ([CR#509.1a]).
@@ -819,13 +826,26 @@ impl GameState {
                 let (player, triggers) = (*player, triggers.clone());
                 self.submit_order_triggers(player, &triggers, &order)
             }
-            (PendingDecision::DeclareAttackers { player, legal }, Decision::Attackers(chosen)) => {
-                // [CR#508.1a]: each chosen creature must be in the surfaced
-                // legal set, and no creature attacks twice.
-                let distinct: HashSet<_> = chosen.iter().copied().collect();
-                if distinct.len() != chosen.len() || !chosen.iter().all(|o| legal.contains(o)) {
+            (
+                PendingDecision::DeclareAttackers {
+                    player,
+                    legal,
+                    legal_targets,
+                },
+                Decision::Attackers(chosen),
+            ) => {
+                // [CR#508.1a]: each chosen attacker must be in the surfaced
+                // legal set, and no creature attacks twice. [CR#508.1b]:
+                // each attacker's target must be in the surfaced legal-target
+                // set (the defending player or a planeswalker they control).
+                let distinct: HashSet<_> = chosen.iter().map(|&(a, _)| a).collect();
+                if distinct.len() != chosen.len()
+                    || !chosen.iter().all(|(a, _)| legal.contains(a))
+                    || !chosen.iter().all(|(_, t)| legal_targets.contains(t))
+                {
                     return Err(DecisionError::Illegal {
-                        reason: "attackers must be distinct, from the legal set".into(),
+                        reason: "attackers must be distinct, from the legal set, attacking a legal target"
+                            .into(),
                     });
                 }
                 // [CR#508.1d]: attack requirements ("attacks if able",
@@ -846,7 +866,7 @@ impl GameState {
                     .find(|p| p.id != *player)
                     .map(|p| p.object);
                 if let Some(&required) = legal.iter().find(|&&c| {
-                    !chosen.contains(&c)
+                    !chosen.iter().any(|&(a, _)| a == c)
                         && rows.iter().any(|(carrier, by, on)| {
                             self.filter_matches_live(by, c, *carrier)
                                 && defender_proxy
@@ -865,7 +885,13 @@ impl GameState {
                 // attackers were declared, which schedules nothing observable).
                 if !chosen.is_empty() {
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
-                        chosen.into_iter().map(GameEvent::Attacking).collect(),
+                        chosen
+                            .into_iter()
+                            .map(|(attacker, defending)| GameEvent::Attacking {
+                                attacker,
+                                defending,
+                            })
+                            .collect(),
                     ))]);
                 }
                 Ok(())

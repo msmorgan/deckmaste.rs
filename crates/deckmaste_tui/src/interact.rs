@@ -21,10 +21,13 @@ pub enum Interaction {
         chosen: Vec<Option<ObjectId>>,
         active: usize,
     },
-    /// Declare attackers: any subset of `legal`.
+    /// Declare attackers: any subset of `legal`. `defender` is the defending
+    /// player's proxy object — this UI attacks the player by default; a
+    /// planeswalker-target picker is a follow-up ([CR#508.1b]).
     Attackers {
         legal: Vec<ObjectId>,
         chosen: Vec<ObjectId>,
+        defender: ObjectId,
     },
     /// Declare blockers: `(blocker, attacker)` pairs. `pending` is a blocker
     /// awaiting the attacker it blocks. Attacker candidates come from the live
@@ -108,12 +111,19 @@ impl Interaction {
                 chosen: vec![None; legal.len()],
                 active: 0,
             },
-            PendingDecision::DeclareAttackers { legal, .. } if !legal.is_empty() => {
-                Interaction::Attackers {
-                    legal: legal.clone(),
-                    chosen: Vec::new(),
-                }
-            }
+            PendingDecision::DeclareAttackers {
+                legal,
+                legal_targets,
+                ..
+            } if !legal.is_empty() => Interaction::Attackers {
+                legal: legal.clone(),
+                chosen: Vec::new(),
+                // The defending player's proxy is always the first legal
+                // target ([CR#508.1b]); default every attacker to it.
+                defender: *legal_targets
+                    .first()
+                    .expect("the defending player's proxy is a legal target"),
+            },
             PendingDecision::DeclareBlockers { legal, .. } if !legal.is_empty() => {
                 Interaction::Blockers {
                     legal: legal.clone(),
@@ -227,7 +237,7 @@ impl Interaction {
                     None => chosen[active] = Some(id),
                 }
             }
-            Interaction::Attackers { legal, chosen } => {
+            Interaction::Attackers { legal, chosen, .. } => {
                 if !legal.contains(&id) {
                     return;
                 }
@@ -316,7 +326,13 @@ impl Interaction {
                 let picks: Option<Vec<ObjectId>> = chosen.iter().copied().collect();
                 picks.map(Decision::Targets)
             }
-            Interaction::Attackers { chosen, .. } => Some(Decision::Attackers(chosen.clone())),
+            // [CR#508.1b]: every attacker attacks the defending player (the
+            // proxy stored at build time); a planeswalker picker is a follow-up.
+            Interaction::Attackers {
+                chosen, defender, ..
+            } => Some(Decision::Attackers(
+                chosen.iter().map(|&a| (a, *defender)).collect(),
+            )),
             Interaction::Blockers { pairs, pending, .. } => {
                 if pending.is_some() {
                     None // finish the in-progress pairing first
@@ -417,12 +433,14 @@ mod tests {
         let atk = PendingDecision::DeclareAttackers {
             player: PlayerId(0),
             legal: vec![v[0]],
+            legal_targets: vec![v[1]],
         };
         assert!(is_interactive(&atk));
         // Empty combat = nothing to choose = auto-resolved.
         let empty = PendingDecision::DeclareAttackers {
             player: PlayerId(0),
             legal: vec![],
+            legal_targets: vec![v[1]],
         };
         assert!(!is_interactive(&empty));
         assert!(Interaction::for_decision(&empty).is_none());
@@ -560,10 +578,11 @@ mod tests {
     #[test]
     fn attackers_toggle_is_a_free_subset_and_confirms_any_set() {
         let v = ids();
-        let (a, b, off) = (v[0], v[1], v[3]);
+        let (a, b, off, def) = (v[0], v[1], v[3], v[2]);
         let mut it = Interaction::for_decision(&PendingDecision::DeclareAttackers {
             player: PlayerId(0),
             legal: vec![a, b],
+            legal_targets: vec![def],
         })
         .expect("interactive");
         // Empty set is a legal answer ("no attacks").
@@ -571,9 +590,13 @@ mod tests {
         it.toggle(a);
         it.toggle(b);
         it.toggle(off); // ignored — not legal
-        assert_eq!(it.confirm(), Some(Decision::Attackers(vec![a, b])));
+        // Each attacker defaults to attacking the defending player's proxy.
+        assert_eq!(
+            it.confirm(),
+            Some(Decision::Attackers(vec![(a, def), (b, def)]))
+        );
         it.toggle(a); // untoggle
-        assert_eq!(it.confirm(), Some(Decision::Attackers(vec![b])));
+        assert_eq!(it.confirm(), Some(Decision::Attackers(vec![(b, def)])));
     }
 
     #[test]
