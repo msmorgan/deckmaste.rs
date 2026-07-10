@@ -40,6 +40,31 @@ pub(crate) fn as_activated(ability: &Ability) -> Option<&ActivatedAbility> {
     }
 }
 
+/// True iff `cost` pays with a loyalty-counter verb — `Do(PutCounters(This,
+/// LoyaltyCounter, _))` or `Do(RemoveCounters(This, LoyaltyCounter, _))`
+/// ([CR#606.4], no dedicated loyalty-cost kind — loyalty costs are plain
+/// `PutCounters`/`RemoveCounters` on the source, see `idris/src/Core.idr`'s
+/// `Cost` `Do` ruling). This is how [`GameState::can_activate`]'s
+/// `UseLimit::LoyaltyOncePerTurn` arm recognizes a permanent's OTHER loyalty
+/// abilities ([CR#606.3,306.5d]) among its full ability list. Reuses
+/// [`cost_summary`] so this can never diverge from the payment path's own
+/// reading of the cost.
+#[must_use]
+pub(crate) fn is_loyalty_ability(cost: &deckmaste_core::Cost) -> bool {
+    let Some(summary) = cost_summary(&cost.0) else {
+        return false;
+    };
+    let loyalty = deckmaste_core::CounterRef::from("LoyaltyCounter");
+    summary.verbs.iter().any(|v| {
+        matches!(
+            v,
+            PlayerAction::PutCounters(Reference::This, counter, _)
+                | PlayerAction::RemoveCounters(Reference::This, counter, _)
+                    if *counter == loyalty
+        )
+    })
+}
+
 /// One pass over an activation cost ([CR#602.2b,601.2f..601.2h]): the summed
 /// mana, the {T}/{Q} components, and cost-eligible verb actions. `None` when a
 /// component is not payable (a non-eligible `Do(...)` verb; loyalty costs wait
@@ -329,6 +354,28 @@ impl GameState {
                     if self.ability_used_count(object, index_u, deckmaste_core::Lookback::ThisGame)
                         >= 1
                     {
+                        return false;
+                    }
+                }
+                // [CR#606.3,306.5d]: shared across every loyalty ability of
+                // this permanent — not the one at `index` alone. Enumerate
+                // the object's OTHER derived activated abilities (the same
+                // `derive::usable_abilities` list `index`/`ability_used_count`
+                // are keyed against, [CR#602.5b]) and block if any loyalty
+                // one among them already fired this turn.
+                UseLimit::LoyaltyOncePerTurn => {
+                    let siblings = crate::derive::usable_abilities(self, object);
+                    let any_loyalty_used = siblings.iter().enumerate().any(|(i, a)| {
+                        as_activated(a).is_some_and(|act| {
+                            is_loyalty_ability(&act.cost)
+                                && self.ability_used_count(
+                                    object,
+                                    Uint::try_from(i).expect("ability index fits in Uint"),
+                                    deckmaste_core::Lookback::ThisTurn,
+                                ) >= 1
+                        })
+                    });
+                    if any_loyalty_used {
                         return false;
                     }
                 }

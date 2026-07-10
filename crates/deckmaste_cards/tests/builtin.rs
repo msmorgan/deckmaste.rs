@@ -482,6 +482,88 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     );
 }
 
+/// `LoyaltyPlus`/`LoyaltyMinus` ([CR#606.2,606.3,606.4,306.5d]): both
+/// expand to an `Activated` ability with `window: SorcerySpeed` and
+/// `limits: [LoyaltyOncePerTurn]` — the shared loyalty gate — wrapping a
+/// `PutCounters`/`RemoveCounters(This, LoyaltyCounter, N)` cost.
+#[test]
+fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
+    use deckmaste_core::Cost;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::CounterRef;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Timing;
+    use deckmaste_core::UseLimit;
+
+    let plugin = builtin();
+
+    let plus: Ability = plugin
+        .macros
+        .read_str("LoyaltyPlus(n: 1, effect: Draw(1))")
+        .unwrap();
+    let Ability::Expanded(exp) = plus else {
+        panic!("expected a remembered LoyaltyPlus expansion");
+    };
+    let Ability::Activated(a) = exp.value.as_ref() else {
+        panic!("a loyalty ability is an Activated ability ([CR#606.3])");
+    };
+    assert_eq!(
+        a.window,
+        Some(Timing::SorcerySpeed),
+        "loyalty abilities activate only as a sorcery ([CR#606.3])"
+    );
+    assert_eq!(
+        a.limits,
+        vec![UseLimit::LoyaltyOncePerTurn],
+        "the shared per-permanent limit ([CR#606.3,306.5d]), not a plain OncePerTurn"
+    );
+    let Cost(components) = &a.cost;
+    assert!(
+        components.iter().any(|c| matches!(
+            c,
+            CostComponent::Do(action)
+                if matches!(
+                    action.as_ref(),
+                    PlayerAction::PutCounters(
+                        deckmaste_core::Reference::This,
+                        counter,
+                        _,
+                    ) if *counter == CounterRef::from("LoyaltyCounter")
+                )
+        )),
+        "LoyaltyPlus pays with a PutCounters(This, LoyaltyCounter, N) verb, got {components:?}"
+    );
+
+    let minus: Ability = plugin
+        .macros
+        .read_str("LoyaltyMinus(n: 3, effect: Draw(1))")
+        .unwrap();
+    let Ability::Expanded(exp) = minus else {
+        panic!("expected a remembered LoyaltyMinus expansion");
+    };
+    let Ability::Activated(a) = exp.value.as_ref() else {
+        panic!("a loyalty ability is an Activated ability ([CR#606.3])");
+    };
+    assert_eq!(a.window, Some(Timing::SorcerySpeed));
+    assert_eq!(a.limits, vec![UseLimit::LoyaltyOncePerTurn]);
+    let Cost(components) = &a.cost;
+    assert!(
+        components.iter().any(|c| matches!(
+            c,
+            CostComponent::Do(action)
+                if matches!(
+                    action.as_ref(),
+                    PlayerAction::RemoveCounters(
+                        deckmaste_core::Reference::This,
+                        counter,
+                        _,
+                    ) if *counter == CounterRef::from("LoyaltyCounter")
+                )
+        )),
+        "LoyaltyMinus pays with a RemoveCounters(This, LoyaltyCounter, N) verb, got {components:?}"
+    );
+}
+
 /// Amass [subtype] N ([CR#701.47a]) — the canonical *composite* keyword action:
 /// it decomposes into core primitives, never a new engine verb. Expanding
 /// `Amass("Orc", 1)` (Orcish Bowmasters' "amass Orcs 1") must yield the four

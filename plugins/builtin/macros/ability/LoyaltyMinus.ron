@@ -1,0 +1,21 @@
+// LoyaltyMinus — a "−N: [effect]" loyalty ability [CR#606.2,606.4,606.6]:
+// paying a "−" loyalty cost removes that many loyalty counters from the
+// permanent (only payable with ≥ N loyalty counters already on it,
+// [CR#606.6] — the affordability read `GameState::can_pay_verbs` already
+// gates via the source's counter map). See `LoyaltyPlus` for the shared
+// `window: SorcerySpeed` + `limits: [LoyaltyOncePerTurn]` rationale
+// [CR#606.3,306.5d] and why the sign is a macro-name choice, not a param.
+//
+// Usage: LoyaltyMinus(n: 3, effect: <effect>).
+(
+    name: "LoyaltyMinus",
+    template: "−${n}: ${effect}",
+    kinds: [Ability],
+    params: { "n": Count, "effect": OneShotEffect },
+    body: Activated(
+        cost: [Do(RemoveCounters(This, LoyaltyCounter, Param(n)))],
+        window: SorcerySpeed,
+        limits: [LoyaltyOncePerTurn],
+        effect: Param(effect),
+    ),
+)

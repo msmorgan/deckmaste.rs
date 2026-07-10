@@ -3057,6 +3057,7 @@ fn emit_use_limit(l: &deckmaste_core::UseLimit) -> String {
     match l {
         deckmaste_core::UseLimit::OncePerTurn => "OncePerTurn",
         deckmaste_core::UseLimit::OncePerGame => "OncePerGame",
+        deckmaste_core::UseLimit::LoyaltyOncePerTurn => "LoyaltyOncePerTurn",
     }
     .to_string()
 }

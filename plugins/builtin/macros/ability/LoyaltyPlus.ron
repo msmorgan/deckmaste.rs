@@ -1,0 +1,25 @@
+// LoyaltyPlus — a "+N: [effect]" loyalty ability [CR#606.2,606.4]: paying a
+// "+" loyalty cost puts that many loyalty counters on the permanent. Loyalty
+// abilities follow special activation rules [CR#606.3,306.5d]: sorcery speed
+// only (`window: SorcerySpeed`), and SHARED across every loyalty ability of
+// the permanent, not per-ability — `limits: [LoyaltyOncePerTurn]` is that
+// shared gate (`GameState::can_activate`'s `LoyaltyOncePerTurn` arm finds a
+// permanent's OTHER loyalty abilities by cost shape, no dedicated ability
+// tag). Macros can't branch on a param's sign ([macros-declarative-not-
+// programming]), so the "+"/"−"/"0" cost verb is chosen by macro NAME
+// (mirrors `LoyaltyMinus`/`LoyaltyZero`), not by a signed-number param —
+// the author writes `LoyaltyPlus(n: 1, effect: …)` for "[+1]: …".
+//
+// Usage: LoyaltyPlus(n: 1, effect: <effect>).
+(
+    name: "LoyaltyPlus",
+    template: "+${n}: ${effect}",
+    kinds: [Ability],
+    params: { "n": Count, "effect": OneShotEffect },
+    body: Activated(
+        cost: [Do(PutCounters(This, LoyaltyCounter, Param(n)))],
+        window: SorcerySpeed,
+        limits: [LoyaltyOncePerTurn],
+        effect: Param(effect),
+    ),
+)

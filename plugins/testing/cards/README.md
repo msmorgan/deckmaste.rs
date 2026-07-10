@@ -32,5 +32,11 @@ verified against the full corpus, not vibes. Current residents:
   slice), so this fixture isolates `Count::Aggregate(SumOf, Project(...))`
   over `Countable::ManaSymbols` end to end.
 
+- **Planeswalker two loyalty abilities** — a `LoyaltyPlus`/`LoyaltyMinus`
+  carrier (`[+1]`/`[−3]`, both non-targeted). No canon planeswalker exists yet
+  ([CR#306.5]); isolates the [CR#606.3,306.5d] loyalty-activation rules —
+  sorcery speed only, and the once-per-turn limit SHARED across every loyalty
+  ability of the permanent (not per-ability).
+
 If a mechanic lands that makes one of these encodable with a real card,
 canonize the real card and delete the mock.

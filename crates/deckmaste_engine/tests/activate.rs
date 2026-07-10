@@ -61,6 +61,7 @@ const TURN_DRAWER: &str = "Artifact once-per-turn DrawCards";
 const GAME_DRAWER: &str = "Artifact once-per-game DrawCards";
 const INSTANT: &str = "Lightning Bolt";
 const BEARS: &str = "Grizzly Bears";
+const LOYALTY_PW: &str = "Planeswalker two loyalty abilities";
 
 // --- plugin + deck building
 // ---------------------------------------------------
@@ -690,6 +691,242 @@ fn once_per_game_stays_spent() {
     assert!(
         activate_action(&legal, drawer).is_none(),
         "the game count survives the turn flush, legal: {legal:?}"
+    );
+}
+
+// --- loyalty abilities ([CR#606.3,306.5d]) ---------------------------------
+
+/// Two-player game whose player-0 deck is ten copies of `LOYALTY_PW`
+/// (`LoyaltyPlus`/`LoyaltyMinus` carry no mana component, so no lands are
+/// needed); player 1 holds bears + forests as inert bystanders. Mirrors
+/// `activation_game`/`cost_game`.
+fn loyalty_game(seed: u64) -> GameState {
+    let card = Arc::new(testing().card(LOYALTY_PW).unwrap());
+    let bears = Arc::new(canon().card(BEARS).unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let p0 = vec![Arc::clone(&card); 10];
+    let mut p1 = vec![Arc::clone(&bears); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+    })
+}
+
+/// Activates ability `ability` of `object` at the current P0 priority window
+/// and passes it through to resolution (both players pass with the ability
+/// as the lone stack object). `LoyaltyPlus`/`LoyaltyMinus` carry no `Mana`
+/// cost component, so [`cast::pay_cost`]'s "empty cost: no decision surfaces"
+/// branch applies — but `run_to_priority` already answers a `PayMana`
+/// transparently if one ever does, so this works either way.
+fn activate_loyalty_and_resolve(state: &mut GameState, object: ObjectId, ability: usize) {
+    let legal = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    let activate = legal
+        .iter()
+        .find(
+            |a| matches!(a, Action::ActivateAbility { object: o, ability: n } if *o == object && *n == ability),
+        )
+        .cloned()
+        .unwrap_or_else(|| panic!("ability {ability} of {object:?} not offered, legal: {legal:?}"));
+    state.submit_decision(Decision::Act(activate)).unwrap();
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(state);
+}
+
+/// True iff `legal` offers `Action::ActivateAbility { object, ability }`.
+fn loyalty_offered(legal: &[Action], object: ObjectId, ability: usize) -> bool {
+    legal.iter().any(
+        |a| matches!(a, Action::ActivateAbility { object: o, ability: n } if *o == object && *n == ability),
+    )
+}
+
+/// [CR#606.3]: "A player may activate a loyalty ability of a permanent they
+/// control any time they have priority and the stack is empty during a main
+/// phase of their turn" — the same `window: SorcerySpeed` machinery
+/// `sorcery_speed_drawer_gated` pins for a plain activated ability, wired
+/// through `LoyaltyPlus`. Casting an instant occupies the stack, gating the
+/// loyalty ability until it resolves.
+#[test]
+fn loyalty_ability_gated_at_sorcery_speed() {
+    let canon = canon();
+    let bolt = Arc::new(canon.card(INSTANT).unwrap());
+    let pw_card = Arc::new(testing().card(LOYALTY_PW).unwrap());
+    let bears = Arc::new(canon.card(BEARS).unwrap());
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut deck0 = vec![Arc::clone(&bolt); 4];
+    deck0.extend(vec![Arc::clone(&pw_card); 3]);
+    deck0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut deck1 = vec![Arc::clone(&bears); 4];
+    deck1.extend(vec![Arc::clone(&forest); 8]);
+    let build = |seed: u64| {
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck0.clone(),
+                },
+                PlayerConfig {
+                    deck: deck1.clone(),
+                },
+            ],
+            seed,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+        })
+    };
+    let mut state = (0u64..1000)
+        .map(build)
+        .find(|s| s.zones.hands[0].iter().any(|&o| is_card(s, o, INSTANT)))
+        .expect("a seed with an instant in P0's opening hand");
+    let pw = force_into_play(&mut state, PlayerId(0), LOYALTY_PW);
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    let bear = force_into_play(&mut state, PlayerId(1), BEARS);
+    let instant = find_in_hand(&state, PlayerId(0), INSTANT);
+    state
+        .objects
+        .obj_mut(pw)
+        .counters
+        .insert("LoyaltyCounter".into(), 5);
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 2); // R, R for the bolt
+
+    // (a) own precombat main, empty stack: the `+1` is offered.
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert!(
+        loyalty_offered(&legal, pw, 0),
+        "the +1 loyalty ability is offered at sorcery speed on an empty stack, legal: {legal:?}"
+    );
+
+    // (b) cast the bolt; while it's on the stack, the loyalty ability is
+    // gated ([CR#606.3]'s "stack is empty" clause — the SorcerySpeed
+    // machinery `sorcery_speed_drawer_gated` already pins).
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: instant }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the instant, got {stop:?}");
+    };
+    assert!(legal[0].contains(&bear), "the bear is a legal target");
+    state
+        .submit_decision(Decision::Targets(vec![bear]))
+        .unwrap();
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "the instant is on the stack");
+    assert!(
+        !loyalty_offered(&legal, pw, 0),
+        "gated while the stack is non-empty, legal: {legal:?}"
+    );
+
+    // Let the instant resolve; at the next clean main-phase priority the
+    // loyalty ability is offered again.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert!(state.stack.is_empty(), "the instant resolved");
+    assert!(
+        loyalty_offered(&legal, pw, 0),
+        "offered again once the stack is empty, legal: {legal:?}"
+    );
+}
+
+/// [CR#606.3,306.5d]: "only if none of that permanent's loyalty abilities
+/// have been activated that turn" — SHARED across every loyalty ability of
+/// the permanent, unlike a plain `OncePerTurn` (per-ability). Activating
+/// `pw1`'s `+1` blocks `pw1`'s `−3` for the rest of the turn, but a
+/// DIFFERENT permanent (`pw2`) is unaffected.
+#[test]
+fn loyalty_once_per_turn_is_shared_per_permanent() {
+    let mut state = loyalty_game(11);
+    let pw1 = force_into_play(&mut state, PlayerId(0), LOYALTY_PW);
+    let pw2 = force_into_play(&mut state, PlayerId(0), LOYALTY_PW);
+    for pw in [pw1, pw2] {
+        state
+            .objects
+            .obj_mut(pw)
+            .counters
+            .insert("LoyaltyCounter".into(), 5);
+    }
+
+    // Before any activation: every loyalty ability of both permanents is
+    // offered.
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    for &pw in &[pw1, pw2] {
+        for ability in 0..2usize {
+            assert!(
+                loyalty_offered(&legal, pw, ability),
+                "ability {ability} of {pw:?} should be offered before any activation this turn, \
+                 legal: {legal:?}"
+            );
+        }
+    }
+
+    // Activate pw1's `+1` (ability 0).
+    activate_loyalty_and_resolve(&mut state, pw1, 0);
+
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    // pw1's OTHER loyalty ability (`−3`, ability 1) is now blocked — the
+    // limit is SHARED across the permanent's loyalty abilities, not
+    // per-ability.
+    assert!(
+        !loyalty_offered(&legal, pw1, 1),
+        "pw1's OTHER loyalty ability should be blocked after pw1's +1 fired this turn, \
+         legal: {legal:?}"
+    );
+    // pw1's own `+1` is (trivially) blocked too — it already fired.
+    assert!(
+        !loyalty_offered(&legal, pw1, 0),
+        "pw1's +1 should be blocked — it already fired this turn, legal: {legal:?}"
+    );
+    // A loyalty ability of a DIFFERENT permanent (pw2) is still offered.
+    for ability in 0..2usize {
+        assert!(
+            loyalty_offered(&legal, pw2, ability),
+            "pw2's ability {ability} should be unaffected by pw1's activation, legal: {legal:?}"
+        );
+    }
+}
+
+/// [CR#606.6] regression: a `−3` loyalty ability stays gated below its
+/// counter floor even reached through the full macro + activation-gate
+/// pipeline (the unit-level gate is
+/// `remove_loyalty_cost_needs_enough_counters_on_source` in
+/// `deckmaste_engine::activate`'s own test module). A sibling `+1` on the
+/// same permanent is unaffected by the `−3`'s unpayability.
+#[test]
+fn loyalty_minus_blocked_below_its_counter_floor() {
+    let mut state = loyalty_game(13);
+    let pw = force_into_play(&mut state, PlayerId(0), LOYALTY_PW);
+    state
+        .objects
+        .obj_mut(pw)
+        .counters
+        .insert("LoyaltyCounter".into(), 2);
+
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert!(
+        !loyalty_offered(&legal, pw, 1),
+        "[CR#606.6]: −3 is unpayable with only 2 loyalty counters, legal: {legal:?}"
+    );
+    assert!(
+        loyalty_offered(&legal, pw, 0),
+        "the +1 ability should still be offered even though −3 is unpayable, legal: {legal:?}"
     );
 }
 

@@ -256,10 +256,12 @@ namespace Timing
 
 -- Activation USE-LIMITS on an activated ability ([CR#602.5b]) — frequency caps, NOT timing (that's
 -- `Timing` above; the two used to overlap on a `SorcerySpeed` constructor). A loyalty ability
--- is `{window = AsSorcery, limits = [OncePerTurn]}`.
+-- is `{window = AsSorcery, limits = [LoyaltyOncePerTurn]}` — `LoyaltyOncePerTurn` [CR#606.3,306.5d]
+-- is SHARED across every loyalty ability a permanent carries (activating any one blocks the rest for
+-- the turn), unlike `OncePerTurn`, which is per-ability.
 namespace UsageLimit
   public export
-  data UsageLimit = OncePerTurn | OncePerGame
+  data UsageLimit = OncePerTurn | OncePerGame | LoyaltyOncePerTurn
 
 -- Runtime object STATE (not a printed characteristic) — what a `HasState` predicate tests
 -- ([CR#701.20] tap, [CR#302.6] summoning sickness, [CR#702.26] phasing, [CR#708] face-down). The RELATIONAL
@@ -2832,7 +2834,8 @@ mutual
       Keyword : KeywordAbility b -> Ability b
       -- "{cost}: {effect}" — an activated ability ([CR#602]). `window` is its activation timing
       -- (instant by default; `AsSorcery` = "activate only as a sorcery"); `limits` are the
-      -- use-frequency caps. A loyalty ability is `{window = AsSorcery, limits = [OncePerTurn]}`.
+      -- use-frequency caps. A loyalty ability is `{window = AsSorcery, limits = [LoyaltyOncePerTurn]}`
+      -- ([CR#606.3,306.5d] — shared across every loyalty ability of the permanent, not per-ability).
       -- `from` = the zone(s) the ability FUNCTIONS in ([CR#113.6b], default `[Battlefield]`): Cycling/
       -- Channel/Forecast from `[Hand]`, Embalm/Unearth from `[Graveyard]` (mirrors engine `ActivatedAbility.from`).
       -- `activationGuard` = an extra LEGALITY condition ([CR#602.5,702.142a], "activate only if …" — Boast's

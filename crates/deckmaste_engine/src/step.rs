@@ -708,6 +708,17 @@ impl GameState {
                             deckmaste_core::UseLimit::OncePerGame => {
                                 deckmaste_core::Lookback::ThisGame
                             }
+                            // `LoyaltyOncePerTurn` ([CR#606.3]) is an
+                            // ACTIVATED-ability limit (it names loyalty
+                            // abilities SHARED across a permanent, gated in
+                            // `GameState::can_activate`) — no authoring path
+                            // puts it on a `TriggeredAbility`. Exhaustiveness
+                            // only: fall back to the per-ability `ThisTurn`
+                            // window `OncePerTurn` uses, rather than panicking
+                            // on a malformed card.
+                            deckmaste_core::UseLimit::LoyaltyOncePerTurn => {
+                                deckmaste_core::Lookback::ThisTurn
+                            }
                         };
                         if self.ability_used_count(obj, ability, window) >= 1 {
                             // The limit is spent: the trigger does NOT fire —

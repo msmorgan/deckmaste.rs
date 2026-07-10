@@ -1,0 +1,18 @@
+// A minimal two-loyalty-ability planeswalker for exercising the
+// [CR#606.3,306.5d] activation rules: no canon-corpus card is a planeswalker
+// yet (engine-planeswalkers is still landing that support), so this mock
+// isolates the SHARED once-per-turn gate (`LoyaltyOncePerTurn`) across TWO
+// distinct loyalty abilities of the SAME permanent, plus their
+// sorcery-speed-only window — both via the `LoyaltyPlus`/`LoyaltyMinus`
+// macros (builtin/macros/ability). Neither effect targets, so the harness
+// stays simple.
+Normal(
+    name: "Planeswalker two loyalty abilities",
+    mana_cost: [Generic(2), Blue],
+    types: [Planeswalker],
+    abilities: [
+        LoyaltyPlus(n: 1, effect: Draw(1)),
+        LoyaltyMinus(n: 3, effect: Draw(1)),
+    ],
+    loyalty: 5,
+)

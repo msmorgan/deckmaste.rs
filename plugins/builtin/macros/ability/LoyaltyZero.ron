@@ -1,0 +1,22 @@
+// LoyaltyZero — a "0: [effect]" loyalty ability [CR#606.2,606.4]: a loyalty
+// cost of "0" pays no loyalty counters, but IS still a loyalty ability subject to
+// the shared once-per-turn / sorcery-speed rules [CR#606.3,306.5d] — so the
+// cost still carries a (zero-valued) `PutCounters(This, LoyaltyCounter, 0)`
+// verb, the same marker `is_loyalty_ability` recognizes for `LoyaltyPlus`/
+// `LoyaltyMinus`, rather than an empty cost list that would make this
+// ability invisible to the shared `LoyaltyOncePerTurn` gate. See
+// `LoyaltyPlus` for the window/limits rationale.
+//
+// Usage: LoyaltyZero(effect: <effect>).
+(
+    name: "LoyaltyZero",
+    template: "0: ${effect}",
+    kinds: [Ability],
+    params: { "effect": OneShotEffect },
+    body: Activated(
+        cost: [Do(PutCounters(This, LoyaltyCounter, 0))],
+        window: SorcerySpeed,
+        limits: [LoyaltyOncePerTurn],
+        effect: Param(effect),
+    ),
+)

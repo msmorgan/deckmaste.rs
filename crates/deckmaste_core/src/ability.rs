@@ -71,6 +71,14 @@ pub enum UseLimit {
     OncePerTurn,
     /// "Activate only once." ([CR#702.177a], exhaust) — once per game.
     OncePerGame,
+    /// No loyalty ability of this permanent has been activated this turn
+    /// ([CR#606.3]). Unlike `OncePerTurn` (per-ability), this is SHARED
+    /// across every loyalty ability a planeswalker carries ([CR#306.5d]):
+    /// activating any one of them blocks the rest for the turn. Pairs with
+    /// `window: SorcerySpeed` on the same `ActivatedAbility` — [CR#606.3]'s
+    /// "any time they have priority and the stack is empty during a main
+    /// phase of their turn" is that window.
+    LoyaltyOncePerTurn,
 }
 
 /// A triggered ability ([CR#113.3c,603]). A named struct because it recurs:
