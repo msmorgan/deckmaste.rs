@@ -390,12 +390,16 @@ function __workflow_refresh
     set -l name $argv[1]
     if test -z "$name"
         # No name → refresh the workspace we're standing in (detach). Not from default.
-        if set -q on_default
+        # NB: `test -n`, not `set -q` — `set -l on_default (…)` always DEFINES the var
+        # (empty when not on default), and `set -q` is true for a defined-but-empty
+        # local, so `set -q on_default` was ALWAYS true → no-arg refresh from a feature
+        # workspace wrongly took the on-default branch and errored.
+        if test -n "$on_default"
             echo >&2 "$(status filename): refresh needs a WORKSPACE name (or --all), or run it from a feature workspace."
             return 2
         end
         __refresh_detach (path basename (jj workspace root))
-    else if set -q on_default
+    else if test -n "$on_default"
         # From default with a name → the old reorder-under-default@.
         __refresh_reorder "$name"
     else
