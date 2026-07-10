@@ -875,6 +875,12 @@ impl GameState {
                 // the combat registry immediately, so a creature that dies/leaves
                 // mid-combat stops being tracked as an attacker/blocker at once.
                 self.combat.remove_object(object);
+                // [CR#506.4c]: if `object` was an attacked planeswalker, the
+                // creatures attacking it are NOT removed from combat — each
+                // stays an attacking creature, just no longer attacking
+                // anyone (its `attack_target` entry is cleared). A no-op when
+                // nothing was attacking `object`.
+                self.combat.clear_attack_target(object);
                 self.remove_from_battlefield(object);
             }
             Some(Zone::Hand) => {

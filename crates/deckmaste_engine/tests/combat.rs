@@ -1748,6 +1748,105 @@ fn unblocked_attacker_whose_planeswalker_left_deals_no_damage() {
     );
 }
 
+/// [CR#506.4c]: when the ATTACKED planeswalker leaves the battlefield during
+/// combat (here, destroyed via the engine's own `ZoneWillChange` machinery —
+/// mirroring a removal spell resolving in the post-declare-attackers priority
+/// window), the attacker targeting it is NOT removed from combat. Quoting the
+/// rule: it "continues to be an attacking creature, although it is not
+/// attacking any player, planeswalker, or battle" — so `is_attacking` stays
+/// true and only `target_of` clears. Regression-checks the downstream effect
+/// too: driven on to the combat damage step, the now-targetless attacker
+/// deals no damage and the defending player's life is untouched (Task 9's
+/// "target gone → no damage" damage-routing safety net), and it survives.
+#[test]
+fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attacking_status() {
+    let mut state = two_player_decks(
+        "Centaur Courser",
+        "Planeswalker two loyalty abilities",
+        7,
+        20,
+    );
+    let attacker = force_named_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
+    let pw = force_named_onto_battlefield(
+        &mut state,
+        PlayerId(1),
+        "Planeswalker two loyalty abilities",
+    );
+    set_loyalty(&mut state, pw, 4);
+
+    // Declare the 3/3 attacking the planeswalker.
+    let (_t, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(vec![(attacker, pw)]))
+        .unwrap();
+
+    // Step to the first priority window after the attack is declared (the
+    // `Attacking` event applies along the way), still before the Declare
+    // Blockers step.
+    loop {
+        match state.step() {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => break,
+            StepOutcome::Progress(_) => {}
+            other => panic!("unexpected stop before declare blockers: {other:?}"),
+        }
+    }
+    assert!(
+        state.combat.is_attacking(attacker) && state.combat.target_of(attacker) == Some(pw),
+        "pre-condition: the attacker is attacking the planeswalker"
+    );
+
+    // Destroy the planeswalker through the engine's own machinery (a
+    // battlefield -> graveyard `ZoneWillChange`), just as
+    // `trample_no_live_blockers_assigns_all_to_player` does for a blocker.
+    state.pending = None;
+    state.agenda.push_front(WorkItem::OpenPriority);
+    state.agenda.push_front(WorkItem::CheckSbas);
+    state.agenda.push_front(WorkItem::Emit(Occurrence::single(
+        GameEvent::ZoneWillChange {
+            object: pw,
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            enters: None,
+            position: None,
+            face: None,
+            cause: None,
+        },
+    )));
+    let (_t, stop) = pass_to_stop(&mut state);
+
+    assert!(
+        !on_battlefield(&state, pw),
+        "pre-condition: the planeswalker has left the battlefield"
+    );
+    assert!(
+        state.combat.is_attacking(attacker),
+        "the attacker stays an attacking creature even though its planeswalker left ([CR#506.4c])"
+    );
+    assert_eq!(
+        state.combat.target_of(attacker),
+        None,
+        "but it is no longer attacking any player, planeswalker, or battle ([CR#506.4c])"
+    );
+
+    // Regression: driven on to combat damage, the now-targetless attacker
+    // assigns no damage and the defending player's life is untouched.
+    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) = stop {
+        state.submit_decision(Decision::Blocks(vec![])).unwrap();
+        let _ = pass_to_stop(&mut state);
+    }
+    assert_eq!(
+        state.players[1].life, 20,
+        "the attacker isn't attacking anything → no combat damage ([CR#506.4c])"
+    );
+    assert!(
+        on_battlefield(&state, attacker),
+        "the attacker itself took no damage and survives"
+    );
+}
+
 /// Regression ([CR#510.1b]): declaring the attacker at the DEFENDING PLAYER
 /// (with a planeswalker also on the battlefield) still causes life loss, and
 /// the untargeted planeswalker is untouched — routing follows the declared

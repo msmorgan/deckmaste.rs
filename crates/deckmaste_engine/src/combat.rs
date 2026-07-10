@@ -183,6 +183,23 @@ impl CombatState {
         }
     }
 
+    /// [CR#506.4c]: when `target` (an attacked planeswalker or battle) is
+    /// removed from combat — [CR#506.4] lists "leaves the battlefield" as one
+    /// of the triggering causes — the creatures that were attacking it are
+    /// **NOT** removed from combat themselves. Quoting the rule exactly: "it
+    /// continues to be an attacking creature, although it is not attacking
+    /// any player, planeswalker, or battle. It may be blocked. If it is
+    /// unblocked, it will deal no combat damage." So this ONLY clears the
+    /// stale `attack_target` entry for every attacker pointed at `target` —
+    /// `attackers`/`blocked`/`blockers` are untouched, so the creature stays
+    /// `is_attacking` and remains a legal block target. The "deals no combat
+    /// damage" half is enforced separately, at damage-routing time
+    /// (`combat_target_live` in `step.rs`). A no-op when nothing is attacking
+    /// `target`.
+    pub(crate) fn clear_attack_target(&mut self, target: ObjectId) {
+        self.attack_target.retain(|_, &mut t| t != target);
+    }
+
     /// Clears all combat designations ([CR#511.3]).
     pub(crate) fn clear(&mut self) {
         self.attackers.clear();
@@ -318,6 +335,37 @@ mod tests {
         assert_eq!(cs.blockers_of(x), &[] as &[ObjectId]); // gone as a key
         assert_eq!(cs.blockers_of(a1), &[] as &[ObjectId]); // gone as a value
         assert_eq!(cs.attacker_of(x), None); // gone from blocks
+    }
+
+    /// [CR#506.4c]: when the attacked planeswalker `p` leaves the battlefield,
+    /// the attacker targeting it is NOT removed from combat — it stays an
+    /// attacking creature, just with its `attack_target` cleared (it "is not
+    /// attacking any player, planeswalker, or battle"). An attacker targeting
+    /// someone else (here, the defending player's proxy) is untouched.
+    #[test]
+    fn clear_attack_target_orphans_only_matching_attackers() {
+        let mut cs = CombatState::default();
+        let (a, b, p, player) = (id(1), id(2), id(9), id(0));
+        cs.declare_attacker(a, p);
+        cs.declare_attacker(b, player);
+        cs.clear_attack_target(p);
+        assert!(
+            cs.is_attacking(a),
+            "the attacker stays an attacking creature ([CR#506.4c])"
+        );
+        assert_eq!(cs.target_of(a), None, "but is no longer attacking anyone");
+        assert!(cs.is_attacking(b));
+        assert_eq!(cs.target_of(b), Some(player));
+    }
+
+    #[test]
+    fn clear_attack_target_is_a_noop_when_nothing_targets_it() {
+        let mut cs = CombatState::default();
+        let (a, player) = (id(1), id(0));
+        cs.declare_attacker(a, player);
+        cs.clear_attack_target(id(99));
+        assert!(cs.is_attacking(a));
+        assert_eq!(cs.target_of(a), Some(player));
     }
 
     #[test]
