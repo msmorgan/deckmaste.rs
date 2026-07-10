@@ -805,4 +805,88 @@ mod tests {
             "the data-loaded conferral rule put 3 LoyaltyCounters on entry"
         );
     }
+
+    /// [Task 5]: the committed builtin `rules/grant/planeswalker-loyalty.ron`
+    /// ([CR#306.5b]'s intrinsic "enters with loyalty counters equal to its
+    /// printed loyalty" rule) applies to a REAL planeswalker loaded through
+    /// the REAL `plugins/builtin` `Plugin`/`GameConfig`/`GameState` path —
+    /// `state.conferral_rules` is never hand-set here, unlike
+    /// [`conferred_enters_with_counters_by_type`]'s Task-2 fixture or
+    /// [`data_conferred_rule_applies_at_entry_end_to_end`]'s tempdir fixture.
+    /// Mirrors that end-to-end harness, but sourcing the builtin plugin so
+    /// the committed rule file is what's under test, and checks two printed
+    /// loyalties land as that many `LoyaltyCounter`s.
+    #[test]
+    fn builtin_planeswalker_loyalty_conferral_applies_at_entry() {
+        let builtin =
+            Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"))
+                .unwrap();
+        assert!(
+            builtin.conferral_rules.iter().any(|rule| rule.scope
+                == Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+                    Type::Planeswalker
+                ))),
+            "the builtin plugin loaded a Type(Planeswalker) conferral rule from \
+             rules/grant/planeswalker-loyalty.ron"
+        );
+
+        for printed_loyalty in [4, 3] {
+            let mut state = GameState::new(GameConfig {
+                players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+                seed: 7,
+                starting_life: 20,
+                starting_player: StartingPlayer::Fixed(PlayerId(0)),
+                sba_rules: vec![],
+                conferral_rules: builtin.conferral_rules.clone(),
+                counter_decls: std::collections::HashMap::new(),
+                subtypes: std::collections::HashMap::new(),
+            });
+
+            let card = Card::Normal(CardFace {
+                name: "Test Walker".into(),
+                types: vec![Type::Planeswalker],
+                loyalty: Some(deckmaste_core::StatValue::Number(printed_loyalty)),
+                ..CardFace::default()
+            });
+            let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+            let hand_id =
+                state
+                    .objects
+                    .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
+            state.zones.hands[PlayerId(0).index()].push(hand_id);
+            state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                GameEvent::ZoneWillChange {
+                    object: hand_id,
+                    from: Some(Zone::Hand),
+                    to: Zone::Battlefield,
+                    enters: None,
+                    position: None,
+                    face: None,
+                    cause: None,
+                },
+            ))]);
+            for _ in 0..10 {
+                if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                    break;
+                }
+            }
+            let entered = *state
+                .zones
+                .battlefield
+                .iter()
+                .find(|&&o| state.objects.obj(o).card_id() == Some(card_id))
+                .expect("the planeswalker entered the battlefield");
+            assert_eq!(
+                state
+                    .objects
+                    .obj(entered)
+                    .counters
+                    .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+                    .copied(),
+                Some(u32::try_from(printed_loyalty).unwrap()),
+                "a printed-{printed_loyalty} planeswalker enters with {printed_loyalty} \
+                 LoyaltyCounters via the builtin conferral rule"
+            );
+        }
+    }
 }

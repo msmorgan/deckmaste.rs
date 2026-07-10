@@ -1,0 +1,12 @@
+// [CR#306.5b]: a planeswalker has the intrinsic ability "this permanent enters with a
+// number of loyalty counters on it equal to its printed loyalty number" — a replacement
+// effect ([CR#614.1c]). Conferred onto every planeswalker as data. The count is the
+// PRINTED loyalty ([CR#209.1,306.5a]) via Stat::Loyalty, read in the AsEnters frame.
+[
+    ConferralRule(
+        scope: Type(Planeswalker),
+        confer: Ability(Static(Replacement(AsEnters(
+            PutCounters(This, LoyaltyCounter, StatOf(This, Loyalty)),
+        )))),
+    ),
+]
