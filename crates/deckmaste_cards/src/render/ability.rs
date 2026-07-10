@@ -57,6 +57,16 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     // event (`ZoneChange`/`StateBecame`/…) already established `This` reads
     // as the plain anaphor "it" for real cards, so only the object-less
     // events change here — no regression to the existing convention.
+    // ASSUMES a single `body_subject` for the whole body: every `This` read
+    // renders with the SAME phrase. Real oracle names the object once (in the
+    // intervening-if `condition`, rendered via `self_type_phrase` below) then
+    // says "it" for later self-references in the same sentence, which this
+    // model would double-name. That only bites a StepBegins ability that ALSO
+    // carries a `condition` and a self-referencing body; today the only such
+    // shapes (Echo, Cumulative Upkeep) are authored as `Keyword(...)` and
+    // render via the keyword line, never reaching `triggered()`, so it is
+    // unreachable. A future hand-authored non-macro card of that shape would
+    // need first-mention-names / later-mentions-"it" handling here.
     let body_subject = if matches!(t.from, Some(z) if z != Zone::Battlefield) {
         "this card".to_string()
     } else if matches!(
@@ -65,6 +75,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
             | EventFilter::DiceRolled { .. }
             | EventFilter::RollPlanarDie { .. }
             | EventFilter::TapForMana { .. }
+            | EventFilter::StepBegins { .. }
     ) {
         self_type_phrase(view)
     } else {
@@ -1429,6 +1440,99 @@ mod tests {
                 &ctx
             ),
             ("Whenever", "a creature leaves the battlefield".to_string())
+        );
+    }
+
+    /// `EventFilter::StepBegins` bodies get NO antecedent to call "it" — the
+    /// step names itself, not an object ([CR#603.2b]; mirrors Idris
+    /// `EventCaps.hasObject = False`), so a self-referencing body must name
+    /// itself the [CR#603.4]-family way (`self_type_phrase`), same as the
+    /// `CoinFlipped`/`DiceRolled`/`RollPlanarDie`/`TapForMana` family just
+    /// above. Round-trips the WHOLE oracle sentence — not just the event
+    /// clause — for the "at the beginning of your upkeep, sacrifice ~[
+    /// unless you pay <cost>]" family end to end (parse-shape construction
+    /// -> full `triggered()` render), against REAL printed Oracle text:
+    /// Necrotic Plague's granted "At the beginning of your upkeep, sacrifice
+    /// this creature." and Aura Flux's granted "At the beginning of your
+    /// upkeep, sacrifice this enchantment unless you pay {2}."
+    #[test]
+    fn step_begins_self_sacrifice_names_its_own_type() {
+        use deckmaste_core::Action;
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::Cost;
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::ManaCost;
+        use deckmaste_core::ManaSymbol;
+        use deckmaste_core::MustPay;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PhaseStep;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::SimpleManaSymbol;
+        use deckmaste_core::WhoseTurn;
+
+        let event = EventFilter::StepBegins {
+            at: PhaseStep::Beginning(BeginningStep::Upkeep),
+            whose: WhoseTurn::Your,
+        };
+        let sacrifice_this = || {
+            OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Sacrifice(Reference::This),
+            ))
+        };
+        let bare = |event: EventFilter, effect: OneShotEffect| TriggeredAbility {
+            ability_word: None,
+            event,
+            from: None,
+            condition: None,
+            limits: Vec::new(),
+            where_x: None,
+            effect,
+        };
+
+        // Unconditional (Necrotic Plague's granted ability).
+        let unconditional = bare(event.clone(), sacrifice_this());
+        let creature_view = CardView {
+            name: "Bog Elemental",
+            mana_cost: None,
+            supertypes: &[],
+            types: &[Type::Creature],
+            subtypes: &[],
+            power: None,
+            toughness: None,
+            abilities: &[],
+        };
+        assert_eq!(
+            triggered(&unconditional, &creature_view),
+            "At the beginning of your upkeep, sacrifice this creature."
+        );
+
+        // The "unless you pay <mana>" toll (`MustPay`, the `Unless` macro's
+        // read-time expansion, [CR#118.12a]) — Aura Flux's real Oracle text,
+        // verbatim.
+        let toll = bare(
+            event,
+            OneShotEffect::MustPay(MustPay {
+                actor: Reference::You,
+                cost: Cost(vec![CostComponent::Mana(ManaCost::from(vec![
+                    ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
+                ]))]),
+                or_else: Box::new(sacrifice_this()),
+            }),
+        );
+        let enchantment_view = CardView {
+            name: "Aura Flux",
+            mana_cost: None,
+            supertypes: &[],
+            types: &[Type::Enchantment],
+            subtypes: &[],
+            power: None,
+            toughness: None,
+            abilities: &[],
+        };
+        assert_eq!(
+            triggered(&toll, &enchantment_view),
+            "At the beginning of your upkeep, sacrifice this enchantment unless you pay {2}."
         );
     }
 

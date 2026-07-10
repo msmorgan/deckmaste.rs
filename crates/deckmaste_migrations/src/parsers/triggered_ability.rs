@@ -888,6 +888,42 @@ mod tests {
     }
 
     #[test]
+    fn beginning_of_your_upkeep_sacrifice_unconditional() {
+        // Necrotic Plague's granted ability: "At the beginning of your
+        // upkeep, sacrifice this creature." (oracle "this creature" is the
+        // printed-name convention the render side spells out; the parser
+        // reads either that or "~" as the same self anaphor).
+        assert_eq!(
+            trig("At the beginning of your upkeep, sacrifice ~.").as_deref(),
+            Some(
+                "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: Your), \
+                 effect: Sacrifice(This))"
+            )
+        );
+    }
+
+    #[test]
+    fn beginning_of_your_upkeep_sacrifice_unless_non_mana_toll_declines() {
+        // A non-mana "unless you <action>" toll (Bog Elemental's "unless you
+        // sacrifice a land", Argentum Masticore's "unless you discard a
+        // card") declines: only a single mana cost is modeled
+        // ([`parse_sacrifice`]'s doc comment) because the `MustPay` render
+        // arm ([CR#118.12a]) can only reproduce a symbol cost today
+        // (`render_cost`) — a verb-shaped toll has no render arm, so the
+        // parser stays narrower than what a richer cost grammar could in
+        // principle accept, rather than emit RON the renderer can't
+        // reproduce. Deferred, not built.
+        assert!(
+            trig("At the beginning of your upkeep, sacrifice ~ unless you sacrifice a land.")
+                .is_none()
+        );
+        assert!(
+            trig("At the beginning of your upkeep, sacrifice ~ unless you discard a card.")
+                .is_none()
+        );
+    }
+
+    #[test]
     fn beginning_of_end_step_sacrifice_each_players() {
         // "the end step" (no possessive) fires every turn => EachPlayers.
         assert_eq!(
