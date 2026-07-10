@@ -60,6 +60,10 @@ pub struct Plugin {
     /// globally by the engine's SBA sweep ([CR#704.3]). See
     /// `deckmaste_core::SbaRule`.
     pub sba_rules: Vec<deckmaste_core::SbaRule>,
+    /// Rules-defined conferrals loaded from `rules/grant/`: predicate-scoped
+    /// grants applied globally, alongside a card's own printed/conferred
+    /// abilities. See `deckmaste_core::ConferralRule`.
+    pub conferral_rules: Vec<deckmaste_core::ConferralRule>,
 }
 
 impl Plugin {
@@ -255,6 +259,7 @@ impl Plugin {
         }
 
         let sba_rules = load_sba_rules(&root, &macros)?;
+        let conferral_rules = load_conferral_rules(&root, &macros)?;
 
         Ok(Self {
             root,
@@ -264,6 +269,7 @@ impl Plugin {
             designations,
             keywords,
             sba_rules,
+            conferral_rules,
         })
     }
 
@@ -360,6 +366,28 @@ fn load_sba_rules(root: &Path, macros: &MacroSet) -> anyhow::Result<Vec<deckmast
     Ok(rules)
 }
 
+/// Loads all `Vec<ConferralRule>` files under `root/rules/grant/`,
+/// concatenating them into a single list. An absent directory yields an
+/// empty vec.
+///
+/// # Errors
+/// If a file is unreadable or doesn't parse as `Vec<ConferralRule>`.
+fn load_conferral_rules(
+    root: &Path,
+    macros: &MacroSet,
+) -> anyhow::Result<Vec<deckmaste_core::ConferralRule>> {
+    let dir = root.join(RULES_DIR).join("grant");
+    let mut rules = Vec::new();
+    for path in ron_files_recursive(&dir)? {
+        let source = read(&path)?;
+        let file: Vec<deckmaste_core::ConferralRule> = macros
+            .read_str(&source)
+            .with_context(|| format!(r#"loading conferral rules from "{}""#, path.display()))?;
+        rules.extend(file);
+    }
+    Ok(rules)
+}
+
 /// Reads a plugin file to a string with path context on failure. Exposed for
 /// the migration pipeline (`deckmaste_migrations::graduate`), which reads
 /// `.ron.todo` candidates before handing them to a [`Plugin`]'s macro reader.
@@ -435,6 +463,17 @@ mod tests {
                 .iter()
                 .all(|r| matches!(&r.then, deckmaste_core::OneShotEffect::Act(_)))
         );
+    }
+
+    #[test]
+    fn absent_rules_grant_dir_yields_no_conferral_rules() {
+        // `builtin` has no `rules/grant/` yet — Task 1 only builds the
+        // loader, no conferral rules are authored under it.
+        let plugin = Plugin::load(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+        )
+        .unwrap();
+        assert_eq!(plugin.conferral_rules, vec![]);
     }
 
     #[test]
@@ -614,5 +653,35 @@ mod tests {
             .err()
             .expect("expected duplicate error");
         assert!(format!("{err:#}").contains("already defined"), "{err:#}");
+    }
+
+    /// A `rules/grant/*.ron` file parses as a `Vec<ConferralRule>` and lands
+    /// on `Plugin::conferral_rules`, mirroring the `rules/sba/` loader.
+    #[test]
+    fn a_rules_grant_file_loads_a_conferral_rule() {
+        let root = tempfile::tempdir().unwrap();
+        let grant_dir = root.path().join("rules").join("grant");
+        std::fs::create_dir_all(&grant_dir).unwrap();
+        std::fs::write(
+            grant_dir.join("planeswalker-loyalty.ron"),
+            r"[
+                ConferralRule(
+                    scope: Type(Planeswalker),
+                    confer: Ability(Static(Replacement(Also(
+                        would: ZoneChange(what: Ref(This), to: Battlefield),
+                        also: PutCounters(This, LoyaltyCounter, StatOf(This, Loyalty)),
+                    )))),
+                ),
+            ]",
+        )
+        .unwrap();
+        let plugin = Plugin::load(root.path()).unwrap();
+        assert_eq!(plugin.conferral_rules.len(), 1);
+        assert_eq!(
+            plugin.conferral_rules[0].scope,
+            deckmaste_core::Predicate::Characteristic(
+                deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker)
+            )
+        );
     }
 }
