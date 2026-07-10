@@ -1,0 +1,7 @@
+// "ThisBecomesBlocked" = this attacking object is declared blocked
+// ([CR#509.1h,509.3c]). Mirrors event/ThisBlocks.
+(
+    name: "ThisBecomesBlocked",
+    kinds: [EventFilter],
+    body: BecomesBlocked(Ref(This)),
+)

@@ -1,0 +1,13 @@
+// "BecomesBlocked" = an attacking object is declared blocked ([CR#509.1h]) —
+// the "becomes blocked"/"is blocked" trigger family ([CR#509.3c]: triggers
+// once per combat even if blocked by multiple creatures). Mirrors
+// event/Blocks (the same one block fact's other view,
+// [CR#509.1g..509.1h,509.3a,509.3c]). Usage: BecomesBlocked(what) — e.g.
+// BecomesBlocked(Ref(This)).
+(
+    name: "BecomesBlocked",
+    template: "${0} becomes blocked",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: BlockDeclared(of: Param(0)),
+)

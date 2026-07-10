@@ -1,0 +1,7 @@
+// "ThisBlocks" = this object is declared as a blocker ([CR#509.1g,509.3a]).
+// Mirrors event/ThisAttacks + event/ThisDies.
+(
+    name: "ThisBlocks",
+    kinds: [EventFilter],
+    body: Blocks(Ref(This)),
+)

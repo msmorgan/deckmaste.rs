@@ -1,0 +1,18 @@
+// "Blocking" = the fully directional block fact, BOTH sides narrowed at
+// once ([CR#509.1g..509.1h]) — "<subject> blocks <object>"
+// ([CR#509.3b]: "Whenever [a creature] blocks a creature, …") and its
+// passive-voice mirror "<object> becomes blocked by <subject>"
+// ([CR#509.3d]: "Whenever [a creature] becomes blocked by a creature, …").
+// event/Blocks + event/BecomesBlocked only narrow ONE side (the other
+// defaults to any); this narrows both. Told apart on the render side by
+// which slot is `Ref(This)`. Mirrors event/DealsCombatDamage's two-param
+// shape. Usage: Blocking(by, of) — e.g. Blocking(Ref(This), Creature) for
+// "~ blocks a creature", Blocking(Creature, Ref(This)) for "~ becomes
+// blocked by a creature".
+(
+    name: "Blocking",
+    template: "${0} blocks ${1}",
+    kinds: [EventFilter],
+    params: [Predicate, Predicate],
+    body: BlockDeclared(by: Param(0), of: Param(1)),
+)

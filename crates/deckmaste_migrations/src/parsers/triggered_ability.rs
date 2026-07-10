@@ -186,6 +186,40 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
         };
         return Some(format!("DealtDamage({to})"));
     }
+    // Two-slot block trigger, active voice: "~ blocks a creature"
+    // ([CR#509.3b]: "Whenever [a creature] blocks a creature, …") — BOTH
+    // sides of the one block fact narrowed at once (unlike the bare
+    // "blocks"/"becomes blocked" suffix arms below, which narrow only one
+    // side), via the two-param `Blocking` event macro. Placed ahead of the
+    // generic suffix chain since it matches a mid-clause verb phrase
+    // (split_once), not a suffix. RESTRICTED to the self subject `~`: the
+    // render side narrows a two-sided block only when one side is `Ref(This)`,
+    // so a filtered non-self subject ("a creature you control blocks a
+    // creature") has no faithful two-sided render arm and would silently drop
+    // the `of` narrowing (or, passive, invert the sentence) — it DECLINES here
+    // rather than emit an unrenderable filter, alongside the filtered-object
+    // and disjunction ("blocks or becomes blocked") forms already deferred.
+    // Only the plain "a creature" object is supported (a further-filtered
+    // object would likewise drop its modifier on render). The disjunction
+    // falls through undisturbed (its object residue is never the literal "a
+    // creature", and its subject "~ blocks or" is never exactly "~").
+    if let Some((subject, object)) = clause.split_once(" blocks ")
+        && object == "a creature"
+        && subject == "~"
+    {
+        return Some("Blocking(Ref(This), Creature)".to_owned());
+    }
+    // Two-slot block trigger, passive voice: "~ becomes blocked by a creature"
+    // ([CR#509.3d]: "Whenever [a creature] becomes blocked by a creature, …") —
+    // the mirror image of the arm above (the blocked side is the clause subject
+    // here, the blocker is named after "by"). Same self-subject-only, plain-"a
+    // creature"-object restriction, same reasoning.
+    if let Some((subject, object)) = clause.split_once(" becomes blocked by ")
+        && object == "a creature"
+        && subject == "~"
+    {
+        return Some("Blocking(Creature, Ref(This))".to_owned());
+    }
     // Becomes-target trigger: "<subject> becomes the target of a spell or
     // ability" — the `BecomesTarget` event ([CR#601.2c] announce-time; ward is
     // the family exemplar). "a spell or ability" carries no controller
@@ -243,6 +277,18 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
         (subject, "Dies")
     } else if let Some(subject) = clause.strip_suffix(" attacks") {
         (subject, "Attacks")
+    } else if let Some(subject) = clause.strip_suffix(" blocks") {
+        // Bare self-blocks ([CR#509.3a]: "Whenever [a creature] blocks, …" —
+        // triggers once per combat even if it blocks multiple creatures).
+        (subject, "Blocks")
+    } else if let Some(subject) = clause
+        .strip_suffix(" becomes blocked")
+        .or_else(|| clause.strip_suffix(" is blocked"))
+    {
+        // Bare self-becomes-blocked ([CR#509.3c]; "is blocked" is the older
+        // oracle-text synonym for the same "becomes blocked" state,
+        // [CR#509.1h]).
+        (subject, "BecomesBlocked")
     } else if let Some(subject) = clause.strip_suffix(" becomes tapped") {
         (subject, "BecomesTapped")
     } else if let Some(subject) = clause.strip_suffix(" becomes untapped") {
@@ -568,6 +614,93 @@ mod tests {
                  effect: Draw(1))"
             )
         );
+    }
+
+    #[test]
+    fn blocks_self_via_thisblocks_macro() {
+        // Bare self-blocks ([CR#509.3a]).
+        assert_eq!(
+            trig("Whenever ~ blocks, draw a card.").as_deref(),
+            Some("Triggered(event: ThisBlocks, effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn blocks_filtered_subject() {
+        // A non-self blocker subject parses via the shared filter grammar
+        // (mirrors attacks_filtered_subject).
+        assert_eq!(
+            trig("Whenever a creature you control blocks, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Blocks(And([Creature, ControlledBy(Ref(You))])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn becomes_blocked_self_via_thisbecomesblocked_macro() {
+        // Bare self-becomes-blocked ([CR#509.3c]).
+        assert_eq!(
+            trig("Whenever ~ becomes blocked, draw a card.").as_deref(),
+            Some("Triggered(event: ThisBecomesBlocked, effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn becomes_blocked_tolerates_is_blocked_wording() {
+        // "is blocked" is the older oracle-text synonym for the same
+        // "becomes blocked" state ([CR#509.1h]).
+        assert_eq!(
+            trig("Whenever ~ is blocked, draw a card.").as_deref(),
+            Some("Triggered(event: ThisBecomesBlocked, effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn blocks_a_creature_two_slot() {
+        // "Whenever [a creature] blocks a creature, …" ([CR#509.3b]) — both
+        // sides of the one block fact narrowed at once, via the two-param
+        // `Blocking` event macro.
+        assert_eq!(
+            trig("Whenever ~ blocks a creature, draw a card.").as_deref(),
+            Some("Triggered(event: Blocking(Ref(This), Creature), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn becomes_blocked_by_a_creature_two_slot() {
+        // "Whenever [a creature] becomes blocked by a creature, …"
+        // ([CR#509.3d]) — the passive-voice mirror of the arm above.
+        assert_eq!(
+            trig("Whenever ~ becomes blocked by a creature, draw a card.").as_deref(),
+            Some("Triggered(event: Blocking(Creature, Ref(This)), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn two_slot_block_filtered_non_self_subject_declines() {
+        // The two-slot forms are RESTRICTED to the self subject `~`: the render
+        // side narrows a two-sided block only when one side is `Ref(This)`, so a
+        // filtered non-self subject would drop the `of` narrowing (active) or
+        // invert the sentence (passive) on render. Both voices decline rather
+        // than emit an unrenderable filter ([CR#509.3b],[CR#509.3d]).
+        assert!(trig("Whenever a creature you control blocks a creature, draw a card.").is_none());
+        assert!(
+            trig(
+                "Whenever another creature you control becomes blocked by a creature, draw a card."
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn blocks_or_becomes_blocked_disjunction_declines() {
+        // No core `EventFilter` combinator (Any/Or) holds "blocks or becomes
+        // blocked" — deferred (~101 corpus cards; the compound object residue
+        // never resolves to the literal "a creature", so this correctly
+        // declines rather than mis-parsing).
+        assert!(trig("Whenever ~ blocks or becomes blocked by a creature, draw a card.").is_none());
     }
 
     #[test]

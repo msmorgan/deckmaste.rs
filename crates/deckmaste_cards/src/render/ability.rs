@@ -275,6 +275,35 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
             "Whenever",
             format!("{} becomes blocked", subject_of(of, ctx)),
         ),
+        // Directional two-slot forms ([CR#509.1g..509.1h]): BOTH sides
+        // narrowed at once, the `Blocking` event macro's shape. Told apart by
+        // which slot is `This` — self is the blocker narrowing the blocked
+        // side ([CR#509.3b], "~ blocks a creature") vs. self is the blocked
+        // attacker narrowing the blocker ([CR#509.3d], "~ becomes blocked by
+        // a creature"). Must precede the `by, ..` catch-all below, which
+        // would otherwise swallow `of` and drop the object silently.
+        EventFilter::BlockDeclared { by, of }
+            if super::fragment::strip_expanded(by).is_this()
+                && !matches!(super::fragment::strip_expanded(of), Predicate::Any) =>
+        {
+            (
+                "Whenever",
+                format!("{} blocks {}", subject_of(by, ctx), subject_of(of, ctx)),
+            )
+        }
+        EventFilter::BlockDeclared { by, of }
+            if super::fragment::strip_expanded(of).is_this()
+                && !matches!(super::fragment::strip_expanded(by), Predicate::Any) =>
+        {
+            (
+                "Whenever",
+                format!(
+                    "{} becomes blocked by {}",
+                    subject_of(of, ctx),
+                    subject_of(by, ctx)
+                ),
+            )
+        }
         EventFilter::BlockDeclared { by, .. } => {
             ("Whenever", format!("{} blocks", subject_of(by, ctx)))
         }
@@ -1349,6 +1378,68 @@ mod tests {
                 &ctx
             ),
             ("Whenever", "an opponent is dealt damage".to_string())
+        );
+    }
+
+    /// `EventFilter::BlockDeclared` — the one block fact's four renderable
+    /// views: the two bare single-slot forms ([CR#509.3a] blocks,
+    /// [CR#509.3c] becomes blocked, one side `Any`) plus the two directional
+    /// two-slot forms the `Blocking` event macro adds ([CR#509.3b] "blocks a
+    /// creature", [CR#509.3d] "becomes blocked by a creature", both sides
+    /// narrowed, told apart by which slot is `This`).
+    #[test]
+    fn block_declared_event_clause_renders_all_four_views() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let this = || Predicate::Ref(Reference::This);
+        let creature = || Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+
+        // Bare self-blocks ([CR#509.3a]).
+        assert_eq!(
+            event_clause(
+                &EventFilter::BlockDeclared {
+                    by: this(),
+                    of: Predicate::Any
+                },
+                &ctx
+            ),
+            ("Whenever", "Test blocks".to_string())
+        );
+        // Bare self-becomes-blocked ([CR#509.3c]).
+        assert_eq!(
+            event_clause(
+                &EventFilter::BlockDeclared {
+                    by: Predicate::Any,
+                    of: this()
+                },
+                &ctx
+            ),
+            ("Whenever", "Test becomes blocked".to_string())
+        );
+        // Two-slot: self blocks a creature ([CR#509.3b]).
+        assert_eq!(
+            event_clause(
+                &EventFilter::BlockDeclared {
+                    by: this(),
+                    of: creature()
+                },
+                &ctx
+            ),
+            ("Whenever", "Test blocks a creature".to_string())
+        );
+        // Two-slot: self becomes blocked by a creature ([CR#509.3d]).
+        assert_eq!(
+            event_clause(
+                &EventFilter::BlockDeclared {
+                    by: creature(),
+                    of: this()
+                },
+                &ctx
+            ),
+            ("Whenever", "Test becomes blocked by a creature".to_string())
         );
     }
 
