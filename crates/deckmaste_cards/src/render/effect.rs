@@ -1995,7 +1995,7 @@ mod tests {
     }
 
     /// A `Move`-to-library destination renders the anchor: `FromTop(0)` ->
-    /// "top", `FromBottom(0)` -> "the bottom" ([CR#401.7]).
+    /// "top", `FromBottom(0)` -> "the bottom".
     #[test]
     fn move_to_library_renders_top_and_bottom() {
         use deckmaste_core::Anchor;
@@ -2018,6 +2018,51 @@ mod tests {
         assert_eq!(
             action(&bottom, &ctx),
             "Put it on the bottom of your library."
+        );
+    }
+
+    /// Bounce-to-library — the migrations `parse_bounce_to_library`
+    /// production's TARGETED `Move(It, Library(anchor))` shape round-trips
+    /// through the SAME generic library-destination arm as the self form
+    /// above, reading the announced target's phrase via `Reference::It`
+    /// (mirroring `parse_return_to_hand`'s battlefield-bounce shape).
+    ///
+    /// KNOWN LIMITATION (not the desired final output): both "its owner's
+    /// library" and "your library" input phrasings collapse onto this one
+    /// canonical "your library" render, same as `Move(_, Hand)`'s
+    /// "your hand"/"its owner's hand" idiom pair. That is WRONG for a
+    /// targeted, possibly-opponent-owned creature (oracle says "its owner's
+    /// library"), so most real bounce-to-library cards fail the byte-exact
+    /// fidelity gate and do not graduate until an owner-relative render arm
+    /// lands — tracked in the `bounce-followups` ticket (§1). This test pins
+    /// the current collapse behavior, not a blessed target output.
+    #[test]
+    fn move_to_library_renders_targeted_top_and_bottom() {
+        use deckmaste_core::Anchor;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&target),
+            that: None,
+        };
+        let top = Action::Move(
+            Reference::It,
+            Destination::Library(Anchor::FromTop(Count::Literal(0))),
+            vec![],
+        );
+        assert_eq!(
+            action(&top, &ctx),
+            "Put target creature on top of your library."
+        );
+        let bottom = Action::Move(
+            Reference::It,
+            Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+            vec![],
+        );
+        assert_eq!(
+            action(&bottom, &ctx),
+            "Put target creature on the bottom of your library."
         );
     }
 

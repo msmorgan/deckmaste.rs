@@ -82,6 +82,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_reanimate(line) {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_bounce_to_library(line) {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_tap_untap(line) {
         return Ok(Some(p));
     }
@@ -1123,6 +1126,85 @@ fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({card_filter})")],
         effect: "Move(It, Battlefield)".to_owned(),
+    })
+}
+
+/// Bounce-to-library productions (the library twin of
+/// [`parse_return_to_hand`]) — every arm emits the `Move(_, Library(anchor))`
+/// primitive with a MANDATORY anchor (a bare `Library` destination is
+/// rejected by the grammar; see [`deckmaste_core::Destination`]):
+/// - `Put ~ on top of its owner's library.` / `Put ~ on the bottom of its
+///   owner's library.` -> a self-bounce (`Move(This, Library(FromTop(0)))` /
+///   `Move(This, Library(FromBottom(0)))`), no target — the effect body of
+///   `{cost}: Put ~ on top of its owner's library.` activated abilities (the
+///   cost is the activated-frame's job).
+/// - `Put ~ on top of your library.` / `Put ~ on the bottom of your library.`
+///   -> the same self-bounce; "your library" is the equally-correct common
+///   idiom (`Move(_, Library(anchor))` always lands in the owner's library
+///   regardless of which possessive the oracle text prints, mirroring
+///   [`parse_return_to_hand`]'s "your hand"/"its owner's hand" equivalence).
+/// - `Put target <subject> on top of its owner's library.` / `...on the bottom
+///   of its owner's library.` / `...on top of your library.` / `...on the
+///   bottom of your library.` -> `Move(It, Library(anchor))`, the subject
+///   parsed by [`object_target_filter`].
+///
+/// DEFERRED (not built here): `Return ~/target <subject> to its owner's
+/// library.` with NO top/bottom qualifier is a shuffle-in move (a different,
+/// Shuffle-bearing shape — the library position isn't fixed, so it needs a
+/// shuffle) — out of scope. Parameterized/non-zero anchors ("the second from
+/// the top", "Nth from the top", "X cards from the top") and
+/// owner-vs-controller disambiguation are likewise unbuilt.
+fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "put ")?.strip_suffix('.')?;
+    // Self-bounce: "Put ~/it on top/the bottom of its owner's/your library."
+    // — an activated-ability effect ("~") or a trigger body whose "it"
+    // anaphor names the resolving source ([CR#113.7]); every phrasing is the
+    // source permanent (`This`).
+    if matches!(
+        body,
+        "~ on top of its owner's library"
+            | "it on top of its owner's library"
+            | "~ on top of your library"
+            | "it on top of your library"
+    ) {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: "Move(This, Library(FromTop(0)))".to_owned(),
+        });
+    }
+    if matches!(
+        body,
+        "~ on the bottom of its owner's library"
+            | "it on the bottom of its owner's library"
+            | "~ on the bottom of your library"
+            | "it on the bottom of your library"
+    ) {
+        return Some(ParsedEffect {
+            targets: Vec::new(),
+            effect: "Move(This, Library(FromBottom(0)))".to_owned(),
+        });
+    }
+    // Targeted: "target <subject> on top/the bottom of its owner's/your
+    // library." The anchor suffix is peeled first (top before bottom, since
+    // neither is a suffix of the other), then the leading "target ".
+    let (rest, anchor) = if let Some(r) = body
+        .strip_suffix(" on top of its owner's library")
+        .or_else(|| body.strip_suffix(" on top of your library"))
+    {
+        (r, "FromTop(0)")
+    } else if let Some(r) = body
+        .strip_suffix(" on the bottom of its owner's library")
+        .or_else(|| body.strip_suffix(" on the bottom of your library"))
+    {
+        (r, "FromBottom(0)")
+    } else {
+        return None;
+    };
+    let subject = rest.strip_prefix("target ")?;
+    let filter = object_target_filter(subject)?;
+    Some(ParsedEffect {
+        targets: vec![format!("TargetOne({filter})")],
+        effect: format!("Move(It, Library({anchor}))"),
     })
 }
 
@@ -3287,6 +3369,100 @@ mod tests {
         // A mana-value filter isn't modeled by `graveyard_card_filter` yet.
         assert!(declines(
             "Return target creature card with mana value 3 or less from your graveyard to the battlefield."
+        ));
+    }
+
+    #[test]
+    fn bounce_self_to_top_of_library() {
+        // The effect body of `{cost}: Put ~ on top of its owner's library.` —
+        // a self-bounce, no target (the cost is the activated frame's job).
+        assert_eq!(
+            parsed("Put ~ on top of its owner's library."),
+            Some((String::new(), "Move(This, Library(FromTop(0)))".to_owned()))
+        );
+        assert_eq!(
+            parsed("Put it on top of its owner's library."),
+            Some((String::new(), "Move(This, Library(FromTop(0)))".to_owned()))
+        );
+        // "your library" is the equally-correct common idiom.
+        assert_eq!(
+            parsed("Put ~ on top of your library."),
+            Some((String::new(), "Move(This, Library(FromTop(0)))".to_owned()))
+        );
+    }
+
+    #[test]
+    fn bounce_self_to_bottom_of_library() {
+        assert_eq!(
+            parsed("Put ~ on the bottom of its owner's library."),
+            Some((
+                String::new(),
+                "Move(This, Library(FromBottom(0)))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Put it on the bottom of its owner's library."),
+            Some((
+                String::new(),
+                "Move(This, Library(FromBottom(0)))".to_owned()
+            ))
+        );
+        // "your library" idiom, bottom anchor.
+        assert_eq!(
+            parsed("Put ~ on the bottom of your library."),
+            Some((
+                String::new(),
+                "Move(This, Library(FromBottom(0)))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn bounce_target_to_library() {
+        assert_eq!(
+            parsed("Put target creature on top of its owner's library."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Move(It, Library(FromTop(0)))".to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed("Put target creature on the bottom of its owner's library."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Move(It, Library(FromBottom(0)))".to_owned()
+            ))
+        );
+        // "your library" idiom on a targeted subject too.
+        assert_eq!(
+            parsed("Put target creature on top of your library."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Move(It, Library(FromTop(0)))".to_owned()
+            ))
+        );
+        // "nonland permanent" rides the shared filter grammar's negation.
+        assert_eq!(
+            parsed("Put target nonland permanent on top of its owner's library."),
+            Some((
+                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
+                "Move(It, Library(FromTop(0)))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn bounce_to_library_declines_deferred_shapes() {
+        // Bare "to its owner's library" (no top/bottom qualifier) is a
+        // shuffle-in move — a different, Shuffle-bearing shape, deferred.
+        assert!(declines("Return target creature to its owner's library."));
+        assert!(declines("Return ~ to its owner's library."));
+        // Parameterized/non-zero anchors aren't modeled here.
+        assert!(declines(
+            "Put target creature second from the top of its owner's library."
+        ));
+        assert!(declines(
+            "Put target creature third from the top of its owner's library."
         ));
     }
 
