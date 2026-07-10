@@ -58,6 +58,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_deal_damage(line) {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_draw_then_discard(line) {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_draw(line) {
         return Ok(Some(p));
     }
@@ -1363,6 +1366,63 @@ fn parse_draw(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         targets: Vec::new(),
         effect: format!("Draw({n})"),
+    })
+}
+
+/// `Discard N card(s)[ at random].` — no targets. Case-insensitive lead
+/// ("discard" or "Discard"). The common form ([CR#701.9b]): no `what`, so
+/// the discarding player (`You`, implicit) chooses `count` cards from hand.
+/// The "at random" rider is a trivial suffix strip, not a `what` selection
+/// — `random: true`, omitted (default `false`) otherwise. The imperative
+/// effect-body sibling of [`parse_draw`]; the cost-side "Discard a card"
+/// (`Do(Discard(count: N))`) is [`crate::parsers::cost::discard`] — same
+/// leaf shape, different frame.
+fn parse_discard(line: &str) -> Option<ParsedEffect> {
+    let rest = strip_prefix_ci(line, "discard ")?.strip_suffix('.')?;
+    let (rest, random) = match rest.strip_suffix(" at random") {
+        Some(r) => (r, true),
+        None => (rest, false),
+    };
+    // Plural first so "two cards" doesn't strip to "two card".
+    let count = rest
+        .strip_suffix(" cards")
+        .or_else(|| rest.strip_suffix(" card"))?;
+    let n = number_word(count)?;
+    let effect = if random {
+        format!("Discard(count: {n}, random: true)")
+    } else {
+        format!("Discard(count: {n})")
+    };
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect,
+    })
+}
+
+/// The loot/rummage idiom ([CR#121.1,701.9]): "Draw N card(s), then discard
+/// M card(s)[ at random]." (loot) or the reverse "Discard M card(s)[ at
+/// random], then draw N card(s)." (rummage) — ONE oracle sentence whose
+/// internal ", then " joins two imperative clauses, N and M independently
+/// scaled. The general [`parse_sequence`] machinery doesn't cover this: it
+/// only splits ". "-separated SENTENCES ([CR#608.2c]), and this pair rides a
+/// single sentence's comma-"then". Deliberately narrow — NOT a general
+/// comma-then splitter (the corpus has dozens of unrelated ", then "
+/// multi-clause lines this production must not touch) — by requiring both
+/// halves to be exactly one [`parse_draw`] and one [`parse_discard`] leaf, in
+/// either order. Declines otherwise (a conditional tail, "discard your
+/// hand", or anything richer stays with the macro fallthrough / unparsed).
+/// No targets (neither leaf declares one).
+fn parse_draw_then_discard(line: &str) -> Option<ParsedEffect> {
+    let (head, tail) = line.split_once(", then ")?;
+    let head = format!("{head}.");
+    let (first, second) = match (parse_draw(&head), parse_discard(&head)) {
+        (Some(draw), None) => (draw, parse_discard(tail)?),
+        (None, Some(discard)) => (discard, parse_draw(tail)?),
+        _ => return None,
+    };
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!("Sequentially([{}, {}])", first.effect, second.effect),
     })
 }
 
@@ -2896,6 +2956,73 @@ mod tests {
         .expect("both sentences are productions");
         assert_eq!(parsed.targets, vec!["TargetOne(Spell)".to_owned()]);
         assert_eq!(parsed.effect, "Sequentially([Counter(It), GainLife(5)])");
+    }
+
+    /// The loot idiom ([CR#121.1,701.9b]): "Draw a card, then discard a
+    /// card." — the narrow draw/discard "then" production, not the general
+    /// sentence-order `Sequentially` (this is ONE sentence, no ". " split).
+    #[test]
+    fn loot_draws_then_discards() {
+        assert_eq!(
+            parsed("Draw a card, then discard a card."),
+            Some((
+                String::new(),
+                "Sequentially([Draw(1), Discard(count: 1)])".to_owned()
+            ))
+        );
+    }
+
+    /// The rummage idiom ([CR#701.9b,121.1]) — the reverse order: "Discard a
+    /// card, then draw a card."
+    #[test]
+    fn rummage_discards_then_draws() {
+        assert_eq!(
+            parsed("Discard a card, then draw a card."),
+            Some((
+                String::new(),
+                "Sequentially([Discard(count: 1), Draw(1)])".to_owned()
+            ))
+        );
+    }
+
+    /// A scaled loot with independently-sized halves (Blessed Breath, Fact or
+    /// Fiction's kin): "Draw two cards, then discard a card."
+    #[test]
+    fn loot_scales_independently_per_side() {
+        assert_eq!(
+            parsed("Draw two cards, then discard a card."),
+            Some((
+                String::new(),
+                "Sequentially([Draw(2), Discard(count: 1)])".to_owned()
+            ))
+        );
+    }
+
+    /// The "at random" rider ([CR#701.9b]) is a trivial flag on the existing
+    /// `Discard` leaf, not a `what` selection: "Draw a card, then discard a
+    /// card at random."
+    #[test]
+    fn loot_discard_at_random() {
+        assert_eq!(
+            parsed("Draw a card, then discard a card at random."),
+            Some((
+                String::new(),
+                "Sequentially([Draw(1), Discard(count: 1, random: true)])".to_owned()
+            ))
+        );
+    }
+
+    /// Riders/shapes outside this production's scope decline cleanly (the
+    /// macro-effect fallthrough — not exercised here — is the next arm to try,
+    /// but under the EMPTY index it too declines, so the whole clause
+    /// declines): a conditional tail, and "discard your hand" (not a
+    /// count-N `Discard`).
+    #[test]
+    fn draw_then_discard_declines_riders_out_of_scope() {
+        assert!(declines(
+            "Draw a card, then discard a card unless her additional cost was paid."
+        ));
+        assert!(declines("Discard your hand, then draw seven cards."));
     }
 
     #[test]

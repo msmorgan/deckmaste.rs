@@ -2181,6 +2181,34 @@ mod tests {
         assert_eq!(effect(&with, &ctx), "Discard two cards.");
     }
 
+    /// The loot/rummage render round-trip ([CR#121.1,701.9b,608.2c]): the
+    /// `Sequentially([Draw, Discard])` shape the migrations parser's
+    /// `parse_draw_then_discard` production emits needs NO dedicated render
+    /// arm — the existing `Sequentially` ", then" joiner (this file's
+    /// `effect` match arm above) already renders it back to the exact oracle
+    /// sentence, both orders (loot and rummage).
+    #[test]
+    fn sequentially_renders_loot_and_rummage() {
+        use deckmaste_core::PlayerAction;
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+        };
+        let draw = || OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1)));
+        let discard = || {
+            OneShotEffect::act_by_you(PlayerAction::Discard {
+                count: Count::Literal(1),
+                what: None,
+                random: false,
+            })
+        };
+        let loot = OneShotEffect::Sequentially(vec![draw(), discard()]);
+        assert_eq!(effect(&loot, &ctx), "Draw a card, then discard a card.");
+        let rummage = OneShotEffect::Sequentially(vec![discard(), draw()]);
+        assert_eq!(effect(&rummage, &ctx), "Discard a card, then draw a card.");
+    }
+
     /// `OneShotEffect::Each` over a many-binder collapses a single group-verb
     /// body (acting on the per-element `It`) to the collective surface —
     /// `Destroy(It)` → "Destroy each creature." — and falls back to the
