@@ -506,6 +506,7 @@ pub fn play(cards: &DeckCards, seed: u64, p0: &dyn Strategy, p1: &dyn Strategy) 
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });

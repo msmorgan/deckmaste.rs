@@ -1866,6 +1866,7 @@ mod snow_provenance_tests {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
+            conferral_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         })

@@ -120,6 +120,7 @@ pub struct GameConfig {
     pub starting_life: Int,
     pub starting_player: StartingPlayer,
     pub sba_rules: Vec<deckmaste_core::SbaRule>,
+    pub conferral_rules: Vec<deckmaste_core::ConferralRule>,
     pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
     /// The subtype registry ([CR#205.3]): `Ident → Subtype`. Unlike a counter's
     /// confers (looked up by name), a subtype's confers normally ride the card
@@ -335,6 +336,11 @@ pub struct GameState {
     /// it. Empty = no rules-defined SBAs (the engine still runs the imperative
     /// ones). A variant rule set swaps this vector.
     pub sba_rules: Vec<deckmaste_core::SbaRule>,
+    /// Rules-defined conferrals in force this game — predicate-scoped grants
+    /// applied globally, alongside a card's own printed/conferred abilities.
+    /// Populated from the loaded plugin's `conferral_rules` at construction,
+    /// like `sba_rules`. Empty = no rules-defined conferrals.
+    pub conferral_rules: Vec<deckmaste_core::ConferralRule>,
     /// The "that much"/"that many" anaphora register (`Count::ThatMuch` —
     /// oracle-text magnitude anaphora; no single CR rule defines it): the
     /// amount the most recently APPLIED amount-carrying event fixed (damage
@@ -495,6 +501,7 @@ impl GameState {
             counter_decls: config.counter_decls,
             subtypes: config.subtypes,
             sba_rules: config.sba_rules,
+            conferral_rules: config.conferral_rules,
             that_much: None,
             moved_chain: Vec::new(),
             history: crate::history::History::default(),

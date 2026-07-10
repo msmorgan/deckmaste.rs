@@ -128,6 +128,7 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -163,6 +164,7 @@ fn creature_with_abilities(
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -329,6 +331,7 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -651,6 +654,7 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -810,6 +814,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -900,6 +905,7 @@ fn ordinary_destroy_goes_to_graveyard() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -1171,6 +1177,7 @@ fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, Ob
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -1241,6 +1248,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });

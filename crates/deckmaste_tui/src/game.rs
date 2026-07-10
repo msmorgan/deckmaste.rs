@@ -65,6 +65,14 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
         .cloned()
         .collect();
 
+    let conferral_rules = canon
+        .conferral_rules
+        .iter()
+        .chain(builtin.conferral_rules.iter())
+        .chain(wizards.conferral_rules.iter())
+        .cloned()
+        .collect();
+
     let mut counter_decls = std::collections::HashMap::new();
     counter_decls.extend(canon.counters.clone());
     counter_decls.extend(builtin.counters.clone());
@@ -84,6 +92,7 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules,
+        conferral_rules,
         counter_decls,
         subtypes,
     }))

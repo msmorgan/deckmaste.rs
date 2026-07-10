@@ -64,6 +64,7 @@ fn two_player_plains(seed: u64, deck_size: usize) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     })
@@ -84,6 +85,7 @@ fn two_player_with(card: &str, seed: u64, deck_size: usize) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     })
@@ -696,6 +698,7 @@ fn bear_on_field() -> (GameState, ObjectId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -943,6 +946,7 @@ fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });

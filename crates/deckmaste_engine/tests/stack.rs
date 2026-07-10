@@ -141,6 +141,7 @@ fn bolt_game(seed: u64, mountains: usize) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -173,6 +174,7 @@ fn bears_game(seed: u64, forests: usize) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -384,6 +386,7 @@ fn ward_game_with(seed: u64, ward_name: &str) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -500,6 +503,7 @@ fn kicker_game(seed: u64) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -733,6 +737,7 @@ fn prowess_fires_and_pumps_on_own_noncreature_cast() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -796,6 +801,7 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -1005,6 +1011,7 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
                 starting_life: 20,
                 starting_player: StartingPlayer::Fixed(PlayerId(0)),
                 sba_rules: vec![],
+                conferral_rules: vec![],
                 counter_decls: std::collections::HashMap::new(),
                 subtypes: std::collections::HashMap::new(),
             })
@@ -1149,6 +1156,7 @@ fn bears_with_bolts() -> GameState {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
+            conferral_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         })
@@ -1521,6 +1529,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
+            conferral_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         })
@@ -1690,6 +1699,7 @@ fn etb_trigger_draws_a_card() {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
+            conferral_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         })
@@ -1876,6 +1886,7 @@ fn occurrence_batch_and_apnap_ordering() {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
+            conferral_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         })
@@ -2163,6 +2174,7 @@ fn simultaneous_loss_is_a_draw() {
             starting_life: 4,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
+            conferral_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         })
@@ -2271,6 +2283,7 @@ fn two_triggers_same_player_order_triggers_surfaces() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2403,6 +2416,7 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             starting_life: 20,
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
+            conferral_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         });
@@ -2532,6 +2546,7 @@ fn hexproof_excludes_it_from_opposing_targets() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2588,6 +2603,7 @@ fn flash_creature_casts_at_instant_timing() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2673,6 +2689,7 @@ fn flagbearer_constrains_opposing_target_choice() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2729,6 +2746,7 @@ fn flagbearer_does_not_constrain_its_controllers_spells() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2844,6 +2862,7 @@ fn blink_exiles_and_returns_the_target_in_one_resolution() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });

@@ -140,6 +140,7 @@ fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -168,6 +169,7 @@ fn bolt_game(seed: u64) -> GameState {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     })
@@ -365,6 +367,7 @@ fn describe_action_bundles_cast_land_activate_pass_concede() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -499,6 +502,7 @@ fn priority_enumerates_all_action_kinds_at_one_window() {
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
+        conferral_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
