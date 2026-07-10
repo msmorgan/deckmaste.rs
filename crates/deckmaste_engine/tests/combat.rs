@@ -1475,6 +1475,398 @@ fn trample_no_live_blockers_assigns_all_to_player() {
     );
 }
 
+// --- combat damage to a planeswalker ([CR#120.3c,510.1b,702.19f]) ------------
+
+/// A two-player game with explicit decks (already-`Arc`ed cards), so one side
+/// can field several distinct cards — e.g. a planeswalker AND a blocker — which
+/// the single-card-deck helpers can't produce. Loads the builtin SBAs (like
+/// `two_player_decks`) so the 0-loyalty sweep ([CR#704.5i]) fires.
+fn two_player_mixed(p0: Vec<Arc<Card>>, p1: Vec<Arc<Card>>, seed: u64) -> GameState {
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+    });
+    state.sba_rules = deckmaste_cards::plugin::Plugin::load(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+    )
+    .unwrap()
+    .sba_rules;
+    state
+}
+
+/// Moves the first `name` card `player` owns — searching hand then library —
+/// straight onto the battlefield, returning its id. Unlike
+/// `force_onto_battlefield` it also reaches into the library, so a card left
+/// undrawn in a mixed deck is still placeable.
+fn force_named_onto_battlefield(state: &mut GameState, player: PlayerId, name: &str) -> ObjectId {
+    let i = player.index();
+    let obj = state.zones.hands[i]
+        .iter()
+        .copied()
+        .find(|&o| is_card(state, o, name))
+        .or_else(|| {
+            state.zones.libraries[i]
+                .iter()
+                .copied()
+                .find(|&o| is_card(state, o, name))
+        })
+        .unwrap_or_else(|| panic!("a {name} in player {}'s hand or library", player.0));
+    state.zones.hands[i].retain(|&o| o != obj);
+    state.zones.libraries[i].retain(|&o| o != obj);
+    state.objects.obj_mut(obj).zone = Some(Zone::Battlefield);
+    state.zones.battlefield.push(obj);
+    obj
+}
+
+/// Sets a planeswalker's loyalty by writing `n` `LoyaltyCounter`s directly —
+/// the force-onto-battlefield path skips the enters-with-loyalty replacement,
+/// so the permanent would otherwise have none.
+fn set_loyalty(state: &mut GameState, pw: ObjectId, n: u32) {
+    state
+        .objects
+        .obj_mut(pw)
+        .counters
+        .insert(deckmaste_core::Ident::from("LoyaltyCounter"), n);
+}
+
+/// A planeswalker's current loyalty = its `LoyaltyCounter` count ([CR#306.5c]).
+fn loyalty(state: &GameState, pw: ObjectId) -> u32 {
+    state
+        .objects
+        .obj(pw)
+        .counters
+        .get("LoyaltyCounter")
+        .copied()
+        .unwrap_or(0)
+}
+
+/// Like `drive_through_blocks`, but each attacker is declared at an EXPLICIT
+/// target (a planeswalker or a player proxy), not the default player proxy.
+fn drive_through_blocks_at(
+    state: &mut GameState,
+    attacks: Vec<(ObjectId, ObjectId)>,
+    blocks: Vec<(ObjectId, ObjectId)>,
+) -> StepOutcome {
+    let (_t, stop) = pass_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    state.submit_decision(Decision::Attackers(attacks)).unwrap();
+    let (_t, stop) = pass_to_stop(state);
+    match stop {
+        StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+            state.submit_decision(Decision::Blocks(blocks)).unwrap();
+            let (_t, stop) = pass_to_stop(state);
+            stop
+        }
+        other => other,
+    }
+}
+
+/// [CR#120.3c,510.1b]: an unblocked 3/3 attacking a 4-loyalty planeswalker
+/// removes 3 loyalty counters (4 → 1); the defending player's life is untouched
+/// (damage to a planeswalker is not life loss). One recipient → forced, no
+/// assignment decision.
+#[test]
+fn unblocked_attacker_removes_loyalty_from_attacked_planeswalker() {
+    let mut state = two_player_decks(
+        "Centaur Courser",
+        "Planeswalker two loyalty abilities",
+        7,
+        20,
+    );
+    let attacker = force_named_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
+    let pw = force_named_onto_battlefield(
+        &mut state,
+        PlayerId(1),
+        "Planeswalker two loyalty abilities",
+    );
+    set_loyalty(&mut state, pw, 4);
+
+    assert_eq!(state.players[1].life, 20);
+    let stop = drive_through_blocks_at(&mut state, vec![(attacker, pw)], vec![]);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "unblocked → one recipient → forced, no decision: {stop:?}"
+    );
+    assert_eq!(
+        loyalty(&state, pw),
+        1,
+        "the 3/3 removed 3 loyalty counters (4 → 1, [CR#120.3c])"
+    );
+    assert_eq!(
+        state.players[1].life, 20,
+        "damage to the planeswalker never touches the defending player ([CR#120.3c])"
+    );
+    assert!(
+        on_battlefield(&state, pw),
+        "1 loyalty remains → the planeswalker survives"
+    );
+}
+
+/// [CR#120.3c,704.5i]: a 3-loyalty planeswalker taking 3 combat damage drops to
+/// 0 loyalty counters and is put into its owner's graveyard by the 0-loyalty
+/// state-based action — observed end-to-end.
+#[test]
+fn combat_damage_to_zero_loyalty_sends_planeswalker_to_graveyard() {
+    let mut state = two_player_decks(
+        "Centaur Courser",
+        "Planeswalker two loyalty abilities",
+        7,
+        20,
+    );
+    let attacker = force_named_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
+    let pw = force_named_onto_battlefield(
+        &mut state,
+        PlayerId(1),
+        "Planeswalker two loyalty abilities",
+    );
+    set_loyalty(&mut state, pw, 3);
+
+    drive_through_blocks_at(&mut state, vec![(attacker, pw)], vec![]);
+    assert!(
+        !on_battlefield(&state, pw),
+        "0 loyalty → the SBA put the planeswalker into the graveyard ([CR#704.5i])"
+    );
+    assert!(
+        state.zones.graveyards[1].iter().any(|&o| is_card(
+            &state,
+            o,
+            "Planeswalker two loyalty abilities"
+        )),
+        "the planeswalker is in its owner's graveyard (reminted on the zone change, [CR#704.5i])"
+    );
+    assert_eq!(
+        state.players[1].life, 20,
+        "the defending player took no damage from the planeswalker attack"
+    );
+}
+
+/// [CR#510.1c]: a blocked attacker deals its damage to the BLOCKER, not to the
+/// planeswalker it was declared against — the planeswalker is untouched.
+#[test]
+fn blocked_attacker_deals_to_blocker_not_the_declared_planeswalker() {
+    let mut state = two_player_mixed(
+        deck(&card("Centaur Courser"), 20),
+        [
+            deck(&card("Planeswalker two loyalty abilities"), 1),
+            deck(&card("Grizzly Bears"), 19),
+        ]
+        .concat(),
+        7,
+    );
+    let attacker = force_named_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
+    let blocker = force_named_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let pw = force_named_onto_battlefield(
+        &mut state,
+        PlayerId(1),
+        "Planeswalker two loyalty abilities",
+    );
+    set_loyalty(&mut state, pw, 4);
+
+    let stop = drive_through_blocks_at(&mut state, vec![(attacker, pw)], vec![(blocker, attacker)]);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "one blocker, no trample → forced: {stop:?}"
+    );
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took the 3/3's 3 and dies"
+    );
+    assert_eq!(
+        loyalty(&state, pw),
+        4,
+        "the planeswalker it was declared against is untouched ([CR#510.1c])"
+    );
+    assert!(on_battlefield(&state, pw));
+}
+
+/// [CR#510.1b]: an unblocked attacker whose planeswalker has LEFT the
+/// battlefield before the combat-damage step "isn't attacking anything" and
+/// assigns NO combat damage — it does NOT fall through to the defending player.
+#[test]
+fn unblocked_attacker_whose_planeswalker_left_deals_no_damage() {
+    let mut state = two_player_decks(
+        "Centaur Courser",
+        "Planeswalker two loyalty abilities",
+        7,
+        20,
+    );
+    let attacker = force_named_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
+    let pw = force_named_onto_battlefield(
+        &mut state,
+        PlayerId(1),
+        "Planeswalker two loyalty abilities",
+    );
+    set_loyalty(&mut state, pw, 4);
+
+    // Declare the 3/3 attacking the planeswalker.
+    let (_t, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+        panic!("expected DeclareAttackers, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Attackers(vec![(attacker, pw)]))
+        .unwrap();
+
+    // The planeswalker leaves the battlefield BEFORE combat damage (moved to its
+    // owner's graveyard) — mimicking a removal spell that resolved first.
+    state.zones.battlefield.retain(|&o| o != pw);
+    state.objects.obj_mut(pw).zone = Some(Zone::Graveyard);
+    state.zones.graveyards[1].push(pw);
+
+    // Drive through the (empty) blockers step to just past the damage step.
+    let (_t, stop) = pass_to_stop(&mut state);
+    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) = stop {
+        state.submit_decision(Decision::Blocks(vec![])).unwrap();
+        let _ = pass_to_stop(&mut state);
+    }
+
+    assert!(
+        !on_battlefield(&state, pw),
+        "the planeswalker left the battlefield before damage"
+    );
+    assert_eq!(
+        state.players[1].life, 20,
+        "the attacker isn't attacking anything → it assigns NO combat damage ([CR#510.1b])"
+    );
+    assert!(
+        on_battlefield(&state, attacker),
+        "the unblocked attacker dealt nothing and survives"
+    );
+}
+
+/// Regression ([CR#510.1b]): declaring the attacker at the DEFENDING PLAYER
+/// (with a planeswalker also on the battlefield) still causes life loss, and
+/// the untargeted planeswalker is untouched — routing follows the declared
+/// target.
+#[test]
+fn attacking_the_player_still_causes_life_loss_with_a_planeswalker_present() {
+    let mut state = two_player_decks(
+        "Centaur Courser",
+        "Planeswalker two loyalty abilities",
+        7,
+        20,
+    );
+    let attacker = force_named_onto_battlefield(&mut state, PlayerId(0), "Centaur Courser");
+    let pw = force_named_onto_battlefield(
+        &mut state,
+        PlayerId(1),
+        "Planeswalker two loyalty abilities",
+    );
+    set_loyalty(&mut state, pw, 4);
+    let player_proxy = state.players[1].object;
+
+    let stop = drive_through_blocks_at(&mut state, vec![(attacker, player_proxy)], vec![]);
+    assert!(
+        !matches!(
+            stop,
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+        ),
+        "unblocked at the player → forced: {stop:?}"
+    );
+    assert_eq!(
+        state.players[1].life, 17,
+        "the 3/3 dealt 3 to the defending player (20 → 17, [CR#510.1b])"
+    );
+    assert_eq!(
+        loyalty(&state, pw),
+        4,
+        "the untargeted planeswalker is untouched"
+    );
+}
+
+/// [CR#702.19b,702.19f]: a blocked 4/4 trampler attacking a planeswalker spills
+/// its excess (over the blocker's lethal) to the PLANESWALKER — loyalty removed
+/// — never to the defending player. Lethal-before-spill is enforced against the
+/// planeswalker just as it is against a player.
+#[test]
+fn blocked_trampler_spills_excess_to_the_planeswalker_not_the_player() {
+    let mut state = two_player_mixed(
+        deck(&card("Fangren Hunter"), 20),
+        [
+            deck(&card("Planeswalker two loyalty abilities"), 1),
+            deck(&card("Grizzly Bears"), 19),
+        ]
+        .concat(),
+        7,
+    );
+    let attacker = force_named_onto_battlefield(&mut state, PlayerId(0), "Fangren Hunter");
+    let blocker = force_named_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let pw = force_named_onto_battlefield(
+        &mut state,
+        PlayerId(1),
+        "Planeswalker two loyalty abilities",
+    );
+    set_loyalty(&mut state, pw, 5);
+    let player_proxy = state.players[1].object;
+    assert!(
+        has_keyword(&state.layers(), attacker, &KeywordAbility::Trample),
+        "pre-condition: Fangren Hunter carries Keyword(Trample)"
+    );
+
+    let stop = drive_through_blocks_at(&mut state, vec![(attacker, pw)], vec![(blocker, attacker)]);
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
+        source, recipients, ..
+    }) = stop
+    else {
+        panic!("expected an AssignCombatDamage decision for the blocked trampler, got {stop:?}");
+    };
+    assert_eq!(source, attacker);
+    assert!(
+        recipients.contains(&blocker) && recipients.contains(&pw) && recipients.len() == 2,
+        "recipients are the live blocker and the attacked planeswalker ([CR#702.19b]): {recipients:?}"
+    );
+    assert!(
+        !recipients.contains(&player_proxy),
+        "the defending player is never a recipient — plain trample spills to the planeswalker ([CR#702.19f])"
+    );
+
+    // [CR#702.19b]: spilling to the planeswalker while the blocker is below
+    // lethal (1 < 2) is rejected — the same lethal-first rule as for a player.
+    assert!(
+        state
+            .submit_decision(Decision::Assignment(vec![(blocker, 1), (pw, 3)]))
+            .is_err(),
+        "each blocker must be assigned lethal before the planeswalker ([CR#702.19b])"
+    );
+
+    // Lethal 2 to the blocker, excess 2 to the planeswalker.
+    let (_t, _stop) = pass_to_stop_after(
+        &mut state,
+        Decision::Assignment(vec![(blocker, 2), (pw, 2)]),
+    );
+    assert!(
+        !on_battlefield(&state, blocker),
+        "the 2/2 blocker took lethal 2 and is destroyed"
+    );
+    assert_eq!(
+        loyalty(&state, pw),
+        3,
+        "the trampler spilled its excess 2 to the planeswalker (5 → 3, [CR#702.19f])"
+    );
+    assert_eq!(
+        state.players[1].life, 20,
+        "the defending player took nothing — trample never spills past the planeswalker ([CR#702.19f])"
+    );
+    assert!(
+        on_battlefield(&state, pw),
+        "3 loyalty remains → the planeswalker survives"
+    );
+}
+
 // --- first strike + double strike ([CR#510.4]) -------------------------------
 
 /// [CR#510.4], [CR#702.7]: Youthful Knight (a 2/1 first-striker) attacks,

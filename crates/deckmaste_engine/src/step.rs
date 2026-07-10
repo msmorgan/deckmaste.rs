@@ -7,6 +7,7 @@ use deckmaste_core::CombatStep;
 use deckmaste_core::EndingStep;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::PhaseStep;
+use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use rand::seq::SliceRandom;
@@ -333,13 +334,7 @@ impl GameState {
                 amount,
                 ..
             } => {
-                let counters = &mut self.objects.obj_mut(object).counters;
-                if let Some(have) = counters.get_mut(kind) {
-                    *have = have.saturating_sub(amount);
-                    if *have == 0 {
-                        counters.remove(kind);
-                    }
-                }
+                self.remove_counters_clamped(object, kind, amount);
                 event
             }
             GameEvent::Untapped(id) => {
@@ -506,6 +501,20 @@ impl GameState {
                     ObjectSource::Player(p) => {
                         self.player_mut(p).life -=
                             deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
+                    }
+                    ObjectSource::Card(_)
+                        if view.get(target).card_types.contains(&Type::Planeswalker) =>
+                    {
+                        // [CR#120.3c,306.8]: damage to a planeswalker removes that
+                        // many loyalty counters instead of marking damage; it does
+                        // NOT mark the permanent ([CR#120.5]) — the 0-loyalty SBA
+                        // ([CR#704.5i]) handles death. Removal clamps at 0 (reusing
+                        // the shared counter-removal path).
+                        self.remove_counters_clamped(
+                            target,
+                            &deckmaste_core::Ident::from("LoyaltyCounter"),
+                            amount,
+                        );
                     }
                     ObjectSource::Card(_) => {
                         // [CR#120.3,702.2c]: mark the damage tagged with the
@@ -1955,30 +1964,42 @@ impl GameState {
                 crate::combat::deals_regular_strike
             };
 
-        // Each attacker is a source. Recipients: unblocked → the defending
-        // player's proxy ([CR#510.1b]); blocked → its live blockers
+        // Each attacker is a source. Recipients route to WHAT IT IS ATTACKING
+        // ([CR#508.1b]) — a defending player's proxy or a planeswalker they
+        // control — not a fixed defender. Unblocked, target live → that target
+        // ([CR#510.1b]); unblocked, target gone → NO damage (the attacker
+        // "isn't attacking anything", [CR#510.1b]); blocked → its live blockers
         // ([CR#510.1c]); blocked-but-no-live-blockers → nothing (plain block,
         // no trample). Trample ([CR#702.19]) widens the blocked cases: a blocked
-        // trampler's recipients are its live blockers followed by the defending
-        // player's proxy ([CR#702.19b]), and with no live blockers all of its
-        // damage goes to the player ([CR#702.19d]).
-        let defender_proxy = self
-            .player(self.next_live_after(self.turn.active_player))
-            .object;
+        // trampler's recipients are its live blockers followed by the thing it's
+        // attacking ([CR#702.19b]) — spilling to that planeswalker, NEVER past
+        // it to the defending player ([CR#702.19f]; "trample over planeswalkers",
+        // [CR#702.19c], is a separate keyword not modeled here).
         for &attacker in self.combat.attackers() {
             if !deals_this_step(&view, attacker) {
                 continue; // [CR#510.4]: not dealing in this step.
             }
+            // `target_of` is `None` only for an undeclared attacker (unreachable
+            // in this loop); a live target still on-side is validated below.
+            let target = self.combat.target_of(attacker);
             let recipients: Vec<ObjectId> = if self.combat.is_blocked(attacker) {
                 let mut blockers = self.combat.blockers_of(attacker).to_vec();
-                if crate::combat::has_keyword(&view, attacker, &KeywordAbility::Trample) {
-                    // [CR#702.19b]: lethal to the blockers, excess to the player;
-                    // [CR#702.19d]: no live blockers → everything to the player.
-                    blockers.push(defender_proxy);
+                if crate::combat::has_keyword(&view, attacker, &KeywordAbility::Trample)
+                    && let Some(t) = target
+                    && self.combat_target_live(&view, t)
+                {
+                    // [CR#702.19b]: lethal to the blockers, excess to the thing
+                    // it's attacking; a gone target takes no spill ([CR#510.1b]).
+                    blockers.push(t);
                 }
                 blockers
             } else {
-                vec![defender_proxy]
+                // [CR#510.1b]: unblocked → all damage to what it's attacking,
+                // but only while that target is still there.
+                match target {
+                    Some(t) if self.combat_target_live(&view, t) => vec![t],
+                    _ => Vec::new(),
+                }
             };
             Self::assign_source(&view, attacker, &recipients, &mut buffer, &mut queue);
         }
@@ -1998,6 +2019,46 @@ impl GameState {
         // Surface the first deciding source, or deal the batch now if none.
         self.open_next_assignment();
         Progress::CombatDamageOpened { deciding }
+    }
+
+    /// Removes up to `amount` counters of `kind` from `object`, clamping at 0
+    /// (removing more than are present leaves none) and dropping the key at 0
+    /// so an absent kind reads as zero everywhere. Shared by the
+    /// `CounterRemoved` apply and planeswalker damage-to-loyalty
+    /// ([CR#120.3c]).
+    fn remove_counters_clamped(
+        &mut self,
+        object: ObjectId,
+        kind: &deckmaste_core::Ident,
+        amount: Uint,
+    ) {
+        let counters = &mut self.objects.obj_mut(object).counters;
+        if let Some(have) = counters.get_mut(kind) {
+            *have = have.saturating_sub(amount);
+            if *have == 0 {
+                counters.remove(kind);
+            }
+        }
+    }
+
+    /// [CR#508.1b,510.1b]: whether `target` is still a legal recipient of the
+    /// attack it was declared against. A defending player's proxy always is; a
+    /// planeswalker only while it is still on the battlefield under a defending
+    /// player's control. A target that fails this "isn't attacking anything"
+    /// ([CR#510.1b]), so its attacker assigns no combat damage. (Two-player
+    /// only; multi-defender is a separate ticket. Removal-from-combat
+    /// bookkeeping is a later task — this is the assignment-time safety net.)
+    fn combat_target_live(&self, view: &crate::layer::LayeredView, target: ObjectId) -> bool {
+        match self.objects.get(target).map(|o| o.source) {
+            Some(ObjectSource::Player(_)) => true,
+            Some(ObjectSource::Card(_)) => {
+                let defender = self.next_live_after(self.turn.active_player);
+                self.zones.battlefield.contains(&target)
+                    && view.controller(target) == defender
+                    && view.get(target).card_types.contains(&Type::Planeswalker)
+            }
+            None => false,
+        }
     }
 
     /// [CR#511.3]: removal from combat, run as the End of Combat step *ends*

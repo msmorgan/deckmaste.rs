@@ -9,7 +9,6 @@ use deckmaste_core::Uint;
 use deckmaste_core::Visibility;
 
 use crate::object::ObjectId;
-use crate::object::ObjectSource;
 use crate::player::PlayerId;
 
 /// A pre-game decision ([CR#103]) — surfaced before turn one.
@@ -1492,9 +1491,9 @@ impl GameState {
     /// source. Validates that the amounts sum to the source's power and every
     /// named target is one of its recipients. Ordinary (non-trample) division
     /// is free — *any* such split is legal ([CR#510.1c]). For a **trample**
-    /// source whose recipients include the defending player's proxy,
-    /// [CR#702.19b] additionally requires that the player be assigned
-    /// damage only once every blocker recipient has at least lethal —
+    /// source, [CR#702.19b] additionally requires that the player or
+    /// planeswalker it's attacking be assigned damage only once every blocker
+    /// recipient has at least lethal —
     /// `lethal` is 1 when the source has deathtouch ([CR#702.2c]) and the
     /// blocker's toughness otherwise (less any damage already marked). On
     /// success it appends one `DamageDealt` per nonzero amount to the
@@ -1506,8 +1505,8 @@ impl GameState {
     ///
     /// `Illegal` when the amounts don't sum to the source's power, name a
     /// creature that isn't one of the source's recipients, repeat a recipient,
-    /// or (trample) assign the player while a blocker recipient is below
-    /// lethal.
+    /// or (trample) assign the player/planeswalker it's attacking while a
+    /// blocker recipient is below lethal.
     ///
     /// # Panics
     ///
@@ -1551,31 +1550,31 @@ impl GameState {
                 reason: "each recipient may appear at most once in a damage assignment".into(),
             });
         }
-        // [CR#702.19b]: a trample source may assign damage to the defending
-        // player only after every blocker recipient has lethal. Player proxies
-        // among the recipients are identified by their `ObjectSource::Player`.
+        // [CR#702.19b]: a trample source may assign damage to what it's
+        // attacking (a player OR a planeswalker) only after every blocker
+        // recipient has lethal. The spill target is whatever recipient is NOT a
+        // blocker of this source — so this holds uniformly whether the source is
+        // trampling over a player proxy or a planeswalker ([CR#702.19f]).
         let view = self.layers();
         if crate::combat::has_keyword(&view, source, &KeywordAbility::Trample) {
+            let blockers = self.combat.blockers_of(source);
             let assigned = |id: ObjectId| {
                 amounts
                     .iter()
                     .find(|&&(t, _)| t == id)
                     .map_or(0, |&(_, n)| n)
             };
-            let to_player: Uint = recipients
+            let to_spill: Uint = recipients
                 .iter()
-                .filter(|&&r| matches!(self.objects.obj(r).source, ObjectSource::Player(_)))
+                .filter(|&r| !blockers.contains(r))
                 .map(|&r| assigned(r))
                 .sum();
-            if to_player > 0 {
-                for &r in recipients {
-                    if matches!(self.objects.obj(r).source, ObjectSource::Player(_)) {
-                        continue; // the player, not a blocker
-                    }
-                    if assigned(r) < self.lethal_for(&view, source, r) {
+            if to_spill > 0 {
+                for &b in blockers {
+                    if assigned(b) < self.lethal_for(&view, source, b) {
                         return Err(DecisionError::Illegal {
                             reason: "trample: each blocker must be assigned lethal before the \
-                                     defending player ([CR#702.19b])"
+                                     player or planeswalker it's attacking ([CR#702.19b])"
                                 .into(),
                         });
                     }
