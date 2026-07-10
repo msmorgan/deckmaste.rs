@@ -31,8 +31,8 @@ impl GameState {
         entering: crate::object::ObjectId,
     ) -> EnterStatus {
         let mut status = EnterStatus::default();
-        for ability in crate::derive::abilities_of_source(self, source) {
-            if let Ability::Static(s) = &ability
+        for ability in self.enters_fold_abilities(source, entering) {
+            if let Ability::Static(s) = ability.peel_innate()
                 && let StaticEffect::Replacement(replacement) = s
                 && let Replacement::Also { would, also } = look_through_replacement(replacement)
                 && would_is_self_enter(would)
@@ -41,6 +41,31 @@ impl GameState {
             }
         }
         status
+    }
+
+    /// The abilities the enters-status fold scans ([Task 2]): `source`'s
+    /// printed abilities plus any `ConferralRule` conferrals whose `scope`
+    /// matches `entering` (`crate::matches`, the same predicate-scope matcher
+    /// `global_sba_rules` uses) — a predicate-scoped augment-on-enter
+    /// replacement (`Also { would: ThisEnters, .. }`) applies exactly like a
+    /// printed one. A conferred ability arrives `Ability::Innate`-wrapped
+    /// ([`Property::conferred_ability`]), so `as_enters_status` peels
+    /// `Innate` on every ability from this list before matching the
+    /// `Static(Replacement(Also {..}))` shape — a no-op for the printed ones,
+    /// which are never wrapped.
+    fn enters_fold_abilities(
+        &self,
+        source: ObjectSource,
+        entering: crate::object::ObjectId,
+    ) -> Vec<Ability> {
+        let mut abilities = crate::derive::abilities_of_source(self, source);
+        abilities.extend(
+            self.conferral_rules
+                .iter()
+                .filter(|rule| crate::matches(self, entering, &rule.scope))
+                .filter_map(|rule| rule.confer.conferred_ability()),
+        );
+        abilities
     }
 
     /// Whether `source` carries an enters-attached self-replacement
@@ -598,6 +623,89 @@ mod tests {
         assert!(
             !state.objects.obj(land).tapped,
             "an other land is present → unless-condition true → enters untapped"
+        );
+    }
+
+    /// [Task 2]: a predicate-scoped `ConferralRule { scope: Type(Planeswalker),
+    /// confer: Property::Ability(Static(Replacement(Also { would: ThisEnters,
+    /// also: PutCounters(This, LoyaltyCounter, 3) }))) }` folds into
+    /// `as_enters_status` exactly like a PRINTED self-replacement does
+    /// ([CR#122.6a,614.1c]) — the card carries NO abilities of its own; the
+    /// enters-with-counters behavior comes entirely from the conferral rule
+    /// matching the entering object's type. `Literal(3)` here (the
+    /// printed-loyalty read is a later task).
+    #[test]
+    fn conferred_enters_with_counters_by_type() {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::ConferralRule;
+        use deckmaste_core::Count;
+        use deckmaste_core::Property;
+
+        let mut state = game();
+        state.conferral_rules = vec![ConferralRule {
+            scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Planeswalker)),
+            confer: Property::Ability(Box::new(Ability::Static(StaticEffect::Replacement(
+                Box::new(Replacement::Also {
+                    would: EventFilter::ZoneChange {
+                        what: Predicate::Ref(Reference::This),
+                        from: None,
+                        to: Some(Zone::Battlefield),
+                        cause: None,
+                    },
+                    also: OneShotEffect::Act(Action::By(
+                        Reference::You,
+                        PlayerAction::PutCounters(
+                            Reference::This,
+                            "LoyaltyCounter".into(),
+                            Count::Literal(3),
+                        ),
+                    )),
+                }),
+            )))),
+        }];
+
+        let card = Card::Normal(CardFace {
+            name: "Test Walker".into(),
+            types: vec![Type::Planeswalker],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let hand_id =
+            state
+                .objects
+                .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
+        state.zones.hands[PlayerId(0).index()].push(hand_id);
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+            GameEvent::ZoneWillChange {
+                object: hand_id,
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))]);
+        for _ in 0..10 {
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+        let entered = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(card_id))
+            .expect("the planeswalker entered the battlefield");
+        assert_eq!(
+            state
+                .objects
+                .obj(entered)
+                .counters
+                .get(&deckmaste_core::Ident::from("LoyaltyCounter"))
+                .copied(),
+            Some(3),
+            "the conferred replacement put 3 LoyaltyCounters on entry"
         );
     }
 }
