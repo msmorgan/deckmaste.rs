@@ -1,0 +1,32 @@
+// The canon planeswalker proof ([CR#306.5b,606.4]): enters with loyalty (the
+// data-driven enters-with-loyalty conferral), three loyalty abilities activated
+// at sorcery speed once per turn (`LoyaltyPlus`/`LoyaltyMinus`, whose `+N`/`−N`
+// cost is a `PutCounters`/`RemoveCounters` of the `LoyaltyCounter` on `This`,
+// [CR#606.4]), and it dies to a state-based action at 0 loyalty ([CR#704.5i]).
+// "[+2]: Each player draws a card." — the `Each` player iterator binding each
+// as `It` under `By` (cf. Flame Rift). "[−1]: Target player draws a card." and
+// "[−10]: Target player mills twenty cards." — the announced player target read
+// back as `It` (cf. Tome Scour).
+Normal(
+  name: "Jace Beleren",
+  mana_cost: [
+    Generic(1),
+    Blue,
+    Blue,
+  ],
+  supertypes: [
+    Legendary,
+  ],
+  types: [
+    Planeswalker,
+  ],
+  subtypes: [
+    Jace,
+  ],
+  abilities: [
+    LoyaltyPlus(n: 2, effect: Each(binder: Existing(SelectAll(Player)), effect: By(It, Draw(1)))),
+    LoyaltyMinus(n: 1, effect: Targeted(targets: [TargetOne(Player)], effect: By(It, Draw(1)))),
+    LoyaltyMinus(n: 10, effect: Targeted(targets: [TargetOne(Player)], effect: By(It, Mills(20)))),
+  ],
+  loyalty: 3,
+)

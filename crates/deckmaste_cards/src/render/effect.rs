@@ -1300,6 +1300,33 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
 /// is a distinct function rather than a reuse of `additional_payment`: that
 /// one's all-symbol case reads "pay {cost}", which is wrong here — an
 /// activation cost line never says "pay").
+/// The bracketed loyalty-cost prefix for a planeswalker loyalty ability's cost
+/// verb ([CR#606.4], "the cost to activate a loyalty ability is to put on or
+/// remove that many loyalty counters"): `PutCounters(This, LoyaltyCounter, n)`
+/// prints `[+n]` (or `[0]` when `n == 0` — a `LoyaltyZero` ability), and
+/// `RemoveCounters(This, LoyaltyCounter, n)` prints `[−n]` (the `−` is U+2212
+/// MINUS SIGN, the glyph the printed card uses, not an ASCII hyphen). Keyed on
+/// the `LoyaltyCounter` name and the `This` subject, mirroring the engine's
+/// `is_loyalty_ability` discriminator — any other counter cost (a different
+/// counter, or one on a non-`This` subject) returns `None` and renders through
+/// the generic `player_action` clause. Only a bare literal count brackets; a
+/// dynamic `−X` loyalty cost (out of scope) falls back to the generic render.
+fn loyalty_cost_prefix(pa: &PlayerAction) -> Option<String> {
+    let is_loyalty = |c: &deckmaste_core::CounterRef| c.as_str() == "LoyaltyCounter";
+    match pa {
+        PlayerAction::PutCounters(Reference::This, counter, count) if is_loyalty(counter) => {
+            match count.literal_value()? {
+                0 => Some("[0]".to_owned()),
+                n => Some(format!("[+{n}]")),
+            }
+        }
+        PlayerAction::RemoveCounters(Reference::This, counter, count) if is_loyalty(counter) => {
+            Some(format!("[\u{2212}{}]", count.literal_value()?))
+        }
+        _ => None,
+    }
+}
+
 pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> String {
     use deckmaste_core::CostComponent;
 
@@ -1324,11 +1351,19 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
             | CostComponent::TapTotal { .. } => symbol_run.push(component.clone()),
             CostComponent::Do(pa) => {
                 flush_symbol_run(&mut symbol_run, &mut parts);
-                let phrase = trim_period(&player_action(pa, ctx));
-                // [CR#602.1]'s printed convention capitalizes each verb-cost
-                // segment ("{T}, Sacrifice a Goblin: ..."), unlike a body
-                // verb clause joined mid-sentence.
-                parts.push(capitalize_first(&phrase));
+                // A planeswalker loyalty ability's cost is a `PutCounters`/
+                // `RemoveCounters` of the `LoyaltyCounter` on `This`
+                // ([CR#606.4]); it prints as the bracketed `[+N]`/`[−N]`/`[0]`
+                // prefix, not the generic "put/remove … counter" clause.
+                if let Some(prefix) = loyalty_cost_prefix(pa) {
+                    parts.push(prefix);
+                } else {
+                    let phrase = trim_period(&player_action(pa, ctx));
+                    // [CR#602.1]'s printed convention capitalizes each verb-cost
+                    // segment ("{T}, Sacrifice a Goblin: ..."), unlike a body
+                    // verb clause joined mid-sentence.
+                    parts.push(capitalize_first(&phrase));
+                }
             }
             // The same choose-then-pay reader `additional_payment` uses:
             // bind the binder's noun phrase as the body verbs' `That`
@@ -1843,6 +1878,78 @@ mod tests {
         assert!(
             rendered.contains("unless that player pays {1}"),
             "third-person MustPay: {rendered}"
+        );
+    }
+
+    /// A planeswalker loyalty ability's activation cost ([CR#606.4]) prints as
+    /// the bracketed prefix `[+N]` / `[−N]` / `[0]` (the `−` is U+2212 MINUS
+    /// SIGN), NOT the generic "put/remove a loyalty counter on ~" clause: the
+    /// cost verb is `Do(PutCounters/RemoveCounters(This, LoyaltyCounter, N))`.
+    /// A non-loyalty counter cost (or one on a non-`This` subject) keeps
+    /// rendering generically — the loyalty prefix must not over-broaden the
+    /// match.
+    #[test]
+    fn loyalty_cost_renders_bracketed_prefix() {
+        use deckmaste_core::CostComponent;
+        use deckmaste_core::CounterRef;
+        use deckmaste_core::PlayerAction;
+
+        let ctx = Ctx {
+            subject: "Jace Beleren",
+            targets: &[],
+            that: None,
+        };
+        let cost = |pa: PlayerAction| super::activated_cost(&[CostComponent::do_(pa)], &ctx);
+        let loyalty = || CounterRef::from("LoyaltyCounter");
+
+        // [+2]: PutCounters(This, LoyaltyCounter, 2)
+        assert_eq!(
+            cost(PlayerAction::PutCounters(
+                Reference::This,
+                loyalty(),
+                Count::Literal(2),
+            )),
+            "[+2]",
+        );
+        // [−1]: RemoveCounters(This, LoyaltyCounter, 1) — U+2212
+        assert_eq!(
+            cost(PlayerAction::RemoveCounters(
+                Reference::This,
+                loyalty(),
+                Count::Literal(1),
+            )),
+            "[\u{2212}1]",
+        );
+        // [−10]: RemoveCounters(This, LoyaltyCounter, 10) — U+2212
+        assert_eq!(
+            cost(PlayerAction::RemoveCounters(
+                Reference::This,
+                loyalty(),
+                Count::Literal(10),
+            )),
+            "[\u{2212}10]",
+        );
+        // [0]: PutCounters(This, LoyaltyCounter, 0) — a zero-cost loyalty
+        // ability (LoyaltyZero) prints "[0]", not "[+0]".
+        assert_eq!(
+            cost(PlayerAction::PutCounters(
+                Reference::This,
+                loyalty(),
+                Count::Literal(0),
+            )),
+            "[0]",
+        );
+
+        // Regression: a NON-loyalty counter cost still renders generically —
+        // the loyalty prefix must key on the "LoyaltyCounter" name.
+        let generic = cost(PlayerAction::PutCounters(
+            Reference::This,
+            CounterRef::from("P1P1Counter"),
+            Count::Literal(1),
+        ));
+        assert!(
+            !generic.starts_with('['),
+            "non-loyalty counter cost must not get a bracketed loyalty prefix: {generic}"
         );
     }
 
