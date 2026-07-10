@@ -1,0 +1,16 @@
+// "LeavesBattlefield" = a permanent moves from the battlefield to ANY other
+// zone ([CR#603.6c]: leaves-the-battlefield abilities trigger when a
+// permanent moves from the battlefield to another zone; written as, but not
+// limited to, "When [this object] leaves the battlefield, ..."). The
+// destination is left unconstrained (`to` omitted) — `Dies`/`Destroyed`/
+// `Sacrificed` narrow the same `ZoneChange` shape to the graveyard-specific
+// view. See also [CR#603.10] (look-back-in-time triggers).
+// Usage: LeavesBattlefield(what) — e.g. LeavesBattlefield(Type(Creature)),
+// LeavesBattlefield(Ref(This)).
+(
+    name: "LeavesBattlefield",
+    template: "${0} leaves the battlefield",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: ZoneChange(what: Param(0), from: Battlefield),
+)

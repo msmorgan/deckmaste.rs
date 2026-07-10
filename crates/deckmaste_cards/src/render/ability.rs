@@ -261,6 +261,21 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
             to: Some(Zone::Graveyard),
             ..
         } => (lead_for(what), format!("{} dies", subject_of(what, ctx))),
+        // Leaves-the-battlefield ([CR#603.6c]): the GENERAL zone-change-from-
+        // battlefield event, any destination (`to` omitted) — the
+        // `LeavesBattlefield`/`ThisLeavesBattlefield` macros' expansion.
+        // Structurally disjoint from the "dies" arm above (that arm requires
+        // `to: Some(Graveyard)`, this one requires `to: None`), so a "dies"
+        // shape is never rendered as "leaves the battlefield" or vice versa.
+        EventFilter::ZoneChange {
+            what,
+            from: Some(Zone::Battlefield),
+            to: None,
+            ..
+        } => (
+            lead_for(what),
+            format!("{} leaves the battlefield", subject_of(what, ctx)),
+        ),
         EventFilter::StateBecame { of, becomes } => (
             "Whenever",
             format!("{} becomes {}", subject_of(of, ctx), state_word(becomes)),
@@ -1378,6 +1393,42 @@ mod tests {
                 &ctx
             ),
             ("Whenever", "an opponent is dealt damage".to_string())
+        );
+    }
+
+    /// `EventFilter::ZoneChange { from: Some(Battlefield), to: None, .. }` —
+    /// the `LeavesBattlefield`/`ThisLeavesBattlefield` macros' expansion
+    /// ([CR#603.6c]). Round-trips the self ("When" lead, mirrors `ThisDies`'s
+    /// render) and the bare object-type filtered subject ("Whenever a
+    /// creature leaves the battlefield", mirrors `Dies`'s). Structurally
+    /// distinct from the "dies" shape (`to: Some(Graveyard)`) — never
+    /// collides with `dies_event_clause`-style renders.
+    #[test]
+    fn leaves_battlefield_event_clause_renders_self_and_filtered_subject() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let event = |what| EventFilter::ZoneChange {
+            what,
+            from: Some(Zone::Battlefield),
+            to: None,
+            cause: None,
+        };
+
+        assert_eq!(
+            event_clause(&event(Predicate::Ref(Reference::This)), &ctx),
+            ("When", "Test leaves the battlefield".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &event(Predicate::Characteristic(CharacteristicPredicate::Type(
+                    Type::Creature
+                ))),
+                &ctx
+            ),
+            ("Whenever", "a creature leaves the battlefield".to_string())
         );
     }
 

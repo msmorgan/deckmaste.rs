@@ -1,0 +1,5 @@
+(
+    name: "ThisLeavesBattlefield",
+    kinds: [EventFilter],
+    body: LeavesBattlefield(Ref(This)),
+)

@@ -2,7 +2,8 @@
 //! the bare `Triggered(...)` ability RON. A triggered ability is written as
 //! "[trigger condition], [effect]" divided by the trigger word [CR#603.1]. The
 //! effect grammar is shared via [`crate::parsers::effect`]; the event grammar
-//! (ETB / dies; self `~` or any [`crate::parsers::filter`] subject) lives here.
+//! (ETB / dies / leaves-the-battlefield; self `~` or any
+//! [`crate::parsers::filter`] subject) lives here.
 
 use crate::parsers::effect::ParsedEffect;
 use crate::parsers::effect::{self};
@@ -122,10 +123,11 @@ fn target_slot_reads(body: &str) -> String {
 }
 
 /// Parses a trigger's event clause (the text between the trigger word and the
-/// comma) into the event RON, or `None`. v1 verbs: ETB, dies, attacks, becomes
-/// tapped/untapped, is dealt damage, gains life, draws, and the "you cast X"
-/// cast trigger family ([`parse_cast_event`]). The state-transition verbs
-/// (enters/dies/attacks/becomes tapped/becomes untapped) take an OBJECT
+/// comma) into the event RON, or `None`. v1 verbs: ETB, dies, leaves the
+/// battlefield, attacks, becomes tapped/untapped, is dealt damage, gains
+/// life, draws, and the "you cast X" cast trigger family
+/// ([`parse_cast_event`]). The state-transition verbs (enters/dies/leaves the
+/// battlefield/attacks/becomes tapped/becomes untapped) take an OBJECT
 /// subject: self (`~`) uses the `This{Verb}` shorthand macro; any other
 /// subject is parsed by the shared [`filter`] grammar and applied to the
 /// event macro — so "a creature you control", "a Goblin", etc. all resolve
@@ -275,6 +277,16 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
         (subject, "Enters")
     } else if let Some(subject) = clause.strip_suffix(" dies") {
         (subject, "Dies")
+    } else if let Some(subject) = clause.strip_suffix(" leaves") {
+        // Leaves-the-battlefield trigger ([CR#603.6c]): "When [this object]
+        // leaves the battlefield, ..." — the GENERAL zone-change-from-
+        // battlefield event (any destination, `to` omitted), of which `Dies`
+        // (to the graveyard specifically) is the narrowed sibling. Distinct
+        // from the `" dies"` arm above by construction: the two suffixes
+        // ("dies" vs "leaves") never overlap on the same clause, so a
+        // "dies" clause is never mis-routed here and vice versa (checked
+        // ahead of this arm anyway, so "dies" always wins first).
+        (subject, "LeavesBattlefield")
     } else if let Some(subject) = clause.strip_suffix(" attacks") {
         (subject, "Attacks")
     } else if let Some(subject) = clause.strip_suffix(" blocks") {
@@ -530,6 +542,60 @@ mod tests {
                 "Triggered(event: Dies(And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), \
                  effect: LoseLife(1))"
             )
+        );
+    }
+
+    #[test]
+    fn leaves_battlefield_self_via_thisleavesbattlefield_macro() {
+        // "When ~ leaves the battlefield, ..." ([CR#603.6c]) — the GENERAL
+        // zone-change-from-battlefield event (any destination; `to` omitted),
+        // via the `ThisLeavesBattlefield` shorthand macro (mirrors `ThisDies`).
+        assert_eq!(
+            trig("When ~ leaves the battlefield, draw a card.").as_deref(),
+            Some("Triggered(event: ThisLeavesBattlefield, effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn leaves_battlefield_filtered_subject() {
+        // "Whenever a creature leaves the battlefield, ..." — a non-`~`
+        // subject parses via the shared filter grammar, same as the
+        // enters/dies/attacks events, over the `LeavesBattlefield` macro.
+        assert_eq!(
+            trig("Whenever a creature leaves the battlefield, draw a card.").as_deref(),
+            Some("Triggered(event: LeavesBattlefield(Creature), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn leaves_battlefield_another_you_control() {
+        // "Whenever another creature you control leaves the battlefield, ..."
+        // — mirrors `dies_another_you_control_aristocrats`: the same
+        // `Not(Ref(This))` + `ControlledBy(Ref(You))` filter, over
+        // `LeavesBattlefield` instead of `Dies`.
+        assert_eq!(
+            trig("Whenever another creature you control leaves the battlefield, you lose 1 life.")
+                .as_deref(),
+            Some(
+                "Triggered(event: LeavesBattlefield(And([Creature, Not(Ref(This)), \
+                 ControlledBy(Ref(You))])), effect: LoseLife(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn leaves_battlefield_does_not_shadow_dies_and_vice_versa() {
+        // The "dies" and "leaves the battlefield" arms match disjoint
+        // clause suffixes ("dies" vs "leaves"), so neither can shadow the
+        // other — "dies" always resolves to the graveyard-specific `Dies`
+        // event, never the general `LeavesBattlefield` event, and vice versa.
+        assert_eq!(
+            trig("When ~ dies, draw a card.").as_deref(),
+            Some("Triggered(event: ThisDies, effect: Draw(1))")
+        );
+        assert_eq!(
+            trig("When ~ leaves the battlefield, draw a card.").as_deref(),
+            Some("Triggered(event: ThisLeavesBattlefield, effect: Draw(1))")
         );
     }
 
