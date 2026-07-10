@@ -943,15 +943,23 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 other => fragment::reference(other, ctx),
             };
             // A stat-derived amount ("equal to the sacrificed creature's
-            // power", Fling) reads a different template than the plain/
-            // dynamic-X forms — "damage EQUAL TO X" up front, not "N
-            // damage ... where X is N" (there is no substituted variable
-            // here at all).
+            // power", Fling; the one-sided "bite" shape's "equal to its
+            // power") reads a different template than the plain/dynamic-X
+            // forms — "damage EQUAL TO X" up front, not "N damage ... where
+            // X is N" (there is no substituted variable here at all).
             if let Count::StatOf(r, stat) = amount {
+                // `This` is the self-possessive pronoun "its" — NOT the
+                // generic `reference(r, ctx) + "'s"` composition, which for
+                // `This` reads `ctx.subject` a second time (e.g. "it") and
+                // would print the ungrammatical "it's power" instead of
+                // "its power".
+                let whose = match r {
+                    Reference::This => "its".to_string(),
+                    other => format!("{}'s", fragment::reference(other, ctx)),
+                };
                 return format!(
-                    "{} deals damage equal to {}'s {} to {}.",
+                    "{} deals damage equal to {whose} {} to {}.",
                     capitalize_first(&dealer),
-                    fragment::reference(r, ctx),
                     stat_word(*stat),
                     fragment::reference(target, ctx),
                 );
@@ -1901,6 +1909,88 @@ mod tests {
         assert_eq!(
             action(&sourced, &ctx),
             "Target creature deals 3 damage to target creature."
+        );
+    }
+
+    /// The one-sided "bite" shape's render round-trip ([CR#120]; `Fight`'s
+    /// [CR#701.14a] reciprocal-less half): `StatOf(This, Power)` prints "…
+    /// equal to its power", faithfully round-tripping
+    /// [`crate::parsers::effect`]'s `deal_damage_bite_equal_to_its_power`
+    /// parse ("~ deals damage equal to its power to target creature." — the
+    /// corpus's actual word order: the variable-amount clause sits between
+    /// "damage" and "to <target>", unlike a literal numeral). Regression for
+    /// the ungrammatical "it's power" a naive `reference(This, ctx) + "'s"`
+    /// composition would print inside a triggered/activated body (ctx
+    /// subject "it").
+    #[test]
+    fn deal_damage_stat_of_this_power_renders_its_power() {
+        use deckmaste_core::Stat;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&target),
+            that: None,
+        };
+        let bite = Action::DealDamage(
+            Reference::This,
+            Count::StatOf(Reference::This, Stat::Power),
+            Reference::It,
+        );
+        assert_eq!(
+            action(&bite, &ctx),
+            "It deals damage equal to its power to target creature."
+        );
+    }
+
+    /// A `This`-power amount is rendered the same possessive at a spell root
+    /// (ctx subject = the card name), never repeating the card's own name a
+    /// second time ("Cinder Shade deals damage equal to its power to X.",
+    /// never "… equal to Cinder Shade's power").
+    #[test]
+    fn deal_damage_stat_of_this_power_at_spell_root() {
+        use deckmaste_core::Stat;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = Ctx {
+            subject: "Cinder Shade",
+            targets: std::slice::from_ref(&target),
+            that: None,
+        };
+        let bite = Action::DealDamage(
+            Reference::This,
+            Count::StatOf(Reference::This, Stat::Power),
+            Reference::It,
+        );
+        assert_eq!(
+            action(&bite, &ctx),
+            "Cinder Shade deals damage equal to its power to target creature."
+        );
+    }
+
+    /// A non-`This` stat reference keeps the generic possessive composition
+    /// (an "equal to <other>'s power" amount, e.g. Fling-style "the sacrificed
+    /// creature's power") — only the `This` case gets the hardcoded "its"
+    /// pronoun. (This pins the non-`This` branch with a `That(Card)` anaphor
+    /// rendering as "the sacrificed creature"; it is representative of that
+    /// shape, not Fling's exact `EventObject`/`Target` encoding.)
+    #[test]
+    fn deal_damage_stat_of_other_reference_keeps_generic_possessive() {
+        use deckmaste_core::Stat;
+
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: Some("the sacrificed creature"),
+        };
+        let other_ref = Action::DealDamage(
+            Reference::This,
+            Count::StatOf(Reference::That(deckmaste_core::Sort::Card), Stat::Power),
+            Reference::EventActor,
+        );
+        assert_eq!(
+            action(&other_ref, &ctx),
+            "It deals damage equal to the sacrificed creature's power to that player."
         );
     }
 

@@ -1292,11 +1292,47 @@ fn graveyard_card_type(subject: &str) -> Option<String> {
 /// `~ deals N damage to <target>.` or `it deals N damage to <target>.` —
 /// "it" case-insensitively, since it opens the clause after a cost colon
 /// ("Sacrifice ~: It deals …") but follows a comma in trigger clauses.
+///
+/// LANDMINE (source anaphor): this resolves the "it deals" subject to `This`
+/// (the carrier) unconditionally. That is correct for a leading/standalone
+/// clause, but "It deals …" as a NON-leading sentence can be a same-effect
+/// anaphor to a previously-declared target ("Target creature you control gets
+/// +1/+0. It deals damage equal to its power to …" — Ambuscade/Clear Shot),
+/// where "it" is the pumped creature, not the carrier. This does not misfire
+/// today only because `parse_sequence` refuses to combine when a non-first
+/// sentence declares its own target, and the remaining anaphor cards have a
+/// non-parsing first sentence. If either gap closes, this fn (esp. the
+/// `StatOf(This, Power)` bite branch, which doubles down on `This` for both
+/// source AND amount) will silently emit a wrong `This`-sourced effect —
+/// add a position-aware guard (decline an anaphoric non-leading "it deals")
+/// before extending it, mirroring the `Ref(It)` idiom in
+/// `combat_restriction_scope`.
 fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
     let body = line
         .strip_prefix("~ deals ")
         .or_else(|| strip_prefix_ci(line, "it deals "))?
         .strip_suffix('.')?;
+    // The one-sided "bite" shape ([CR#120] variable damage amount; `Fight`'s
+    // [CR#701.14a] two-sided shape minus the reciprocal half): "deals damage
+    // equal to its/~'s power to <target>" -> `StatOf(This, Power)` ("its"/
+    // "~'s" both name the SAME self-reference the "~ deals"/"it deals" prefix
+    // already resolved to `This`). Corpus-verified word order: unlike a
+    // literal numeral, which precedes "damage" ("deals 3 damage to X"), the
+    // variable-amount clause here sits BETWEEN "damage" and "to <target>"
+    // ("deals damage equal to its power to X") — so it can't share the
+    // trailing-clause `count::strip` peel below (that peels a clause AFTER
+    // the target, e.g. "damage to X equal to the number of Y"). Checked
+    // first, before the dynamic-count split.
+    if let Some(tail) = body
+        .strip_prefix("damage equal to its power to ")
+        .or_else(|| body.strip_prefix("damage equal to ~'s power to "))
+    {
+        let (targets, selection) = damage_target(tail)?;
+        return Some(ParsedEffect {
+            targets,
+            effect: format!("DealDamage(This, StatOf(This, Power), {selection})"),
+        });
+    }
     let (body, dynamic) = match count::strip(body) {
         Some(c) => (c.head, Some(c)),
         None => (body, None),
@@ -2555,6 +2591,63 @@ mod tests {
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
             Some(("AnyTarget".to_owned(), "DealDamage(This, 3, It)".to_owned()))
+        );
+    }
+
+    /// The one-sided "bite" shape ([CR#120]; `Fight`'s reciprocal-less half):
+    /// "deals damage equal to its power to <target>" -> a `StatOf(This,
+    /// Power)` amount. Corpus-verified word order (Cinder Shade, Balduvian
+    /// Berserker, …) — the variable-amount clause sits between "damage" and
+    /// "to <target>", unlike a literal numeral.
+    #[test]
+    fn deal_damage_bite_equal_to_its_power() {
+        assert_eq!(
+            parsed("~ deals damage equal to its power to target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+            ))
+        );
+    }
+
+    /// The "it" subject case-insensitive variant (post cost-colon / trigger
+    /// comma), targeting "any target".
+    #[test]
+    fn deal_damage_bite_it_subject_any_target() {
+        assert_eq!(
+            parsed("It deals damage equal to its power to any target."),
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+            ))
+        );
+    }
+
+    /// The rarer "~'s power" phrasing (same self-reference, named rather
+    /// than pronominal).
+    #[test]
+    fn deal_damage_bite_tilde_s_power_variant() {
+        assert_eq!(
+            parsed("~ deals damage equal to ~'s power to target creature."),
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+            ))
+        );
+    }
+
+    /// The wider "creature or planeswalker" recipient (Bite Down, Heartfire
+    /// Immolator, …) — the existing `damage_target`/`object_target_filter`
+    /// type-disjunction grammar already yields the right filter, so no
+    /// target-parser changes were needed for this scope item.
+    #[test]
+    fn deal_damage_bite_creature_or_planeswalker_target() {
+        assert_eq!(
+            parsed("~ deals damage equal to its power to target creature or planeswalker."),
+            Some((
+                "TargetOne(Or([Creature, Planeswalker]))".to_owned(),
+                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+            ))
         );
     }
 
