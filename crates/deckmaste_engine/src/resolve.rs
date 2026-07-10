@@ -2949,22 +2949,16 @@ impl GameState {
                         deckmaste_core::Int::try_from(face.mana_cost.mana_value())
                             .expect("mana value fits Int")
                     }
-                    // [CR#122.1e,122.1g]: a planeswalker's loyalty IS its
-                    // number of loyalty counters; a battle's defense IS its
-                    // defense counters — read straight off the counter map (the
-                    // counter machinery this ticket built). The PLACEMENT of
-                    // those counters (a planeswalker/battle enters with its
-                    // printed value, [CR#209.1,210.1]) is the separate
-                    // planeswalker/battle-modeling work; until then this reads 0.
-                    deckmaste_core::Stat::Loyalty => deckmaste_core::Int::try_from(
-                        self.objects
-                            .obj(id)
-                            .counters
-                            .get("LoyaltyCounter")
-                            .copied()
-                            .unwrap_or(0),
-                    )
-                    .expect("loyalty fits Int"),
+                    // [CR#209.1,306.5a]: `Stat::Loyalty` is the PRINTED loyalty
+                    // characteristic off the card face — never the live counter
+                    // count (current loyalty is `CounterCount(This,
+                    // LoyaltyCounter)`). `Number(n)→n`, `DefinedByAbility`/
+                    // `Variable`/absent → 0 (the chosen-X for a `Variable`
+                    // loyalty rides the unbuilt announce-slot X work).
+                    deckmaste_core::Stat::Loyalty => {
+                        crate::layer::base_stat(crate::derive::face(self.def(id)).loyalty.as_ref())
+                            .unwrap_or(0)
+                    }
                     deckmaste_core::Stat::Defense => deckmaste_core::Int::try_from(
                         self.objects
                             .obj(id)
@@ -6776,13 +6770,49 @@ mod tests {
         );
     }
 
-    /// [CR#122.1e]: `StatOf(_, Loyalty)` reads the object's loyalty-counter
-    /// count off the counter map this ticket built (closing the
-    /// engine-resolve-count-x seam; placement on entry is planeswalker work).
+    /// [CR#209.1,306.5a]: `StatOf(_, Loyalty)` reads the PRINTED loyalty
+    /// characteristic off the card face, NOT the live loyalty-counter count.
+    /// A planeswalker printed at loyalty 4 carrying a single loyalty counter
+    /// reads 4 (printed), never 1 (counters). Current on-battlefield loyalty is
+    /// the separate `CounterCount(This, LoyaltyCounter)` read exercised below.
     #[test]
-    fn stat_of_loyalty_reads_loyalty_counters() {
+    fn stat_of_loyalty_reads_printed_loyalty() {
         use deckmaste_core::Stat;
 
+        let (mut state, _bear) = bear_on_field();
+        let card = Card::Normal(CardFace {
+            name: "Test Walker".into(),
+            types: vec![Type::Planeswalker],
+            loyalty: Some(deckmaste_core::StatValue::Number(4)),
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let walker = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(walker);
+        // A single loyalty counter — the printed read must IGNORE it.
+        state
+            .objects
+            .obj_mut(walker)
+            .counters
+            .insert("LoyaltyCounter".into(), 1);
+        let frame = frame_src(walker);
+        assert_eq!(
+            state.eval_count(&Count::StatOf(Reference::This, Stat::Loyalty), &frame),
+            4,
+            "printed loyalty (4), not the loyalty-counter count (1)"
+        );
+    }
+
+    /// [CR#306.5c,122.1e]: CURRENT on-battlefield loyalty IS the loyalty-counter
+    /// count, spelled `CounterCount(This, LoyaltyCounter)` — the companion to
+    /// the printed `StatOf(_, Loyalty)` read above, now that
+    /// `Stat::Loyalty` no longer means the counter count.
+    #[test]
+    fn counter_count_reads_current_loyalty() {
         let (mut state, bear) = bear_on_field();
         state
             .objects
@@ -6791,8 +6821,12 @@ mod tests {
             .insert("LoyaltyCounter".into(), 4);
         let frame = frame_src(bear);
         assert_eq!(
-            state.eval_count(&Count::StatOf(Reference::This, Stat::Loyalty), &frame),
-            4
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "LoyaltyCounter".into()),
+                &frame
+            ),
+            4,
+            "current loyalty = the live loyalty-counter count"
         );
     }
 

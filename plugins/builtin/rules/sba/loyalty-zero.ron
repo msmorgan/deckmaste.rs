@@ -1,8 +1,11 @@
-// [CR#704.5i]: a planeswalker with loyalty 0 is put into its owner's graveyard.
+// [CR#704.5i]: a planeswalker with 0 loyalty is put into its owner's graveyard.
+// Current loyalty is the loyalty-counter count [CR#306.5c,122.1e], NOT the
+// printed loyalty characteristic (`StatOf(This, Loyalty)`), so the fire
+// condition reads the counters directly.
 [
     SbaRule(
         scope: Type(Planeswalker),
-        when: Compare(StatOf(This, Loyalty), Eq, 0),
+        when: Compare(CounterCount(This, LoyaltyCounter), Eq, 0),
         then: Move(This, Graveyard),
     ),
 ]

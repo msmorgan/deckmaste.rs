@@ -481,18 +481,13 @@ impl GameState {
                 crate::derive::face(self.def(id)).mana_cost.mana_value(),
             )
             .ok(),
-            // [CR#122.1e,122.1g]: loyalty/defense are the object's loyalty-/
-            // defense-counter counts (read off the counter map, mirroring
-            // `eval_count`).
-            Stat::Loyalty => deckmaste_core::Int::try_from(
-                self.objects
-                    .obj(id)
-                    .counters
-                    .get("LoyaltyCounter")
-                    .copied()
-                    .unwrap_or(0),
-            )
-            .ok(),
+            // [CR#209.1,306.5a]: loyalty is the PRINTED loyalty characteristic
+            // off the card face — never the live counter count (current loyalty
+            // is `CounterCount(This, LoyaltyCounter)`). `base_stat` maps
+            // `Number(n)→n`, `DefinedByAbility`/`Variable`/absent → 0.
+            Stat::Loyalty => {
+                crate::layer::base_stat(crate::derive::face(self.def(id)).loyalty.as_ref())
+            }
             Stat::Defense => deckmaste_core::Int::try_from(
                 self.objects
                     .obj(id)

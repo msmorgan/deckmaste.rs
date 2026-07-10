@@ -1128,19 +1128,10 @@ fn snapshot_stat(
             deckmaste_core::Int::try_from(face.mana_cost.mana_value())
                 .expect("mana value fits Int"),
         ),
-        // [CR#122.1e,122.1g,603.10a]: loyalty/defense are counter counts —
-        // read off the snapshot's carried counter map (the live object may be
-        // gone).
-        deckmaste_core::Stat::Loyalty => Some(
-            deckmaste_core::Int::try_from(
-                snapshot
-                    .counters
-                    .get("LoyaltyCounter")
-                    .copied()
-                    .unwrap_or(0),
-            )
-            .expect("loyalty fits Int"),
-        ),
+        // [CR#209.1,306.5a]: loyalty is the PRINTED loyalty characteristic off
+        // the snapshot's face — never the counter count (current loyalty is
+        // `CounterCount(This, LoyaltyCounter)`), mirroring the P/T arms above.
+        deckmaste_core::Stat::Loyalty => crate::layer::base_stat(face.loyalty.as_ref()),
         deckmaste_core::Stat::Defense => Some(
             deckmaste_core::Int::try_from(
                 snapshot

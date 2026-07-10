@@ -727,20 +727,12 @@ fn matches_derived(
                     Int::try_from(crate::derive::face(state.def(id)).mana_cost.mana_value())
                         .expect("mana value fits Int"),
                 ),
-                // [CR#122.1e,122.1g]: loyalty/defense are the object's
-                // loyalty-/defense-counter counts (read off the counter map).
-                Stat::Loyalty => Some(
-                    Int::try_from(
-                        state
-                            .objects
-                            .obj(id)
-                            .counters
-                            .get("LoyaltyCounter")
-                            .copied()
-                            .unwrap_or(0),
-                    )
-                    .expect("loyalty fits Int"),
-                ),
+                // [CR#209.1,306.5a]: loyalty is the PRINTED loyalty
+                // characteristic off the card face — never the live counter
+                // count (current loyalty is `CounterCount(This,
+                // LoyaltyCounter)`). `base_stat` maps `Number(n)→n`,
+                // `DefinedByAbility`/`Variable`/absent → 0.
+                Stat::Loyalty => base_stat(crate::derive::face(state.def(id)).loyalty.as_ref()),
                 Stat::Defense => Some(
                     Int::try_from(
                         state
@@ -884,18 +876,13 @@ fn eval_stat_of(
             .unwrap_or(0),
         Stat::ManaValue => Int::try_from(crate::derive::face(state.def(id)).mana_cost.mana_value())
             .expect("mana value fits Int"),
-        // [CR#122.1e,122.1g]: loyalty/defense ARE the loyalty-/defense-
-        // counter counts (read off the counter map, base state).
-        Stat::Loyalty => Int::try_from(
-            state
-                .objects
-                .obj(id)
-                .counters
-                .get("LoyaltyCounter")
-                .copied()
-                .unwrap_or(0),
-        )
-        .expect("loyalty fits Int"),
+        // [CR#209.1,306.5a]: loyalty is the PRINTED loyalty characteristic off
+        // the card face — never the live counter count (current loyalty is
+        // `CounterCount(This, LoyaltyCounter)`). `base_stat` maps `Number(n)→n`,
+        // `DefinedByAbility`/`Variable`/absent → 0.
+        Stat::Loyalty => {
+            base_stat(crate::derive::face(state.def(id)).loyalty.as_ref()).unwrap_or(0)
+        }
         Stat::Defense => Int::try_from(
             state
                 .objects

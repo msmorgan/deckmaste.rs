@@ -560,21 +560,14 @@ fn derived_stat(
             )
             .expect("mana value fits Int"),
         ),
-        // [CR#122.1e,122.1g]: loyalty/defense are the object's loyalty-/
-        // defense-counter counts (read off the counter map, mirroring
-        // `eval_count`).
-        deckmaste_core::Stat::Loyalty => Some(
-            deckmaste_core::Int::try_from(
-                state
-                    .objects
-                    .obj(id)
-                    .counters
-                    .get("LoyaltyCounter")
-                    .copied()
-                    .unwrap_or(0),
-            )
-            .expect("loyalty fits Int"),
-        ),
+        // [CR#209.1,306.5a]: loyalty is the PRINTED loyalty characteristic off
+        // the card face — never the live counter count (current loyalty is
+        // `CounterCount(This, LoyaltyCounter)`). `base_stat` maps `Number(n)→n`,
+        // `DefinedByAbility`/`Variable`/absent → 0, and `None` (no printed
+        // loyalty) → `None`, mirroring the P/T arms above.
+        deckmaste_core::Stat::Loyalty => {
+            crate::layer::base_stat(crate::derive::face(state.def(id)).loyalty.as_ref())
+        }
         deckmaste_core::Stat::Defense => Some(
             deckmaste_core::Int::try_from(
                 state
