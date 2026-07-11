@@ -17,6 +17,8 @@ use deckmaste_core::Action;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
 use deckmaste_core::CausePattern;
+use deckmaste_core::Deontic;
+use deckmaste_core::DeonticAction;
 use deckmaste_core::Duration;
 use deckmaste_core::EventFilter;
 use deckmaste_core::OneShotEffect;
@@ -793,13 +795,19 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         ..CardFace::default()
     }));
 
-    // Aura card: Enchantment with the umbra-armor static.
+    // Aura card: Enchantment with the umbra-armor static PLUS the default-deny
+    // `May(Attach to: Creature)` grant, without which the SBA sweep would treat
+    // the manual attachment as illegal and unattach it.
     let aura_card = Arc::new(Card::Normal(CardFace {
         name: "Umbra Armor".into(),
         types: vec![Type::Enchantment],
-        abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
-            umbra_armor,
-        )))],
+        abilities: vec![
+            Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+                what: Predicate::Ref(Reference::This),
+                to: Predicate::creature(),
+            }))),
+            Ability::Static(StaticEffect::Replacement(Box::new(umbra_armor))),
+        ],
         ..CardFace::default()
     }));
 

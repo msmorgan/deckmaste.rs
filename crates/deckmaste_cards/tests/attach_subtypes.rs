@@ -2,10 +2,11 @@
 //! data (spec conferral map), not as engine branches:
 //!   - **Aura** confers `Innate(Static([Sba(Not(LegallyAttached(This)),
 //!     Move(This, Graveyard))]))` ([CR#704.5m]).
-//!   - **Equipment** confers `Innate(Static([Cant(Attach(This,
-//!     Not(Creature)))]))` ([CR#301.5]).
-//!   - **Fortification** confers `Innate(Static([Cant(Attach(This,
-//!     Not(Land)))]))` ([CR#301.6]).
+//!   - **Equipment** confers `Innate(Static([May(Attach(This, Creature))]))`
+//!     ([CR#301.5]) — under default-deny, being attachable to a creature is a
+//!     granted capability.
+//!   - **Fortification** confers `Innate(Static([May(Attach(This, Land))]))`
+//!     ([CR#301.6]) — the granted attachable-to-a-land capability.
 //!
 //! These ride `Innate` so they survive "loses all abilities" and stay invisible
 //! to card-facing ability queries, while the SBA sweep / `attachment_legal`
@@ -88,7 +89,7 @@ fn aura_subtype_confers_innate_graveyard_sba() {
 }
 
 #[test]
-fn equipment_subtype_confers_innate_cant_attach_noncreature() {
+fn equipment_subtype_confers_innate_may_attach_creature() {
     let plugin = canon();
     let equipment = plugin
         .subtypes
@@ -96,17 +97,17 @@ fn equipment_subtype_confers_innate_cant_attach_noncreature() {
         .expect("canon defines the Equipment subtype");
     let inner = sole_innate_ability(equipment);
     let effs = static_effects(&inner);
-    // [CR#301.5]: Equipment can only be attached to a creature.
+    // [CR#301.5]: Equipment may (only) be attached to a creature — a grant.
     assert!(
         effs.iter().any(|e| matches!(e,
-            StaticEffect::Deontic(d) if matches!(d, deckmaste_core::Deontic::Cant(
+            StaticEffect::Deontic(d) if matches!(d, deckmaste_core::Deontic::May(
                 DeonticAction::Attach { .. })))),
-        "Equipment confers Cant(Attach(This, Not(Creature))) ([CR#301.5]); got {effs:?}"
+        "Equipment confers May(Attach(This, Creature)) ([CR#301.5]); got {effs:?}"
     );
 }
 
 #[test]
-fn fortification_subtype_confers_innate_cant_attach_nonland() {
+fn fortification_subtype_confers_innate_may_attach_land() {
     let plugin = canon();
     let fort = plugin
         .subtypes
@@ -114,11 +115,11 @@ fn fortification_subtype_confers_innate_cant_attach_nonland() {
         .expect("canon defines the Fortification subtype");
     let inner = sole_innate_ability(fort);
     let effs = static_effects(&inner);
-    // [CR#301.6]: Fortification can only be attached to a land.
+    // [CR#301.6]: Fortification may (only) be attached to a land — a grant.
     assert!(
         effs.iter().any(|e| matches!(e,
-            StaticEffect::Deontic(d) if matches!(d, deckmaste_core::Deontic::Cant(
+            StaticEffect::Deontic(d) if matches!(d, deckmaste_core::Deontic::May(
                 DeonticAction::Attach { .. })))),
-        "Fortification confers Cant(Attach(This, Not(Land))) ([CR#301.6]); got {effs:?}"
+        "Fortification confers May(Attach(This, Land)) ([CR#301.6]); got {effs:?}"
     );
 }

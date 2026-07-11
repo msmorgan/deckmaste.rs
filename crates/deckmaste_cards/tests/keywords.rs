@@ -193,13 +193,14 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
 }
 
 /// [CR#702.5a,303.4a,303.4f]: the **Enchant** keyword confers THREE abilities,
-/// not just the legal-host restriction: (1) a targeting `Spell` (target spec
+/// not just the legal-host grant: (1) a targeting `Spell` (target spec
 /// only, no-op effect) so cast targeting stays on the live `spell_targets`
-/// path; (2) the removable `Cant(Attach(what: Ref(This), to: Not(Param(0))))`
-/// host bound; (3) `AsEnters(Attach(Ref(This), Param(0)))` so the Aura enters
-/// attached. (The conferral map in the spec.)
+/// path; (2) the removable `May(Attach(what: Ref(This), to: Param(0)))`
+/// host grant (default-deny: being attachable to the quality is granted);
+/// (3) `AsEnters(Attach(Ref(This), Param(0)))` so the Aura enters attached.
+/// (The conferral map in the spec.)
 #[test]
-fn enchant_confers_spell_cant_attach_and_as_enters() {
+fn enchant_confers_spell_may_attach_and_as_enters() {
     use deckmaste_core::Ability;
     use deckmaste_core::DeonticAction;
     use deckmaste_core::StaticEffect;
@@ -244,11 +245,11 @@ fn enchant_confers_spell_cant_attach_and_as_enters() {
     for a in abilities {
         statics(a, &mut effs);
     }
-    // (2) the host-restriction Cant(Attach) row.
+    // (2) the host-grant May(Attach) row.
     assert!(
         effs.iter().any(|e| matches!(peel(e),
             StaticEffect::Deontic(d) if matches!(deontic_inner(d), Some(DeonticAction::Attach { .. })))),
-        "Enchant confers Cant(Attach(... to Not(Param(0)))) ([CR#702.5a]); got {effs:?}"
+        "Enchant confers May(Attach(... to Param(0))) ([CR#702.5a]); got {effs:?}"
     );
     // (3) the AsEnters self-replacement (enters attached).
     assert!(

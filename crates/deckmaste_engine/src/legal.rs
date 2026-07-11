@@ -123,6 +123,15 @@ fn must_action(d: &Deontic) -> Option<&DeonticAction> {
     }
 }
 
+/// The action under a `May` polarity, through `Expanded` wrappers.
+fn may_action(d: &Deontic) -> Option<&DeonticAction> {
+    match d {
+        Deontic::May(a) => Some(a),
+        Deontic::Expanded(e) => may_action(&e.value),
+        _ => None,
+    }
+}
+
 #[must_use]
 pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // One derived view serves the whole window — the mana-ability and cast
@@ -216,11 +225,12 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
                     && cost.is_none())
             }
             DeonticAction::Play { .. } => true,
-            // `Cant(Attach)` is EVALUATED via `attachment_legal` (the
-            // [CR#701.3b] no-op + the [CR#704.5m..704.5p] SBA sweep); only the
-            // non-`Cant` attach polarities (May/Must/Gate — no card needs
-            // them yet) stay a loud seam.
-            DeonticAction::Attach { .. } => !is_cant(d),
+            // `Cant(Attach)` and `May(Attach)` are both EVALUATED via
+            // `attachment_legal` (default-deny: the `May` grant permits, the
+            // `Cant` subtracts) at the [CR#701.3b] no-op + the
+            // [CR#704.5m..704.5p] SBA sweep; only the remaining attach
+            // polarities (Must/Gate — no card needs them yet) stay a loud seam.
+            DeonticAction::Attach { .. } => !is_cant(d) && !is_may(d),
             DeonticAction::Target { .. } => !is_cant(d) && !is_must(d),
             _ => false,
         },
@@ -487,11 +497,11 @@ pub(crate) fn untap_forbidden_by(
 ///
 /// The composite-keyword splice (`in_keyword`) is the legality/SBA twin of the
 /// layer `gather`'s `derive::flatten_composites`: a keyword macro that confers
-/// a static (Enchant → `Cant(Attach)`, [CR#702.5a]) lands as
+/// a static (Enchant → `May(Attach)`, [CR#702.5a]) lands as
 /// `Keyword(Composite { abilities: [Static(...)] })`, so a static-read path
 /// that did NOT descend into the composite would silently miss the conferred
 /// row. `Innate` is peeled here too, so subtype-conferred
-/// `Innate(Cant(Attach))` ([CR#301.5,301.6]) and `Innate(Static([Sba(...)]))`
+/// `Innate(May(Attach))` ([CR#301.5,301.6]) and `Innate(Static([Sba(...)]))`
 /// ([CR#704.5m]) are seen.
 pub(crate) fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
     abilities: &[Ability],
@@ -749,9 +759,16 @@ pub(crate) fn target_forbidden_by(
 fn cant_attach_rows(
     state: &GameState,
     view: &LayeredView,
+    attachment: ObjectId,
 ) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
     let mut rows = Vec::new();
-    for &id in &state.zones.battlefield {
+    // The battlefield carries the host-side restrictions (protection) and any
+    // already-in-play attachment's own rows; ALSO scan `attachment` itself when
+    // it is not yet on the battlefield (the [CR#303.4f] enters-attached fold
+    // evaluates legality before the Aura is placed), so its self-carried rows
+    // are seen — the same "chain the candidate" idiom `may_cast_rows` uses.
+    let off_field = (!state.zones.battlefield.contains(&attachment)).then_some(attachment);
+    for id in state.zones.battlefield.iter().copied().chain(off_field) {
         let source = state.objects.obj(id).source;
         for_each_static(view, id, |e| {
             if let StaticEffect::Deontic(d) = e
@@ -764,19 +781,55 @@ fn cant_attach_rows(
     rows
 }
 
+/// Every `May(Attach)` row in the derived view, with its carrier:
+/// `(carrier source, what, to)`. This is the **grant** side of attachment
+/// legality under default-deny: being attachable to a host is a capability
+/// nothing has by default — the Equipment [CR#301.5] / Fortification
+/// [CR#301.6] host rules and Enchant's quality bound [CR#702.5a] are conferred
+/// as `May(Attach)` grants (via `Innate` [CR#113.12], peeled by the walker),
+/// not as restrictions subtracting from a phantom default-permission. Mirror
+/// of `cant_attach_rows`.
+#[must_use]
+fn may_attach_rows(
+    state: &GameState,
+    view: &LayeredView,
+    attachment: ObjectId,
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
+    let mut rows = Vec::new();
+    // Scan the battlefield PLUS `attachment` itself when it is not yet in play:
+    // an Aura's own `May(Attach)` grant must be visible while the [CR#303.4f]
+    // enters-attached fold decides its host, before it is placed on the
+    // battlefield (mirrors `may_cast_rows` chaining its off-battlefield
+    // candidate).
+    let off_field = (!state.zones.battlefield.contains(&attachment)).then_some(attachment);
+    for id in state.zones.battlefield.iter().copied().chain(off_field) {
+        let source = state.objects.obj(id).source;
+        for_each_static(view, id, |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Attach { what, to }) = may_action(d)
+            {
+                rows.push((source, what.clone(), to.clone()));
+            }
+        });
+    }
+    rows
+}
+
 /// [CR#701.3b,303.4d]: whether `attachment` may legally be attached to `host`
 /// — the ONE predicate used at both attach-time (the [CR#701.3b] no-op) and
 /// SBA-time (the [CR#704.5m..704.5p] illegal-attachment sweep).
 ///
-/// `false` when `host == attachment` ([CR#303.4d] can't attach to itself) or
-/// `host` is gone; otherwise true iff no applicable `Cant(Attach(what, to))`
-/// row forbids the pair — `what` matched against the attachment and `to`
-/// against the host, both evaluated against LIVE/derived characteristics with
-/// the row's carrier as `This` (so protection / type changes / the conferred
-/// `Innate` host rules are all seen). This is the **generic** legality read:
-/// it never branches on the Aura/Equipment/Fortification subtype — those carry
-/// their restrictions as conferred `Cant(Attach)` data
-/// ([CR#702.5a,301.5,301.6]).
+/// **Default-deny**: attachment is a *granted* capability. `false` when
+/// `host == attachment` ([CR#303.4d] can't attach to itself) or `host` is gone;
+/// otherwise true iff SOME applicable `May(Attach(what, to))` grant permits the
+/// pair AND no applicable `Cant(Attach(what, to))` row forbids it — `what`
+/// matched against the attachment and `to` against the host, both evaluated
+/// against LIVE/derived characteristics with the row's carrier as `This` (so
+/// protection / type changes / the conferred `Innate` host rules are all seen).
+/// This is the **generic** legality read: it never branches on the
+/// Aura/Equipment/Fortification subtype — those carry their permissions as
+/// conferred `May(Attach)` grants ([CR#702.5a,301.5,301.6]), and a `Cant`
+/// (protection [CR#702.16d]) subtracts from any grant.
 #[must_use]
 pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: ObjectId) -> bool {
     // [CR#303.4d]: an attachment can't be attached to itself.
@@ -788,16 +841,22 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
         return false;
     }
     let view = state.layers();
-    let rows = cant_attach_rows(state, &view);
-    // Legal iff NO row forbids this (attachment, host) pair. A row forbids it
-    // when its `what` matches the attachment AND its `to` matches the host,
-    // both anchored on the row's carrier (so `Cant(Attach(what: Ref(This), …))`
-    // on the attachment, and `Cant(Attach(to: Ref(This)))` on the host, both
-    // resolve their self-reference correctly).
-    !rows.iter().any(|(carrier, what, to)| {
+    let may = may_attach_rows(state, &view, attachment);
+    let cant = cant_attach_rows(state, &view, attachment);
+    // A row matches this (attachment, host) pair when its `what` matches the
+    // attachment AND its `to` matches the host, both anchored on the row's
+    // carrier (so `Attach(what: Ref(This), …)` on the attachment, and
+    // `Attach(to: Ref(This))` on the host, resolve their self-reference
+    // correctly). Legal iff SOME `May` grant permits AND no `Cant` forbids.
+    let matches = |carrier: &crate::object::ObjectSource, what: &Predicate, to: &Predicate| {
         state.filter_matches_live(what, attachment, *carrier)
             && state.filter_matches_live(to, host, *carrier)
-    })
+    };
+    may.iter()
+        .any(|(carrier, what, to)| matches(carrier, what, to))
+        && !cant
+            .iter()
+            .any(|(carrier, what, to)| matches(carrier, what, to))
 }
 
 /// Every `Cant(Counter)` row visible to a counter of `target`, with its
@@ -880,13 +939,6 @@ pub(crate) fn may_cast_rows(
     view: &LayeredView,
     candidate: ObjectId,
 ) -> Vec<MayCastRow> {
-    fn may_action(d: &Deontic) -> Option<&DeonticAction> {
-        match d {
-            Deontic::May(a) => Some(a),
-            Deontic::Expanded(e) => may_action(&e.value),
-            _ => None,
-        }
-    }
     let mut rows = Vec::new();
     for &id in state.zones.battlefield.iter().chain([&candidate]) {
         let source = state.objects.obj(id).source;
@@ -1094,11 +1146,12 @@ mod tests {
         id
     }
 
-    /// An `Innate` static carrying a single `Cant(Attach(what, to))` row — the
-    /// conferred host-restriction shape (Equipment/Fortification subtype rule).
-    fn innate_cant_attach(what: Predicate, to: Predicate) -> Ability {
+    /// An `Innate` static carrying a single `May(Attach(what, to))` grant — the
+    /// conferred attachable-to-host shape (Equipment/Fortification subtype
+    /// rule) under default-deny attachment.
+    fn innate_may_attach(what: Predicate, to: Predicate) -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
-            Deontic::Cant(DeonticAction::Attach { what, to }),
+            Deontic::May(DeonticAction::Attach { what, to }),
         ))))
     }
 
@@ -1106,19 +1159,20 @@ mod tests {
         Predicate::creature()
     }
 
-    /// [CR#701.3b,301.5]: an attachment with `Innate(Cant(Attach(what: Ref(This),
-    /// to: Not(Creature))))` (the Equipment-subtype shape) is legal on a
-    /// creature host and illegal on a non-creature host.
+    /// [CR#701.3b,301.5]: under default-deny, an attachment with
+    /// `Innate(May(Attach(what: Ref(This), to: Creature)))` (the
+    /// Equipment-subtype grant) is legal on a creature host and illegal on a
+    /// non-creature host — no grant covers the non-creature pair.
     #[test]
-    fn attachment_legal_honors_attachment_side_cant() {
+    fn attachment_legal_honors_attachment_side_grant() {
         let mut state = game();
         let equip = obj_on_field(
             &mut state,
             "Test Equipment",
             vec![Type::Artifact],
-            vec![innate_cant_attach(
+            vec![innate_may_attach(
                 Predicate::Ref(Reference::This),
-                Predicate::Not(Box::new(creature())),
+                creature(),
             )],
         );
         let creature_host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
@@ -1126,11 +1180,32 @@ mod tests {
 
         assert!(
             attachment_legal(&state, equip, creature_host),
-            "Equipment is legal on a creature host"
+            "Equipment's May(Attach to: Creature) grant is legal on a creature host"
         );
         assert!(
             !attachment_legal(&state, equip, noncreature_host),
-            "Equipment is illegal on a non-creature host ([CR#301.5])"
+            "Equipment is illegal on a non-creature host — no grant covers it ([CR#301.5])"
+        );
+    }
+
+    /// The default-deny floor: a plain permanent carrying NO `May(Attach)`
+    /// grant is not a legal attachment onto ANY host — a Mountain cannot be
+    /// attached to anything. Attach is a capability that is OFF by default;
+    /// the grants on Equipment/Aura/Fortification are what turn it on.
+    #[test]
+    fn attachment_legal_denies_a_grantless_permanent_on_any_host() {
+        let mut state = game();
+        let mountain = obj_on_field(&mut state, "Mountain", vec![Type::Land], vec![]);
+        let creature_host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+        let artifact_host = obj_on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
+
+        assert!(
+            !attachment_legal(&state, mountain, creature_host),
+            "a grantless permanent is not attachable to a creature — default-deny"
+        );
+        assert!(
+            !attachment_legal(&state, mountain, artifact_host),
+            "a grantless permanent is not attachable to any host"
         );
     }
 
@@ -1139,7 +1214,17 @@ mod tests {
     #[test]
     fn attachment_legal_false_on_self_and_missing_host() {
         let mut state = game();
-        let a = obj_on_field(&mut state, "Aura", vec![Type::Enchantment], vec![]);
+        // Under default-deny the attachment needs a `May(Attach)` grant to be
+        // legal on any host at all; carry one so the bracketing legal case holds.
+        let a = obj_on_field(
+            &mut state,
+            "Aura",
+            vec![Type::Enchantment],
+            vec![innate_may_attach(
+                Predicate::Ref(Reference::This),
+                creature(),
+            )],
+        );
         assert!(
             !attachment_legal(&state, a, a),
             "can't attach to itself ([CR#303.4d])"
@@ -1149,7 +1234,7 @@ mod tests {
         let host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
         assert!(
             attachment_legal(&state, a, host),
-            "an unrestricted attachment is legal on any live host"
+            "a granted attachment is legal on a matching live host"
         );
     }
 
@@ -1159,7 +1244,18 @@ mod tests {
     #[test]
     fn attachment_legal_honors_host_side_cant() {
         let mut state = game();
-        let attachment = obj_on_field(&mut state, "Aura", vec![Type::Enchantment], vec![]);
+        // Under default-deny the attachment carries a `May(Attach to: Creature)`
+        // grant, so it's legal on a plain creature; the protected host's `Cant`
+        // subtracts from that grant.
+        let attachment = obj_on_field(
+            &mut state,
+            "Aura",
+            vec![Type::Enchantment],
+            vec![innate_may_attach(
+                Predicate::Ref(Reference::This),
+                creature(),
+            )],
+        );
         // A protected creature: forbids ANY attachment onto itself.
         let protected = obj_on_field(
             &mut state,
@@ -1287,25 +1383,25 @@ mod tests {
 
     // --- PREREQUISITE: composite-keyword flattening for static reads ----------
 
-    /// [CR#702.5a]: the **Enchant** keyword confers its `Cant(Attach)` row
+    /// [CR#702.5a]: the **Enchant** keyword confers its `May(Attach)` grant
     /// nested inside a `Keyword(Composite { abilities: [Static(...)] })` (the
-    /// macro body shape). `attachment_legal` reads `Cant(Attach)` via
+    /// macro body shape). `attachment_legal` reads `May(Attach)` via
     /// `statics_on`, which must look THROUGH the composite (splice its members)
-    /// for the conferred restriction to be visible — otherwise the enchant
-    /// host bound is silently ignored. This mirrors the layer `gather`
-    /// composite flattening (`derive::flatten_composites`).
+    /// for the conferred grant to be visible — otherwise the enchant host bound
+    /// is silently ignored and the Aura is illegal everywhere. This mirrors the
+    /// layer `gather` composite flattening (`derive::flatten_composites`).
     #[test]
-    fn attachment_legal_sees_cant_attach_nested_in_composite_keyword() {
+    fn attachment_legal_sees_may_attach_nested_in_composite_keyword() {
         use deckmaste_core::KeywordAbility;
         let mut state = game();
-        // An attachment whose ONLY `Cant(Attach)` lives inside a composite
+        // An attachment whose ONLY `May(Attach)` grant lives inside a composite
         // keyword (the Enchant macro shape: a `Keyword(Composite{[Static(..)]})`).
         let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Enchant".into(),
-            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::May(
                 DeonticAction::Attach {
                     what: Predicate::Ref(Reference::This),
-                    to: Predicate::Not(Box::new(creature())),
+                    to: creature(),
                 },
             )))],
         });
@@ -1320,12 +1416,13 @@ mod tests {
 
         assert!(
             attachment_legal(&state, aura, creature_host),
-            "composite-conferred Cant(Attach) allows a creature host"
+            "composite-conferred May(Attach to: Creature) allows a creature host \
+             — statics_on must flatten the composite keyword"
         );
         assert!(
             !attachment_legal(&state, aura, noncreature_host),
-            "composite-conferred Cant(Attach to Not(Creature)) forbids a non-creature host \
-             ([CR#702.5a]) — statics_on must flatten the composite keyword"
+            "composite-conferred May(Attach to: Creature) does not cover a non-creature host \
+             ([CR#702.5a])"
         );
     }
 

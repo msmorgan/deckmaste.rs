@@ -257,6 +257,8 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
     use deckmaste_core::Type;
 
     use super::*;
@@ -291,17 +293,23 @@ mod tests {
         })
     }
 
-    /// A synthetic enchantment whose sole ability is the enters-attached
-    /// self-replacement `AsEnters(With(ChooseOne(<a creature on the
-    /// battlefield>), Attach(This, to: That)))` — the host quality is the
-    /// `ChooseOne` filter; the controller chooses a legal host as it enters
-    /// ([CR#303.4f]).
+    /// A synthetic enchantment carrying the enters-attached self-replacement
+    /// `AsEnters(With(ChooseOne(<a creature on the battlefield>), Attach(This,
+    /// to: That)))` — the host quality is the `ChooseOne` filter; the
+    /// controller chooses a legal host as it enters ([CR#303.4f]) — PLUS
+    /// the default-deny `May(Attach(what: Ref(This), to: Creature))` grant
+    /// (the Enchant keyword's legal-host grant [CR#702.5a]) without which
+    /// the attach would be illegal.
     fn enchant_aura_card() -> Card {
         Card::Normal(CardFace {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment],
-            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
-                Replacement::Also {
+            abilities: vec![
+                Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+                    what: Predicate::Ref(Reference::This),
+                    to: Predicate::creature(),
+                }))),
+                Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
                         from: None,
@@ -323,8 +331,8 @@ mod tests {
                             to: Reference::It,
                         })),
                     }),
-                },
-            )))],
+                }))),
+            ],
             ..CardFace::default()
         })
     }

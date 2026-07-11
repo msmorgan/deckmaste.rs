@@ -4,9 +4,10 @@
 //   1. a targeting `Spell` carrying ONLY the target spec ([CR#303.4a]) — its
 //      no-op `Sequentially([])` effect keeps cast targeting on the live
 //      `spell_targets` path; it does not attach.
-//   2. a *removable* `Cant(Attach(what: Ref(This), to: Not(Param(0))))` — the
-//      legal-host bound ([CR#702.5a]); also `Cant(Target)` so the spell can't
-//      target an illegal quality.
+//   2. a *removable* `May(Attach(what: Ref(This), to: Param(0)))` — the
+//      legal-host grant ([CR#702.5a]) under default-deny attachment (being
+//      attachable to a matching quality is a granted capability); also a
+//      sibling `Cant(Target)` so the spell can't target an illegal quality.
 //   3. the `AsEnters(Attach(...))` self-replacement ([CR#303.4,303.4f]) — the
 //      SOLE attach-on-entry. The verb `Attach` takes a single `Reference` host
 //      now, so choosing the host is a separate pre-attach step: as it enters,
@@ -34,7 +35,7 @@
                 ),
             ),
             Static(Cant(Target(by: (stack_object: Ref(This)), on: Not(Param(0))))),
-            Static(Cant(Attach(what: Ref(This), to: Not(Param(0))))),
+            Static(May(Attach(what: Ref(This), to: Param(0)))),
             Static(Replacement(Also(
                 would: ThisEnters,
                 also: With(binder: ChooseOne(filter: Param(0)), body: Attach(what: This, to: It)),

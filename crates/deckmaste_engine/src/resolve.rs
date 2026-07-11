@@ -1533,9 +1533,10 @@ impl GameState {
                             continue; // [CR#701.3a]: already on that host.
                         }
                         // [CR#701.3b]: no-op on an illegal (what, host) pair —
-                        // `attachment_legal` reads the `Cant(Attach)` statics
-                        // (the attachment's own enchant/Innate restriction + the
-                        // host's protection), generically, never the subtype.
+                        // `attachment_legal` reads the attach deontics
+                        // generically (default-deny: the attachment's own
+                        // enchant/Innate `May(Attach)` grant must permit, the
+                        // host's protection `Cant` subtracts), never the subtype.
                         if !crate::legal::attachment_legal(self, attachment, host) {
                             continue;
                         }
@@ -4199,6 +4200,38 @@ mod tests {
         (state, a, b)
     }
 
+    /// Mint (on the battlefield, player 0) an Equipment-shaped artifact
+    /// carrying the default-deny `Innate(May(Attach(what: Ref(This), to:
+    /// Creature)))` grant — an attachment that may legally attach to a
+    /// creature host.
+    fn may_attach_creature_equipment(state: &mut GameState) -> ObjectId {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::StaticEffect;
+        let card = Card::Normal(CardFace {
+            name: "Test Equipment".into(),
+            types: vec![Type::Artifact],
+            abilities: vec![Ability::Innate(Box::new(Ability::Static(
+                StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+                    what: Predicate::Ref(Reference::This),
+                    to: Predicate::creature(),
+                })),
+            )))],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
     /// Drives the agenda forward a bounded number of steps — assert on the
     /// post-condition, not the iteration count. A pending decision stops it.
     fn drain(state: &mut GameState) {
@@ -4493,10 +4526,13 @@ mod tests {
     }
 
     /// [CR#701.3a]: `Attach` sets the attachment→host relation and records the
-    /// `Attached` fact.
+    /// `Attached` fact. Under default-deny the attachment carries a
+    /// `May(Attach to: Creature)` grant so the (creature) host is legal.
     #[test]
     fn attach_sets_the_relation_and_emits_attached() {
-        let (mut state, a, b) = two_permanents_on_field();
+        let (mut state, _bear, b) = two_permanents_on_field();
+        // `b` is a creature (Grizzly Bears); mint a granted attachment for `a`.
+        let a = may_attach_creature_equipment(&mut state);
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
@@ -4525,7 +4561,11 @@ mod tests {
     /// second `Attached` fact (transition-only, [CR#603.2e]).
     #[test]
     fn attach_to_current_host_is_a_noop() {
-        let (mut state, a, b) = two_permanents_on_field();
+        let (mut state, _bear, b) = two_permanents_on_field();
+        // Under default-deny the attachment needs a `May(Attach to: Creature)`
+        // grant, or the drain's SBA sweep would unattach it from the (creature)
+        // host `b` before the re-attach no-op is even observed.
+        let a = may_attach_creature_equipment(&mut state);
         state.objects.obj_mut(a).attached_to = Some(b);
         let frame = frame_src_targets(a, vec![b]);
         state.run_effect(
@@ -4563,42 +4603,19 @@ mod tests {
         );
     }
 
-    /// [CR#701.3b]: `Attach` no-ops on an illegal host — the attachment carries
-    /// a conferred `Innate(Cant(Attach(what: Ref(This), to: Not(Creature))))`
-    /// (the Equipment-subtype shape) and the host is a non-creature, so the
-    /// link stays `None` and no `Attached` fact is recorded.
+    /// [CR#701.3b]: `Attach` no-ops on an illegal host — under default-deny the
+    /// attachment carries a conferred `Innate(May(Attach(what: Ref(This), to:
+    /// Creature)))` grant (the Equipment-subtype shape), and the host is a
+    /// non-creature, so no grant covers the pair: the link stays `None` and no
+    /// `Attached` fact is recorded.
     #[test]
     fn attach_illegal_noop() {
-        use deckmaste_core::Ability;
-        use deckmaste_core::Card;
         use deckmaste_core::CardFace;
-        use deckmaste_core::Deontic;
-        use deckmaste_core::DeonticAction;
-        use deckmaste_core::StaticEffect;
 
         let mut state = game();
-        // The attachment: an artifact whose Innate rule forbids non-creature
-        // hosts (mirrors the Equipment subtype confer).
-        let equip_card = Card::Normal(CardFace {
-            name: "Test Equipment".into(),
-            types: vec![Type::Artifact],
-            abilities: vec![Ability::Innate(Box::new(Ability::Static(
-                StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attach {
-                    what: Predicate::Ref(Reference::This),
-                    to: Predicate::Not(Box::new(Predicate::Characteristic(
-                        CharacteristicPredicate::Type(Type::Creature),
-                    ))),
-                })),
-            )))],
-            ..CardFace::default()
-        });
-        let equip_id = state.cards.push(Arc::new(equip_card), PlayerId(0));
-        let equip = state.objects.mint(
-            ObjectSource::Card(equip_id),
-            PlayerId(0),
-            Some(Zone::Battlefield),
-        );
-        state.zones.battlefield.push(equip);
+        // The attachment: an Equipment-shaped artifact whose May(Attach) grant
+        // only covers creature hosts (mirrors the Equipment subtype confer).
+        let equip = may_attach_creature_equipment(&mut state);
 
         // The host: a non-creature artifact "Rock".
         let rock_card = Card::Normal(CardFace {
@@ -8088,8 +8105,9 @@ mod tests {
     fn equip_e2e() {
         let mut state = game();
         let host = vanilla_creature(&mut state, "Bear Host");
-        // A real Equipment: the Equipment subtype confer (Innate Cant(Attach)) +
-        // the `equip {T}` keyword + "+1/+1 to the equipped creature".
+        // A real Equipment: the Equipment subtype confer (Innate May(Attach to:
+        // Creature) grant) + the `equip {T}` keyword + "+1/+1 to the equipped
+        // creature".
         let equipment = mint_on_field(
             &mut state,
             Card::Normal(CardFace {
@@ -8136,8 +8154,8 @@ mod tests {
     fn aura_cast_e2e() {
         let mut state = game();
         let host = vanilla_creature(&mut state, "Enchanted Bear");
-        // A real Aura: Enchant(creature) keyword (targeting Spell + Cant(Attach)
-        // + AsEnters) + the Aura subtype's Innate graveyard SBA + "+2/+2".
+        // A real Aura: Enchant(creature) keyword (targeting Spell + May(Attach)
+        // grant + AsEnters) + the Aura subtype's Innate graveyard SBA + "+2/+2".
         let aura_card = Card::Normal(CardFace {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment],

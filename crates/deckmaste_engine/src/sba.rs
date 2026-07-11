@@ -896,15 +896,14 @@ mod tests {
         })))
     }
 
-    /// The Equipment-subtype shape: `Innate(Static([Cant(Attach(what:
-    /// Ref(This), to: Not(Creature)))]))`.
-    fn equipment_host_rule() -> Ability {
+    /// The default-deny Equipment/Aura grant shape: `Innate(Static([May(Attach(
+    /// what: Ref(This), to: Creature))]))` — an attachment that may legally
+    /// attach to a creature host (and to nothing else without a further grant).
+    fn may_attach_creature() -> Ability {
         Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
-            Deontic::Cant(DeonticAction::Attach {
+            Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
-                to: Predicate::Not(Box::new(Predicate::Characteristic(
-                    CharacteristicPredicate::Type(Type::Creature),
-                ))),
+                to: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
             }),
         ))))
     }
@@ -997,11 +996,13 @@ mod tests {
     #[test]
     fn sba_attach_legally_attached_aura_stays() {
         let mut state = game();
+        // Under default-deny the Aura needs a `May(Attach to: Creature)` grant
+        // for the attachment to a creature host to be legal.
         let aura = on_field(
             &mut state,
             "Test Aura",
             vec![Type::Enchantment],
-            vec![aura_graveyard_sba()],
+            vec![aura_graveyard_sba(), may_attach_creature()],
         );
         let host = on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
         state.objects.obj_mut(aura).attached_to = Some(host);
@@ -1015,8 +1016,10 @@ mod tests {
     }
 
     /// [CR#704.5n]: an Equipment (no firing `Sba`) attached to an ILLEGAL host
-    /// (a non-creature) becomes unattached and stays — the generic
-    /// illegal-attachment cleanup, NO subtype branch.
+    /// (a non-creature its `May(Attach to: Creature)` grant does NOT cover)
+    /// becomes unattached and stays — the generic illegal-attachment cleanup,
+    /// NO subtype branch. Illegal because the grant doesn't reach this
+    /// host, not merely because a grant is absent.
     #[test]
     fn sba_attach_illegal_equipment_unattaches() {
         let mut state = game();
@@ -1024,9 +1027,9 @@ mod tests {
             &mut state,
             "Test Equipment",
             vec![Type::Artifact],
-            vec![equipment_host_rule()],
+            vec![may_attach_creature()],
         );
-        // Illegally attached to a non-creature artifact.
+        // Illegally attached to a non-creature artifact — outside the grant.
         let rock = on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
         state.objects.obj_mut(equip).attached_to = Some(rock);
 
@@ -1046,16 +1049,25 @@ mod tests {
         );
     }
 
-    /// [CR#704.5p]: a plain permanent with `attached_to` set to an illegal host
-    /// and NO `Sba` → becomes unattached (engine-identical to [CR#704.5n]).
+    /// [CR#704.5p]: a permanent whose `May(Attach)` grant WOULD cover the host
+    /// (a creature) but whose link is defeated by the host-side protection
+    /// `Cant` → becomes unattached (engine-identical to [CR#704.5n]). The
+    /// `Cant` subtracts from the grant — the link is illegal for the
+    /// restriction, not for a missing grant.
     #[test]
     fn sba_attach_plain_permanent_illegal_link_unattaches() {
         let mut state = game();
-        // A plain artifact with no attachment rules at all, illegally linked.
-        let thing = on_field(&mut state, "Thing", vec![Type::Artifact], vec![]);
+        // A `Thing` whose grant covers creatures, illegally linked to a
+        // protected creature (the host-side Cant defeats the grant).
+        let thing = on_field(
+            &mut state,
+            "Thing",
+            vec![Type::Artifact],
+            vec![may_attach_creature()],
+        );
         let host = on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
         // Give the host a protection-shaped host-side Cant so the link is
-        // illegal even though `thing` itself carries no restriction.
+        // illegal even though `thing`'s grant would otherwise cover it.
         let protected = on_field(
             &mut state,
             "Protected",

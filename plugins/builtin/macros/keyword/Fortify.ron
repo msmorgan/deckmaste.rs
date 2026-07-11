@@ -1,8 +1,8 @@
 // Fortify = an activated ability of a Fortification ([CR#702.67a]): "[cost]:
 // attach this permanent to target land you control. Activate only as a sorcery."
 // The Land twin of Equip ([CR#702.6a]); the attach RELATION + legality sweeps
-// ([CR#704.5n]) are engine work behind the Attach verb. The host restriction
-// (Fortification → land) is the SUBTYPE's Innate `Cant(Attach)` ([CR#301.6]),
+// ([CR#704.5n]) are engine work behind the Attach verb. Being attachable
+// (Fortification → land) is the SUBTYPE's Innate `May(Attach)` grant ([CR#301.6]),
 // not this keyword.
 (
     name: "Fortify",
