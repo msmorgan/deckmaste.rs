@@ -47,12 +47,80 @@ fn walker_card() -> deckmaste_core::Card {
     })
 }
 
+/// A `Creature` `TypeDef` carrying the combat confers inline — the production
+/// shape a plugin-loaded `Creature.ron` attaches, which a bare
+/// `Type::Creature.def()` does NOT (empty confers by design). Combat-damage
+/// marking now keys on the `May(Attack)` grant (a COMBATANT), so a creature
+/// fixture asserting marked damage must confer it. Mirror of legal.rs's
+/// `creature_typedef`.
+fn combatant_creature_def() -> deckmaste_core::TypeDef {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Condition;
+    use deckmaste_core::CostPredicate;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Property;
+    use deckmaste_core::Reference;
+    use deckmaste_core::StatePredicate;
+    use deckmaste_core::StaticEffect;
+    let sick_not_hasty = || {
+        Condition::And(vec![
+            Condition::Matches(
+                Reference::This,
+                Predicate::State(StatePredicate::SummoningSick),
+            ),
+            Condition::Not(Box::new(Condition::Matches(
+                Reference::This,
+                Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
+            ))),
+        ])
+    };
+    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::Static(s)));
+    deckmaste_core::TypeDef {
+        name: "Creature".into(),
+        permanent: true,
+        confers: vec![
+            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
+                by: Predicate::Ref(Reference::This),
+                on: Predicate::Any,
+            }))),
+            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
+                by: Predicate::Ref(Reference::This),
+                on: Predicate::Any,
+                count: None,
+            }))),
+            ability(StaticEffect::Conditionally(
+                sick_not_hasty(),
+                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attack {
+                        by: Predicate::Ref(Reference::This),
+                        on: Predicate::Any,
+                    },
+                ))),
+            )),
+            ability(StaticEffect::Conditionally(
+                sick_not_hasty(),
+                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Activate {
+                        what: Predicate::Ref(Reference::This),
+                        by: Predicate::Any,
+                        cost: Some(CostPredicate::IncludesTapSymbol),
+                    },
+                ))),
+            )),
+        ],
+    }
+}
+
 /// A synthetic creature-planeswalker (types `[Creature, Planeswalker]`) — a
-/// "creature-Gideon". Small toughness so a modest damage amount is lethal.
+/// "creature-Gideon". Small toughness so a modest damage amount is lethal. Its
+/// `Creature` type CONFERS the combat capability (via
+/// `combatant_creature_def`), so combat-damage marking sees it as a combatant
+/// ([CR#120.3d]).
 fn creature_walker_card() -> deckmaste_core::Card {
     deckmaste_core::Card::Normal(CardFace {
         name: "Test Creature Walker".into(),
-        types: vec![Type::Creature.def(), Type::Planeswalker.def()],
+        types: vec![combatant_creature_def(), Type::Planeswalker.def()],
         power: Some(StatValue::Number(4)),
         toughness: Some(StatValue::Number(4)),
         loyalty: Some(StatValue::Number(5)),

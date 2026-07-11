@@ -1,6 +1,25 @@
-// [CR#300.1] the Creature card type.
+// [CR#300.1] the Creature card type. Its combat capability is DATA: the type
+// confers `May(Attack)`/`May(Block)` grants ([CR#508.1a,509.1a]) — default-deny,
+// like Land's `May(Play)` marker — plus a summoning-sickness `Cant`-pair
+// ([CR#302.6]) gated `Conditionally` on being sick and lacking Haste
+// ([CR#702.10b]): a `Cant(Attack)` (can't declare as an attacker) and a
+// `Cant(Activate)` scoped to tap costs ([CR#602.5a]). So legal.rs/step.rs gate
+// combat on the grant, not a `Type::Creature` literal.
 (
     name: "Creature",
     kinds: [TypeDef],
-    body: TypeDef(name: "Creature", permanent: true),
+    body: TypeDef(
+        name: "Creature",
+        permanent: true,
+        confers: [
+            Ability(Static(May(Attack(by: Ref(This))))),
+            Ability(Static(May(Block(by: Ref(This))))),
+            Ability(Static(Conditionally(
+                And([Matches(This, SummoningSick), Not(Matches(This, Has(Haste)))]),
+                Cant(Attack(by: Ref(This)))))),
+            Ability(Static(Conditionally(
+                And([Matches(This, SummoningSick), Not(Matches(This, Has(Haste)))]),
+                Cant(Activate(what: Ref(This), cost: IncludesTapSymbol))))),
+        ],
+    ),
 )

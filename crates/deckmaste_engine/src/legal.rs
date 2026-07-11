@@ -269,24 +269,33 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     legal
 }
 
-/// [CR#508.1a]: the creatures `player` could declare as attackers — battlefield
-/// creatures they control that are untapped and not summoning-sick
-/// ([CR#302.6]). Creature-type is read from the derived layer view so that
-/// permanents animated into creatures by continuous effects are included.
-/// Cost/restriction checks (e.g. defender, "can't attack") are a later seam.
+/// [CR#508.1a]: the permanents `player` could declare as attackers —
+/// battlefield permanents they control that are untapped and carry the
+/// `May(Attack)` grant (their `Creature` type's default-deny combat capability,
+/// read from the derived layer view so animated creatures are included), minus
+/// any matching `Cant(Attack)` row. Summoning sickness is itself a conferred
+/// `Cant(Attack)` ([CR#302.6,702.10b] — gated on `SummoningSick && !Haste`), so
+/// it is subtracted here, not checked literally. Must(Attack) requirements
+/// ([CR#508.1d]) are a declaration-time seam.
 #[must_use]
 pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
-    // Cant(Attack) rows (defender, [CR#702.3b]; "can't attack" effects) are
-    // EVALUATED below, and Must(Attack) requirements ("attacks if able",
-    // goad) are EVALUATED at declaration submission ([CR#508.1d]); the
-    // guard narrows to the May/Gate Attack polarities (May lifts, Gate
-    // tolls), which nothing evaluates yet.
+    // May(Attack) grants are EVALUATED (via `attackable`), Cant(Attack) rows
+    // (defender, [CR#702.3b]; "can't attack" and the sickness confer) are
+    // EVALUATED below, and Must(Attack) requirements ("attacks if able", goad)
+    // are EVALUATED at declaration submission ([CR#508.1d]); the guard narrows
+    // to the Gate(Attack) polarity (a toll on attacking), which nothing
+    // evaluates yet.
     guard_deontic_seam(
         state,
         &view,
-        |d| !is_cant(d) && !is_must(d) && matches!(deontic_action(d), DeonticAction::Attack { .. }),
-        "attack (May/Gate polarities)",
+        |d| {
+            !is_cant(d)
+                && !is_must(d)
+                && !is_may(d)
+                && matches!(deontic_action(d), DeonticAction::Attack { .. })
+        },
+        "attack (Gate polarity)",
     );
     let rows = cant_attack_rows(state, &view);
     // [CR#508.1a]: in the two-player game the attacked player is the
@@ -304,11 +313,13 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .filter(|&id| {
             let obj = state.objects.obj(id);
             // Derived controller ([CR#613.1b]): a stolen creature attacks for
-            // its new controller, not its owner.
+            // its new controller, not its owner. `attackable` reads the
+            // `May(Attack)` grant (default-deny combat capability); summoning
+            // sickness is now a conferred `Cant(Attack)` in `rows` below, not a
+            // literal `!summoning_sick` check ([CR#302.6,508.1a]).
             view.controller(id) == player
                 && !obj.tapped
-                && !obj.summoning_sick
-                && view.get(id).has_type(Type::Creature)
+                && attackable(state, &view, id)
                 && !rows.iter().any(|(carrier, by, on)| {
                     state.filter_matches_live(by, id, *carrier)
                         && defender_proxy
@@ -365,6 +376,44 @@ fn cant_attack_rows(
     attack_rows(state, view, cant_action)
 }
 
+/// Every `May(Attack)` GRANT in the derived view — the permission side of
+/// attack eligibility under default-deny ([CR#508.1a]): declaring a permanent
+/// as an attacker is a capability nothing has by default; a card's `Creature`
+/// type CONFERS `May(Attack(by: Ref(This)))`. Mirror of `cant_attack_rows` on
+/// the `May` polarity.
+#[must_use]
+fn may_attack_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
+    attack_rows(state, view, may_action)
+}
+
+/// [CR#508.1a]: whether `id` is an attacker CANDIDATE under default-deny — some
+/// conferred `May(Attack)` grant names it as an attacker (its `Creature` type's
+/// grant, keyed on `by`). This is grant PRESENCE, not net eligibility: the
+/// tapped / summoning-sick / `Cant(Attack)` subtractions are applied by
+/// `legal_attackers`. `is_combatant` is the identically-computed combat-damage
+/// twin ([CR#120.3d]).
+#[must_use]
+pub(crate) fn attackable(state: &GameState, view: &LayeredView, id: ObjectId) -> bool {
+    may_attack_rows(state, view)
+        .iter()
+        .any(|(carrier, by, _on)| state.filter_matches_live(by, id, *carrier))
+}
+
+/// [CR#120.3d,120.3e]: whether `id` is a COMBATANT — it carries the
+/// `May(Attack)` grant (its `Creature` type confers it). Combat damage is
+/// MARKED on a combatant ([CR#120.3d]) and not on a non-combatant permanent
+/// ([CR#120.3e]). This is grant PRESENCE, not net attack eligibility: a
+/// creature forbidden to attack (a `Cant(Attack)` row) is still a combatant
+/// whose damage is marked. Same read as [`attackable`], under the
+/// damage-marking rule rather than the declaration rule.
+#[must_use]
+pub(crate) fn is_combatant(state: &GameState, view: &LayeredView, id: ObjectId) -> bool {
+    attackable(state, view, id)
+}
+
 /// Every `Must(Attack)` row in the derived view — attack requirements
 /// ([CR#508.1d]: "attacks if able" effects, goad).
 #[must_use]
@@ -375,23 +424,29 @@ pub(crate) fn must_attack_rows(
     attack_rows(state, view, must_action)
 }
 
-/// [CR#509.1a]: the creatures `player` could declare as blockers — battlefield
-/// creatures they control that are untapped. No summoning-sickness check: a
-/// summoning-sick creature can block. Creature-type is read from the derived
-/// layer view so that animated permanents can block.
+/// [CR#509.1a]: the permanents `player` could declare as blockers —
+/// battlefield permanents they control that are untapped and carry the
+/// `May(Block)` grant (their `Creature` type's default-deny combat capability,
+/// read from the derived layer view so animated creatures can block). No
+/// summoning-sickness check: a summoning-sick creature can block.
 #[must_use]
 pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
-    // Cant(Block) rows — point-wise (flying) AND arrangement-level
-    // (menace's `count`) — and Must(Block) requirements ([CR#509.1c]
-    // must-block) are EVALUATED at block submission now; the guard
-    // narrows to the May/Gate Block polarities (May lifts, Gate tolls),
-    // which nothing evaluates yet.
+    // May(Block) grants are EVALUATED (via `blockable`), Cant(Block) rows —
+    // point-wise (flying) AND arrangement-level (menace's `count`) — and
+    // Must(Block) requirements ([CR#509.1c] must-block) are EVALUATED at block
+    // submission now; the guard narrows to the Gate(Block) polarity (a toll on
+    // blocking), which nothing evaluates yet.
     guard_deontic_seam(
         state,
         &view,
-        |d| !is_cant(d) && !is_must(d) && matches!(deontic_action(d), DeonticAction::Block { .. }),
-        "block (May/Gate polarities)",
+        |d| {
+            !is_cant(d)
+                && !is_must(d)
+                && !is_may(d)
+                && matches!(deontic_action(d), DeonticAction::Block { .. })
+        },
+        "block (Gate polarity)",
     );
     state
         .zones
@@ -401,8 +456,9 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .filter(|&id| {
             let obj = state.objects.obj(id);
             // Derived controller ([CR#613.1b]): a stolen creature blocks for its
-            // new controller.
-            view.controller(id) == player && !obj.tapped && view.get(id).has_type(Type::Creature)
+            // new controller. `blockable` reads the `May(Block)` grant
+            // (default-deny combat capability).
+            view.controller(id) == player && !obj.tapped && blockable(state, &view, id)
         })
         .collect()
 }
@@ -452,6 +508,27 @@ fn block_rows(
 #[must_use]
 pub(crate) fn cant_block_rows(state: &GameState, view: &LayeredView) -> Vec<BlockRow> {
     block_rows(state, view, cant_action)
+}
+
+/// Every `May(Block)` GRANT in the derived view — the permission side of block
+/// eligibility under default-deny ([CR#509.1a]): declaring a permanent as a
+/// blocker is a capability nothing has by default; a card's `Creature` type
+/// CONFERS `May(Block(by: Ref(This)))`. Mirror of `cant_block_rows` on the
+/// `May` polarity.
+#[must_use]
+fn may_block_rows(state: &GameState, view: &LayeredView) -> Vec<BlockRow> {
+    block_rows(state, view, may_action)
+}
+
+/// [CR#509.1a]: whether `id` is a blocker CANDIDATE under default-deny — some
+/// conferred `May(Block)` grant names it as a blocker (its `Creature` type's
+/// grant, keyed on `by`). Grant PRESENCE, not net eligibility: the tapped /
+/// `Cant(Block)` subtractions are applied by `legal_blockers`.
+#[must_use]
+pub(crate) fn blockable(state: &GameState, view: &LayeredView, id: ObjectId) -> bool {
+    may_block_rows(state, view)
+        .iter()
+        .any(|r| state.filter_matches_live(&r.by, id, r.carrier))
 }
 
 /// Every `Must(Block)` row in the derived view — block requirements
@@ -1677,6 +1754,204 @@ mod tests {
             super::cant_attack_rows(&on, &v).len(),
             1,
             "true condition ⇒ exactly the inner Cant(Attack) row is collected"
+        );
+    }
+
+    // --- combatant capability (May(Attack)/May(Block) type confer) ----------
+
+    /// A `Creature` `TypeDef` carrying the four combat confers inline — the two
+    /// `May(Attack)`/`May(Block)` grants and the summoning-sickness `Cant`-pair
+    /// (attack + tap-activate), each `Cant` gated `Conditionally` on
+    /// `SummoningSick && !Has(Haste)`. In real games the plugin registry
+    /// attaches these via `Creature.ron`; a bare `Type::Creature.def()` has
+    /// EMPTY confers (decision 6), so fixtures exercising the combat capability
+    /// build the confers here (mirrors `land_typedef`).
+    fn creature_typedef() -> deckmaste_core::TypeDef {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::Condition;
+        use deckmaste_core::CostPredicate;
+        use deckmaste_core::Property;
+        use deckmaste_core::StatePredicate;
+        let sick_not_hasty = || {
+            Condition::And(vec![
+                Condition::Matches(
+                    Reference::This,
+                    Predicate::State(StatePredicate::SummoningSick),
+                ),
+                Condition::Not(Box::new(Condition::Matches(
+                    Reference::This,
+                    Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
+                ))),
+            ])
+        };
+        let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::Static(s)));
+        deckmaste_core::TypeDef {
+            name: "Creature".into(),
+            permanent: true,
+            confers: vec![
+                ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
+                    by: Predicate::Ref(Reference::This),
+                    on: Predicate::Any,
+                }))),
+                ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
+                    by: Predicate::Ref(Reference::This),
+                    on: Predicate::Any,
+                    count: None,
+                }))),
+                ability(StaticEffect::Conditionally(
+                    sick_not_hasty(),
+                    Box::new(StaticEffect::Deontic(Deontic::Cant(
+                        DeonticAction::Attack {
+                            by: Predicate::Ref(Reference::This),
+                            on: Predicate::Any,
+                        },
+                    ))),
+                )),
+                ability(StaticEffect::Conditionally(
+                    sick_not_hasty(),
+                    Box::new(StaticEffect::Deontic(Deontic::Cant(
+                        DeonticAction::Activate {
+                            what: Predicate::Ref(Reference::This),
+                            by: Predicate::Any,
+                            cost: Some(CostPredicate::IncludesTapSymbol),
+                        },
+                    ))),
+                )),
+            ],
+        }
+    }
+
+    /// Mint a battlefield creature (player 0) whose `Creature` type CONFERS the
+    /// four combat statics — the production shape (the confer rides
+    /// `face.types`, folded into the derived abilities by `printed_of_face`),
+    /// unlike `obj_on_field`'s empty-confer `Type::def`. `sick` seeds the
+    /// summoning-sickness flag; `extra` are printed abilities carried IN
+    /// ADDITION to the type confers (a `Haste` keyword, an extra plain
+    /// `Cant(Attack)`, …).
+    fn conferred_creature_full(
+        state: &mut GameState,
+        name: &str,
+        sick: bool,
+        extra: Vec<Ability>,
+    ) -> ObjectId {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types: vec![creature_typedef()],
+            abilities: extra,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.objects.obj_mut(id).summoning_sick = sick;
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// A conferred creature with no extra printed abilities.
+    fn conferred_creature_on_field(state: &mut GameState, name: &str, sick: bool) -> ObjectId {
+        conferred_creature_full(state, name, sick, vec![])
+    }
+
+    /// [CR#508.1a,509.1a]: a non-sick conferred creature is a legal attacker AND
+    /// a legal blocker — its `Creature` type grants `May(Attack)`/`May(Block)`
+    /// — while a permanent with NO combat confer (a plain artifact) is neither.
+    /// Combat capability is default-deny, turned on by the type's grant.
+    #[test]
+    fn conferred_creature_attacks_and_blocks_noncreature_neither() {
+        let mut state = game();
+        let bear = conferred_creature_on_field(&mut state, "Bear", false);
+        let rock = obj_on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
+        let attackers = super::legal_attackers(&state, PlayerId(0));
+        let blockers = super::legal_blockers(&state, PlayerId(0));
+        assert!(
+            attackers.contains(&bear),
+            "a conferred creature may attack ([CR#508.1a])"
+        );
+        assert!(
+            blockers.contains(&bear),
+            "a conferred creature may block ([CR#509.1a])"
+        );
+        assert!(
+            !attackers.contains(&rock),
+            "a non-creature has no May(Attack) grant — default-deny"
+        );
+        assert!(
+            !blockers.contains(&rock),
+            "a non-creature has no May(Block) grant — default-deny"
+        );
+    }
+
+    /// [CR#302.6,702.10b]: a summoning-sick conferred creature is NOT a legal
+    /// attacker — the type's `Conditionally(SummoningSick & !Haste,
+    /// Cant(Attack))` confer subtracts it — but IS a legal blocker
+    /// (sickness never gates blocking, [CR#509.1a]). Granting the SAME
+    /// creature `Haste` lifts the sickness `Cant(Attack)` (the condition's
+    /// `Not(Has(Haste))` fails), so it becomes a legal attacker.
+    #[test]
+    fn sick_creature_no_attack_yes_block_haste_lifts_it() {
+        let mut state = game();
+        let sick = conferred_creature_on_field(&mut state, "Sick Bear", true);
+        assert!(
+            !super::legal_attackers(&state, PlayerId(0)).contains(&sick),
+            "a summoning-sick creature can't attack ([CR#302.6])"
+        );
+        assert!(
+            super::legal_blockers(&state, PlayerId(0)).contains(&sick),
+            "a summoning-sick creature can still block ([CR#509.1a])"
+        );
+
+        // The SAME sick creature WITH Haste: the sickness Cant(Attack)
+        // condition's `Not(Has(Haste))` fails, so the Cant is not contributed —
+        // it becomes a legal attacker ([CR#702.10b]).
+        let mut hasty_state = game();
+        let hasty = conferred_creature_full(
+            &mut hasty_state,
+            "Hasty Bear",
+            true,
+            vec![Ability::Keyword(KeywordAbility::Composite {
+                name: "Haste".into(),
+                abilities: vec![],
+            })],
+        );
+        assert!(
+            super::legal_attackers(&hasty_state, PlayerId(0)).contains(&hasty),
+            "Haste lifts summoning sickness — a hasty sick creature attacks ([CR#702.10b])"
+        );
+    }
+
+    /// [CR#120.3d,120.3e]: `is_combatant` reads GRANT PRESENCE, not net attack
+    /// eligibility. A conferred creature carrying an extra plain `Cant(Attack)`
+    /// still HAS the `May(Attack)` grant, so `is_combatant` is true — its
+    /// combat damage is marked ([CR#120.3d]) — even though the `Cant`
+    /// removes it from `legal_attackers`.
+    #[test]
+    fn is_combatant_reads_grant_presence_not_net_eligibility() {
+        let mut state = game();
+        let bear = conferred_creature_full(
+            &mut state,
+            "Barred Bear",
+            false,
+            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Attack {
+                    by: Predicate::Ref(Reference::This),
+                    on: Predicate::Any,
+                },
+            )))],
+        );
+        let view = state.layers();
+        assert!(
+            super::is_combatant(&state, &view, bear),
+            "the May(Attack) grant is present ⇒ a combatant whose damage is marked"
+        );
+        assert!(
+            !super::legal_attackers(&state, PlayerId(0)).contains(&bear),
+            "the extra plain Cant(Attack) removes it from legal attackers"
         );
     }
 }

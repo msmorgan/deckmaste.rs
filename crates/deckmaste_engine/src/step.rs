@@ -510,14 +510,17 @@ impl GameState {
                         // IN ADDITION (a creature-planeswalker is marked AND loses
                         // loyalty), no longer mutually exclusive.
 
-                        // [CR#120.3d,120.3e]: a CREATURE has its damage marked,
-                        // tagged with the source's identity and abilities AS THEY
-                        // ARE NOW — the deal-time snapshot the lethal-damage SBA's
-                        // deathtouch clause reads ([CR#704.5h]), correct even if the
-                        // source later loses the ability or leaves; a stale (gone)
-                        // source contributes no abilities. A non-creature permanent
-                        // (a plain planeswalker) is NOT marked ([CR#120.3e]).
-                        if view.get(target).has_type(Type::Creature) {
+                        // [CR#120.3d,120.3e]: a COMBATANT (a permanent carrying
+                        // the `May(Attack)` grant — its `Creature` type's
+                        // default-deny combat capability, grant-presence not net
+                        // eligibility) has its damage marked, tagged with the
+                        // source's identity and abilities AS THEY ARE NOW — the
+                        // deal-time snapshot the lethal-damage SBA's deathtouch
+                        // clause reads ([CR#704.5h]), correct even if the source
+                        // later loses the ability or leaves; a stale (gone) source
+                        // contributes no abilities. A non-combatant permanent (a
+                        // plain planeswalker) is NOT marked ([CR#120.3e]).
+                        if crate::legal::is_combatant(self, &view, target) {
                             let (src, abilities) = match self.objects.get(source) {
                                 // Card-backed source: capture its identity and
                                 // deal-time abilities from the layered view.

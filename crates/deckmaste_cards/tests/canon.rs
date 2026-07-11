@@ -54,11 +54,17 @@ fn canon_cards_are_valid() {
 /// resolves the declaration, which invokes `CreatureType("Bear")`.
 #[test]
 fn grizzly_bears_expand_the_creature_type_macro() {
-    let card = canon().card("Grizzly Bears").unwrap();
+    let plugin = canon();
+    let card = plugin.card("Grizzly Bears").unwrap();
     let Card::Normal(face) = card else {
         panic!("Grizzly Bears should be single-faced");
     };
-    assert_eq!(face.types, vec![Type::Creature.def()]);
+    // The `Creature` cardtype macro now expands to the full conferring `TypeDef`
+    // — the combat-capability confers ([CR#508.1a,509.1a]) ride the type. Read
+    // the SAME expansion the card's `types: [Creature]` produced, not the
+    // empty-confer `Type::Creature.def()`.
+    let creature_type: deckmaste_core::TypeDef = plugin.macros.read_str("Creature").unwrap();
+    assert_eq!(face.types, vec![creature_type]);
     assert_eq!(
         face.subtypes,
         vec![Subtype {

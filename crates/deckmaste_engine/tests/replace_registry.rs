@@ -97,6 +97,68 @@ fn find_in_hand(state: &GameState, name: &str) -> ObjectId {
         .unwrap_or_else(|| panic!("expected '{name}' in player 0's hand"))
 }
 
+/// A `Creature` `TypeDef` carrying the combat confers inline — the production
+/// shape a plugin-loaded `Creature.ron` attaches, which a bare
+/// `Type::Creature.def()` does NOT (empty confers by design). Combat-damage
+/// marking now keys on the `May(Attack)` grant (a COMBATANT, [CR#120.3d]), so
+/// a creature fixture asserting marked damage must confer it. Mirror of
+/// legal.rs's `creature_typedef` / `damage_result_rules.rs`'s
+/// `combatant_creature_def`.
+fn combatant_creature_def() -> deckmaste_core::TypeDef {
+    use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::Condition;
+    use deckmaste_core::CostPredicate;
+    use deckmaste_core::Property;
+    use deckmaste_core::StatePredicate;
+    let sick_not_hasty = || {
+        Condition::And(vec![
+            Condition::Matches(
+                Reference::This,
+                Predicate::State(StatePredicate::SummoningSick),
+            ),
+            Condition::Not(Box::new(Condition::Matches(
+                Reference::This,
+                Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
+            ))),
+        ])
+    };
+    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::Static(s)));
+    deckmaste_core::TypeDef {
+        name: "Creature".into(),
+        permanent: true,
+        confers: vec![
+            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
+                by: Predicate::Ref(Reference::This),
+                on: Predicate::Any,
+            }))),
+            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
+                by: Predicate::Ref(Reference::This),
+                on: Predicate::Any,
+                count: None,
+            }))),
+            ability(StaticEffect::Conditionally(
+                sick_not_hasty(),
+                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attack {
+                        by: Predicate::Ref(Reference::This),
+                        on: Predicate::Any,
+                    },
+                ))),
+            )),
+            ability(StaticEffect::Conditionally(
+                sick_not_hasty(),
+                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Activate {
+                        what: Predicate::Ref(Reference::This),
+                        by: Predicate::Any,
+                        cost: Some(CostPredicate::IncludesTapSymbol),
+                    },
+                ))),
+            )),
+        ],
+    }
+}
+
 /// Move `obj` from player 0's hand straight onto the battlefield (no
 /// event loop, no land-drop limit). The public `GameState` fields make this
 /// direct setup possible without widening the engine API.
@@ -452,6 +514,42 @@ fn two_applicable_replacements_second_choice_also_survives() {
 /// Build a vanilla creature (no abilities) on the battlefield.
 fn vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
     creature_with_abilities("Vanilla", power, toughness, vec![])
+}
+
+/// Build a vanilla creature (no printed abilities) on the battlefield whose
+/// `Creature` type CONFERS the combat capability (`combatant_creature_def`),
+/// unlike `vanilla_creature`'s empty-confer `Type::Creature.def()`. Needed by
+/// fixtures that drive a `DamageDealt` event through the real engine pipeline
+/// and assert the resulting marked damage — `step.rs` now gates that marking
+/// on `is_combatant` ([CR#120.3d,120.3e]).
+fn combatant_vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
+    let card = Arc::new(Card::Normal(CardFace {
+        name: "Vanilla".to_owned(),
+        types: vec![combatant_creature_def()],
+        power: Some(StatValue::Number(power)),
+        toughness: Some(StatValue::Number(toughness)),
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: vec![card] },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
+    state.sba_rules = builtin_sba_rules();
+    let obj = find_in_hand(&state, "Vanilla");
+    force_onto_battlefield(&mut state, obj);
+    (state, obj)
 }
 
 /// Build the `CreateReplacement` effect that registers a regeneration shield
@@ -1061,8 +1159,10 @@ fn double_damage_lineage_terminates() {
     use deckmaste_engine::InstanceId;
     use deckmaste_engine::ReplacementInstance;
 
-    // Build a vanilla 2/2 creature on the battlefield.
-    let (mut state, id) = vanilla_creature(2, 2);
+    // Build a vanilla 2/2 creature on the battlefield — a COMBATANT (confers
+    // `May(Attack)`/`May(Block)`) so the fresh re-emitted `DamageDealt` below
+    // is actually marked ([CR#120.3d]).
+    let (mut state, id) = combatant_vanilla_creature(2, 2);
     let card_id = state.objects.obj(id).card_id().expect("backed by a card");
 
     // The `would`: "this creature would be dealt damage"
@@ -1181,7 +1281,11 @@ fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, Ob
     }));
     let tgt_card = Arc::new(Card::Normal(CardFace {
         name: "Target".into(),
-        types: vec![Type::Creature.def()],
+        // A COMBATANT (confers `May(Attack)`/`May(Block)`), unlike a bare
+        // `Type::Creature.def()` — `by_matcher_fires_only_for_damage_from_its_own_source`
+        // asserts this creature's OWN marked damage from a non-wither source
+        // ([CR#120.3d,120.3e]).
+        types: vec![combatant_creature_def()],
         power: Some(StatValue::Number(4)),
         toughness: Some(StatValue::Number(4)),
         ..CardFace::default()

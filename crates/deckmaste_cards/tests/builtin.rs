@@ -635,7 +635,12 @@ fn amass_decomposes_into_core_primitives() {
         panic!("the guard creates a token, got {:?}", guard.then);
     };
     assert_eq!(tok.color_indicator, vec![Color::Black], "0/0 BLACK token");
-    assert_eq!(tok.types, vec![Type::Creature.def()]);
+    // The token's `Creature` type carries the combat-capability confers
+    // ([CR#508.1a,509.1a]) — the `Creature` cardtype macro expands to the full
+    // conferring `TypeDef`, not the empty-confer `Type::Creature.def()`. Read
+    // the SAME expansion the token's authored `types: [Creature]` produced.
+    let creature_type: deckmaste_core::TypeDef = plugin.macros.read_str("Creature").unwrap();
+    assert_eq!(tok.types, vec![creature_type]);
     let names: Vec<&str> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(names, vec!["Orc", "Army"], "the amassed subtype PLUS Army");
     assert_eq!(tok.power, Some(deckmaste_core::StatValue::Number(0)));
