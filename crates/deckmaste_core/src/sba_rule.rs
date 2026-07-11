@@ -35,7 +35,7 @@ mod tests {
         // Construct directly — pins the field names/types. (RON round-trip
         // through the macro reader is covered by the loader test in Task A2.)
         let rule = SbaRule {
-            scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+            scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
             when: Condition::YourTurn,
             then: OneShotEffect::Sequentially(vec![]),
         };

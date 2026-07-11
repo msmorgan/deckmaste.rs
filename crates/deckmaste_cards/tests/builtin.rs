@@ -78,7 +78,7 @@ fn basic_land(name: &str) -> Card {
         name: name.to_owned(),
         mana_cost: ManaCost::default(),
         supertypes: vec![Supertype::Basic],
-        types: vec![Type::Land],
+        types: vec![Type::Land.def()],
         subtypes: vec![basic_land_subtype(name, basic_color(name))],
         ..Default::default()
     })
@@ -615,7 +615,7 @@ fn amass_decomposes_into_core_primitives() {
         panic!("the guard creates a token, got {:?}", guard.then);
     };
     assert_eq!(tok.color_indicator, vec![Color::Black], "0/0 BLACK token");
-    assert_eq!(tok.types, vec![Type::Creature]);
+    assert_eq!(tok.types, vec![Type::Creature.def()]);
     let names: Vec<&str> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(names, vec!["Orc", "Army"], "the amassed subtype PLUS Army");
     assert_eq!(tok.power, Some(deckmaste_core::StatValue::Number(0)));

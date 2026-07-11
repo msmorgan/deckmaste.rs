@@ -359,13 +359,13 @@ fn parse_cast_event(clause: &str) -> Option<String> {
     if descriptor == "instant or sorcery" {
         return Some(
             "Cast(who: Ref(You), what: And([Kind(Spell), \
-             Or([Type(Instant), Type(Sorcery)])]))"
+             Or([Type(\"Instant\"), Type(\"Sorcery\")])]))"
                 .to_owned(),
         );
     }
     if descriptor == "noncreature" {
         return Some(
-            "Cast(who: Ref(You), what: And([Kind(Spell), Not(Type(Creature))]))".to_owned(),
+            "Cast(who: Ref(You), what: And([Kind(Spell), Not(Type(\"Creature\"))]))".to_owned(),
         );
     }
     // Any other multi-word descriptor is out of scope for this production
@@ -809,7 +809,7 @@ mod tests {
         assert_eq!(
             trig("Whenever you cast a creature spell, draw a card.").as_deref(),
             Some(
-                "Triggered(event: Cast(who: Ref(You), what: And([Kind(Spell), Type(Creature)])), \
+                "Triggered(event: Cast(who: Ref(You), what: And([Kind(Spell), Type(\"Creature\")])), \
                  effect: Draw(1))"
             )
         );
@@ -821,7 +821,7 @@ mod tests {
             trig("Whenever you cast an instant or sorcery spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Or([Type(Instant), Type(Sorcery)])])), \
+                 what: And([Kind(Spell), Or([Type(\"Instant\"), Type(\"Sorcery\")])])), \
                  effect: Draw(1))"
             )
         );
@@ -833,7 +833,7 @@ mod tests {
             trig("Whenever you cast a noncreature spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Not(Type(Creature))])), \
+                 what: And([Kind(Spell), Not(Type(\"Creature\"))])), \
                  effect: Draw(1))"
             )
         );
@@ -983,7 +983,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(ability_word: \"Landfall\", \
-                 event: Enters(And([Type(Land), ControlledBy(Ref(You))])), \
+                 event: Enters(And([Type(\"Land\"), ControlledBy(Ref(You))])), \
                  effect: Continuously(effect: Modify(This, \
                  Several([Power(Up(2)), Toughness(Up(2))])), duration: FixedUntil(EndOfTurn)))"
             )
@@ -999,7 +999,7 @@ mod tests {
             .as_deref(),
             Some(
                 "Triggered(ability_word: \"Landfall\", \
-                 event: Enters(And([Type(Land), ControlledBy(Ref(You))])), \
+                 event: Enters(And([Type(\"Land\"), ControlledBy(Ref(You))])), \
                  effect: PutCounters(This, P1P1Counter, 1))"
             )
         );

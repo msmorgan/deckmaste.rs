@@ -545,7 +545,7 @@ mod tests {
         assert_eq!(
             stat("Creature spells you cast cost {2} more to cast.").as_deref(),
             Some(
-                "Static(CostModifier(of: And([Kind(Spell), Type(Creature), ControlledBy(Ref(You))]), change: Increase([Mana([Generic(2)])])))"
+                "Static(CostModifier(of: And([Kind(Spell), Type(\"Creature\"), ControlledBy(Ref(You))]), change: Increase([Mana([Generic(2)])])))"
             )
         );
         // A color adjective and no "you cast" scope (affects all such spells).

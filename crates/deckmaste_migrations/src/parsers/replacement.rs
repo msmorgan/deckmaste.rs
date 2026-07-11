@@ -525,7 +525,7 @@ mod tests {
             rep("~ enters tapped unless you control two or more other lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(Land), Not(Ref(This)), \
+                    "Compare(CountOf(Objects(And([Type(\"Land\"), Not(Ref(This)), \
                      ControlledBy(Ref(You))]))), AtLeast, 2)"
                 )
                 .as_str()
@@ -540,7 +540,7 @@ mod tests {
             rep("~ enters tapped unless you control two or fewer other lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(Land), Not(Ref(This)), \
+                    "Compare(CountOf(Objects(And([Type(\"Land\"), Not(Ref(This)), \
                      ControlledBy(Ref(You))]))), AtMost, 2)"
                 )
                 .as_str()
@@ -555,7 +555,7 @@ mod tests {
             rep("~ enters tapped unless you control two or more basic lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(Land), Supertype(Basic), \
+                    "Compare(CountOf(Objects(And([Type(\"Land\"), Supertype(Basic), \
                      ControlledBy(Ref(You))]))), AtLeast, 2)"
                 )
                 .as_str()
@@ -585,7 +585,7 @@ mod tests {
             rep("~ enters tapped unless you control a basic land.").as_deref(),
             Some(
                 tapped_unless(
-                    "Exists(And([Type(Land), Supertype(Basic), ControlledBy(Ref(You))]))"
+                    "Exists(And([Type(\"Land\"), Supertype(Basic), ControlledBy(Ref(You))]))"
                 )
                 .as_str()
             )
@@ -654,7 +654,7 @@ mod tests {
             rep("~ enters tapped unless your opponents control eight or more lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(Land), \
+                    "Compare(CountOf(Objects(And([Type(\"Land\"), \
                      ControlledBy(OpponentOf(Ref(You)))]))), AtLeast, 8)"
                 )
                 .as_str()
@@ -670,7 +670,7 @@ mod tests {
             rep("If you control two or more other lands, ~ enters tapped.").as_deref(),
             Some(
                 "Static(Replacement(AsEnters(If(condition: \
-                 Compare(CountOf(Objects(And([Type(Land), Not(Ref(This)), ControlledBy(Ref(You))]))), \
+                 Compare(CountOf(Objects(And([Type(\"Land\"), Not(Ref(This)), ControlledBy(Ref(You))]))), \
                  AtLeast, 2), then: Tap(This)))))"
             )
         );

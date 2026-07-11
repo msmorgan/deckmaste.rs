@@ -537,12 +537,12 @@ mod tests {
         let value = Count::CountDistinct(
             Characteristic::Subtypes,
             Countable::Objects(Box::new(Predicate::Characteristic(
-                crate::CharacteristicPredicate::Type(crate::Type::Land),
+                crate::CharacteristicPredicate::Type(crate::Type::Land.name()),
             ))),
         );
         assert_eq!(read(&write(&value)), value);
         assert!(matches!(
-            read("CountDistinct(Power, Objects(Type(Creature)))"),
+            read("CountDistinct(Power, Objects(Type(\"Creature\")))"),
             Count::CountDistinct(Characteristic::Power, Countable::Objects(_))
         ));
     }
@@ -618,8 +618,9 @@ mod tests {
         );
         assert_eq!(read(&write(&devotion_green)), devotion_green);
         for op in ["SumOf", "MinOf", "MaxOf", "AverageOf(RoundUp)"] {
-            let src =
-                format!("Aggregate({op}, (of: Objects(Type(Creature)), by: StatOf(It, Power)))");
+            let src = format!(
+                "Aggregate({op}, (of: Objects(Type(\"Creature\")), by: StatOf(It, Power)))"
+            );
             assert_eq!(read(&write(&read(&src))), read(&src), "round-trip {op}");
         }
     }

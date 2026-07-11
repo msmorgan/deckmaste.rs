@@ -144,7 +144,7 @@ mod tests {
         {
             let lands = state.zones.hands[i]
                 .iter()
-                .filter(|&&id| view.get(id).card_types.contains(&Type::Land))
+                .filter(|&&id| view.get(id).has_type(Type::Land))
                 .count();
             assert!(
                 (2..=5).contains(&lands),

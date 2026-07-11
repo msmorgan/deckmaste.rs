@@ -2,7 +2,7 @@
 // declare-blockers onset the "whenever ~ blocks" trigger family watches
 // ([CR#509.3a]: triggers once per combat even if it blocks multiple
 // creatures). Mirrors event/Attacks + event/Dies. Usage: Blocks(what) —
-// e.g. Blocks(Type(Creature)), Blocks(Ref(This)).
+// e.g. Blocks(Type("Creature")), Blocks(Ref(This)).
 (
     name: "Blocks",
     template: "${0} blocks",

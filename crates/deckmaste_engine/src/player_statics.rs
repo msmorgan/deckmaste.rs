@@ -197,7 +197,7 @@ mod tests {
         use deckmaste_core::Zone;
         let card = Card::Normal(CardFace {
             name: "Test Player Static".into(),
-            types: vec![Type::Enchantment],
+            types: vec![Type::Enchantment.def()],
             abilities: vec![Ability::Static(StaticEffect::ModifyPlayer(
                 Reference::You,
                 pmod,

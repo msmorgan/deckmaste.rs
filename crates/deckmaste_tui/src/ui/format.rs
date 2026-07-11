@@ -38,7 +38,7 @@ pub fn object_row(state: &GameState, view: &LayeredView, id: ObjectId) -> String
     }
     // Summoning sickness only matters for creatures (attacking / {T} abilities);
     // showing it on lands and other non-creatures is just noise.
-    if obj.summoning_sick && chars.card_types.contains(&Type::Creature) {
+    if obj.summoning_sick && chars.has_type(Type::Creature) {
         marks.push("sick".to_string());
     }
     if state.combat.is_attacking(id) {
@@ -225,7 +225,7 @@ mod tests {
             {
                 let view = driver.state.layers();
                 for &id in &driver.state.zones.battlefield {
-                    if view.get(id).card_types.contains(&Type::Creature) {
+                    if view.get(id).has_type(Type::Creature) {
                         continue;
                     }
                     let row = object_row(&driver.state, &view, id);

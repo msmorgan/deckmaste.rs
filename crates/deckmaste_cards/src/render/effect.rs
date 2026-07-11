@@ -455,7 +455,7 @@ fn plural_group_noun(f: &deckmaste_core::Predicate, ctx: &Ctx) -> String {
     for part in parts {
         match part {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-                noun = Some(format!("{}s", super::card::type_str(*t).to_lowercase()));
+                noun = Some(format!("{}s", t.as_str().to_lowercase()));
             }
             Predicate::Relation(RelationPredicate::ControlledBy(who)) => {
                 if let Predicate::Ref(r) = who.as_ref() {
@@ -1711,7 +1711,7 @@ fn token_descriptor(t: &Token) -> String {
 
     // Types
     for ty in &t.types {
-        parts.push(super::card::type_str(*ty).to_lowercase());
+        parts.push(super::card::type_str(ty).to_lowercase());
     }
 
     parts.join(" ")

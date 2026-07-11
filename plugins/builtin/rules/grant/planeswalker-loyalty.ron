@@ -4,7 +4,7 @@
 // PRINTED loyalty ([CR#209.1,306.5a]) via Stat::Loyalty, read in the AsEnters frame.
 [
     ConferralRule(
-        scope: Type(Planeswalker),
+        scope: Type("Planeswalker"),
         confer: Ability(Static(Replacement(AsEnters(
             PutCounters(This, LoyaltyCounter, StatOf(This, Loyalty)),
         )))),

@@ -16,7 +16,7 @@
 // `CountOf` shape Exalted's `Compare(CountOf(Objects(Attacking)), Eq, 1)` uses, which
 // threads the carrier watcher into its filter — so a candidate-vs-carrier
 // comparison resolves). The filter is:
-//   - `Type(Creature)` + `Attacking` ([CR#508.1a] a still-in-combat attacker);
+//   - `Type("Creature")` + `Attacking` ([CR#508.1a] a still-in-combat attacker);
 //   - `Not(Ref(This))` — "another" creature, excluding the carrier ([CR#702.149a]);
 //   - `Where(Compare(StatOf(It, Power), Greater, StatOf(This, Power)))` —
 //     the candidate's power ([CR#208]) is greater than the carrier's
@@ -38,7 +38,7 @@ KeywordAbility(
         event: AttackDeclared(by: Ref(This)),
         condition: Compare(
             CountOf(Objects(And([
-                Type(Creature),
+                Type("Creature"),
                 Attacking,
                 Not(Ref(This)),
                 Where(Compare(StatOf(It, Power), Greater, StatOf(This, Power))),

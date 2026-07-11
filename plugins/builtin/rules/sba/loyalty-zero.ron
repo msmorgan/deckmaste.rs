@@ -4,7 +4,7 @@
 // condition reads the counters directly.
 [
     SbaRule(
-        scope: Type(Planeswalker),
+        scope: Type("Planeswalker"),
         when: Compare(CounterCount(This, LoyaltyCounter), Eq, 0),
         then: Move(This, Graveyard),
     ),

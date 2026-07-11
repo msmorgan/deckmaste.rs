@@ -18,7 +18,6 @@ use crate::RelationPredicate;
 use crate::Supertype;
 use crate::SupportsMacros;
 use crate::TurnMarker;
-use crate::Type;
 use crate::replacement::Prevention;
 use crate::replacement::Replacement;
 
@@ -134,8 +133,11 @@ pub enum Modification {
     SwitchPowerToughness,
     /// Colors ([CR#613.1e], layer 5).
     Colors(CollectionOp<Color>),
-    /// Card types ([CR#613.1d], layer 4).
-    CardTypes(CollectionOp<Type>),
+    /// Card types by name (matched against the expanded `TypeDef`s, like
+    /// `Subtypes`); layer 4 ([CR#613.1d]). A layer-4 op ident is resolved
+    /// through the engine's type registry so a granted type's `confers` ride
+    /// along.
+    CardTypes(CollectionOp<Ident>),
     /// Subtypes by name (the class is derivable from the values — each card
     /// type has its own closed subtype set, [CR#205.3b]); layer 4.
     Subtypes(CollectionOp<Ident>),
@@ -526,6 +528,7 @@ pub enum PlayerMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Type;
 
     fn read(source: &str) -> StaticEffect {
         crate::ron::options().from_str(source).unwrap()
@@ -537,13 +540,13 @@ mod tests {
     #[test]
     fn modify_reads_flat() {
         let parsed = read(
-            "Each(SelectAll(Type(Creature)), Modify(It, Several([Power(Up(Literal(1))), Toughness(Up(Literal(1)))])))",
+            "Each(SelectAll(Type(\"Creature\")), Modify(It, Several([Power(Up(Literal(1))), Toughness(Up(Literal(1)))])))",
         );
         assert_eq!(
             parsed,
             StaticEffect::Each(
                 crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Type(Type::Creature)
+                    crate::CharacteristicPredicate::Type(Type::Creature.name())
                 )),
                 Box::new(StaticEffect::Modify(
                     Reference::It,
@@ -562,13 +565,13 @@ mod tests {
     #[test]
     fn subtract_modify_round_trips() {
         let parsed = read(
-            "Each(SelectAll(Type(Creature)), Modify(It, Several([Power(Down(Literal(1))), Toughness(Down(Literal(1)))])))",
+            "Each(SelectAll(Type(\"Creature\")), Modify(It, Several([Power(Down(Literal(1))), Toughness(Down(Literal(1)))])))",
         );
         assert_eq!(
             parsed,
             StaticEffect::Each(
                 crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Type(Type::Creature)
+                    crate::CharacteristicPredicate::Type(Type::Creature.name())
                 )),
                 Box::new(StaticEffect::Modify(
                     Reference::It,
@@ -588,19 +591,19 @@ mod tests {
     #[test]
     fn collection_op_round_trips() {
         let parsed = read(
-            "Each(SelectAll(Type(Creature)), Modify(It, Several([Colors(Set([Black])), CardTypes(Add(Artifact)), Subtypes(Remove(\"Goblin\"))])))",
+            "Each(SelectAll(Type(\"Creature\")), Modify(It, Several([Colors(Set([Black])), CardTypes(Add(\"Artifact\")), Subtypes(Remove(\"Goblin\"))])))",
         );
         assert_eq!(
             parsed,
             StaticEffect::Each(
                 crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Type(Type::Creature)
+                    crate::CharacteristicPredicate::Type(Type::Creature.name())
                 )),
                 Box::new(StaticEffect::Modify(
                     Reference::It,
                     Modification::Several(vec![
                         Modification::Colors(CollectionOp::Set(vec![Color::Black])),
-                        Modification::CardTypes(CollectionOp::Add(Type::Artifact)),
+                        Modification::CardTypes(CollectionOp::Add("Artifact".into())),
                         Modification::Subtypes(CollectionOp::Remove("Goblin".into())),
                     ]),
                 )),
@@ -728,7 +731,7 @@ mod tests {
     #[test]
     fn trigger_multiplier_round_trips() {
         let parsed = read(
-            "TriggerMultiplier(cause: ZoneChange(what: Or([Type(Artifact), Type(Creature)]), to: Battlefield), extra: 1)",
+            "TriggerMultiplier(cause: ZoneChange(what: Or([Type(\"Artifact\"), Type(\"Creature\")]), to: Battlefield), extra: 1)",
         );
         let StaticEffect::TriggerMultiplier {
             extra, affected, ..
@@ -747,7 +750,7 @@ mod tests {
 
         // An explicit non-default affected (an opponent doubler) is preserved.
         let opp = read(
-            "TriggerMultiplier(cause: ZoneChange(what: Type(Creature), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
+            "TriggerMultiplier(cause: ZoneChange(what: Type(\"Creature\"), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
         );
         let written = crate::ron::options().to_string(&opp).unwrap();
         assert!(written.contains("affected"), "non-default affected kept");
@@ -768,14 +771,14 @@ mod tests {
         // Convoke's colored clause: tap a white creature you control rather
         // than pay a {W} pip.
         let convoke = read(
-            "PayPips(Colored(White), TapToPay(And([Type(Creature), ColorIs(White), ControlledBy(Ref(You))])))",
+            "PayPips(Colored(White), TapToPay(And([Type(\"Creature\"), ColorIs(White), ControlledBy(Ref(You))])))",
         );
         assert_eq!(
             convoke,
             StaticEffect::PayPips(
                 PipClass::Colored(Color::White),
                 PayAct::TapToPay(Predicate::And(vec![
-                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
                     Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                         Reference::You

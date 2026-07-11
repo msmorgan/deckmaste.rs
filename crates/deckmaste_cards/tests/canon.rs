@@ -58,7 +58,7 @@ fn grizzly_bears_expand_the_creature_type_macro() {
     let Card::Normal(face) = card else {
         panic!("Grizzly Bears should be single-faced");
     };
-    assert_eq!(face.types, vec![Type::Creature]);
+    assert_eq!(face.types, vec![Type::Creature.def()]);
     assert_eq!(
         face.subtypes,
         vec![Subtype {
@@ -238,7 +238,7 @@ fn pounce_is_instant_type() {
     let Card::Normal(face) = plugin.card("Pounce").unwrap() else {
         panic!("Pounce should be single-faced");
     };
-    assert_eq!(face.types, vec![Type::Instant]);
+    assert_eq!(face.types, vec![Type::Instant.def()]);
 }
 
 #[test]

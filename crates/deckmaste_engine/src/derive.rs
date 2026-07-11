@@ -47,6 +47,11 @@ pub(crate) fn printed_of_face(face: &CardFace) -> Vec<Ability> {
                 .iter()
                 .flat_map(|s| s.confers.iter().filter_map(Property::conferred_ability)),
         )
+        .chain(
+            face.types
+                .iter()
+                .flat_map(|t| t.confers.iter().filter_map(Property::conferred_ability)),
+        )
         .collect()
 }
 
@@ -352,13 +357,15 @@ mod tests {
 
         let mut state = game();
         state.conferral_rules = vec![ConferralRule {
-            scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Planeswalker)),
+            scope: Predicate::Characteristic(CharacteristicPredicate::Type(
+                Type::Planeswalker.name(),
+            )),
             confer: Property::Ability(Box::new(Ability::Keyword(KeywordAbility::Trample))),
         }];
 
         let walker = Card::Normal(CardFace {
             name: "Test Walker".into(),
-            types: vec![Type::Planeswalker],
+            types: vec![Type::Planeswalker.def()],
             ..CardFace::default()
         });
         let walker_card = state.cards.push(Arc::new(walker), PlayerId(0));
@@ -371,7 +378,7 @@ mod tests {
 
         let bear = Card::Normal(CardFace {
             name: "Test Bear".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             ..CardFace::default()
         });
         let bear_card = state.cards.push(Arc::new(bear), PlayerId(0));

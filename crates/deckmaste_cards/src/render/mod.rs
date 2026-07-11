@@ -20,7 +20,7 @@ use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::TargetSpec;
-use deckmaste_core::Type;
+use deckmaste_core::TypeDef;
 
 /// The rendered, layout-ready pieces of one card/object. All fields are plain
 /// text.
@@ -40,7 +40,7 @@ pub struct CardView<'a> {
     pub name: &'a str,
     pub mana_cost: Option<&'a ManaCost>,
     pub supertypes: &'a [Supertype],
-    pub types: &'a [Type],
+    pub types: &'a [TypeDef],
     pub subtypes: &'a [Subtype],
     pub power: Option<&'a StatValue>,
     pub toughness: Option<&'a StatValue>,

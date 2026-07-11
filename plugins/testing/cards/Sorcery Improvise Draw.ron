@@ -17,6 +17,6 @@ Normal(
     types: [Sorcery],
     abilities: [
         Spell(effect: Draw(1)),
-        Static(PayPips(Generic, TapToPay(And([Type(Artifact), ControlledBy(Ref(You))])))),
+        Static(PayPips(Generic, TapToPay(And([Type("Artifact"), ControlledBy(Ref(You))])))),
     ],
 )

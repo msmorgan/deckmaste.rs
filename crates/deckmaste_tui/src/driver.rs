@@ -286,7 +286,7 @@ mod tests {
                 .zones
                 .battlefield
                 .iter()
-                .any(|&id| view.get(id).card_types.contains(&Type::Land))
+                .any(|&id| view.get(id).has_type(Type::Land))
             {
                 return; // a land was auto-played
             }

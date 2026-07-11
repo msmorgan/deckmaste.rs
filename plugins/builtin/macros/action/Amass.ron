@@ -32,7 +32,7 @@
     body: Sequentially([
         If(
             condition: Not(Exists(And([
-                Type(Creature),
+                Type("Creature"),
                 Subtype("Army"),
                 ControlledBy(Ref(You)),
             ]))),
@@ -49,7 +49,7 @@
         ),
         With(
             binder: ChooseOne(filter: And([
-                Type(Creature),
+                Type("Creature"),
                 Subtype("Army"),
                 ControlledBy(Ref(You)),
             ])),

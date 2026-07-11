@@ -15,7 +15,7 @@
     name: "Landwalk",
     template: "landwalk",
     kinds: [KeywordAbility],
-    params: { "quality": Default(Predicate, Type(Land)) },
+    params: { "quality": Default(Predicate, Type("Land")) },
     body: Composite(
         name: "Landwalk",
         abilities: [Static(Cant(Block(

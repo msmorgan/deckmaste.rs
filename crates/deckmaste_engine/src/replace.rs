@@ -305,7 +305,7 @@ mod tests {
     fn enchant_aura_card() -> Card {
         Card::Normal(CardFace {
             name: "Test Aura".into(),
-            types: vec![Type::Enchantment],
+            types: vec![Type::Enchantment.def()],
             abilities: vec![
                 Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                     what: Predicate::Ref(Reference::This),
@@ -440,7 +440,7 @@ mod tests {
 
         let card = Card::Normal(CardFace {
             name: "Test Counterer".into(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
@@ -516,7 +516,7 @@ mod tests {
         use deckmaste_core::RelationPredicate;
 
         let other_lands_you_control = Predicate::And(vec![
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land)),
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land.name())),
             Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                 Reference::You,
@@ -531,7 +531,7 @@ mod tests {
         );
         Card::Normal(CardFace {
             name: "Test Tapland".into(),
-            types: vec![Type::Land],
+            types: vec![Type::Land.def()],
             abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
@@ -559,7 +559,7 @@ mod tests {
     fn other_land(state: &mut GameState) -> ObjectId {
         let land = Card::Normal(CardFace {
             name: "Test Land".into(),
-            types: vec![Type::Land],
+            types: vec![Type::Land.def()],
             ..CardFace::default()
         });
         let card = state.cards.push(Arc::new(land), PlayerId(0));
@@ -653,7 +653,9 @@ mod tests {
 
         let mut state = game();
         state.conferral_rules = vec![ConferralRule {
-            scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Planeswalker)),
+            scope: Predicate::Characteristic(CharacteristicPredicate::Type(
+                Type::Planeswalker.name(),
+            )),
             confer: Property::Ability(Box::new(Ability::Static(StaticEffect::Replacement(
                 Box::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
@@ -676,7 +678,7 @@ mod tests {
 
         let card = Card::Normal(CardFace {
             name: "Test Walker".into(),
-            types: vec![Type::Planeswalker],
+            types: vec![Type::Planeswalker.def()],
             ..CardFace::default()
         });
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
@@ -737,15 +739,15 @@ mod tests {
         std::fs::create_dir_all(&grant_dir).unwrap();
         std::fs::write(
             grant_dir.join("planeswalker-loyalty.ron"),
-            r"[
+            r#"[
                 ConferralRule(
-                    scope: Type(Planeswalker),
+                    scope: Type("Planeswalker"),
                     confer: Ability(Static(Replacement(Also(
                         would: ZoneChange(what: Ref(This), to: Battlefield),
                         also: PutCounters(This, LoyaltyCounter, Literal(3)),
                     )))),
                 ),
-            ]",
+            ]"#,
         )
         .unwrap();
 
@@ -775,7 +777,7 @@ mod tests {
 
         let card = Card::Normal(CardFace {
             name: "Test Walker".into(),
-            types: vec![Type::Planeswalker],
+            types: vec![Type::Planeswalker.def()],
             ..CardFace::default()
         });
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
@@ -836,9 +838,9 @@ mod tests {
         assert!(
             builtin.conferral_rules.iter().any(|rule| rule.scope
                 == Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                    Type::Planeswalker
+                    Type::Planeswalker.name()
                 ))),
-            "the builtin plugin loaded a Type(Planeswalker) conferral rule from \
+            "the builtin plugin loaded a Type(\"Planeswalker\") conferral rule from \
              rules/grant/planeswalker-loyalty.ron"
         );
 
@@ -858,7 +860,7 @@ mod tests {
 
             let card = Card::Normal(CardFace {
                 name: "Test Walker".into(),
-                types: vec![Type::Planeswalker],
+                types: vec![Type::Planeswalker.def()],
                 loyalty: Some(deckmaste_core::StatValue::Number(printed_loyalty)),
                 ..CardFace::default()
             });

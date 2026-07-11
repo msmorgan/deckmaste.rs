@@ -716,7 +716,7 @@ fn bear_on_field() -> (GameState, ObjectId) {
                 &state,
                 o,
                 &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                    Type::Creature,
+                    Type::Creature.name(),
                 )),
             )
         })

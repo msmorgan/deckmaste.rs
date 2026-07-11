@@ -64,7 +64,7 @@ fn treasure_token_parses() {
         Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Treasure")],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -93,7 +93,7 @@ fn clue_token_parses() {
         Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Clue")],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -119,7 +119,7 @@ fn food_token_parses() {
         Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Food")],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -145,7 +145,7 @@ fn gold_token_parses() {
         Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Gold")],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -182,7 +182,7 @@ fn blood_token_parses() {
         Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Blood")],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -258,7 +258,7 @@ fn vibranium_token_parses() {
         Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Vibranium")],
             abilities: vec![
                 indestructible,

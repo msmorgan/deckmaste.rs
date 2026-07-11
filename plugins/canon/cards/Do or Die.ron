@@ -20,7 +20,7 @@ Normal(
       effect: Targeted(
         targets: [TargetOne(Player)],
         effect: SeparatePiles(
-          group: SelectAll(And([Type(Creature), ControlledBy(Ref(It))])),
+          group: SelectAll(And([Type("Creature"), ControlledBy(Ref(It))])),
           into: ["a", "b"],
           then: ChoosePile(
             from: Labels(["a", "b"]),

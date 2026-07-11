@@ -245,18 +245,26 @@ fn emit_mana_cost(cost: &ManaCost) -> String {
     ilist(cost.iter().map(emit_mana_symbol).collect())
 }
 
-fn emit_type(t: Type) -> R {
-    Ok(match t {
-        Type::Artifact => "Artifact",
-        Type::Battle => "Battle",
-        Type::Creature => "Creature",
-        Type::Enchantment => "Enchantment",
-        Type::Instant => "Instant",
-        Type::Kindred => "Kindred",
-        Type::Land => "Land",
-        Type::Planeswalker => "Planeswalker",
-        Type::Sorcery => "Sorcery",
-        Type::Dungeon => return Err(gap("Type::Dungeon has no Idris Type_ counterpart")),
+/// Map a canonical type NAME to its Idris `Type_` variant, gapping unknowns
+/// (Dungeon, any novel open type) — the closed grammar is untouched. Card types
+/// are open plugin data (`TypeDef`), so this keys on the name string; a name
+/// with no `Type_` counterpart gaps exactly as `Dungeon` did.
+pub(crate) fn emit_type_name(name: &str) -> R {
+    Ok(match name {
+        "Artifact" => "Artifact",
+        "Battle" => "Battle",
+        "Creature" => "Creature",
+        "Enchantment" => "Enchantment",
+        "Instant" => "Instant",
+        "Kindred" => "Kindred",
+        "Land" => "Land",
+        "Planeswalker" => "Planeswalker",
+        "Sorcery" => "Sorcery",
+        other => {
+            return Err(gap(format!(
+                "type `{other}` has no Idris Type_ counterpart"
+            )));
+        }
     }
     .to_string())
 }
@@ -522,7 +530,7 @@ fn emit_sort(s: &Sort) -> R {
         Sort::Spell => "Spell".to_string(),
         Sort::StackObject => "StackObject".to_string(),
         Sort::Permanent => "Permanent".to_string(),
-        Sort::OfType(t) => app("OfType", vec![emit_type(*t)?]),
+        Sort::OfType(t) => app("OfType", vec![emit_type_name(t.name().as_str())?]),
         Sort::Amount => "Amount".to_string(),
         Sort::Pile => "Pile".to_string(),
     })
@@ -647,9 +655,10 @@ fn emit_filter(f: &Predicate) -> R {
 
 fn emit_characteristic_filter(cf: &CharacteristicPredicate) -> R {
     Ok(match cf {
-        CharacteristicPredicate::Type(t) => {
-            app("HasChar", vec!["Types".to_string(), emit_type(*t)?])
-        }
+        CharacteristicPredicate::Type(name) => app(
+            "HasChar",
+            vec!["Types".to_string(), emit_type_name(name.as_str())?],
+        ),
         CharacteristicPredicate::Subtype(name) => app(
             "HasChar",
             vec!["Subtypes".to_string(), emit_subtype_ref(name.as_str())?],
@@ -1792,7 +1801,7 @@ fn emit_token_spec(spec: &TokenSpec) -> R {
 
 fn emit_token_characteristics(t: &Token) -> R {
     let colors = ilist(t.color_indicator.iter().map(|c| emit_color(*c)).collect());
-    let types = map_list(&t.types, |ty| emit_type(*ty))?;
+    let types = map_list(&t.types, |ty| emit_type_name(ty.name.as_str()))?;
     let supertypes = ilist(t.supertypes.iter().map(|s| emit_supertype(*s)).collect());
     let subtypes = map_list(&t.subtypes, emit_subtype)?;
     let abilities = emit_ability_list(&t.abilities)?;
@@ -1868,7 +1877,7 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
             "Alter",
             vec![
                 "Types".to_string(),
-                emit_collection_op(op, |t| emit_type(*t))?,
+                emit_collection_op(op, |t| emit_type_name(t.as_str()))?,
             ],
         )),
         Modification::Subtypes(op) => out.push(app(
@@ -3124,7 +3133,7 @@ fn emit_characteristics_from_face(face: &CardFace) -> R {
             .map(|c| emit_color(*c))
             .collect(),
     );
-    let types = map_list(&face.types, |t| emit_type(*t))?;
+    let types = map_list(&face.types, |t| emit_type_name(t.name.as_str()))?;
     let supertypes = ilist(face.supertypes.iter().map(|s| emit_supertype(*s)).collect());
     let subtypes = map_list(&face.subtypes, emit_subtype)?;
     let abilities = emit_ability_list(&face.abilities)?;

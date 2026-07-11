@@ -5,7 +5,7 @@
 // destination is left unconstrained (`to` omitted) — `Dies`/`Destroyed`/
 // `Sacrificed` narrow the same `ZoneChange` shape to the graveyard-specific
 // view. See also [CR#603.10] (look-back-in-time triggers).
-// Usage: LeavesBattlefield(what) — e.g. LeavesBattlefield(Type(Creature)),
+// Usage: LeavesBattlefield(what) — e.g. LeavesBattlefield(Type("Creature")),
 // LeavesBattlefield(Ref(This)).
 (
     name: "LeavesBattlefield",

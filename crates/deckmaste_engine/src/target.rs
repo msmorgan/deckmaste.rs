@@ -2,12 +2,12 @@
 //! the arms the corpus's `AnyTarget` reaches; the rest are `todo!`.
 
 use deckmaste_core::CharacteristicPredicate;
+use deckmaste_core::Ident;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
 use deckmaste_core::StatePredicate;
-use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -537,8 +537,14 @@ fn ordered_zone_position(
 /// layer-4 type changes count — an animated land or crewed Vehicle types as a
 /// Creature); a player proxy has none. Same per-call `layers()` perf seam as
 /// `Has`/`Subtype`.
-fn has_type(state: &GameState, id: ObjectId, ty: Type) -> bool {
-    state.objects.obj(id).card_id().is_some() && state.layers().get(id).card_types.contains(&ty)
+fn has_type(state: &GameState, id: ObjectId, ty: Ident) -> bool {
+    state.objects.obj(id).card_id().is_some()
+        && state
+            .layers()
+            .get(id)
+            .card_types
+            .iter()
+            .any(|t| t.name == ty)
 }
 
 /// The DERIVED value of `stat` for the card-backed object `id`, or `None` when
@@ -658,6 +664,7 @@ mod tests {
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::Predicate;
     use deckmaste_core::TargetSpec;
+    use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
     use super::*;
@@ -728,7 +735,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        deckmaste_core::Type::Creature,
+                        deckmaste_core::Type::Creature.name(),
                     )),
                 )
             })
@@ -772,7 +779,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        deckmaste_core::Type::Land,
+                        deckmaste_core::Type::Land.name(),
                     )),
                 )
             })
@@ -800,7 +807,7 @@ mod tests {
 
         let (mut state, land) = game_with_a_forest_on_the_field();
         let creature = Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            deckmaste_core::Type::Creature,
+            deckmaste_core::Type::Creature.name(),
         ));
         // Sanity: a plain Forest is not a creature.
         assert!(
@@ -814,7 +821,7 @@ mod tests {
             controller: PlayerId(1),
             scope: ScopeResolved::Locked(vec![land]),
             changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
-                deckmaste_core::Type::Creature,
+                deckmaste_core::Type::Creature.name(),
             ))],
             duration: Duration::EndOfGame,
             is_cda: false,
@@ -822,17 +829,13 @@ mod tests {
 
         // The derived view says Creature...
         assert!(
-            state
-                .layers()
-                .get(land)
-                .card_types
-                .contains(&deckmaste_core::Type::Creature),
+            state.layers().get(land).has_type(Type::Creature),
             "sanity: the animated land derives as a creature"
         );
         // ...and the Type filter must agree ([CR#613.1d]).
         assert!(
             matches(&state, land, &creature),
-            "Predicate::Type reads the derived type — the animated land matches Type(Creature)"
+            "Predicate::Type reads the derived type — the animated land matches Type(\"Creature\")"
         );
     }
 
@@ -1174,7 +1177,7 @@ mod tests {
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
         let f = Predicate::Relation(RelationPredicate::Controls(Box::new(cf(CF::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )))));
         assert!(matches(&state, p0, &f)); // P0 controls the bear
         assert!(!matches(&state, p1, &f)); // P1 controls no creature
@@ -1315,10 +1318,11 @@ mod tests {
     fn targets_reads_a_stack_objects_chosen_targets() {
         let (state, spell, bear) = spell_targeting_bear();
         let targets_creature = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )))));
-        let targets_land =
-            Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(Type::Land)))));
+        let targets_land = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
+            Type::Land.name(),
+        )))));
         assert!(matches(&state, spell, &targets_creature));
         assert!(!matches(&state, spell, &targets_land));
         // A non-stack object (the bear itself) has no targets.
@@ -1331,7 +1335,7 @@ mod tests {
     fn targets_ignores_a_departed_target() {
         let (mut state, spell, bear) = spell_targeting_bear();
         let targets_creature = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )))));
         assert!(matches(&state, spell, &targets_creature));
         // The bear leaves — its id is now stale on the stack entry.
@@ -1390,7 +1394,7 @@ mod tests {
         // A second Grizzly Bears on the field plays the attachment `a`.
         let a = *state.zones.hands[0]
             .iter()
-            .find(|&&o| matches(&state, o, &cf(CF::Type(Type::Creature))))
+            .find(|&&o| matches(&state, o, &cf(CF::Type(Type::Creature.name()))))
             .expect("a second Grizzly Bears in the opening hand");
         state.remove_from_hand(PlayerId(0), a);
         state.objects.obj_mut(a).zone = Some(Zone::Battlefield);
@@ -1398,7 +1402,7 @@ mod tests {
         state.objects.obj_mut(a).attached_to = Some(b);
 
         let attached_to_creature = Predicate::Relation(RelationPredicate::AttachedTo(Box::new(
-            cf(CF::Type(Type::Creature)),
+            cf(CF::Type(Type::Creature.name())),
         )));
         let has_any_attachment =
             Predicate::Relation(RelationPredicate::Attachment(Box::new(Predicate::Any)));
@@ -1447,7 +1451,7 @@ mod tests {
             types: std::collections::HashMap::new(),
         });
         let creature = Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            deckmaste_core::Type::Creature,
+            deckmaste_core::Type::Creature.name(),
         ));
         let bear = *state.zones.hands[0]
             .iter()

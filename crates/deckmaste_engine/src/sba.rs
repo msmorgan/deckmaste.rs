@@ -427,7 +427,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature,
+                        Type::Creature.name(),
                     )),
                 )
             })
@@ -468,7 +468,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature,
+                        Type::Creature.name(),
                     )),
                 )
             })
@@ -751,7 +751,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![],
             power: None,
@@ -878,7 +878,7 @@ mod tests {
     ) -> crate::object::ObjectId {
         let card = Card::Normal(CardFace {
             name: name.into(),
-            types,
+            types: types.into_iter().map(Type::def).collect(),
             abilities,
             ..CardFace::default()
         });
@@ -913,7 +913,7 @@ mod tests {
         Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
             Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
-                to: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                to: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
             }),
         ))))
     }
@@ -1510,7 +1510,7 @@ mod tests {
     ) -> crate::object::ObjectId {
         let card = deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: name.into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             supertypes: vec![Supertype::Legendary],
             ..deckmaste_core::CardFace::default()
         });
@@ -1533,7 +1533,7 @@ mod tests {
     ) -> crate::object::ObjectId {
         let card = deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: name.into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             supertypes: vec![],
             ..deckmaste_core::CardFace::default()
         });

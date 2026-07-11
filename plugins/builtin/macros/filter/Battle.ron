@@ -2,5 +2,5 @@
     name: "Battle",
     template: "battle",
     kinds: [Predicate],
-    body: And([Permanent, Type(Battle)]),
+    body: And([Permanent, Type("Battle")]),
 )

@@ -573,7 +573,7 @@ mod tests {
             "May(effect:Draw(Literal(1)))",
             // `Each.binder` is a many-`Binder` (the set of all creatures wrapped
             // in `Existing`), binding `It` per element.
-            "Each(binder:Existing(SelectAll(Type(Creature))),effect:Draw(Literal(1)))",
+            "Each(binder:Existing(SelectAll(Type(\"Creature\"))),effect:Draw(Literal(1)))",
             // Brainstorm's shape in the new model: choose 2 cards (a many-binder
             // `With`), then `Each` over the bound group (`Existing(They)`), moving
             // each onto the library via the `It` element. Core reader has no
@@ -684,7 +684,7 @@ mod tests {
     /// round-trips ([CR#115.1,601.2c]).
     #[test]
     fn targeted_effect_reads_and_round_trips() {
-        let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(Creature))],effect:DealDamage(This,Literal(3),It))";
+        let src = "Targeted(targets:[Target(Range(Literal(1),Literal(1)),Type(\"Creature\"))],effect:DealDamage(This,Literal(3),It))";
         let parsed = read(src);
         let OneShotEffect::Targeted(te) = &parsed else {
             panic!("expected Targeted, got {parsed:?}");
@@ -719,7 +719,7 @@ mod tests {
     #[test]
     fn divide_among_reads_and_round_trips() {
         let damage = read(
-            "Distribute(amount: 3, binder: Existing(SelectAll(Type(Creature))), \
+            "Distribute(amount: 3, binder: Existing(SelectAll(Type(\"Creature\"))), \
              body: DealDamage(This, Allotment, It))",
         );
         let OneShotEffect::Distribute(d) = &damage else {
@@ -751,7 +751,8 @@ mod tests {
     /// `Each : Bindable b Many k -> …`).
     #[test]
     fn each_binds_via_binder() {
-        let v = read("Each(binder:Existing(SelectAll(Type(Creature))),effect:Draw(Literal(1)))");
+        let v =
+            read("Each(binder:Existing(SelectAll(Type(\"Creature\"))),effect:Draw(Literal(1)))");
         let OneShotEffect::Each(e) = &v else {
             panic!("expected Each, got {v:?}");
         };

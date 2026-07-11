@@ -11,7 +11,7 @@ Normal(
     Aura,
   ],
   abilities: [
-    Keyword(Enchant(Type(Creature))),
+    Keyword(Enchant(Type("Creature"))),
     Static(Cant(Attack(by: Ref(AttachHostOf(This))))),
     Static(Cant(Block(by: Ref(AttachHostOf(This))))),
   ],

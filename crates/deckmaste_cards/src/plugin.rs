@@ -534,8 +534,8 @@ mod tests {
         assert!(matches!(
             plugin.conferral_rules[0].scope,
             deckmaste_core::Predicate::Characteristic(
-                deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker)
-            )
+                deckmaste_core::CharacteristicPredicate::Type(n)
+            ) if n == Type::Planeswalker.name()
         ));
     }
 
@@ -553,8 +553,8 @@ mod tests {
         assert!(matches!(
             rule.recipient,
             deckmaste_core::Predicate::Characteristic(
-                deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker)
-            )
+                deckmaste_core::CharacteristicPredicate::Type(n)
+            ) if n == Type::Planeswalker.name()
         ));
         assert_eq!(
             rule.remove,
@@ -799,15 +799,15 @@ mod tests {
         std::fs::create_dir_all(&grant_dir).unwrap();
         std::fs::write(
             grant_dir.join("planeswalker-loyalty.ron"),
-            r"[
+            r#"[
                 ConferralRule(
-                    scope: Type(Planeswalker),
+                    scope: Type("Planeswalker"),
                     confer: Ability(Static(Replacement(Also(
                         would: ZoneChange(what: Ref(This), to: Battlefield),
                         also: PutCounters(This, LoyaltyCounter, StatOf(This, Loyalty)),
                     )))),
                 ),
-            ]",
+            ]"#,
         )
         .unwrap();
         let plugin = Plugin::load(root.path()).unwrap();
@@ -815,7 +815,7 @@ mod tests {
         assert_eq!(
             plugin.conferral_rules[0].scope,
             deckmaste_core::Predicate::Characteristic(
-                deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker)
+                deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker.name())
             )
         );
     }

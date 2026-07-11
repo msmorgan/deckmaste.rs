@@ -13,7 +13,7 @@ Normal(
     Triggered(
       from: Graveyard,
       event: StepBegins(at: Beginning(Upkeep), whose: Your),
-      condition: Exists(And([Type(Creature), Adjacent(Above, This)])),
+      condition: Exists(And([Type("Creature"), Adjacent(Above, This)])),
       effect: MayPay(cost: [Mana([Generic(1)])], and_then: Move(This, Hand)),
     ),
   ],

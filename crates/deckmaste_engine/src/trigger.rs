@@ -12,12 +12,12 @@ use deckmaste_core::Ability;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Count;
 use deckmaste_core::EventFilter;
+use deckmaste_core::Ident;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
-use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -1111,9 +1111,10 @@ fn snapshot_face<'a>(
     }
 }
 
-/// Whether the snapshot's card has the given type in its printed face.
-fn snapshot_has_type(state: &GameState, snapshot: &LkiSnapshot, ty: Type) -> bool {
-    snapshot_face(state, snapshot).is_some_and(|f| f.types.contains(&ty))
+/// Whether the snapshot's card has the named type in its printed face
+/// (matched by name against the expanded `TypeDef`s).
+fn snapshot_has_type(state: &GameState, snapshot: &LkiSnapshot, ty: Ident) -> bool {
+    snapshot_face(state, snapshot).is_some_and(|f| f.types.iter().any(|t| t.name == ty))
 }
 
 /// The PRINTED value of `stat` for a snapshot, or `None` when the face lacks it
@@ -1459,7 +1460,7 @@ mod tests {
 
         assert!(
             state.event_matches(&pattern, &event, watcher_source),
-            "Dies(Type(Creature)) must match a creature dying"
+            "Dies(Type(\"Creature\")) must match a creature dying"
         );
     }
 
@@ -1524,7 +1525,7 @@ mod tests {
 
         assert!(
             !state.event_matches(&dies_pattern, &enter_event, watcher_source),
-            "Dies(Type(Creature)) must NOT match an entering event"
+            "Dies(Type(\"Creature\")) must NOT match an entering event"
         );
     }
 
@@ -1569,7 +1570,7 @@ mod tests {
 
         assert!(
             !state.event_matches(&dies_pattern, &event, watcher_source),
-            "Dies(Type(Creature)) must NOT match a non-creature"
+            "Dies(Type(\"Creature\")) must NOT match a non-creature"
         );
     }
 
@@ -1760,11 +1761,11 @@ mod tests {
     fn condition_holds_exists_creature_true_when_creature_present() {
         let (state, _bear) = bear_on_field();
         let cond = Condition::Exists(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )));
         assert!(
             state.condition_holds(&cond, &gate_frame(&state, PlayerId(0))),
-            "Exists(Type(Creature)) should hold when a creature is on the battlefield"
+            "Exists(Type(\"Creature\")) should hold when a creature is on the battlefield"
         );
     }
 
@@ -1791,11 +1792,11 @@ mod tests {
             types: std::collections::HashMap::new(),
         });
         let cond = Condition::Exists(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )));
         assert!(
             !state.condition_holds(&cond, &gate_frame(&state, PlayerId(0))),
-            "Exists(Type(Creature)) should NOT hold when no creatures are present"
+            "Exists(Type(\"Creature\")) should NOT hold when no creatures are present"
         );
     }
 
@@ -1923,7 +1924,7 @@ mod tests {
     fn dies_macro_expands_to_zone_move() {
         use deckmaste_core::EventFilter;
 
-        let event: EventFilter = canon().macros.read_str("Dies(Type(Creature))").unwrap();
+        let event: EventFilter = canon().macros.read_str("Dies(Type(\"Creature\"))").unwrap();
         let EventFilter::Expanded(expanded) = &event else {
             panic!("expected EventFilter::Expanded, got {event:?}");
         };
@@ -1973,7 +1974,7 @@ mod tests {
 
         let event: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(Creature))")
+            .read_str("Destroyed(Type(\"Creature\"))")
             .unwrap();
         let EventFilter::Expanded(expanded) = &event else {
             panic!("expected EventFilter::Expanded, got {event:?}");
@@ -2043,7 +2044,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(Creature))")
+            .read_str("Destroyed(Type(\"Creature\"))")
             .unwrap();
         let event = zone_changed_with_cause(
             &state,
@@ -2066,7 +2067,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(Creature))")
+            .read_str("Destroyed(Type(\"Creature\"))")
             .unwrap();
         let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
         assert!(
@@ -2083,7 +2084,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(Creature))")
+            .read_str("Destroyed(Type(\"Creature\"))")
             .unwrap();
         let event = zone_changed_with_cause(
             &state,
@@ -2196,7 +2197,7 @@ mod tests {
                 verb: Some(deckmaste_core::CauseVerb::Destroy),
                 agency: None,
                 agent: Some(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature,
+                    Type::Creature.name(),
                 ))),
             })),
             what: Predicate::Any,
@@ -2567,7 +2568,7 @@ mod tests {
             what: Predicate::And(vec![
                 Predicate::Kind(ObjectKind::Spell),
                 Predicate::Not(Box::new(Predicate::Characteristic(
-                    CharacteristicPredicate::Type(Type::Creature),
+                    CharacteristicPredicate::Type(Type::Creature.name()),
                 ))),
             ]),
         };
@@ -3121,7 +3122,7 @@ mod tests {
         let goblin_token = Token {
             color_indicator: vec![Color::Red],
             supertypes: vec![],
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             subtypes: vec![],
             abilities: vec![],
             power: Some(StatValue::Number(1)),
@@ -3129,7 +3130,7 @@ mod tests {
         };
         Card::Normal(CardFace {
             name: "Rabblemaster".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
@@ -3458,7 +3459,7 @@ mod tests {
 
         Card::Normal(CardFace {
             name: "Graveyard Echo".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
@@ -4194,7 +4195,7 @@ mod tests {
 
         Card::Normal(CardFace {
             name: "Death Watcher".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
@@ -4283,7 +4284,7 @@ mod tests {
 
         Card::Normal(CardFace {
             name: "Pain Gainer".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             abilities: vec![Ability::Triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
@@ -4618,7 +4619,7 @@ mod tests {
         let (_watcher, watcher_source) = scan_watcher(
             &mut state,
             PlayerId(0),
-            "Nth(n: 2, of: ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard), \
+            "Nth(n: 2, of: ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard), \
              within: ThisTurn)",
         );
         let turn = state.turn.turn_number;
@@ -4653,7 +4654,7 @@ mod tests {
             let (_watcher, watcher_source) = scan_watcher(
                 &mut state,
                 controller,
-                "When(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard), \
+                "When(ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard), \
                  YourTurn)",
             );
             let died = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
@@ -4677,7 +4678,7 @@ mod tests {
         let (_watcher, watcher_source) = scan_watcher(
             &mut state,
             PlayerId(0),
-            "ZoneChange(what: And([Type(Creature), Where(Matches(It, Named(\"Grizzly Bears\")))]), \
+            "ZoneChange(what: And([Type(\"Creature\"), Where(Matches(It, Named(\"Grizzly Bears\")))]), \
              from: Battlefield, to: Graveyard)",
         );
 
@@ -4705,9 +4706,9 @@ mod tests {
     fn one_or_more_trigger_fires_once_per_batch() {
         let watcher_card = |quantified: bool| {
             let event = if quantified {
-                "OneOrMore(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard))"
+                "OneOrMore(ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard))"
             } else {
-                "ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard)"
+                "ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard)"
             };
             let source = format!(
                 "Normal(name: \"Batch Watcher\", types: [Enchantment], abilities: [\
@@ -4849,7 +4850,7 @@ mod tests {
     #[test]
     fn dies_trigger_fires_on_a_sacrifice() {
         let source = "Normal(name: \"Death Watcher\", types: [Enchantment], abilities: [\
-             Triggered(event: Dies(Type(Creature)), effect: GainLife(1)),\
+             Triggered(event: Dies(Type(\"Creature\")), effect: GainLife(1)),\
          ])";
         let card = Arc::new(
             canon()

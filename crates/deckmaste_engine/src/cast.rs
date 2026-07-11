@@ -745,10 +745,10 @@ impl GameState {
         let face = crate::derive::face(self.def(object));
         // Lands are never cast as spells — playing a land is a special action
         // ([CR#305.9,116.2a]).
-        if face.types.contains(&Type::Land) {
+        if face.types.iter().any(|t| t.name == Type::Land.name()) {
             return None;
         }
-        let instant = face.types.contains(&Type::Instant);
+        let instant = face.types.iter().any(|t| t.name == Type::Instant.name());
         // Sorcery speed for non-instants ([CR#307.1,117.1a]), unless a
         // May(Cast(window: InstantSpeed)) row lifts the default
         // ([CR#702.8a] flash — the card's own row functions from the
@@ -841,7 +841,7 @@ impl GameState {
             }
             // Mirror the legal_actions guard: a summoning-sick creature's mana
             // ability is illegal (lands aren't creatures, so this rarely bites).
-            if obj.summoning_sick && view.get(land).card_types.contains(&Type::Creature) {
+            if obj.summoning_sick && view.get(land).has_type(Type::Creature) {
                 continue;
             }
             for (ability, a) in crate::derive::usable_abilities(self, land)
@@ -2170,7 +2170,7 @@ mod tests {
         Card::Normal(CardFace {
             name: name.into(),
             mana_cost: "{1}".parse().unwrap(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             ..CardFace::default()
         })
     }
@@ -2181,7 +2181,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Fromite".into(),
             mana_cost: printed.parse().unwrap(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             abilities: vec![Ability::Static(StaticEffect::CostModifier {
                 of: Predicate::Ref(Reference::This),
                 change: CostChange::Scaled {
@@ -2192,7 +2192,7 @@ mod tests {
                         Predicate::And(vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Characteristic(CharacteristicPredicate::Type(
-                                Type::Artifact,
+                                Type::Artifact.name(),
                             )),
                         ]),
                     ))),
@@ -2255,16 +2255,16 @@ mod tests {
         let bear = Card::Normal(CardFace {
             name: "Bear".into(),
             mana_cost: "{1}{G}".parse().unwrap(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             ..CardFace::default()
         });
         let spell = put_synthetic(&mut state, bear, PlayerId(0), Zone::Hand);
 
         let taxer = Card::Normal(CardFace {
             name: "Thorn Totem".into(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             abilities: vec![Ability::Static(StaticEffect::CostModifier {
-                of: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                of: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
                 change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
             })],
             ..CardFace::default()
@@ -2313,7 +2313,7 @@ mod tests {
         Card::Normal(CardFace {
             name: name.into(),
             mana_cost: ManaCost::default(),
-            types: vec![Type::Land],
+            types: vec![Type::Land.def()],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
                 cost: Cost(vec![CostComponent::Tap]),
@@ -2336,7 +2336,7 @@ mod tests {
         Card::Normal(CardFace {
             name: name.into(),
             mana_cost: mc.parse().unwrap(),
-            types: vec![Type::Instant],
+            types: vec![Type::Instant.def()],
             ..CardFace::default()
         })
     }

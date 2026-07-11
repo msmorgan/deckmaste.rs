@@ -16,11 +16,11 @@ KeywordAbility(
     name: "Convoke",
     template: "convoke",
     abilities: [
-        Static(PayPips(Generic, TapToPay(And([Type(Creature), ControlledBy(Ref(You))])))),
-        Static(PayPips(Colored(White), TapToPay(And([Type(Creature), ColorIs(White), ControlledBy(Ref(You))])))),
-        Static(PayPips(Colored(Blue), TapToPay(And([Type(Creature), ColorIs(Blue), ControlledBy(Ref(You))])))),
-        Static(PayPips(Colored(Black), TapToPay(And([Type(Creature), ColorIs(Black), ControlledBy(Ref(You))])))),
-        Static(PayPips(Colored(Red), TapToPay(And([Type(Creature), ColorIs(Red), ControlledBy(Ref(You))])))),
-        Static(PayPips(Colored(Green), TapToPay(And([Type(Creature), ColorIs(Green), ControlledBy(Ref(You))])))),
+        Static(PayPips(Generic, TapToPay(And([Type("Creature"), ControlledBy(Ref(You))])))),
+        Static(PayPips(Colored(White), TapToPay(And([Type("Creature"), ColorIs(White), ControlledBy(Ref(You))])))),
+        Static(PayPips(Colored(Blue), TapToPay(And([Type("Creature"), ColorIs(Blue), ControlledBy(Ref(You))])))),
+        Static(PayPips(Colored(Black), TapToPay(And([Type("Creature"), ColorIs(Black), ControlledBy(Ref(You))])))),
+        Static(PayPips(Colored(Red), TapToPay(And([Type("Creature"), ColorIs(Red), ControlledBy(Ref(You))])))),
+        Static(PayPips(Colored(Green), TapToPay(And([Type("Creature"), ColorIs(Green), ControlledBy(Ref(You))])))),
     ],
 )

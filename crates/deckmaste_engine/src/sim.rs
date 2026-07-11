@@ -75,7 +75,9 @@ pub struct Summary {
 fn has_type(state: &GameState, id: ObjectId, ty: Type) -> bool {
     state.objects.obj(id).card_id().is_some()
         && match state.def(id) {
-            Card::Normal(f) | Card::TwoFaced { front: f, .. } => f.types.contains(&ty),
+            Card::Normal(f) | Card::TwoFaced { front: f, .. } => {
+                f.types.iter().any(|t| t.name == ty.name())
+            }
         }
 }
 

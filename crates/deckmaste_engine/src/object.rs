@@ -64,7 +64,7 @@ pub struct CardInstance {
     pub(crate) subtypes: Arc<Vec<Subtype>>,
     /// Base colors ([CR#202.2]: cost symbols, else color indicator).
     pub(crate) colors: Arc<Vec<deckmaste_core::Color>>,
-    pub(crate) card_types: Arc<Vec<deckmaste_core::Type>>,
+    pub(crate) card_types: Arc<Vec<deckmaste_core::TypeDef>>,
     pub(crate) supertypes: Arc<Vec<deckmaste_core::Supertype>>,
 }
 
@@ -398,7 +398,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![Color::Red],
             supertypes: vec![],
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             subtypes: vec![],
             abilities: vec![],
             power: Some(StatValue::Number(1)),

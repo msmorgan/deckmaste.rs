@@ -138,7 +138,7 @@ mod tests {
     fn random_round_trips() {
         let v = Selection::Random(
             Quantity::one(),
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
         );
         assert_eq!(read(&to_string(&v)), v);
     }
@@ -191,7 +191,7 @@ mod tests {
     fn union_round_trips() {
         let v = Selection::Union(vec![
             Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Creature,
+                Type::Creature.name(),
             ))),
             Selection::SelectAll(Predicate::Kind(ObjectKind::Player)),
         ]);
@@ -233,7 +233,7 @@ mod tests {
             op: crate::AggregateOp::MaxOf,
             proj: crate::Projection {
                 of: crate::Countable::Objects(Box::new(Predicate::Characteristic(
-                    CharacteristicPredicate::Type(Type::Creature),
+                    CharacteristicPredicate::Type(Type::Creature.name()),
                 ))),
                 by: Box::new(Count::StatOf(crate::Reference::It, crate::Stat::Power)),
             },
@@ -241,7 +241,9 @@ mod tests {
         let s = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(crate::ron::options().from_str::<Selection>(&s).unwrap(), v);
         assert!(matches!(
-            read("Pick(op: MinOf, proj: (of: Objects(Type(Creature)), by: StatOf(It, Toughness)))"),
+            read(
+                "Pick(op: MinOf, proj: (of: Objects(Type(\"Creature\")), by: StatOf(It, Toughness)))"
+            ),
             Selection::Pick {
                 op: crate::AggregateOp::MinOf,
                 ..

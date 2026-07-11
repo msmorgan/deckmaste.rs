@@ -114,7 +114,9 @@ fn is_land(state: &GameState, id: ObjectId) -> bool {
         .obj(id)
         .card_id()
         .is_some_and(|_| match state.def(id) {
-            Card::Normal(f) | Card::TwoFaced { front: f, .. } => f.types.contains(&Type::Land),
+            Card::Normal(f) | Card::TwoFaced { front: f, .. } => {
+                f.types.iter().any(|t| t.name == Type::Land.name())
+            }
         })
 }
 
@@ -1090,7 +1092,7 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
         mana_cost: ManaCost::from(vec![]),
         color_indicator: vec![],
         supertypes: vec![],
-        types: vec![Type::Artifact],
+        types: vec![Type::Artifact.def()],
         subtypes: vec![],
         abilities: vec![Ability::Activated(ActivatedAbility {
             ability_word: None,
@@ -2164,7 +2166,7 @@ fn instant_with_cost(name: &str, cost: ManaCost) -> Arc<Card> {
         mana_cost: cost,
         color_indicator: vec![],
         supertypes: vec![],
-        types: vec![Type::Instant],
+        types: vec![Type::Instant.def()],
         subtypes: vec![],
         abilities: vec![],
         power: None,

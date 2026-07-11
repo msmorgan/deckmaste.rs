@@ -517,7 +517,7 @@ impl GameState {
                         // source later loses the ability or leaves; a stale (gone)
                         // source contributes no abilities. A non-creature permanent
                         // (a plain planeswalker) is NOT marked ([CR#120.3e]).
-                        if view.get(target).card_types.contains(&Type::Creature) {
+                        if view.get(target).has_type(Type::Creature) {
                             let (src, abilities) = match self.objects.get(source) {
                                 // Card-backed source: capture its identity and
                                 // deal-time abilities from the layered view.
@@ -2074,7 +2074,7 @@ impl GameState {
                 let defender = self.next_live_after(self.turn.active_player);
                 self.zones.battlefield.contains(&target)
                     && view.controller(target) == defender
-                    && view.get(target).card_types.contains(&Type::Planeswalker)
+                    && view.get(target).has_type(Type::Planeswalker)
             }
             None => false,
         }
@@ -2508,7 +2508,7 @@ mod tests {
             let card =
                 std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
                     name: name.into(),
-                    types: vec![deckmaste_core::Type::Sorcery],
+                    types: vec![deckmaste_core::Type::Sorcery.def()],
                     ..deckmaste_core::CardFace::default()
                 }));
             let cid = state.cards.push(card, PlayerId(0));
@@ -2717,7 +2717,7 @@ mod tests {
                         &state,
                         o,
                         &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                            Type::Creature,
+                            Type::Creature.name(),
                         )),
                     )
                 })
@@ -2814,7 +2814,7 @@ mod tests {
         fn legendary_creature(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
             let card = Arc::new(Card::Normal(deckmaste_core::CardFace {
                 name: name.into(),
-                types: vec![Type::Creature],
+                types: vec![Type::Creature.def()],
                 supertypes: vec![Supertype::Legendary],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
@@ -2865,7 +2865,7 @@ mod tests {
         ) -> ObjectId {
             let card = Arc::new(Card::Normal(deckmaste_core::CardFace {
                 name: name.into(),
-                types: vec![Type::Creature],
+                types: vec![Type::Creature.def()],
                 supertypes: vec![],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),

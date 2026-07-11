@@ -525,14 +525,14 @@ mod tests {
             // it gets scheduled.
             let card = Card::Normal(CardFace {
                 name: "Conditional Trigger Artifact".into(),
-                types: vec![Type::Artifact],
+                types: vec![Type::Artifact.def()],
                 abilities: vec![Ability::Triggered(TriggeredAbility {
                     ability_word: None,
                     where_x: None,
                     from: None,
                     event: EventFilter::OneOf(Vec::new()),
                     condition: Some(Condition::Exists(Predicate::Characteristic(
-                        CharacteristicPredicate::Type(Type::Creature),
+                        CharacteristicPredicate::Type(Type::Creature.name()),
                     ))),
                     limits: Vec::new(),
                     effect: OneShotEffect::Sequentially(Vec::new()),
@@ -857,7 +857,7 @@ mod tests {
         state.zones.battlefield.push(bear);
 
         let creatures = Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
         )));
         assert!(
             state.condition_holds(
@@ -1127,7 +1127,7 @@ mod tests {
         assert!(
             state.condition_holds(
                 &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature
+                    Type::Creature.name()
                 ))),
                 &frame_for(&state, PlayerId(0)),
             ),
@@ -1136,7 +1136,7 @@ mod tests {
         assert!(
             !state.condition_holds(
                 &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Land
+                    Type::Land.name()
                 ))),
                 &frame_for(&state, PlayerId(0)),
             ),

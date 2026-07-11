@@ -304,7 +304,7 @@ fn type_change_then_set_pt_locks_in() {
 
     let view = state.layers();
     assert!(
-        view.get(ench).card_types.contains(&Type::Creature),
+        view.get(ench).has_type(Type::Creature),
         "the enchantment became a creature (layer 4)"
     );
     assert_eq!(
@@ -497,8 +497,7 @@ fn animated_enchantment_can_attack() {
         state
             .layers()
             .get(ench)
-            .card_types
-            .contains(&deckmaste_core::Type::Creature),
+            .has_type(deckmaste_core::Type::Creature),
         "sanity: the enchantment derives as a creature"
     );
     assert!(
@@ -637,10 +636,10 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
         timestamp: Timestamp(2_000),
         controller: PlayerId(0),
         scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
-            Type::Enchantment,
+            Type::Enchantment.name(),
         ))],
         duration: Duration::EndOfGame,
         is_cda: false,
@@ -650,10 +649,10 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
         scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Enchantment,
+            Type::Enchantment.name(),
         ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
-            Type::Artifact,
+            Type::Artifact.name(),
         ))],
         duration: Duration::EndOfGame,
         is_cda: false,
@@ -661,11 +660,11 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
 
     let view = state.layers();
     assert!(
-        view.get(bear).card_types.contains(&Type::Enchantment),
+        view.get(bear).has_type(Type::Enchantment),
         "A makes the bear an enchantment"
     );
     assert!(
-        view.get(bear).card_types.contains(&Type::Artifact),
+        view.get(bear).has_type(Type::Artifact),
         "B depends on A and applies after it, so the bear becomes an artifact ([CR#613.8b])"
     );
 }
@@ -741,10 +740,10 @@ fn dependency_loop_falls_back_to_timestamp() {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
         scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
-            Type::Enchantment,
+            Type::Enchantment.name(),
         ))],
         duration: Duration::EndOfGame,
         is_cda: false,
@@ -754,10 +753,10 @@ fn dependency_loop_falls_back_to_timestamp() {
         timestamp: Timestamp(2_000),
         controller: PlayerId(0),
         scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Enchantment,
+            Type::Enchantment.name(),
         ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
-            Type::Creature,
+            Type::Creature.name(),
         ))],
         duration: Duration::EndOfGame,
         is_cda: false,
@@ -766,11 +765,11 @@ fn dependency_loop_falls_back_to_timestamp() {
     // Must terminate (no hang) and resolve in timestamp order.
     let view = state.layers();
     assert!(
-        view.get(bear).card_types.contains(&Type::Enchantment),
+        view.get(bear).has_type(Type::Enchantment),
         "A (earlier) catches the creature: the bear becomes an enchantment"
     );
     assert!(
-        view.get(moon).card_types.contains(&Type::Creature),
+        view.get(moon).has_type(Type::Creature),
         "B then catches the enchantment: Bad Moon becomes a creature ([CR#613.8b] loop → timestamp)"
     );
 }

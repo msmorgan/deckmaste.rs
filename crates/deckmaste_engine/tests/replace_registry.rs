@@ -113,7 +113,7 @@ fn force_onto_battlefield(state: &mut GameState, obj: ObjectId) {
 fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) {
     let card = Arc::new(Card::Normal(CardFace {
         name: "Test Creature".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
         abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
@@ -153,7 +153,7 @@ fn creature_with_abilities(
 ) -> (GameState, ObjectId) {
     let card = Arc::new(Card::Normal(CardFace {
         name: name.to_owned(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(power)),
         toughness: Some(StatValue::Number(toughness)),
         abilities,
@@ -318,7 +318,7 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
     };
     let card = Arc::new(Card::Normal(CardFace {
         name: "Double Shield".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
         // Two SEPARATE static abilities so gather yields two different keys.
@@ -639,14 +639,14 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
 
     let subj_card = Arc::new(Card::Normal(CardFace {
         name: "Subject".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
         ..CardFace::default()
     }));
     let src_card = Arc::new(Card::Normal(CardFace {
         name: "Source".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(1)),
         toughness: Some(StatValue::Number(1)),
         ..CardFace::default()
@@ -797,7 +797,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // Creature card: a 2/2 with no abilities.
     let creature_card = Arc::new(Card::Normal(CardFace {
         name: "Host Creature".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
         ..CardFace::default()
@@ -808,7 +808,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // the manual attachment as illegal and unattach it.
     let aura_card = Arc::new(Card::Normal(CardFace {
         name: "Umbra Armor".into(),
-        types: vec![Type::Enchantment],
+        types: vec![Type::Enchantment.def()],
         abilities: vec![
             Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
@@ -909,7 +909,7 @@ fn umbra_armor_redirects_host_destruction_to_aura() {
 fn ordinary_destroy_goes_to_graveyard() {
     let card = Arc::new(Card::Normal(CardFace {
         name: "Vanilla Creature".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
         ..CardFace::default()
@@ -1173,7 +1173,7 @@ fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) ->
 fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, ObjectId) {
     let src_card = Arc::new(Card::Normal(CardFace {
         name: "Source".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(3)),
         toughness: Some(StatValue::Number(3)),
         abilities: source_abilities,
@@ -1181,7 +1181,7 @@ fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, Ob
     }));
     let tgt_card = Arc::new(Card::Normal(CardFace {
         name: "Target".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(4)),
         toughness: Some(StatValue::Number(4)),
         ..CardFace::default()
@@ -1237,7 +1237,7 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
 fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
     let wither = damage_as_counters_static(
         Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )),
         Reference::EventObject,
         "M1M1Counter",
@@ -1245,7 +1245,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
     let four_four = |name: &str| {
         Arc::new(Card::Normal(CardFace {
             name: name.into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(4)),
             toughness: Some(StatValue::Number(4)),
             ..CardFace::default()
@@ -1253,7 +1253,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
     };
     let src_card = Arc::new(Card::Normal(CardFace {
         name: "Source".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(3)),
         toughness: Some(StatValue::Number(3)),
         abilities: vec![wither],
@@ -1344,7 +1344,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
 fn wither_source_puts_minus_counters_not_marked_damage() {
     let wither = damage_as_counters_static(
         Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )),
         Reference::EventObject,
         "M1M1Counter",
@@ -1372,7 +1372,7 @@ fn wither_source_puts_minus_counters_not_marked_damage() {
 fn infect_source_puts_minus_counters_on_a_creature() {
     let infect_creature = damage_as_counters_static(
         Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )),
         Reference::EventObject,
         "M1M1Counter",
@@ -1472,7 +1472,7 @@ fn ten_poison_counters_lose_the_game() {
 fn by_matcher_fires_only_for_damage_from_its_own_source() {
     let wither = damage_as_counters_static(
         Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )),
         Reference::EventObject,
         "M1M1Counter",
@@ -1521,7 +1521,7 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
 fn event_patient_object_reads_the_damage_recipient_creature() {
     let wither = damage_as_counters_static(
         Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature,
+            Type::Creature.name(),
         )),
         Reference::EventPatient,
         "M1M1Counter",

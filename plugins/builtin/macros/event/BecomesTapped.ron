@@ -1,7 +1,7 @@
 // "BecomesTapped" = an object transitions untapped -> tapped ([CR#603.2e] —
 // a "becomes" trigger fires only at the transition itself, not if the
 // permanent enters the battlefield already tapped). Mirrors event/Attacks +
-// event/Dies. Usage: BecomesTapped(what) — e.g. BecomesTapped(Type(Creature)),
+// event/Dies. Usage: BecomesTapped(what) — e.g. BecomesTapped(Type("Creature")),
 // BecomesTapped(Ref(This)).
 (
     name: "BecomesTapped",

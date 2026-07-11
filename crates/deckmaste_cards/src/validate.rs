@@ -390,7 +390,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -420,7 +420,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -451,7 +451,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![Ability::Activated(ActivatedAbility {
                 ability_word: None,
@@ -483,7 +483,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attack {
@@ -575,10 +575,11 @@ mod tests {
         );
     }
 
-    const FOO_1_1: &str =
-        r#"Normal(name: "Foo", mana_cost: [Green], types: [Creature], power: 1, toughness: 1)"#;
-    const FOO_2_2: &str =
-        r#"Normal(name: "Foo", mana_cost: [Green], types: [Creature], power: 2, toughness: 2)"#;
+    // Types are `Vec<TypeDef>`; the bare-name `Creature` form expands via the
+    // builtin `TypeDef` macros, which these self-contained tempdir plugins do
+    // not load, so the fixtures spell the expanded struct inline.
+    const FOO_1_1: &str = r#"Normal(name: "Foo", mana_cost: [Green], types: [TypeDef(name: "Creature", permanent: true)], power: 1, toughness: 1)"#;
+    const FOO_2_2: &str = r#"Normal(name: "Foo", mana_cost: [Green], types: [TypeDef(name: "Creature", permanent: true)], power: 2, toughness: 2)"#;
 
     fn write_card(root: &Path, plugin: &str, file: &str, source: &str) {
         let cards = root.join(plugin).join("cards");

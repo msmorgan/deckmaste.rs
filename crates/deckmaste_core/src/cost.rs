@@ -297,7 +297,8 @@ mod tests {
         use crate::action::PlayerAction;
 
         // "sacrifice a creature": choose one creature, then Sacrifice(That(Creature)).
-        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+        let creature =
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
         let with = CostComponent::With {
             binder: Box::new(Binder::ChooseOne {
                 filter: creature,
@@ -433,7 +434,7 @@ mod tests {
             filter: Box::new(Predicate::creature()),
         };
         assert_eq!(
-            read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Type(Creature))"),
+            read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Type(\"Creature\"))"),
             crew,
         );
 

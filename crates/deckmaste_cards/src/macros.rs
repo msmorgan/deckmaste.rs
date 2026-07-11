@@ -219,7 +219,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "AnyTargetish",
                     kinds: [Predicate],
-                    body: Or([Kind(Player), And([InZone(Battlefield), Type(Creature)])]),
+                    body: Or([Kind(Player), And([InZone(Battlefield), Type("Creature")])]),
                 )"#))
             .unwrap();
         let filter: Predicate = macros.read_str("AnyTargetish").unwrap();
@@ -399,7 +399,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "EachCreature",
                     kinds: [Selection],
-                    body: SelectAll(Type(Creature)),
+                    body: SelectAll(Type("Creature")),
                 )"#))
             .unwrap();
         let selection: Selection = macros.read_str("EachCreature").unwrap();
@@ -410,7 +410,7 @@ mod tests {
         assert_eq!(
             *expanded.value,
             Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Creature
+                Type::Creature.name()
             )))
         );
     }
@@ -609,7 +609,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "TargetCreature",
                     kinds: [TargetSpec],
-                    body: Target(Range(1, 1), Type(Creature)),
+                    body: Target(Range(1, 1), Type("Creature")),
                 )"#))
             .unwrap();
         let spec: TargetSpec = macros.read_str("TargetCreature").unwrap();
@@ -697,10 +697,10 @@ mod tests {
             "Flying"
         );
 
-        let filter: Predicate = macros.read_str("OfType(Creature)").unwrap();
+        let filter: Predicate = macros.read_str("OfType(\"Creature\")").unwrap();
         assert_eq!(
             deckmaste_core::ron::options().to_string(&filter).unwrap(),
-            "OfType(Creature)"
+            "OfType(\"Creature\")"
         );
     }
 

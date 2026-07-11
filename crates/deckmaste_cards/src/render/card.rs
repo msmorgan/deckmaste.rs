@@ -18,7 +18,7 @@ pub(super) fn type_line(view: &CardView) -> String {
         head.push(supertype_str(*s));
     }
     for t in view.types {
-        head.push(type_str(*t));
+        head.push(type_str(t));
     }
     let mut line = head.join(" ");
     if !view.subtypes.is_empty() {
@@ -94,29 +94,10 @@ fn stat(v: Option<&StatValue>) -> String {
     }
 }
 
-pub(super) fn type_str(t: deckmaste_core::Type) -> &'static str {
-    use deckmaste_core::Type::Artifact;
-    use deckmaste_core::Type::Battle;
-    use deckmaste_core::Type::Creature;
-    use deckmaste_core::Type::Dungeon;
-    use deckmaste_core::Type::Enchantment;
-    use deckmaste_core::Type::Instant;
-    use deckmaste_core::Type::Kindred;
-    use deckmaste_core::Type::Land;
-    use deckmaste_core::Type::Planeswalker;
-    use deckmaste_core::Type::Sorcery;
-    match t {
-        Artifact => "Artifact",
-        Battle => "Battle",
-        Creature => "Creature",
-        Dungeon => "Dungeon",
-        Enchantment => "Enchantment",
-        Instant => "Instant",
-        Kindred => "Kindred",
-        Land => "Land",
-        Planeswalker => "Planeswalker",
-        Sorcery => "Sorcery",
-    }
+/// The printed type line word for an expanded [`TypeDef`] — its open name.
+/// Total and open-safe: any plugin-declared type renders as its own name.
+pub(super) fn type_str(t: &deckmaste_core::TypeDef) -> &'static str {
+    t.name.as_str()
 }
 
 pub(super) fn supertype_str(s: deckmaste_core::Supertype) -> &'static str {

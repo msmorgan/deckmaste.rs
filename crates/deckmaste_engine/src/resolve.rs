@@ -20,7 +20,6 @@ use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
-use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use slotmap::Key;
@@ -3435,18 +3434,13 @@ impl GameState {
         let types = &crate::derive::face(self.def(id)).types;
         let is_permanent_type = types.iter().any(|t| {
             matches!(
-                t,
-                Type::Creature
-                    | Type::Artifact
-                    | Type::Enchantment
-                    | Type::Land
-                    | Type::Planeswalker
-                    | Type::Battle
+                t.name.as_str(),
+                "Creature" | "Artifact" | "Enchantment" | "Land" | "Planeswalker" | "Battle"
             )
         });
         let is_non_permanent = types
             .iter()
-            .any(|t| matches!(t, Type::Instant | Type::Sorcery));
+            .any(|t| matches!(t.name.as_str(), "Instant" | "Sorcery"));
         is_permanent_type && !is_non_permanent
     }
 
@@ -4145,7 +4139,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature,
+                        Type::Creature.name(),
                     )),
                 )
             })
@@ -4219,7 +4213,7 @@ mod tests {
         use deckmaste_core::StaticEffect;
         let card = Card::Normal(CardFace {
             name: "Test Equipment".into(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             abilities: vec![Ability::Innate(Box::new(Ability::Static(
                 StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                     what: Predicate::Ref(Reference::This),
@@ -4311,7 +4305,7 @@ mod tests {
         // push its `StackEntry` by hand, then resolve it.
         let card = Card::Normal(CardFace {
             name: "Test Bear".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             power: Some(deckmaste_core::StatValue::Number(2)),
             toughness: Some(deckmaste_core::StatValue::Number(2)),
             ..CardFace::default()
@@ -4626,7 +4620,7 @@ mod tests {
         // The host: a non-creature artifact "Rock".
         let rock_card = Card::Normal(CardFace {
             name: "Rock".into(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             ..CardFace::default()
         });
         let rock_id = state.cards.push(Arc::new(rock_card), PlayerId(0));
@@ -5239,7 +5233,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Permanent".into(),
             mana_cost: mana_cost.parse().unwrap(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             ..CardFace::default()
         });
         let cid = state.cards.push(Arc::new(card), PlayerId(0));
@@ -5320,7 +5314,7 @@ mod tests {
     fn creature_with_power(state: &mut GameState, power: deckmaste_core::Int) -> ObjectId {
         let card = Card::Normal(CardFace {
             name: "Test Creature".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             power: Some(deckmaste_core::StatValue::Number(power)),
             toughness: Some(deckmaste_core::StatValue::Number(power)),
             ..CardFace::default()
@@ -5558,7 +5552,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Card".into(),
             mana_cost: "{1}".parse().unwrap(),
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             ..CardFace::default()
         });
         let cid = empty_state.cards.push(Arc::new(card), PlayerId(0));
@@ -5694,7 +5688,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature,
+                        Type::Creature.name(),
                     )),
                 )
             })
@@ -5759,7 +5753,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature,
+                        Type::Creature.name(),
                     )),
                 )
             })
@@ -5818,7 +5812,7 @@ mod tests {
                     &state,
                     o,
                     &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature,
+                        Type::Creature.name(),
                     )),
                 )
             })
@@ -6265,7 +6259,7 @@ mod tests {
             Condition::Matches(
                 r.clone(),
                 Predicate::And(vec![
-                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 ]),
             )
@@ -6805,7 +6799,7 @@ mod tests {
         let (mut state, _bear) = bear_on_field();
         let card = Card::Normal(CardFace {
             name: "Test Walker".into(),
-            types: vec![Type::Planeswalker],
+            types: vec![Type::Planeswalker.def()],
             loyalty: Some(deckmaste_core::StatValue::Number(4)),
             ..CardFace::default()
         });
@@ -7076,7 +7070,7 @@ mod tests {
         // onto the stack, owned/controlled by player 0.
         let card = Card::Normal(CardFace {
             name: "Uncounterable".into(),
-            types: vec![Type::Instant],
+            types: vec![Type::Instant.def()],
             abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Counter {
                     by: Predicate::Any,
@@ -7798,7 +7792,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![],
             power: None,
@@ -7884,7 +7878,7 @@ mod tests {
                 state,
                 Card::Normal(CardFace {
                     name: name.into(),
-                    types: vec![Type::Creature],
+                    types: vec![Type::Creature.def()],
                     subtypes: vec![subtype("Goblin")],
                     power: Some(deckmaste_core::StatValue::Number(1)),
                     toughness: Some(deckmaste_core::StatValue::Number(1)),
@@ -7925,7 +7919,7 @@ mod tests {
                     deckmaste_core::Token {
                         color_indicator: vec![],
                         supertypes: vec![],
-                        types: vec![Type::Creature],
+                        types: vec![Type::Creature.def()],
                         subtypes: vec![subtype("Goblin")],
                         abilities: vec![],
                         power: Some(deckmaste_core::StatValue::Number(1)),
@@ -8098,7 +8092,7 @@ mod tests {
             state,
             Card::Normal(CardFace {
                 name: name.into(),
-                types: vec![Type::Creature],
+                types: vec![Type::Creature.def()],
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
                 ..CardFace::default()
@@ -8120,7 +8114,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Test Sword".into(),
-                types: vec![Type::Artifact],
+                types: vec![Type::Artifact.def()],
                 subtypes: vec![subtype("Equipment")],
                 abilities: vec![keyword("Equip([Tap])"), host_pump(1)],
                 ..CardFace::default()
@@ -8166,9 +8160,9 @@ mod tests {
         // grant + AsEnters) + the Aura subtype's Innate graveyard SBA + "+2/+2".
         let aura_card = Card::Normal(CardFace {
             name: "Test Aura".into(),
-            types: vec![Type::Enchantment],
+            types: vec![Type::Enchantment.def()],
             subtypes: vec![subtype("Aura")],
-            abilities: vec![keyword("Enchant(Type(Creature))"), host_pump(2)],
+            abilities: vec![keyword("Enchant(Type(\"Creature\"))"), host_pump(2)],
             ..CardFace::default()
         });
         // Stand the Aura up as a spell on the stack, target = the host.
@@ -8234,7 +8228,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Sticky Sword".into(),
-                types: vec![Type::Artifact],
+                types: vec![Type::Artifact.def()],
                 subtypes: vec![subtype("Equipment")],
                 abilities: vec![keyword("Equip([Tap])")],
                 ..CardFace::default()
@@ -8277,7 +8271,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Protected Bear".into(),
-                types: vec![Type::Creature],
+                types: vec![Type::Creature.def()],
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
                 abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
@@ -8296,7 +8290,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Red Sword".into(),
-                types: vec![Type::Artifact],
+                types: vec![Type::Artifact.def()],
                 color_indicator: vec![Color::Red],
                 subtypes: vec![subtype("Equipment")],
                 abilities: vec![keyword("Equip([Tap])")],
@@ -8327,7 +8321,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Target Land".into(),
-                types: vec![Type::Land],
+                types: vec![Type::Land.def()],
                 ..CardFace::default()
             }),
         );
@@ -8335,7 +8329,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Test Banner".into(),
-                types: vec![Type::Artifact],
+                types: vec![Type::Artifact.def()],
                 subtypes: vec![subtype("Fortification")],
                 abilities: vec![keyword("Fortify([Tap])")],
                 ..CardFace::default()
@@ -8372,7 +8366,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Living Weapon".into(),
-                types: vec![Type::Artifact, Type::Creature],
+                types: vec![Type::Artifact.def(), Type::Creature.def()],
                 subtypes: vec![subtype("Equipment")],
                 power: Some(deckmaste_core::StatValue::Number(1)),
                 toughness: Some(deckmaste_core::StatValue::Number(1)),
@@ -8423,7 +8417,7 @@ mod tests {
             &mut state,
             Card::Normal(CardFace {
                 name: "Living Weapon".into(),
-                types: vec![Type::Artifact, Type::Creature],
+                types: vec![Type::Artifact.def(), Type::Creature.def()],
                 subtypes: vec![subtype("Equipment")],
                 power: Some(deckmaste_core::StatValue::Number(1)),
                 toughness: Some(deckmaste_core::StatValue::Number(1)),
@@ -8435,10 +8429,7 @@ mod tests {
         // Would-be: attached → not a creature.
         let view = state.layers();
         assert!(
-            !view
-                .get(equip_creature)
-                .card_types
-                .contains(&Type::Creature),
+            !view.get(equip_creature).has_type(Type::Creature),
             "attached reconfigure Equipment is not a creature ([CR#702.151b])"
         );
     }
@@ -9025,7 +9016,7 @@ mod tests {
         for i in 0..permanents {
             let perm = Card::Normal(CardFace {
                 name: format!("Permanent {i}"),
-                types: vec![Type::Artifact],
+                types: vec![Type::Artifact.def()],
                 ..CardFace::default()
             });
             let card_id = state.cards.push(Arc::new(perm), p0);
@@ -9039,7 +9030,7 @@ mod tests {
         // The synthetic Secrets-of-the-Golden-City spell on the stack.
         let spell_card = Card::Normal(CardFace {
             name: "Secrets of the Golden City".into(),
-            types: vec![Type::Sorcery],
+            types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::Spell(SpellAbility {
                 ability_word: None,
                 effect: secrets_effect(),
@@ -9871,7 +9862,7 @@ mod tests {
         let cid = state.cards.push(
             Arc::new(Card::Normal(CardFace {
                 name: name.into(),
-                types: vec![Type::Creature],
+                types: vec![Type::Creature.def()],
                 ..CardFace::default()
             })),
             owner,
@@ -10128,7 +10119,7 @@ mod tests {
         let cid = state.cards.push(
             Arc::new(Card::Normal(CardFace {
                 name: name.into(),
-                types: vec![Type::Creature],
+                types: vec![Type::Creature.def()],
                 ..CardFace::default()
             })),
             owner,

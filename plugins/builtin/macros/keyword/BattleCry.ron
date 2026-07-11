@@ -7,7 +7,7 @@
 //
 // "each other attacking creature" = every attacking creature that ISN'T this
 // one: an anthem-shaped `Each(SelectAll(...))` distribution over
-// `And([Type(Creature), Attacking, Not(Ref(This))])` ([CR#509.1a]
+// `And([Type("Creature"), Attacking, Not(Ref(This))])` ([CR#509.1a]
 // still-in-combat attackers minus the carrier). The boost is +1/+0
 // (`Power(Up(1))`, no toughness change), lasting until end of turn
 // ([CR#611.2a]).
@@ -21,7 +21,7 @@ KeywordAbility(
     abilities: [Triggered(
         event: AttackDeclared(by: Ref(This)),
         effect: Continuously(
-            effect: Each(SelectAll(And([Type(Creature), Attacking, Not(Ref(This))])), Modify(It, Power(Up(1)))),
+            effect: Each(SelectAll(And([Type("Creature"), Attacking, Not(Ref(This))])), Modify(It, Power(Up(1)))),
             duration: FixedUntil(EndOfTurn),
         ),
     )],

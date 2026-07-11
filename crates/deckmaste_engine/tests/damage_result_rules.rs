@@ -30,7 +30,9 @@ use deckmaste_engine::StepOutcome;
 /// The builtin planeswalker-loyalty rule as data.
 fn loyalty_rule() -> DamageResultRule {
     DamageResultRule {
-        recipient: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Planeswalker)),
+        recipient: Predicate::Characteristic(CharacteristicPredicate::Type(
+            Type::Planeswalker.name(),
+        )),
         remove: CounterRef::from("LoyaltyCounter"),
     }
 }
@@ -39,7 +41,7 @@ fn loyalty_rule() -> DamageResultRule {
 fn walker_card() -> deckmaste_core::Card {
     deckmaste_core::Card::Normal(CardFace {
         name: "Test Walker".into(),
-        types: vec![Type::Planeswalker],
+        types: vec![Type::Planeswalker.def()],
         loyalty: Some(StatValue::Number(5)),
         ..CardFace::default()
     })
@@ -50,7 +52,7 @@ fn walker_card() -> deckmaste_core::Card {
 fn creature_walker_card() -> deckmaste_core::Card {
     deckmaste_core::Card::Normal(CardFace {
         name: "Test Creature Walker".into(),
-        types: vec![Type::Creature, Type::Planeswalker],
+        types: vec![Type::Creature.def(), Type::Planeswalker.def()],
         power: Some(StatValue::Number(4)),
         toughness: Some(StatValue::Number(4)),
         loyalty: Some(StatValue::Number(5)),
@@ -96,7 +98,9 @@ fn walker_on_field(state: &mut GameState, n: u32) -> ObjectId {
             deckmaste_engine::matches(
                 state,
                 o,
-                &Predicate::Characteristic(CharacteristicPredicate::Type(Type::Planeswalker)),
+                &Predicate::Characteristic(CharacteristicPredicate::Type(
+                    Type::Planeswalker.name(),
+                )),
             )
         })
         .expect("a synthetic planeswalker in player 0's deck");

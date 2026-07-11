@@ -321,7 +321,7 @@ mod tests {
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
             filter: Box::new(Predicate::And(vec![
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
                 Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
                 Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
                     Reference::You,

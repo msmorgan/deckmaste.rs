@@ -2851,7 +2851,7 @@ fn inline_blink() -> Card {
     Card::Normal(deckmaste_core::CardFace {
         name: "Blink".into(),
         mana_cost: "{W}".parse().unwrap(),
-        types: vec![deckmaste_core::Type::Instant],
+        types: vec![deckmaste_core::Type::Instant.def()],
         abilities: vec![deckmaste_core::Ability::Spell(
             deckmaste_core::SpellAbility {
                 ability_word: None,

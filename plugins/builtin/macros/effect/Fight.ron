@@ -14,7 +14,7 @@
 //
 // Each half spells its source explicitly (`DealDamage(source, amount, target)`),
 // so the dealer is that same creature (deathtouch/lifelink attribution, Pounce
-// redirect). `Creature` inlined as `And([Permanent, Type(Creature)])` to avoid
+// redirect). `Creature` inlined as `And([Permanent, Type("Creature")])` to avoid
 // a nested macro in a macro body.
 //
 // Usage: Fight(a, b) — e.g. Fight(Target(0), Target(1)).
@@ -27,8 +27,8 @@
         name: "Fight",
         body: If(
             condition: And([
-                Matches(Param(0), And([Permanent, Type(Creature)])),
-                Matches(Param(1), And([Permanent, Type(Creature)])),
+                Matches(Param(0), And([Permanent, Type("Creature")])),
+                Matches(Param(1), And([Permanent, Type("Creature")])),
             ]),
             then: Simultaneously([
                 DealDamage(Param(0), StatOf(Param(0), Power), Param(1)),

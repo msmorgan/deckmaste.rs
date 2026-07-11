@@ -255,7 +255,7 @@ fn renders_sequence_brainstorm() {
 /// and P/T from the runtime-assembled `CardView`.
 #[test]
 fn renders_a_synthesized_token() {
-    let types = [Type::Creature];
+    let types = [Type::Creature.def()];
     let subs = [Subtype {
         name: "Goblin".into(),
         types: vec![Type::Creature, Type::Kindred],
@@ -285,7 +285,7 @@ fn renders_a_synthesized_token() {
 /// mana cost (the view carries `None`).
 #[test]
 fn renders_a_derived_pumped_flier() {
-    let types = [Type::Creature];
+    let types = [Type::Creature.def()];
     let p = StatValue::Number(4);
     let t = StatValue::Number(4);
     let fly = Ability::Keyword(KeywordAbility::Composite {
@@ -430,7 +430,7 @@ fn renders_synthesized_lose_life_and_destroy() {
     // "Lose 3 life." spell
     let lose = CardFace {
         name: "Test Drain".into(),
-        types: vec![Type::Sorcery],
+        types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
@@ -448,7 +448,7 @@ fn renders_synthesized_lose_life_and_destroy() {
     // "Destroy target creature." spell
     let destroy = CardFace {
         name: "Test Smite".into(),
-        types: vec![Type::Sorcery],
+        types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
@@ -478,7 +478,7 @@ fn renders_named_predefined_token() {
 
     let treasure = CardFace {
         name: "Test Hoard".into(),
-        types: vec![Type::Sorcery],
+        types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
@@ -499,7 +499,7 @@ fn renders_named_predefined_token() {
 
     let two_food = CardFace {
         name: "Test Feast".into(),
-        types: vec![Type::Sorcery],
+        types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
@@ -581,7 +581,7 @@ fn renders_scope_of_singular() {
     use deckmaste_core::StaticEffect;
     let face = CardFace {
         name: "Test Aura".into(),
-        types: vec![Type::Enchantment],
+        types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::Static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
@@ -609,7 +609,7 @@ fn renders_aura_host_pump() {
     use deckmaste_core::StaticEffect;
     let face = CardFace {
         name: "Test Buff Aura".into(),
-        types: vec![Type::Enchantment],
+        types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::Static(StaticEffect::Modify(
             Reference::AttachHostOf(Box::new(Reference::This)),
             Modification::Several(vec![
@@ -650,7 +650,7 @@ fn renders_continuously_pump_until_eot() {
     use deckmaste_core::Type;
     let face = CardFace {
         name: "Test Pump".into(),
-        types: vec![Type::Instant],
+        types: vec![Type::Instant.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
@@ -701,7 +701,7 @@ fn renders_continuously_cant_block_eot() {
     use deckmaste_core::Type;
     let face = CardFace {
         name: "Test Block Restriction".into(),
-        types: vec![Type::Instant],
+        types: vec![Type::Instant.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
@@ -746,7 +746,7 @@ fn renders_continuously_cant_be_blocked_eot() {
     use deckmaste_core::Type;
     let face = CardFace {
         name: "Test Unblockable".into(),
-        types: vec![Type::Instant],
+        types: vec![Type::Instant.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
@@ -792,7 +792,7 @@ fn renders_that_creature_cant_block_eot() {
     use deckmaste_core::Type;
     let face = CardFace {
         name: "Test That Restriction".into(),
-        types: vec![Type::Instant],
+        types: vec![Type::Instant.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Continuously(Continuously {
@@ -827,7 +827,7 @@ fn renders_create_one_token() {
     let token = Token {
         color_indicator: vec![Color::Red],
         supertypes: vec![],
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         subtypes: vec![Subtype {
             name: "Goblin".into(),
             types: vec![Type::Creature],
@@ -839,7 +839,7 @@ fn renders_create_one_token() {
     };
     let face = CardFace {
         name: "Test Maker".into(),
-        types: vec![Type::Sorcery],
+        types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
@@ -870,7 +870,7 @@ fn renders_create_two_tokens() {
     let token = Token {
         color_indicator: vec![Color::White],
         supertypes: vec![],
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         subtypes: vec![Subtype {
             name: "Soldier".into(),
             types: vec![Type::Creature],
@@ -882,7 +882,7 @@ fn renders_create_two_tokens() {
     };
     let face = CardFace {
         name: "Test Muster".into(),
-        types: vec![Type::Sorcery],
+        types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
@@ -940,7 +940,7 @@ fn renders_get_designation() {
     use deckmaste_core::Type;
     let face = CardFace {
         name: "Test Ascend".into(),
-        types: vec![Type::Sorcery],
+        types: vec![Type::Sorcery.def()],
         abilities: vec![Ability::Spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
@@ -975,7 +975,7 @@ fn renders_graveyard_static_from_zone() {
     use deckmaste_core::Zone;
     let face = CardFace {
         name: "Test Incarnation".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         abilities: vec![Ability::Static(StaticEffect::Conditionally(
             Condition::Matches(
                 Reference::This,
@@ -1027,7 +1027,7 @@ fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::Zone;
     let face = CardFace {
         name: "Vigil Keeper".into(),
-        types: vec![Type::Creature],
+        types: vec![Type::Creature.def()],
         abilities: vec![Ability::Triggered(TriggeredAbility {
             ability_word: None,
             where_x: None,
@@ -1080,7 +1080,7 @@ fn renders_enters_with_counters_p1p1_singular_and_plural() {
         .unwrap();
     let face_one = CardFace {
         name: "Test Permanent".into(),
-        types: vec![Type::Artifact],
+        types: vec![Type::Artifact.def()],
         abilities: vec![one],
         ..CardFace::default()
     };
@@ -1095,7 +1095,7 @@ fn renders_enters_with_counters_p1p1_singular_and_plural() {
         .unwrap();
     let face_two = CardFace {
         name: "Test Permanent".into(),
-        types: vec![Type::Artifact],
+        types: vec![Type::Artifact.def()],
         abilities: vec![two],
         ..CardFace::default()
     };
@@ -1123,7 +1123,7 @@ fn renders_enters_with_counters_named_kind() {
         .unwrap();
     let face = CardFace {
         name: "Test Permanent".into(),
-        types: vec![Type::Artifact],
+        types: vec![Type::Artifact.def()],
         abilities: vec![shield],
         ..CardFace::default()
     };
@@ -1138,7 +1138,7 @@ fn renders_enters_with_counters_named_kind() {
         .unwrap();
     let face3 = CardFace {
         name: "Test Permanent".into(),
-        types: vec![Type::Artifact],
+        types: vec![Type::Artifact.def()],
         abilities: vec![charge],
         ..CardFace::default()
     };

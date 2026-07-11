@@ -26,7 +26,7 @@ Normal(
     Activated(
       cost: [Mana([Generic(5)])],
       effect: Targeted(
-        targets: [TargetOne(And([Permanent, Not(Type(Land))]))],
+        targets: [TargetOne(And([Permanent, Not(Type("Land"))]))],
         effect: Simultaneously([
           Continuously(effect: Modify(This, SetController(ControllerOf(Target(0)))), duration: EndOfGame),
           Continuously(effect: Modify(Target(0), SetController(ControllerOf(This))), duration: EndOfGame),

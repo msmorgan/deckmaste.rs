@@ -295,7 +295,7 @@ mod tests {
         assert_eq!(
             parsed(&face, 0),
             "Spell(effect: Modal(choose: ChooseSpec(count: Exactly(1)), modes: [\
-             Mode(effect: Targeted(targets: [TargetOne(Type(Artifact))], effect: Destroy(It))), \
+             Mode(effect: Targeted(targets: [TargetOne(Type(\"Artifact\"))], effect: Destroy(It))), \
              Mode(effect: GainLife(3))]))"
         );
     }

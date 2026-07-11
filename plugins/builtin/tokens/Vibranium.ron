@@ -11,7 +11,7 @@ Token(
             cost: [Tap],
             effect: AddMana(1, WithRiders(
                 mana: Colorless,
-                riders: [SpendOnly(Not(And([Kind(Spell), Not(Type(Artifact))])))],
+                riders: [SpendOnly(Not(And([Kind(Spell), Not(Type("Artifact"))])))],
             )),
         ),
     ],

@@ -22,7 +22,7 @@ KeywordAbility(
     template: "exalted",
     abilities: [Triggered(
         event: AttackDeclared(
-            by: And([Type(Creature), ControlledBy(Ref(You))]),
+            by: And([Type("Creature"), ControlledBy(Ref(You))]),
         ),
         condition: Compare(CountOf(Objects(Attacking)), Eq, 1),
         effect: Continuously(

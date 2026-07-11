@@ -153,7 +153,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         for &object in &state.zones.hands[player.index()] {
             // Derived type ([CR#613.1d]): a card that is a land in the layered
             // view is playable as a land, exactly as the battlefield reads do.
-            if view.get(object).card_types.contains(&Type::Land) {
+            if view.get(object).has_type(Type::Land) {
                 legal.push(Action::PlayLand { object });
             }
         }
@@ -172,8 +172,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         if view.controller(object) != player {
             continue;
         }
-        let sick_creature =
-            obj.summoning_sick && view.get(object).card_types.contains(&Type::Creature);
+        let sick_creature = obj.summoning_sick && view.get(object).has_type(Type::Creature);
         // Index the SAME Innate-PEELED list resolution reads ([CR#113.12]):
         // `begin_activate`, `decide`'s `ActivateAbility` arm, and `render`'s
         // `activated_ability`/`mana_ability` all index
@@ -288,7 +287,7 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
             view.controller(id) == player
                 && !obj.tapped
                 && !obj.summoning_sick
-                && view.get(id).card_types.contains(&Type::Creature)
+                && view.get(id).has_type(Type::Creature)
                 && !rows.iter().any(|(carrier, by, on)| {
                     state.filter_matches_live(by, id, *carrier)
                         && defender_proxy
@@ -308,7 +307,7 @@ pub fn legal_attack_targets(state: &GameState, defender: PlayerId) -> Vec<Object
     let view = state.layers();
     let mut targets = vec![state.player(defender).object];
     targets.extend(state.zones.battlefield.iter().copied().filter(|&id| {
-        view.controller(id) == defender && view.get(id).card_types.contains(&Type::Planeswalker)
+        view.controller(id) == defender && view.get(id).has_type(Type::Planeswalker)
     }));
     targets
 }
@@ -382,9 +381,7 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
             let obj = state.objects.obj(id);
             // Derived controller ([CR#613.1b]): a stolen creature blocks for its
             // new controller.
-            view.controller(id) == player
-                && !obj.tapped
-                && view.get(id).card_types.contains(&Type::Creature)
+            view.controller(id) == player && !obj.tapped && view.get(id).has_type(Type::Creature)
         })
         .collect()
 }
@@ -1134,7 +1131,7 @@ mod tests {
         use deckmaste_core::CardFace;
         let card = Card::Normal(CardFace {
             name: name.into(),
-            types,
+            types: types.into_iter().map(Type::def).collect(),
             abilities,
             ..CardFace::default()
         });

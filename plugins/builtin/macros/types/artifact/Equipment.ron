@@ -16,7 +16,7 @@
         name: "Equipment",
         types: [Artifact],
         confers: [
-            Ability(Innate(Static(May(Attach(what: Ref(This), to: Type(Creature)))))),
+            Ability(Innate(Static(May(Attach(what: Ref(This), to: Type("Creature")))))),
         ],
     ),
 )

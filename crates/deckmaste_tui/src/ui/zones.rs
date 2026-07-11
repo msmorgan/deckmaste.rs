@@ -34,7 +34,7 @@ pub fn contents(
                 .copied()
                 .filter(|&id| view.controller(id) == player)
                 .collect();
-            perms.sort_by_key(|&id| view.get(id).card_types.contains(&Type::Land));
+            perms.sort_by_key(|&id| view.get(id).has_type(Type::Land));
             // Lead with the player's own proxy object (the targetable face).
             std::iter::once(Selected::Object(state.player(player).object))
                 .chain(perms.into_iter().map(Selected::Object))
@@ -150,7 +150,7 @@ mod tests {
                             Selected::StackEntry(_) => panic!("battlefield holds objects"),
                         })
                         .collect();
-                let is_land = |id| view.get(id).card_types.contains(&Type::Land);
+                let is_land = |id| view.get(id).has_type(Type::Land);
                 let has_land = perms.iter().any(|&id| is_land(id));
                 let has_nonland = perms.iter().any(|&id| !is_land(id));
                 if has_land && has_nonland {

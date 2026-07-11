@@ -39,10 +39,10 @@ fn every_builtin_keyword_macro_expands() {
         ("Equip([Tap])", "Equip"),
         ("Fortify([Tap])", "Fortify"),
         ("Reconfigure([Tap])", "Reconfigure"),
-        ("Enchant(Type(Creature))", "Enchant"),
+        ("Enchant(Type(\"Creature\"))", "Enchant"),
         ("Protection(ColorIs(Red))", "Protection"),
         ("Crew(2)", "Crew"),
-        ("Affinity(Type(Artifact))", "Affinity"),
+        ("Affinity(Type(\"Artifact\"))", "Affinity"),
         ("Cycling([Mana([Generic(2)])])", "Cycling"),
         ("Reinforce(1, [Mana([Generic(1),Green])])", "Reinforce"),
         ("Echo([Mana([Generic(1),Green])])", "Echo"),
@@ -222,7 +222,7 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
     let plugin = builtin();
     let kw: KeywordAbility = plugin
         .macros
-        .read_str("Enchant(Type(Creature))")
+        .read_str("Enchant(Type(\"Creature\"))")
         .expect("Enchant expands");
     let KeywordAbility::Expanded(expanded) = &kw else {
         panic!("expected Expanded, got {kw:?}");
@@ -633,7 +633,7 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     assert_eq!(
         filter,
         &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature
+            Type::Creature.name()
         )),
         "reinforce targets a creature; got {filter:?}"
     );
@@ -957,7 +957,10 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
         token.color_indicator
     );
     // A creature Spirit.
-    assert!(token.types.contains(&Type::Creature), "token is a creature");
+    assert!(
+        token.types.iter().any(|t| t.name == Type::Creature.name()),
+        "token is a creature"
+    );
     assert!(
         token.subtypes.iter().any(|s| s.name.as_str() == "Spirit"),
         "token is a Spirit; got {:?}",

@@ -8,6 +8,6 @@ KeywordAbility(
     template: "intimidate",
     abilities: [Static(Cant(Block(
             on: Ref(This),
-            by: Not(Or([Type(Artifact), SharesColorWith(This)])),
+            by: Not(Or([Type("Artifact"), SharesColorWith(This)])),
         )))],
 )

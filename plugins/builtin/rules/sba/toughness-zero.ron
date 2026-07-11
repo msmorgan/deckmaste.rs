@@ -4,7 +4,7 @@
 // `This` to each creature; `when` reads its toughness.
 [
     SbaRule(
-        scope: Type(Creature),
+        scope: Type("Creature"),
         when: Compare(StatOf(This, Toughness), AtMost, 0),
         then: Move(This, Graveyard),
     ),

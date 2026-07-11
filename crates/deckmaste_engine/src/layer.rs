@@ -28,6 +28,7 @@ use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::Type;
+use deckmaste_core::TypeDef;
 use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
@@ -81,10 +82,22 @@ pub struct Characteristics {
     pub power: Option<Int>,
     pub toughness: Option<Int>,
     pub colors: Arc<Vec<Color>>,
-    pub card_types: Arc<Vec<Type>>,
+    pub card_types: Arc<Vec<TypeDef>>,
     pub subtypes: Arc<Vec<Subtype>>,
     pub supertypes: Arc<Vec<Supertype>>,
     pub abilities: Arc<Vec<Ability>>,
+}
+
+impl Characteristics {
+    /// Whether the derived card types include the given canonical type,
+    /// matched by NAME against the expanded `TypeDef`s (mirrors subtype
+    /// name-matching in `matches_derived`). `Type` maps to its `Ident` via
+    /// [`Type::name`].
+    #[must_use]
+    pub fn has_type(&self, t: Type) -> bool {
+        let name = t.name();
+        self.card_types.iter().any(|d| d.name == name)
+    }
 }
 
 /// An object's full derived per-object state: its CR [`Characteristics`] plus
@@ -697,7 +710,9 @@ fn matches_derived(
         return result;
     }
     match filter {
-        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => c.card_types.contains(t),
+        Predicate::Characteristic(CharacteristicPredicate::Type(name)) => {
+            c.card_types.iter().any(|t| &t.name == name)
+        }
         Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
             c.supertypes.contains(s)
         }
@@ -1303,6 +1318,19 @@ fn resolve_subtype(state: &GameState, name: &Ident) -> Subtype {
         })
 }
 
+/// Resolve a layer-4 type `Ident` to a full `TypeDef` ([CR#300.1]): look it up
+/// in `state.types` so a granted type's `confers` ride along. An `Ident` absent
+/// from the registry yields a minimal name-only `TypeDef` (`permanent: false`,
+/// no `confers`) — the type still applies, carrying no rules (fizzle, never
+/// crash).
+fn resolve_type(state: &GameState, name: &Ident) -> TypeDef {
+    state.types.get(name).cloned().unwrap_or_else(|| TypeDef {
+        name: *name,
+        permanent: false,
+        confers: Vec::new(),
+    })
+}
+
 /// The count-free `Modification` arms (layers 2-6, 7d). Split out so the
 /// count-bearing 7a-7c arms in `apply` can resolve their `Count` against
 /// `working` immutably before taking the `&mut DerivedObject` here.
@@ -1326,16 +1354,28 @@ fn apply_static(
         // --- Layer 7d: switch ---
         Modification::SwitchPowerToughness => std::mem::swap(&mut c.power, &mut c.toughness),
         // --- Layer 4: type-changing ([CR#613.1d]) ---
-        // `Set` overwrites the whole list; `Add`/`Remove` affect one element.
+        // The op's elements are bare `Ident` names; `Characteristics::card_types`
+        // holds full `TypeDef` structs (with `permanent`/`confers`). Resolve each
+        // name through the engine's type registry (`state.types`, populated from
+        // the loaded plugin), so a granted type's `confers` ride along — exactly
+        // like the `Subtypes` arm. An `Ident` absent from the registry applies as
+        // a minimal name-only `TypeDef` (no `confers`): the type still applies,
+        // it just carries no inherent rules (fizzle, never crash).
         Modification::CardTypes(op) => match op {
-            CollectionOp::Set(ts) => c.card_types = Arc::new(ts.clone()),
-            CollectionOp::Add(t) => {
+            CollectionOp::Set(names) => {
+                c.card_types =
+                    Arc::new(names.iter().map(|name| resolve_type(state, name)).collect());
+            }
+            CollectionOp::Add(name) => {
                 let types = Arc::make_mut(&mut c.card_types);
-                if !types.contains(t) {
-                    types.push(*t);
+                let resolved = resolve_type(state, name);
+                if !types.iter().any(|t| t.name == resolved.name) {
+                    types.push(resolved);
                 }
             }
-            CollectionOp::Remove(t) => Arc::make_mut(&mut c.card_types).retain(|x| x != t),
+            CollectionOp::Remove(name) => {
+                Arc::make_mut(&mut c.card_types).retain(|t| t.name != *name);
+            }
         },
         Modification::Supertypes(op) => match op {
             CollectionOp::Set(ss) => c.supertypes = Arc::new(ss.clone()),
@@ -1807,13 +1847,30 @@ mod tests {
         })
     }
 
+    #[test]
+    fn type_predicate_matches_by_name_against_typedefs() {
+        // A derived object whose card_types are the expanded Creature TypeDef
+        // matches Type(Creature) by name.
+        let chars = super::Characteristics {
+            power: None,
+            toughness: None,
+            colors: Arc::new(vec![]),
+            card_types: Arc::new(vec![Type::Creature.def()]),
+            subtypes: Arc::new(vec![]),
+            supertypes: Arc::new(vec![]),
+            abilities: Arc::new(vec![]),
+        };
+        assert!(chars.has_type(Type::Creature));
+        assert!(!chars.has_type(Type::Land));
+    }
+
     /// A self-anthem `Static`: "creatures get +2/+2" — matches the carrying
     /// creature itself (a floating `SelectAll` set, no Stage-3 source-relative
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
         let s = Ability::Static(StaticEffect::Each(
             Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Creature,
+                Type::Creature.name(),
             ))),
             Box::new(StaticEffect::Modify(
                 Reference::It,
@@ -1833,7 +1890,7 @@ mod tests {
         use deckmaste_core::CardFace;
         let card = Card::Normal(CardFace {
             name: "Test Creature".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
             abilities,
@@ -1970,7 +2027,7 @@ mod tests {
         let mut state = game();
         let card = Card::Normal(CardFace {
             name: "Test Island".into(),
-            types: vec![Type::Land],
+            types: vec![Type::Land.def()],
             subtypes: vec![island],
             ..CardFace::default()
         });
@@ -2147,7 +2204,7 @@ mod tests {
         use deckmaste_core::CardFace;
         let card = Card::Normal(CardFace {
             name: "Test Attachment".into(),
-            types: vec![Type::Enchantment],
+            types: vec![Type::Enchantment.def()],
             abilities,
             ..CardFace::default()
         });
@@ -2342,7 +2399,7 @@ mod tests {
         use deckmaste_core::Subtype;
         let card = Card::Normal(CardFace {
             name: "Test Tribe".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             subtypes: vec![Subtype {
                 name: subtype.into(),
                 types: vec![Type::Creature],

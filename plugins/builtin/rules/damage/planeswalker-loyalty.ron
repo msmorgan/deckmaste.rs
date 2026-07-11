@@ -5,5 +5,5 @@
 // loses loyalty. The 0-loyalty SBA ([CR#704.5i], rules/sba/loyalty-zero.ron)
 // handles death once the counters reach zero.
 [
-    DamageResultRule(recipient: Type(Planeswalker), remove: LoyaltyCounter),
+    DamageResultRule(recipient: Type("Planeswalker"), remove: LoyaltyCounter),
 ]

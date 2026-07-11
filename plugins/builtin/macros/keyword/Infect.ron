@@ -8,7 +8,7 @@
 //     ([CR#704.5c]).
 //
 // Modeled as TWO static abilities, each holding one `Replacement` effect,
-// branched by the `to` filter (`Type(Creature)` vs `Kind(Player)`) — the
+// branched by the `to` filter (`Type("Creature")` vs `Kind(Player)`) — the
 // cleanest representable form: each branch is an independent replacement the
 // registry gathers and the body's recipient binding differs (a creature
 // recipient binds as `EventObject`; a player recipient — the proxy is
@@ -23,7 +23,7 @@ KeywordAbility(
     abilities: [
         // [CR#702.90c]: damage to a creature → -1/-1 counters.
         Static(Replacement(Instead(
-            would: Damage(source: Ref(This), to: Type(Creature)),
+            would: Damage(source: Ref(This), to: Type("Creature")),
             instead: PutCounters(EventObject, M1M1Counter, ThatMuch),
         ))),
         // [CR#702.90b]: damage to a player → poison counters.

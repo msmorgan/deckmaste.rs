@@ -49,7 +49,7 @@ mod tests {
     }
 
     fn creature_filter() -> Predicate {
-        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature))
+        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()))
     }
 
     /// The announce-list grammar: `Target(Quantity, Predicate)`, distinct from
@@ -60,18 +60,18 @@ mod tests {
     #[test]
     fn announce_forms_read() {
         assert_eq!(
-            read("Target(Range(1, 1), Type(Creature))"),
+            read("Target(Range(1, 1), Type(\"Creature\"))"),
             TargetSpec::Target(Quantity::one(), creature_filter()),
         );
         assert_eq!(
-            read("Target(Range(None, 2), Type(Creature))"),
+            read("Target(Range(None, 2), Type(\"Creature\"))"),
             TargetSpec::Target(
                 Quantity::Range(None, Some(Count::Literal(2))),
                 creature_filter(),
             ),
         );
         assert_eq!(
-            read("Target(Range(None, None), Type(Creature))"),
+            read("Target(Range(None, None), Type(\"Creature\"))"),
             TargetSpec::Target(Quantity::Range(None, None), creature_filter()),
         );
     }

@@ -21,8 +21,8 @@ Normal(
           rider: Escalate([Mana([Green])]),
         ),
         modes: [
-          (effect: Targeted(targets: [TargetOne(Type(Artifact))], effect: Destroy(It))),
-          (effect: Targeted(targets: [TargetOne(Type(Enchantment))], effect: Destroy(It))),
+          (effect: Targeted(targets: [TargetOne(Type("Artifact"))], effect: Destroy(It))),
+          (effect: Targeted(targets: [TargetOne(Type("Enchantment"))], effect: Destroy(It))),
           (effect: Targeted(
             targets: [TargetOne(Creature)],
             effect: Until(FixedUntil(EndOfTurn), [Modify(It, Several([GainAbility(Keyword(Hexproof())), GainAbility(Keyword(Indestructible))]))]),

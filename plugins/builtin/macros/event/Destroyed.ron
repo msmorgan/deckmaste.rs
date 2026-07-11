@@ -3,7 +3,7 @@
 // lethal-damage SBA are its only two causes; sacrifice is never
 // destruction, [CR#701.21a]). The cause verb is the closed CauseVerb
 // vocabulary, spelled bare: `Cause(verb: Destroy)`.
-// Usage: Destroyed(what) — e.g. Destroyed(Type(Creature)).
+// Usage: Destroyed(what) — e.g. Destroyed(Type("Creature")).
 (
     name: "Destroyed",
     template: "${0} is destroyed",

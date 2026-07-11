@@ -15,7 +15,7 @@
         name: "Fortification",
         types: [Artifact],
         confers: [
-            Ability(Innate(Static(May(Attach(what: Ref(This), to: Type(Land)))))),
+            Ability(Innate(Static(May(Attach(what: Ref(This), to: Type("Land")))))),
         ],
     ),
 )

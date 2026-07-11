@@ -164,7 +164,8 @@ mod tests {
     /// defaults (both omitted-default and explicit-override forms).
     #[test]
     fn binder_variants_round_trip() {
-        let one_filter = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+        let one_filter =
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
         for v in [
             Binder::TheRef(Reference::This),
             Binder::ChooseOne {
@@ -241,7 +242,8 @@ mod tests {
     /// back — the common written form carries only the filter (and quantity).
     #[test]
     fn choose_binders_omit_default_by() {
-        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+        let creature =
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
         let one = Binder::ChooseOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -270,7 +272,8 @@ mod tests {
     /// back to the defaults — the bare written form carries only the filter.
     #[test]
     fn search_one_omits_default_resolver_inputs() {
-        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+        let creature =
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
         let bare = Binder::SearchOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -294,7 +297,8 @@ mod tests {
         use crate::OneShotEffect;
         use crate::PlayerAction;
 
-        let creature = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+        let creature =
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
         let bare = Binder::SearchOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -318,7 +322,7 @@ mod tests {
         };
         assert_eq!(read(&to_string(&whiff)), whiff);
         assert_eq!(
-            read("SearchOne(filter: Type(Creature), if_none: LoseLife(1))"),
+            read("SearchOne(filter: Type(\"Creature\"), if_none: LoseLife(1))"),
             whiff,
         );
     }

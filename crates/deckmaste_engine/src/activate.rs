@@ -311,7 +311,7 @@ impl GameState {
         // Haste exemption is the `kw-haste` seam.
         if (summary.tap || summary.untap)
             && obj.summoning_sick
-            && view.get(object).card_types.contains(&Type::Creature)
+            && view.get(object).has_type(Type::Creature)
         {
             return false;
         }
@@ -1016,7 +1016,7 @@ mod tests {
             mana_cost: ManaCost::from(vec![]),
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![deckmaste_core::Type::Creature],
+            types: vec![deckmaste_core::Type::Creature.def()],
             subtypes: vec![],
             abilities: vec![],
             power: Some(deckmaste_core::StatValue::Number(power)),
@@ -1474,7 +1474,7 @@ mod tests {
             mana_cost: ManaCost::from(vec![]),
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![deckmaste_core::Type::Artifact],
+            types: vec![deckmaste_core::Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![Ability::Activated(act)],
             power: None,
@@ -1495,7 +1495,7 @@ mod tests {
             mana_cost,
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![deckmaste_core::Type::Artifact],
+            types: vec![deckmaste_core::Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![Ability::Activated(act)],
             power: None,

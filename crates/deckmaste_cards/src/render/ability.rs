@@ -133,7 +133,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
 fn self_type_phrase(view: &CardView) -> String {
     view.types.first().map_or_else(
         || "it".to_string(),
-        |t| format!("this {}", super::card::type_str(*t).to_lowercase()),
+        |t| format!("this {}", super::card::type_str(t).to_lowercase()),
     )
 }
 
@@ -530,7 +530,7 @@ fn subject_of(f: &Predicate, ctx: &Ctx) -> String {
         return ctx.subject.to_string();
     }
     if let Some(t) = super::fragment::find_card_type(f) {
-        return format!("a {}", super::card::type_str(t).to_lowercase());
+        return format!("a {}", t.as_str().to_lowercase());
     }
     format!("[unrendered: {f:?}]")
 }
@@ -718,7 +718,7 @@ fn pay_pips_keyword(act: &PayAct) -> String {
     match act {
         PayAct::ExileToPay(_) => "Delve".to_string(),
         PayAct::TapToPay(filter)
-            if super::fragment::find_card_type(filter) == Some(Type::Artifact) =>
+            if super::fragment::find_card_type(filter) == Some(Type::Artifact.name()) =>
         {
             "Improvise".to_string()
         }
@@ -1098,13 +1098,13 @@ fn affected_phrase(affected: &Predicate) -> String {
 fn types_noun(what: &Predicate) -> String {
     let names: Vec<String> = match what {
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-            vec![super::card::type_str(*t).to_lowercase()]
+            vec![t.as_str().to_lowercase()]
         }
         Predicate::Or(items) => items
             .iter()
             .filter_map(|f| match f {
                 Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-                    Some(super::card::type_str(*t).to_lowercase())
+                    Some(t.as_str().to_lowercase())
                 }
                 _ => None,
             })
@@ -1161,7 +1161,7 @@ fn cast_subject(what: &Predicate) -> String {
     if let Predicate::Not(inner) = only {
         return match super::fragment::strip_expanded(inner) {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-                format!("a non{} spell", super::card::type_str(*t).to_lowercase())
+                format!("a non{} spell", t.as_str().to_lowercase())
             }
             other => format!("[unrendered: {other:?}]"),
         };
@@ -1277,13 +1277,13 @@ mod tests {
 
         let convoke = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Predicate::And(vec![ty(Type::Creature), you()])),
+            PayAct::TapToPay(Predicate::And(vec![ty(Type::Creature.name()), you()])),
         );
         assert_eq!(static_effect(&convoke, &ctx).as_deref(), Some("Convoke"));
 
         let improvise = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Predicate::And(vec![ty(Type::Artifact), you()])),
+            PayAct::TapToPay(Predicate::And(vec![ty(Type::Artifact.name()), you()])),
         );
         assert_eq!(
             static_effect(&improvise, &ctx).as_deref(),
@@ -1328,7 +1328,7 @@ mod tests {
         assert_eq!(
             event_clause(
                 &event(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature
+                    Type::Creature.name()
                 ))),
                 &ctx
             ),
@@ -1353,7 +1353,9 @@ mod tests {
             event_clause(
                 &event(Predicate::Or(vec![
                     Predicate::Kind(ObjectKind::Player),
-                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Planeswalker)),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(
+                        Type::Planeswalker.name()
+                    )),
                 ])),
                 &ctx
             ),
@@ -1390,7 +1392,7 @@ mod tests {
         assert_eq!(
             event_clause(
                 &event(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature
+                    Type::Creature.name()
                 ))),
                 &ctx
             ),
@@ -1435,7 +1437,7 @@ mod tests {
         assert_eq!(
             event_clause(
                 &event(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature
+                    Type::Creature.name()
                 ))),
                 &ctx
             ),
@@ -1496,7 +1498,7 @@ mod tests {
             name: "Bog Elemental",
             mana_cost: None,
             supertypes: &[],
-            types: &[Type::Creature],
+            types: &[Type::Creature.def()],
             subtypes: &[],
             power: None,
             toughness: None,
@@ -1524,7 +1526,7 @@ mod tests {
             name: "Aura Flux",
             mana_cost: None,
             supertypes: &[],
-            types: &[Type::Enchantment],
+            types: &[Type::Enchantment.def()],
             subtypes: &[],
             power: None,
             toughness: None,
@@ -1550,7 +1552,8 @@ mod tests {
             that: None,
         };
         let this = || Predicate::Ref(Reference::This);
-        let creature = || Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+        let creature =
+            || Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
 
         // Bare self-blocks ([CR#509.3a]).
         assert_eq!(
@@ -1713,7 +1716,7 @@ mod tests {
             event_clause(
                 &event(Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
                 ])),
                 &ctx
             ),
@@ -1725,8 +1728,12 @@ mod tests {
                 &event(Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
                     Predicate::Or(vec![
-                        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Instant)),
-                        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Sorcery)),
+                        Predicate::Characteristic(CharacteristicPredicate::Type(
+                            Type::Instant.name()
+                        )),
+                        Predicate::Characteristic(CharacteristicPredicate::Type(
+                            Type::Sorcery.name()
+                        )),
                     ]),
                 ])),
                 &ctx
@@ -1742,7 +1749,7 @@ mod tests {
                 &event(Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
                     Predicate::Not(Box::new(Predicate::Characteristic(
-                        CharacteristicPredicate::Type(Type::Creature)
+                        CharacteristicPredicate::Type(Type::Creature.name())
                     ))),
                 ])),
                 &ctx

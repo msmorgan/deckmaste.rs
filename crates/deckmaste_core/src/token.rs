@@ -296,7 +296,7 @@ impl PredefinedToken {
         Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![subtype],
             abilities,
             power: None,
@@ -317,7 +317,7 @@ pub struct Token {
     pub color_indicator: Vec<Color>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub supertypes: Vec<Supertype>,
-    pub types: Vec<Type>,
+    pub types: Vec<crate::TypeDef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub subtypes: Vec<Subtype>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn named_treasure_resolves_to_rules_token() {
         let token = TokenName::from("Treasure").resolve().unwrap();
-        assert_eq!(token.types, vec![Type::Artifact]);
+        assert_eq!(token.types, vec![Type::Artifact.def()]);
         assert_eq!(token.subtypes.len(), 1);
         assert_eq!(token.subtypes[0].name, "Treasure");
         assert!(token.color_indicator.is_empty(), "[CR#111.10a]: colorless");
@@ -407,14 +407,14 @@ mod tests {
     #[test]
     fn token_spec_reads_the_token_spelling() {
         let spec: TokenSpec = crate::ron::options()
-            .from_str("Token(types: [Artifact])")
+            .from_str("Token(types: [TypeDef(name: \"Artifact\", permanent: true)])")
             .unwrap();
         assert_eq!(
             spec,
             TokenSpec::Token(Token {
                 color_indicator: vec![],
                 supertypes: vec![],
-                types: vec![Type::Artifact],
+                types: vec![Type::Artifact.def()],
                 subtypes: vec![],
                 abilities: vec![],
                 power: None,
@@ -425,8 +425,8 @@ mod tests {
 
     #[test]
     fn minimal_token_parses() {
-        let token = read("Token(types: [Artifact])");
-        assert_eq!(token.types, vec![Type::Artifact]);
+        let token = read("Token(types: [TypeDef(name: \"Artifact\", permanent: true)])");
+        assert_eq!(token.types, vec![Type::Artifact.def()]);
         assert!(token.supertypes.is_empty());
         assert!(token.subtypes.is_empty());
         assert!(token.abilities.is_empty());
@@ -440,7 +440,7 @@ mod tests {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
-            types: vec![Type::Artifact],
+            types: vec![Type::Artifact.def()],
             subtypes: vec![],
             abilities: vec![],
             power: None,
@@ -481,10 +481,11 @@ mod tests {
     /// [CR#111.3]; the new fields round-trip and stay omitted when empty.
     #[test]
     fn token_carries_color_and_pt() {
-        let token =
-            read("Token(color_indicator: [Red], types: [Creature], power: 1, toughness: 1)");
+        let token = read(
+            "Token(color_indicator: [Red], types: [TypeDef(name: \"Creature\", permanent: true)], power: 1, toughness: 1)",
+        );
         assert_eq!(token.color_indicator, vec![Color::Red]);
-        assert_eq!(token.types, vec![Type::Creature]);
+        assert_eq!(token.types, vec![Type::Creature.def()]);
         assert_eq!(token.power, Some(StatValue::Number(1)));
         assert_eq!(token.toughness, Some(StatValue::Number(1)));
         let written = crate::ron::options().to_string(&token).unwrap();
@@ -497,7 +498,7 @@ mod tests {
         // macro-expanded forms: `SacrificeThis` -> `Do(Sacrifice(This))`,
         // subtypes omitted (Subtype is a struct requiring plugin expansion).
         let source = "Token(\
-            types: [Artifact],\
+            types: [TypeDef(name: \"Artifact\", permanent: true)],\
             abilities: [\
                 Activated(\
                     cost: [Tap, Do(Sacrifice(This))],\
@@ -506,7 +507,7 @@ mod tests {
             ],\
         )";
         let token = read(source);
-        assert_eq!(token.types, vec![Type::Artifact]);
+        assert_eq!(token.types, vec![Type::Artifact.def()]);
         assert!(token.subtypes.is_empty());
         assert_eq!(
             token.abilities,

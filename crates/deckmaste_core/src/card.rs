@@ -6,7 +6,7 @@ use crate::Expand;
 use crate::ManaCost;
 use crate::Subtype;
 use crate::Supertype;
-use crate::Type;
+use crate::TypeDef;
 use crate::ability::Ability;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, Serialize)]
@@ -22,7 +22,7 @@ pub struct CardFace {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub supertypes: Vec<Supertype>,
 
-    pub types: Vec<Type>,
+    pub types: Vec<TypeDef>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub subtypes: Vec<Subtype>,

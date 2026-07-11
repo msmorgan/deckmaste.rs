@@ -8,7 +8,7 @@
 // corpus narrows this event's source or amount). The recipient draws from
 // the same player-identity/object grammar as DealsCombatDamage's recipient
 // ([`filter::recipient_phrase`] on the migration-parser side).
-// Usage: DealtDamage(to) — e.g. DealtDamage(Ref(This)), DealtDamage(Type(Creature)).
+// Usage: DealtDamage(to) — e.g. DealtDamage(Ref(This)), DealtDamage(Type("Creature")).
 (
     name: "DealtDamage",
     template: "${0} is dealt damage",

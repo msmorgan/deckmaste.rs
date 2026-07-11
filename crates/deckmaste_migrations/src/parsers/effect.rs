@@ -2161,14 +2161,14 @@ mod tests {
         assert_eq!(
             parsed("Destroy target artifact."),
             Some((
-                "TargetOne(Type(Artifact))".to_owned(),
+                "TargetOne(Type(\"Artifact\"))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
         assert_eq!(
             parsed("Destroy target nonland permanent."),
             Some((
-                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
@@ -3238,7 +3238,7 @@ mod tests {
         assert_eq!(
             parsed("Return target nonland permanent to its owner's hand."),
             Some((
-                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
                 "Move(It, Hand)".to_owned()
             ))
         );
@@ -3287,7 +3287,8 @@ mod tests {
         assert_eq!(
             parsed("Return target creature card from your graveyard to your hand."),
             Some((
-                "TargetOne(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "TargetOne(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))"
+                    .to_owned(),
                 "Move(It, Hand)".to_owned()
             ))
         );
@@ -3303,7 +3304,7 @@ mod tests {
         assert_eq!(
             parsed("Return target instant or sorcery card from your graveyard to your hand."),
             Some((
-                "TargetOne(And([Or([Type(Instant), Type(Sorcery)]), InZone(Graveyard), \
+                "TargetOne(And([Or([Type(\"Instant\"), Type(\"Sorcery\")]), InZone(Graveyard), \
                  Owner(Ref(You))]))"
                     .to_owned(),
                 "Move(It, Hand)".to_owned()
@@ -3319,7 +3320,8 @@ mod tests {
         assert_eq!(
             parsed("Return target creature card from your graveyard to the battlefield."),
             Some((
-                "TargetOne(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
+                "TargetOne(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))"
+                    .to_owned(),
                 "Move(It, Battlefield)".to_owned()
             ))
         );
@@ -3445,7 +3447,7 @@ mod tests {
         assert_eq!(
             parsed("Put target nonland permanent on top of its owner's library."),
             Some((
-                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
                 "Move(It, Library(FromTop(0)))".to_owned()
             ))
         );
@@ -3475,7 +3477,7 @@ mod tests {
         assert_eq!(
             parsed("Exile target creature card from a graveyard."),
             Some((
-                "TargetOne(And([Type(Creature), InZone(Graveyard)]))".to_owned(),
+                "TargetOne(And([Type(\"Creature\"), InZone(Graveyard)]))".to_owned(),
                 "Move(It, Exile)".to_owned()
             ))
         );
@@ -3493,7 +3495,7 @@ mod tests {
         assert_eq!(
             parsed("Exile target instant or sorcery card from a graveyard."),
             Some((
-                "TargetOne(And([Or([Type(Instant), Type(Sorcery)]), InZone(Graveyard)]))"
+                "TargetOne(And([Or([Type(\"Instant\"), Type(\"Sorcery\")]), InZone(Graveyard)]))"
                     .to_owned(),
                 "Move(It, Exile)".to_owned()
             ))
@@ -3535,7 +3537,10 @@ mod tests {
         );
         assert_eq!(
             parsed("Untap target land."),
-            Some(("TargetOne(Type(Land))".to_owned(), "Untap(It)".to_owned()))
+            Some((
+                "TargetOne(Type(\"Land\"))".to_owned(),
+                "Untap(It)".to_owned()
+            ))
         );
         // A trailing rider sentence leaves text past the period — declines here.
         assert!(declines(
@@ -3549,7 +3554,7 @@ mod tests {
         assert_eq!(
             parsed("Destroy target artifact or enchantment."),
             Some((
-                "TargetOne(Or([Type(Artifact), Type(Enchantment)]))".to_owned(),
+                "TargetOne(Or([Type(\"Artifact\"), Type(\"Enchantment\")]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );
@@ -3564,7 +3569,7 @@ mod tests {
         assert_eq!(
             parsed("Destroy target artifact or land."),
             Some((
-                "TargetOne(Or([Type(Artifact), Type(Land)]))".to_owned(),
+                "TargetOne(Or([Type(\"Artifact\"), Type(\"Land\")]))".to_owned(),
                 "Destroy(It)".to_owned()
             ))
         );

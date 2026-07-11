@@ -161,7 +161,7 @@ pub(super) fn count(c: &Count) -> String {
         Count::CountDistinct(axis, Countable::Objects(filter)) => {
             let axis_word = match (axis, find_card_type(filter)) {
                 (Characteristic::Subtypes, Some(t)) => {
-                    format!("{} types", super::card::type_str(t).to_lowercase())
+                    format!("{} types", t.as_str().to_lowercase())
                 }
                 _ => characteristic_word(*axis).to_string(),
             };
@@ -471,7 +471,7 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
     // of, [CR#110.1]; "target nonland permanent", Avarice Totem), or (for a
     // graveyard-scoped filter with no type qualifier) the bare "card" noun.
     let base_noun = find_card_type(filter)
-        .map(|t| super::card::type_str(t).to_lowercase())
+        .map(|t| t.as_str().to_lowercase())
         .or_else(|| find_macro_noun(filter))
         .or_else(|| is_graveyard_card.then(|| "card".to_string()));
     if let Some(base) = base_noun {
@@ -578,7 +578,7 @@ fn type_exclusion_prefix(filter: &Predicate) -> Option<String> {
             && let Predicate::Characteristic(CharacteristicPredicate::Type(t)) =
                 strip_expanded(negated)
         {
-            return Some(format!("non{}", super::card::type_str(*t).to_lowercase()));
+            return Some(format!("non{}", t.as_str().to_lowercase()));
         }
     }
     None
@@ -694,7 +694,7 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
     for p in parts {
         match strip_expanded(p) {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-                base = format!("{}s", super::card::type_str(*t));
+                base = format!("{}s", t.as_str());
                 typed = true;
             }
             Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
@@ -711,7 +711,7 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
             // a card type buried in a nested And.
             stripped => {
                 if let Some(t) = find_card_type(stripped) {
-                    base = format!("{}s", super::card::type_str(t));
+                    base = format!("{}s", t.as_str());
                     typed = true;
                 }
             }
@@ -749,7 +749,7 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
 /// Recursively search a stripped filter for a `Characteristic(Type(t))`.
 /// Used to find the type name inside a macro-expanded Creature/Land/etc.
 /// filter.
-pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Type> {
+pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Ident> {
     match strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(*t),
         Predicate::And(vs) => vs.iter().find_map(find_card_type),
@@ -1069,7 +1069,7 @@ mod tests {
     fn filter_subject_renders_teammate_controller_phrase() {
         let f = Predicate::And(vec![
             Predicate::Characteristic(CharacteristicPredicate::Type(
-                deckmaste_core::Type::Creature,
+                deckmaste_core::Type::Creature.name(),
             )),
             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
                 Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
@@ -1140,7 +1140,7 @@ mod tests {
                 of: Countable::Objects(Box::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Characteristic(CharacteristicPredicate::Type(
-                        deckmaste_core::Type::Creature,
+                        deckmaste_core::Type::Creature.name(),
                     )),
                 ]))),
                 by: Box::new(Count::StatOf(Reference::It, Stat::Power)),

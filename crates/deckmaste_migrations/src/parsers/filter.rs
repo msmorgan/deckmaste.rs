@@ -394,11 +394,11 @@ const TYPE_NOUN_ATOMS: &[(&str, &str)] = &[
     ("permanent", "Permanent"),
     ("planeswalker", "Planeswalker"),
     ("battle", "Battle"),
-    ("artifact", "Type(Artifact)"),
-    ("enchantment", "Type(Enchantment)"),
-    ("land", "Type(Land)"),
-    ("instant", "Type(Instant)"),
-    ("sorcery", "Type(Sorcery)"),
+    ("artifact", "Type(\"Artifact\")"),
+    ("enchantment", "Type(\"Enchantment\")"),
+    ("land", "Type(\"Land\")"),
+    ("instant", "Type(\"Instant\")"),
+    ("sorcery", "Type(\"Sorcery\")"),
 ];
 
 /// The [`head_noun`] atom for a singular type-noun key, or `None` if `singular`
@@ -416,13 +416,16 @@ fn type_noun_atom(singular: &str) -> Option<&'static str> {
 /// macro-rendered card types share the same `<T>` spelling either way.
 pub(super) fn type_filter(singular: &str) -> Option<String> {
     let atom = type_noun_atom(singular)?;
+    // The atom is either a bare predicate-macro name (`Creature`) or an already
+    // wrapped `Type("X")` form; extract the plain type name either way, then
+    // re-wrap with a QUOTED ident (`Type` filters by name, [CR#300.1]).
     let ty = atom
-        .strip_prefix("Type(")
-        .and_then(|t| t.strip_suffix(')'))
+        .strip_prefix("Type(\"")
+        .and_then(|t| t.strip_suffix("\")"))
         .unwrap_or(atom);
     // `Permanent` has no `Type(...)` form — it is a builtin filter, not a card
     // type.
-    (ty != "Permanent").then(|| format!("Type({ty})"))
+    (ty != "Permanent").then(|| format!("Type(\"{ty}\")"))
 }
 
 /// A card-type noun (singular or plural) that can anchor a filter head:
@@ -440,7 +443,7 @@ fn strip_negation(s: &str) -> Option<(String, &str)> {
     let atom = if let Some(c) = color_ident(stem) {
         format!("Not(ColorIs({c}))")
     } else if let Some(t) = type_code(stem) {
-        format!("Not(Type({t}))")
+        format!("Not(Type(\"{t}\"))")
     } else {
         return None;
     };
@@ -538,14 +541,20 @@ mod tests {
     fn head_nouns() {
         assert_eq!(parse_phrase("creatures").as_deref(), Some("Creature"));
         assert_eq!(parse_phrase("permanents").as_deref(), Some("Permanent"));
-        assert_eq!(parse_phrase("artifacts").as_deref(), Some("Type(Artifact)"));
+        assert_eq!(
+            parse_phrase("artifacts").as_deref(),
+            Some("Type(\"Artifact\")")
+        );
         // A bare subtype head is battlefield-scoped ([CR#109.2]) — `Permanent`,
         // the same scope the type-noun heads carry through their macros.
         assert_eq!(
             parse_phrase("Goblins").as_deref(),
             Some("And([Permanent, Subtype(\"Goblin\")])")
         );
-        assert_eq!(parse_phrase("sorceries").as_deref(), Some("Type(Sorcery)"));
+        assert_eq!(
+            parse_phrase("sorceries").as_deref(),
+            Some("Type(\"Sorcery\")")
+        );
     }
 
     #[test]
@@ -599,7 +608,7 @@ mod tests {
         );
         assert_eq!(
             parse_phrase("artifacts an opponent controls").as_deref(),
-            Some("And([Type(Artifact), ControlledBy(OpponentOf(Ref(You)))])")
+            Some("And([Type(\"Artifact\"), ControlledBy(OpponentOf(Ref(You)))])")
         );
         assert_eq!(
             parse_phrase("creatures your opponents control").as_deref(),
@@ -789,12 +798,15 @@ mod tests {
     fn type_filter_keeps_qualitys_divergent_wrapper() {
         // `quality_filter`'s view: always `Type(<T>)`, even for the nouns
         // `head_noun` renders as a bare builtin macro.
-        assert_eq!(type_filter("creature").as_deref(), Some("Type(Creature)"));
+        assert_eq!(
+            type_filter("creature").as_deref(),
+            Some("Type(\"Creature\")")
+        );
         assert_eq!(
             type_filter("planeswalker").as_deref(),
-            Some("Type(Planeswalker)")
+            Some("Type(\"Planeswalker\")")
         );
-        assert_eq!(type_filter("sorcery").as_deref(), Some("Type(Sorcery)"));
+        assert_eq!(type_filter("sorcery").as_deref(), Some("Type(\"Sorcery\")"));
         // `permanent` is a builtin filter, not a card type — no `Type(...)` form.
         assert_eq!(type_filter("permanent"), None);
         assert_eq!(type_filter("goblin"), None);

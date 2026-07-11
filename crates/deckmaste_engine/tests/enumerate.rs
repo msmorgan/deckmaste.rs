@@ -80,7 +80,9 @@ fn is_land(state: &GameState, id: ObjectId) -> bool {
         .obj(id)
         .card_id()
         .is_some_and(|_| match state.def(id) {
-            Card::Normal(f) | Card::TwoFaced { front: f, .. } => f.types.contains(&Type::Land),
+            Card::Normal(f) | Card::TwoFaced { front: f, .. } => {
+                f.types.iter().any(|t| t.name == Type::Land.name())
+            }
         })
 }
 

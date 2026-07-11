@@ -210,7 +210,7 @@ mod tests {
             root.path(),
             "wizards",
             "Wastes.ron.todo",
-            r#"Normal(name: "Wastes", types: [Land])"#,
+            r#"Normal(name: "Wastes", types: [TypeDef(name: "Land", permanent: true)])"#,
         );
         let report = graduate_plugin(&root.path().join("wizards")).unwrap();
 
@@ -230,7 +230,7 @@ mod tests {
             root.path(),
             "wizards",
             "Mystery.ron.todo",
-            r#"Normal(name: "Mystery", types: [Creature], abilities: [Unparsed("Draw a card.")], power: 1, toughness: 1)"#,
+            r#"Normal(name: "Mystery", types: [TypeDef(name: "Creature", permanent: true)], abilities: [Unparsed("Draw a card.")], power: 1, toughness: 1)"#,
         );
         let report = graduate_plugin(&root.path().join("wizards")).unwrap();
 
@@ -255,7 +255,7 @@ mod tests {
             root.path(),
             "wizards",
             "Bird.ron.todo",
-            r#"Normal(name: "Bird", types: [Creature], abilities: [Flying], power: 1, toughness: 1)"#,
+            r#"Normal(name: "Bird", types: [TypeDef(name: "Creature", permanent: true)], abilities: [Flying], power: 1, toughness: 1)"#,
         );
         let report = graduate_plugin(&root.path().join("wizards")).unwrap();
 
@@ -276,7 +276,7 @@ mod tests {
             root.path(),
             "wizards",
             "Elf.ron.todo",
-            r#"Normal(name: "Elf Token", types: [Creature], subtypes: [ZzzNotARealSubtype], power: 1, toughness: 1)"#,
+            r#"Normal(name: "Elf Token", types: [TypeDef(name: "Creature", permanent: true)], subtypes: [ZzzNotARealSubtype], power: 1, toughness: 1)"#,
         );
         let report = graduate_plugin(&root.path().join("wizards")).unwrap();
         let cards = root.path().join("wizards").join("cards");
@@ -297,7 +297,7 @@ mod tests {
             root.path(),
             "wizards",
             "Done.ron",
-            r#"Normal(name: "Done", types: [Land])"#,
+            r#"Normal(name: "Done", types: [TypeDef(name: "Land", permanent: true)])"#,
         );
         let report = graduate_plugin(&root.path().join("wizards")).unwrap();
         assert_eq!(report.graduated.len(), 0);

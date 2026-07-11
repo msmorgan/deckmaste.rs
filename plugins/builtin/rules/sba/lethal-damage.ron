@@ -4,7 +4,7 @@
 // (the second snapshots the deleted object). OneOf gives that dedup natively.
 [
     SbaRule(
-        scope: Type(Creature),
+        scope: Type("Creature"),
         when: And([
             Compare(StatOf(This, Toughness), Greater, 0),
             Or([

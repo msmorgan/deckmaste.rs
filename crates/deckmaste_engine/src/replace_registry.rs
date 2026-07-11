@@ -841,7 +841,7 @@ pub(crate) mod tests_support {
     pub(crate) fn mint_creature_on_battlefield(state: &mut GameState) -> ObjectId {
         let card = Arc::new(Card::Normal(CardFace {
             name: "Test Creature".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             ..CardFace::default()
         }));
         let card_id = state.cards.push(card, PlayerId(0));
@@ -871,7 +871,7 @@ pub(crate) mod tests_support {
         });
         let card = Arc::new(Card::Normal(CardFace {
             name: "Test Creature".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature.def()],
             abilities: vec![Ability::Static(effect)],
             ..CardFace::default()
         }));
@@ -1023,7 +1023,7 @@ mod tests {
             let card =
                 std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
                     name: "Test Spell".into(),
-                    types: vec![deckmaste_core::Type::Sorcery],
+                    types: vec![deckmaste_core::Type::Sorcery.def()],
                     ..deckmaste_core::CardFace::default()
                 }));
             let cid = state.cards.push(card, controller);

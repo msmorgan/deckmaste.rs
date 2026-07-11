@@ -43,11 +43,13 @@ pub enum ObjectKind {
 }
 
 /// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
-/// object. `Subtype`/`Named`/`Has` filter by *name* — validating that
-/// the name is declared is a lint, not a parse concern.
+/// object. `Type`/`Subtype`/`Named`/`Has` filter by *name* — validating that
+/// the name is declared is a lint, not a parse concern. `Type` carries a bare
+/// [`Ident`] (matched by name against the expanded `TypeDef`s, like `Subtype`),
+/// so an open plugin-declared type is filterable without a closed enum variant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CharacteristicPredicate {
-    Type(Type),
+    Type(Ident),
     Subtype(Ident),
     Supertype(Supertype),
     /// The object is the given color ([CR#105.2,202.2]).
@@ -152,8 +154,8 @@ pub enum RelationPredicate {
 }
 
 /// A predicate over game objects, players included. Compartmentalized in
-/// Rust; flat in RON (`Type(Creature)`, never
-/// `Characteristic(Type(Creature))`) via the `#[macro_ron(flatten)]`
+/// Rust; flat in RON (`Type("Creature")`, never
+/// `Characteristic(Type("Creature"))`) via the `#[macro_ron(flatten)]`
 /// markers: each compartment's variant names lift into `Predicate`'s dispatch
 /// and the compartment tag never appears in text.
 ///
@@ -234,7 +236,7 @@ impl Predicate {
     /// `Type(t)` atom, spelled without its `Characteristic` compartment.
     #[must_use]
     pub fn type_(t: Type) -> Predicate {
-        Predicate::Characteristic(CharacteristicPredicate::Type(t))
+        Predicate::Characteristic(CharacteristicPredicate::Type(t.name()))
     }
 
     /// Matches creatures — [`Predicate::type_`] for [`Type::Creature`], the
@@ -352,8 +354,8 @@ mod tests {
     #[test]
     fn atoms_read_flat() {
         assert_eq!(
-            read("Type(Creature)"),
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+            read("Type(\"Creature\")"),
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
         );
         assert_eq!(
             read(r#"Subtype("Forest")"#),
@@ -446,24 +448,24 @@ mod tests {
             Predicate::State(StatePredicate::WasCastWith("Flashback".into())),
         );
         assert_eq!(
-            read(r#"RelatedBy("PairedWith", Type(Creature))"#),
+            read(r#"RelatedBy("PairedWith", Type("Creature"))"#),
             Predicate::State(StatePredicate::RelatedBy(
                 "PairedWith".into(),
                 Box::new(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature
+                    Type::Creature.name()
                 ))),
             )),
         );
         assert_eq!(
-            read("AttachedTo(Type(Creature))"),
+            read("AttachedTo(Type(\"Creature\"))"),
             Predicate::Relation(RelationPredicate::AttachedTo(Box::new(
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature),)
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()),)
             ))),
         );
         assert_eq!(
-            read("Attachment(Type(Enchantment))"),
+            read("Attachment(Type(\"Enchantment\"))"),
             Predicate::Relation(RelationPredicate::Attachment(Box::new(
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Enchantment),)
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Enchantment.name()),)
             ))),
         );
         assert_eq!(
@@ -522,10 +524,10 @@ mod tests {
     #[test]
     fn combinators_nest() {
         assert_eq!(
-            read("And([InZone(Battlefield), Type(Creature)])"),
+            read("And([InZone(Battlefield), Type(\"Creature\")])"),
             Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature)),
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
             ]),
         );
         assert_eq!(
@@ -544,9 +546,9 @@ mod tests {
             )))),
         );
         assert_eq!(
-            read("Controls(Type(Land))"),
+            read("Controls(Type(\"Land\"))"),
             Predicate::Relation(RelationPredicate::Controls(Box::new(
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land))
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land.name()))
             ))),
         );
     }
@@ -555,10 +557,11 @@ mod tests {
     /// RON stays flat.
     #[test]
     fn serialization_stays_flat() {
-        let filter = Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature));
+        let filter =
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
         assert_eq!(
             crate::ron::options().to_string(&filter).unwrap(),
-            "Type(Creature)"
+            "Type(\"Creature\")"
         );
     }
 
@@ -576,43 +579,43 @@ mod tests {
     #[test]
     fn normalize_flattens_and_collapses_combinators() {
         // Associativity: And([And([a, b]), c]) → And([a, b, c]).
-        let nested = read("And([And([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        let nested = read("And([And([Type(\"Creature\"), Type(\"Land\")]), InZone(Battlefield)])");
         assert_eq!(
             nested.clone().normalize(),
-            read("And([Type(Creature), Type(Land), InZone(Battlefield)])"),
+            read("And([Type(\"Creature\"), Type(\"Land\"), InZone(Battlefield)])"),
         );
 
         // Same for Or.
-        let nested_or = read("Or([Or([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        let nested_or = read("Or([Or([Type(\"Creature\"), Type(\"Land\")]), InZone(Battlefield)])");
         assert_eq!(
             nested_or.normalize(),
-            read("Or([Type(Creature), Type(Land), InZone(Battlefield)])"),
+            read("Or([Type(\"Creature\"), Type(\"Land\"), InZone(Battlefield)])"),
         );
 
         // Singleton collapse: And([x]) → x, Or([x]) → x.
         assert_eq!(
-            read("And([Type(Creature)])").normalize(),
-            read("Type(Creature)")
+            read("And([Type(\"Creature\")])").normalize(),
+            read("Type(\"Creature\")")
         );
         assert_eq!(
-            read("Or([Type(Creature)])").normalize(),
-            read("Type(Creature)")
+            read("Or([Type(\"Creature\")])").normalize(),
+            read("Type(\"Creature\")")
         );
 
         // Nested singletons collapse from the inside out.
         assert_eq!(
-            read("And([And([Type(Creature)])])").normalize(),
-            read("Type(Creature)")
+            read("And([And([Type(\"Creature\")])])").normalize(),
+            read("Type(\"Creature\")")
         );
 
         // A combinator under a compartment filter is normalized too.
         assert_eq!(
-            read("ControlledBy(And([Type(Creature)]))").normalize(),
-            read("ControlledBy(Type(Creature))"),
+            read("ControlledBy(And([Type(\"Creature\")]))").normalize(),
+            read("ControlledBy(Type(\"Creature\"))"),
         );
 
         // Distinct combinators are NOT merged (Or inside And stays).
-        let mixed = read("And([Or([Type(Creature), Type(Land)]), InZone(Battlefield)])");
+        let mixed = read("And([Or([Type(\"Creature\"), Type(\"Land\")]), InZone(Battlefield)])");
         assert_eq!(
             mixed.clone().normalize(),
             mixed,
@@ -634,15 +637,15 @@ mod tests {
             "Owner(Kind(Player))",
             "OpponentOf(Kind(Player))",
             "TeammateOf(Kind(Player))",
-            "AttachedTo(Type(Creature))",
-            "Attachment(Type(Enchantment))",
+            "AttachedTo(Type(\"Creature\"))",
+            "Attachment(Type(\"Enchantment\"))",
             "InZone(Battlefield)",
             "Status(Tapped)",
             "HasCounter(P1P1Counter)",
             "WasPaidWith(Kicker)",
             "WasCastWith(Flashback)",
             r#"Designated("Monstrous")"#,
-            r#"RelatedBy("PairedWith", Type(Creature))"#,
+            r#"RelatedBy("PairedWith", Type("Creature"))"#,
             r#"Subtype("Forest")"#,
             "Supertype(Basic)",
             "ColorIs(Green)",
