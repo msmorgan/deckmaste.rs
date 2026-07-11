@@ -398,7 +398,7 @@ fn may_attack_rows(
 /// grant, keyed on `by`). This is grant PRESENCE, not net eligibility: the
 /// tapped / summoning-sick / `Cant(Attack)` subtractions are applied by
 /// `legal_attackers`. `is_combatant` is the identically-computed combat-damage
-/// twin ([CR#120.3d]).
+/// twin ([CR#120.3e]).
 #[must_use]
 pub(crate) fn attackable(state: &GameState, view: &LayeredView, id: ObjectId) -> bool {
     may_attack_rows(state, view)
@@ -406,10 +406,11 @@ pub(crate) fn attackable(state: &GameState, view: &LayeredView, id: ObjectId) ->
         .any(|(carrier, by, _on)| state.filter_matches_live(by, id, *carrier))
 }
 
-/// [CR#120.3d,120.3e]: whether `id` is a COMBATANT — it carries the
+/// [CR#120.3e,120.3c]: whether `id` is a COMBATANT — it carries the
 /// `May(Attack)` grant (its `Creature` type confers it). Combat damage is
-/// MARKED on a combatant ([CR#120.3d]) and not on a non-combatant permanent
-/// ([CR#120.3e]). This is grant PRESENCE, not net attack eligibility: a
+/// MARKED on a combatant ([CR#120.3e]); a non-combatant permanent is not
+/// marked (a planeswalker instead loses loyalty, [CR#120.3c]). This is grant
+/// PRESENCE, not net attack eligibility: a
 /// creature forbidden to attack (a `Cant(Attack)` row) is still a combatant
 /// whose damage is marked. Same read as [`attackable`], under the
 /// damage-marking rule rather than the declaration rule.
@@ -615,6 +616,7 @@ fn cant_activate_rows(
 /// Whether a `Cant(Activate)` row's `cost` predicate matches an activation
 /// whose cost `includes_tap_symbol`. `None` = the row scopes to ANY activation;
 /// `IncludesTapSymbol` matches only a `{T}`/`{Q}` cost ([CR#602.5a]).
+#[must_use]
 fn cost_predicate_holds(
     cost: Option<&deckmaste_core::CostPredicate>,
     includes_tap_symbol: bool,

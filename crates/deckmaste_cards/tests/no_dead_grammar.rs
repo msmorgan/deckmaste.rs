@@ -987,10 +987,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("StatePredicate", "SummoningSick"),
-            "DEFERRED: engine-combatant-capability T1 lands the atom and its \
-            evaluator ([CR#302.6]) with no card fixture yet — the combatant grant that spells \
-            `Matches(This, SummoningSick)` on `Creature.ron` (turning it into a real accept \
-            fixture) is a later task in the same feature, not built in this commit.",
+            "PERMANENT (not dead grammar): `SummoningSick` appears only in the \
+            Idris-invisible `Creature` type confer (`Conditionally(Matches(This, SummoningSick), \
+            Cant(...))` on `Creature.ron`), never in any card's oracle text — so it has no \
+            card-text accept fixture BY DESIGN, like the `idris_emit` gap. It is exercised by \
+            the engine's combat/tap gating and the layer-confer tests ([CR#302.6]).",
         ),
     ]
 }
