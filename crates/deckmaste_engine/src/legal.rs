@@ -39,9 +39,17 @@ pub(crate) fn object_has_static<F: Fn(&StaticEffect) -> bool>(
     id: ObjectId,
     pred: &F,
 ) -> bool {
-    statics_on(view, id, &mut |e| {
-        if pred(e) { ControlFlow::Break(()) } else { ControlFlow::Continue(()) }
-    })
+    // A presence scan: look THROUGH `Conditionally` unconditionally (pass
+    // `|_| true`), so this stays a pure characteristic-free read of the derived
+    // view and never re-enters `layers()` via a condition.
+    statics_on(
+        view,
+        id,
+        &mut |_: &deckmaste_core::Condition| true,
+        &mut |e| {
+            if pred(e) { ControlFlow::Break(()) } else { ControlFlow::Continue(()) }
+        },
+    )
     .is_break()
 }
 
@@ -336,7 +344,7 @@ fn attack_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Attack { by, on }) = pick(d)
             {
@@ -422,7 +430,7 @@ fn block_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Block { by, on, count }) = pick(d)
             {
@@ -469,7 +477,7 @@ pub(crate) fn cant_untap_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Untap { what }) = cant_action(d)
             {
@@ -505,6 +513,14 @@ pub(crate) fn untap_forbidden_by(
 /// descent ran to completion). View-free so it can be unit-tested directly;
 /// [`statics_on`] is the thin `LayeredView` adapter over it.
 ///
+/// `enter_conditional` GATES a [`StaticEffect::Conditionally`] ([CR#611.3a]):
+/// the walker descends into the inner effect only when `enter_conditional`
+/// accepts the wrapper's condition. Row collectors pass a closure that
+/// evaluates the condition against the game state (via [`for_each_static`]), so
+/// a conditional static contributes only while its condition holds; the
+/// presence-only callers ([`object_has_static`], the cost-modifier self-scan)
+/// pass `|_| true` and keep the old unconditional look-through.
+///
 /// The composite-keyword splice (`in_keyword`) is the legality/SBA twin of the
 /// layer `gather`'s `derive::flatten_composites`: a keyword macro that confers
 /// a static (Enchant → `May(Attach)`, [CR#702.5a]) lands as
@@ -513,77 +529,94 @@ pub(crate) fn untap_forbidden_by(
 /// row. `Innate` is peeled here too, so subtype-conferred
 /// `Innate(May(Attach))` ([CR#301.5,301.6]) and `Innate(Static([Sba(...)]))`
 /// ([CR#704.5m]) are seen.
-pub(crate) fn walk_abilities<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+pub(crate) fn walk_abilities<B, F, G>(
     abilities: &[Ability],
+    enter_conditional: &mut G,
     visit: &mut F,
-) -> ControlFlow<B> {
-    fn in_ability<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
-        a: &Ability,
-        visit: &mut F,
-    ) -> ControlFlow<B> {
+) -> ControlFlow<B>
+where
+    F: FnMut(&StaticEffect) -> ControlFlow<B>,
+    G: FnMut(&deckmaste_core::Condition) -> bool,
+{
+    fn in_ability<B, F, G>(a: &Ability, enter: &mut G, visit: &mut F) -> ControlFlow<B>
+    where
+        F: FnMut(&StaticEffect) -> ControlFlow<B>,
+        G: FnMut(&deckmaste_core::Condition) -> bool,
+    {
         match a {
-            Ability::Static(s) => in_static(s, visit),
-            Ability::Keyword(k) => in_keyword(k, visit),
-            Ability::Expanded(e) => in_ability(&e.value, visit),
+            Ability::Static(s) => in_static(s, enter, visit),
+            Ability::Keyword(k) => in_keyword(k, enter, visit),
+            Ability::Expanded(e) => in_ability(&e.value, enter, visit),
             // Peel `Innate` — its inner static is consumed normally
             // ([CR#113.12,604.1]).
-            Ability::Innate(inner) => in_ability(inner, visit),
+            Ability::Innate(inner) => in_ability(inner, enter, visit),
             _ => ControlFlow::Continue(()),
         }
     }
-    fn in_keyword<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
-        k: &KeywordAbility,
-        visit: &mut F,
-    ) -> ControlFlow<B> {
+    fn in_keyword<B, F, G>(k: &KeywordAbility, enter: &mut G, visit: &mut F) -> ControlFlow<B>
+    where
+        F: FnMut(&StaticEffect) -> ControlFlow<B>,
+        G: FnMut(&deckmaste_core::Condition) -> bool,
+    {
         match k {
             KeywordAbility::Composite { abilities, .. } => {
                 for a in abilities {
-                    in_ability(a, visit)?;
+                    in_ability(a, enter, visit)?;
                 }
                 ControlFlow::Continue(())
             }
-            KeywordAbility::Expanded(e) => in_keyword(&e.value, visit),
+            KeywordAbility::Expanded(e) => in_keyword(&e.value, enter, visit),
             _ => ControlFlow::Continue(()),
         }
     }
-    fn in_static<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
-        e: &StaticEffect,
-        visit: &mut F,
-    ) -> ControlFlow<B> {
-        #[expect(
-            clippy::match_same_arms,
-            reason = "`Each` and `Conditionally` are looked through the same way but kept as separate arms to carry their distinct explanatory comments"
-        )]
+    fn in_static<B, F, G>(e: &StaticEffect, enter: &mut G, visit: &mut F) -> ControlFlow<B>
+    where
+        F: FnMut(&StaticEffect) -> ControlFlow<B>,
+        G: FnMut(&deckmaste_core::Condition) -> bool,
+    {
         match e {
-            StaticEffect::Expanded(x) => in_static(&x.value, visit),
+            StaticEffect::Expanded(x) => in_static(&x.value, enter, visit),
             // Distributed statics ([`StaticEffect::Each`]) are looked through to
             // their inner effect for this presence scan: the walker's callers
             // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
             // not the affected set, so the wrapping `Selection` is immaterial
             // here.
-            StaticEffect::Each(_, inner) => in_static(inner, visit),
-            // A `Conditionally` wrapper is looked through the same way — this
-            // presence scan cares about the inner effect's KIND, not whether
-            // its condition currently holds.
-            StaticEffect::Conditionally(_, inner) => in_static(inner, visit),
+            StaticEffect::Each(_, inner) => in_static(inner, enter, visit),
+            // [CR#611.3a]: a `Conditionally` wrapper contributes its inner
+            // effect only when `enter` accepts the condition. Collectors gate on
+            // the live condition; the presence-only walkers pass `|_| true` and
+            // keep the unconditional look-through.
+            StaticEffect::Conditionally(cond, inner) => {
+                if enter(cond) {
+                    in_static(inner, enter, visit)
+                } else {
+                    ControlFlow::Continue(())
+                }
+            }
             other => visit(other),
         }
     }
     for a in abilities {
-        in_ability(a, visit)?;
+        in_ability(a, enter_conditional, visit)?;
     }
     ControlFlow::Continue(())
 }
 
 /// The `LayeredView` adapter over [`walk_abilities`]: walks `id`'s derived
 /// ability list, calling `visit` on each static effect and short-circuiting on
-/// the visitor's `Break`.
-fn statics_on<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
+/// the visitor's `Break`. `enter_conditional` gates `Conditionally` statics
+/// (forwarded to the walker).
+fn statics_on<B, F, G>(
     view: &LayeredView,
     id: ObjectId,
+    enter_conditional: &mut G,
     visit: &mut F,
-) -> ControlFlow<B> {
-    walk_abilities(&view.get(id).abilities, visit)
+) -> ControlFlow<B>
+where
+    F: FnMut(&StaticEffect) -> ControlFlow<B>,
+    G: FnMut(&deckmaste_core::Condition) -> bool,
+{
+    walk_abilities(&view.get(id).abilities, enter_conditional, visit)
 }
 
 /// The non-short-circuiting view over [`statics_on`]: runs `visit` on every
@@ -592,14 +625,28 @@ fn statics_on<B, F: FnMut(&StaticEffect) -> ControlFlow<B>>(
 /// through this, leaving the `ControlFlow` plumbing to the one walker. Also
 /// the entry point for the [CR#704] SBA sweep, which collects `Sba` rows the
 /// same look-through way.
+///
+/// [CR#611.3a]: a `Conditionally` static is GATED — its inner effect is visited
+/// only when the wrapper's condition holds for `id`, evaluated with `This`
+/// bound to `id` (a `Frame::bare` on the object's controller).
 pub(crate) fn for_each_static<F: FnMut(&StaticEffect)>(
+    state: &GameState,
     view: &LayeredView,
     id: ObjectId,
     mut visit: F,
 ) {
+    // Gate `Conditionally` on the already-built `view`. This runs POST
+    // `state.layers()` (every `for_each_static` caller is a legality/SBA/cost
+    // query that first derives the view, never a step of the layer computation
+    // itself), so a condition that reads characteristics triggers a FRESH,
+    // non-recursive `state.layers()` — the escape `conferred_rule_abilities`
+    // uses ([CR#611.3a]).
+    let controller = state.objects.obj(id).controller;
+    let frame = crate::stack::Frame::bare(id, controller);
+    let mut enter = |cond: &deckmaste_core::Condition| state.condition_holds(cond, &frame);
     // The visitor never breaks, so the only outcome is the run-to-completion
     // `Continue(())`, deliberately discarded.
-    let _ = statics_on(view, id, &mut |e| {
+    let _ = statics_on(view, id, &mut enter, &mut |e| {
         visit(e);
         ControlFlow::<()>::Continue(())
     });
@@ -682,7 +729,7 @@ fn target_rows(
     let mut rows = Vec::new();
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Target { by, on }) = pick(d)
             {
@@ -780,7 +827,7 @@ fn cant_attach_rows(
     let off_field = (!state.zones.battlefield.contains(&attachment)).then_some(attachment);
     for id in state.zones.battlefield.iter().copied().chain(off_field) {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Attach { what, to }) = cant_action(d)
             {
@@ -814,7 +861,7 @@ fn may_attach_rows(
     let off_field = (!state.zones.battlefield.contains(&attachment)).then_some(attachment);
     for id in state.zones.battlefield.iter().copied().chain(off_field) {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Attach { what, to }) = may_action(d)
             {
@@ -914,7 +961,7 @@ fn cant_counter_rows(
         .chain(self_row.then_some(target));
     for id in ids {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Counter { by, on }) = cant_action(d)
             {
@@ -970,7 +1017,7 @@ pub(crate) fn may_cast_rows(
     let mut rows = Vec::new();
     for &id in state.zones.battlefield.iter().chain([&candidate]) {
         let source = state.objects.obj(id).source;
-        for_each_static(view, id, |e| {
+        for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
                 && let Some(DeonticAction::Cast {
                     what,
@@ -1083,7 +1130,7 @@ mod tests {
 
         let tree = sample_tree();
         let mut seen = Vec::new();
-        let done = walk_abilities(&tree, &mut |e| {
+        let done = walk_abilities(&tree, &mut |_: &deckmaste_core::Condition| true, &mut |e| {
             if let StaticEffect::OutcomeGate { gate, .. } = e {
                 seen.push(*gate);
             }
@@ -1099,7 +1146,7 @@ mod tests {
     fn walk_short_circuits_on_break() {
         let tree = sample_tree();
         let mut visited = 0usize;
-        let hit = walk_abilities(&tree, &mut |e| {
+        let hit = walk_abilities(&tree, &mut |_: &deckmaste_core::Condition| true, &mut |e| {
             visited += 1;
             if matches!(
                 e,
@@ -1125,10 +1172,14 @@ mod tests {
     fn walk_no_match_runs_to_completion() {
         let tree = sample_tree();
         let mut visited = 0usize;
-        let res = walk_abilities(&tree, &mut |_e| {
-            visited += 1;
-            ControlFlow::<()>::Continue(())
-        });
+        let res = walk_abilities(
+            &tree,
+            &mut |_: &deckmaste_core::Condition| true,
+            &mut |_e| {
+                visited += 1;
+                ControlFlow::<()>::Continue(())
+            },
+        );
         assert!(res.is_continue());
         assert_eq!(
             visited, 4,
@@ -1570,6 +1621,62 @@ mod tests {
         assert!(
             legal.contains(&crate::decide::Action::Pass),
             "the priority window still enumerates Pass with a land in play"
+        );
+    }
+
+    // --- Conditionally gating in the deontic-collector walk -----------------
+
+    /// [CR#611.3a]: `for_each_static` GATES a `Conditionally` static — a row
+    /// collector sees the inner effect only when the condition holds, no longer
+    /// looking through unconditionally. Uses a pure `Compare` condition (no
+    /// characteristics), so the gate is exercised independently of combat and
+    /// of any `layers()` re-entry.
+    #[test]
+    fn conditionally_gates_the_cant_attack_row() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        // The inner `Cant(Attack)` static the `Conditionally` wraps.
+        let cant = || {
+            StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attack {
+                by: Predicate::Ref(Reference::This),
+                on: Predicate::Any,
+            }))
+        };
+
+        // A false condition (`0 > 1`) ⇒ the inner row is NOT collected.
+        let mut off = game();
+        obj_on_field(
+            &mut off,
+            "Off",
+            vec![Type::Creature],
+            vec![Ability::Static(StaticEffect::Conditionally(
+                Condition::Compare(Count::Literal(0), Cmp::Greater, Count::Literal(1)),
+                Box::new(cant()),
+            ))],
+        );
+        let v = off.layers();
+        assert!(
+            super::cant_attack_rows(&off, &v).is_empty(),
+            "false condition ⇒ no Cant(Attack) row (the gate suppresses the inner effect)"
+        );
+
+        // A true condition (`1 >= 1`) ⇒ exactly the inner row is collected.
+        let mut on = game();
+        obj_on_field(
+            &mut on,
+            "On",
+            vec![Type::Creature],
+            vec![Ability::Static(StaticEffect::Conditionally(
+                Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(1)),
+                Box::new(cant()),
+            ))],
+        );
+        let v = on.layers();
+        assert_eq!(
+            super::cant_attack_rows(&on, &v).len(),
+            1,
+            "true condition ⇒ exactly the inner Cant(Attack) row is collected"
         );
     }
 }

@@ -131,7 +131,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
         // `Ref(This)` to this object via the frame source ([CR#603.10a]).
         let frame = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
         let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::OneShotEffect)> = Vec::new();
-        crate::legal::for_each_static(view, id, |e| {
+        crate::legal::for_each_static(state, view, id, |e| {
             if let deckmaste_core::StaticEffect::Sba { when, then } = e {
                 rows.push((*when.clone(), (**then).clone()));
             }

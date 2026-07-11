@@ -1477,7 +1477,7 @@ impl GameState {
         // so it rides the spell object's own derived ability list.
         let view = self.layers();
         let mut acts: Vec<(PipClass, PayAct)> = Vec::new();
-        crate::legal::for_each_static(&view, spell, |e| {
+        crate::legal::for_each_static(self, &view, spell, |e| {
             if let StaticEffect::PayPips(class, act) = e {
                 acts.push((*class, act.clone()));
             }
@@ -1604,21 +1604,27 @@ impl GameState {
         // so the statics walk below never sees it).
         let source = self.objects.obj(object).source;
         let abilities = crate::derive::abilities_of_source(self, source);
-        let _ = crate::legal::walk_abilities(&abilities, &mut |e| {
-            if let deckmaste_core::StaticEffect::CostModifier { of, change } = e
-                && self.filter_matches_live(of, object, source)
-            {
-                rows.push((
-                    Frame::bare(object, self.objects.obj(object).controller),
-                    change.clone(),
-                ));
-            }
-            ControlFlow::<()>::Continue(())
-        });
+        let _ = crate::legal::walk_abilities(
+            &abilities,
+            // Presence scan of the spell's own rows: look through `Conditionally`
+            // unconditionally (a cost-modifier read, not a live-condition gate).
+            &mut |_: &deckmaste_core::Condition| true,
+            &mut |e| {
+                if let deckmaste_core::StaticEffect::CostModifier { of, change } = e
+                    && self.filter_matches_live(of, object, source)
+                {
+                    rows.push((
+                        Frame::bare(object, self.objects.obj(object).controller),
+                        change.clone(),
+                    ));
+                }
+                ControlFlow::<()>::Continue(())
+            },
+        );
         // Battlefield rows.
         let view = self.layers();
         for &id in &self.zones.battlefield {
-            crate::legal::for_each_static(&view, id, |e| {
+            crate::legal::for_each_static(self, &view, id, |e| {
                 if let deckmaste_core::StaticEffect::CostModifier { of, change } = e
                     && self.filter_matches_live(of, object, self.objects.obj(id).source)
                 {
