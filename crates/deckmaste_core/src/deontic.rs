@@ -29,6 +29,16 @@ pub enum AlternativeCost {
     Components(Vec<CostComponent>),
 }
 
+/// A predicate over an ability's activation COST, carried by
+/// [`DeonticAction::Activate`] to scope a `Cant(Activate)` row. `None` = any
+/// activation; the sole variant matches a `{T}`/`{Q}` cost — the summoning-
+/// sickness tap gate ([CR#602.5a]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum CostPredicate {
+    /// The cost includes a tap (`{T}`) or untap (`{Q}`) symbol ([CR#602.5a]).
+    IncludesTapSymbol,
+}
+
 /// A scoped counterfactual premise ([CR#609.4]): "treat the game as if
 /// [premise] were true, for purposes of that effect only." Carried by
 /// `StaticEffect::AsThough`. Many as-though cards compile to deontic rows
@@ -225,12 +235,17 @@ pub enum DeonticAction {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         from: Option<Zone>,
     },
-    /// `by` activates abilities of `what` ([CR#602.1]).
+    /// `by` activates abilities of `what` ([CR#602.1]), optionally cost-scoped
+    /// ([CR#602.5a]).
     Activate {
         #[serde(default = "Predicate::any")]
         what: Predicate,
         #[serde(default = "Predicate::any")]
         by: Predicate,
+        /// Restricts the row to activations whose cost matches ([CR#602.5a]);
+        /// `None` = any. Additive: existing authorings default `None`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cost: Option<CostPredicate>,
     },
     /// `by` regenerates `on` ([CR#701.19]) — the deed behind "can't be
     /// regenerated": a `Cant` row over it causes regeneration shields not
@@ -557,5 +572,35 @@ mod tests {
             let written = crate::ron::options().to_string(&parsed).unwrap();
             assert_eq!(read(&written), parsed, "round-trip failed: {source}");
         }
+    }
+
+    /// `Activate(… cost: IncludesTapSymbol)` round-trips; omitted cost = None.
+    #[test]
+    fn activate_cost_predicate_reads_and_round_trips() {
+        let tapped = read("Cant(Activate(what: Ref(This), cost: IncludesTapSymbol))");
+        assert_eq!(
+            tapped,
+            Deontic::Cant(DeonticAction::Activate {
+                what: Predicate::Ref(Reference::This),
+                by: Predicate::Any,
+                cost: Some(crate::CostPredicate::IncludesTapSymbol),
+            })
+        );
+        assert_eq!(
+            read(&crate::ron::options().to_string(&tapped).unwrap()),
+            tapped
+        );
+        let bare = read("Cant(Activate(what: Ref(This)))");
+        assert_eq!(
+            bare,
+            Deontic::Cant(DeonticAction::Activate {
+                what: Predicate::Ref(Reference::This),
+                by: Predicate::Any,
+                cost: None,
+            })
+        );
+        let w = crate::ron::options().to_string(&bare).unwrap();
+        assert!(!w.contains("cost"), "default cost omitted: {w}");
+        assert_eq!(read(&w), bare);
     }
 }

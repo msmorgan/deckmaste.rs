@@ -94,6 +94,7 @@ pub use designation::DesignationUniqueness;
 mod deontic;
 pub use deontic::AlternativeCost;
 pub use deontic::AsThough;
+pub use deontic::CostPredicate;
 pub use deontic::CountBound;
 pub use deontic::DeedAgent;
 pub use deontic::Deontic;

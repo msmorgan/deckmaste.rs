@@ -2385,14 +2385,21 @@ fn emit_deed(action: &DeonticAction) -> R {
                 vec!["Play".to_string(), emit_filter(by)?, deed_patient(what)?],
             )
         }
-        DeonticAction::Activate { what, by } => app(
-            "Enact",
-            vec![
-                "Activate".to_string(),
-                emit_filter(by)?,
-                deed_patient(what)?,
-            ],
-        ),
+        DeonticAction::Activate { what, by, cost } => {
+            if cost.is_some() {
+                return Err(gap(
+                    "DeonticAction::Activate{cost} has no Idris counterpart",
+                ));
+            }
+            app(
+                "Enact",
+                vec![
+                    "Activate".to_string(),
+                    emit_filter(by)?,
+                    deed_patient(what)?,
+                ],
+            )
+        }
         DeonticAction::Regenerate { by, on } => app(
             "Enact",
             vec![
