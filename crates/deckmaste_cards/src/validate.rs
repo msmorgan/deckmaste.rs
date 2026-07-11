@@ -86,6 +86,7 @@ pub fn validate_plugin(plugin_dir: &Path) -> anyhow::Result<Validation> {
                     &path,
                     &card,
                     &plugin.subtypes,
+                    &plugin.types,
                     &plugin.macros,
                     &mut validation.lint_failures,
                 );
@@ -202,11 +203,12 @@ pub fn check_against_canon(plugin_dir: &Path) -> anyhow::Result<Vec<CanonMismatc
     Ok(mismatches)
 }
 
-/// Lint all abilities and subtypes across every face of a card.
+/// Lint all abilities, subtypes, and types across every face of a card.
 fn lint_all_card_faces(
     path: &Path,
     card: &Card,
     declared_subtypes: &HashMap<Ident, Subtype>,
+    declared_types: &HashMap<Ident, deckmaste_core::TypeDef>,
     macros: &macro_ron::MacroSet,
     out: &mut Vec<(PathBuf, String)>,
 ) {
@@ -214,14 +216,17 @@ fn lint_all_card_faces(
         Card::Normal(face) => {
             lint_card_abilities(path, &face.abilities, out);
             lint_card_subtypes(path, &face.subtypes, declared_subtypes, out);
+            lint_card_types(path, &face.types, declared_types, out);
             lint_keyword_refs(path, &face.abilities, macros, out);
         }
         Card::TwoFaced { front, back, .. } => {
             lint_card_abilities(path, &front.abilities, out);
             lint_card_subtypes(path, &front.subtypes, declared_subtypes, out);
+            lint_card_types(path, &front.types, declared_types, out);
             lint_keyword_refs(path, &front.abilities, macros, out);
             lint_card_abilities(path, &back.abilities, out);
             lint_card_subtypes(path, &back.subtypes, declared_subtypes, out);
+            lint_card_types(path, &back.types, declared_types, out);
             lint_keyword_refs(path, &back.abilities, macros, out);
         }
     }
@@ -331,6 +336,29 @@ fn lint_card_subtypes(
     }
 }
 
+/// For each printed type on a face, check its name resolves in the plugin's
+/// declared type registry. The Rust-side analogue of Idris's structural type
+/// check; a typo lints here and fizzles at runtime (`resolve_type` → name-only
+/// `TypeDef`), never crashing.
+fn lint_card_types(
+    path: &Path,
+    types: &[deckmaste_core::TypeDef],
+    declared_types: &HashMap<Ident, deckmaste_core::TypeDef>,
+    out: &mut Vec<(PathBuf, String)>,
+) {
+    for ty in types {
+        if !declared_types.contains_key(&ty.name) {
+            out.push((
+                path.to_owned(),
+                format!(
+                    "undeclared-type: {:?} names no declared card type",
+                    ty.name.as_str()
+                ),
+            ));
+        }
+    }
+}
+
 /// The `Do(action)` a cost component reduces to, looking through any
 /// remembered macro invocation (`CostComponent::Expanded`). `None` for
 /// non-`Do` components (mana, tap, untap).
@@ -357,6 +385,7 @@ mod tests {
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Expansion;
     use deckmaste_core::ExpansionArgs;
+    use deckmaste_core::Ident;
     use deckmaste_core::ManaSpec;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::PlayerAction;
@@ -366,6 +395,7 @@ mod tests {
     use deckmaste_core::Subtype;
     use deckmaste_core::Token;
     use deckmaste_core::Type;
+    use deckmaste_core::TypeDef;
 
     /// `OneShotEffect::Act(By(You, AddMana(1, AnyColor)))` — the produced-mana
     /// effect the test tokens carry, in the new player-agent shape.
@@ -379,6 +409,7 @@ mod tests {
     use super::check_against_canon;
     use super::lint_card_abilities;
     use super::lint_card_subtypes;
+    use super::lint_card_types;
 
     fn dummy_path() -> PathBuf {
         PathBuf::from("test/dummy.ron")
@@ -572,6 +603,47 @@ mod tests {
             failures[0].1.contains("differs"),
             "message should mention drift: {}",
             failures[0].1
+        );
+    }
+
+    /// A face with a type whose name is not in the declared set produces an
+    /// `undeclared-type` finding.
+    #[test]
+    fn lint_flags_undeclared_type() {
+        let undeclared = TypeDef {
+            name: "Bogus".into(),
+            permanent: true,
+            confers: vec![],
+        };
+        let declared: HashMap<Ident, TypeDef> = HashMap::new();
+        let mut failures = Vec::new();
+        lint_card_types(&dummy_path(), &[undeclared], &declared, &mut failures);
+        assert_eq!(failures.len(), 1, "expected exactly one lint failure");
+        assert!(
+            failures[0].1.contains("undeclared-type"),
+            "message should contain the lint name: {}",
+            failures[0].1
+        );
+        assert!(
+            failures[0].1.contains("Bogus"),
+            "message should mention the type name: {}",
+            failures[0].1
+        );
+    }
+
+    /// A face whose type matches a declared canonical type produces no
+    /// findings.
+    #[test]
+    fn lint_passes_canonical_type() {
+        let creature = Type::Creature.def();
+        let declared: HashMap<Ident, TypeDef> = [("Creature".into(), creature.clone())]
+            .into_iter()
+            .collect();
+        let mut failures = Vec::new();
+        lint_card_types(&dummy_path(), &[creature], &declared, &mut failures);
+        assert!(
+            failures.is_empty(),
+            "declared canonical type should not be flagged"
         );
     }
 

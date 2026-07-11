@@ -3314,4 +3314,13 @@ mod tests {
             .expect("CastWith(Flashback) should emit");
         assert_eq!(out, "(Matches This (WasCastWith Flashback))");
     }
+
+    /// A novel open type name with no `Type_` counterpart gaps (never
+    /// panics), exactly as `Dungeon` does today; a canonical name still
+    /// emits.
+    #[test]
+    fn novel_type_name_gaps_not_panics() {
+        assert!(emit_type_name("Contraption").is_err(), "unknown type gaps");
+        assert!(emit_type_name("Creature").is_ok());
+    }
 }
