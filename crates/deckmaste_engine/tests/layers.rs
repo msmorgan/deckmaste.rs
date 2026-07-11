@@ -482,12 +482,77 @@ fn keyword_counter_confers_its_keyword() {
     );
 }
 
+/// [CR#305.6,611.3]: a subtype ADDED by a layer-4 effect brings its
+/// registry-conferred abilities along — the derived ability list gains the
+/// keyword the added subtype confers, not just the printed subtypes' confers.
+/// The dual of `printed_of_face` folding printed-subtype confers into the base,
+/// now for a subtype granted at layer 4. Uses a mock registry subtype
+/// conferring Trample so it stands alone from any card's printed text (and from
+/// the T4 Creature-type combat capability).
+#[test]
+fn layer_added_subtype_confers_its_keyword() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CollectionOp;
+    use deckmaste_core::Duration;
+    use deckmaste_core::KeywordAbility;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Property;
+    use deckmaste_core::Subtype;
+    use deckmaste_core::Type;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+    use deckmaste_engine::has_keyword;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    // Register a Creature subtype whose membership confers Trample ([CR#305.6]).
+    state.subtypes.insert(
+        "Trampler".into(),
+        Subtype {
+            name: "Trampler".into(),
+            types: vec![Type::Creature],
+            confers: vec![Property::Ability(Box::new(Ability::Keyword(
+                KeywordAbility::Trample,
+            )))],
+        },
+    );
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    // A vanilla bear does not trample.
+    assert!(
+        !has_keyword(&state.layers(), bear, &KeywordAbility::Trample),
+        "sanity: a plain Grizzly Bears has no trample"
+    );
+
+    // Grant the registered subtype via a layer-4 `Subtypes(Add)` effect.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![Modification::Subtypes(CollectionOp::Add("Trampler".into()))],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+
+    assert!(
+        has_keyword(&state.layers(), bear, &KeywordAbility::Trample),
+        "the layer-4-added Trampler subtype's conferred Trample joins the derived \
+         abilities ([CR#305.6,611.3])"
+    );
+}
+
 /// [CR#508.1a]: a permanent animated into a creature by a layer-4 effect is a
 /// legal attacker — combat legality reads the derived view, not the printed
 /// type.
 #[test]
 fn animated_enchantment_can_attack() {
     let mut state = game_with_p0_cards(&["Animate enchantments", "Moonlit Wake"], 1);
+    // The layer-4 `CardTypes(Set(["Creature"]))` carries only the bare `Creature`
+    // name; the engine recovers the type's combat-capability `confers` (its
+    // `May(Attack)` grant) from the type registry, so wire it in ([CR#300.1]).
+    // Without it the animator adds a name-only Creature type with no confers and
+    // the fold has nothing to contribute.
+    state.types = plugin("canon").types;
     let _animator = force_onto_battlefield(&mut state, PlayerId(0), "Animate enchantments");
     let ench = force_onto_battlefield(&mut state, PlayerId(0), "Moonlit Wake");
     // force_onto_battlefield leaves it untapped and not summoning-sick (mint

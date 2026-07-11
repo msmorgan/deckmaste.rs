@@ -23,6 +23,7 @@ use deckmaste_core::ManaSymbol;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
 use deckmaste_core::Predicate;
+use deckmaste_core::Property;
 use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
@@ -1674,10 +1675,11 @@ fn run_layer_pass(
 ) -> BTreeMap<ObjectId, DerivedObject> {
     // Iterate layers in order, applying each effect's ops that belong to this
     // layer ([CR#613.3]).
-    // SEAM [CR#305.6]: after L4 resolves, subtype-conferred abilities (e.g. a
-    // land subtype granting a mana ability) should be reinjected before L6
-    // ability additions/removals are applied. No fixture exercises this path
-    // yet; it's a documented gap for a later task.
+    // [CR#305.6,611.3]: after L4 settles `card_types`/`subtypes`,
+    // `fold_conferred_abilities` reinjects a layer-4-added type/subtype's
+    // `Ability`-flavored confers into the derived ability list — BEFORE L6
+    // ability additions/removals are applied (the call sits at the end of the
+    // L4 iteration below).
     for layer in [
         Layer::L2,
         Layer::L3,
@@ -1721,12 +1723,58 @@ fn run_layer_pass(
             let i = pending.remove(pos);
             apply_effect_in_layer(state, &mut working, &mut effects[i], layer);
         }
+        // [CR#305.6,611.3]: once layer 4 has settled each object's card types
+        // and subtypes, fold any type/subtype-conferred abilities into the
+        // derived list. A type/subtype ADDED at layer 4 brings its `confers`
+        // (the printed ones are already in the base via `printed_of_face`);
+        // running here — before layer 6 — lets a later `LoseAllAbilities`
+        // still strip the non-`Innate` grants ([CR#113.12]).
+        if layer == Layer::L4 {
+            fold_conferred_abilities(&mut working);
+        }
         // [CR#122.1a,613.4c,613.1f]: +1/+1 / -1/-1 P/T and keyword counters are
         // data-driven now — gathered as counter-conferred `Continuous` boosts
         // (see `gather` + `bake_counter_counts`) and applied as ordinary layer
         // `Modification`s, so no hardcoded 7c counter read remains here.
     }
     working
+}
+
+/// [CR#305.6,611.3]: fold every object's resolved type/subtype `Ability`-flavored
+/// `confers` into its derived ability list, through the ONE emission path
+/// ([`Property::conferred_ability`] → [`Ability::Innate`]) that
+/// `derive::printed_of_face` already uses for the PRINTED types and subtypes. A
+/// type or subtype ADDED at layer 4 (an animate effect's `Creature` type, a
+/// tribal `Subtypes(Add)`) thus contributes its conferred abilities, not just
+/// its name.
+///
+/// Dedup against the printed base ([CR#613.1]): the printed types'/subtypes'
+/// conferred abilities are ALREADY in `c.abilities` (folded once by
+/// `printed_of_face`). A conferred ability is pushed only if it is not already
+/// present, so a printed creature's `May(Attack)` is not duplicated — conferred
+/// abilities are `Ability::Innate(..)` and compare equal for the same confer.
+fn fold_conferred_abilities(working: &mut BTreeMap<ObjectId, DerivedObject>) {
+    for d in working.values_mut() {
+        let c = &mut d.characteristics;
+        // Materialize the conferred abilities before touching `c.abilities`, so
+        // the immutable borrow of `card_types`/`subtypes` ends first.
+        let conferred: Vec<Ability> = c
+            .card_types
+            .iter()
+            .flat_map(|t| t.confers.iter())
+            .chain(c.subtypes.iter().flat_map(|s| s.confers.iter()))
+            .filter_map(Property::conferred_ability)
+            .collect();
+        if conferred.is_empty() {
+            continue;
+        }
+        let abilities = Arc::make_mut(&mut c.abilities);
+        for a in conferred {
+            if !abilities.contains(&a) {
+                abilities.push(a);
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
