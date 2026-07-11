@@ -73,12 +73,32 @@ fn basic_color(name: &str) -> Color {
     }
 }
 
+/// The Land card type as the plugin registry expands it: its default-deny
+/// land-play marker conferred as data — a `May(Play(what: Ref(This)))` row
+/// ([CR#305.9,116.2a,701.18]). `Type::Land.def()` carries EMPTY confers, so the
+/// expected card mirrors the registry confer here.
+fn land_type() -> deckmaste_core::TypeDef {
+    deckmaste_core::TypeDef {
+        name: "Land".into(),
+        permanent: true,
+        confers: vec![Property::Ability(Box::new(Ability::Static(
+            deckmaste_core::StaticEffect::Deontic(deckmaste_core::Deontic::May(
+                deckmaste_core::DeonticAction::Play {
+                    what: deckmaste_core::Predicate::Ref(Reference::This),
+                    by: deckmaste_core::Predicate::Any,
+                    from: None,
+                },
+            )),
+        )))],
+    }
+}
+
 fn basic_land(name: &str) -> Card {
     Card::Normal(CardFace {
         name: name.to_owned(),
         mana_cost: ManaCost::default(),
         supertypes: vec![Supertype::Basic],
-        types: vec![Type::Land.def()],
+        types: vec![land_type()],
         subtypes: vec![basic_land_subtype(name, basic_color(name))],
         ..Default::default()
     })

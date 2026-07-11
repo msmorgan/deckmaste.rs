@@ -742,12 +742,14 @@ impl GameState {
         player: PlayerId,
         object: ObjectId,
     ) -> Option<ManaCost> {
-        let face = crate::derive::face(self.def(object));
         // Lands are never cast as spells — playing a land is a special action
-        // ([CR#305.9,116.2a]).
-        if face.types.iter().any(|t| t.name == Type::Land.name()) {
+        // ([CR#305.9,116.2a,701.18]). Keyed on the conferred `May(Play)`
+        // capability (a card's Land type confers it), not a `Type::Land`
+        // literal — per-face correct for an MDFC land//spell.
+        if crate::legal::confers_may_play(self, view, object) {
             return None;
         }
+        let face = crate::derive::face(self.def(object));
         // Sorcery speed by default ([CR#307.1,117.1a]), unless a
         // May(Cast(window: InstantSpeed)) row lifts it ([CR#702.8a] flash).
         // An Instant's own type CONFERS exactly this row, so the casting
@@ -2412,6 +2414,82 @@ mod tests {
                 .castable_cost_ignoring_mana(&view, PlayerId(0), sorc)
                 .is_none(),
             "a Sorcery has no instant-speed confer, so it is not castable at Cleanup"
+        );
+    }
+
+    /// The plugin-loaded Land `TypeDef`: its conferred `May(Play(what:
+    /// Ref(This)))` marker ([CR#305.9,116.2a,701.18]) is what makes a land
+    /// "playable as a land, not castable as a spell" now that the
+    /// `Type::Land` literal is gone from `castable_cost_ignoring_mana`.
+    /// Built inline because synthetic cards never pass through the plugin
+    /// macro expansion that would attach the confer — a bare
+    /// `Type::Land.def()` carries EMPTY confers (decision 6).
+    fn land_typedef() -> deckmaste_core::TypeDef {
+        deckmaste_core::TypeDef {
+            name: "Land".into(),
+            permanent: true,
+            confers: vec![deckmaste_core::Property::Ability(Box::new(
+                Ability::Static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
+                    deckmaste_core::DeonticAction::Play {
+                        what: Predicate::Ref(Reference::This),
+                        by: Predicate::Any,
+                        from: None,
+                    },
+                ))),
+            ))],
+        }
+    }
+
+    /// A land carrying its conferred `May(Play)` marker (see `land_typedef`),
+    /// with the empty mana cost every real land has.
+    fn conferred_land(name: &str) -> Card {
+        Card::Normal(CardFace {
+            name: name.into(),
+            mana_cost: ManaCost::default(),
+            types: vec![land_typedef()],
+            ..CardFace::default()
+        })
+    }
+
+    /// [CR#305.9,116.2a,701.18] land-play brick: with the `Type::Land` literal
+    /// gone from `castable_cost_ignoring_mana`, a land's "not castable as a
+    /// spell" nature is driven by the conferred `May(Play)` marker. A land
+    /// carrying it is seen by `confers_may_play` and is not castable; a genuine
+    /// spell face (an Instant, no `May(Play)`) is NOT caught by the land-play
+    /// capability and stays castable — the MDFC land//spell split, per face.
+    #[test]
+    fn land_play_reads_the_conferred_may_play_marker() {
+        let mut state = cm_game();
+        let land = put_synthetic(
+            &mut state,
+            conferred_land("Mountain"),
+            PlayerId(0),
+            Zone::Hand,
+        );
+        let inst = put_synthetic(&mut state, instant("Bolt", "{R}"), PlayerId(0), Zone::Hand);
+        let view = state.layers();
+        // The land confers May(Play) and is never castable as a spell.
+        assert!(
+            crate::legal::confers_may_play(&state, &view, land),
+            "a Land's conferred May(Play) marker is seen ([CR#701.18])"
+        );
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), land)
+                .is_none(),
+            "a land confers May(Play) → not castable as a spell ([CR#305.9])"
+        );
+        // A spell face carries no May(Play) → not land-playable, and still
+        // castable (its own May(Cast) confer lifts timing at Cleanup).
+        assert!(
+            !crate::legal::confers_may_play(&state, &view, inst),
+            "an Instant face has no May(Play) — the land-play gate never catches it"
+        );
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), inst)
+                .is_some(),
+            "an Instant face stays castable — land-play does not block a spell face"
         );
     }
 

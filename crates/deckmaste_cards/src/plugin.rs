@@ -589,12 +589,23 @@ mod tests {
         )
         .unwrap();
         assert_eq!(plugin.types.len(), 10, "all ten canonical types registered");
+        // Land confers its default-deny land-play marker (Task 8, the land-play
+        // consumer): a May(Play(what: Ref(This))) row ([CR#305.9,116.2a,701.18])
+        // that legal.rs/cast.rs key land-play + spell-non-castability on.
         assert_eq!(
             plugin.types["Land"],
             TypeDef {
                 name: "Land".into(),
                 permanent: true,
-                confers: vec![]
+                confers: vec![deckmaste_core::Property::Ability(Box::new(
+                    deckmaste_core::Ability::Static(deckmaste_core::StaticEffect::Deontic(
+                        deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Play {
+                            what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This),
+                            by: deckmaste_core::Predicate::Any,
+                            from: None,
+                        })
+                    ))
+                ))],
             }
         );
         // Instant confers its instant-speed casting window (Task 6, the

@@ -151,9 +151,12 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         && state.lands_played_this_turn(player) < state.effective_land_plays_per_turn(player)
     {
         for &object in &state.zones.hands[player.index()] {
-            // Derived type ([CR#613.1d]): a card that is a land in the layered
-            // view is playable as a land, exactly as the battlefield reads do.
-            if view.get(object).has_type(Type::Land) {
+            // Derived capability ([CR#613.1d,116.2a,701.18]): a card whose
+            // layered view confers `May(Play)` — its Land type's default-deny
+            // land-play marker — is playable as a land, keyed on the capability
+            // rather than a `Type::Land` literal (per-face correct for MDFC
+            // land//spell).
+            if confers_may_play(state, &view, object) {
                 legal.push(Action::PlayLand { object });
             }
         }
@@ -205,12 +208,16 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // the priority window rather than silently allow the choice.
     // Cant(Target) rows (hexproof, protection's targeted clause) are
     // EVALUATED at target-candidate computation, Must(Target) requirements
-    // (the Flagbearer class) at target-choice submission, and the flash
+    // (the Flagbearer class) at target-choice submission, the flash
     // shape — May(Cast(window: InstantSpeed)) with no from/cost slot — is
-    // EVALUATED as a timing lift in can_cast ([CR#702.8a]); the guard
-    // keeps the unevaluated rest: every other Cast row shape (zone
-    // permissions, alternative costs, non-May polarities), Play/Attach
-    // rows of any polarity, and the May/Gate Target polarities.
+    // EVALUATED as a timing lift in can_cast ([CR#702.8a]), and the land-play
+    // marker — May(Play) with no `from` slot, which a card's Land type
+    // confers — is EVALUATED as land-play legality via `confers_may_play`
+    // (offered as PlayLand in the hand-scan above, [CR#116.2a,305.9,701.18]).
+    // The guard keeps the unevaluated rest: every other Cast row shape (zone
+    // permissions, alternative costs, non-May polarities), the from-zone /
+    // non-May Play shapes, non-Cant/non-May Attach rows, and the May/Gate
+    // Target polarities.
     guard_deontic_seam(
         state,
         &view,
@@ -223,7 +230,13 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
                     && from.is_none()
                     && cost.is_none())
             }
-            DeonticAction::Play { .. } => true,
+            // `May(Play(from: None))` — the land-play marker a card's Land
+            // type CONFERS — is EVALUATED as land-play legality (offered as
+            // `Action::PlayLand` in the hand-scan above via `confers_may_play`,
+            // [CR#116.2a,305.9,701.18]); mirrors the `Cast` arm's flash
+            // exclusion. The remaining Play shapes (cast-from-zone `from:
+            // Some`, and the non-May polarities) stay a loud seam.
+            DeonticAction::Play { from, .. } => !(is_may(d) && from.is_none()),
             // `Cant(Attach)` and `May(Attach)` are both EVALUATED via
             // `attachment_legal` (default-deny: the `May` grant permits, the
             // `Cant` subtracts) at the [CR#701.3b] no-op + the
@@ -233,7 +246,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
             DeonticAction::Target { .. } => !is_cant(d) && !is_must(d),
             _ => false,
         },
-        "cast/play + non-Cant attach + May/Gate target",
+        "cast + from-zone/non-May play + non-Cant attach + May/Gate target",
     );
     // The former P0.W2 `CostModifier` presence guard converted to the real
     // [CR#601.2f] pipeline: `GameState::mana_cost` applies the rows (see
@@ -856,6 +869,24 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
             .any(|(carrier, what, to)| matches(carrier, what, to))
 }
 
+/// Whether `object`'s derived view confers `May(Play(what: <self>))` — the
+/// default-deny land-play marker ([CR#305.9,116.2a,701.18]). A card's Land type
+/// CONFERS this row (folded into the derived abilities by `printed_of_face`),
+/// so land-play legality (`legal_actions`) AND spell-non-castability
+/// (`castable_cost_ignoring_mana`) are both keyed on the capability rather than
+/// a `Type::Land` literal — per-face correct for an MDFC land//spell. Mirrors
+/// how `attachment_legal` reads `May(Attach)`; `object_has_static` peels
+/// `Innate`, so the type-conferred grant is seen. `_state` is unused today (the
+/// read works off the already-derived `view`) but kept for signature symmetry
+/// with the sibling legality readers.
+#[must_use]
+pub(crate) fn confers_may_play(_state: &GameState, view: &LayeredView, object: ObjectId) -> bool {
+    object_has_static(view, object, &|e| {
+        matches!(e, StaticEffect::Deontic(d)
+            if matches!(may_action(d), Some(DeonticAction::Play { .. })))
+    })
+}
+
 /// Every `Cant(Counter)` row visible to a counter of `target`, with its
 /// carrier: `(carrier source, by, on)`. Rows come from battlefield permanents
 /// (Dromoka-style grants — "spells you control can't be countered") PLUS the
@@ -1457,6 +1488,88 @@ mod tests {
         assert!(
             counter_legal(&state, source, plain),
             "an object with no can't-be-countered row can be countered"
+        );
+    }
+
+    // --- land-play (May(Play) capability) -----------------------------------
+
+    /// A Land `TypeDef` carrying the conferred `May(Play(what: Ref(This)))`
+    /// marker inline. In real games the plugin registry attaches this confer;
+    /// a bare `Type::Land.def()` has EMPTY confers (decision 6), so fixtures
+    /// exercising the capability build it here (mirrors `cast::tests`'
+    /// `instant_typedef`).
+    fn land_typedef() -> deckmaste_core::TypeDef {
+        deckmaste_core::TypeDef {
+            name: "Land".into(),
+            permanent: true,
+            confers: vec![deckmaste_core::Property::Ability(Box::new(
+                Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Play {
+                    what: Predicate::Ref(Reference::This),
+                    by: Predicate::Any,
+                    from: None,
+                }))),
+            ))],
+        }
+    }
+
+    /// Mint a battlefield land whose Land type CONFERS `May(Play)` — the
+    /// production shape (the confer rides `face.types`, folded into the derived
+    /// abilities by `printed_of_face`), unlike `obj_on_field` which uses the
+    /// empty-confer `Type::def`.
+    fn conferred_land_on_field(state: &mut GameState, name: &str) -> ObjectId {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types: vec![land_typedef()],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// The capability reader sees the conferred `May(Play)` marker on a land
+    /// and nothing on a permanent that lacks it ([CR#305.9,116.2a,701.18])
+    /// — the grant `legal.rs`/`cast.rs` key land-play +
+    /// spell-non-castability on.
+    #[test]
+    fn confers_may_play_reads_the_conferred_marker() {
+        let mut state = game();
+        let land = conferred_land_on_field(&mut state, "Mountain");
+        // A grantless permanent (an artifact via the empty-confer `def()`).
+        let rock = obj_on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
+        let view = state.layers();
+        assert!(
+            super::confers_may_play(&state, &view, land),
+            "a Land's conferred May(Play) marker is seen ([CR#701.18])"
+        );
+        assert!(
+            !super::confers_may_play(&state, &view, rock),
+            "a permanent with no May(Play) confer is not land-playable (default-deny)"
+        );
+    }
+
+    /// decision 4 regression (the guard landmine): a land on the battlefield
+    /// now carries a `May(Play(from: None))` row via its type confer. The
+    /// guard's `Play` arm is narrowed to EVALUATE exactly that shape as
+    /// land-play legality, so computing legal actions with a land in play
+    /// must NOT hit the `guard_deontic_seam` `todo!()`. Before the
+    /// narrowing this panics.
+    #[test]
+    fn battlefield_land_with_conferred_may_play_does_not_trip_guard() {
+        let mut state = game();
+        let _land = conferred_land_on_field(&mut state, "Mountain");
+        // Pure computation; the guard scans the battlefield unconditionally.
+        let legal = super::legal_actions(&state, PlayerId(0));
+        assert!(
+            legal.contains(&crate::decide::Action::Pass),
+            "the priority window still enumerates Pass with a land in play"
         );
     }
 }

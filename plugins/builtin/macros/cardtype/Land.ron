@@ -1,8 +1,12 @@
-// [CR#300.1] the Land card type. EMPTY confers this task: `May(Play)` ships
-// in Task 8 alongside the land-play consumer it feeds (and the guard narrow
-// it requires).
+// [CR#300.1] Land. Its "playable as a land, not castable as a spell" nature is
+// data: a conferred May(Play) marker ([CR#305.9,116.2a,701.18]) — default-deny,
+// like attach — so legal.rs/cast.rs need no `Type::Land` literal.
 (
     name: "Land",
     kinds: [TypeDef],
-    body: TypeDef(name: "Land", permanent: true),
+    body: TypeDef(
+        name: "Land",
+        permanent: true,
+        confers: [Ability(Static(May(Play(what: Ref(This)))))],
+    ),
 )
