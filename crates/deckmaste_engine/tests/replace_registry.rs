@@ -134,6 +134,7 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
     state.sba_rules = builtin_sba_rules();
@@ -171,6 +172,7 @@ fn creature_with_abilities(
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
     state.sba_rules = builtin_sba_rules();
@@ -339,6 +341,7 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
     state.sba_rules = builtin_sba_rules();
@@ -663,6 +666,7 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
     state.sba_rules = builtin_sba_rules();
@@ -830,6 +834,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
     state.sba_rules = builtin_sba_rules();
@@ -922,6 +927,7 @@ fn ordinary_destroy_goes_to_graveyard() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     // Load builtin rules so the lethal-damage SBA fires.
     state.sba_rules = builtin_sba_rules();
@@ -1195,6 +1201,7 @@ fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, Ob
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let source = find_in_hand(&state, "Source");
     force_onto_battlefield(&mut state, source);
@@ -1267,6 +1274,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let source = find_in_hand(&state, "Source");
     force_onto_battlefield(&mut state, source);

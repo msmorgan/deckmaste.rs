@@ -94,6 +94,14 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
     subtypes.extend(builtin.subtypes.clone());
     subtypes.extend(wizards.subtypes.clone());
 
+    // Type registry ([CR#300.1]): the engine resolves a layer-4
+    // `CardTypes(...)` modification's bare `Ident` names against this map.
+    // Last plugin wins, mirroring `subtypes`.
+    let mut types = std::collections::HashMap::new();
+    types.extend(canon.types.clone());
+    types.extend(builtin.types.clone());
+    types.extend(wizards.types.clone());
+
     Ok(GameState::new(GameConfig {
         players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
         seed,
@@ -104,6 +112,7 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
         damage_result_rules,
         counter_decls,
         subtypes,
+        types,
     }))
 }
 
@@ -142,6 +151,20 @@ mod tests {
                 "{label} opens with {lands} lands; expected a keepable 2-5"
             );
         }
+    }
+
+    /// The runtime type registry ([CR#300.1]) assembled from canon+builtin+
+    /// wizards mirrors the subtype registry: bare names resolve, and each
+    /// `TypeDef` carries the correct `permanent` flag from the plugin data.
+    #[test]
+    fn game_state_carries_the_type_registry() {
+        let state = build_game().expect("build demo game");
+        assert!(
+            state.types.contains_key("Land"),
+            "Land resolves in the runtime registry"
+        );
+        assert!(state.types.contains_key("Creature"));
+        assert!(!state.types["Instant"].permanent);
     }
 
     /// End-to-end: both seats are auto-developed by `GreedyDemo` (which, unlike

@@ -75,11 +75,12 @@ fn game_with_rules(p0: Vec<Arc<Card>>, p1: Vec<Arc<Card>>, seed: u64) -> GameSta
         sba_rules: builtin.sba_rules.clone(),
         conferral_rules: builtin.conferral_rules.clone(),
         damage_result_rules: builtin.damage_result_rules.clone(),
-        // The counter/subtype registries the engine reads; canon inherits the
-        // builtin `LoyaltyCounter` decl via its sibling prelude and adds the
-        // `Jace` subtype.
+        // The counter/subtype/type registries the engine reads; canon
+        // inherits the builtin `LoyaltyCounter` decl (and the builtin
+        // `TypeDef`s) via its sibling prelude and adds the `Jace` subtype.
         counter_decls: canon.counters.clone(),
         subtypes: canon.subtypes.clone(),
+        types: canon.types.clone(),
     })
 }
 

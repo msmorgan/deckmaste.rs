@@ -80,6 +80,7 @@ fn game_with(card: deckmaste_core::Card, rules: Vec<DamageResultRule>) -> GameSt
         damage_result_rules: rules,
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     })
 }
 

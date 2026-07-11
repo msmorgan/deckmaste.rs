@@ -1216,6 +1216,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let bear = *state.zones.hands[0]
             .iter()
@@ -1286,6 +1287,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 
@@ -1419,6 +1421,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         // Place the watcher on the battlefield so its ObjectSource is
         // accessible. (P0's deck is mono-watcher, so any card in hand is one.)
@@ -1483,6 +1486,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let bear = *state.zones.hands[0]
             .iter()
@@ -1597,6 +1601,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
 
         // Place the dies-trigger creature on the battlefield.
@@ -1678,6 +1683,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
 
         // The ETB creature starts in hand; we want to simulate it entering.
@@ -1782,6 +1788,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let cond = Condition::Exists(Predicate::Characteristic(CharacteristicPredicate::Type(
             Type::Creature,
@@ -1823,6 +1830,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let put = |state: &mut GameState, name: &str| {
             let card = Arc::new(canon().card(name).unwrap());
@@ -2980,6 +2988,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         // Load builtin rules so data-driven SBAs (lethal-damage destroy,
         // toughness-0 move, etc.) fire when these tests drive `CheckSbas`.
@@ -3176,6 +3185,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 
@@ -3872,6 +3882,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let pinger_card = state.cards.push(Arc::new(card), PlayerId(0));
         let pinger = state.objects.mint(

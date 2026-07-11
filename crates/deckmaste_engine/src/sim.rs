@@ -526,6 +526,7 @@ pub fn play(cards: &DeckCards, seed: u64, p0: &dyn Strategy, p1: &dyn Strategy) 
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let strategies: [&dyn Strategy; 2] = [p0, p1];
 

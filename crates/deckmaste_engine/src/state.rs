@@ -132,6 +132,14 @@ pub struct GameConfig {
     /// subtype resolves to a minimal name-only `Subtype` (no inherent
     /// rules).
     pub subtypes: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Subtype>,
+    /// The card-type registry ([CR#300.1]): `Ident → TypeDef`. Like subtypes,
+    /// a `TypeDef`'s confers normally ride the card value — but a layer-4
+    /// `CardTypes(...)` modification carries only bare `Ident` names, so the
+    /// engine needs this registry to resolve them back to `TypeDef` structs
+    /// (with their `permanent`/`confers`). Populated from the loaded plugin's
+    /// `types` at construction; empty means a granted type resolves to a
+    /// minimal name-only `TypeDef` (no inherent rules).
+    pub types: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::TypeDef>,
 }
 
 /// What to resume once a resolution-time decision is answered. Transient: set
@@ -332,6 +340,13 @@ pub struct GameState {
     /// empty means a granted subtype carries no inherent rules. An `Ident`
     /// absent from this map applies as a minimal name-only `Subtype`.
     pub subtypes: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Subtype>,
+    /// The type registry ([CR#300.1]) — `Ident → TypeDef`. The layer-4
+    /// `CardTypes(...)` modifications carry bare `Ident` names; this maps
+    /// them back to full `TypeDef` structs (with `permanent`/`confers`).
+    /// Populated from the loaded plugin's `types` at construction (like
+    /// `subtypes`); empty means a granted type carries no inherent rules. An
+    /// `Ident` absent from this map applies as a minimal name-only `TypeDef`.
+    pub types: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::TypeDef>,
     /// Rules-defined SBAs in force this game ([CR#704]). Injected by the
     /// consumer after construction (like `counter_decls`); the SBA sweep reads
     /// it. Empty = no rules-defined SBAs (the engine still runs the imperative
@@ -510,6 +525,7 @@ impl GameState {
             designations: DesignationStore::default(),
             counter_decls: config.counter_decls,
             subtypes: config.subtypes,
+            types: config.types,
             sba_rules: config.sba_rules,
             conferral_rules: config.conferral_rules,
             damage_result_rules: config.damage_result_rules,

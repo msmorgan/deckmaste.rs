@@ -468,6 +468,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 
@@ -533,6 +534,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
 
         // A 2/2 Grizzly Bears on P0's battlefield — the candidate being scored.
@@ -582,6 +584,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let frame = eval_frame(&state, PlayerId(1), None);
         assert_eq!(

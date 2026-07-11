@@ -2247,6 +2247,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 
@@ -2707,6 +2708,7 @@ mod tests {
                 damage_result_rules: vec![],
                 counter_decls: std::collections::HashMap::new(),
                 subtypes: std::collections::HashMap::new(),
+                types: std::collections::HashMap::new(),
             });
             let m = *state.zones.hands[0]
                 .iter()
@@ -2805,6 +2807,7 @@ mod tests {
                 damage_result_rules: vec![],
                 counter_decls: std::collections::HashMap::new(),
                 subtypes: std::collections::HashMap::new(),
+                types: std::collections::HashMap::new(),
             })
         }
 

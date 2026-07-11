@@ -417,6 +417,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         // Force a Grizzly Bears from player 0's hand onto the battlefield.
         let bear = *state.zones.hands[0]
@@ -458,6 +459,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let m = *state.zones.hands[0]
             .iter()
@@ -512,6 +514,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let card_id = state.cards.push(gift, PlayerId(0));
         let aura = state.objects.mint(
@@ -717,6 +720,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         state.players[0].life = 0;
         state.players[1].life = 0;
@@ -862,6 +866,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 
@@ -1879,6 +1884,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         // Mint a Platinum Angel controlled by player 0 onto the battlefield.
         let card_id = state.cards.push(angel, PlayerId(0));
@@ -1921,6 +1927,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let card_id = state.cards.push(angel, PlayerId(0));
         let angel_obj = state.objects.mint(
@@ -1976,6 +1983,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let card_id = state.cards.push(angel, PlayerId(0));
         let angel_obj = state.objects.mint(
@@ -2037,6 +2045,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let card_id = state.cards.push(angel, PlayerId(0));
         let angel_obj = state.objects.mint(
@@ -2100,6 +2109,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let card_id = state.cards.push(persecutor, PlayerId(0));
         let obj = state.objects.mint(

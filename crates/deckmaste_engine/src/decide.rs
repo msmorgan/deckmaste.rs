@@ -1895,6 +1895,7 @@ mod snow_provenance_tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 

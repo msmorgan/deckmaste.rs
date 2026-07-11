@@ -291,6 +291,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 
@@ -769,6 +770,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
 
         let card = Card::Normal(CardFace {
@@ -851,6 +853,7 @@ mod tests {
                 damage_result_rules: vec![],
                 counter_decls: std::collections::HashMap::new(),
                 subtypes: std::collections::HashMap::new(),
+                types: std::collections::HashMap::new(),
             });
 
             let card = Card::Normal(CardFace {

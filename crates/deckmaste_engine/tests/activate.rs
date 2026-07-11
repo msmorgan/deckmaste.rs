@@ -178,6 +178,7 @@ fn activation_game(seed: u64, name: &str, mountains: usize) -> GameState {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     for _ in 0..mountains {
         force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
@@ -531,6 +532,7 @@ fn sorcery_speed_drawer_gated() {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..1000)
@@ -719,6 +721,7 @@ fn loyalty_game(seed: u64) -> GameState {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     })
 }
 
@@ -789,6 +792,7 @@ fn loyalty_ability_gated_at_sorcery_speed() {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..1000)
@@ -967,6 +971,7 @@ fn pinger_fizzles_when_target_dies() {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     };
     let mut state = (0u64..1000)
@@ -1123,6 +1128,7 @@ fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     })
 }
 
@@ -1449,6 +1455,7 @@ fn activated_ability_pays_choose_sacrifice_cost() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
 
     // Force the artifact and two distinct bears onto the battlefield.

@@ -88,6 +88,7 @@ fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy, etc.)
     // fire when the engine drives the SBA check during combat.
@@ -1496,6 +1497,7 @@ fn two_player_mixed(p0: Vec<Arc<Card>>, p1: Vec<Arc<Card>>, seed: u64) -> GameSt
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let builtin = deckmaste_cards::plugin::Plugin::load(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
@@ -2185,6 +2187,7 @@ fn flying_attacker_blockable_only_by_flying_or_reach() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Baleful Strix");
     let bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
@@ -2229,6 +2232,7 @@ fn menace_attacker_needs_two_blockers() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Boggart Brute");
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
@@ -2272,6 +2276,7 @@ fn defender_cannot_be_declared_as_an_attacker() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let wall = force_onto_battlefield(&mut state, PlayerId(0), "Wall of Stone");
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
@@ -2319,6 +2324,7 @@ fn must_attack_requires_the_able_creature() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let brigand = force_onto_battlefield(&mut state, PlayerId(0), "Goblin Brigand");
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
@@ -2366,6 +2372,7 @@ fn must_attack_waived_when_unable() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let brigand = force_onto_battlefield(&mut state, PlayerId(0), "Goblin Brigand");
 
@@ -2409,6 +2416,7 @@ fn must_block_requires_every_able_blocker() {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     });
     let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Taunting Elf");
     let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");

@@ -105,6 +105,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
         let bear = state.objects.mint(

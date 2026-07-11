@@ -159,6 +159,7 @@ fn convoke_game(seed: u64) -> GameState {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     })
 }
 
@@ -265,6 +266,7 @@ fn delve_game(seed: u64) -> GameState {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     })
 }
 
@@ -461,6 +463,7 @@ fn improvise_game(seed: u64) -> GameState {
         damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
     })
 }
 

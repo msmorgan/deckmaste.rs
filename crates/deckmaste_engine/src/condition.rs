@@ -304,6 +304,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         })
     }
 
@@ -343,6 +344,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         state.turn.turn_number = 1;
 
@@ -433,6 +435,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
 
         // A Grizzly Bears on the battlefield, and a frame whose `This`, sole
@@ -629,6 +632,7 @@ mod tests {
                 damage_result_rules: vec![],
                 counter_decls: std::collections::HashMap::new(),
                 subtypes: std::collections::HashMap::new(),
+                types: std::collections::HashMap::new(),
             });
             let bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
             let bear = state.objects.mint(
@@ -842,6 +846,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
         let bear_card = state.cards.push(bears, PlayerId(0));
         let bear = state.objects.mint(
@@ -908,6 +913,7 @@ mod tests {
             damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
         });
 
         // `This`: the Evolve carrier, a 2/2 Grizzly Bears.
