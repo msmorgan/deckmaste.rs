@@ -221,6 +221,7 @@ mod r#type;
 pub use r#type::Subtype;
 pub use r#type::Supertype;
 pub use r#type::Type;
+pub use r#type::TypeDef;
 
 mod sba_rule;
 pub use sba_rule::SbaRule;
