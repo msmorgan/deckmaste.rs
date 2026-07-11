@@ -18,18 +18,41 @@ combat gated on `has_type(Creature)` over the LAYER view, so type loss correctly
 combat). No current canon card exercises it, so no live bug ships — but it must be closed
 before any type-stripping card enters canon.
 
-**Why it's separate from the add fold (harder):** removal needs ATTRIBUTION. The add fold
-just appends the current types'/subtypes' confers (deduped). Removal must strip ONLY the
-abilities a now-absent type/subtype conferred, without touching the object's genuinely
-printed/intrinsic abilities or abilities conferred by still-present types. The base
-`abilities` mixes printed-intrinsic + printed-type-conferred + printed-subtype-conferred
-with no provenance tag. Options to design: (a) tag conferred abilities with their source
-type/subtype so removal is precise; (b) rebuild the type/subtype-conferred slice from the
-CURRENT (post-L4) `card_types`/`subtypes` set each pass instead of carrying printed
-confers in the base — i.e. move ALL type/subtype conferral (printed + added) to the L4
-seam fold, so the base carries only intrinsic abilities and the fold is the single source
-of truth (printed types are just types that happen to be present). Option (b) unifies add
-and remove and is likely cleaner, but reworks how `printed_of_face` seeds the base.
+**Confirmed root cause (2026-07-11): the confers are CACHED, not recomputed.**
+`printed_of_face` (`derive.rs:41-55`) folds `face.types`/`face.subtypes` confers into
+`CardInstance.printed` ONCE at card-push (`object.rs:124`); `base_values` (`layer.rs:263`)
+re-seeds the layer abilities from that frozen cache every pass. Type-conferred capabilities
+are never recomputed from the object's CURRENT (post-L4) `card_types`/`subtypes`. Strip the
+Creature type at layer 4 and the cached `Innate(May(Attack))` persists.
 
-Symmetric for subtypes — a printed subtype conferring an ability, removed at layer 4, has
-the identical gap. Solve both at once (same seam / same attribution model).
+**The fix is (b) recompute — and it is CLEAN, not attribution-tagging.** `base_map`
+(`layer.rs:1650`) builds view entries for EVERY card-backed object in EVERY zone, and
+`fold_conferred_abilities` (`layer.rs:1756`) already runs at the L4 seam for all of them —
+so the fold covers hand/stack cards (casting-window `May(Cast)`, land-play `May(Play)`) too,
+not just the battlefield. So:
+1. Make `printed_of_face` fold ONLY intrinsic `face.abilities` — drop the
+   `.chain(subtypes.confers).chain(types.confers)`. `CardInstance.printed` becomes
+   intrinsic-only.
+2. `fold_conferred_abilities` becomes the SINGLE SOURCE OF TRUTH for type/subtype conferral,
+   recomputed from CURRENT `card_types`/`subtypes` each pass. Its dedup (`!contains`) is no
+   longer load-bearing (the base has no type confers to collide with) — DELETE it.
+
+Consequences: stripped type → not in current `card_types` → not folded → grant gone
+(removal works for free); the T3b dedup band-aid is removed; printed + layer-4-added
+conferral unify into one path; symmetric for subtypes. Zero canon reachability today, so no
+live bug, but this is the correct architecture per [[fix-convenient-not-quite-right]] (the
+cache is the convenient-but-wrong thing).
+
+**One nuance to handle:** the first-pass effect-source `gather` reads raw `printed_abilities`
+(`layer.rs:476`, `player_statics.rs:67`) to break the `layers()` recursion. A type/subtype
+that confers a LAYER-AFFECTING static (not a deontic) would be gathered one fixpoint pass
+later instead of at pass 0. Irrelevant for the deontic confers we have (May/Cant produce no
+layer effect); the ≤16-pass fixpoint converges for the general case — the same path
+layer-4-ADDED confers already ride. Add a test if a layer-affecting type-confer ever lands.
+
+**Tests:** a battlefield creature that LOSES its Creature type (`CardTypes(Set([<non-creature>]))`)
+is NOT a combatant (no `May(Attack)`, not a legal attacker, combat damage not marked);
+regression — a printed creature's grant still appears exactly once (the existing
+`printed_creature_grant_is_not_doubled_by_the_fold`); casting-window (hand Instant →
+`May(Cast)`) and land-play (Land → `May(Play)`) still work via the fold; the
+`animated_enchantment_can_attack` + `layer_added_subtype_confers_its_keyword` stay green.
