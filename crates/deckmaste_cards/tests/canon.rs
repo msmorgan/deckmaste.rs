@@ -238,7 +238,11 @@ fn pounce_is_instant_type() {
     let Card::Normal(face) = plugin.card("Pounce").unwrap() else {
         panic!("Pounce should be single-faced");
     };
-    assert_eq!(face.types, vec![Type::Instant.def()]);
+    // The plugin-expanded Instant carries its May(Cast(InstantSpeed)) confer
+    // (Task 6, casting-window), so compare by the canonical type NAME rather
+    // than the confer-less `Type::Instant.def()` fixture.
+    assert_eq!(face.types.len(), 1);
+    assert_eq!(face.types[0].name, Type::Instant.name());
 }
 
 #[test]

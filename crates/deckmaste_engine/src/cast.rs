@@ -748,16 +748,16 @@ impl GameState {
         if face.types.iter().any(|t| t.name == Type::Land.name()) {
             return None;
         }
-        let instant = face.types.iter().any(|t| t.name == Type::Instant.name());
-        // Sorcery speed for non-instants ([CR#307.1,117.1a]), unless a
-        // May(Cast(window: InstantSpeed)) row lifts the default
-        // ([CR#702.8a] flash — the card's own row functions from the
-        // hand; an Orrery-style battlefield grant rides the same shape).
-        // Rows carrying `from`/`cost` slots are different unlocks
-        // (cast-from-zones, alternative costs) and never lift timing.
+        // Sorcery speed by default ([CR#307.1,117.1a]), unless a
+        // May(Cast(window: InstantSpeed)) row lifts it ([CR#702.8a] flash).
+        // An Instant's own type CONFERS exactly this row, so the casting
+        // window is data — no `Type::Instant` literal. The card's own row
+        // functions from the hand; an Orrery-style battlefield grant rides
+        // the same collector. Rows carrying `from`/`cost` slots are
+        // different unlocks (cast-from-zones, alternative costs) and never
+        // lift timing.
         let proxy = self.player(player).object;
-        let timing_ok = instant
-            || self.sorcery_speed_ok(player)
+        let timing_ok = self.sorcery_speed_ok(player)
             || crate::legal::may_cast_rows(self, view, object)
                 .iter()
                 .any(|r| {
@@ -2330,15 +2330,89 @@ mod tests {
         })
     }
 
-    /// An instant (timing is always legal, so `castable_cost_ignoring_mana`
-    /// turns purely on cost + mana) with no targets.
+    /// The plugin-loaded Instant `TypeDef`: its conferred
+    /// `May(Cast(window: InstantSpeed))` row ([CR#307.1,117.1a,702.8a]) is what
+    /// lifts casting timing now that the `Type::Instant` literal is gone.
+    /// Fixtures build it inline because `cm_game` mints synthetic cards that
+    /// never pass through the plugin macro expansion that would attach the
+    /// confer — a bare `Type::Instant.def()` carries EMPTY confers.
+    fn instant_typedef() -> deckmaste_core::TypeDef {
+        deckmaste_core::TypeDef {
+            name: "Instant".into(),
+            permanent: false,
+            confers: vec![deckmaste_core::Property::Ability(Box::new(
+                Ability::Static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
+                    deckmaste_core::DeonticAction::Cast {
+                        what: Predicate::Ref(Reference::This),
+                        by: Predicate::Any,
+                        from: None,
+                        window: Some(Timing::InstantSpeed),
+                        cost: None,
+                        tag: None,
+                    },
+                ))),
+            ))],
+        }
+    }
+
+    /// An instant carrying its conferred instant-speed casting window (see
+    /// `instant_typedef`), with no targets — so `castable_cost_ignoring_mana`
+    /// turns purely on cost + mana.
     fn instant(name: &str, mc: &str) -> Card {
         Card::Normal(CardFace {
             name: name.into(),
             mana_cost: mc.parse().unwrap(),
-            types: vec![Type::Instant.def()],
+            types: vec![instant_typedef()],
             ..CardFace::default()
         })
+    }
+
+    /// A sorcery — no casting-window confer, so it is castable only at sorcery
+    /// speed. `Type::Sorcery.def()` carries the correct (empty) confers.
+    fn sorcery(name: &str, mc: &str) -> Card {
+        Card::Normal(CardFace {
+            name: name.into(),
+            mana_cost: mc.parse().unwrap(),
+            types: vec![Type::Sorcery.def()],
+            ..CardFace::default()
+        })
+    }
+
+    /// [CR#307.1,117.1a,702.8a] casting-window brick: with the `Type::Instant`
+    /// literal gone from `castable_cost_ignoring_mana`, instant-speed timing is
+    /// driven ENTIRELY by the conferred `May(Cast(window: InstantSpeed))` row.
+    /// `cm_game` starts in `Ending(Cleanup)` — NOT a main phase, so
+    /// `sorcery_speed_ok` is false; the only way timing can pass is the confer.
+    /// An Instant carrying it is castable at instant speed; a Sorcery (no
+    /// confer) is not — proof the conferred DATA, not an enum literal, lifts
+    /// timing.
+    #[test]
+    fn casting_window_reads_the_conferred_may_cast_row() {
+        let mut state = cm_game();
+        assert!(
+            !state.sorcery_speed_ok(PlayerId(0)),
+            "a fresh cm_game is at Cleanup — not sorcery speed"
+        );
+        let inst = put_synthetic(&mut state, instant("Bolt", "{R}"), PlayerId(0), Zone::Hand);
+        let sorc = put_synthetic(
+            &mut state,
+            sorcery("Lava Axe", "{R}"),
+            PlayerId(0),
+            Zone::Hand,
+        );
+        let view = state.layers();
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), inst)
+                .is_some(),
+            "the Instant's conferred May(Cast(InstantSpeed)) row lifts timing outside sorcery speed"
+        );
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), sorc)
+                .is_none(),
+            "a Sorcery has no instant-speed confer, so it is not castable at Cleanup"
+        );
     }
 
     /// The land objects a plan taps, in order.

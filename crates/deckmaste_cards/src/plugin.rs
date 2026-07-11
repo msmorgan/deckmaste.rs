@@ -597,12 +597,26 @@ mod tests {
                 confers: vec![]
             }
         );
+        // Instant confers its instant-speed casting window (Task 6, the
+        // casting-window consumer): a flash-shaped May(Cast(InstantSpeed)) row
+        // ([CR#307.1,117.1a,702.8a]) that flows the may_cast_rows collector.
         assert_eq!(
             plugin.types["Instant"],
             TypeDef {
                 name: "Instant".into(),
                 permanent: false,
-                confers: vec![]
+                confers: vec![deckmaste_core::Property::Ability(Box::new(
+                    deckmaste_core::Ability::Static(deckmaste_core::StaticEffect::Deontic(
+                        deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Cast {
+                            what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This),
+                            by: deckmaste_core::Predicate::Any,
+                            from: None,
+                            window: Some(deckmaste_core::Timing::InstantSpeed),
+                            cost: None,
+                            tag: None,
+                        })
+                    ))
+                ))],
             }
         );
         // Reaches the wizards corpus via the sibling prelude.

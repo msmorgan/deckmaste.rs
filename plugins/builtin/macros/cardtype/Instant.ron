@@ -1,7 +1,12 @@
-// [CR#300.1] the Instant card type. EMPTY confers this task: `May(Cast)`
-// ships in Task 6 alongside the casting-window consumer it feeds.
+// [CR#300.1] Instant. Its casting window is data: a conferred flash-shaped row
+// ([CR#307.1,117.1a,702.8a]) that flows the same may_cast_rows collector as
+// Flash/Orrery, so cast.rs needs no `Type::Instant` literal.
 (
     name: "Instant",
     kinds: [TypeDef],
-    body: TypeDef(name: "Instant", permanent: false),
+    body: TypeDef(
+        name: "Instant",
+        permanent: false,
+        confers: [Ability(Static(May(Cast(what: Ref(This), window: InstantSpeed))))],
+    ),
 )
