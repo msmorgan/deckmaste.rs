@@ -516,8 +516,14 @@ pub fn play(cards: &DeckCards, seed: u64, p0: &dyn Strategy, p1: &dyn Strategy) 
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        // Headless sim hardcodes empty rules-as-data (ticket
+        // `sim-play-wire-rules-as-data` wires `sba_rules`/`conferral_rules`/
+        // `damage_result_rules` from the loaded plugin). Until then a
+        // planeswalker in sim takes no loyalty loss from damage — acceptable for
+        // the current land/creature sim corpus.
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });

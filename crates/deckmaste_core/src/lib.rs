@@ -48,6 +48,9 @@ pub use condition::Condition;
 mod conferral_rule;
 pub use conferral_rule::ConferralRule;
 
+mod damage_result_rule;
+pub use damage_result_rule::DamageResultRule;
+
 mod continuous;
 pub use continuous::CollectionOp;
 pub use continuous::CostChange;

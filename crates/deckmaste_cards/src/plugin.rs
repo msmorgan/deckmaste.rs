@@ -64,6 +64,11 @@ pub struct Plugin {
     /// grants applied globally, alongside a card's own printed/conferred
     /// abilities. See `deckmaste_core::ConferralRule`.
     pub conferral_rules: Vec<deckmaste_core::ConferralRule>,
+    /// Rules-defined damage results loaded from `rules/damage/`: when damage is
+    /// dealt to a permanent matching the rule's `recipient`, that many counters
+    /// of `remove` are taken off it ([CR#120.3c] planeswalker loyalty). See
+    /// `deckmaste_core::DamageResultRule`.
+    pub damage_result_rules: Vec<deckmaste_core::DamageResultRule>,
 }
 
 impl Plugin {
@@ -260,6 +265,7 @@ impl Plugin {
 
         let sba_rules = load_sba_rules(&root, &macros)?;
         let conferral_rules = load_conferral_rules(&root, &macros)?;
+        let damage_result_rules = load_damage_result_rules(&root, &macros)?;
 
         Ok(Self {
             root,
@@ -270,6 +276,7 @@ impl Plugin {
             keywords,
             sba_rules,
             conferral_rules,
+            damage_result_rules,
         })
     }
 
@@ -388,6 +395,28 @@ fn load_conferral_rules(
     Ok(rules)
 }
 
+/// Loads all `Vec<DamageResultRule>` files under `root/rules/damage/`,
+/// concatenating them into a single list. An absent directory yields an
+/// empty vec.
+///
+/// # Errors
+/// If a file is unreadable or doesn't parse as `Vec<DamageResultRule>`.
+fn load_damage_result_rules(
+    root: &Path,
+    macros: &MacroSet,
+) -> anyhow::Result<Vec<deckmaste_core::DamageResultRule>> {
+    let dir = root.join(RULES_DIR).join("damage");
+    let mut rules = Vec::new();
+    for path in ron_files_recursive(&dir)? {
+        let source = read(&path)?;
+        let file: Vec<deckmaste_core::DamageResultRule> = macros
+            .read_str(&source)
+            .with_context(|| format!(r#"loading damage result rules from "{}""#, path.display()))?;
+        rules.extend(file);
+    }
+    Ok(rules)
+}
+
 /// Reads a plugin file to a string with path context on failure. Exposed for
 /// the migration pipeline (`deckmaste_migrations::graduate`), which reads
 /// `.ron.todo` candidates before handing them to a [`Plugin`]'s macro reader.
@@ -481,6 +510,39 @@ mod tests {
                 deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker)
             )
         ));
+    }
+
+    /// `builtin/rules/damage/planeswalker-loyalty.ron` loads as a
+    /// `DamageResultRule` removing loyalty counters from any planeswalker dealt
+    /// damage ([CR#120.3c]), as data.
+    #[test]
+    fn builtin_loads_planeswalker_loyalty_damage_rule() {
+        let plugin = Plugin::load(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+        )
+        .unwrap();
+        assert_eq!(plugin.damage_result_rules.len(), 1);
+        let rule = &plugin.damage_result_rules[0];
+        assert!(matches!(
+            rule.recipient,
+            deckmaste_core::Predicate::Characteristic(
+                deckmaste_core::CharacteristicPredicate::Type(Type::Planeswalker)
+            )
+        ));
+        assert_eq!(
+            rule.remove,
+            deckmaste_core::CounterRef::from("LoyaltyCounter")
+        );
+    }
+
+    /// A plugin with no `rules/damage/` dir loads with an empty
+    /// `damage_result_rules`, mirroring the `rules/sba/` / `rules/grant/`
+    /// loaders' absent-dir behavior.
+    #[test]
+    fn absent_rules_damage_dir_yields_no_damage_result_rules() {
+        let root = tempfile::tempdir().unwrap();
+        let plugin = Plugin::load(root.path()).unwrap();
+        assert_eq!(plugin.damage_result_rules, vec![]);
     }
 
     #[test]

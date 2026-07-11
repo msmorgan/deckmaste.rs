@@ -52,6 +52,7 @@ fn two_player_with(card_name: &str, seed: u64, deck_size: usize) -> GameState {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     })
@@ -77,6 +78,7 @@ fn game_with_p0_cards(names: &[&str], seed: u64) -> GameState {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     })

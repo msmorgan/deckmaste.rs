@@ -85,16 +85,20 @@ fn two_player_decks(p0_card: &str, p1_card: &str, seed: u64, deck_size: usize) -
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
     // Load builtin rules so data-driven SBAs (lethal-damage destroy, etc.)
     // fire when the engine drives the SBA check during combat.
-    state.sba_rules = deckmaste_cards::plugin::Plugin::load(
+    let builtin = deckmaste_cards::plugin::Plugin::load(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
     )
-    .unwrap()
-    .sba_rules;
+    .unwrap();
+    state.sba_rules = builtin.sba_rules;
+    // The planeswalker damage→loyalty result is now data ([CR#120.3c]); wire it
+    // so a planeswalker dealt combat damage still loses loyalty.
+    state.damage_result_rules = builtin.damage_result_rules;
     state
 }
 
@@ -1489,14 +1493,18 @@ fn two_player_mixed(p0: Vec<Arc<Card>>, p1: Vec<Arc<Card>>, seed: u64) -> GameSt
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
-    state.sba_rules = deckmaste_cards::plugin::Plugin::load(
+    let builtin = deckmaste_cards::plugin::Plugin::load(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
     )
-    .unwrap()
-    .sba_rules;
+    .unwrap();
+    state.sba_rules = builtin.sba_rules;
+    // The planeswalker damage→loyalty result is now data ([CR#120.3c]); wire it
+    // so a planeswalker dealt combat damage still loses loyalty.
+    state.damage_result_rules = builtin.damage_result_rules;
     state
 }
 
@@ -2174,6 +2182,7 @@ fn flying_attacker_blockable_only_by_flying_or_reach() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2217,6 +2226,7 @@ fn menace_attacker_needs_two_blockers() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2259,6 +2269,7 @@ fn defender_cannot_be_declared_as_an_attacker() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2305,6 +2316,7 @@ fn must_attack_requires_the_able_creature() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2351,6 +2363,7 @@ fn must_attack_waived_when_unable() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });
@@ -2393,6 +2406,7 @@ fn must_block_requires_every_able_blocker() {
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: vec![],
         conferral_rules: vec![],
+        damage_result_rules: vec![],
         counter_decls: std::collections::HashMap::new(),
         subtypes: std::collections::HashMap::new(),
     });

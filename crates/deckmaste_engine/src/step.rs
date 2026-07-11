@@ -499,44 +499,57 @@ impl GameState {
                 let view = self.layers();
                 match self.objects.obj(target).source {
                     ObjectSource::Player(p) => {
+                        // [CR#120.3a]: damage to a player is life loss.
                         self.player_mut(p).life -=
                             deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
                     }
-                    ObjectSource::Card(_)
-                        if view.get(target).card_types.contains(&Type::Planeswalker) =>
-                    {
-                        // [CR#120.3c,306.8]: damage to a planeswalker removes that
-                        // many loyalty counters instead of marking damage; it does
-                        // NOT mark the permanent ([CR#120.5]) — the 0-loyalty SBA
-                        // ([CR#704.5i]) handles death. Removal clamps at 0 (reusing
-                        // the shared counter-removal path).
-                        self.remove_counters_clamped(
-                            target,
-                            &deckmaste_core::Ident::from("LoyaltyCounter"),
-                            amount,
-                        );
-                    }
                     ObjectSource::Card(_) => {
-                        // [CR#120.3,702.2c]: mark the damage tagged with the
-                        // source's identity and abilities AS THEY ARE NOW — the
-                        // deal-time snapshot the lethal-damage SBA's deathtouch
-                        // clause reads ([CR#704.5h]), correct even if the source
-                        // later loses the ability or leaves. A stale (gone)
-                        // source contributes no abilities.
-                        let (src, abilities) = match self.objects.get(source) {
-                            // Card-backed source: capture its identity and
-                            // deal-time abilities from the layered view.
-                            Some(o) if o.card_id().is_some() => {
-                                (Some(o.source), view.get(source).abilities.as_ref().clone())
-                            }
-                            // A player proxy carries no abilities; a gone
-                            // (reminted) source contributes none either.
-                            Some(o) => (Some(o.source), Vec::new()),
-                            None => (None, Vec::new()),
-                        };
-                        self.objects
-                            .obj_mut(target)
-                            .mark_damage(src, abilities, amount);
+                        // [CR#120.3]: damage to a permanent has "one or more
+                        // results" — the intrinsic creature result and every
+                        // matching data-driven counter-removal result are applied
+                        // IN ADDITION (a creature-planeswalker is marked AND loses
+                        // loyalty), no longer mutually exclusive.
+
+                        // [CR#120.3d,120.3e]: a CREATURE has its damage marked,
+                        // tagged with the source's identity and abilities AS THEY
+                        // ARE NOW — the deal-time snapshot the lethal-damage SBA's
+                        // deathtouch clause reads ([CR#704.5h]), correct even if the
+                        // source later loses the ability or leaves; a stale (gone)
+                        // source contributes no abilities. A non-creature permanent
+                        // (a plain planeswalker) is NOT marked ([CR#120.3e]).
+                        if view.get(target).card_types.contains(&Type::Creature) {
+                            let (src, abilities) = match self.objects.get(source) {
+                                // Card-backed source: capture its identity and
+                                // deal-time abilities from the layered view.
+                                Some(o) if o.card_id().is_some() => {
+                                    (Some(o.source), view.get(source).abilities.as_ref().clone())
+                                }
+                                // A player proxy carries no abilities; a gone
+                                // (reminted) source contributes none either.
+                                Some(o) => (Some(o.source), Vec::new()),
+                                None => (None, Vec::new()),
+                            };
+                            self.objects
+                                .obj_mut(target)
+                                .mark_damage(src, abilities, amount);
+                        }
+
+                        // [CR#120.3c,120.3h]: data-driven counter-removal results —
+                        // e.g. planeswalker loyalty (`rules/damage/`). Remove that
+                        // many counters of each matching rule's kind, clamped at 0
+                        // (the shared counter-removal path); the 0-counter SBA
+                        // ([CR#704.5i]) handles death. Collect matches first:
+                        // `matches` borrows `&self` while `remove_counters_clamped`
+                        // needs `&mut self`.
+                        let to_remove: Vec<deckmaste_core::Ident> = self
+                            .damage_result_rules
+                            .iter()
+                            .filter(|rule| crate::matches(self, target, &rule.recipient))
+                            .map(|rule| rule.remove.0)
+                            .collect();
+                        for kind in to_remove {
+                            self.remove_counters_clamped(target, &kind, amount);
+                        }
                     }
                 }
                 // [CR#702.15]: if the source is a card-backed object with lifelink,
@@ -2231,6 +2244,7 @@ mod tests {
             starting_player: StartingPlayer::Fixed(PlayerId(0)),
             sba_rules: vec![],
             conferral_rules: vec![],
+            damage_result_rules: vec![],
             counter_decls: std::collections::HashMap::new(),
             subtypes: std::collections::HashMap::new(),
         })
@@ -2690,6 +2704,7 @@ mod tests {
                 starting_player: StartingPlayer::Fixed(PlayerId(0)),
                 sba_rules: vec![],
                 conferral_rules: vec![],
+                damage_result_rules: vec![],
                 counter_decls: std::collections::HashMap::new(),
                 subtypes: std::collections::HashMap::new(),
             });
@@ -2787,6 +2802,7 @@ mod tests {
                 starting_player: StartingPlayer::Fixed(PlayerId(0)),
                 sba_rules: vec![],
                 conferral_rules: vec![],
+                damage_result_rules: vec![],
                 counter_decls: std::collections::HashMap::new(),
                 subtypes: std::collections::HashMap::new(),
             })

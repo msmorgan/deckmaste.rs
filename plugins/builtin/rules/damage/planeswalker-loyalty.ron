@@ -1,0 +1,9 @@
+// [CR#120.3c,306.8]: damage dealt to a planeswalker causes that many loyalty
+// counters to be removed from it. This is a damage RESULT (applied at deal
+// time), not a replacement effect, and is additive with any intrinsic result
+// ([CR#120.3]: "one or more results") — a creature-planeswalker is marked AND
+// loses loyalty. The 0-loyalty SBA ([CR#704.5i], rules/sba/loyalty-zero.ron)
+// handles death once the counters reach zero.
+[
+    DamageResultRule(recipient: Type(Planeswalker), remove: LoyaltyCounter),
+]

@@ -121,6 +121,7 @@ pub struct GameConfig {
     pub starting_player: StartingPlayer,
     pub sba_rules: Vec<deckmaste_core::SbaRule>,
     pub conferral_rules: Vec<deckmaste_core::ConferralRule>,
+    pub damage_result_rules: Vec<deckmaste_core::DamageResultRule>,
     pub counter_decls: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter>,
     /// The subtype registry ([CR#205.3]): `Ident → Subtype`. Unlike a counter's
     /// confers (looked up by name), a subtype's confers normally ride the card
@@ -341,6 +342,15 @@ pub struct GameState {
     /// Populated from the loaded plugin's `conferral_rules` at construction,
     /// like `sba_rules`. Empty = no rules-defined conferrals.
     pub conferral_rules: Vec<deckmaste_core::ConferralRule>,
+    /// Rules-defined damage results in force this game ([CR#120.3c]
+    /// planeswalker loyalty): when damage is dealt to a permanent matching
+    /// a rule's `recipient`, that many `remove` counters are taken off it,
+    /// IN ADDITION to any intrinsic result. Populated from the loaded
+    /// plugin's `damage_result_rules` at construction, like `sba_rules`.
+    /// Empty = no rules-defined damage results (e.g. planeswalkers stop
+    /// losing loyalty to damage — the builtin
+    /// `rules/damage/planeswalker-loyalty.ron` supplies it).
+    pub damage_result_rules: Vec<deckmaste_core::DamageResultRule>,
     /// The "that much"/"that many" anaphora register (`Count::ThatMuch` —
     /// oracle-text magnitude anaphora; no single CR rule defines it): the
     /// amount the most recently APPLIED amount-carrying event fixed (damage
@@ -502,6 +512,7 @@ impl GameState {
             subtypes: config.subtypes,
             sba_rules: config.sba_rules,
             conferral_rules: config.conferral_rules,
+            damage_result_rules: config.damage_result_rules,
             that_much: None,
             moved_chain: Vec::new(),
             history: crate::history::History::default(),

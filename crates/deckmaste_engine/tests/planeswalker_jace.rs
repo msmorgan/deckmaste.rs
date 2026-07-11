@@ -74,6 +74,7 @@ fn game_with_rules(p0: Vec<Arc<Card>>, p1: Vec<Arc<Card>>, seed: u64) -> GameSta
         starting_player: StartingPlayer::Fixed(PlayerId(0)),
         sba_rules: builtin.sba_rules.clone(),
         conferral_rules: builtin.conferral_rules.clone(),
+        damage_result_rules: builtin.damage_result_rules.clone(),
         // The counter/subtype registries the engine reads; canon inherits the
         // builtin `LoyaltyCounter` decl via its sibling prelude and adds the
         // `Jace` subtype.
