@@ -571,6 +571,46 @@ fn animated_enchantment_can_attack() {
     );
 }
 
+/// [CR#305.6]: guards the `fold_conferred_abilities` dedup ([CR#611.3]) — a
+/// PRINTED creature's `Creature`-type-conferred `May(Attack)` grant is already
+/// folded into the base by `printed_of_face`, so the layer-4 fold (which
+/// re-derives the same confer from the settled `card_types`) must NOT push a
+/// second copy. Pins the `!abilities.contains(&a)` guard directly: if it were
+/// ever dropped, this count would go 1 → 2.
+#[test]
+fn printed_creature_grant_is_not_doubled_by_the_fold() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Reference;
+    use deckmaste_core::StaticEffect;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    let may_attack = Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+        Deontic::May(DeonticAction::Attack {
+            by: Predicate::Ref(Reference::This),
+            on: Predicate::Any,
+        }),
+    ))));
+
+    let view = state.layers();
+    let instances = view
+        .get(bear)
+        .abilities
+        .iter()
+        .filter(|a| **a == may_attack)
+        .count();
+    assert_eq!(
+        instances, 1,
+        "the Creature type's May(Attack) grant appears exactly once: folded \
+         into the base by `printed_of_face`, and NOT re-pushed by the layer-4 \
+         fold's dedup guard ([CR#305.6])"
+    );
+}
+
 /// [CR#613.1b]: a layer-2 control-change effect ("you gain control") makes the
 /// derived controller the effect's controller. The object's base controller is
 /// unchanged — control change is a continuous effect, not a mutation.
