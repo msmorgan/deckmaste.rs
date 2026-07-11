@@ -3,6 +3,7 @@
 //! authoritative check at submission (state can't change in between: a
 //! pending decision blocks stepping).
 
+use std::cell::Cell;
 use std::ops::ControlFlow;
 
 use deckmaste_core::Ability;
@@ -1025,6 +1026,52 @@ fn may_attach_rows(
     rows
 }
 
+/// The re-entrancy cap for [`attachment_legal`]. Normal play NEVER nests
+/// `attachment_legal`: no real card conditions an `Attach` deontic on
+/// `LegallyAttached`, so `condition_holds(LegallyAttached)` — the ONE
+/// `condition_holds` arm that re-enters the deontic collector — is never
+/// evaluated while already inside an `attachment_legal` call. Any re-entry is
+/// therefore the pathological `Conditionally(LegallyAttached(This), <Attach
+/// deontic>)` cycle, so a cap of 1 (deny on the FIRST re-entry) is correct and
+/// minimal.
+const ATTACH_LEGAL_DEPTH_CAP: u32 = 1;
+
+thread_local! {
+    /// Re-entrancy depth for [`attachment_legal`]. The deontic collector
+    /// (`for_each_static`) gates `Conditionally` statics on `condition_holds`,
+    /// and the only condition that re-enters the collector is `LegallyAttached`
+    /// (`condition.rs`), which evaluates via `attachment_legal` →
+    /// `may/cant_attach_rows` → `for_each_static` →
+    /// `condition_holds(LegallyAttached)` → `attachment_legal` → … . A permanent
+    /// authored `Conditionally(LegallyAttached(This), <Attach deontic>)` (a
+    /// bootstrap-impossible aura — an authoring mistake; no canon or planned card
+    /// authors this shape) would recurse without bound and stack-overflow,
+    /// violating the engine-never-crashes-on-authoring-mistakes floor. This
+    /// counter bounds the recursion (see [`ATTACH_LEGAL_DEPTH_CAP`]).
+    static ATTACH_LEGAL_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Test-only: how many times the re-entrancy early-return `false` path has
+    /// fired. Lets a termination test PROVE the pathological fixture actually
+    /// exercises (and bounds) the collector cycle rather than reading `false`
+    /// for a mundane reason (no matching grant).
+    static ATTACH_LEGAL_REENTRY_DENIALS: Cell<u32> = const { Cell::new(0) };
+}
+
+/// RAII scope for [`ATTACH_LEGAL_DEPTH`]: decrements on `Drop` so the counter
+/// is restored across EVERY exit of `attachment_legal`'s body (the early
+/// `return false` self/missing-host cases and the straight-line final
+/// expression alike) without hand-decrementing before each `return`.
+struct AttachLegalDepthGuard;
+
+impl Drop for AttachLegalDepthGuard {
+    fn drop(&mut self) {
+        ATTACH_LEGAL_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+    }
+}
+
 /// [CR#701.3b,303.4d]: whether `attachment` may legally be attached to `host`
 /// — the ONE predicate used at both attach-time (the [CR#701.3b] no-op) and
 /// SBA-time (the [CR#704.5m..704.5p] illegal-attachment sweep).
@@ -1042,6 +1089,25 @@ fn may_attach_rows(
 /// (protection [CR#702.16d]) subtracts from any grant.
 #[must_use]
 pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: ObjectId) -> bool {
+    // Re-entrancy guard ([[engine-never-crashes-on-authoring-mistakes]]): if the
+    // deontic collector has already re-entered `attachment_legal` (only reachable
+    // via a `Conditionally(LegallyAttached(…), …)` static — see
+    // `ATTACH_LEGAL_DEPTH`), return the conservative default `false` ("not legally
+    // attached") WITHOUT recursing or touching the counter. This bounds the
+    // otherwise-unbounded cycle so an authoring mistake fizzles instead of
+    // crashing. `false` is sound in both polarities, so this is a true no-op for
+    // every non-pathological call: a `Conditionally(LegallyAttached(This),
+    // May(Attach))` bootstrap drops its own grant (can't attach → never legally
+    // attached — a consistent fixpoint), and a `Sba(Not(LegallyAttached(This)),
+    // Move→Graveyard)` aura instead reads `Not(false)` = true and dies unattached.
+    if ATTACH_LEGAL_DEPTH.with(Cell::get) >= ATTACH_LEGAL_DEPTH_CAP {
+        #[cfg(test)]
+        ATTACH_LEGAL_REENTRY_DENIALS.with(|c| c.set(c.get() + 1));
+        return false;
+    }
+    ATTACH_LEGAL_DEPTH.with(|d| d.set(d.get() + 1));
+    let _depth_guard = AttachLegalDepthGuard;
+
     // [CR#303.4d]: an attachment can't be attached to itself.
     if host == attachment {
         return false;
@@ -1512,6 +1578,112 @@ mod tests {
         assert!(
             attachment_legal(&state, attachment, plain),
             "an unprotected host is legal"
+        );
+    }
+
+    /// [[engine-never-crashes-on-authoring-mistakes]] / [CR#611.3a]: a permanent
+    /// authored `Conditionally(LegallyAttached(This), May(Attach{Ref(This),
+    /// Any}))` is a bootstrap-impossible aura. The deontic collector gates
+    /// the grant on `condition_holds(LegallyAttached)`, which re-enters
+    /// `attachment_legal`, which re-collects, which re-evaluates the
+    /// condition … an UNBOUNDED cycle that would stack-overflow (aborting
+    /// the process) without the re-entrancy guard. With the guard the
+    /// re-entry returns the conservative `false`, so: the cycle TERMINATES,
+    /// the self-referential `May(Attach)` grant drops, and the object reads
+    /// as NOT legally attached — a consistent bootstrap fixpoint.
+    #[test]
+    fn attachment_legal_bounds_conditionally_legally_attached_cycle() {
+        use deckmaste_core::Condition;
+        let mut state = game();
+
+        // The pathological attachment: its ONLY `May(Attach)` grant is gated
+        // behind `LegallyAttached(This)` — the self-referential shape that
+        // recurses through the collector.
+        let pathological = Ability::Static(StaticEffect::Conditionally(
+            Condition::LegallyAttached(Reference::This),
+            Box::new(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+                what: Predicate::Ref(Reference::This),
+                to: Predicate::Any,
+            }))),
+        ));
+        let aura = obj_on_field(
+            &mut state,
+            "Bootstrap Aura",
+            vec![Type::Enchantment],
+            vec![pathological],
+        );
+        let host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+        // Attach it so `condition_holds(LegallyAttached)` reaches
+        // `attachment_legal` (the re-entry door) rather than short-circuiting on
+        // `attached_to == None`.
+        state.objects.obj_mut(aura).attached_to = Some(host);
+
+        // Prove the fixture EXERCISES the cycle (the collector really re-enters
+        // `attachment_legal` and is bounded), not merely that it returns `false`
+        // for a mundane reason: reset the re-entry-denial counter first.
+        super::ATTACH_LEGAL_REENTRY_DENIALS.with(|c| c.set(0));
+
+        // (a) `attachment_legal` on the pathological pair TERMINATES and returns
+        // the conservative `false` — the self-gated grant drops.
+        assert!(
+            !attachment_legal(&state, aura, host),
+            "the self-referential Conditionally(LegallyAttached, May(Attach)) grant \
+             drops — the object is not legally attached (conservative bound)"
+        );
+        assert!(
+            super::ATTACH_LEGAL_REENTRY_DENIALS.with(std::cell::Cell::get) >= 1,
+            "the fixture must actually re-enter attachment_legal (the guard must \
+             fire) — otherwise the test is not exercising the cycle it bounds"
+        );
+
+        // (b) The condition itself, read top-level, also TERMINATES and reads
+        // `false` — this is exactly the Aura-graveyard SBA trigger's read
+        // (`Sba(Not(LegallyAttached(Ref(This))), …)`), which must not hang.
+        let frame = crate::stack::Frame::bare(aura, PlayerId(0));
+        assert!(
+            !state.condition_holds(&Condition::LegallyAttached(Reference::This), &frame),
+            "LegallyAttached(This) reads false for the bootstrap-impossible aura, \
+             and terminates"
+        );
+
+        // (c) The RAII depth guard restored the counter to 0 after every call, so
+        // the guard is inert for the next (normal) query.
+        assert_eq!(
+            super::ATTACH_LEGAL_DEPTH.with(std::cell::Cell::get),
+            0,
+            "the RAII depth guard restores the counter to 0 after the call"
+        );
+    }
+
+    /// The re-entrancy guard is INERT for a normal attachment: a plain
+    /// `May(Attach{Ref(This), Any})` grant (no `Conditionally` wrapper, so no
+    /// re-entry) is honored exactly as before, and the re-entry-denial path
+    /// never fires — the guard changes nothing except to terminate the
+    /// pathological cycle.
+    #[test]
+    fn attachment_legal_guard_is_inert_for_a_normal_grant() {
+        let mut state = game();
+        let aura = obj_on_field(
+            &mut state,
+            "Plain Aura",
+            vec![Type::Enchantment],
+            vec![innate_may_attach(
+                Predicate::Ref(Reference::This),
+                Predicate::Any,
+            )],
+        );
+        let host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
+
+        super::ATTACH_LEGAL_REENTRY_DENIALS.with(|c| c.set(0));
+        assert!(
+            attachment_legal(&state, aura, host),
+            "a plain (non-conditional) May(Attach to: Any) grant is legal — the \
+             guard does not change a normal result"
+        );
+        assert_eq!(
+            super::ATTACH_LEGAL_REENTRY_DENIALS.with(std::cell::Cell::get),
+            0,
+            "a normal attachment never re-enters attachment_legal — the guard is inert"
         );
     }
 
