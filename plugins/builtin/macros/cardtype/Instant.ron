@@ -1,0 +1,7 @@
+// [CR#300.1] the Instant card type. EMPTY confers this task: `May(Cast)`
+// ships in Task 6 alongside the casting-window consumer it feeds.
+(
+    name: "Instant",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Instant", permanent: false),
+)

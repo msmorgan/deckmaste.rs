@@ -1,0 +1,6 @@
+// [CR#300.1] the Artifact card type.
+(
+    name: "Artifact",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Artifact", permanent: true),
+)

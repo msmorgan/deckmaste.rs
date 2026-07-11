@@ -1,0 +1,6 @@
+// [CR#300.1] the Sorcery card type.
+(
+    name: "Sorcery",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Sorcery", permanent: false),
+)

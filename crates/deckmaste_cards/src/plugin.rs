@@ -18,6 +18,7 @@ use deckmaste_core::KeywordDecl;
 use deckmaste_core::ParamShape;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
+use deckmaste_core::TypeDef;
 use deckmaste_core::plugin::MACROS_DIR;
 use deckmaste_core::plugin::RULES_DIR;
 use deckmaste_core::plugin::card_path;
@@ -39,6 +40,11 @@ pub struct Plugin {
     /// up), not the macro's registration ident; the two differ for names
     /// like "Time Lord"/`TimeLord`.
     pub subtypes: HashMap<Ident, Subtype>,
+    /// The card types defined by `macros/`, fully expanded — keyed by the
+    /// value's **printed name** ([CR#300.1]), mirroring `subtypes` exactly.
+    /// The ten canonical types (`Artifact`..`Sorcery`) are declared as
+    /// builtin `kinds: [TypeDef]` macros under `macros/cardtype/`.
+    pub types: HashMap<Ident, TypeDef>,
     /// The counter kinds defined by `macros/`, fully expanded — keyed by the
     /// counter's identity (`P1P1Counter`), which is what a `CounterRef`
     /// resolves to. The post-load `validate_counter_refs` pass checks every
@@ -92,6 +98,7 @@ impl Plugin {
             prelude.macros.clone(),
             Inherited {
                 subtypes: prelude.subtypes.clone(),
+                types: prelude.types.clone(),
                 counters: prelude.counters.clone(),
                 designations: prelude.designations.clone(),
                 keywords: prelude.keywords.clone(),
@@ -133,6 +140,7 @@ impl Plugin {
     ) -> anyhow::Result<Self> {
         let Inherited {
             mut subtypes,
+            mut types,
             mut counters,
             mut designations,
             mut keywords,
@@ -146,6 +154,8 @@ impl Plugin {
         // Nullary Subtype-kind definitions this plugin registers, expanded
         // into the subtype table once the scope settles.
         let mut declared: Vec<Ident> = Vec::new();
+        // Nullary TypeDef-kind definitions, expanded into the types table.
+        let mut declared_types: Vec<Ident> = Vec::new();
         // Nullary Counter-kind definitions, expanded into the counter table.
         let mut declared_counters: Vec<Ident> = Vec::new();
         // Nullary DesignationDecl-kind definitions, expanded into the
@@ -180,6 +190,11 @@ impl Plugin {
                             && nullary(&def.params)
                         {
                             declared.push(def.name);
+                        }
+                        if def.kinds.iter().any(|kind| kind.as_str() == "TypeDef")
+                            && nullary(&def.params)
+                        {
+                            declared_types.push(def.name);
                         }
                         if def.kinds.iter().any(|kind| kind.as_str() == "Counter")
                             && nullary(&def.params)
@@ -244,6 +259,16 @@ impl Plugin {
             subtypes.insert(subtype.name, subtype);
         }
 
+        // Expanding each declared type both validates its body and fills the
+        // table — keyed by the value's printed name, mirroring the subtype
+        // expansion above exactly.
+        for name in declared_types {
+            let type_def: TypeDef = macros
+                .read_str(name.as_str())
+                .with_context(|| format!("expanding type `{name}`"))?;
+            types.insert(type_def.name, type_def);
+        }
+
         // Expanding each declared counter validates its body and fills the
         // table — keyed by the counter's identity (the `name` field, what a
         // `CounterRef` resolves to).
@@ -271,6 +296,7 @@ impl Plugin {
             root,
             macros,
             subtypes,
+            types,
             counters,
             designations,
             keywords,
@@ -320,6 +346,7 @@ impl Plugin {
 #[derive(Default)]
 struct Inherited {
     subtypes: HashMap<Ident, Subtype>,
+    types: HashMap<Ident, TypeDef>,
     counters: HashMap<Ident, Counter>,
     designations: HashMap<Ident, DesignationDecl>,
     keywords: HashMap<Ident, KeywordDecl>,
@@ -552,6 +579,35 @@ mod tests {
         assert!(wizards.subtypes.contains_key("Plains"));
         // wizards' own declarations load on top.
         assert!(wizards.subtypes.contains_key("Cave"));
+    }
+
+    #[test]
+    fn builtin_loads_ten_canonical_types_with_permanent_flags() {
+        use deckmaste_core::TypeDef;
+        let plugin = Plugin::load(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
+        )
+        .unwrap();
+        assert_eq!(plugin.types.len(), 10, "all ten canonical types registered");
+        assert_eq!(
+            plugin.types["Land"],
+            TypeDef {
+                name: "Land".into(),
+                permanent: true,
+                confers: vec![]
+            }
+        );
+        assert_eq!(
+            plugin.types["Instant"],
+            TypeDef {
+                name: "Instant".into(),
+                permanent: false,
+                confers: vec![]
+            }
+        );
+        // Reaches the wizards corpus via the sibling prelude.
+        let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
+        assert!(wizards.types.contains_key("Creature"));
     }
 
     #[test]

@@ -1,0 +1,8 @@
+// [CR#300.1] the Land card type. EMPTY confers this task: `May(Play)` ships
+// in Task 8 alongside the land-play consumer it feeds (and the guard narrow
+// it requires).
+(
+    name: "Land",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Land", permanent: true),
+)

@@ -1,0 +1,6 @@
+// [CR#300.1] the Planeswalker card type.
+(
+    name: "Planeswalker",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Planeswalker", permanent: true),
+)

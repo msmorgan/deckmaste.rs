@@ -1,0 +1,6 @@
+// [CR#300.1] the Dungeon card type.
+(
+    name: "Dungeon",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Dungeon", permanent: false),
+)

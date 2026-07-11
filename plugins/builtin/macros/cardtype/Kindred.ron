@@ -1,0 +1,6 @@
+// [CR#300.1] the Kindred card type.
+(
+    name: "Kindred",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Kindred", permanent: false),
+)

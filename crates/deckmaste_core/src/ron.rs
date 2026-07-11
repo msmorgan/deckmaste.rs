@@ -48,6 +48,11 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::strategy::Preference::kind());
     kinds.add(Kind::new("CardFace"));
     kinds.add(Kind::new("Subtype"));
+    // Type-kind macros (the ten builtin `Artifact`..`Sorcery` defs) expand to
+    // a `TypeDef` decl in the plugin loader; name-erasing like `Subtype`. No
+    // card position reads it yet — `CardFace.types` stays `Vec<Type>` until
+    // the type-flip migration.
+    kinds.add(Kind::new("TypeDef"));
     // Counter-kind macros (`P1P1Counter`, …) expand to a `Counter` decl in the
     // plugin loader; name-erasing like `Subtype`. No card position reads it.
     kinds.add(Kind::new("Counter"));

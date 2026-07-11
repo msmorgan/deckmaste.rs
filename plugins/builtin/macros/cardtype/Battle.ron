@@ -1,0 +1,6 @@
+// [CR#300.1] the Battle card type.
+(
+    name: "Battle",
+    kinds: [TypeDef],
+    body: TypeDef(name: "Battle", permanent: true),
+)

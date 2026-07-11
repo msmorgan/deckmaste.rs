@@ -163,9 +163,9 @@ mod tests {
     /// The registry matches on serde type names. The derived `kind()`s
     /// self-name from the Rust ident, so they track renames by
     /// construction; the tie this pins is the hand-registered struct kinds
-    /// (`CardFace`, `Subtype`, `Macro`), which a Rust rename would strand
-    /// without a compile error — plus the policy list's completeness (the
-    /// length check).
+    /// (`CardFace`, `Subtype`, `TypeDef`, `Macro`), which a Rust rename would
+    /// strand without a compile error — plus the policy list's completeness
+    /// (the length check).
     #[test]
     fn kind_names_track_the_core_types() {
         fn name_of<T>() -> &'static str {
@@ -195,6 +195,7 @@ mod tests {
             name_of::<Selection>(),
             name_of::<StaticEffect>(),
             name_of::<Subtype>(),
+            name_of::<deckmaste_core::TypeDef>(),
             name_of::<TargetSpec>(),
             name_of::<Counter>(),
             name_of::<deckmaste_core::DesignationDecl>(),
