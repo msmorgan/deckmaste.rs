@@ -1725,10 +1725,10 @@ fn run_layer_pass(
         }
         // [CR#305.6,611.3]: once layer 4 has settled each object's card types
         // and subtypes, fold any type/subtype-conferred abilities into the
-        // derived list. A type/subtype ADDED at layer 4 brings its `confers`
-        // (the printed ones are already in the base via `printed_of_face`);
-        // running here — before layer 6 — lets a later `LoseAllAbilities`
-        // still strip the non-`Innate` grants ([CR#113.12]).
+        // derived list — the SINGLE source of type/subtype conferral (the base
+        // carries no confer of its own); running here — before layer 6 — lets a
+        // later `LoseAllAbilities` still strip the non-`Innate` grants
+        // ([CR#113.12]).
         if layer == Layer::L4 {
             fold_conferred_abilities(&mut working);
         }
@@ -1740,19 +1740,19 @@ fn run_layer_pass(
     working
 }
 
-/// [CR#305.6,611.3]: fold every object's resolved type/subtype `Ability`-flavored
+/// [CR#305.6,611.3]: the SINGLE source of type/subtype conferral. Folds every
+/// object's CURRENT (post-layer-4) `card_types`/`subtypes` `Ability`-flavored
 /// `confers` into its derived ability list, through the ONE emission path
-/// ([`Property::conferred_ability`] → [`Ability::Innate`]) that
-/// `derive::printed_of_face` already uses for the PRINTED types and subtypes. A
-/// type or subtype ADDED at layer 4 (an animate effect's `Creature` type, a
-/// tribal `Subtypes(Add)`) thus contributes its conferred abilities, not just
-/// its name.
+/// ([`Property::conferred_ability`] → [`Ability::Innate`]) — PRINTED and
+/// layer-4-ADDED types/subtypes alike, uniformly (an animate effect's
+/// `Creature` type, a tribal `Subtypes(Add)`, contribute their conferred
+/// abilities exactly like a printed type/subtype does).
 ///
-/// Dedup against the printed base ([CR#613.1]): the printed types'/subtypes'
-/// conferred abilities are ALREADY in `c.abilities` (folded once by
-/// `printed_of_face`). A conferred ability is pushed only if it is not already
-/// present, so a printed creature's `May(Attack)` is not duplicated — conferred
-/// abilities are `Ability::Innate(..)` and compare equal for the same confer.
+/// No dedup: `printed_of_face` (the base) carries NO type/subtype confer, so
+/// there is nothing here for a conferred ability to collide with — each is
+/// pushed unconditionally, exactly once per pass. Removal falls out for free:
+/// a type/subtype stripped at layer 4 is no longer in `card_types`/`subtypes`,
+/// so its confers are simply not folded.
 fn fold_conferred_abilities(working: &mut BTreeMap<ObjectId, DerivedObject>) {
     for d in working.values_mut() {
         let c = &mut d.characteristics;
@@ -1769,11 +1769,7 @@ fn fold_conferred_abilities(working: &mut BTreeMap<ObjectId, DerivedObject>) {
             continue;
         }
         let abilities = Arc::make_mut(&mut c.abilities);
-        for a in conferred {
-            if !abilities.contains(&a) {
-                abilities.push(a);
-            }
-        }
+        abilities.extend(conferred);
     }
 }
 

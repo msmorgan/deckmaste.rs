@@ -1,7 +1,8 @@
 //! Minimal characteristics derivation: what abilities an object has. The
-//! seed of the stage-4 layer system — in the skeleton, a flat concatenation
-//! of printed face abilities and subtype-conferred abilities ([CR#305.6] falls
-//! out of the data; the engine never special-cases land subtypes).
+//! seed of the stage-4 layer system — in the skeleton, the face's intrinsic
+//! printed abilities only; type/subtype-conferred abilities ([CR#305.6] falls
+//! out of the data; the engine never special-cases land subtypes) are folded
+//! in later, per pass, by `layer::fold_conferred_abilities`.
 
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
@@ -13,7 +14,6 @@ use deckmaste_core::Count;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
-use deckmaste_core::Property;
 use deckmaste_core::Uint;
 
 use crate::object::ObjectId;
@@ -28,31 +28,21 @@ pub fn face(card: &Card) -> &CardFace {
     }
 }
 
-/// A face's PRINTED abilities: printed plus subtype-conferred (the
-/// `Property::Ability` arm; other flavors execute elsewhere), in that
-/// order. Registry conferrals emit through the ONE emission path,
-/// [`Property::conferred_ability`], so a conferred ability arrives wrapped
-/// in `Ability::Innate` — a rule of the object ([CR#305.6,113.12]): a basic
-/// land that loses all abilities still taps for its color, and card-facing
-/// ability queries don't see the conferral. `Action::ActivateAbility`
-/// indexes the [`usable_abilities`] view of this list. Computed once per
-/// card at setup (`Cards::push`) and cached on the `CardInstance`.
+/// A face's INTRINSIC printed abilities only (`face.abilities`) — NOT
+/// type/subtype conferrals. Type/subtype conferral is re-derived from the
+/// object's CURRENT characteristics each layer pass by
+/// `layer::fold_conferred_abilities`, not cached here — which is what makes
+/// conferral track layer-4 type/subtype changes, both ADDs and REMOVALS.
+/// (Conferred abilities still arrive wrapped in `Ability::Innate` via the
+/// ONE emission path, [`Property::conferred_ability`] — a rule of the object
+/// ([CR#305.6,113.12]): a basic land that loses all abilities still taps for
+/// its color, and card-facing ability queries don't see the conferral — that
+/// now happens in the fold, not here.) `Action::ActivateAbility` indexes the
+/// [`usable_abilities`] view of this list. Computed once per card at setup
+/// (`Cards::push`) and cached on the `CardInstance`.
 #[must_use]
 pub(crate) fn printed_of_face(face: &CardFace) -> Vec<Ability> {
-    face.abilities
-        .iter()
-        .cloned()
-        .chain(
-            face.subtypes
-                .iter()
-                .flat_map(|s| s.confers.iter().filter_map(Property::conferred_ability)),
-        )
-        .chain(
-            face.types
-                .iter()
-                .flat_map(|t| t.confers.iter().filter_map(Property::conferred_ability)),
-        )
-        .collect()
+    face.abilities.clone()
 }
 
 /// The object's PRINTED abilities, from the per-card cache.
@@ -127,9 +117,10 @@ pub fn usable_abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<A
 }
 
 /// The object's CARD-FACING derived abilities after layer 6
-/// ([CR#305.6,613.1f]): base = printed + subtype-conferred; layer 6 applies
-/// on top. `Innate` abilities are filtered OUT ([CR#113.12]): they are rules
-/// of the object, not abilities other cards can see or count — an object
+/// ([CR#305.6,613.1f]): base = intrinsic printed abilities; type/subtype
+/// conferrals are folded in at layer 4 (`fold_conferred_abilities`); layer 6
+/// applies on top. `Innate` abilities are filtered OUT ([CR#113.12]): they are
+/// rules of the object, not abilities other cards can see or count — an object
 /// whose only abilities are `Innate` reads here as having none.
 ///
 /// Builds a full `LayeredView` per call — fine for a one-shot read (e.g. at

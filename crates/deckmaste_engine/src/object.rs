@@ -55,9 +55,10 @@ pub struct CardInstance {
     /// `Predicate::Kind(Card)` excludes them) and the ceases-to-exist SBA
     /// ([CR#704.5d]) keys on it.
     pub is_token: bool,
-    /// The face's printed + subtype-conferred abilities, precomputed at setup
-    /// so the layer pipeline's base values are an `Arc` bump per rebuild
-    /// instead of a deep clone per object.
+    /// The face's INTRINSIC printed abilities (not type/subtype conferrals,
+    /// which the layer-4 fold re-derives per pass), precomputed at setup so the
+    /// layer pipeline's base values are an `Arc` bump per rebuild instead of a
+    /// deep clone per object.
     pub(crate) printed: Arc<Vec<Ability>>,
     /// The face's subtypes, shared for the same reason (`Subtype` carries its
     /// `confers` payload, so cloning it per rebuild is as heavy as abilities).

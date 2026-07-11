@@ -485,10 +485,10 @@ fn keyword_counter_confers_its_keyword() {
 /// [CR#305.6,611.3]: a subtype ADDED by a layer-4 effect brings its
 /// registry-conferred abilities along — the derived ability list gains the
 /// keyword the added subtype confers, not just the printed subtypes' confers.
-/// The dual of `printed_of_face` folding printed-subtype confers into the base,
-/// now for a subtype granted at layer 4. Uses a mock registry subtype
-/// conferring Trample so it stands alone from any card's printed text (and from
-/// the T4 Creature-type combat capability).
+/// The dual of the fold handling the PRINTED subtypes' confers, now for a
+/// subtype granted at layer 4. Uses a mock registry subtype conferring Trample
+/// so it stands alone from any card's printed text (and from the T4
+/// Creature-type combat capability).
 #[test]
 fn layer_added_subtype_confers_its_keyword() {
     use deckmaste_core::Ability;
@@ -571,12 +571,96 @@ fn animated_enchantment_can_attack() {
     );
 }
 
-/// [CR#305.6]: guards the `fold_conferred_abilities` dedup ([CR#611.3]) — a
-/// PRINTED creature's `Creature`-type-conferred `May(Attack)` grant is already
-/// folded into the base by `printed_of_face`, so the layer-4 fold (which
-/// re-derives the same confer from the settled `card_types`) must NOT push a
-/// second copy. Pins the `!abilities.contains(&a)` guard directly: if it were
-/// ever dropped, this count would go 1 → 2.
+/// [CR#305.6,611.3]: a permanent that LOSES its `Creature` type via a layer-4
+/// effect is NOT a combatant — the mirror image of
+/// `animated_enchantment_can_attack`. Because conferral is now recomputed from
+/// the object's CURRENT `card_types` every pass (not cached once at push and
+/// frozen), the `Creature` type's `May(Attack)` grant disappears the moment
+/// the type does: a permanent turned into a non-creature stops reading as a
+/// combatant.
+#[test]
+fn losing_creature_type_removes_the_attack_grant() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::CollectionOp;
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Duration;
+    use deckmaste_core::Modification;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Reference;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Type;
+    use deckmaste_engine::ContinuousEffect;
+    use deckmaste_engine::ScopeResolved;
+    use deckmaste_engine::Timestamp;
+
+    let mut state = two_player_with("Grizzly Bears", 1, 10);
+    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+
+    let may_attack = Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+        Deontic::May(DeonticAction::Attack {
+            by: Predicate::Ref(Reference::This),
+            on: Predicate::Any,
+        }),
+    ))));
+
+    // Sanity: before the effect, the bear is a creature and a legal attacker.
+    assert!(
+        state.layers().get(bear).has_type(Type::Creature),
+        "sanity: a plain Grizzly Bears is a creature"
+    );
+    assert!(
+        legal_attackers(&state, PlayerId(0)).contains(&bear),
+        "sanity: a plain Grizzly Bears can attack"
+    );
+
+    // Strip the Creature type via a layer-4 `CardTypes(Set(..))` effect. We
+    // don't need the type registry populated: we assert the ABSENCE of the
+    // old confer, and the new "Enchantment" type's own confers (if any) are
+    // irrelevant here.
+    state.continuous.push(ContinuousEffect {
+        timestamp: Timestamp(1_000),
+        controller: PlayerId(0),
+        scope: ScopeResolved::Locked(vec![bear]),
+        changes: vec![Modification::CardTypes(CollectionOp::Set(vec![
+            "Enchantment".into(),
+        ]))],
+        duration: Duration::EndOfGame,
+        is_cda: false,
+    });
+
+    let view = state.layers();
+    assert!(
+        !view.get(bear).has_type(Type::Creature),
+        "the bear is no longer a creature once its type is overwritten"
+    );
+    assert!(
+        !legal_attackers(&state, PlayerId(0)).contains(&bear),
+        "a permanent turned into a non-creature is not a legal attacker \
+         ([CR#508.1a])"
+    );
+    let instances = view
+        .get(bear)
+        .abilities
+        .iter()
+        .filter(|a| **a == may_attack)
+        .count();
+    assert_eq!(
+        instances, 0,
+        "the Creature type's May(Attack) grant is gone, not stuck from a \
+         frozen cache — conferral is recomputed from CURRENT card_types every \
+         pass, not cached once at push ([CR#305.6,611.3])"
+    );
+}
+
+/// [CR#305.6,611.3]: guards against doubling — a PRINTED creature's
+/// `Creature`-type-conferred `May(Attack)` grant appears exactly once, not
+/// twice. The base (`printed_of_face`) carries NO type/subtype confer, so the
+/// layer-4 fold (`fold_conferred_abilities`) is the ONLY path that pushes it,
+/// and it pushes exactly once per pass (the fixpoint reseeds base fresh each
+/// pass rather than accumulating onto a prior pass's result). If the fold ever
+/// ran twice per pass, or the base regained a cached copy, this count would go
+/// 1 → 2.
 #[test]
 fn printed_creature_grant_is_not_doubled_by_the_fold() {
     use deckmaste_core::Ability;
@@ -605,9 +689,9 @@ fn printed_creature_grant_is_not_doubled_by_the_fold() {
         .count();
     assert_eq!(
         instances, 1,
-        "the Creature type's May(Attack) grant appears exactly once: folded \
-         into the base by `printed_of_face`, and NOT re-pushed by the layer-4 \
-         fold's dedup guard ([CR#305.6])"
+        "the Creature type's May(Attack) grant appears exactly once: pushed \
+         only by the layer-4 fold (the base carries no confer of its own), \
+         exactly once per fixpoint pass ([CR#305.6,611.3])"
     );
 }
 

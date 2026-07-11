@@ -1071,7 +1071,8 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
 
 /// Whether `object`'s derived view confers `May(Play(what: <self>))` — the
 /// default-deny land-play marker ([CR#305.9,116.2a,701.18]). A card's Land type
-/// CONFERS this row (folded into the derived abilities by `printed_of_face`),
+/// CONFERS this row (folded into the derived abilities by the layer-4
+/// `fold_conferred_abilities`, from the object's current `card_types`),
 /// so land-play legality (`legal_actions`) AND spell-non-castability
 /// (`castable_cost_ignoring_mana`) are both keyed on the capability rather than
 /// a `Type::Land` literal — per-face correct for an MDFC land//spell. Mirrors
@@ -1718,8 +1719,8 @@ mod tests {
 
     /// Mint a battlefield land whose Land type CONFERS `May(Play)` — the
     /// production shape (the confer rides `face.types`, folded into the derived
-    /// abilities by `printed_of_face`), unlike `obj_on_field` which uses the
-    /// empty-confer `Type::def`.
+    /// abilities by the layer-4 `fold_conferred_abilities`), unlike
+    /// `obj_on_field` which uses the empty-confer `Type::def`.
     fn conferred_land_on_field(state: &mut GameState, name: &str) -> ObjectId {
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
@@ -1899,8 +1900,9 @@ mod tests {
 
     /// Mint a battlefield creature (player 0) whose `Creature` type CONFERS the
     /// four combat statics — the production shape (the confer rides
-    /// `face.types`, folded into the derived abilities by `printed_of_face`),
-    /// unlike `obj_on_field`'s empty-confer `Type::def`. `sick` seeds the
+    /// `face.types`, folded into the derived abilities by the layer-4
+    /// `fold_conferred_abilities`), unlike `obj_on_field`'s empty-confer
+    /// `Type::def`. `sick` seeds the
     /// summoning-sickness flag; `extra` are printed abilities carried IN
     /// ADDITION to the type confers (a `Haste` keyword, an extra plain
     /// `Cant(Attack)`, …).

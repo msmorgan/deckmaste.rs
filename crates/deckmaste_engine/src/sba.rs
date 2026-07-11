@@ -491,7 +491,8 @@ mod tests {
     fn wizards_aura_carries_innate_graveyard_sba() {
         let gift = Arc::new(wizards().card("Angelic Gift").unwrap());
         // Sanity: the loaded card actually carries the Aura subtype's confer.
-        // (`derive::printed_of_face` is what flattens it onto the object.)
+        // (the layer-4 `fold_conferred_abilities` is what flattens it onto the
+        // derived object.)
         let face = crate::derive::face(&gift);
         assert!(
             face.subtypes
