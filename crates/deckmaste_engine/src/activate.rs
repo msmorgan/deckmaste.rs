@@ -15,7 +15,6 @@ use deckmaste_core::PlayerAction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Stat;
-use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
@@ -307,12 +306,11 @@ impl GameState {
             return false;
         }
 
-        // [CR#602.5a]: summoning sickness prevents {T}/{Q} costs on creatures.
-        // Haste exemption is the `kw-haste` seam.
-        if (summary.tap || summary.untap)
-            && obj.summoning_sick
-            && view.get(object).has_type(Type::Creature)
-        {
+        // [CR#602.5a]: a conferred `Cant(Activate(cost: IncludesTapSymbol))`
+        // forbids paying a {T}/{Q} cost — the summoning-sickness tap gate a
+        // `Creature` type confers (haste-exempt). Keyed on the capability, not a
+        // `Type::Creature` literal; a non-tap cost is never gated here.
+        if crate::legal::cant_activate(self, view, object, player, summary.tap || summary.untap) {
             return false;
         }
 
@@ -1104,11 +1102,22 @@ mod tests {
     // -- can_activate gate --
 
     fn make_object_on_battlefield(state: &mut GameState, player: PlayerId) -> ObjectId {
-        let id = state.objects.mint(
-            ObjectSource::Player(player),
-            player,
-            Some(Zone::Battlefield),
-        );
+        // A minimal Card-backed permanent (empty types ⇒ no confers, so this
+        // stays a neutral fixture for the activation gate). Being Card-backed is
+        // what a real battlefield object always is: `base_map` builds a
+        // `LayeredView` entry only for objects with a `card_id`, skipping
+        // card-less player proxies — which never sit on the battlefield in real
+        // play. A prior `ObjectSource::Player` synthetic was absent from the
+        // view, so the battlefield-wide `Cant(Activate)` collector's `view.get`
+        // could not resolve it.
+        let card = std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+            name: "Gate Fixture".into(),
+            ..deckmaste_core::CardFace::default()
+        }));
+        let card_id = state.cards.push(card, player);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
         state.zones.battlefield.push(id);
         id
     }

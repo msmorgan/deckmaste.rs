@@ -17,7 +17,6 @@ use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Timing;
-use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -841,9 +840,11 @@ impl GameState {
             if view.controller(land) != player || obj.tapped {
                 continue;
             }
-            // Mirror the legal_actions guard: a summoning-sick creature's mana
-            // ability is illegal (lands aren't creatures, so this rarely bites).
-            if obj.summoning_sick && view.get(land).has_type(Type::Creature) {
+            // Mirror the legal_actions guard: a conferred
+            // `Cant(Activate(cost: IncludesTapSymbol))` forbids the {T} mana
+            // ability — the summoning-sickness tap gate a `Creature` type
+            // confers (lands aren't creatures, so this rarely bites).
+            if crate::legal::cant_activate(self, &view, land, player, true) {
                 continue;
             }
             for (ability, a) in crate::derive::usable_abilities(self, land)

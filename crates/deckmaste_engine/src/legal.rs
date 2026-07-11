@@ -183,7 +183,11 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         if view.controller(object) != player {
             continue;
         }
-        let sick_creature = obj.summoning_sick && view.get(object).has_type(Type::Creature);
+        // [CR#602.5a]: a `{T}` mana ability is offered only when the object's
+        // conferred `Cant(Activate(cost: IncludesTapSymbol))` rows permit it —
+        // the summoning-sickness tap gate a `Creature` type confers (haste-
+        // exempt). Keyed on the capability, not a `Type::Creature` literal.
+        let tap_forbidden = cant_activate(state, &view, object, player, true);
         // Index the SAME Innate-PEELED list resolution reads ([CR#113.12]):
         // `begin_activate`, `decide`'s `ActivateAbility` arm, and `render`'s
         // `activated_ability`/`mana_ability` all index
@@ -198,7 +202,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
             // which abilities take the stackless path ([CR#605.3b]); widen it
             // and this routing together.
             if derive::tap_mana_ability(a).is_some() {
-                if !obj.tapped && !sick_creature {
+                if !obj.tapped && !tap_forbidden {
                     legal.push(Action::ActivateAbility { object, ability });
                 }
             } else if let Some(act) = crate::activate::as_activated(a)
@@ -576,6 +580,76 @@ pub(crate) fn untap_forbidden_by(
 ) -> bool {
     rows.iter()
         .any(|(carrier, what)| state.filter_matches_live(what, id, *carrier))
+}
+
+/// Every `Cant(Activate)` row in the derived view ([CR#602.5a]: the
+/// summoning-sickness tap gate a card's `Creature` type confers, and any other
+/// "can't activate" effect). Each row is its carrier plus the ability's patient
+/// filter `what`, the agent filter `by`, and the optional `cost` predicate that
+/// scopes the row to a subset of activations (a `{T}`/`{Q}` cost). Mirrors
+/// [`cant_untap_rows`] on the `Activate` action.
+#[must_use]
+fn cant_activate_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(
+    crate::object::ObjectSource,
+    Predicate,
+    Predicate,
+    Option<deckmaste_core::CostPredicate>,
+)> {
+    let mut rows = Vec::new();
+    for &id in &state.zones.battlefield {
+        let source = state.objects.obj(id).source;
+        for_each_static(state, view, id, |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Activate { what, by, cost }) = cant_action(d)
+            {
+                rows.push((source, what.clone(), by.clone(), cost.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// Whether a `Cant(Activate)` row's `cost` predicate matches an activation
+/// whose cost `includes_tap_symbol`. `None` = the row scopes to ANY activation;
+/// `IncludesTapSymbol` matches only a `{T}`/`{Q}` cost ([CR#602.5a]).
+fn cost_predicate_holds(
+    cost: Option<&deckmaste_core::CostPredicate>,
+    includes_tap_symbol: bool,
+) -> bool {
+    match cost {
+        None => true,
+        Some(deckmaste_core::CostPredicate::IncludesTapSymbol) => includes_tap_symbol,
+    }
+}
+
+/// [CR#602.5a,602.1]: whether some conferred `Cant(Activate)` row forbids
+/// `activator` activating an ability of `object` whose cost matches
+/// `includes_tap_symbol`. A row applies when `object` matches its `what`, the
+/// `activator`'s player proxy matches its `by`, AND its `cost` predicate holds
+/// for the activation (`IncludesTapSymbol` only when `includes_tap_symbol`).
+/// The summoning-sickness tap gate rides this: a card's `Creature` type confers
+/// `Conditionally(SummoningSick & !Haste, Cant(Activate(cost:
+/// IncludesTapSymbol)))`, so a sick creature can't pay a `{T}`/`{Q}` cost but
+/// can pay a non-tap one.
+#[must_use]
+pub(crate) fn cant_activate(
+    state: &GameState,
+    view: &LayeredView,
+    object: ObjectId,
+    activator: PlayerId,
+    includes_tap_symbol: bool,
+) -> bool {
+    let proxy = state.player(activator).object;
+    cant_activate_rows(state, view)
+        .iter()
+        .any(|(carrier, what, by, cost)| {
+            cost_predicate_holds(cost.as_ref(), includes_tap_symbol)
+                && state.filter_matches_live(what, object, *carrier)
+                && state.filter_matches_live(by, proxy, *carrier)
+        })
 }
 
 /// The single ability-tree walker. Descends an ability list with the
@@ -1952,6 +2026,55 @@ mod tests {
         assert!(
             !super::legal_attackers(&state, PlayerId(0)).contains(&bear),
             "the extra plain Cant(Attack) removes it from legal attackers"
+        );
+    }
+
+    /// [CR#602.5a,602.1]: a summoning-sick conferred creature can't activate a
+    /// tap ability — its type's `Conditionally(SummoningSick & !Haste,
+    /// Cant(Activate(cost: IncludesTapSymbol)))` confer forbids it — but a
+    /// NON-tap ability is free (the `cost` predicate doesn't match). Granting
+    /// the same creature `Haste` lifts the `Cant` (the `Not(Has(Haste))`
+    /// fails).
+    #[test]
+    fn sick_creature_tap_gate_but_free_non_tap() {
+        let mut state = game();
+        let sick = conferred_creature_on_field(&mut state, "Sick Bear", true);
+        let view = state.layers();
+        assert!(
+            super::cant_activate(&state, &view, sick, PlayerId(0), true),
+            "a summoning-sick creature can't pay a {{T}} cost ([CR#602.5a])"
+        );
+        assert!(
+            !super::cant_activate(&state, &view, sick, PlayerId(0), false),
+            "a non-tap ability is not gated by summoning sickness ([CR#602.5a])"
+        );
+
+        // A non-sick conferred creature: the sickness condition fails, so no
+        // Cant(Activate) is contributed — even a {T} cost is free.
+        let mut ready_state = game();
+        let ready = conferred_creature_on_field(&mut ready_state, "Ready Bear", false);
+        let ready_view = ready_state.layers();
+        assert!(
+            !super::cant_activate(&ready_state, &ready_view, ready, PlayerId(0), true),
+            "a non-sick creature freely taps ([CR#602.5a])"
+        );
+
+        // The SAME sick creature WITH Haste: `Not(Has(Haste))` fails, so the
+        // Cant(Activate) is not contributed — the {T} cost is free.
+        let mut hasty_state = game();
+        let hasty = conferred_creature_full(
+            &mut hasty_state,
+            "Hasty Bear",
+            true,
+            vec![Ability::Keyword(KeywordAbility::Composite {
+                name: "Haste".into(),
+                abilities: vec![],
+            })],
+        );
+        let hasty_view = hasty_state.layers();
+        assert!(
+            !super::cant_activate(&hasty_state, &hasty_view, hasty, PlayerId(0), true),
+            "Haste lifts summoning sickness — a hasty sick creature taps ([CR#702.10c])"
         );
     }
 }
