@@ -232,4 +232,20 @@ mod tests {
             },
         );
     }
+
+    /// The grant's sickness condition spells its subject BARE (`This`), not
+    /// `Ref(This)`: `Matches`'s first slot is a `Reference` ([CR#302.6]).
+    #[test]
+    fn matches_summoning_sick_reads_with_bare_this() {
+        let v = read("Matches(This, SummoningSick)");
+        assert_eq!(
+            v,
+            Condition::Matches(
+                Reference::This,
+                Predicate::State(crate::StatePredicate::SummoningSick),
+            ),
+        );
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&written), v);
+    }
 }

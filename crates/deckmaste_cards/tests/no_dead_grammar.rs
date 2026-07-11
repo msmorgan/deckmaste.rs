@@ -985,6 +985,13 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             site from the source's supertypes, so it only appears via a snow permanent — none in \
             this batch (see ManaSymbol::Snow); buildable once a snow source lands.",
         ),
+        (
+            n("StatePredicate", "SummoningSick"),
+            "DEFERRED: engine-combatant-capability T1 lands the atom and its \
+            evaluator ([CR#302.6]) with no card fixture yet — the combatant grant that spells \
+            `Matches(This, SummoningSick)` on `Creature.ron` (turning it into a real accept \
+            fixture) is a later task in the same feature, not built in this commit.",
+        ),
     ]
 }
 

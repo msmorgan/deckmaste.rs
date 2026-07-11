@@ -773,6 +773,13 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
         // The move-provenance twin of `WasCastFrom` ([CR#701.17a,701.9a] —
         // "milled"/"discarded" decompose over this).
         StatePredicate::WasPutFrom(z) => app("WasPutFrom", vec![emit_zone(*z)]),
+        // `SummoningSick` has no Idris counterpart; it appears only in the
+        // (Idris-invisible) combatant type-confer, never in emitted card text.
+        StatePredicate::SummoningSick => {
+            return Err(gap(
+                "StatePredicate::SummoningSick has no Idris Predicate counterpart",
+            ));
+        }
     })
 }
 

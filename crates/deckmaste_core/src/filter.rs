@@ -78,6 +78,11 @@ pub enum StatePredicate {
     InZone(Zone),
     /// The object's status ([CR#110.5]).
     Status(Status),
+    /// [CR#302.6]: the object is summoning-sick — it (or its controller) has not
+    /// controlled it continuously since their most recent turn began. The
+    /// engine reads `GameObject.summoning_sick`; the combatant grant
+    /// references it via `Matches(This, SummoningSick)`.
+    SummoningSick,
     /// The object has at least one counter of the named kind ([CR#122.1]).
     /// The kind is a bare `CounterRef` (`HasCounter(P1P1Counter)`), not a
     /// string.
@@ -661,5 +666,15 @@ mod tests {
             let written = crate::ron::options().to_string(&parsed).unwrap();
             assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
         }
+    }
+
+    /// [CR#302.6]: the summoning-sickness state atom reads bare and round-trips.
+    #[test]
+    fn summoning_sick_reads_flat_and_round_trips() {
+        let v = read("SummoningSick");
+        assert_eq!(v, Predicate::State(StatePredicate::SummoningSick));
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(written, "SummoningSick");
+        assert_eq!(read(&written), v);
     }
 }

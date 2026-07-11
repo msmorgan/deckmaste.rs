@@ -374,6 +374,9 @@ pub fn matches_with(
                 ),
             }
         }
+        // [CR#302.6]: summoning sickness — read the tracked `summoning_sick` bool
+        // off the live object. A player proxy is never sick (field defaults false).
+        Predicate::State(StatePredicate::SummoningSick) => state.objects.obj(id).summoning_sick,
         // [CR#508.1a]: declared as an attacker, still in combat.
         Predicate::State(StatePredicate::Attacking) => state.combat.is_attacking(id),
         // [CR#509.1a]: declared as a blocker (blocking some attacker).
@@ -1033,6 +1036,24 @@ mod tests {
             &state,
             bear,
             &Predicate::State(StatePredicate::Status(Status::Untapped))
+        ));
+    }
+
+    /// [CR#302.6]: `SummoningSick` reads the live `summoning_sick` bool.
+    #[test]
+    fn summoning_sick_reads_the_live_flag() {
+        let (mut state, bear) = game_with_a_bear_on_the_field();
+        state.objects.obj_mut(bear).summoning_sick = true;
+        assert!(matches(
+            &state,
+            bear,
+            &Predicate::State(StatePredicate::SummoningSick)
+        ));
+        state.objects.obj_mut(bear).summoning_sick = false;
+        assert!(!matches(
+            &state,
+            bear,
+            &Predicate::State(StatePredicate::SummoningSick)
         ));
     }
 

@@ -368,6 +368,9 @@ impl GameState {
             // link back to a live object — genuinely unbuilt, not a
             // convenient-wrong default.
             Predicate::State(StatePredicate::WasPutFrom(_)) => false,
+            // [CR#302.6]: a gone/moved object has no summoning-sickness state
+            // (snapshot doesn't capture it) — sound never-crash default.
+            Predicate::State(StatePredicate::SummoningSick) => false,
 
             // [CR#603.10a]: the candidate-relative condition bridge — the
             // GONE candidate binds as `It` (its snapshot), `This`/`You`
