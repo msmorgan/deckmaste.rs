@@ -1682,6 +1682,21 @@ impl GameState {
                 }
             });
         }
+        // Rows granted by resolved one-shots ([CR#611.2c] instance rows). Each
+        // is self-filtered (`of` is a spell predicate); anchor `Ref(This)`/`You`
+        // /`Scaled` on the instance controller's player proxy — the row has no
+        // battlefield carrier of its own.
+        for ce in &self.continuous {
+            let carrier = self.player(ce.controller).object;
+            let source = self.objects.obj(carrier).source;
+            for row in &ce.rows {
+                if let deckmaste_core::StaticEffect::CostModifier { of, change } = row
+                    && self.filter_matches_live(of, object, source)
+                {
+                    rows.push((Frame::bare(carrier, ce.controller), change.clone()));
+                }
+            }
+        }
         rows
     }
 

@@ -127,10 +127,25 @@ pub(crate) fn cant_event(state: &GameState, e: &GameEvent) -> bool {
         return false;
     }
     let view = state.layers();
-    state.zones.battlefield.iter().any(|&obj| {
+    let battlefield_cant = state.zones.battlefield.iter().any(|&obj| {
         crate::legal::object_has_static(&view, obj, &|s| {
             matches!(s, StaticEffect::CantHappen(would)
                 if replacement_watches(state, look_through_event(would), obj, e))
+        })
+    });
+    if battlefield_cant {
+        return true;
+    }
+    // [CR#614.17]: a resolved one-shot may ALSO grant a `CantHappen` ROW (a
+    // self-filtered instance row — its filter carries its own subject). Anchor
+    // `Ref(This)` on the instance controller's stable player proxy (mirrors
+    // `gather`'s floating-effect watcher choice); a self-filtered row does not
+    // depend on a live source object.
+    state.continuous.iter().any(|ce| {
+        let anchor = state.player(ce.controller).object;
+        ce.rows.iter().any(|s| {
+            matches!(s, StaticEffect::CantHappen(would)
+                if replacement_watches(state, look_through_event(would), anchor, e))
         })
     })
 }
@@ -243,6 +258,15 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     // the source ability refers to it — which is why "regenerate target
     // creature" (source ≠ subject) works, not just "regenerate this creature".
     for inst in &state.shields {
+        // [CR#701.19c]: an instruction-scoped "can't be regenerated" rider on
+        // this destruction skips the subject's regeneration shields entirely —
+        // they are NOT applied (and, being unapplied, NOT consumed). Scoped to
+        // the destroy intent (the only event regeneration replaces).
+        if matches!(e, GameEvent::WillDestroy { .. })
+            && state.no_regen_subjects.contains(&inst.subject)
+        {
+            continue;
+        }
         if floating_watches(state, &inst.replacement, inst.subject, e) {
             out.push(Applicable {
                 key: ReplacementKey::Floating(inst.id),
@@ -1072,6 +1096,43 @@ mod tests {
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 2);
+    }
+
+    /// [CR#701.19c]: an instruction-scoped "can't be regenerated" rider makes
+    /// `gather_applicable` SKIP the subject's regeneration shield for its
+    /// destroy — and, because the shield is not applied, it is not consumed.
+    #[test]
+    fn no_regen_rider_skips_regeneration_shield_and_leaves_it_unconsumed() {
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::TurnMarker;
+
+        let instead = deckmaste_core::Replacement::Instead {
+            would: destroyed_self(),
+            instead: OneShotEffect::Sequentially(vec![]),
+        };
+        let (mut state, _view, id) = tests_support::lone_creature();
+        state.shields.push(ReplacementInstance {
+            id: InstanceId(0),
+            replacement: instead,
+            subject: id,
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            one_shot: true,
+            source: id,
+        });
+        let e = GameEvent::WillDestroy {
+            object: id,
+            cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
+        };
+        // Without the rider: the shield is gathered.
+        assert_eq!(gather_applicable(&state, &e).len(), 1);
+        // With the subject in the no-regen set: skipped, and still present.
+        state.no_regen_subjects.push(id);
+        assert!(
+            gather_applicable(&state, &e).is_empty(),
+            "the regeneration shield is not applied"
+        );
+        assert_eq!(state.shields.len(), 1, "and is not consumed");
     }
 
     /// The `by`-matcher ([CR#120.3], "damage dealt BY a source"): a `would`

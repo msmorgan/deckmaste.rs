@@ -10,12 +10,15 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Count;
 use deckmaste_core::Countable;
+use deckmaste_core::Deontic;
+use deckmaste_core::DeonticAction;
 use deckmaste_core::Destination;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
@@ -322,6 +325,15 @@ impl GameState {
         one_shot: bool,
         frame: &Frame,
     ) {
+        // Same canonical guard the continuous-effect mint uses ([CR#611.2,614.3]):
+        // a shield may carry only a SWEEPABLE duration. `ForThisEvent` is the
+        // one exception — an instruction-scoped rider, never a stored shield;
+        // stay LOUD rather than register a silently-forever shield.
+        assert!(
+            crate::state::duration_sweepable(&duration),
+            "create_shield: non-sweepable duration {duration:?} — a ForThisEvent \
+             shield would last forever (rider durations never mint instances)"
+        );
         let id = self.eval_reference(subject, frame);
         let iid = crate::replace_registry::InstanceId(self.next_shield_id);
         self.next_shield_id += 1;
@@ -334,6 +346,58 @@ impl GameState {
                 one_shot,
                 source: frame.source,
             });
+    }
+
+    /// Resolve a granted `Deontic`'s SUBJECT `Reference`s at mint ([CR#611.2c]
+    /// object lock) — the object set a resolved one-shot restriction affects is
+    /// fixed at creation. Returns the resolved ids (for
+    /// `ScopeResolved::Locked`) and a rewritten `Deontic` whose subject
+    /// slot(s) now read `Ref(It)`, so a consumer interprets `It` as the
+    /// locked scope members. A subject that is not a bare object reference
+    /// (a static filter like "creatures you control") locks nothing and is
+    /// left as authored — the row still exists, evaluated against live
+    /// objects by its (still-LOUD) reader.
+    fn lock_deontic_subject(&self, deontic: &Deontic, frame: &Frame) -> (Vec<ObjectId>, Deontic) {
+        let mut locked = deontic.clone();
+        let mut ids = Vec::new();
+        if let Some(action) = deontic_action_mut(&mut locked) {
+            for slot in deontic_subject_slots(action) {
+                if let Predicate::Ref(r) = slot {
+                    ids.push(self.eval_reference(r, frame));
+                    *slot = Predicate::Ref(Reference::It);
+                }
+            }
+        }
+        (ids, locked)
+    }
+
+    /// Resolve a `ForThisEvent` rider clause's parts to the "can't be
+    /// regenerated" subject ids for `WorkItem::InstallRiders`. Only
+    /// `Cant(Regenerate(on))` is wired ([CR#701.19c] — a regeneration shield is
+    /// not APPLIED to the destruction, and stays unconsumed); every OTHER rider
+    /// kind is LOUD (its enforcement belongs to a future ticket), as is a
+    /// `Regenerate` whose `on` is not a bare object reference.
+    fn resolve_no_regen_riders(&self, parts: &[StaticEffect], frame: &Frame) -> Vec<ObjectId> {
+        let mut ids = Vec::new();
+        for part in parts {
+            let StaticEffect::Deontic(Deontic::Cant(action)) = part else {
+                todo!(
+                    "P0.W1: ForThisEvent rider {part:?} — only Cant(Regenerate) is wired [CR#701.19c]"
+                );
+            };
+            let DeonticAction::Regenerate { on, .. } = action else {
+                todo!(
+                    "P0.W1: ForThisEvent Cant rider {action:?} — only Regenerate is wired [CR#701.19c]"
+                );
+            };
+            match on {
+                Predicate::Ref(r) => ids.push(self.eval_reference(r, frame)),
+                other => todo!(
+                    "P0.W1: Cant(Regenerate(on: {other:?})) — only a bare object Ref is wired"
+                ),
+            }
+        }
+        ids
     }
 
     /// The [`ItBinding`] for one element — the iteration/projection anaphor
@@ -522,13 +586,35 @@ impl GameState {
                 }
             }
             OneShotEffect::Sequentially(children) => {
-                let items: Vec<WorkItem> = children
-                    .into_iter()
-                    .map(|e| WorkItem::RunEffect {
-                        effect: Box::new(e),
+                // Pre-scan for `ForThisEvent` riders ([CR#611.2a], [CR#701.19c]):
+                // an `Until(ForThisEvent, parts)` child NEVER mints its own
+                // instance — its parts fold as instruction-scoped RIDERS onto
+                // the immediately-preceding sibling's work. This shape is forced
+                // by scheduling: a `Destroy` front-schedules its `Emit`, which is
+                // APPLIED before the next `RunEffect` child could run, so a
+                // sibling-minted instance would arrive too late ([CR#611.2c]);
+                // the rider must be armed BEFORE the destroy runs. We install it
+                // just before that preceding sibling's `RunEffect`.
+                let mut items: Vec<WorkItem> = Vec::new();
+                for child in children {
+                    if let Some(parts) = for_this_event_rider(&child) {
+                        let no_regen = self.resolve_no_regen_riders(parts, frame);
+                        // A rider with no preceding sibling is an authoring
+                        // mistake ([CR#611.2a] scopes it to a host event that
+                        // isn't there): FIZZLE — drop it, never mint or panic.
+                        if let Some(pos) = items
+                            .iter()
+                            .rposition(|w| matches!(w, WorkItem::RunEffect { .. }))
+                        {
+                            items.insert(pos, WorkItem::InstallRiders { no_regen });
+                        }
+                        continue;
+                    }
+                    items.push(WorkItem::RunEffect {
+                        effect: Box::new(child),
                         frame: frame.clone(),
-                    })
-                    .collect();
+                    });
+                }
                 self.schedule_front(items);
             }
             // The written `Simultaneously` spec. ONE SNAPSHOT: every member's
@@ -584,41 +670,99 @@ impl GameState {
                 // [CR#611.2]/[CR#611.2c]: stamp at creation; lock the object set
                 // for non-floating scopes, leave `Matching` floating.
                 let timestamp = self.objects.next_timestamp();
-                // P0.W1 seam: only the durations the engine can SWEEP may
-                // create instances — a duration with no sweep/tracking would
-                // silently last forever.
-                match &e.duration {
-                    deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
-                    | deckmaste_core::Duration::EndOfGame => {}
-                    other => todo!("P0.W1: duration {other:?} — sweep/tracking unbuilt"),
+                // Duration guard narrowed from the old catch-all: EVERY duration
+                // is now sweepable EXCEPT `ForThisEvent`, which is an
+                // instruction-scoped rider ([CR#611.2a]) handled entirely by
+                // `Sequentially` lowering and never a standalone instance.
+                // Reaching this mint with `ForThisEvent` means a rider with no
+                // host instruction (e.g. a top-level `Until(ForThisEvent, …)`):
+                // an authoring mistake — FIZZLE (drop it), never mint a
+                // forever-lasting instance or panic.
+                if !crate::state::duration_sweepable(&e.duration) {
+                    return;
                 }
-                // `Modify(reference, change)` — the single-object shape — locks
-                // the one resolved reference ([CR#613.6]). `Each(SelectAll(f),
-                // Modify(It, change))` — the distributor shape ("target
-                // creature and all creatures it shares a color with get
-                // +1/+1", or a plain anthem) — stays `Floating(f)`: the filter
-                // is NOT expanded to objects here, mirroring `gather`'s
-                // `static_effect_scope` in `layer.rs`.
-                let (scope, changes) = match &*e.effect {
+                // Route the granted static by shape. Characteristic
+                // modifications feed the hot layer pass via `changes` (see
+                // `gather`'s `static_effect_scope` in `layer.rs`); every other
+                // kind is a static ROW consulted by the legality/cost/
+                // can't-happen readers directly ([CR#613.11] — a resolved
+                // one-shot's restriction is not an ability of the object).
+                let (scope, changes, rows) = match &*e.effect {
+                    // The single-object shape locks the one resolved reference
+                    // ([CR#613.6]).
                     StaticEffect::Modify(r, change) => (
                         ScopeResolved::Locked(vec![self.eval_reference(r, frame)]),
                         Modification::flatten(vec![change.clone()]),
+                        vec![],
                     ),
+                    // The distributor shape ("target creature and all creatures
+                    // it shares a color with get +1/+1", or a plain anthem)
+                    // stays `Floating(f)`: the filter is NOT expanded to objects
+                    // here.
                     StaticEffect::Each(Selection::SelectAll(f), inner) => match inner.as_ref() {
                         StaticEffect::Modify(Reference::It, change) => (
                             ScopeResolved::Floating(f.clone()),
                             Modification::flatten(vec![change.clone()]),
+                            vec![],
                         ),
                         other => todo!(
                             "P0.W1: Continuously(Each(SelectAll, {other:?})) — only a bare \
                              Modify(It, _) inner is wired"
                         ),
                     },
-                    // P0.W1 seam: a granted Deontic/CostModifier/… row (or an
-                    // `Each` over a non-`SelectAll` `Selection`) would be
-                    // silently inert — loud instead.
-                    other => todo!("P0.W1: Continuously({other:?}) — non-Modify grants unbuilt"),
+                    // A granted `Deontic` restriction ("target creature can't
+                    // block this turn"): its subject `Reference`s resolve at
+                    // mint ([CR#611.2c] object lock) — `scope = Locked(ids)`,
+                    // the subject rewritten to `It`, so a consumer reads `It` =
+                    // the scope members. Row EVALUATION stays LOUD at `legal.rs`
+                    // (core-casting-restrictions / engine-combat-requirements
+                    // own it); this only makes the row EXIST in the view.
+                    StaticEffect::Deontic(deontic) => {
+                        let (ids, locked) = self.lock_deontic_subject(deontic, frame);
+                        (
+                            ScopeResolved::Locked(ids),
+                            vec![],
+                            vec![StaticEffect::Deontic(locked)],
+                        )
+                    }
+                    // Self-filtered rows: `of` / the `CantHappen` filter carry
+                    // their own subject predicate, so the scope is unused (an
+                    // empty lock). `CostModifier` is wired into
+                    // `cost_modifier_rows` (cast.rs), `CantHappen` into
+                    // `cant_event` (replace_registry.rs).
+                    row @ (StaticEffect::CostModifier { .. } | StaticEffect::CantHappen(_)) => {
+                        (ScopeResolved::Locked(vec![]), vec![], vec![row.clone()])
+                    }
+                    // Prevention shields/windows are engine-prevention's domain
+                    // ([CR#615.1]); the PreventNext/PreventAll macros stay
+                    // blocked until that ticket lands.
+                    StaticEffect::Prevention(_) => todo!(
+                        "P0.W1: Continuously(Prevention) — engine-prevention owns shields/windows [CR#615.1]"
+                    ),
+                    // Narrower than the old catch-all: name the specific unbuilt
+                    // granted static-row kind.
+                    StaticEffect::Each(sel, _) => todo!(
+                        "P0.W1: Continuously(Each({sel:?}, _)) — only Each(SelectAll, Modify(It, _)) is wired"
+                    ),
+                    other => {
+                        todo!("P0.W1: Continuously({other:?}) — granted static-row kind unbuilt")
+                    }
                 };
+                // Only the two data-re-evaluating durations keep the minting
+                // frame: `UntilEvent`'s filter and `ForAsLongAs`'s condition
+                // read `This`/`You` through it in their sweeps ([CR#603.10a]).
+                let origin = match &e.duration {
+                    deckmaste_core::Duration::UntilEvent(_)
+                    | deckmaste_core::Duration::ForAsLongAs(_) => Some(Box::new(frame.clone())),
+                    _ => None,
+                };
+                // [CR#611.2b]: a `ForAsLongAs` whose condition is already FALSE
+                // at creation NEVER STARTS — push no instance at all.
+                if let deckmaste_core::Duration::ForAsLongAs(cond) = &e.duration
+                    && !self.condition_holds(cond, frame)
+                {
+                    return;
+                }
                 self.continuous.push(ContinuousEffect {
                     timestamp,
                     // The continuous effect's controller is the controller
@@ -627,7 +771,9 @@ impl GameState {
                     controller: frame.controller,
                     scope,
                     changes,
+                    rows,
                     duration: e.duration.clone(),
+                    origin,
                     is_cda: false,
                 });
             }
@@ -3701,6 +3847,49 @@ pub(crate) fn peel_effect(
     }
 }
 
+/// If `effect` is a `ForThisEvent` rider clause — `Until(ForThisEvent, parts)`,
+/// peeling `Expanded` — return its `parts`: the instruction-scoped statics to
+/// fold onto the preceding sibling in `Sequentially` lowering ([CR#611.2a]).
+/// `None` for every other effect.
+fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
+    match peel_effect(effect) {
+        OneShotEffect::Until(deckmaste_core::Duration::ForThisEvent, parts) => Some(parts),
+        _ => None,
+    }
+}
+
+/// The mutable structural [`DeonticAction`] of a `Deontic`
+/// (May/Cant/Must/Gate). `None` for an unexpanded `Expanded` macro — by
+/// resolution time deontics are expanded, so this is only a defensive floor
+/// (lock nothing, leave it).
+fn deontic_action_mut(d: &mut Deontic) -> Option<&mut DeonticAction> {
+    match d {
+        Deontic::May(a) | Deontic::Cant(a) | Deontic::Must(a) | Deontic::Gate(a, _) => Some(a),
+        Deontic::Expanded(_) => None,
+    }
+}
+
+/// The candidate SUBJECT predicate slots of a `DeonticAction` — the slots a
+/// one-shot restriction locks its affected object into ([CR#611.2c]). BOTH a
+/// two-slot deed's `by`/`on` are candidates because either can be the subject
+/// (active "X can't block" locks `by`; passive "X can't be blocked" locks
+/// `on`); the lock rewrites whichever is a bare object `Ref`. `Target`'s agent
+/// is a [`DeedAgent`](deckmaste_core::DeedAgent), not a `Predicate`, so only
+/// its `on` is a slot.
+fn deontic_subject_slots(a: &mut DeonticAction) -> Vec<&mut Predicate> {
+    match a {
+        DeonticAction::Attack { by, on } | DeonticAction::Block { by, on, .. } => vec![by, on],
+        DeonticAction::Regenerate { by, on } | DeonticAction::Counter { by, on } => vec![on, by],
+        DeonticAction::Target { on, .. } => vec![on],
+        DeonticAction::Attach { what, to } => vec![what, to],
+        DeonticAction::Cast { what, by, .. }
+        | DeonticAction::Play { what, by, .. }
+        | DeonticAction::Activate { what, by, .. } => vec![by, what],
+        DeonticAction::Untap { what } => vec![what],
+        DeonticAction::Expanded(_) => vec![],
+    }
+}
+
 /// The targets declared on a top-level `Targeted` wrapper (peeling
 /// `Expanded`), or `&[]` when the effect isn't a wrapper — the announce-list
 /// home after the migration ([CR#115.1,601.2c]). A single top-level wrapper is
@@ -5720,6 +5909,8 @@ mod tests {
                 deckmaste_core::NumericOp::Up(Count::Literal(1)),
             )],
             duration: deckmaste_core::Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
         assert_eq!(state.eval_count(&power, &frame), 3);
@@ -6623,6 +6814,429 @@ mod tests {
         assert_eq!(
             ce.changes,
             vec![Modification::Toughness(NumericOp::Up(Count::Literal(2)))]
+        );
+    }
+
+    /// [CR#611.2c]: a granted `Deontic` ("target creature can't block this
+    /// turn") mints a static ROW, not a layer change — its subject `Target(0)`
+    /// resolves to the locked object at mint and is rewritten to `Ref(It)`.
+    #[test]
+    fn continuously_deontic_mints_locked_row_rewriting_subject_to_it() {
+        use deckmaste_core::Continuously;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticEffect;
+        use deckmaste_core::TurnMarker;
+
+        let (mut state, src) = bear_on_field();
+        // The bear is the lone announced target — the restriction's subject.
+        let frame = frame_src_targets(src, vec![src]);
+        let effect = OneShotEffect::Continuously(Continuously {
+            effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+                by: Predicate::Ref(Reference::Target(0)),
+                on: Predicate::Any,
+                count: None,
+            }))),
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        });
+        state.run_effect(effect, &frame);
+
+        assert_eq!(state.continuous.len(), 1);
+        let ce = &state.continuous[0];
+        assert!(
+            matches!(&ce.scope, crate::layer::ScopeResolved::Locked(ids) if ids == &vec![src]),
+            "subject Target(0) locked to the bear at mint"
+        );
+        assert!(
+            ce.changes.is_empty(),
+            "a Deontic grant carries no layer changes"
+        );
+        assert!(
+            matches!(
+                &ce.rows[..],
+                [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block { by, .. }))]
+                    if *by == Predicate::Ref(Reference::It)
+            ),
+            "subject rewritten to Ref(It), got {:?}",
+            ce.rows
+        );
+    }
+
+    /// A granted `CostModifier` is self-filtered (empty lock) and lands as a
+    /// row.
+    #[test]
+    fn continuously_cost_modifier_mints_self_filtered_row() {
+        use deckmaste_core::Continuously;
+        use deckmaste_core::CostChange;
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::StaticEffect;
+        use deckmaste_core::TurnMarker;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let effect = OneShotEffect::Continuously(Continuously {
+            effect: Box::new(StaticEffect::CostModifier {
+                of: Predicate::creature(),
+                change: CostChange::Increase(vec![]),
+            }),
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        });
+        state.run_effect(effect, &frame);
+        let ce = &state.continuous[0];
+        assert!(
+            matches!(&ce.scope, crate::layer::ScopeResolved::Locked(ids) if ids.is_empty()),
+            "self-filtered → empty lock"
+        );
+        assert!(ce.changes.is_empty());
+        assert!(matches!(&ce.rows[..], [StaticEffect::CostModifier { .. }]));
+    }
+
+    /// A granted `CantHappen` is self-filtered and lands as a row.
+    #[test]
+    fn continuously_cant_happen_mints_self_filtered_row() {
+        use deckmaste_core::Continuously;
+        use deckmaste_core::Duration;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::StaticEffect;
+        use deckmaste_core::TurnMarker;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let filter = EventFilter::Damage {
+            source: Predicate::Any,
+            to: Predicate::Any,
+            combat: None,
+            amount: None,
+        };
+        let effect = OneShotEffect::Continuously(Continuously {
+            effect: Box::new(StaticEffect::CantHappen(filter)),
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        });
+        state.run_effect(effect, &frame);
+        let ce = &state.continuous[0];
+        assert!(ce.changes.is_empty());
+        assert!(matches!(&ce.rows[..], [StaticEffect::CantHappen(_)]));
+    }
+
+    /// A granted `Prevention` is LOUD — engine-prevention owns the machinery.
+    #[test]
+    #[should_panic(expected = "engine-prevention")]
+    fn continuously_prevention_is_loud() {
+        use deckmaste_core::Continuously;
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Prevention;
+        use deckmaste_core::StaticEffect;
+        use deckmaste_core::TurnMarker;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let effect = OneShotEffect::Continuously(Continuously {
+            effect: Box::new(StaticEffect::Prevention(Box::new(
+                Prevention::PreventNextInstance {
+                    from: Predicate::Any,
+                    to: Predicate::Any,
+                },
+            ))),
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        });
+        state.run_effect(effect, &frame);
+    }
+
+    /// [CR#611.2b]: a `ForAsLongAs` whose condition is already false at creation
+    /// never starts — no instance is pushed.
+    #[test]
+    fn for_as_long_as_false_at_mint_never_starts() {
+        use deckmaste_core::Condition;
+        use deckmaste_core::Continuously;
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticEffect;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        // "for as long as an object matching not-anything exists" — always false.
+        let cond = Condition::Exists(Predicate::Not(Box::new(Predicate::Any)));
+        let effect = OneShotEffect::Continuously(Continuously {
+            effect: Box::new(StaticEffect::Modify(
+                Reference::This,
+                Modification::Power(NumericOp::Up(Count::Literal(1))),
+            )),
+            duration: Duration::ForAsLongAs(cond),
+        });
+        state.run_effect(effect, &frame);
+        assert!(
+            state.continuous.is_empty(),
+            "a false-at-mint ForAsLongAs pushes no instance"
+        );
+    }
+
+    /// [CR#611.2b]: `sweep_condition_durations` removes an instance whose
+    /// condition has lapsed — the once-stopped-never-resumes latch is the
+    /// removal itself.
+    #[test]
+    fn sweep_condition_durations_removes_lapsed_for_as_long_as() {
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::Predicate;
+
+        let (mut state, src) = bear_on_field();
+        let cond = Condition::Exists(Predicate::Not(Box::new(Predicate::Any)));
+        state.continuous.push(crate::layer::ContinuousEffect {
+            timestamp: crate::object::Timestamp(1),
+            controller: PlayerId(0),
+            scope: crate::layer::ScopeResolved::Locked(vec![src]),
+            changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
+            rows: vec![],
+            duration: Duration::ForAsLongAs(cond),
+            origin: Some(Box::new(frame_src(src))),
+            is_cda: false,
+        });
+        state.sweep_condition_durations();
+        assert!(
+            state.continuous.is_empty(),
+            "a lapsed ForAsLongAs is removed"
+        );
+    }
+
+    /// [CR#611.2a],[CR#701.19c]: a `Sequentially` folds an `Until(ForThisEvent,
+    /// [Cant(Regenerate)])` child onto the IMMEDIATELY-preceding sibling — an
+    /// `InstallRiders` armed with the destroy subject is scheduled just before
+    /// that sibling's `RunEffect`, and the rider mints no continuous instance.
+    #[test]
+    fn sequentially_folds_for_this_event_rider_before_preceding_sibling() {
+        use deckmaste_core::Action;
+        use deckmaste_core::Count;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticEffect;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let seq = OneShotEffect::Sequentially(vec![
+            OneShotEffect::Act(Action::by_you(PlayerAction::GainLife(Count::Literal(1)))),
+            OneShotEffect::Until(
+                Duration::ForThisEvent,
+                vec![StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Regenerate {
+                        by: Predicate::Any,
+                        on: Predicate::Ref(Reference::This),
+                    },
+                ))],
+            ),
+        ]);
+        state.run_effect(seq, &frame);
+
+        let front: Vec<&WorkItem> = state.agenda.iter().take(2).collect();
+        assert!(
+            matches!(front[0], WorkItem::InstallRiders { no_regen } if no_regen == &vec![src]),
+            "InstallRiders armed with the destroy subject, got {:?}",
+            front[0]
+        );
+        assert!(
+            matches!(front[1], WorkItem::RunEffect { .. }),
+            "the preceding sibling runs next"
+        );
+        assert!(
+            state.continuous.is_empty(),
+            "the rider child mints no continuous instance"
+        );
+    }
+
+    /// [CR#611.2a]: a `ForThisEvent` rider with NO preceding sibling is an
+    /// authoring mistake — it fizzles (dropped), never mints or panics.
+    #[test]
+    fn for_this_event_rider_without_preceding_sibling_fizzles() {
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticEffect;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let seq = OneShotEffect::Sequentially(vec![OneShotEffect::Until(
+            Duration::ForThisEvent,
+            vec![StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Regenerate {
+                    by: Predicate::Any,
+                    on: Predicate::Ref(Reference::This),
+                },
+            ))],
+        )]);
+        state.run_effect(seq, &frame);
+        assert!(
+            !state
+                .agenda
+                .iter()
+                .any(|w| matches!(w, WorkItem::InstallRiders { .. })),
+            "a rider with no host instruction is dropped"
+        );
+    }
+
+    /// [CR#611.2,614.3]: the shared sweepable-duration guard makes a
+    /// non-sweepable (`ForThisEvent`) shield LOUD at `create_shield` — a rider
+    /// duration never mints a stored instance.
+    #[test]
+    #[should_panic(expected = "non-sweepable duration")]
+    fn create_shield_rejects_non_sweepable_duration() {
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::Duration;
+        use deckmaste_core::PhaseStep;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Replacement;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        state.create_shield(
+            Replacement::Skip {
+                what: PhaseStep::Beginning(BeginningStep::Untap),
+            },
+            &Reference::This,
+            Duration::ForThisEvent,
+            false,
+            &frame,
+        );
+    }
+
+    /// [CR#511.2]: an "until end of combat" instance is swept by
+    /// `expire_end_of_combat`, and by the cleanup catch-all when combat is
+    /// skipped.
+    #[test]
+    fn until_end_of_combat_expires_at_end_of_combat_and_via_cleanup_catch_all() {
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::TurnMarker;
+
+        let (mut state, src) = bear_on_field();
+        let mint = |state: &mut GameState| {
+            state.continuous.push(crate::layer::ContinuousEffect {
+                timestamp: crate::object::Timestamp(1),
+                controller: PlayerId(0),
+                scope: crate::layer::ScopeResolved::Locked(vec![src]),
+                changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
+                rows: vec![],
+                duration: Duration::FixedUntil(TurnMarker::EndOfCombat),
+                origin: None,
+                is_cda: false,
+            });
+        };
+        mint(&mut state);
+        state.expire_end_of_combat();
+        assert!(state.continuous.is_empty(), "swept at end of combat");
+        // Combat-skipped turn: cleanup's catch-all still removes it.
+        mint(&mut state);
+        state.expire_end_of_turn();
+        assert!(
+            state.continuous.is_empty(),
+            "cleanup catch-all sweeps a leaked EndOfCombat effect"
+        );
+    }
+
+    /// [CR#611.2a]: an "until your next turn" instance survives an opponent's
+    /// turn and expires as its controller's next turn begins.
+    #[test]
+    fn until_your_next_turn_survives_opponent_expires_at_controller() {
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::TurnMarker;
+
+        let (mut state, src) = bear_on_field();
+        state.continuous.push(crate::layer::ContinuousEffect {
+            timestamp: crate::object::Timestamp(1),
+            controller: PlayerId(0),
+            scope: crate::layer::ScopeResolved::Locked(vec![src]),
+            changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
+            rows: vec![],
+            duration: Duration::FixedUntil(TurnMarker::YourNextTurn),
+            origin: None,
+            is_cda: false,
+        });
+        state.expire_your_next_turn(PlayerId(1));
+        assert_eq!(state.continuous.len(), 1, "survives the opponent's turn");
+        state.expire_your_next_turn(PlayerId(0));
+        assert!(
+            state.continuous.is_empty(),
+            "expires as the controller's turn begins"
+        );
+    }
+
+    /// [CR#610.3]: an `UntilEvent` instance is removed once its awaited event is
+    /// applied, and survives a non-matching one.
+    #[test]
+    fn until_event_removed_on_match_survives_nonmatch() {
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::Predicate;
+
+        let (mut state, src) = bear_on_field();
+        let filter = EventFilter::Damage {
+            source: Predicate::Any,
+            to: Predicate::Any,
+            combat: None,
+            amount: None,
+        };
+        state.continuous.push(crate::layer::ContinuousEffect {
+            timestamp: crate::object::Timestamp(1),
+            controller: PlayerId(0),
+            scope: crate::layer::ScopeResolved::Locked(vec![src]),
+            changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
+            rows: vec![],
+            duration: Duration::UntilEvent(filter),
+            origin: Some(Box::new(frame_src(src))),
+            is_cda: false,
+        });
+        // A non-matching fact (a life gain) leaves it in place.
+        state.sweep_event_durations(&crate::event::Occurrence::single(GameEvent::LifeGained {
+            player: PlayerId(0),
+            amount: 1,
+        }));
+        assert_eq!(
+            state.continuous.len(),
+            1,
+            "survives a non-matching occurrence"
+        );
+        // The awaited damage fact ends it.
+        state.sweep_event_durations(&crate::event::Occurrence::single(GameEvent::DamageDealt {
+            source: src,
+            target: src,
+            amount: 1,
+            combat: false,
+        }));
+        assert!(
+            state.continuous.is_empty(),
+            "removed once the awaited event happens"
         );
     }
 

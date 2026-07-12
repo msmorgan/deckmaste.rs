@@ -984,6 +984,8 @@ mod tests {
             scope: ScopeResolved::Locked(vec![id]),
             changes: vec![Modification::LoseAllAbilities],
             duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
     }

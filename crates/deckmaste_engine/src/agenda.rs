@@ -173,6 +173,17 @@ pub enum WorkItem {
         effect: Box<deckmaste_core::OneShotEffect>,
         frame: crate::stack::Frame,
     },
+    /// [CR#611.2a,701.19c]: install the instruction-scoped "can't be
+    /// regenerated" rider for the destroy that runs IMMEDIATELY next. Minted
+    /// only by `Sequentially` lowering when a `ForThisEvent`
+    /// `Cant(Regenerate)` child folds onto its preceding destroy sibling —
+    /// scheduled just before that sibling's `RunEffect` so the subjects are set
+    /// when the destroy's occurrence is applied, then cleared at the end of
+    /// that `apply_occurrence`. `no_regen` is the rider's subjects resolved
+    /// to ids at lowering time.
+    InstallRiders {
+        no_regen: Vec<crate::object::ObjectId>,
+    },
     /// Opens a `Noting` collection window ([CR#607.2a] linkage — the
     /// fact-backed product group): resets `key`'s group and pushes it onto
     /// the noting stack, so every enacted `ZoneChanged` fact until the

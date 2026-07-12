@@ -129,6 +129,10 @@ pub enum Progress {
     CostPaid,
     /// A resolution step ran (dispatch or one effect node) for this object.
     Resolving(crate::object::ObjectId),
+    /// [CR#701.19c]: an instruction-scoped "can't be regenerated" rider was
+    /// installed for the destroy running next; `subjects` is how many objects
+    /// it covers.
+    RidersInstalled { subjects: Uint },
     /// A `Noting` collection window opened (`true`) or closed (`false`)
     /// ([CR#607.2a] — fact-backed product groups).
     NoteScoped { open: bool },
@@ -251,6 +255,14 @@ impl GameState {
                 let source = frame.source;
                 self.run_effect(*effect, &frame);
                 Progress::Resolving(source)
+            }
+            WorkItem::InstallRiders { no_regen } => {
+                // [CR#701.19c]: arm the no-regen subjects for the destroy that
+                // runs next (the immediately-following `RunEffect`). Cleared at
+                // the end of the next `apply_occurrence`.
+                let subjects = Uint::try_from(no_regen.len()).unwrap_or(Uint::MAX);
+                self.no_regen_subjects = no_regen;
+                Progress::RidersInstalled { subjects }
             }
             WorkItem::BeginNote { key } => {
                 // [CR#607.2a]: a fresh window — the key holds THIS noting
@@ -1268,7 +1280,10 @@ impl GameState {
                             self.check_game_end();
                             if self.outcome.is_none() {
                                 self.scan_triggers(&partial);
+                                self.sweep_event_durations(&partial);
+                                self.sweep_condition_durations();
                             }
+                            self.no_regen_subjects.clear();
                             return partial;
                         }
                     }
@@ -1282,7 +1297,18 @@ impl GameState {
         self.check_game_end();
         if self.outcome.is_none() {
             self.scan_triggers(&occurred);
+            // [CR#610.3,611.2b]: beside the trigger scan, end any floating
+            // one-shot whose ending EVENT has now happened (`UntilEvent`) or
+            // whose CONDITION has just lapsed (`ForAsLongAs`). Post-apply, so an
+            // effect lasts through the very event/state-change that ends it.
+            self.sweep_event_durations(&occurred);
+            self.sweep_condition_durations();
         }
+        // The instruction-scoped "can't be regenerated" rider (if any) is in
+        // force ONLY for the occurrence just applied ([CR#701.19c]) — clear it
+        // so it never bleeds onto a later (e.g. SBA) destruction. Cheap: the
+        // vec is empty except across a `ForThisEvent` destroy.
+        self.no_regen_subjects.clear();
         occurred
     }
 
@@ -1507,6 +1533,9 @@ impl GameState {
                 self.objects.obj_mut(id).summoning_sick = false;
             }
         }
+        // [CR#611.2a]: "until your next turn" effects/shields whose controller
+        // is the now-active player end as this turn begins.
+        self.expire_your_next_turn(active);
         GameEvent::TurnBegan {
             player: self.turn.active_player,
             turn: self.turn.turn_number,
@@ -1534,6 +1563,11 @@ impl GameState {
             items.push(WorkItem::Emit(Occurrence::single(turn_began)));
         }
         self.turn.current = s;
+        // [CR#611.2b]: a step transition can end a `ForAsLongAs` effect (its
+        // condition may read the phase/step, or a between-steps state change may
+        // have lapsed it) — re-check with the new step current. Safe here: this
+        // is outside `layer::gather`, so `condition_holds` may derive the board.
+        self.sweep_condition_durations();
         items.push(WorkItem::Emit(Occurrence::single(GameEvent::StepBegan(s))));
         items.extend(self.turn_based_actions(s));
         items.extend(self.step_tail(s));
@@ -2331,6 +2365,8 @@ impl GameState {
     /// designations.
     fn end_of_combat(&mut self) -> Progress {
         self.combat.clear();
+        // [CR#511.2]: "until end of combat" floating effects/shields end here.
+        self.expire_end_of_combat();
         Progress::CombatEnded
     }
 

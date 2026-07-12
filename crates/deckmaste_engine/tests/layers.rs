@@ -181,6 +181,8 @@ fn one_shot_pump_expires_at_cleanup() {
             Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(3))),
         ],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
     assert_eq!(state.layers().power(bear), Some(5), "2/2 +3/+3 → 5");
@@ -215,6 +217,8 @@ fn negative_modify_lowers_power_and_toughness() {
             Modification::Toughness(deckmaste_core::NumericOp::Down(Count::Literal(1))),
         ],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
 
@@ -531,6 +535,8 @@ fn layer_added_subtype_confers_its_keyword() {
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![Modification::Subtypes(CollectionOp::Add("Trampler".into()))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
 
@@ -626,6 +632,8 @@ fn losing_creature_type_removes_the_attack_grant() {
             "Enchantment".into(),
         ]))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
 
@@ -723,6 +731,8 @@ fn gain_control_changes_derived_controller() {
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![Modification::SetController(Reference::You)],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
     assert_eq!(
@@ -751,6 +761,8 @@ fn gained_control_reverts_when_effect_expires() {
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![Modification::SetController(Reference::You)],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
     assert_eq!(state.layers().controller(bear), PlayerId(1), "stolen");
@@ -787,6 +799,8 @@ fn stolen_creature_attacks_for_new_controller() {
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![Modification::SetController(Reference::You)],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
     assert!(
@@ -831,6 +845,8 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
             Type::Enchantment.name(),
         ))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
     // B (EARLIER timestamp): enchantments are also artifacts. Depends on A.
@@ -844,6 +860,8 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
             Type::Artifact.name(),
         ))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
 
@@ -882,6 +900,8 @@ fn independent_effects_keep_timestamp_order() {
             vec![Color::Red],
         ))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
     state.continuous.push(ContinuousEffect {
@@ -892,6 +912,8 @@ fn independent_effects_keep_timestamp_order() {
             vec![Color::Blue],
         ))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
 
@@ -935,6 +957,8 @@ fn dependency_loop_falls_back_to_timestamp() {
             Type::Enchantment.name(),
         ))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
     // B (later): enchantments are also creatures. Mutually dependent with A.
@@ -948,6 +972,8 @@ fn dependency_loop_falls_back_to_timestamp() {
             Type::Creature.name(),
         ))],
         duration: Duration::EndOfGame,
+        rows: vec![],
+        origin: None,
         is_cda: false,
     });
 

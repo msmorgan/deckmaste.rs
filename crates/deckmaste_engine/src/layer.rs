@@ -64,7 +64,26 @@ pub struct ContinuousEffect {
     pub controller: PlayerId,
     pub scope: ScopeResolved,
     pub changes: Vec<Modification>,
+    /// Granted STATIC ROWS carried by a resolved one-shot ([CR#611.2c]) — a
+    /// `Deontic` restriction ("target creature can't block this turn"), a
+    /// `CostModifier`, a `CantHappen`. These are NOT characteristic
+    /// modifications, so they never touch the hot layer pass (`layer::gather`
+    /// reads only `changes`); they are consulted by the legality / cost /
+    /// can't-happen readers directly. Held apart from `changes` because a
+    /// resolved one-shot's restriction is not an ability of the object — a
+    /// later ability-removal must NOT strip it (restriction effects modify the
+    /// game rules, outside the characteristic layers, [CR#613.11]); printed
+    /// rows stay layer-6-sensitive, these instance rows are immune. Empty for
+    /// the characteristic-modifying (`Modify`/`Each`) instances.
+    pub rows: Vec<StaticEffect>,
     pub duration: Duration,
+    /// The minting resolution frame, kept ONLY for the two durations whose
+    /// sweep must re-evaluate authored data anchored on the source/controller:
+    /// `UntilEvent`'s event filter and `ForAsLongAs`'s condition read
+    /// `This`/`You` through it ([CR#603.10a]). `None` for every marker /
+    /// `EndOfGame` duration, whose sweep needs no such context. Boxed so the
+    /// common `None` case keeps `ContinuousEffect` small.
+    pub origin: Option<Box<crate::stack::Frame>>,
     pub is_cda: bool,
 }
 
@@ -1959,6 +1978,8 @@ mod tests {
             scope: ScopeResolved::Locked(vec![id]),
             changes: vec![Modification::LoseAllAbilities],
             duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
     }
@@ -2179,6 +2200,8 @@ mod tests {
             scope: ScopeResolved::Locked(vec![id]),
             changes: vec![Modification::LoseAbility("Trample".into())],
             duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
         assert!(
@@ -2558,6 +2581,8 @@ mod tests {
                 Modification::Toughness(NumericOp::Up(Count::Literal(2))),
             ],
             duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
 
@@ -2701,6 +2726,8 @@ mod tests {
             scope: ScopeResolved::Locked(vec![id]),
             changes,
             duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
     }

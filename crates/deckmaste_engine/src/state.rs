@@ -332,6 +332,16 @@ pub struct GameState {
     /// end of turn; a `one_shot` instance is removed when it is the chosen
     /// replacement.
     pub shields: Vec<crate::replace_registry::ReplacementInstance>,
+    /// Instruction-scoped "can't be regenerated" subjects ([CR#701.19c]): the
+    /// objects whose regeneration shields must NOT be applied for the destroy
+    /// occurrence currently being applied. Installed by
+    /// `WorkItem::InstallRiders` (folded from a `ForThisEvent`
+    /// `Cant(Regenerate)` rider in `Sequentially` lowering) immediately
+    /// before the destroy runs, consulted in `gather_applicable`, and
+    /// cleared at the end of the next `apply_occurrence` — the rider is in
+    /// force only while its host destroy event executes. Transient (like
+    /// `evolving_batch`/`moved_chain`); empty at rest.
+    pub(crate) no_regen_subjects: Vec<crate::object::ObjectId>,
     /// The designation registry ([CR#109.3] non-characteristic state).
     pub designations: DesignationStore,
     /// The counter-kind registry ([CR#122.1]) — a counter on an object is
@@ -530,6 +540,7 @@ impl GameState {
             rng,
             continuous: Vec::new(),
             shields: Vec::new(),
+            no_regen_subjects: Vec::new(),
             designations: DesignationStore::default(),
             counter_decls: config.counter_decls,
             subtypes: config.subtypes,
@@ -797,18 +808,160 @@ impl GameState {
             })
     }
 
+    /// [CR#514.2]: sweep every "until end of turn" floating effect and shield
+    /// at Cleanup. Also re-sweeps "until end of combat" as a CATCH-ALL: a turn
+    /// whose combat step is skipped never runs `expire_end_of_combat`, so
+    /// without this backstop such an effect would leak past the turn it was
+    /// created in ([CR#511.2] still ends it no later than the turn's end).
     pub fn expire_end_of_turn(&mut self) {
-        self.continuous.retain(|e| {
-            !matches!(
-                e.duration,
-                deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
-            )
-        });
-        self.shields.retain(|s| {
-            !matches!(
-                s.duration,
-                deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
-            )
-        });
+        use deckmaste_core::Duration::FixedUntil;
+        use deckmaste_core::TurnMarker::EndOfCombat;
+        use deckmaste_core::TurnMarker::EndOfTurn;
+        self.continuous
+            .retain(|e| !matches!(e.duration, FixedUntil(EndOfTurn | EndOfCombat)));
+        self.shields
+            .retain(|s| !matches!(s.duration, FixedUntil(EndOfTurn | EndOfCombat)));
     }
+
+    /// [CR#511.2]: "until end of combat" floating effects and shields expire as
+    /// the combat phase ends. Called from `end_of_combat`, beside
+    /// `combat.clear()`. (Cleanup re-sweeps these — see `expire_end_of_turn`.)
+    pub(crate) fn expire_end_of_combat(&mut self) {
+        use deckmaste_core::Duration::FixedUntil;
+        use deckmaste_core::TurnMarker::EndOfCombat;
+        self.continuous
+            .retain(|e| !matches!(e.duration, FixedUntil(EndOfCombat)));
+        self.shields
+            .retain(|s| !matches!(s.duration, FixedUntil(EndOfCombat)));
+    }
+
+    /// [CR#611.2a]: "until your next turn" floating effects and shields expire
+    /// as their controller's next turn begins. Called from `begin_turn` after
+    /// `active_player` advances; `new_active` is that fresh active player.
+    /// "Your next turn" = the next turn the effect's CONTROLLER actually takes,
+    /// so skipped turns are handled naturally (the sweep only fires when the
+    /// new active player IS the controller). A continuous instance keys on its
+    /// stored `controller`; a shield has no controller of its own, so it keys
+    /// on its live SOURCE's controller (a source that has left can't be keyed
+    /// — such a shield is retained, never a panic).
+    pub(crate) fn expire_your_next_turn(&mut self, new_active: PlayerId) {
+        use deckmaste_core::Duration::FixedUntil;
+        use deckmaste_core::TurnMarker::YourNextTurn;
+        self.continuous.retain(|e| {
+            !(matches!(e.duration, FixedUntil(YourNextTurn)) && e.controller == new_active)
+        });
+        // A shield reads its controller from the live source — take the list
+        // out so the `self.objects` lookup doesn't overlap the `retain` borrow.
+        let shields = std::mem::take(&mut self.shields);
+        self.shields = shields
+            .into_iter()
+            .filter(|s| {
+                !(matches!(s.duration, FixedUntil(YourNextTurn))
+                    && self.objects.get(s.source).map(|o| o.controller) == Some(new_active))
+            })
+            .collect();
+    }
+
+    /// [CR#610.3]: after an occurrence is applied, END any `UntilEvent` floating
+    /// effect or shield whose event has now HAPPENED — a POST-apply check, so
+    /// the effect lasts through the very event that ends it and stops right
+    /// after. The filter is matched against each applied fact with bindings
+    /// anchored on the minting frame (`origin` for a continuous instance, the
+    /// live source for a shield), mirroring `event_matches_delayed` — a
+    /// floating one-shot's end is a fire-once fact match ([CR#603.7c]); the
+    /// `Delayed` lane suits it (no live scan sees a printed ability here).
+    pub(crate) fn sweep_event_durations(&mut self, facts: &crate::event::Occurrence) {
+        use deckmaste_core::Duration::UntilEvent;
+        let events: &[GameEvent] = match facts {
+            crate::event::Occurrence::Single(e) => std::slice::from_ref(e),
+            crate::event::Occurrence::Batch(es) => es,
+        };
+        let mut drop_ce = vec![false; self.continuous.len()];
+        for (i, ce) in self.continuous.iter().enumerate() {
+            if let (UntilEvent(filter), Some(frame)) = (&ce.duration, ce.origin.as_deref()) {
+                let watcher = self.frame_watcher(frame);
+                if events
+                    .iter()
+                    .any(|ev| self.event_matches_delayed(filter, ev, watcher))
+                {
+                    drop_ce[i] = true;
+                }
+            }
+        }
+        for i in (0..drop_ce.len()).rev() {
+            if drop_ce[i] {
+                self.continuous.remove(i);
+            }
+        }
+        let mut drop_sh = vec![false; self.shields.len()];
+        for (i, s) in self.shields.iter().enumerate() {
+            if let UntilEvent(filter) = &s.duration
+                && let Some(obj) = self.objects.get(s.source)
+                && events
+                    .iter()
+                    .any(|ev| self.event_matches_delayed(filter, ev, obj.source))
+            {
+                drop_sh[i] = true;
+            }
+        }
+        for i in (0..drop_sh.len()).rev() {
+            if drop_sh[i] {
+                self.shields.remove(i);
+            }
+        }
+    }
+
+    /// [CR#611.2b]: re-check every `ForAsLongAs` floating effect / shield and
+    /// REMOVE any whose condition no longer holds — removal IS the
+    /// once-stopped-never-resumes latch (a removed instance is simply gone, so
+    /// no stored `started`/`stopped` bool is needed). Run both after each
+    /// occurrence and at every step transition. The condition is evaluated with
+    /// `condition_holds` against a frame rebuilt from the minting `origin`
+    /// (a continuous instance carries it; a shield rebuilds a bare frame from
+    /// its live source).
+    ///
+    /// HAZARD: never call this inside `layer::gather`. `condition_holds` can
+    /// recurse into `layers()` (an `Exists`/`Matches` condition derives the
+    /// board); gather is mid-derivation, so evaluating a condition there would
+    /// re-enter the layer pass.
+    pub(crate) fn sweep_condition_durations(&mut self) {
+        use deckmaste_core::Duration::ForAsLongAs;
+        let mut drop_ce = vec![false; self.continuous.len()];
+        for (i, ce) in self.continuous.iter().enumerate() {
+            if let (ForAsLongAs(cond), Some(frame)) = (&ce.duration, ce.origin.as_deref())
+                && !self.condition_holds(cond, frame)
+            {
+                drop_ce[i] = true;
+            }
+        }
+        for i in (0..drop_ce.len()).rev() {
+            if drop_ce[i] {
+                self.continuous.remove(i);
+            }
+        }
+        let mut drop_sh = vec![false; self.shields.len()];
+        for (i, s) in self.shields.iter().enumerate() {
+            if let ForAsLongAs(cond) = &s.duration
+                && let Some(obj) = self.objects.get(s.source)
+                && !self.condition_holds(cond, &crate::stack::Frame::bare(s.source, obj.controller))
+            {
+                drop_sh[i] = true;
+            }
+        }
+        for i in (0..drop_sh.len()).rev() {
+            if drop_sh[i] {
+                self.shields.remove(i);
+            }
+        }
+    }
+}
+
+/// Whether a `Duration` names a lifetime the engine can actually SWEEP — the
+/// canonical guard shared by both floating-instance mint sites (continuous
+/// effects, [CR#611.2], and replacement shields, [CR#614.3]). Every duration
+/// is sweepable EXCEPT `ForThisEvent`, which is an instruction-scoped rider
+/// ([CR#611.2a]) folded onto its host occurrence in `Sequentially` lowering
+/// and never a standalone instance — minting one would leak forever, silently.
+pub(crate) fn duration_sweepable(d: &deckmaste_core::Duration) -> bool {
+    !matches!(d, deckmaste_core::Duration::ForThisEvent)
 }

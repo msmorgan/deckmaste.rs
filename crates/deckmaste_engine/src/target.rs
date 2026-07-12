@@ -839,6 +839,8 @@ mod tests {
                 deckmaste_core::Type::Creature.name(),
             ))],
             duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
 
@@ -962,6 +964,8 @@ mod tests {
                 Color::Red,
             ))],
             duration: Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
             is_cda: false,
         });
         assert!(matches(&state, bear, &cf(CF::Multicolored)));
