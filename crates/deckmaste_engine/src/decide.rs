@@ -93,6 +93,7 @@ impl PendingDecision {
             PendingDecision::Priority { player, .. }
             | PendingDecision::DiscardToHandSize { player, .. }
             | PendingDecision::DiscardCards { player, .. }
+            | PendingDecision::CallFlip { player, .. }
             | PendingDecision::ChooseManaColor { player, .. }
             | PendingDecision::ChooseManaMode { player, .. }
             | PendingDecision::ChooseTargets { player, .. }
@@ -165,6 +166,9 @@ pub enum PendingDecision {
     /// [CR#701.9b]: a resolving discard — `player` chooses which `count` cards
     /// from their hand to discard (`count` already clamped to the hand size).
     DiscardCards { player: PlayerId, count: Uint },
+    /// [CR#705.2]: a called coin flip — the flipper calls heads or tails
+    /// before the draw. Answered with `Decision::Answer` (`true` = heads).
+    CallFlip { player: PlayerId },
     /// [CR#106.1b]: a resolving `AddMana` whose production is a choice ("any
     /// color" offers the five colors per [CR#105.4]; "{W} or {U}" offers its
     /// printed set) — `player` picks one of `options`.
@@ -559,6 +563,24 @@ use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::state::GameState;
+
+/// [CR#701.9a]: the Hand→Graveyard batch a discard emits — ONE simultaneous
+/// batch ([CR#603.3b]); shared by the chosen path (`submit_discards`) and
+/// the random path (`discard_random`).
+pub(crate) fn discard_batch(objects: Vec<ObjectId>) -> Vec<GameEvent> {
+    objects
+        .into_iter()
+        .map(|object| GameEvent::ZoneWillChange {
+            object,
+            from: Some(Zone::Hand),
+            to: Zone::Graveyard,
+            enters: None,
+            position: None,
+            face: None,
+            cause: Some(Cause::discard(Agency::EffectInstruction, None)),
+        })
+        .collect()
+}
 
 impl GameState {
     /// Answers the pending decision: validates, does the decision's
@@ -1426,18 +1448,7 @@ impl GameState {
         // ([CR#603.3b]), and the clause's amount — its card count, the
         // entailment row's `amount` — fixes "that many" for a following
         // draw ([CR#107.3]; the `apply_occurrence` funnel counts the batch).
-        let events: Vec<GameEvent> = objects
-            .into_iter()
-            .map(|object| GameEvent::ZoneWillChange {
-                object,
-                from: Some(Zone::Hand),
-                to: Zone::Graveyard,
-                enters: None,
-                position: None,
-                face: None,
-                cause: Some(Cause::discard(Agency::EffectInstruction, None)),
-            })
-            .collect();
+        let events = discard_batch(objects);
         if !events.is_empty() {
             self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
         }

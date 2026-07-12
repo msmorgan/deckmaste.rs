@@ -207,6 +207,14 @@ pub enum ChoiceContinuation {
         current: ArrangePile,
         remaining: Vec<ArrangePile>,
     },
+    /// A `CallFlip` answer ([CR#705.2]): draw the coin, score
+    /// `won = (call == heads)`, then re-surface the next call (`remaining`)
+    /// or front-schedule the accumulated `CoinFlipped` batch.
+    CallFlip {
+        player: crate::player::PlayerId,
+        remaining: deckmaste_core::Uint,
+        events: Vec<crate::event::GameEvent>,
+    },
 }
 
 /// The resolution-scoped collector for a post-pick arrangement ([CR#401.4]):

@@ -10,6 +10,7 @@ use deckmaste_core::PhaseStep;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use rand::RngExt;
 use rand::seq::SliceRandom;
 
 use crate::agenda::WorkItem;
@@ -72,6 +73,18 @@ pub enum Progress {
     /// how many cards the player must choose (clamped to the hand size; 0 =
     /// an empty hand, nothing surfaced).
     DiscardOpened { count: Uint },
+    /// [CR#705.1,705.2]: a resolving `FlipCoins` ran; `count` is the total
+    /// requested — an uncalled flip drew all `count` coins immediately and
+    /// front-scheduled their batch, while a called flip surfaced the first of
+    /// `count` `CallFlip` decisions instead (Task 4 wires the submit side).
+    CoinsFlipped { count: Uint },
+    /// [CR#706.1]: a resolving `RollDice` drew `count` naturals and
+    /// front-scheduled their `DieRolled` batch (0 = nothing scheduled).
+    DiceRolled { count: Uint },
+    /// [CR#701.9b]: a resolving RANDOM discard ran with no decision; `count`
+    /// is how many distinct cards were sampled from the hand (clamped to
+    /// hand size) and front-scheduled as the Hand→Graveyard batch.
+    RandomDiscarded { count: Uint },
     /// [CR#106.1b]: a resolving `AddMana` surfaced its color choice.
     ManaColorOpened,
     /// [CR#106.1b]: a resolving `AddMana` surfaced its multi-symbol-run choice
@@ -179,6 +192,17 @@ impl GameState {
                 Progress::CostPaid
             }
             WorkItem::DiscardCards { player, count } => self.open_discard_cards(player, count),
+            WorkItem::FlipCoins {
+                player,
+                count,
+                called,
+            } => self.flip_coins(player, count, called),
+            WorkItem::RollDice {
+                player,
+                count,
+                sides,
+            } => self.roll_dice(player, count, sides),
+            WorkItem::DiscardRandom { player, count } => self.discard_random(player, count),
             WorkItem::ChooseManaColor {
                 player,
                 options,
@@ -1231,6 +1255,36 @@ impl GameState {
         if moved > 0 {
             self.that_much = Some(Uint::try_from(moved).expect("batch size fits in Uint"));
         }
+        // [CR#107.3]: a flip/roll batch fixes "that many" — won flips for a
+        // called flip, heads for an uncalled one ([CR#705.2]); summed
+        // results for dice ([CR#706.2]).
+        let mut coins = 0u32;
+        let mut wins: Uint = 0;
+        let mut heads_up: Uint = 0;
+        let mut any_called = false;
+        let mut dice = 0u32;
+        let mut rolled_sum: Uint = 0;
+        for event in events {
+            match event {
+                GameEvent::CoinFlipped { heads, won, .. } => {
+                    coins += 1;
+                    any_called |= won.is_some();
+                    wins += Uint::from(*won == Some(true));
+                    heads_up += Uint::from(*heads);
+                }
+                GameEvent::DieRolled { result, .. } => {
+                    dice += 1;
+                    rolled_sum += *result;
+                }
+                _ => {}
+            }
+        }
+        if coins > 0 {
+            self.that_much = Some(if any_called { wins } else { heads_up });
+        }
+        if dice > 0 {
+            self.that_much = Some(rolled_sum);
+        }
     }
 
     /// Appends the substantive facts of `occurred` to the history log, tagged
@@ -1867,6 +1921,70 @@ impl GameState {
             self.pending = Some(PendingDecision::DiscardCards { player, count });
         }
         Progress::DiscardOpened { count }
+    }
+
+    /// [CR#705.1]: draw `count` coins and front-schedule ONE simultaneous
+    /// batch ([CR#603.3b] — the multi-discard precedent). A CALLED flip
+    /// ([CR#705.2]) instead surfaces a `CallFlip` decision per coin; the
+    /// draw happens as each call is submitted.
+    fn flip_coins(&mut self, player: PlayerId, count: Uint, called: bool) -> Progress {
+        if count == 0 {
+            return Progress::CoinsFlipped { count: 0 };
+        }
+        if called {
+            self.pending = Some(PendingDecision::CallFlip { player });
+            self.choice = Some(crate::state::ChoiceContinuation::CallFlip {
+                player,
+                remaining: count,
+                events: Vec::new(),
+            });
+            return Progress::CoinsFlipped { count };
+        }
+        let events: Vec<GameEvent> = (0..count)
+            .map(|_| GameEvent::CoinFlipped {
+                player,
+                heads: self.rng.random(),
+                won: None,
+            })
+            .collect();
+        self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
+        Progress::CoinsFlipped { count }
+    }
+
+    /// [CR#706.1..706.2]: draw `count` naturals in `1..=sides`; `result =
+    /// natural` until the modifier pipeline lands (engine-replace-roll).
+    fn roll_dice(&mut self, player: PlayerId, count: Uint, sides: Uint) -> Progress {
+        let events: Vec<GameEvent> = (0..count)
+            .map(|_| {
+                let natural = self.rng.random_range(1..=sides);
+                GameEvent::DieRolled {
+                    player,
+                    sides,
+                    natural,
+                    result: natural,
+                }
+            })
+            .collect();
+        if !events.is_empty() {
+            self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
+        }
+        Progress::DiceRolled { count }
+    }
+
+    /// [CR#701.9b]: random discard — uniform distinct sample, no decision.
+    fn discard_random(&mut self, player: PlayerId, count: Uint) -> Progress {
+        let len = self.zones.hands[player.index()].len();
+        let n = usize::try_from(count).expect("count fits usize").min(len);
+        let idx = rand::seq::index::sample(&mut self.rng, len, n);
+        let hand = &self.zones.hands[player.index()];
+        let picks: Vec<ObjectId> = idx.into_iter().map(|i| hand[i]).collect();
+        let events = crate::decide::discard_batch(picks);
+        if !events.is_empty() {
+            self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
+        }
+        Progress::RandomDiscarded {
+            count: Uint::try_from(n).expect("sampled count fits Uint"),
+        }
     }
 
     /// [CR#106.1b]: surfaces the color choice for a resolving `AddMana` whose

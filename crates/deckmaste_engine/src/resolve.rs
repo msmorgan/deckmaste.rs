@@ -2026,8 +2026,17 @@ impl GameState {
                 todo!("P0.W4: choose-and-note (slot store is P0.W5)")
             }
             PlayerAction::CopySpell(..) => todo!("P0.W4: copy-on-stack ([CR#707.10])"),
-            // P0.W3 seams: grammar-complete verbs whose execution is unbuilt.
-            PlayerAction::FlipCoins(..) => todo!("P0.W3: coin flips (emit CoinFlipped)"),
+            // [CR#705.1]: flip `count` coins — the draw happens in the work
+            // item (the rng needs `&mut`); the applied batch fixes "that
+            // many" to the number of won (called) / heads (uncalled) flips.
+            PlayerAction::FlipCoins(count, called) => {
+                let count = self.eval_count(count, frame);
+                vec![WorkItem::FlipCoins {
+                    player: actor,
+                    count,
+                    called: *called,
+                }]
+            }
             // core-action-riders-cost-modes: shapes landed, execution seams.
             // [CR#701.17a]: mill — the actor puts that many cards from the
             // top of their library into their graveyard, as ONE simultaneous
@@ -2062,7 +2071,18 @@ impl GameState {
             PlayerAction::VentureIntoDungeon => {
                 todo!("engine seam: venture into the dungeon ([CR#701.49a]) — dungeons unbuilt")
             }
-            PlayerAction::RollDice(..) => todo!("P0.W3: die rolls (emit DieRolled)"),
+            // [CR#706.1]: roll `count` `sides`-sided dice — draw in the work
+            // item; the applied batch fixes "that many" to the summed
+            // results ([CR#706.2] — `result = natural` until the modifier
+            // pipeline lands, engine-replace-roll).
+            PlayerAction::RollDice(count, sides) => {
+                let count = self.eval_count(count, frame);
+                vec![WorkItem::RollDice {
+                    player: actor,
+                    count,
+                    sides: *sides,
+                }]
+            }
             // [CR#901.9]: the Planechase planar die is a special action
             // whose whole surrounding subsystem (Plane cards, the chaos/
             // planeswalking abilities it triggers) this engine doesn't
@@ -2238,10 +2258,14 @@ impl GameState {
                 random,
             } => {
                 if *random {
-                    todo!(
-                        "core-action-riders-cost-modes seam: random discard ([CR#701.9b]) \
-                         needs the randomness source (with FlipCoins/RollDice, P0.W3)"
-                    );
+                    // [CR#701.9b]: random discard — no decision (no choice
+                    // exists); the work item samples from the seeded rng
+                    // when it applies (the hand may change before then).
+                    let count = self.eval_count(count, frame);
+                    return vec![WorkItem::DiscardRandom {
+                        player: actor,
+                        count,
+                    }];
                 }
                 // [CR#701.9b]: the actor chooses which cards — surfaced as a
                 // decision when the work item applies (the hand may change
@@ -10469,6 +10493,184 @@ mod tests {
             !state.is_permanent_spell(non_permanent_land),
             "a TypeDef named \"Land\" but flagged permanent:false is NOT permanent — \
              the old hardcoded name-list would have said true for this name alone"
+        );
+    }
+
+    // ========================================================================
+    // P0.W3: uncalled coin flips, dice rolls, random discard — the work-item
+    // machinery drawing from the seeded rng (`engine-randomness` Task 3).
+    // ========================================================================
+
+    /// [CR#705.1]: an uncalled `FlipCoins(3, false)` draws 3 coins straight
+    /// from the seeded rng with NO decision and no winner/loser, as ONE
+    /// simultaneous batch; the applied batch fixes "that many" to the number
+    /// of heads. Seed-pinned (via `game()`'s seed 7): same seed ⇒ same draw,
+    /// so the assertions are exact, not just shape checks.
+    #[test]
+    fn uncalled_flip_emits_batch_and_fixes_that_many_to_heads() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(3), false)),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        let flips: Vec<(bool, Option<bool>)> = state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(flips.len(), 3, "3 CoinFlipped facts, one per drawn coin");
+        assert!(
+            flips.iter().all(|&(_, won)| won.is_none()),
+            "an uncalled flip never records a winner/loser"
+        );
+        let heads = Uint::try_from(flips.iter().filter(|&&(h, _)| h).count())
+            .expect("heads count fits Uint");
+        assert_eq!(
+            state.that_much,
+            Some(heads),
+            "\"that many\" is fixed to the number of heads"
+        );
+    }
+
+    /// [CR#706.1]: `RollDice(3, 6)` draws 3 naturals in `1..=6` from the
+    /// seeded rng, each `result == natural` (no modifier pipeline yet), as
+    /// ONE simultaneous batch; the applied batch fixes "that many" to the
+    /// summed results.
+    #[test]
+    fn dice_roll_emits_per_die_and_fixes_that_many_to_sum() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(3), 6)),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        let rolls: Vec<(Uint, Uint)> = state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::DieRolled {
+                    natural, result, ..
+                } => Some((*natural, *result)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(rolls.len(), 3, "3 DieRolled facts, one per drawn die");
+        assert!(
+            rolls
+                .iter()
+                .all(|&(natural, result)| (1..=6).contains(&natural) && natural == result),
+            "every natural lands in 1..=6 and result == natural (no modifier pipeline yet)"
+        );
+        let sum: Uint = rolls.iter().map(|&(_, result)| result).sum();
+        assert_eq!(
+            state.that_much,
+            Some(sum),
+            "\"that many\" is fixed to the summed results"
+        );
+    }
+
+    /// [CR#701.9b]: `Discard { random: true, .. }` samples straight from the
+    /// seeded rng — no `DiscardCards` decision surfaces (no choice exists for
+    /// a random discard), and the sampled cards move Hand→Graveyard.
+    #[test]
+    fn random_discard_samples_without_decision() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        for i in 0..5 {
+            mint_in_hand(&mut state, p0, &format!("Random Discard Card {i}"));
+        }
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Discard {
+                count: Count::Literal(2),
+                what: None,
+                random: true,
+            }),
+            &frame,
+        );
+        // Drain until the discard resolves (graveyard gains 2) or SOME
+        // decision surfaces first — a `DiscardCards` decision here would mean
+        // the "random" path wrongly asked the player to choose. The normal
+        // game's own `Priority` window (reached once resolution completes) is
+        // not that decision, so it is not itself a failure.
+        for _ in 0..20 {
+            if state.zones.graveyards[p0.index()].len() == 2 {
+                break;
+            }
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+        assert!(
+            !matches!(state.pending, Some(PendingDecision::DiscardCards { .. })),
+            "a random discard surfaces no DiscardCards decision (no choice exists): {:?}",
+            state.pending
+        );
+        assert_eq!(
+            state.zones.hands[p0.index()].len(),
+            3,
+            "2 of 5 cards left the hand"
+        );
+        assert_eq!(
+            state.zones.graveyards[p0.index()].len(),
+            2,
+            "the sampled 2 cards landed in the graveyard"
+        );
+    }
+
+    /// The seeded rng is deterministic: two identical states (same seed),
+    /// driven through the identical `FlipCoins` + `RollDice` sequence, draw
+    /// identical heads/naturals.
+    #[test]
+    fn randomness_is_seed_deterministic() {
+        fn drive() -> (Vec<bool>, Vec<Uint>) {
+            let mut state = game();
+            let p0 = PlayerId(0);
+            let frame = frame_for(&state, p0);
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(3), false)),
+                &frame,
+            );
+            drain_progress(&mut state, 20);
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(3), 6)),
+                &frame,
+            );
+            drain_progress(&mut state, 20);
+
+            let heads: Vec<bool> = state
+                .history
+                .entries()
+                .filter_map(|e| match &e.fact {
+                    GameEvent::CoinFlipped { heads, .. } => Some(*heads),
+                    _ => None,
+                })
+                .collect();
+            let naturals: Vec<Uint> = state
+                .history
+                .entries()
+                .filter_map(|e| match &e.fact {
+                    GameEvent::DieRolled { natural, .. } => Some(*natural),
+                    _ => None,
+                })
+                .collect();
+            (heads, naturals)
+        }
+
+        assert_eq!(
+            drive(),
+            drive(),
+            "same seed ⇒ identical flip/roll sequence across independent states"
         );
     }
 }

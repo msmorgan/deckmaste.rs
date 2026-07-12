@@ -99,6 +99,33 @@ pub enum WorkItem {
         player: crate::player::PlayerId,
         count: deckmaste_core::Uint,
     },
+    /// [CR#705.1]: a resolving `FlipCoins` — draw `count` coins for `player`
+    /// from the seeded rng and emit the `CoinFlipped` batch. `called`
+    /// ([CR#705.2]) routes each coin through a `CallFlip` decision first
+    /// (the flipper calls heads or tails and wins or loses); an uncalled
+    /// flip draws directly and no player wins or loses.
+    FlipCoins {
+        player: crate::player::PlayerId,
+        count: deckmaste_core::Uint,
+        called: bool,
+    },
+    /// [CR#706.1]: a resolving `RollDice` — draw `count` naturals in
+    /// `1..=sides` for `player` from the seeded rng and emit the `DieRolled`
+    /// batch. `result = natural`: the modifier pipeline
+    /// ([CR#706.2a..706.2b]) is the engine-replace-roll ticket's.
+    RollDice {
+        player: crate::player::PlayerId,
+        count: deckmaste_core::Uint,
+        sides: deckmaste_core::Uint,
+    },
+    /// [CR#701.9b]: a resolving RANDOM discard — no decision (no choice
+    /// exists); uniformly sample `count` distinct cards from `player`'s hand
+    /// (clamped when the item applies — the hand may change before then) and
+    /// emit the same Hand→Graveyard batch a chosen discard emits.
+    DiscardRandom {
+        player: crate::player::PlayerId,
+        count: deckmaste_core::Uint,
+    },
     /// [CR#106.1b]: a resolving `AddMana` whose production is a choice ("any
     /// color", "{W} or {U}") — surface a `ChooseManaColor` decision for
     /// `player` to pick one of `options`.

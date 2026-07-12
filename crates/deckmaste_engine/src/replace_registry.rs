@@ -287,18 +287,17 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     // roll-more replacement) is a genuine THIRD replacement family — its own
     // `EventQuery`/effect shape, structurally distinct from `Replacement`'s
     // Instead/Also/Skip triad — but it is deliberately NOT gathered here.
-    // Its actual effect (flip/roll `extra` more, discard per `IgnoreRule`)
-    // has nothing live to intercept: `PlayerAction::FlipCoins`/`RollDice`
-    // themselves are unbuilt execution (`resolve.rs`: `todo!("P0.W3: coin
-    // flips (emit CoinFlipped)")` / `todo!("P0.W3: die rolls (emit
-    // DieRolled)")`), so there is no coin-flip/die-roll RESOLUTION event for
-    // a `ReplaceRoll` to watch in the first place — the same absent-
-    // subsystem standing this repo already documents for `ManaSpec::
-    // ProducedByEvent`/`EventFilter::TapForMana`. A `StaticEffect::
-    // ReplaceRoll` on the battlefield is simply never matched by either
-    // `if let` above, so it contributes nothing — never a panic. Krark's
-    // Thumb round-trips (`idris-check`) and renders; its replacement is a
-    // documented no-op until P0.W3 lands the flip/roll execution primitive.
+    // `PlayerAction::FlipCoins`/`RollDice` now draw from the seeded rng and
+    // emit real `CoinFlipped`/`DieRolled` resolution events
+    // (`engine-randomness` Task 3), but `ReplaceRoll`'s own effect (flip/roll
+    // `extra` more, discard per `IgnoreRule`) has no engine machinery to
+    // apply it yet — the same absent-subsystem standing this repo already
+    // documents for `ManaSpec::ProducedByEvent`/`EventFilter::TapForMana`. A
+    // `StaticEffect::ReplaceRoll` on the battlefield is simply never matched
+    // by either `if let` above, so it contributes nothing — never a panic.
+    // Krark's Thumb round-trips (`idris-check`) and renders; its replacement
+    // is a documented no-op until the `ReplaceRoll` execution primitive
+    // lands.
     out
 }
 
