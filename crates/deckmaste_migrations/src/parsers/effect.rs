@@ -2639,7 +2639,10 @@ mod tests {
         assert!(declines(
             "Create Y 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
         ));
-        // A non-unit base under "for each" has no Count product form -> decline.
+        // A non-unit base under "for each": the `Count::Times` product form
+        // exists (the pump path at `parse_pt_changes_scaled`/`scaled_side`
+        // emits it) but isn't wired into this call site's count-word logic
+        // -> decline.
         assert!(declines(
             "Create two 1/1 red Goblin creature tokens for each Goblin you control."
         ));
@@ -2775,6 +2778,36 @@ mod tests {
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
+    }
+
+    #[test]
+    fn durational_pump_for_each_asymmetric_scales_by_product() {
+        // "+2/+0 for each" (Goblin Piledriver shape): power scales via the
+        // Times product, toughness fixed at 0.
+        assert_eq!(
+            parsed("Creatures you control get +2/+0 for each Goblin you control until end of turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))), \
+                 Toughness(Up(0))]))), \
+                 duration: FixedUntil(EndOfTurn))".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn durational_pump_for_each_malformed_token_declines() {
+        // "+01": the wildcard arm strips '+' and parses "01" as u32 1, but
+        // fails the `n >= 2` guard (neither the "+0" nor "+1" literal arm
+        // matches the zero-padded string) -> decline.
+        assert!(declines(
+            "Creatures you control get +01/+01 for each Goblin you control until end of turn."
+        ));
+        // A numeral too large for u32 fails the wildcard arm's parse -> decline.
+        assert!(declines(
+            "Creatures you control get +99999999999/+0 for each Goblin you control until end of turn."
+        ));
     }
 
     #[test]
