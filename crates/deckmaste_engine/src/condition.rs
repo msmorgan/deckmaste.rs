@@ -580,6 +580,7 @@ mod tests {
                 controller: PlayerId(0),
                 targets: Vec::new(),
                 x: None,
+                copy: false,
             });
             state.resolve_object(stack_id);
 

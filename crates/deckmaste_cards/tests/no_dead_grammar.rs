@@ -305,6 +305,14 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             this batch.",
         ),
         (
+            n("EventFilter", "Copied"),
+            "DEFERRED: engine-copy-spells Task 2 lands only the plumbing \
+            (StackEntry.copy flag, GameEvent::Copied, this filter, and the FactView/eval \
+            arms) — nothing emits Copied yet (Task 3 builds the resolve/apply), and no \
+            magecraft-family real card (e.g. Expansion // Explosion) triggering on a copy is \
+            authored yet in this batch.",
+        ),
+        (
             n("PlayerAction", "FlipCoins"),
             "DEFERRED: every real coin-flip card that PERFORMS a flip \
             branches on its own win/lose result ('If you win the flip, ...', Boompile/Mana \

@@ -320,6 +320,10 @@ impl GameState {
             // nothing to mutate; recording (triggers/history) rides the
             // standard funnel.
             GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => event,
+            // P0.W4 seam ([CR#707.10]): the `Copied` plumbing lands here
+            // (Task 2); nothing emits it yet — its apply (mint the copy's
+            // stack entry) is Task 3.
+            GameEvent::Copied { .. } => todo!("P0.W4: copy-on-stack apply ([CR#707.10])"),
             // [CR#122.1]: counters live in the object's (or player proxy's)
             // counter map. Placement sums by kind; removal saturates at zero
             // and DROPS the key, so an absent kind reads as zero everywhere
@@ -2345,6 +2349,9 @@ impl GameState {
             // [CR#601.2b,702.33d]: the announced optional-cost record rides
             // the committed entry for the linked reads.
             paid_costs: pending.paid_costs.clone(),
+            // A cast/activate promote is never a copy ([CR#707.10]) — copies
+            // mint their own `StackEntry` directly.
+            copy: false,
         });
         pending
     }

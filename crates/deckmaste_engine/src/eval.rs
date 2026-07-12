@@ -164,6 +164,7 @@ pub(crate) enum FactKind {
     CounterPlaced,
     CounterRemoved,
     Cast,
+    Copied,
     ActivatedAb,
     AttackDeclared,
     BlockDeclared,
@@ -382,6 +383,19 @@ impl<'a> FactView<'a> {
                 v = FactView::bare(FactKind::Cast, state);
                 v.object = Some(part(*o));
                 v.actor = controller_of(*o);
+            }
+            // [CR#707.10]: a copy is put on the stack, not cast — `Cast`
+            // does not fire here. `object` is the minted copy; falls back
+            // to the copied original for a pre-apply view (the apply hasn't
+            // filled `copy` in yet).
+            GameEvent::Copied {
+                original,
+                copy,
+                controller,
+            } => {
+                v = FactView::bare(FactKind::Copied, state);
+                v.object = Some(part(copy.unwrap_or(*original)));
+                v.actor = Some(*controller);
             }
             // [CR#602.2a]: `what` matches the ability's SOURCE object.
             GameEvent::AbilityActivated { source, .. } => {
@@ -697,6 +711,14 @@ impl GameState {
             // [CR#601.2i].
             EventFilter::Cast { who, what } => {
                 fact.kind == FactKind::Cast
+                    && self.actor_matches(who, fact.actor, bindings)
+                    && self.part_matches(what, fact.object.as_ref(), bindings)
+            }
+
+            // [CR#707.10]: the magecraft family's "or copy" half — `Cast`
+            // does not fire for copies.
+            EventFilter::Copied { who, what } => {
+                fact.kind == FactKind::Copied
                     && self.actor_matches(who, fact.actor, bindings)
                     && self.part_matches(what, fact.object.as_ref(), bindings)
             }

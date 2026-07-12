@@ -337,6 +337,15 @@ pub enum EventFilter {
         #[serde(default = "Predicate::any")]
         what: Predicate,
     },
+    /// A spell or ability was copied onto the stack ([CR#707.10]) — the
+    /// magecraft family's "or copy" half; `Cast` does NOT fire for copies
+    /// ("a copy of a spell isn't cast").
+    Copied {
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
+        #[serde(default = "Predicate::any")]
+        what: Predicate,
+    },
     /// A card was played — the land drop ([CR#701.18a]; a special action,
     /// [CR#116.2a]).
     Played {

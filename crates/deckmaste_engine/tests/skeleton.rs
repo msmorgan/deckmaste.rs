@@ -813,6 +813,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
         controller: PlayerId(0),
         targets: vec![],
         x: None,
+        copy: false,
     });
     // [CR#608.2m]/[CR#400.7]: leaving the stack remints — the old id is gone
     // and a fresh object sits in the owner's graveyard.
@@ -1028,6 +1029,7 @@ fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
         controller: PlayerId(0),
         targets: vec![bear],
         x: None,
+        copy: false,
     });
     (state, bolt, bear)
 }

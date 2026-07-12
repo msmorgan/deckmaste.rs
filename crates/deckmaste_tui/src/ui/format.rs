@@ -293,6 +293,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             x: None,
+            copy: false,
         };
         assert_eq!(stack_label(&state, &entry), face(state.def(id)).name);
     }
@@ -323,6 +324,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![target],
             x: None,
+            copy: false,
         };
         let label = stack_label(&state, &entry);
         assert!(

@@ -225,6 +225,14 @@ pub enum GameEvent {
     /// [CR#601.2i] — a spell becomes cast. Applies by promoting `announcing`
     /// onto the stack. The Stage-3 "whenever you cast" seam.
     SpellCast(ObjectId),
+    /// A spell or ability was COPIED onto the stack ([CR#707.10] — a copy
+    /// is put on the stack, not cast). `copy` is filled by the apply (the
+    /// minted entry); `original` is the copied stack object.
+    Copied {
+        original: ObjectId,
+        copy: Option<ObjectId>,
+        controller: PlayerId,
+    },
     /// [CR#602.2a] — an ability becomes activated. Applies by minting the
     /// stack identity, promoting `announcing` onto the stack, and bumping the
     /// activation ledger. The "whenever … activates an ability" trigger seam

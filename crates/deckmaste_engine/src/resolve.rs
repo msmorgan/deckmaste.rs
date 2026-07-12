@@ -4350,6 +4350,7 @@ mod tests {
             targets: vec![],
             x: None,
             paid_costs: vec![],
+            copy: false,
         });
 
         state.resolve_object(spell);
@@ -7065,6 +7066,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             x: None,
+            copy: false,
         });
         let gy_before = state.zones.graveyards[0].len();
 
@@ -7119,6 +7121,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             x: None,
+            copy: false,
         });
         let gy_before = state.zones.graveyards[0].len();
 
@@ -7168,6 +7171,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             x: None,
+            copy: false,
         });
 
         // The source's effect counters that ability (chosen as Target(0)).
@@ -8206,6 +8210,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![host],
             x: None,
+            copy: false,
         });
         // Resolve the Aura spell — it enters attached to its chosen target.
         // (`resolve_object` schedules the entering ZoneMove at the agenda front;
@@ -9077,6 +9082,7 @@ mod tests {
             controller: p0,
             targets: vec![],
             x: None,
+            copy: false,
         });
 
         (state, p0, library_before)

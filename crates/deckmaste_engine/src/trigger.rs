@@ -944,6 +944,7 @@ impl GameState {
                 controller: noted.controller,
                 targets: vec![],
                 x: None,
+                copy: false,
             });
             return true;
         }
@@ -1030,6 +1031,7 @@ impl GameState {
             controller: staged.controller,
             targets,
             x: None,
+            copy: false,
         });
     }
 }
@@ -4368,6 +4370,7 @@ mod tests {
             controller: noted.controller,
             targets: Vec::new(),
             x: None,
+            copy: false,
         });
         state.resolve_object(id);
         for _ in 0..10 {

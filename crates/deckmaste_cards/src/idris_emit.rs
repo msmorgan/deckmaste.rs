@@ -2559,6 +2559,13 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             vec!["(Begins Cast)".to_string()],
             actor_agent_facets(who, what)?,
         ),
+        // [CR#707.10]: the copy-on-stack plumbing lands here (P0.W4 seam);
+        // no Idris `EventKind` counterpart exists yet.
+        EventFilter::Copied { .. } => {
+            return Err(gap(
+                "EventFilter::Copied has no Idris EventKind counterpart yet ([CR#707.10])",
+            ));
+        }
         EventFilter::Played { who, what } => (
             vec!["(Begins Play)".to_string()],
             actor_agent_facets(who, what)?,

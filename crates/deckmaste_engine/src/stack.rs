@@ -94,6 +94,10 @@ pub struct StackEntry {
     /// read while this entry resolves ([CR#607.2] linked reads). Copied from
     /// the announce slot at promote; empty for triggers.
     pub paid_costs: Vec<(deckmaste_core::CostTag, deckmaste_core::Uint)>,
+    /// [CR#707.10]: this entry is a COPY — no card behind it; it vanishes
+    /// instead of moving zones when it leaves the stack ([CR#707.10a]).
+    /// Otherwise a full citizen: "a copy of a spell is itself a spell".
+    pub copy: bool,
 }
 
 /// An announce in flight ([CR#601.2] / [CR#602.2]). At most one exists, ever

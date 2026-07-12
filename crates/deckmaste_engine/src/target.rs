@@ -1261,6 +1261,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             x: None,
+            copy: false,
         });
         // A real spell on the stack, for contrast.
         let spell_id = state
@@ -1273,6 +1274,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![],
             x: None,
+            copy: false,
         });
 
         assert_eq!(object_kind(&state, ability_id), ObjectKind::Ability);
@@ -1329,6 +1331,7 @@ mod tests {
             controller: PlayerId(0),
             targets: vec![bear],
             x: None,
+            copy: false,
         });
         (state, spell, bear)
     }
