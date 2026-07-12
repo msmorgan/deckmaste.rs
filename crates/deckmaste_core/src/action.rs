@@ -327,9 +327,12 @@ pub enum PlayerAction {
     /// copy on the stack, NOT casting one; [CR#707.12] casting rides the
     /// 601 pipeline).
     CopySpell(Reference),
-    /// Flip that many coins ([CR#705.1]) — results are events; call/win
-    /// framing is the consumer's ([CR#705.2]).
-    FlipCoins(Count),
+    /// Flip that many coins ([CR#705.1]); the win/loss result rides the
+    /// pushed `amount` antecedent, like `RollDice`. `called` splits
+    /// [CR#705.2]'s two kinds: `true` = the flipper calls heads/tails and
+    /// wins or loses the flip; `false` = the effect reads only
+    /// heads/tails and no player wins or loses.
+    FlipCoins(Count, bool),
     /// Roll that many dice with the given number of sides ([CR#706.1]);
     /// an IGNORED roll is considered to have never happened ([CR#706.6]).
     RollDice(Count, crate::Uint),

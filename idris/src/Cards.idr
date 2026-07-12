@@ -1319,7 +1319,7 @@ vlxD20 : OneShotEffect Base  -- roll a d20; 15+ -> draw
 vlxD20 = Sequentially [ Act (RollDice (^1) 20)
                       , If (Compare ThatMany AtLeast (^15)) (Act (Draw (^1))) ]
 vlxFlip : OneShotEffect Base
-vlxFlip = Sequentially [ Act (FlipCoins (^1))
+vlxFlip = Sequentially [ Act (FlipCoins (^1) True)
                        , If (Compare ThatMany AtLeast (^1)) (Act (Draw (^1))) ]
 
 --:vim:sts=2 sw=2:

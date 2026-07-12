@@ -2272,8 +2272,10 @@ mutual
       -- `amountAnte` antecedent (a later `Compare ThatMany …` reads it, [CR#706.2]).
       RollDice : (count : Count b) -> (sides : Nat) -> Action b
       -- flip `count` coins ([CR#705.1]); the win/loss RESULT rides the pushed `amountAnte`
-      -- antecedent, like `RollDice` ([CR#705.2] — the flipper calls heads/tails).
-      FlipCoins : (count : Count b) -> Action b
+      -- antecedent, like `RollDice`. `called` splits [CR#705.2]'s two kinds: True = the flipper
+      -- calls heads/tails and wins or loses the flip; False = the effect reads only
+      -- heads/tails and NO player wins or loses.
+      FlipCoins : (count : Count b) -> (called : Bool) -> Action b
       -- roll the (Planechase) planar die as a special action ([CR#901.9]); NO numeric result
       -- ([CR#901.9d]) so unlike `RollDice`/`FlipCoins` this introduces nothing for `ThatMany`.
       RollPlanarDie : Action b
@@ -2320,7 +2322,7 @@ mutual
   actionEventCaps (Action.AddMana _ _)        = NoCaps
   actionEventCaps (Action.Composite _ _)      = NoCaps
   actionEventCaps (Action.RollDice _ _)       = eventKindCaps RollDice
-  actionEventCaps (Action.FlipCoins _)        = eventKindCaps (FlipCoin Nothing)
+  actionEventCaps (Action.FlipCoins _ _)      = eventKindCaps (FlipCoin Nothing)
   actionEventCaps Action.RollPlanarDie        = eventKindCaps (RollPlanarDie Nothing)
 
   -- the caps a COST's payment supplies its `AdditionalCost` body: an action pays via its event; a composite
@@ -2578,7 +2580,7 @@ mutual
   actionIntro (Action.AddMana _ _) = []
   actionIntro (Action.Composite _ _) = []   -- composite tags introduce nothing (no intro row)
   actionIntro (Action.RollDice _ _) = [amountAnte]
-  actionIntro (Action.FlipCoins _) = [amountAnte]
+  actionIntro (Action.FlipCoins _ _) = [amountAnte]
   actionIntro Action.RollPlanarDie = []
 
   -- the antecedents an effect INTRODUCES for its right siblings

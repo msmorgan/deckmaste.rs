@@ -1707,11 +1707,17 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         // `Draw`/`GainLife`/…'s `{default You actor}`) — a non-`You` agent
         // is a gap, matching the `Tap`/`Untap`/`PutCounters`/`Create` family
         // above.
-        PlayerAction::FlipCoins(count) => {
+        PlayerAction::FlipCoins(count, called) => {
             if !matches!(actor, Reference::You) {
                 return Err(gap("FlipCoins has no Idris actor slot"));
             }
-            Ok(app("FlipCoins", vec![emit_count(count)?]))
+            Ok(app(
+                "FlipCoins",
+                vec![
+                    emit_count(count)?,
+                    if *called { "True" } else { "False" }.to_string(),
+                ],
+            ))
         }
         PlayerAction::RollDice(count, sides) => {
             if !matches!(actor, Reference::You) {
