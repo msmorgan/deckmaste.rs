@@ -434,12 +434,15 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
     }
 }
 
-/// [CR#707.10c]: the union rule makes "leave every slot unchanged" always
-/// legal, so a headless strategy never re-targets. Reads the committed stack
+/// [CR#707.10c]: answer a `ChooseNewTargets` re-target by keeping every
+/// current target — the union rule makes "leave every slot unchanged" always
+/// legal, so no strategy ever re-targets a committed entry. Reads the stack
 /// entry's current targets directly; if the entry has since left the stack (a
 /// race between the decision surfacing and being answered) falls back to the
-/// first legal candidate per slot — still always legal, never a panic.
-fn keep_current_targets(
+/// first legal candidate per slot — still always legal, never a panic. Shared
+/// by `mechanical()` and `StrategyEvaluator::fallback` (the union rule has no
+/// preference to consult, so the answer is strategy-independent).
+pub(crate) fn keep_current_targets(
     state: &GameState,
     entry: ObjectId,
     legal: &[Vec<ObjectId>],
