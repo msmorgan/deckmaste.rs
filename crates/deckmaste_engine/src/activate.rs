@@ -320,7 +320,31 @@ impl GameState {
             let in_window = match window {
                 deckmaste_core::Timing::InstantSpeed => true,
                 deckmaste_core::Timing::SorcerySpeed => self.sorcery_speed_ok(player),
-                other => todo!("P0.W1: activation window {other:?}"),
+                // [CR#500.1]: "Activate only during [relation]'s turn" — a
+                // pure predicate over the active player and the named
+                // `WhoseTurn` relation, mirroring the `WhoseTurn` reading in
+                // `EventFilter::StepBegins` (eval.rs).
+                //
+                // DIVERGENCE (documented, not fixed): forecast's CR text
+                // anchors this window to the card's OWNER ([CR#702.57b]:
+                // "...may be activated only during the upkeep step of the
+                // card's owner..."), but `WhoseTurn` only expresses a
+                // controller/activator-relative relation — `player` here is
+                // the activating player, i.e. the object's CURRENT
+                // controller, and there is no owner-relative `WhoseTurn`
+                // variant. So a stolen forecast-style card's window follows
+                // its controller's turn, not its owner's, until `WhoseTurn`
+                // grows an owner-relative arm.
+                deckmaste_core::Timing::DuringTurn(whose) => {
+                    self.whose_turn_matches(*whose, player)
+                }
+                // [CR#602.5d..602.5e,500.1]: as `DuringTurn`, plus the
+                // current step must be the named one exactly
+                // (forecast-style, [CR#702.57b] — see the DIVERGENCE note
+                // above, which applies here too).
+                deckmaste_core::Timing::DuringStep(step, whose) => {
+                    self.turn.current == *step && self.whose_turn_matches(*whose, player)
+                }
             };
             if !in_window {
                 return false;
@@ -418,6 +442,23 @@ impl GameState {
             .tap_totals
             .iter()
             .all(|req| self.tap_total_subset(req, object, player).is_some())
+    }
+
+    /// [CR#500.1]: does the current active player stand in the named
+    /// `WhoseTurn` relation to `activator`? The `Timing::DuringTurn`/
+    /// `DuringStep` window-gate predicate — mirrors the `WhoseTurn` reading
+    /// in `EventFilter::StepBegins` (eval.rs): `Your` compares equal,
+    /// `AnOpponents` compares unequal (no team modeling yet, so "opponent"
+    /// is exactly "a different player", same as `same_team`'s seam),
+    /// `EachPlayers` is unconditional.
+    #[must_use]
+    fn whose_turn_matches(&self, whose: deckmaste_core::WhoseTurn, activator: PlayerId) -> bool {
+        let active = self.turn.active_player;
+        match whose {
+            deckmaste_core::WhoseTurn::Your => active == activator,
+            deckmaste_core::WhoseTurn::AnOpponents => active != activator,
+            deckmaste_core::WhoseTurn::EachPlayers => true,
+        }
     }
 
     /// [CR#601.2b,601.2h]: is the cost-side `With`'s binder a payable choice for
@@ -733,15 +774,19 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::ActivatedAbility;
+    use deckmaste_core::BeginningStep;
     use deckmaste_core::Condition;
     use deckmaste_core::CostComponent;
     use deckmaste_core::ManaCost;
     use deckmaste_core::ManaSymbol;
     use deckmaste_core::OneShotEffect;
+    use deckmaste_core::PhaseStep;
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     use deckmaste_core::SimpleManaSymbol;
+    use deckmaste_core::Timing;
     use deckmaste_core::UseLimit;
+    use deckmaste_core::WhoseTurn;
     use deckmaste_core::Zone;
 
     use super::*;
@@ -1254,6 +1299,137 @@ mod tests {
         assert!(
             state.can_activate(&view, player, obj, 0, &ability),
             "zero-cost, no-limits ability should always be activatable"
+        );
+    }
+
+    // -- can_activate gate: activation window ([CR#602.5d..602.5e,500.1]) --
+
+    /// `Timing::DuringTurn(WhoseTurn::Your)` allows only the active player.
+    #[test]
+    fn gate_during_turn_your_allows_active_blocks_non_active() {
+        let mut state = game();
+        // Active player is PlayerId(0) (game()'s Fixed starting player).
+        let active = PlayerId(0);
+        let non_active = PlayerId(1);
+        let obj_active = make_object_on_battlefield(&mut state, active);
+        let obj_non_active = make_object_on_battlefield(&mut state, non_active);
+
+        let ability = ActivatedAbility {
+            ability_word: None,
+            from: None,
+            cost: vec![].into(),
+            window: Some(Timing::DuringTurn(WhoseTurn::Your)),
+            condition: None,
+            limits: vec![],
+            effect: noop_effect(),
+        };
+        let view = state.layers();
+        assert!(
+            state.can_activate(&view, active, obj_active, 0, &ability),
+            "DuringTurn(Your) should allow the active player during their own turn"
+        );
+        assert!(
+            !state.can_activate(&view, non_active, obj_non_active, 0, &ability),
+            "DuringTurn(Your) should block a non-active player"
+        );
+    }
+
+    /// `Timing::DuringTurn(WhoseTurn::AnOpponents)` allows only a player who
+    /// is not the active player.
+    #[test]
+    fn gate_during_turn_an_opponents_allows_non_active_blocks_active() {
+        let mut state = game();
+        let active = PlayerId(0);
+        let non_active = PlayerId(1);
+        let obj_active = make_object_on_battlefield(&mut state, active);
+        let obj_non_active = make_object_on_battlefield(&mut state, non_active);
+
+        let ability = ActivatedAbility {
+            ability_word: None,
+            from: None,
+            cost: vec![].into(),
+            window: Some(Timing::DuringTurn(WhoseTurn::AnOpponents)),
+            condition: None,
+            limits: vec![],
+            effect: noop_effect(),
+        };
+        let view = state.layers();
+        assert!(
+            !state.can_activate(&view, active, obj_active, 0, &ability),
+            "DuringTurn(AnOpponents) should block the active player"
+        );
+        assert!(
+            state.can_activate(&view, non_active, obj_non_active, 0, &ability),
+            "DuringTurn(AnOpponents) should allow a non-active player"
+        );
+    }
+
+    /// `Timing::DuringTurn(WhoseTurn::EachPlayers)` allows any player,
+    /// regardless of whose turn it is.
+    #[test]
+    fn gate_during_turn_each_players_always_allows() {
+        let mut state = game();
+        let active = PlayerId(0);
+        let non_active = PlayerId(1);
+        let obj_active = make_object_on_battlefield(&mut state, active);
+        let obj_non_active = make_object_on_battlefield(&mut state, non_active);
+
+        let ability = ActivatedAbility {
+            ability_word: None,
+            from: None,
+            cost: vec![].into(),
+            window: Some(Timing::DuringTurn(WhoseTurn::EachPlayers)),
+            condition: None,
+            limits: vec![],
+            effect: noop_effect(),
+        };
+        let view = state.layers();
+        assert!(
+            state.can_activate(&view, active, obj_active, 0, &ability),
+            "DuringTurn(EachPlayers) should allow the active player"
+        );
+        assert!(
+            state.can_activate(&view, non_active, obj_non_active, 0, &ability),
+            "DuringTurn(EachPlayers) should allow a non-active player too"
+        );
+    }
+
+    /// `Timing::DuringStep(step, whose)` gates on BOTH the named step and the
+    /// `WhoseTurn` relation — forecast-style ("Activate only during the
+    /// upkeep step", [CR#702.57b]).
+    #[test]
+    fn gate_during_step_blocks_wrong_step_allows_named_step() {
+        let mut state = game();
+        let player = PlayerId(0); // active player
+        let obj = make_object_on_battlefield(&mut state, player);
+
+        let ability = ActivatedAbility {
+            ability_word: None,
+            from: None,
+            cost: vec![].into(),
+            window: Some(Timing::DuringStep(
+                PhaseStep::Beginning(BeginningStep::Upkeep),
+                WhoseTurn::Your,
+            )),
+            condition: None,
+            limits: vec![],
+            effect: noop_effect(),
+        };
+
+        // Wrong step: main phase.
+        state.turn.current = PhaseStep::PrecombatMain;
+        let view = state.layers();
+        assert!(
+            !state.can_activate(&view, player, obj, 0, &ability),
+            "DuringStep(Upkeep, Your) should block outside the upkeep step"
+        );
+
+        // Right step: upkeep.
+        state.turn.current = PhaseStep::Beginning(BeginningStep::Upkeep);
+        let view = state.layers();
+        assert!(
+            state.can_activate(&view, player, obj, 0, &ability),
+            "DuringStep(Upkeep, Your) should allow during the upkeep step"
         );
     }
 
