@@ -1001,7 +1001,7 @@ impl GameState {
     /// (`ChooseNewTargets`, [CR#707.10c]). A spell's specs are read fresh off
     /// `view` (its `Spell` ability may have changed since the object hit the
     /// stack, and a copy's controller can differ from the caster,
-    /// [CR#707.10a]); an activated/triggered ability's ride the text carried
+    /// [CR#707.10]); an activated/triggered ability's ride the text carried
     /// at promote/placement ([CR#602.2a,603.3d]) — never re-derived from a
     /// (possibly gone, possibly changed) source.
     #[must_use]
