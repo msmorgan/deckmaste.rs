@@ -340,7 +340,19 @@ impl GameState {
                 let source = match &entry.object {
                     StackObject::Spell(obj) => self.objects.obj(*obj).source,
                     StackObject::Triggered { source, .. } => *source,
-                    StackObject::Activated { source, .. } => self.objects.obj(*source).source,
+                    StackObject::Activated { source, .. } => {
+                        // The activated ability's source is carried by id
+                        // only and may be "possibly gone, possibly changed"
+                        // (`StackObject::Activated` doc) — a zone change
+                        // removes it from the store ([CR#400.7]). A stale id
+                        // here is an authoring-adjacent runtime state, not a
+                        // reason to crash: fizzle
+                        // ([[engine-never-crashes-on-authoring-mistakes]]).
+                        let Some(obj) = self.objects.get(*source) else {
+                            return event;
+                        };
+                        obj.source
+                    }
                 };
                 let new = self.objects.mint(source, controller, Some(Zone::Stack));
                 let copied = StackEntry {
@@ -3233,6 +3245,81 @@ mod tests {
         assert!(
             !state.objects.obj(perm).tapped,
             "the permanent is now untapped"
+        );
+    }
+
+    // --- [CR#707.10]: Copied — stale activated-ability source fizzles ------
+
+    /// Copying an activated ability whose source object has already left the
+    /// object store (a zone change removes an id from the store, [CR#400.7])
+    /// must fizzle silently, never panic — `StackObject::Activated`'s source
+    /// is carried by id only and is documented as "possibly gone, possibly
+    /// changed" (`stack.rs`). Card-authoring / timing situations that leave
+    /// a stale reference must never crash the engine
+    /// ([[engine-never-crashes-on-authoring-mistakes]]); this pins the
+    /// `Copied` apply arm's Activated-branch lookup against that invariant.
+    #[test]
+    fn copy_activated_ability_with_gone_source_fizzles() {
+        use deckmaste_core::ActivatedAbility;
+        use deckmaste_core::Cost;
+        use deckmaste_core::OneShotEffect;
+
+        use crate::stack::StackEntry;
+        use crate::stack::StackObject;
+        use crate::trigger::TriggerBindings;
+
+        let mut state = game();
+        let source = mint_card_backed(&mut state, PlayerId(0));
+        let ability_src = state.objects.obj(source).source;
+        let entry_id = state
+            .objects
+            .mint(ability_src, PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: entry_id,
+            object: StackObject::Activated {
+                source,
+                ability: Box::new(ActivatedAbility {
+                    ability_word: None,
+                    cost: Cost(vec![]),
+                    from: None,
+                    window: None,
+                    condition: None,
+                    limits: vec![],
+                    effect: OneShotEffect::Sequentially(vec![]),
+                }),
+                bindings: TriggerBindings::default(),
+            },
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+            paid_costs: vec![],
+            copy: false,
+        });
+
+        // The source permanent leaves play — its id is gone from the store
+        // ([CR#400.7]) — while the ability it printed stays on the stack
+        // ([CR#602.2a]: "It has the text of the ability that created it").
+        state.objects.remove(source);
+
+        let event = state.apply(GameEvent::Copied {
+            original: entry_id,
+            copy: None,
+            controller: PlayerId(1),
+        });
+
+        assert_eq!(
+            event,
+            GameEvent::Copied {
+                original: entry_id,
+                copy: None,
+                controller: PlayerId(1),
+            },
+            "fizzles: the event comes back unchanged, no copy minted"
+        );
+        assert_eq!(
+            state.stack.len(),
+            1,
+            "no new stack entry was pushed — only the original ability remains"
         );
     }
 }
