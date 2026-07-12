@@ -214,6 +214,9 @@ pub(crate) struct FactView<'a> {
     pub counter: Option<Cow<'a, Ident>>,
     /// Combat vs noncombat damage ([CR#510.1]).
     pub combat: Option<bool>,
+    /// A called coin flip's win/loss for the flipper ([CR#705.2]); `None`
+    /// for an uncalled flip (and every non-flip fact).
+    pub won: Option<bool>,
     /// The step/phase of a `StepBegins` record ([CR#603.2b]).
     pub step: Option<PhaseStep>,
     /// A designation record's `(name, becomes)` ([CR#109.3,731.1a]) —
@@ -244,6 +247,7 @@ impl<'a> FactView<'a> {
             amount: None,
             counter: None,
             combat: None,
+            won: None,
             step: None,
             designation: None,
             time: state.turn.turn_number,
@@ -470,15 +474,17 @@ impl<'a> FactView<'a> {
                 v = FactView::bare(FactKind::Used, state);
                 v.object = Some(Part::Obj(*object));
             }
-            // [CR#705.1]: the physical outcome only — flip-WIN is
-            // call-relative ([CR#705.2], the kept `CoinFlipped:won` cap).
-            GameEvent::CoinFlipped { player, .. } => {
+            // [CR#705.1]: the physical outcome, plus the call-relative
+            // WIN/LOSS ([CR#705.2]) when the flip was called.
+            GameEvent::CoinFlipped { player, won, .. } => {
                 v = FactView::bare(FactKind::CoinFlipped, state);
                 v.actor = Some(*player);
+                v.won = *won;
             }
-            GameEvent::DieRolled { player, .. } => {
+            GameEvent::DieRolled { player, result, .. } => {
                 v = FactView::bare(FactKind::DiceRolled, state);
                 v.actor = Some(*player);
+                v.amount = Some(*result);
             }
             // Plumbing and information events no pattern atom watches.
             GameEvent::TurnBegan { .. }
@@ -517,6 +523,7 @@ impl<'a> FactView<'a> {
             amount: self.amount,
             counter: self.counter.map(|c| Cow::Owned(c.into_owned())),
             combat: self.combat,
+            won: self.won,
             step: self.step,
             designation: self.designation.map(|(n, b)| {
                 (
@@ -597,9 +604,8 @@ impl GameState {
     /// view (live object, player proxy, or LKI snapshot) — snapshot
     /// semantics are a participant value, not a second matcher. Coordinates
     /// the fact record cannot supply (`TokenCreated:what` pre-mint specs,
-    /// `CoinFlipped:won` call-relativity, `BecomesTarget:source`) read
-    /// `false` — each is unrepresentable in the Idris model, so no card
-    /// carries one and `false` is a defensive floor.
+    /// `BecomesTarget:source`) read `false` — each is unrepresentable in the
+    /// Idris model, so no card carries one and `false` is a defensive floor.
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per EventFilter node — the grammar's full surface in one dispatch"
@@ -840,12 +846,15 @@ impl GameState {
                 }
             }
 
-            // [CR#705.1]: `won` is call-relative ([CR#705.2]) and the record
-            // carries only the physical outcome — the KEPT `CoinFlipped:won`
-            // cap; a narrowed pattern matches nothing.
             EventFilter::CoinFlipped { by, won } => {
                 fact.kind == FactKind::CoinFlipped
-                    && won.is_none()
+                    && match won {
+                        // Unfiltered: any flip, called or not.
+                        None => true,
+                        // [CR#705.2]: a win/loss filter never matches an
+                        // uncalled flip — no player wins or loses one.
+                        Some(w) => fact.won == Some(*w),
+                    }
                     && self.actor_matches(by, fact.actor, bindings)
             }
 
@@ -861,9 +870,7 @@ impl GameState {
             // [CR#901.9]: nor does the Planechase planar die have one
             // (Plane cards — a different game-object type — aren't modeled
             // by this engine at all). Both never match: a documented
-            // absent-subsystem fizzle, not a soundness claim — mirrors
-            // `CoinFlipped:won`'s own unrepresentable-cap treatment just
-            // above.
+            // absent-subsystem fizzle, not a soundness claim.
             EventFilter::TapForMana { .. } | EventFilter::RollPlanarDie { .. } => false,
 
             // [CR#731.1a]: the day/night designation transitions.

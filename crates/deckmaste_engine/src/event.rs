@@ -306,10 +306,14 @@ pub enum GameEvent {
     /// [CR#603.2]: a triggered ability triggered. Its apply notes it into
     /// `pending_triggers`. Routed as an event so Stage-4 replacements/cant can
     /// intercept (Panharmonicon/Hushwing).
-    /// A coin flip's outcome ([CR#705.1..705.2]).
+    /// A coin flip's outcome ([CR#705.1..705.2]). `won` is `Some` only for a
+    /// CALLED flip (the flipper called heads or tails and won or lost the
+    /// flip); `None` when the effect reads only heads/tails and no player
+    /// wins or loses.
     CoinFlipped {
         player: PlayerId,
         heads: bool,
+        won: Option<bool>,
     },
     /// A die roll's outcome ([CR#706.1..706.2]); an IGNORED roll is
     /// considered never to have happened — no triggers ([CR#706.6]).

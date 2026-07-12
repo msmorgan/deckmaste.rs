@@ -291,11 +291,11 @@ impl GameState {
             | GameEvent::StepBegan(_)
             | GameEvent::BecameTarget { .. }
             | GameEvent::AbilityUsed { .. } => event,
-            // P0.W3 seam: grammar-complete events nothing emits yet — their
-            // apply (RNG) is unbuilt.
-            GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => {
-                todo!("P0.W3: random-event apply")
-            }
+            // Pure information facts ([CR#705.1,706.2]): the rng draw
+            // happened in the scheduling work item / call submission —
+            // nothing to mutate; recording (triggers/history) rides the
+            // standard funnel.
+            GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => event,
             // [CR#122.1]: counters live in the object's (or player proxy's)
             // counter map. Placement sums by kind; removal saturates at zero
             // and DROPS the key, so an absent kind reads as zero everywhere
