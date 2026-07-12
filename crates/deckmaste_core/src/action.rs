@@ -327,6 +327,12 @@ pub enum PlayerAction {
     /// copy on the stack, NOT casting one; [CR#707.12] casting rides the
     /// 601 pipeline).
     CopySpell(Reference),
+    /// `by` picks new targets for the stack object `of`, bound by its
+    /// original targetspec ([CR#115.7d,707.10c] — Bolt Bend, Redirect,
+    /// copy-with-new-targets). Each target slot may be LEFT UNCHANGED even
+    /// if the current target is illegal; a CHANGED slot must pick a legal
+    /// target ([CR#707.10c]).
+    ChooseNewTargets { of: Reference, by: Reference },
     /// Flip that many coins ([CR#705.1]); the win/loss result rides the
     /// pushed `amountAnte` antecedent, like `RollDice`. `called` splits
     /// [CR#705.2]'s two kinds: `true` = the flipper calls heads/tails and

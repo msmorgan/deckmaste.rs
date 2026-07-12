@@ -1849,6 +1849,13 @@ impl GameState {
         clippy::too_many_lines,
         reason = "one arm per player verb; splitting would scatter the dispatch"
     )]
+    #[expect(
+        clippy::match_same_arms,
+        reason = "ChooseNewTargets (grammar-only, wired in this feature's later commit) and \
+                  RollPlanarDie (documented absent-subsystem no-op) both currently return \
+                  `vec![]`, but for unrelated reasons tracked separately — merging the arms \
+                  would blur that distinction"
+    )]
     fn player_action_items(
         &self,
         action: &PlayerAction,
@@ -2026,6 +2033,11 @@ impl GameState {
                 todo!("P0.W4: choose-and-note (slot store is P0.W5)")
             }
             PlayerAction::CopySpell(..) => todo!("P0.W4: copy-on-stack ([CR#707.10])"),
+            // Grammar-only for now: no work items yet. Consuming this
+            // (choosing/validating new targets bound by the original
+            // targetspec, [CR#707.10c]) is wired in this feature's later
+            // commit (Task 5).
+            PlayerAction::ChooseNewTargets { .. } => vec![],
             // [CR#705.1]: flip `count` coins — the draw happens in the work
             // item (the rng needs `&mut`); the applied batch fixes "that
             // many" to the number of won (called) / heads (uncalled) flips.

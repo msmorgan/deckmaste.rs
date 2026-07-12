@@ -1576,6 +1576,11 @@ fn emit_action(a: &Action) -> R {
     })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per player verb; splitting would scatter the dispatch (mirrors \
+              resolve.rs's player_action_items)"
+)]
 fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
     // The player verbs whose Idris constructor carries a `{default You actor}`
     // are emitted through the positional `<verb>By` helper, always passing the
@@ -1731,11 +1736,26 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             }
             Ok("RollPlanarDie".to_string())
         }
+        PlayerAction::CopySpell(what) => Ok(app("Copy", vec![emit_reference(what)?])),
+        // `{default You by}` on the Idris side: the terse positional form
+        // when `by` is the default `You` (mirrors the `Tap`/`Untap`-style
+        // bare `app` calls above); named-field syntax to override it
+        // otherwise, following `MayCastFor`'s `{from = ..., tag = ...}`
+        // direct-named-field precedent above.
+        PlayerAction::ChooseNewTargets { of, by } => {
+            let of_ = emit_reference(of)?;
+            Ok(match by {
+                Reference::You => app("ChooseNewTargets", vec![of_]),
+                other => format!(
+                    "(ChooseNewTargets {of_} {{by = {}}})",
+                    emit_reference(other)?
+                ),
+            })
+        }
         PlayerAction::VentureIntoDungeon
         | PlayerAction::GetEmblem(_)
         | PlayerAction::GetDesignation(_)
         | PlayerAction::ChooseAndNote(..)
-        | PlayerAction::CopySpell(_)
         | PlayerAction::RestartGame => Err(gap(format!(
             "{pa:?} not yet mapped (no Idris counterpart or not implemented)"
         ))),

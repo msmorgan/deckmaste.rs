@@ -297,6 +297,14 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             in this batch.",
         ),
         (
+            n("PlayerAction", "ChooseNewTargets"),
+            "DEFERRED: engine-copy-spells Task 1 lands only the grammar \
+            (Rust mirror + idris_emit) — the resolve.rs work-item arm is a `vec![]` stub \
+            ('wired in this feature's later commit') until Task 5 wires consumption, and no \
+            copy-with-new-targets real card (e.g. Bolt Bend, Reverberate) is authored yet in \
+            this batch.",
+        ),
+        (
             n("PlayerAction", "FlipCoins"),
             "DEFERRED: every real coin-flip card that PERFORMS a flip \
             branches on its own win/lose result ('If you win the flip, ...', Boompile/Mana \
