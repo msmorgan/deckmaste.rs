@@ -633,6 +633,13 @@ fn emit_filter(f: &Predicate) -> R {
         Predicate::Relation(rf) => emit_relation_filter(rf)?,
         Predicate::Ref(r) => app("SameAs", vec![emit_reference(r)?]),
         Predicate::Adjacent(a, r) => app("Adjacent", vec![emit_adjacency(*a), emit_reference(r)?]),
+        // [CR#119.1]: the player-scope stat twin of `StatCmp` — the Idris
+        // `PlayerStatCmp` (`emit_player_attr`/`emit_cmp` are the same idiom
+        // `Count::PlayerStatOf` uses below).
+        Predicate::PlayerStatCmp(attr, cmp, count) => app(
+            "PlayerStatCmp",
+            vec![emit_player_attr(*attr), emit_cmp(*cmp), emit_count(count)?],
+        ),
         Predicate::FromSource(_) => {
             return Err(gap(
                 "Predicate::FromSource has no Idris Predicate counterpart",

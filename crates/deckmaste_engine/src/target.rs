@@ -442,6 +442,18 @@ pub fn matches_with(
                 deckmaste_core::Adjacency::Above => cand_pos + 1 == anchor_pos,
                 deckmaste_core::Adjacency::Below => anchor_pos + 1 == cand_pos,
             }),
+        // [CR#119.1]: the player-scope stat twin of `Characteristic(Stat(..))`
+        // — "a player has 13 or less life". Matches only a PLAYER proxy (a
+        // card object never satisfies it, even walked as a `Countable::Players`
+        // source alongside proxies); a non-literal bound never matches —
+        // dynamic player-stat bounds are a vanishingly rare authored shape, and
+        // a silent no-match beats a panic on an authoring mistake.
+        Predicate::PlayerStatCmp(attr, cmp, bound) => match state.objects.obj(id).source {
+            ObjectSource::Player(p) => bound
+                .literal_value()
+                .is_some_and(|n| cmp.apply(state.player_attr(p, *attr), n)),
+            ObjectSource::Card(_) => false,
+        },
         // The move-provenance twin of `WasCastFrom` ([CR#701.17a,701.9a]).
         // `ZoneChanged` history facts key on the pre-move (stale) `ObjectId`
         // — correlating one back to the CURRENT (post-remint) live object

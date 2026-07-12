@@ -9,6 +9,7 @@ use crate::Expand;
 use crate::Expansion;
 use crate::Ident;
 use crate::Normalize;
+use crate::PlayerAttr;
 use crate::Reference;
 use crate::Stat;
 use crate::Status;
@@ -199,6 +200,11 @@ pub enum Predicate {
     /// requires it explicitly since the position comparison only holds
     /// within one zone's own order).
     Adjacent(Adjacency, Reference),
+    /// A player whose attribute compares to the bound ([CR#107.1] numbers) —
+    /// the player-scope twin of `Characteristic(Stat(..))`: "a player has 13
+    /// or less life" = `PlayerStatCmp(Life, AtMost, 13)`. Mirrors the Idris
+    /// `PlayerStatCmp : PlayerAttr -> Cmp -> Count -> Predicate APlayer`.
+    PlayerStatCmp(PlayerAttr, Cmp, Count),
     /// Lifts a quality to a stack ABILITY's source ([CR#702.11d] "abilities
     /// … from [quality] sources"): matches an activated/triggered ability on
     /// the stack whose SOURCE — the object that generated it ([CR#113.7]) —
@@ -524,6 +530,22 @@ mod tests {
             read("FromSource(And([ColorIs(Red)]))").normalize(),
             read("FromSource(ColorIs(Red))"),
         );
+    }
+
+    /// `PlayerStatCmp` (the player-scope twin of `Characteristic(Stat(..))`,
+    /// [CR#119.1]) reads flat with its `PlayerAttr`/`Cmp`/`Count` triple and
+    /// round-trips: "a player has 13 or less life" =
+    /// `PlayerStatCmp(Life, AtMost, 13)`.
+    #[test]
+    fn player_stat_cmp_reads_and_round_trips() {
+        let v = read("PlayerStatCmp(Life, AtMost, 13)");
+        assert_eq!(
+            v,
+            Predicate::PlayerStatCmp(PlayerAttr::Life, Cmp::AtMost, Count::Literal(13)),
+        );
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(written, "PlayerStatCmp(Life,AtMost,13)");
+        assert_eq!(read(&written), v);
     }
 
     #[test]

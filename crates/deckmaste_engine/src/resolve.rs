@@ -5568,6 +5568,49 @@ mod tests {
         }
     }
 
+    /// The player-scope stat predicate ([CR#119.1]): `CountOf(Players(
+    /// PlayerStatCmp(Life, AtMost, N)))` counts players whose life total is
+    /// at most `N` — "the number of players with 13 or less life". Threshold
+    /// 13 catches only the 10-life player; threshold 5 catches neither;
+    /// threshold 20 catches both. Also exercises the predicate's
+    /// player-proxy-only match: the fixture mints a permanent (`src`) too, so
+    /// a wrongly-matching non-player object would inflate the count.
+    #[test]
+    fn players_countable_counts_by_life_threshold() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::PlayerAttr;
+
+        let mut state = game();
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(src);
+        state.player_mut(PlayerId(0)).life = 20;
+        state.player_mut(PlayerId(1)).life = 10;
+
+        let count_at_most = |threshold| {
+            Count::CountOf(Countable::Players(Box::new(Predicate::PlayerStatCmp(
+                PlayerAttr::Life,
+                Cmp::AtMost,
+                Count::Literal(threshold),
+            ))))
+        };
+
+        assert_eq!(
+            state.eval_count(&count_at_most(13), &frame),
+            1,
+            "only the 10-life player has 13 or less life"
+        );
+        assert_eq!(
+            state.eval_count(&count_at_most(5), &frame),
+            0,
+            "neither player has 5 or less life"
+        );
+        assert_eq!(
+            state.eval_count(&count_at_most(20), &frame),
+            2,
+            "both players have at most 20 life"
+        );
+    }
+
     /// Devotion end-to-end ([CR#700.5]), the two cases
     /// `aggregate_folds_a_projection_over_a_selection` doesn't already cover:
     /// a two-color disjunction (`Or([White, Black])`) summed across SEPARATE
