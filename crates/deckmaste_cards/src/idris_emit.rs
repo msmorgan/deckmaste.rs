@@ -2964,16 +2964,8 @@ fn emit_duration(d: &deckmaste_core::Duration) -> R {
     Ok(match d {
         deckmaste_core::Duration::FixedUntil(marker) => match marker {
             deckmaste_core::TurnMarker::EndOfTurn => "UntilEndOfTurn".to_string(),
-            deckmaste_core::TurnMarker::EndOfCombat => {
-                return Err(gap(
-                    "TurnMarker::EndOfCombat has no Idris Duration counterpart",
-                ));
-            }
-            deckmaste_core::TurnMarker::YourNextTurn => {
-                return Err(gap(
-                    "TurnMarker::YourNextTurn has no Idris Duration counterpart",
-                ));
-            }
+            deckmaste_core::TurnMarker::EndOfCombat => "UntilEndOfCombat".to_string(),
+            deckmaste_core::TurnMarker::YourNextTurn => "UntilYourNextTurn".to_string(),
         },
         deckmaste_core::Duration::UntilEvent(ef) => {
             let (kinds, facets) = emit_event_filter(ef)?;
@@ -2982,7 +2974,17 @@ fn emit_duration(d: &deckmaste_core::Duration) -> R {
         deckmaste_core::Duration::ForAsLongAs(cond) => {
             app("ForAsLongAs", vec![emit_condition(cond)?])
         }
-        deckmaste_core::Duration::ForThisEvent => "ForThisEvent".to_string(),
+        // `ForThisEvent` is an engine-level instruction-scoped rider
+        // ([CR#611.2a]), NOT an Idris `Duration`: the Idris model expresses
+        // "it can't be regenerated" as a plain `cant (Enact Regenerate …)`,
+        // never a durationed continuous effect. Report it as a coverage GAP
+        // (not a failure) rather than emit a constructor that does not exist.
+        deckmaste_core::Duration::ForThisEvent => {
+            return Err(gap(
+                "Duration::ForThisEvent is an engine rider, not an Idris Duration \
+                 (Idris models no-regen via cants)",
+            ));
+        }
         deckmaste_core::Duration::EndOfGame => "Forever".to_string(),
     })
 }

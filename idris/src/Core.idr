@@ -1816,6 +1816,8 @@ mutual
     public export
     data Duration : Ctx -> Type where
       UntilEndOfTurn : Duration b
+      UntilEndOfCombat : Duration b                -- ends at the combat phase's end ([CR#511.2]; Rust: FixedUntil EndOfCombat)
+      UntilYourNextTurn : Duration b               -- ends as the controller's next turn begins ([CR#611.2a]; Rust: FixedUntil YourNextTurn)
       UntilEvent : EventQuery b -> Duration b
       ForAsLongAs : Condition b -> Duration b   -- a resolution effect's duration: affected set FIXED at start, ends when the cond lapses ([CR#611.2b,611.2c]). DISTINCT from the re-evaluated conditional static `StaticEffect.While` ([CR#604.3]) — NOT a redundancy.
       Forever : Duration b                         -- rest of game (Rust: EndOfGame)
