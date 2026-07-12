@@ -85,7 +85,9 @@ pub fn actions_for(object: ObjectId, legal: &[Action]) -> Vec<Action> {
 #[must_use]
 pub fn is_interactive(pending: &PendingDecision) -> bool {
     match pending {
-        PendingDecision::Priority { .. } | PendingDecision::ChooseTargets { .. } => true,
+        PendingDecision::Priority { .. }
+        | PendingDecision::ChooseTargets { .. }
+        | PendingDecision::ChooseNewTargets { .. } => true,
         PendingDecision::DeclareAttackers { legal, .. }
         | PendingDecision::DeclareBlockers { legal, .. } => !legal.is_empty(),
         // The human picks which cards to discard — cleanup hand-size and
@@ -106,7 +108,12 @@ impl Interaction {
     pub fn for_decision(pending: &PendingDecision) -> Option<Self> {
         Some(match pending {
             PendingDecision::Priority { .. } => Interaction::Priority { sub: None },
-            PendingDecision::ChooseTargets { legal, .. } => Interaction::Targets {
+            PendingDecision::ChooseTargets { legal, .. }
+            // [CR#707.10c]: re-targeting a committed entry is the same
+            // pick-one-per-spec interaction as an initial `ChooseTargets` —
+            // `legal[i]` already includes the entry's current target, so
+            // "leave it as-is" is always a candidate.
+            | PendingDecision::ChooseNewTargets { legal, .. } => Interaction::Targets {
                 legal: legal.clone(),
                 chosen: vec![None; legal.len()],
                 active: 0,

@@ -34,7 +34,13 @@ pub fn single_each<T: Copy>(legal: &[Vec<T>]) -> Option<Vec<T>> {
 #[must_use]
 pub fn auto_answer(pending: &PendingDecision) -> Option<Decision> {
     match pending {
-        PendingDecision::ChooseTargets { legal, .. } => single_each(legal).map(Decision::Targets),
+        // [CR#707.10c]: a `ChooseNewTargets` slot is force-single exactly like
+        // a `ChooseTargets` one when its unioned `legal` set collapses to one
+        // candidate (e.g. the current target is the only object in play).
+        PendingDecision::ChooseTargets { legal, .. }
+        | PendingDecision::ChooseNewTargets { legal, .. } => {
+            single_each(legal).map(Decision::Targets)
+        }
         _ => None,
     }
 }

@@ -1,0 +1,18 @@
+// {G} 1/1: two triggered abilities exercising the magecraft "cast OR copy"
+// halves independently ([CR#707.10]) — ability 0 fires on an ordinary cast
+// (`Cast`, [CR#601.2i]); ability 1 fires when a spell/ability is COPIED onto
+// the stack (`Copied`, [CR#707.10]); `Cast` never fires for a copy ("a copy
+// of a spell isn't cast"). Distinct `GainLife` amounts (1 vs 10) make it
+// observable, life-total-wise, which half fired — the engine-copy-spells
+// fixture for `copied_filter_fires_on_copy_and_cast_filter_does_not`.
+Normal(
+    name: "Creature Cast and Copied Triggers",
+    mana_cost: [Green],
+    types: [Creature],
+    power: 1,
+    toughness: 1,
+    abilities: [
+        Triggered(event: Cast(who: Ref(You), what: Kind(Spell)), effect: GainLife(1)),
+        Triggered(event: Copied(who: Ref(You), what: Kind(Spell)), effect: GainLife(10)),
+    ],
+)

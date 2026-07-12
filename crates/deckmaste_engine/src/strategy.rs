@@ -390,21 +390,50 @@ impl StrategyEvaluator {
                     .first()
                     .expect("a replacement choice offers options"),
             ),
+            // [CR#707.10c]: re-target a committed entry by keeping every
+            // current target (see `keep_current_targets`).
+            PendingDecision::ChooseNewTargets { entry, legal, .. } => {
+                Decision::Targets(keep_current_targets(state, *entry, legal))
+            }
             // Deep engine choices with no trivial legal default; none arise in
             // v1 decks. Later tickets handle these explicitly.
             other @ (PendingDecision::ChooseCostOptions { .. }
             | PendingDecision::OrderReplacements { .. }
             | PendingDecision::PreGame { .. }
-            | PendingDecision::LegendRule { .. }
-            // [CR#707.10c]: a real strategy for re-targeting a committed
-            // entry is a later ticket's (`ChooseNewTargets`'s decision
-            // machinery lands here in engine-copy-spells Task 5; a smart
-            // strategy handler is Task 6's).
-            | PendingDecision::ChooseNewTargets { .. }) => {
+            | PendingDecision::LegendRule { .. }) => {
                 todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
             }
         }
     }
+}
+
+/// [CR#707.10c]: answer a `ChooseNewTargets` re-target by keeping every
+/// current target — the union rule makes "leave every slot unchanged" always
+/// legal, so this strategy never re-targets a committed entry. Reads the
+/// stack entry's current targets directly; if the entry has since left the
+/// stack (a race between the decision surfacing and being answered) falls
+/// back to the first legal candidate per slot — still always legal, never a
+/// panic. No `&self` needed (the union rule has no preference to consult);
+/// mirrors `sim.rs`'s `keep_current_targets` (a distinct, independent
+/// strategy implementation).
+fn keep_current_targets(
+    state: &GameState,
+    entry: ObjectId,
+    legal: &[Vec<ObjectId>],
+) -> Vec<ObjectId> {
+    if let Some(e) = state.stack.iter().find(|e| e.id == entry)
+        && e.targets.len() == legal.len()
+    {
+        return e.targets.clone();
+    }
+    legal
+        .iter()
+        .map(|slot| {
+            *slot
+                .first()
+                .expect("each spec offers at least one legal target")
+        })
+        .collect()
 }
 
 impl crate::sim::Strategy for StrategyEvaluator {

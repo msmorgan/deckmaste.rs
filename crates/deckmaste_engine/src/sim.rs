@@ -425,8 +425,37 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
         // [CR#705.2]: the call is strategically null (win is a fair coin
         // either way) — the headless strategy always calls heads.
         PendingDecision::CallFlip { .. } => Decision::Answer(true),
+        // [CR#707.10c]: keeping every current target is always legal (the
+        // union rule) — the headless strategy re-targets nothing.
+        PendingDecision::ChooseNewTargets { entry, legal, .. } => {
+            Decision::Targets(keep_current_targets(state, *entry, legal))
+        }
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
+}
+
+/// [CR#707.10c]: the union rule makes "leave every slot unchanged" always
+/// legal, so a headless strategy never re-targets. Reads the committed stack
+/// entry's current targets directly; if the entry has since left the stack (a
+/// race between the decision surfacing and being answered) falls back to the
+/// first legal candidate per slot — still always legal, never a panic.
+fn keep_current_targets(
+    state: &GameState,
+    entry: ObjectId,
+    legal: &[Vec<ObjectId>],
+) -> Vec<ObjectId> {
+    if let Some(e) = state.stack.iter().find(|e| e.id == entry)
+        && e.targets.len() == legal.len()
+    {
+        return e.targets.clone();
+    }
+    legal
+        .iter()
+        .map(|set| {
+            *set.first()
+                .expect("each spec offers at least one legal target")
+        })
+        .collect()
 }
 
 /// The seat a surfaced decision is waiting on — every variant names its player.
@@ -444,6 +473,7 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::DeclareBlockers { player, .. }
         | PendingDecision::AssignCombatDamage { player, .. }
         | PendingDecision::ChooseXValue { player, .. }
+        | PendingDecision::ChooseNewTargets { player, .. }
         | PendingDecision::LegendRule { player, .. }
         | PendingDecision::CallFlip { player } => *player,
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),

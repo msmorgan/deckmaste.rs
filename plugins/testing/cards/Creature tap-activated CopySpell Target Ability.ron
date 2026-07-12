@@ -1,0 +1,17 @@
+// {R} 1/1: "{T}: copy target activated or triggered ability." Modeled on the
+// tap-pinger shape (Creature tap-activated DealDamage AnyTarget.ron) and the
+// spell-copier fixture, but targeting `Kind(Ability)` ([CR#109.1]) instead of
+// `Kind(Spell)` — `Kind(Spell)` does NOT match an ability on the stack (an
+// activated/triggered ability has no card identity of its own), so the
+// spell-copier fixture cannot reach one. The engine-copy-spells fixture for
+// `ability_copy_same_source_resolves_and_vanishes` ([CR#707.10b]).
+Normal(
+    name: "Creature tap-activated CopySpell Target Ability",
+    mana_cost: [Red],
+    types: [Creature],
+    power: 1,
+    toughness: 1,
+    abilities: [
+        Activated(cost: [Tap], effect: Targeted(targets: [TargetOne(Kind(Ability))], effect: CopySpell(Target(0)))),
+    ],
+)

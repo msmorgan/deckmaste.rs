@@ -232,6 +232,37 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     }
 }
 
+/// Like `run_to_priority`, but also returns the accumulated `Progress` trace
+/// along the way — Task 6's trigger-firing assertions read it for
+/// `TriggerFired`/`Copied` events. Auto-pays any `PayMana` mid-cast exactly
+/// like `run_to_priority`.
+fn run_to_priority_traced(
+    state: &mut GameState,
+    player: PlayerId,
+    phase: PhaseStep,
+) -> (Vec<Progress>, Vec<Action>) {
+    let mut trace = Vec::new();
+    loop {
+        let (t, stop) = step_to_stop(state);
+        trace.extend(t);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
+                if p == player && state.turn.current == phase =>
+            {
+                return (trace, legal);
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            other => panic!("unexpected stop before {player:?} priority in {phase:?}: {other:?}"),
+        }
+    }
+}
+
 /// Floats `count` mana by activating the first untapped land's mana ability
 /// `count` times (each tap is one land). Player 0's forced lands each produce
 /// one mana of their land's color.
@@ -3866,5 +3897,370 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
     assert!(
         state.stack.is_empty(),
         "the retargeter ability resolved (fizzled retarget) and left no trace"
+    );
+}
+
+// --- Task 6: consumers + trigger semantics ([CR#707.10,707.10b])
+// ------------
+
+/// [CR#707.10,601.2i]: the magecraft family's two halves fire on mutually
+/// exclusive events — `EventFilter::Cast` on an ordinary cast, `Copied` on a
+/// spell/ability being copied onto the stack, never both for the same
+/// occurrence ("a copy of a spell isn't cast"). Player 0 controls the
+/// `Creature Cast and Copied Triggers` fixture (ability 0 = `Cast`, `GainLife`
+/// 1; ability 1 = `Copied`, `GainLife` 10) and the Task 3 copier (`{T}: copy
+/// target spell`) — the SAME player casts and copies, so `who: Ref(You)`
+/// on both triggers reads that one player throughout. Player 0 casts
+/// Lightning Bolt at player 1's face (only `Cast` fires, `Copied` does not),
+/// then copies the still-unresolved Bolt with the copier (only `Copied`
+/// fires, `Cast` does not fire again).
+#[test]
+fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
+    let bolt_card = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let watcher_card = testing_card("Creature Cast and Copied Triggers");
+    let copier_card = testing_card("Creature tap-activated CopySpell Target Spell");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&watcher_card); 5];
+    p0.extend(vec![Arc::clone(&copier_card); 5]);
+    p0.extend(vec![Arc::clone(&bolt_card); 5]);
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+
+    let watcher = force_into_play(&mut state, PlayerId(0), "Creature Cast and Copied Triggers");
+    let copier = force_into_play(
+        &mut state,
+        PlayerId(0),
+        "Creature tap-activated CopySpell Target Spell",
+    );
+    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    state.objects.obj_mut(copier).summoning_sick = false;
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    let watcher_source = state.objects.obj(watcher).source;
+
+    // P0's precombat main: float {R} and cast Bolt at P1's face.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1);
+    let bolt = force_into_hand(&mut state, PlayerId(0), "Lightning Bolt");
+    let face = state.players[1].object;
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets for Bolt, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![face]))
+        .unwrap();
+
+    // The cast completes (any mid-cast PayMana is auto-tapped): SpellCast
+    // applies and the watcher's Cast half fires, placing above the bolt —
+    // the Copied half must NOT note.
+    let (trace, _legal) = run_to_priority_traced(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 2, "bolt + the Cast trigger above it");
+    let cast_fires = trace
+        .iter()
+        .filter_map(applied)
+        .filter(
+            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 0),
+        )
+        .count();
+    let copied_fires_on_cast = trace
+        .iter()
+        .filter_map(applied)
+        .filter(
+            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 1),
+        )
+        .count();
+    assert_eq!(
+        cast_fires, 1,
+        "the Cast half fires exactly once on the cast, trace: {trace:?}"
+    );
+    assert_eq!(
+        copied_fires_on_cast, 0,
+        "[CR#707.10] a cast is not a copy — the Copied half must not fire, trace: {trace:?}"
+    );
+
+    // Resolve the Cast trigger (top of stack) before copying.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "only the bolt remains");
+    assert_eq!(
+        state.players[0].life, 21,
+        "the Cast trigger resolved: GainLife 1"
+    );
+
+    // P0 copies the still-unresolved Bolt with the copier's `{T}: copy
+    // target spell`.
+    let activate = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == copier))
+        .cloned()
+        .expect("the copier's tap ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the copy ability, got {stop:?}");
+    };
+    assert!(legal[0].contains(&bolt), "the Bolt is a legal target");
+    state
+        .submit_decision(Decision::Targets(vec![bolt]))
+        .unwrap();
+    // A mana-free cost: the very next stop is P0's priority (retained).
+    let _ = step_to_stop(&mut state);
+    assert_eq!(state.stack.len(), 2, "bolt + the copy ability above it");
+
+    // Both pass: the copy ability resolves — GameEvent::Copied fires, and the
+    // watcher's Copied half notes. The Cast half must NOT fire again.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let (trace, _legal) = run_to_priority_traced(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert!(
+        trace
+            .iter()
+            .filter_map(applied)
+            .any(|e| matches!(e, GameEvent::Copied { .. })),
+        "the copy ability minted a copy, trace: {trace:?}"
+    );
+    assert_eq!(
+        state.stack.len(),
+        3,
+        "the original bolt, its minted copy, and the Copied trigger above them"
+    );
+    let cast_fires_on_copy = trace
+        .iter()
+        .filter_map(applied)
+        .filter(
+            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 0),
+        )
+        .count();
+    let copied_fires = trace
+        .iter()
+        .filter_map(applied)
+        .filter(
+            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 1),
+        )
+        .count();
+    assert_eq!(
+        copied_fires, 1,
+        "the Copied half fires exactly once on the copy, trace: {trace:?}"
+    );
+    assert_eq!(
+        cast_fires_on_copy, 0,
+        "[CR#707.10] \"a copy of a spell isn't cast\" — the Cast half must not fire, trace: {trace:?}"
+    );
+
+    // Drain the rest of the stack (Copied trigger, then the bolt copy, then
+    // the original bolt) to confirm a clean, crash-free finish.
+    while !state.stack.is_empty() {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while draining the stack: {other:?}"),
+        }
+    }
+    assert_eq!(
+        state.players[0].life, 31,
+        "20 + 1 (Cast) + 10 (Copied) — both halves resolved exactly once"
+    );
+    assert_eq!(
+        state.players[1].life, 14,
+        "20 - 3 (original bolt) - 3 (its copy)"
+    );
+}
+
+/// [CR#707.10b]: an ability copy has no card behind it, so it keeps the SAME
+/// source as the original — only its `StackEntry.id` is fresh (unlike a
+/// spell copy, which mints a fresh backing object, [CR#707.10]). Player 0
+/// controls a tap-pinger (`{T}: this deals 1 damage to any target`) and a
+/// variant copier targeting `Kind(Ability)` (the spell-copier's `Kind(Spell)`
+/// cannot reach an ability on the stack — an activated/triggered ability has
+/// no card identity). P0 activates the pinger at P1's face, then — before it
+/// resolves — copies that very activation with the ability-copier. Both
+/// copies of the ping resolve (2 damage total), then both vanish (no zone
+/// move, no lingering object, [CR#608.2n]).
+#[test]
+fn ability_copy_same_source_resolves_and_vanishes() {
+    let pinger_card = testing_card("Creature tap-activated DealDamage AnyTarget");
+    let copier_card = testing_card("Creature tap-activated CopySpell Target Ability");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&pinger_card); 5];
+    p0.extend(vec![Arc::clone(&copier_card); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+
+    let pinger = force_into_play(
+        &mut state,
+        PlayerId(0),
+        "Creature tap-activated DealDamage AnyTarget",
+    );
+    let copier = force_into_play(
+        &mut state,
+        PlayerId(0),
+        "Creature tap-activated CopySpell Target Ability",
+    );
+    state.objects.obj_mut(pinger).summoning_sick = false;
+    state.objects.obj_mut(copier).summoning_sick = false;
+    let face = state.players[1].object;
+
+    // P0 activates the pinger at P1's face.
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    let activate_pinger = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == pinger))
+        .cloned()
+        .expect("the pinger's tap ability is offered");
+    state
+        .submit_decision(Decision::Act(activate_pinger))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the pinger, got {stop:?}");
+    };
+    assert!(legal[0].contains(&face), "P1's face is a legal any-target");
+    state
+        .submit_decision(Decision::Targets(vec![face]))
+        .unwrap();
+
+    // A mana-free cost: priority returns straight to P0 (retained).
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "the pinger's ability sits alone");
+    let original = state.stack[0].clone();
+
+    // P0 copies the pinger's own still-unresolved ability with the
+    // ability-copier, before it resolves.
+    let activate_copier = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == copier))
+        .cloned()
+        .expect("the copier's tap ability is offered");
+    state
+        .submit_decision(Decision::Act(activate_copier))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the copy ability, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&original.id),
+        "the pinger's ability is a legal Kind(Ability) target, legal: {legal:?}"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![original.id]))
+        .unwrap();
+
+    // Both pass: the copier's ability resolves, minting the ability copy.
+    let _ = step_to_stop(&mut state); // priority retained by P0
+    assert_eq!(
+        state.stack.len(),
+        2,
+        "the pinger's ability + the copy ability above it"
+    );
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    assert_eq!(
+        state.stack.len(),
+        2,
+        "the original ability plus its minted copy"
+    );
+    let copy_entry = state
+        .stack
+        .iter()
+        .find(|e| e.copy)
+        .expect("the copy ability resolved and pushed a copy entry")
+        .clone();
+    assert_ne!(
+        copy_entry.id, original.id,
+        "the copy is a freshly minted stack identity"
+    );
+    assert_eq!(
+        copy_entry.object, original.object,
+        "[CR#707.10b] an ability copy keeps the SAME source — no fresh backing object"
+    );
+    let StackObject::Activated { source, .. } = &copy_entry.object else {
+        panic!("expected an Activated ability, got {:?}", copy_entry.object);
+    };
+    assert_eq!(*source, pinger, "the source is the pinger itself");
+
+    // Drain the stack: both the original ping and its copy resolve (2
+    // damage total to P1's face), then both vanish.
+    let mut trace = Vec::new();
+    while !state.stack.is_empty() {
+        let (t, stop) = step_to_stop(&mut state);
+        trace.extend(t);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while draining the stack: {other:?}"),
+        }
+    }
+    let damage_events = trace
+        .iter()
+        .filter(|p| {
+            matches!(
+                applied(p),
+                Some(GameEvent::DamageDealt { target, amount: 1, .. }) if *target == face
+            )
+        })
+        .count();
+    assert_eq!(
+        damage_events, 2,
+        "the ping resolved twice — the original and its copy, trace: {trace:?}"
+    );
+    assert_eq!(state.players[1].life, 18, "20 - 1 - 1: pinged twice over");
+    assert!(state.stack.is_empty());
+
+    // [CR#608.2n]: neither ability owned a card, so both simply vanish — no
+    // zone move, no lingering object.
+    assert!(
+        state.objects.get(original.id).is_none(),
+        "the original ability's minted id is gone after resolving"
+    );
+    assert!(
+        state.objects.get(copy_entry.id).is_none(),
+        "the copy's minted id is gone after resolving — no zone move ([CR#707.10a])"
     );
 }
