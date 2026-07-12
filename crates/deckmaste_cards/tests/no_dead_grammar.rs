@@ -920,12 +920,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Predicate", "PlayerStatCmp"),
-            "DEFERRED: the player-scope stat predicate ('a player has 13 or \
-            less life', the existential-player-life-condition foundation — [CR#119.1]) has its \
-            Core variant, RON emitter, and engine live-matcher landed, and is unit-/engine-tested \
+            "DEFERRED: migrations parser emits this for regenerated wizards cards; \
+            Core variant, RON emitter, and engine live-matcher landed, unit-/engine-tested \
             (filter::tests::player_stat_cmp_reads_and_round_trips, \
-            resolve::tests::players_countable_counts_by_life_threshold), but no card's parser \
-            branch or fixture emits it yet. Buildable.",
+            resolve::tests::players_countable_counts_by_life_threshold), but no \
+            canon/testing/builtin fixture contains it yet. Gate scans committed corpora only. Buildable.",
         ),
         // --- mana.rs ---
         (
