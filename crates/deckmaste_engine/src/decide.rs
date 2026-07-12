@@ -7,6 +7,7 @@ use deckmaste_core::KeywordAbility;
 use deckmaste_core::LockPoint;
 use deckmaste_core::Uint;
 use deckmaste_core::Visibility;
+use rand::RngExt;
 
 use crate::object::ObjectId;
 use crate::player::PlayerId;
@@ -1270,6 +1271,44 @@ impl GameState {
                     other => {
                         unreachable!("a YesNo decision stashed a non-YesNo continuation: {other:?}")
                     }
+                }
+                Ok(())
+            }
+            (PendingDecision::CallFlip { .. }, Decision::Answer(call)) => {
+                self.pending = None;
+                let cont = self
+                    .choice
+                    .take()
+                    .expect("a CallFlip decision stashed its continuation");
+                let crate::state::ChoiceContinuation::CallFlip {
+                    player,
+                    remaining,
+                    mut events,
+                } = cont
+                else {
+                    unreachable!(
+                        "a CallFlip decision stashed a non-CallFlip continuation: {cont:?}"
+                    )
+                };
+                // [CR#705.2]: the flipper called; call == result → win.
+                let heads: bool = self.rng.random();
+                events.push(GameEvent::CoinFlipped {
+                    player,
+                    heads,
+                    won: Some(call == heads),
+                });
+                let remaining = remaining - 1;
+                if remaining > 0 {
+                    self.pending = Some(PendingDecision::CallFlip { player });
+                    self.choice = Some(crate::state::ChoiceContinuation::CallFlip {
+                        player,
+                        remaining,
+                        events,
+                    });
+                } else {
+                    // ONE simultaneous batch, like the uncalled path
+                    // ([CR#603.3b] — the multi-discard precedent).
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
                 }
                 Ok(())
             }

@@ -10673,4 +10673,142 @@ mod tests {
             "same seed ⇒ identical flip/roll sequence across independent states"
         );
     }
+
+    // ========================================================================
+    // `engine-randomness` Task 4: the `CallFlip` decision — called flips
+    // ([CR#705.2]) draw per submitted call, scoring `won`, and either
+    // re-surface the next call (multi-coin) or front-schedule the
+    // accumulated batch.
+    // ========================================================================
+
+    /// [CR#705.2]: a single CALLED flip surfaces one `CallFlip` decision (no
+    /// draw yet); submitting the call draws the coin and scores `won = (call
+    /// == heads)`. Seed-pinned (via `game()`'s seed 7): the draw is
+    /// deterministic, so the assertion is exact, not just a shape check.
+    #[test]
+    fn called_flip_surfaces_call_and_scores_won() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+        let Some(PendingDecision::CallFlip { player }) = state.pending.clone() else {
+            panic!("expected a pending CallFlip, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0);
+
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        drain_progress(&mut state, 20);
+
+        let flips: Vec<(bool, Option<bool>)> = state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(flips.len(), 1, "exactly one CoinFlipped fact");
+        let (heads, won) = flips[0];
+        assert_eq!(
+            won,
+            Some(heads),
+            "the call was heads: won iff the draw landed heads"
+        );
+        assert_eq!(
+            state.that_much,
+            Some(Uint::from(won == Some(true))),
+            "\"that many\" is fixed to the win count (0 or 1)"
+        );
+    }
+
+    /// [CR#705.2]: a 3-coin CALLED flip pauses per coin — three sequential
+    /// `CallFlip` decisions, each drawing (and scoring) only when its call is
+    /// submitted — then front-schedules ONE simultaneous batch
+    /// ([CR#603.3b]) once all three are called.
+    #[test]
+    fn multi_coin_called_flip_pauses_per_coin() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(3), true)),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        for (i, call) in [true, false, true].into_iter().enumerate() {
+            let Some(PendingDecision::CallFlip { player }) = state.pending.clone() else {
+                panic!(
+                    "coin {i}: expected a pending CallFlip, got {:?}",
+                    state.pending
+                );
+            };
+            assert_eq!(player, p0, "coin {i}");
+            state.submit_decision(Decision::Answer(call)).unwrap();
+            drain_progress(&mut state, 20);
+        }
+
+        let flips: Vec<(bool, Option<bool>)> = state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(flips.len(), 3, "3 CoinFlipped facts, one per called coin");
+        assert!(
+            flips.iter().all(|&(_, won)| won.is_some()),
+            "every called flip records a winner/loser"
+        );
+        let won_count = Uint::try_from(flips.iter().filter(|&&(_, won)| won == Some(true)).count())
+            .expect("win count fits Uint");
+        assert_eq!(
+            state.that_much,
+            Some(won_count),
+            "\"that many\" is fixed to the win count across the whole batch"
+        );
+    }
+
+    /// A `CallFlip` decision only answers `Decision::Answer` — any other
+    /// decision kind (here, a stray `Discard`) is rejected as `WrongKind`,
+    /// leaving the `CallFlip` decision (and its stashed continuation) intact.
+    #[test]
+    fn call_flip_rejects_wrong_decision_kind() {
+        use crate::decide::Decision;
+        use crate::decide::DecisionError;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+        assert!(matches!(
+            state.pending,
+            Some(PendingDecision::CallFlip { .. })
+        ));
+
+        assert_eq!(
+            state.submit_decision(Decision::Discard(vec![])),
+            Err(DecisionError::WrongKind)
+        );
+        assert!(
+            matches!(state.pending, Some(PendingDecision::CallFlip { .. })),
+            "a rejected wrong-kind decision leaves the CallFlip pending"
+        );
+    }
 }
