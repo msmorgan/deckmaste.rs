@@ -334,7 +334,7 @@ fn bolt_kills_grizzly_bears() {
         "the Vanilla Creature is a legal target"
     );
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
 
     // Step to the caster's priority: the instant is on the stack (announce
@@ -342,7 +342,7 @@ fn bolt_kills_grizzly_bears() {
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the instant sits on the stack");
     assert_eq!(state.stack[0].object, StackObject::Spell(bolt));
-    assert_eq!(state.stack[0].targets, vec![bear]);
+    assert_eq!(state.stack[0].targets, vec![vec![bear]]);
     assert!(!state.zones.battlefield.contains(&bolt));
 
     // Both players pass: the instant resolves, deals 3, SBA destroys the creature.
@@ -462,7 +462,7 @@ fn ward_counters_targeting_spell_via_that_object() {
         "the Ward creature is a legal target of the Bolt"
     );
     state
-        .submit_decision(Decision::Targets(vec![ward]))
+        .submit_decision(Decision::Targets(vec![vec![ward]]))
         .unwrap();
 
     // Choosing the target fires the BecameTarget fact → Ward triggers (P1's),
@@ -683,7 +683,7 @@ fn ward_x_prices_where_x_at_toll_resolution() {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![ward]))
+        .submit_decision(Decision::Targets(vec![vec![ward]]))
         .unwrap();
 
     // The ward trigger fired at target choice. AFTER it triggered but BEFORE
@@ -799,7 +799,7 @@ fn prowess_fires_and_pumps_on_own_noncreature_cast() {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![face]))
+        .submit_decision(Decision::Targets(vec![vec![face]]))
         .unwrap();
 
     // The cast completes: SpellCast applies and the prowess trigger fires,
@@ -863,7 +863,7 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
     };
     assert!(legal[0].contains(&bear), "the bear is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
 
     // The lock emits the fact; the bear's trigger fires in its wake.
@@ -943,7 +943,7 @@ fn bolt_to_the_face_costs_three_life() {
     };
     assert!(legal[0].contains(&face), "P1's proxy is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![face]))
+        .submit_decision(Decision::Targets(vec![vec![face]]))
         .unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -1113,7 +1113,7 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
             panic!("expected ChooseTargets, got {stop:?}");
         };
         state
-            .submit_decision(Decision::Targets(vec![bear]))
+            .submit_decision(Decision::Targets(vec![vec![bear]]))
             .unwrap();
         let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
         assert_eq!(state.stack.len(), 1, "an instant is on the stack");
@@ -1247,7 +1247,7 @@ fn paymana_surfaces_for_every_cast() {
             panic!("expected ChooseTargets, got {stop:?}");
         };
         state
-            .submit_decision(Decision::Targets(vec![bear]))
+            .submit_decision(Decision::Targets(vec![vec![bear]]))
             .unwrap();
         // PayMana MUST surface — the core never auto-pays, even for {R}.
         let (_, stop) = step_to_stop(&mut state);
@@ -1317,7 +1317,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
         .unwrap();
     let (_, _) = step_to_stop(&mut state);
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
@@ -1329,7 +1329,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
         .unwrap();
     let (_, _) = step_to_stop(&mut state);
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 2, "both instants on the stack");
@@ -1425,7 +1425,7 @@ fn a_cast_game_is_deterministic() {
             .unwrap();
         let (_, _) = step_to_stop(&mut state);
         state
-            .submit_decision(Decision::Targets(vec![bear]))
+            .submit_decision(Decision::Targets(vec![vec![bear]]))
             .unwrap();
         let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
         state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -1463,7 +1463,7 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
     //     not a creature/player) is illegal.
     assert!(
         matches!(
-            state.submit_decision(Decision::Targets(vec![bolt])),
+            state.submit_decision(Decision::Targets(vec![vec![bolt]])),
             Err(DecisionError::Illegal { .. })
         ),
         "an out-of-set target is rejected"
@@ -1471,7 +1471,7 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
     // (ii) Wrong count — two targets for a single-target spell.
     let other = state.players[0].object;
     assert!(matches!(
-        state.submit_decision(Decision::Targets(vec![bear, other])),
+        state.submit_decision(Decision::Targets(vec![vec![bear, other]])),
         Err(DecisionError::Illegal { .. })
     ));
     // State untouched: the decision still pends and no targets were recorded.
@@ -1490,7 +1490,7 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
     );
     // A valid retry is accepted.
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     assert!(state.pending.is_none());
 
@@ -1615,7 +1615,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
         "the fiend is a legal bolt target"
     );
     state
-        .submit_decision(Decision::Targets(vec![fiend_obj]))
+        .submit_decision(Decision::Targets(vec![vec![fiend_obj]]))
         .unwrap();
     // PayMana for {R}.
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -1655,7 +1655,7 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
         "the fiend is dead — its old id is gone before its trigger is placed"
     );
     state
-        .submit_decision(Decision::Targets(vec![p1_proxy]))
+        .submit_decision(Decision::Targets(vec![vec![p1_proxy]]))
         .unwrap();
 
     // A `Triggered` stack object now sits on the stack; both players pass and it
@@ -2113,7 +2113,7 @@ fn occurrence_batch_and_apnap_ordering() {
                     "P1 proxy is a legal AnyTarget"
                 );
                 state
-                    .submit_decision(Decision::Targets(vec![p1_proxy]))
+                    .submit_decision(Decision::Targets(vec![vec![p1_proxy]]))
                     .unwrap();
             }
 
@@ -2633,12 +2633,12 @@ fn hexproof_excludes_it_from_opposing_targets() {
     // Submission re-validates against the surfaced legal set.
     assert!(
         state
-            .submit_decision(Decision::Targets(vec![scout]))
+            .submit_decision(Decision::Targets(vec![vec![scout]]))
             .is_err(),
         "targeting the hexproof creature is rejected"
     );
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
 }
 
@@ -2779,12 +2779,12 @@ fn flagbearer_constrains_opposing_target_choice() {
     // Aiming past the able Flagbearer is rejected ([CR#601.2c]).
     assert!(
         state
-            .submit_decision(Decision::Targets(vec![bear]))
+            .submit_decision(Decision::Targets(vec![vec![bear]]))
             .is_err(),
         "ignoring the able Flagbearer is an illegal choice"
     );
     state
-        .submit_decision(Decision::Targets(vec![bearer]))
+        .submit_decision(Decision::Targets(vec![vec![bearer]]))
         .unwrap();
 }
 
@@ -2832,7 +2832,7 @@ fn flagbearer_does_not_constrain_its_controllers_spells() {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
 }
 
@@ -2952,7 +2952,7 @@ fn blink_exiles_and_returns_the_target_in_one_resolution() {
     };
     assert!(legal[0].contains(&before), "the creature is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![before]))
+        .submit_decision(Decision::Targets(vec![vec![before]]))
         .unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -3084,12 +3084,12 @@ fn copied_bolt_shares_targets_and_controller() {
     };
     assert!(legal[0].contains(&copier), "the copier is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![copier]))
+        .submit_decision(Decision::Targets(vec![vec![copier]]))
         .unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the Bolt sits on the stack");
-    assert_eq!(state.stack[0].targets, vec![copier]);
+    assert_eq!(state.stack[0].targets, vec![vec![copier]]);
 
     // P0 passes; P1 gets priority with the Bolt still unresolved. Instead of
     // passing, P1 activates the copier's tap ability, targeting the Bolt.
@@ -3111,7 +3111,7 @@ fn copied_bolt_shares_targets_and_controller() {
         "the Bolt is a legal target of Kind(Spell)"
     );
     state
-        .submit_decision(Decision::Targets(vec![bolt]))
+        .submit_decision(Decision::Targets(vec![vec![bolt]]))
         .unwrap();
 
     // A mana-free cost: the very next stop is P1's priority — the copy
@@ -3230,7 +3230,7 @@ fn cast_and_copy_bolt_at_face(state: &mut GameState) -> (ObjectId, ObjectId, Obj
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![face]))
+        .submit_decision(Decision::Targets(vec![vec![face]]))
         .unwrap();
 
     let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -3248,7 +3248,7 @@ fn cast_and_copy_bolt_at_face(state: &mut GameState) -> (ObjectId, ObjectId, Obj
         panic!("expected ChooseTargets for the copy ability, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![bolt]))
+        .submit_decision(Decision::Targets(vec![vec![bolt]]))
         .unwrap();
     // A mana-free cost: the very next stop is P1's priority.
     let _ = step_to_stop(state);
@@ -3357,7 +3357,7 @@ fn countered_copy_vanishes() {
         "the copy is a legal target of Mana Leak's TargetOne(Spell) ([CR#707.10])"
     );
     state
-        .submit_decision(Decision::Targets(vec![copy]))
+        .submit_decision(Decision::Targets(vec![vec![copy]]))
         .unwrap();
 
     // Drive Mana Leak to resolution; P1 declines the punisher.
@@ -3510,7 +3510,7 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
         "the Bears spell is a legal target of Kind(Spell), permanent or not"
     );
     state
-        .submit_decision(Decision::Targets(vec![bears]))
+        .submit_decision(Decision::Targets(vec![vec![bears]]))
         .unwrap();
 
     // A mana-free cost: the very next stop is P1's priority — the copy
@@ -3673,12 +3673,12 @@ fn drive_to_choose_new_targets(state: &mut GameState) -> (ObjectId, ObjectId, Ob
     };
     assert!(legal[0].contains(&bear1), "bear1 is a legal Bolt target");
     state
-        .submit_decision(Decision::Targets(vec![bear1]))
+        .submit_decision(Decision::Targets(vec![vec![bear1]]))
         .unwrap();
 
     let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the Bolt sits on the stack");
-    assert_eq!(state.stack[0].targets, vec![bear1]);
+    assert_eq!(state.stack[0].targets, vec![vec![bear1]]);
 
     // [CR#707.10c]: make bear1 an ILLEGAL-but-present target — still a live
     // id, just no longer InZone(Battlefield), so it drops out of Bolt's
@@ -3705,7 +3705,7 @@ fn drive_to_choose_new_targets(state: &mut GameState) -> (ObjectId, ObjectId, Ob
         "the Bolt is a legal target of Kind(Spell)"
     );
     state
-        .submit_decision(Decision::Targets(vec![bolt]))
+        .submit_decision(Decision::Targets(vec![vec![bolt]]))
         .unwrap();
 
     // A mana-free cost: the very next stop is P1's priority — the retargeter
@@ -3764,11 +3764,11 @@ fn choose_new_targets_keep_current_even_if_illegal() {
     );
 
     state
-        .submit_decision(Decision::Targets(vec![bear1]))
+        .submit_decision(Decision::Targets(vec![vec![bear1]]))
         .unwrap();
     assert_eq!(
         state.stack.iter().find(|e| e.id == bolt).unwrap().targets,
-        vec![bear1],
+        vec![vec![bear1]],
         "keeping the current target leaves entry.targets unchanged"
     );
 }
@@ -3798,18 +3798,18 @@ fn choose_new_targets_change_must_be_legal() {
 
     assert!(
         state
-            .submit_decision(Decision::Targets(vec![bolt]))
+            .submit_decision(Decision::Targets(vec![vec![bolt]]))
             .is_err(),
         "an out-of-legal-set target is rejected ([CR#707.10c])"
     );
     // Submission re-validates against the surfaced legal set, so a rejected
     // answer leaves the decision pending — retry with a fresh-legal target.
     state
-        .submit_decision(Decision::Targets(vec![bear2]))
+        .submit_decision(Decision::Targets(vec![vec![bear2]]))
         .unwrap();
     assert_eq!(
         state.stack.iter().find(|e| e.id == bolt).unwrap().targets,
-        vec![bear2],
+        vec![vec![bear2]],
         "changing to a fresh-legal target updates entry.targets"
     );
 }
@@ -3841,7 +3841,7 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
         panic!("expected ChooseTargets for Bolt, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![bear1]))
+        .submit_decision(Decision::Targets(vec![vec![bear1]]))
         .unwrap();
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -3859,7 +3859,7 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
         panic!("expected ChooseTargets for the retargeter's own ability, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![bolt]))
+        .submit_decision(Decision::Targets(vec![vec![bolt]]))
         .unwrap();
 
     // The retargeter ability now sits alone on the stack, committed to
@@ -3968,7 +3968,7 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
         panic!("expected ChooseTargets for Bolt, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![face]))
+        .submit_decision(Decision::Targets(vec![vec![face]]))
         .unwrap();
 
     // The cast completes (any mid-cast PayMana is auto-tapped): SpellCast
@@ -4024,7 +4024,7 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
     };
     assert!(legal[0].contains(&bolt), "the Bolt is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![bolt]))
+        .submit_decision(Decision::Targets(vec![vec![bolt]]))
         .unwrap();
     // A mana-free cost: the very next stop is P0's priority (retained).
     let _ = step_to_stop(&mut state);
@@ -4158,7 +4158,7 @@ fn ability_copy_same_source_resolves_and_vanishes() {
     };
     assert!(legal[0].contains(&face), "P1's face is a legal any-target");
     state
-        .submit_decision(Decision::Targets(vec![face]))
+        .submit_decision(Decision::Targets(vec![vec![face]]))
         .unwrap();
 
     // A mana-free cost: priority returns straight to P0 (retained).
@@ -4185,7 +4185,7 @@ fn ability_copy_same_source_resolves_and_vanishes() {
         "the pinger's ability is a legal Kind(Ability) target, legal: {legal:?}"
     );
     state
-        .submit_decision(Decision::Targets(vec![original.id]))
+        .submit_decision(Decision::Targets(vec![vec![original.id]]))
         .unwrap();
 
     // Both pass: the copier's ability resolves, minting the ability copy.
@@ -4262,5 +4262,306 @@ fn ability_copy_same_source_resolves_and_vanishes() {
     assert!(
         state.objects.get(copy_entry.id).is_none(),
         "the copy's minted id is gone after resolving — no zone move ([CR#707.10a])"
+    );
+}
+
+/// [CR#115.7e,601.2c,608.2b]: Fate Transfer's two-slot Distinct announce, cast
+/// end-to-end. The second slot is `Distinct([0])`, so the co-targets must
+/// differ: the real cast surfaces BOTH specs, an overlapping submission is
+/// rejected, a distinct pair is accepted, and resolution runs
+/// `MoveCounters(AllKinds, Target(0), Target(1))` — relocating every counter
+/// from the first creature onto the second.
+#[test]
+fn fate_transfer_two_distinct_targets_cast_to_resolution() {
+    let fate = card("Fate Transfer");
+    let island = Arc::new(builtin().card("Island").unwrap());
+    let bears = card("Grizzly Bears");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut deck = vec![Arc::clone(&fate); 4];
+    deck.extend(vec![Arc::clone(&island); 4]);
+    deck.extend(vec![Arc::clone(&bears); 4]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    // Two Islands pay {1}{U/B}; two creatures are the distinct co-targets.
+    force_into_play(&mut state, PlayerId(0), "Island");
+    force_into_play(&mut state, PlayerId(0), "Island");
+    let c1 = force_into_play(&mut state, PlayerId(0), "Grizzly Bears");
+    let c2 = force_into_play(&mut state, PlayerId(0), "Grizzly Bears");
+    let p1p1 = deckmaste_core::Ident::from("P1P1Counter");
+    state.objects.obj_mut(c1).counters.insert(p1p1, 2);
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 2); // {U}{U}
+    let spell = force_into_hand(&mut state, PlayerId(0), "Fate Transfer");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+        .unwrap();
+
+    // Announce ([CR#601.2c]): targets are chosen before the cost is paid.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { spec, legal, .. }) = stop
+    else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert_eq!(spec.len(), 2, "Fate Transfer announces two target slots");
+    assert!(
+        legal[0].contains(&c1) && legal[0].contains(&c2),
+        "both creatures are legal for slot 0"
+    );
+    assert!(
+        legal[1].contains(&c1) && legal[1].contains(&c2),
+        "both creatures are legal for slot 1 (the Distinct slot)"
+    );
+    // [CR#115.7e]: the same creature in both slots violates Distinct — rejected,
+    // decision stays pending (retryable, like ChooseTargets membership).
+    assert!(
+        state
+            .submit_decision(Decision::Targets(vec![vec![c1], vec![c1]]))
+            .is_err(),
+        "an overlapping co-target pair is rejected ([CR#115.7e])"
+    );
+    // A distinct pair is accepted.
+    state
+        .submit_decision(Decision::Targets(vec![vec![c1], vec![c2]]))
+        .unwrap();
+
+    // Concretize the {U/B} hybrid to blue ([CR#601.2f]), then auto-pay.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions { .. }) = stop else {
+        panic!("expected ChooseCostOptions for the {{U/B}} pip, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::CostOptions(deckmaste_engine::CostOptionChoices {
+            picks: vec![deckmaste_engine::SymbolChoice::Mana(
+                deckmaste_core::SimpleManaSymbol::Specific(Color::Blue.into()),
+            )],
+        }))
+        .unwrap();
+
+    // Auto-pay {1}{U}, then both players pass so the spell resolves.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(
+        state.stack[0].targets,
+        vec![vec![c1], vec![c2]],
+        "the committed entry carries the two distinct target slots"
+    );
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    // [CR#122]: every counter moved from c1 onto c2.
+    assert!(
+        state.objects.obj(c1).counters.is_empty(),
+        "the source creature is emptied of counters"
+    );
+    assert_eq!(
+        state.objects.obj(c2).counters.get(&p1p1).copied(),
+        Some(2),
+        "the destination creature received the two +1/+1 counters"
+    );
+}
+
+/// [CR#601.2c,115]: Arc Lightning's single PLURAL target slot — `Target(Between(1,
+/// 3), AnyTarget)` — announced through the real cast. The one spec accepts a
+/// count in 1..=3: zero is rejected (below the minimum), a within-slot
+/// duplicate is rejected ([CR#601.2c] — one object can't be two of the "one,
+/// two, or three targets"), and two distinct targets are accepted and recorded
+/// in the single slot. Resolution stops at the divided-distribution seam
+/// (engine-divided-distribution owns [CR#601.2d]); this asserts the announce
+/// half only.
+#[test]
+fn arc_lightning_announces_one_to_three_targets() {
+    let arc = card("Arc Lightning");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let bears = card("Grizzly Bears");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut deck = vec![Arc::clone(&arc); 4];
+    deck.extend(vec![Arc::clone(&mountain); 4]);
+    deck.extend(vec![Arc::clone(&bears); 4]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    // Three Mountains pay {2}{R}; two creatures are the candidate targets.
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    let c1 = force_into_play(&mut state, PlayerId(0), "Grizzly Bears");
+    let c2 = force_into_play(&mut state, PlayerId(0), "Grizzly Bears");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 3); // {R}{R}{R}
+    let spell = force_into_hand(&mut state, PlayerId(0), "Arc Lightning");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+        .unwrap();
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { spec, legal, .. }) = stop
+    else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert_eq!(
+        spec.len(),
+        1,
+        "Arc Lightning announces ONE plural target slot"
+    );
+    assert!(legal[0].contains(&c1) && legal[0].contains(&c2));
+    // Zero is below the minimum of one.
+    assert!(
+        state
+            .submit_decision(Decision::Targets(vec![vec![]]))
+            .is_err(),
+        "zero targets is below Between(1, 3)'s minimum ([CR#601.2c])"
+    );
+    // The same creature twice is not two targets ([CR#601.2c]).
+    assert!(
+        state
+            .submit_decision(Decision::Targets(vec![vec![c1, c1]]))
+            .is_err(),
+        "a within-slot duplicate is rejected ([CR#601.2c])"
+    );
+    // Two distinct targets in the one slot are accepted.
+    state
+        .submit_decision(Decision::Targets(vec![vec![c1, c2]]))
+        .unwrap();
+
+    // Reach the stack (auto-pay {2}{R}); the entry carries both targets in slot
+    // 0. Resolution is NOT driven — the divided-distribution seam owns it.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(
+        state.stack[0].targets,
+        vec![vec![c1, c2]],
+        "the plural slot carries both announced targets"
+    );
+}
+
+/// [CR#608.2b]: partial fizzle. Fate Transfer targets a source and a distinct
+/// destination; when the DESTINATION dies (lethal SBA remint) after announce
+/// but before resolution, the entry still resolves — a single surviving legal
+/// target keeps it off the fizzle path — but the two-endpoint `MoveCounters`
+/// does nothing (the illegal, departed destination is not affected), and
+/// crucially never panics reading the gone object. The surviving source keeps
+/// its counters.
+#[test]
+fn fate_transfer_partial_fizzle_when_destination_dies() {
+    let fate = card("Fate Transfer");
+    let island = Arc::new(builtin().card("Island").unwrap());
+    let bears = card("Grizzly Bears");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut deck = vec![Arc::clone(&fate); 4];
+    deck.extend(vec![Arc::clone(&island); 4]);
+    deck.extend(vec![Arc::clone(&bears); 4]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck },
+            PlayerConfig {
+                deck: vec![Arc::clone(&forest); 10],
+            },
+        ],
+        seed: 1,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    // Load lethal-damage SBAs so a marked 2/2 is destroyed and reminted.
+    state.sba_rules = builtin().sba_rules;
+    force_into_play(&mut state, PlayerId(0), "Island");
+    force_into_play(&mut state, PlayerId(0), "Island");
+    let source = force_into_play(&mut state, PlayerId(0), "Grizzly Bears");
+    let dest = force_into_play(&mut state, PlayerId(0), "Grizzly Bears");
+    let p1p1 = deckmaste_core::Ident::from("P1P1Counter");
+    state.objects.obj_mut(source).counters.insert(p1p1, 2);
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 2);
+    let spell = force_into_hand(&mut state, PlayerId(0), "Fate Transfer");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![vec![source], vec![dest]]))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions { .. }) = stop else {
+        panic!("expected ChooseCostOptions, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::CostOptions(deckmaste_engine::CostOptionChoices {
+            picks: vec![deckmaste_engine::SymbolChoice::Mana(
+                deckmaste_core::SimpleManaSymbol::Specific(Color::Blue.into()),
+            )],
+        }))
+        .unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    // The DESTINATION departs after announce (it dies / leaves play): drop it
+    // from the battlefield and the object store, so its target id is gone
+    // ([CR#400.7] — a reminted/departed object resolves to `None`).
+    state.zones.battlefield.retain(|&o| o != dest);
+    state.objects.remove(dest);
+    assert!(
+        state.objects.get(dest).is_none(),
+        "the destination's target id is gone"
+    );
+    // Both pass: Fate Transfer resolves (the source is still a legal target, so
+    // it does NOT fizzle) — and never panics reading the departed destination.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    // The move affected nothing (the departed destination is excluded), so the
+    // surviving source keeps its counters.
+    assert!(
+        state.zones.battlefield.contains(&source),
+        "the surviving source is still on the battlefield"
+    );
+    assert_eq!(
+        state.objects.obj(source).counters.get(&p1p1).copied(),
+        Some(2),
+        "the source keeps its counters — the two-endpoint move couldn't complete"
+    );
+    assert!(
+        state.stack.is_empty(),
+        "Fate Transfer left the stack (resolved, not stuck)"
     );
 }

@@ -89,6 +89,7 @@ pub fn stack_label(state: &GameState, entry: &StackEntry) -> String {
         let targets = entry
             .targets
             .iter()
+            .flatten()
             .map(|&t| object_name(state, t))
             .collect::<Vec<_>>()
             .join(", ");
@@ -322,7 +323,7 @@ mod tests {
             id,
             object: StackObject::Spell(id),
             controller: PlayerId(0),
-            targets: vec![target],
+            targets: vec![vec![target]],
             x: None,
             copy: false,
         };

@@ -29,7 +29,10 @@ pub(crate) fn frame_src_targets(
 ) -> Frame {
     Frame {
         anaphora: crate::stack::Anaphora {
-            targets,
+            // Each target its own quantity-one slot — preserves the positional
+            // `Reference::Target(n)` reads while `They`/`TargetsOf` flatten
+            // across slots.
+            targets: targets.into_iter().map(|t| vec![t]).collect(),
             ..crate::stack::Anaphora::empty()
         },
         ..Frame::bare(source, PlayerId(0))

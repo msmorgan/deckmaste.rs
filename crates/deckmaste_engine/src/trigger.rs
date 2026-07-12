@@ -960,13 +960,15 @@ impl GameState {
             .objects
             .mint(noted.source, controller, Some(Zone::Stack));
         let _ = self.surface_target_choice(controller, specs, id);
-        // [CR#603.3c]: a target with no legal choice — its candidates empty,
-        // or every candidate forbidden by hexproof/protection — removes the
-        // trigger from the stack, never placed. Retract the surfaced decision
-        // and the minted-but-unused stack identity.
+        // [CR#603.3c]: a target spec that can't be satisfied — a slot with
+        // fewer legal candidates than its minimum, or Distinct slots with no
+        // distinct representatives ([CR#115.7e]) — removes the trigger from the
+        // stack, never placed. Retract the surfaced decision and the
+        // minted-but-unused stack identity.
         let droppable = matches!(
             &self.pending,
-            Some(PendingDecision::ChooseTargets { legal, .. }) if legal.iter().any(Vec::is_empty)
+            Some(PendingDecision::ChooseTargets { spec, legal, .. })
+                if !crate::resolve::announce_satisfiable(spec, legal)
         );
         if droppable {
             self.pending = None;
@@ -1014,7 +1016,7 @@ impl GameState {
     ///
     /// Panics if no trigger placement is in flight — an engine invariant (the
     /// staging slot is open across the decision), not caller input.
-    pub(crate) fn commit_placing_trigger(&mut self, targets: Vec<ObjectId>) {
+    pub(crate) fn commit_placing_trigger(&mut self, targets: Vec<Vec<ObjectId>>) {
         let staged = self
             .placing_trigger
             .take()

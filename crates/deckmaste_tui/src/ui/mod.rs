@@ -432,7 +432,7 @@ fn render_footer(
             p.decider_player().0
         ),
         (Stop::Decision(_), Some(Interaction::Targets { chosen, active, .. })) => {
-            let done = chosen.iter().filter(|c| c.is_some()).count();
+            let done = chosen.iter().filter(|c| !c.is_empty()).count();
             format!(
                 "Choose target {}/{} — [space] toggle ({done} set)  [enter] confirm/next  [esc] reset",
                 active + 1,

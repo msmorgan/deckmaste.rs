@@ -17,6 +17,7 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Int;
 use deckmaste_core::PhaseStep;
+use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 
@@ -214,10 +215,13 @@ impl Strategy for GreedyDemo {
                 false,
             )),
             // The demo's burn / sac-outlet pings ("any target") and any other
-            // targeted effect: a legal candidate per spec slot.
-            PendingDecision::ChooseTargets { player, legal, .. } => {
-                Decision::Targets(choose_targets_any(state, *player, legal))
-            }
+            // targeted effect: a legal candidate set per spec slot.
+            PendingDecision::ChooseTargets {
+                player,
+                spec,
+                legal,
+                ..
+            } => Decision::Targets(choose_targets_any(state, *player, spec, legal)),
             // A multi-blocked attacker ([CR#510.1c]): any split summing to the
             // source's power is legal; dump it all on the first recipient.
             PendingDecision::AssignCombatDamage {
@@ -228,27 +232,51 @@ impl Strategy for GreedyDemo {
     }
 }
 
-/// Choose one legal object per `TargetSpec` slot. For a single-slot spec it
+/// Choose a legal target SET per `TargetSpec` slot. For a single-slot spec it
 /// reuses the removal heuristic (trim the board, else the face); for multi-slot
-/// specs it takes the first legal candidate of each slot — every choice is
-/// drawn from that slot's offered set, so it always validates. The demo's
+/// specs it takes each slot's minimum-count first-legal candidates, honoring
+/// within-slot + `Distinct` constraints ([`pick_target_set`]). The demo's
 /// targeted cards are single "any target" pings, so the heuristic path is what
 /// runs in practice.
 fn choose_targets_any(
     state: &GameState,
     player: PlayerId,
+    specs: &[TargetSpec],
     legal: &[Vec<ObjectId>],
-) -> Vec<ObjectId> {
+) -> Vec<Vec<ObjectId>> {
     if legal.len() == 1 {
         return choose_targets(state, player, legal);
     }
-    legal
-        .iter()
-        .map(|set| {
-            *set.first()
-                .expect("each spec offers at least one legal target")
-        })
-        .collect()
+    pick_target_set(specs, legal)
+}
+
+/// A mechanically-valid per-slot target set ([CR#601.2c,115.7e]): choose each
+/// slot's MINIMUM count of first-legal candidates, greedily skipping any that
+/// would break within-slot distinctness or a `Distinct` constraint against an
+/// already-chosen sibling slot. Slots fill in order, so a `Distinct` slot sees
+/// its (earlier-indexed, per the authored convention) siblings' picks; the
+/// submission validator is the true enforcement regardless. Always valid when
+/// the specs are announce-satisfiable; a min-0 slot contributes an empty set.
+pub(crate) fn pick_target_set(specs: &[TargetSpec], legal: &[Vec<ObjectId>]) -> Vec<Vec<ObjectId>> {
+    let mut chosen: Vec<Vec<ObjectId>> = vec![Vec::new(); specs.len()];
+    for (i, spec) in specs.iter().enumerate() {
+        let (min, _max) = crate::resolve::slot_count_bounds(spec);
+        let min = usize::try_from(min).expect("min count fits usize");
+        let siblings = crate::resolve::distinct_siblings(spec);
+        for &cand in &legal[i] {
+            if chosen[i].len() >= min {
+                break;
+            }
+            let clashes = chosen[i].contains(&cand)
+                || siblings
+                    .iter()
+                    .any(|&s| chosen.get(s).is_some_and(|set| set.contains(&cand)));
+            if !clashes {
+                chosen[i].push(cand);
+            }
+        }
+    }
+    chosen
 }
 
 /// Divide a multi-blocked attacker's combat damage ([CR#510.1c]): assign the
@@ -329,8 +357,13 @@ fn greedy_priority(
 
 /// Removal targeting: trim the board when the opponent has 2+ creatures (kill
 /// one — exercising the lethal SBA), otherwise burn the opponent's face (which
-/// also lets a lone attacker connect). A single `AnyTarget` spec.
-fn choose_targets(state: &GameState, player: PlayerId, legal: &[Vec<ObjectId>]) -> Vec<ObjectId> {
+/// also lets a lone attacker connect). A single quantity-one `AnyTarget` spec,
+/// so the answer is one slot holding one target.
+fn choose_targets(
+    state: &GameState,
+    player: PlayerId,
+    legal: &[Vec<ObjectId>],
+) -> Vec<Vec<ObjectId>> {
     let opp = opponent(player);
     let candidates = &legal[0];
     let board_creatures = state
@@ -344,9 +377,9 @@ fn choose_targets(state: &GameState, player: PlayerId, legal: &[Vec<ObjectId>]) 
             .iter()
             .find(|&&id| state.objects.obj(id).controller == opp && is_creature(state, id))
     {
-        return vec![creature];
+        return vec![vec![creature]];
     }
-    vec![state.players[opp.index()].object]
+    vec![vec![state.players[opp.index()].object]]
 }
 
 /// Choose `count` cards to discard — shed lands first, keeping action cards.
@@ -432,9 +465,9 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         PendingDecision::CallFlip { .. } => Decision::Answer(true),
         // [CR#707.10c]: keeping every current target is always legal (the
         // union rule) — the headless strategy re-targets nothing.
-        PendingDecision::ChooseNewTargets { entry, legal, .. } => {
-            Decision::Targets(keep_current_targets(state, *entry, legal))
-        }
+        PendingDecision::ChooseNewTargets {
+            entry, spec, legal, ..
+        } => Decision::Targets(keep_current_targets(state, *entry, spec, legal)),
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
@@ -450,20 +483,18 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
 pub(crate) fn keep_current_targets(
     state: &GameState,
     entry: ObjectId,
+    specs: &[TargetSpec],
     legal: &[Vec<ObjectId>],
-) -> Vec<ObjectId> {
+) -> Vec<Vec<ObjectId>> {
     if let Some(e) = state.stack.iter().find(|e| e.id == entry)
         && e.targets.len() == legal.len()
     {
         return e.targets.clone();
     }
-    legal
-        .iter()
-        .map(|set| {
-            *set.first()
-                .expect("each spec offers at least one legal target")
-        })
-        .collect()
+    // The entry left the stack between surfacing and answer ([CR#707.10c]) —
+    // the write is a no-op, but the submission is still shape-validated, so hand
+    // back a valid minimum set (within-slot + Distinct respected).
+    pick_target_set(specs, legal)
 }
 
 /// The seat a surfaced decision is waiting on — every variant names its player.

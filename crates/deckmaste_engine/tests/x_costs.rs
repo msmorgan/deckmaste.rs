@@ -484,7 +484,9 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
         legal[0].contains(&opp),
         "opponent proxy is a legal AnyTarget: {legal:?}"
     );
-    state.submit_decision(Decision::Targets(vec![opp])).unwrap();
+    state
+        .submit_decision(Decision::Targets(vec![vec![opp]]))
+        .unwrap();
 
     let life_before = state.players[1].life;
     // Pay {3} (auto), then both players pass so the spell resolves.

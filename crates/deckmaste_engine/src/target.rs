@@ -392,17 +392,21 @@ pub fn matches_with(
         // has no targets.
         Predicate::State(StatePredicate::Targets(f)) => {
             state.stack.iter().find(|e| e.id == id).is_some_and(|e| {
+                // Any still-live member of any slot currently matching.
                 e.targets
                     .iter()
+                    .flatten()
                     .any(|&t| state.objects.get(t).is_some() && matches_with(state, t, f, watcher))
             })
         }
         // [CR#115.9a]: "with [N] target(s)" — the count of target instances
-        // chosen at stack-put. Bound is a literal (frameless). Non-stack → none.
+        // chosen at stack-put, FLATTENED across slots. Bound is a literal
+        // (frameless). Non-stack → none.
         Predicate::State(StatePredicate::TargetCount(bound)) => {
             state.stack.iter().find(|e| e.id == id).is_some_and(|e| {
                 bound.satisfied_by(
-                    Uint::try_from(e.targets.len()).expect("target count fits Uint"),
+                    Uint::try_from(e.targets.iter().map(Vec::len).sum::<usize>())
+                        .expect("target count fits Uint"),
                     const_count,
                 )
             })
@@ -1345,7 +1349,7 @@ mod tests {
             id: spell,
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
-            targets: vec![bear],
+            targets: vec![vec![bear]],
             x: None,
             copy: false,
         });

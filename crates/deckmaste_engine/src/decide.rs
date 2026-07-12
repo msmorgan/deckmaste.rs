@@ -362,8 +362,11 @@ pub enum Decision {
     /// Answers `ChooseManaMode`: the chosen multi-symbol run, by option index
     /// into the offered runs ([CR#106.1b]).
     ManaMode(Uint),
-    /// Answers `ChooseTargets`: one chosen object per `TargetSpec`.
-    Targets(Vec<ObjectId>),
+    /// Answers `ChooseTargets`: one chosen SET per `TargetSpec` slot (singleton
+    /// for a quantity-one slot, several for a plural slot). The submission
+    /// carries the per-slot counts, so `submit_decision` locks them
+    /// ([CR#601.2c]).
+    Targets(Vec<Vec<ObjectId>>),
     /// Answers `PayMana`: how the pool covers the cost.
     Pay(crate::cast::Payment),
     /// Answers `OrderTriggers`: a permutation of `0..triggers.len()` giving the
@@ -725,14 +728,22 @@ impl GameState {
                 },
                 Decision::Targets(chosen),
             ) => {
-                // [CR#601.2c,115] / [CR#603.3d]: one chosen object per spec,
-                // each drawn from that spec's legal candidate set.
+                // [CR#601.2c,115] / [CR#603.3d]: one chosen SET per spec, each
+                // member drawn from that spec's legal candidate set.
                 if chosen.len() != spec.len()
-                    || chosen.iter().zip(legal).any(|(c, set)| !set.contains(c))
+                    || chosen
+                        .iter()
+                        .zip(legal)
+                        .any(|(picks, set)| picks.iter().any(|c| !set.contains(c)))
                 {
                     return Err(DecisionError::Illegal {
                         reason: "illegal target selection".into(),
                     });
+                }
+                // [CR#601.2c,115.7e]: per-slot count within bounds, within-slot
+                // distinctness, and cross-slot Distinct disjointness.
+                if let Err(reason) = crate::resolve::validate_target_set(spec, &chosen) {
+                    return Err(DecisionError::Illegal { reason });
                 }
                 // Targeting requirements (Must(Target) rows — the
                 // Flagbearer class, "must choose at least one … if able"):
@@ -773,6 +784,7 @@ impl GameState {
                         });
                         let obeyed = chosen
                             .iter()
+                            .flatten()
                             .any(|&t| self.filter_matches_live(on, t, *carrier));
                         if able && !obeyed {
                             return Err(DecisionError::Illegal {
@@ -809,7 +821,7 @@ impl GameState {
                     }
                 };
                 let mut became: Vec<GameEvent> = Vec::new();
-                for &target in &chosen {
+                for &target in chosen.iter().flatten() {
                     let dup = became.iter().any(
                         |e| matches!(e, GameEvent::BecameTarget { target: t, .. } if *t == target),
                     );
@@ -859,11 +871,19 @@ impl GameState {
                 // fresh; a CHANGED slot must land on a fresh-legal
                 // candidate).
                 if chosen.len() != spec.len()
-                    || chosen.iter().zip(legal).any(|(c, set)| !set.contains(c))
+                    || chosen
+                        .iter()
+                        .zip(legal)
+                        .any(|(picks, set)| picks.iter().any(|c| !set.contains(c)))
                 {
                     return Err(DecisionError::Illegal {
                         reason: "illegal target selection".into(),
                     });
+                }
+                // [CR#601.2c,115.7e]: counts (locked at announce) unchanged,
+                // within-slot + Distinct re-validated on the whole proposed set.
+                if let Err(reason) = crate::resolve::validate_target_set(spec, &chosen) {
+                    return Err(DecisionError::Illegal { reason });
                 }
                 let entry = *entry;
                 self.pending = None;

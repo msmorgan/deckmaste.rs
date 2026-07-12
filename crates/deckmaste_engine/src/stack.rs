@@ -83,8 +83,9 @@ pub struct StackEntry {
     pub object: StackObject,
     pub controller: PlayerId,
     /// Chosen at announce ([CR#601.2c]) or at trigger placement ([CR#603.3d]);
-    /// read back by the slot-bound anaphors.
-    pub targets: Vec<ObjectId>,
+    /// read back by the slot-bound anaphors. One inner set per `TargetSpec`
+    /// slot (singleton for a quantity-one slot, several for a plural slot).
+    pub targets: Vec<Vec<ObjectId>>,
     /// [CR#107.3a]: the announced X — copied from the announce slot at promote.
     /// `None` for triggers and non-X spells.
     pub x: Option<deckmaste_core::Uint>,
@@ -117,7 +118,8 @@ pub struct PendingStackEntry {
     /// Where a spell was cast from — for cast-from-zone effects, not undo;
     /// `Hand` in stage 2.
     pub origin: Zone,
-    pub targets: Vec<ObjectId>,
+    /// One inner set per `TargetSpec` slot (see [`StackEntry::targets`]).
+    pub targets: Vec<Vec<ObjectId>>,
     /// [CR#601.2b,107.3a]: the value announced for `{X}` in the cost, or `None`
     /// when the cost has no `{X}`. Chosen at the `AnnounceX` step.
     pub x: Option<deckmaste_core::Uint>,
@@ -236,8 +238,9 @@ pub struct ThatBinding {
 pub struct Anaphora {
     /// Chosen at announce ([CR#601.2c]) or trigger placement ([CR#603.3d]);
     /// read back by the slot-bound anaphors (`It`/`They`, or by position via
-    /// `Reference::Target(n)`).
-    pub targets: Vec<ObjectId>,
+    /// `Reference::Target(n)`). One inner set per `TargetSpec` slot (see
+    /// [`StackEntry::targets`]).
+    pub targets: Vec<Vec<ObjectId>>,
     /// A `Choose`/`Random` selection resolved into this scope for a re-run
     /// ([CR#608.2d]). Set only on the continuation the choice produces;
     /// `eval_selection_set` reads it for the `Choose`/`Random` slot. `None`

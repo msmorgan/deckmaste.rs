@@ -2059,11 +2059,14 @@ impl GameState {
             return Progress::NewTargetsOpened { specs: 0 };
         }
         let mut legal = self.legal_targets_for_specs(&specs, entry);
-        // [CR#707.10c]: the union rule — a slot's current target is always a
-        // keepable choice, even when it didn't make the fresh legal cut.
-        for (slot, cur) in legal.iter_mut().zip(current.iter()) {
-            if !slot.contains(cur) {
-                slot.push(*cur);
+        // [CR#707.10c]: the union rule — every current target of a slot is a
+        // keepable choice, even when it didn't make the fresh legal cut
+        // (keeping the ENTIRE current set is always legal, final-set rule).
+        for (slot, cur_set) in legal.iter_mut().zip(current.iter()) {
+            for &cur in cur_set {
+                if !slot.contains(&cur) {
+                    slot.push(cur);
+                }
             }
         }
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
@@ -2952,7 +2955,7 @@ mod tests {
         assert_eq!(top.id, id);
         assert_eq!(top.object, StackObject::Spell(id));
         assert_eq!(top.controller, PlayerId(0));
-        assert_eq!(top.targets, Vec::<crate::object::ObjectId>::new());
+        assert_eq!(top.targets, Vec::<Vec<crate::object::ObjectId>>::new());
         assert_eq!(top.x, Some(3));
         // The returned pending lets callers run their own debug-asserts.
         assert_eq!(pending.id, id);

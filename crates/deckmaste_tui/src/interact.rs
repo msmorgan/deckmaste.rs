@@ -14,11 +14,14 @@ pub enum Interaction {
     /// cursor); `sub` is the disambiguation popup when one object has >1
     /// action.
     Priority { sub: Option<AbilityPick> },
-    /// Choose targets: one object per spec. `legal[i]` is spec i's candidate
-    /// set; `chosen[i]` is the pick (capped at one — untoggle to change).
+    /// Choose targets ([CR#601.2c]): a SET per spec slot. `legal[i]` is slot
+    /// i's candidate set; `chosen[i]` is the picked set (toggle to add/remove —
+    /// a plural slot takes several). Counts and cross-slot distinctness are the
+    /// engine's to enforce at submission; the picker doesn't narrow, so
+    /// over-picking is simply rejected on confirm.
     Targets {
         legal: Vec<Vec<ObjectId>>,
-        chosen: Vec<Option<ObjectId>>,
+        chosen: Vec<Vec<ObjectId>>,
         active: usize,
     },
     /// Declare attackers: any subset of `legal`. `defender` is the defending
@@ -115,7 +118,7 @@ impl Interaction {
             // "leave it as-is" is always a candidate.
             | PendingDecision::ChooseNewTargets { legal, .. } => Interaction::Targets {
                 legal: legal.clone(),
-                chosen: vec![None; legal.len()],
+                chosen: vec![Vec::new(); legal.len()],
                 active: 0,
             },
             PendingDecision::DeclareAttackers {
@@ -238,10 +241,14 @@ impl Interaction {
                 if !legal.get(active).is_some_and(|c| c.contains(&id)) {
                     return;
                 }
-                match chosen[active] {
-                    Some(cur) if cur == id => chosen[active] = None,
-                    Some(_) => {} // a different pick exists — untoggle it first
-                    None => chosen[active] = Some(id),
+                // Add/remove `id` in the active slot's set — a plural slot takes
+                // several. The engine enforces count/distinctness at submit, so
+                // the picker doesn't cap.
+                let slot = &mut chosen[active];
+                if let Some(pos) = slot.iter().position(|&c| c == id) {
+                    slot.remove(pos);
+                } else {
+                    slot.push(id);
                 }
             }
             Interaction::Attackers { legal, chosen, .. } => {
@@ -294,7 +301,7 @@ impl Interaction {
             let n = chosen.len();
             for step in 1..=n {
                 let i = (*active + step) % n;
-                if chosen[i].is_none() {
+                if chosen[i].is_empty() {
                     *active = i;
                     return;
                 }
@@ -308,7 +315,7 @@ impl Interaction {
             Interaction::Priority { sub } => *sub = None,
             Interaction::Targets { chosen, active, .. } => {
                 for c in chosen.iter_mut() {
-                    *c = None;
+                    c.clear();
                 }
                 *active = 0;
             }
@@ -329,10 +336,13 @@ impl Interaction {
     pub fn confirm(&self) -> Option<Decision> {
         match self {
             Interaction::Priority { .. } => None,
-            Interaction::Targets { chosen, .. } => {
-                let picks: Option<Vec<ObjectId>> = chosen.iter().copied().collect();
-                picks.map(Decision::Targets)
-            }
+            // Confirm once every slot holds at least one pick — a minimal
+            // completeness gate; the engine enforces the exact per-slot counts
+            // and cross-slot distinctness on submission ([CR#601.2c,115.7e]).
+            Interaction::Targets { chosen, .. } => chosen
+                .iter()
+                .all(|slot| !slot.is_empty())
+                .then(|| Decision::Targets(chosen.clone())),
             // [CR#508.1b]: every attacker attacks the defending player (the
             // proxy stored at build time); a planeswalker picker is a follow-up.
             Interaction::Attackers {
@@ -522,7 +532,7 @@ mod tests {
                 active,
             } => {
                 assert_eq!(legal.len(), 2);
-                assert_eq!(chosen, vec![None, None]);
+                assert_eq!(chosen, vec![Vec::<ObjectId>::new(), Vec::new()]);
                 assert_eq!(active, 0);
             }
             other => panic!("expected Targets, got {other:?}"),
@@ -530,7 +540,7 @@ mod tests {
     }
 
     #[test]
-    fn targets_caps_at_one_per_spec_and_untoggles_to_change() {
+    fn targets_toggle_adds_and_removes_within_a_slot() {
         let v = ids();
         let (a, b) = (v[0], v[1]);
         let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets {
@@ -542,12 +552,14 @@ mod tests {
         assert!(it.confirm().is_none()); // nothing chosen yet
         it.toggle(a);
         assert!(it.is_chosen(a));
-        it.toggle(b); // refused: spec already has a pick (cap = 1)
-        assert!(it.is_chosen(a) && !it.is_chosen(b));
-        it.toggle(a); // untoggle
-        it.toggle(b); // now allowed
+        // A slot takes several — the engine caps counts at submission, so the
+        // picker adds rather than refusing (a plural "1–3 targets" slot).
+        it.toggle(b);
+        assert!(it.is_chosen(a) && it.is_chosen(b));
+        assert_eq!(it.confirm(), Some(Decision::Targets(vec![vec![a, b]])));
+        it.toggle(a); // remove a
         assert!(it.is_chosen(b) && !it.is_chosen(a));
-        assert_eq!(it.confirm(), Some(Decision::Targets(vec![b])));
+        assert_eq!(it.confirm(), Some(Decision::Targets(vec![vec![b]])));
     }
 
     #[test]
@@ -564,7 +576,10 @@ mod tests {
         assert!(it.confirm().is_none()); // spec 1 still empty
         it.advance(); // move to spec 1
         it.toggle(c); // spec 1 := c
-        assert_eq!(it.confirm(), Some(Decision::Targets(vec![a, c])));
+        assert_eq!(
+            it.confirm(),
+            Some(Decision::Targets(vec![vec![a], vec![c]]))
+        );
     }
 
     #[test]

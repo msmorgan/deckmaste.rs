@@ -780,14 +780,17 @@ impl GameState {
             return None;
         }
         let cost = self.mana_cost(object)?;
-        // If the spell targets, every spec must admit at least one candidate.
-        // The carrier is the spell's own object source ([CR#601.2c]) — anchors a
-        // target filter's `Ref(This)` to the spell.
+        // If the spell targets, its specs must be jointly satisfiable — each
+        // slot offering at least its minimum count, the Distinct slots admitting
+        // distinct representatives ([CR#601.2c,115.7e]). The carrier is the
+        // spell's own object source — anchors a target filter's `Ref(This)`.
         let carrier = Some(self.objects.obj(object).source);
-        let has_a_target_each = crate::resolve::spell_targets(view, object)
+        let specs = crate::resolve::spell_targets(view, object);
+        let legal: Vec<Vec<ObjectId>> = specs
             .iter()
-            .all(|spec| !self.legal_targets(spec, carrier).is_empty());
-        has_a_target_each.then_some(cost)
+            .map(|spec| self.legal_targets(spec, carrier))
+            .collect();
+        crate::resolve::announce_satisfiable(&specs, &legal).then_some(cost)
     }
 
     /// Runner autotap ([CR#106.4,605.1a]): the ordered mana-ability activations

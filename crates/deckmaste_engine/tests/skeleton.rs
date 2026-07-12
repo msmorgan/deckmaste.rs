@@ -1027,7 +1027,7 @@ fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
         id: bolt,
         object: StackObject::Spell(bolt),
         controller: PlayerId(0),
-        targets: vec![bear],
+        targets: vec![vec![bear]],
         x: None,
         copy: false,
     });

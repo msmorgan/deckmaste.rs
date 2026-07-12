@@ -7,6 +7,7 @@
 //! on top of this.
 
 use deckmaste_core::Count;
+use deckmaste_core::TargetSpec;
 use deckmaste_core::Uint;
 use deckmaste_core::strategy::BlockPolicy;
 use deckmaste_core::strategy::Extremum;
@@ -212,11 +213,19 @@ impl StrategyEvaluator {
             .find_map(|r| f(resolved(&r.prefer)))
     }
 
-    /// Choose one target per spec slot: apply the applicable `Cast`/`Activate`
-    /// preference's `target` selector to that slot's legal candidates, falling
-    /// back to the first legal candidate when no rule supplies a selector.
-    fn decide_targets(&self, state: &GameState, legal: &[Vec<ObjectId>]) -> Vec<ObjectId> {
-        let target = self.first_applicable(state, |p| match p {
+    /// Choose a target SET per spec slot ([CR#601.2c,115.7e]): pick each slot's
+    /// count (its minimum, at least one where the bounds allow) preferring the
+    /// applicable `Cast`/`Activate` preference's `target` selector, then the
+    /// slot's legal order — greedily skipping candidates that break within-slot
+    /// distinctness or a `Distinct` constraint against an earlier slot. Slots
+    /// fill in order, so a `Distinct` slot sees its siblings' picks.
+    fn decide_targets(
+        &self,
+        state: &GameState,
+        specs: &[TargetSpec],
+        legal: &[Vec<ObjectId>],
+    ) -> Vec<Vec<ObjectId>> {
+        let selector = self.first_applicable(state, |p| match p {
             Preference::Cast {
                 target: Some(s), ..
             }
@@ -225,15 +234,35 @@ impl StrategyEvaluator {
             } => Some(s),
             _ => None,
         });
-        legal
-            .iter()
-            .map(|slot| {
-                target
-                    .and_then(|s| self.select(state, s, slot))
-                    .or_else(|| slot.first().copied())
-                    .expect("a target spec offers a candidate")
-            })
-            .collect()
+        let mut chosen: Vec<Vec<ObjectId>> = vec![Vec::new(); specs.len()];
+        for (i, spec) in specs.iter().enumerate() {
+            let (min, max) = crate::resolve::slot_count_bounds(spec);
+            // Pick the minimum, but at least one where the maximum permits (a
+            // legal, minimal-yet-non-empty default for "up to N" slots).
+            let want = max.map_or(min.max(1), |hi| min.max(1).min(hi));
+            let want = usize::try_from(want).expect("target count fits usize");
+            let siblings = crate::resolve::distinct_siblings(spec);
+            // Selector's pick first (when it applies), then the slot's legal
+            // order; dedup keeps the selector's pick from repeating.
+            let preferred = selector.and_then(|s| self.select(state, s, &legal[i]));
+            let ordered = preferred
+                .into_iter()
+                .chain(legal[i].iter().copied())
+                .collect::<Vec<_>>();
+            for cand in ordered {
+                if chosen[i].len() >= want {
+                    break;
+                }
+                let clashes = chosen[i].contains(&cand)
+                    || siblings
+                        .iter()
+                        .any(|&s| chosen.get(s).is_some_and(|set| set.contains(&cand)));
+                if !clashes {
+                    chosen[i].push(cand);
+                }
+            }
+        }
+        chosen
     }
 
     /// Declare attackers: the legal attackers matching the applicable `Attack`
@@ -345,12 +374,9 @@ impl StrategyEvaluator {
             PendingDecision::OrderTriggers { triggers, .. } => {
                 Decision::Order((0..triggers.len()).collect())
             }
-            PendingDecision::ChooseTargets { legal, .. } => Decision::Targets(
-                legal
-                    .iter()
-                    .map(|set| *set.first().expect("a target spec offers a candidate"))
-                    .collect(),
-            ),
+            PendingDecision::ChooseTargets { spec, legal, .. } => {
+                Decision::Targets(crate::sim::pick_target_set(spec, legal))
+            }
             // No-op defaults: declaring no attackers / no blocks is always legal.
             PendingDecision::DeclareAttackers { .. } => Decision::Attackers(vec![]),
             PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
@@ -397,9 +423,9 @@ impl StrategyEvaluator {
             ),
             // [CR#707.10c]: re-target a committed entry by keeping every
             // current target (see `crate::sim::keep_current_targets`).
-            PendingDecision::ChooseNewTargets { entry, legal, .. } => {
-                Decision::Targets(crate::sim::keep_current_targets(state, *entry, legal))
-            }
+            PendingDecision::ChooseNewTargets {
+                entry, spec, legal, ..
+            } => Decision::Targets(crate::sim::keep_current_targets(state, *entry, spec, legal)),
             // Deep engine choices with no trivial legal default; none arise in
             // v1 decks. Later tickets handle these explicitly.
             other @ (PendingDecision::ChooseCostOptions { .. }
@@ -418,8 +444,8 @@ impl crate::sim::Strategy for StrategyEvaluator {
             PendingDecision::Priority { legal, .. } => {
                 Decision::Act(self.decide_priority(state, legal))
             }
-            PendingDecision::ChooseTargets { legal, .. } => {
-                Decision::Targets(self.decide_targets(state, legal))
+            PendingDecision::ChooseTargets { spec, legal, .. } => {
+                Decision::Targets(self.decide_targets(state, spec, legal))
             }
             PendingDecision::DeclareAttackers { legal, .. } => {
                 Decision::Attackers(self.decide_attackers(state, legal))
@@ -443,11 +469,16 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::Card;
+    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Quantity;
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
+    use deckmaste_core::TargetSpec;
+    use deckmaste_core::Type;
     use deckmaste_core::Zone;
     use deckmaste_core::strategy::BlockPolicy;
     use deckmaste_core::strategy::Extremum;
@@ -745,12 +776,12 @@ mod tests {
         );
         let pending = PendingDecision::ChooseTargets {
             player: PlayerId(0),
-            spec: vec![],
+            spec: one_creature_target(),
             legal: vec![vec![willow_id, bears_id]],
         };
         assert_eq!(
             eval.decide(&state, &pending),
-            Decision::Targets(vec![bears_id]),
+            Decision::Targets(vec![vec![bears_id]]),
         );
     }
 
@@ -765,10 +796,22 @@ mod tests {
         let b = put_creature(&mut state, &bears, PlayerId(1));
         let pending = PendingDecision::ChooseTargets {
             player: PlayerId(0),
-            spec: vec![],
+            spec: one_creature_target(),
             legal: vec![vec![a, b]],
         };
-        assert_eq!(eval.decide(&state, &pending), Decision::Targets(vec![a]));
+        assert_eq!(
+            eval.decide(&state, &pending),
+            Decision::Targets(vec![vec![a]])
+        );
+    }
+
+    /// One quantity-one "target creature" spec — the shape the real announce
+    /// flow always pairs with a one-slot legal set.
+    fn one_creature_target() -> Vec<TargetSpec> {
+        vec![TargetSpec::Target(
+            Quantity::one(),
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+        )]
     }
 
     /// `DeclareAttackers`: an `Attack` preference declares the whole legal set

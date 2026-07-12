@@ -329,7 +329,7 @@ fn tap_pinger_damages_target_through_stack() {
     };
     assert!(legal[0].contains(&bear), "the bear is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
 
     // A mana-free cost: the very next stop is the activator's priority — no
@@ -348,7 +348,7 @@ fn tap_pinger_damages_target_through_stack() {
         );
     };
     assert_eq!(*source, pinger);
-    assert_eq!(state.stack[0].targets, vec![bear]);
+    assert_eq!(state.stack[0].targets, vec![vec![bear]]);
 
     // Both players pass: the ability resolves and deals 1 to the bear.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -408,7 +408,7 @@ fn activation_announce_carries_a_minted_stack_identity() {
     );
 
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
     let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = stop else {
@@ -568,7 +568,7 @@ fn sorcery_speed_drawer_gated() {
     };
     assert!(legal[0].contains(&bear), "the bear is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     // run_to_priority auto-pays the all-colored {R}.
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -834,7 +834,7 @@ fn loyalty_ability_gated_at_sorcery_speed() {
     };
     assert!(legal[0].contains(&bear), "the bear is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the instant is on the stack");
@@ -997,7 +997,7 @@ fn pinger_fizzles_when_target_dies() {
         panic!("expected ChooseTargets for the pinger, got {stop:?}");
     };
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     assert_eq!(state.stack.len(), 1, "the ability is on the stack");
@@ -1017,7 +1017,7 @@ fn pinger_fizzles_when_target_dies() {
     };
     assert!(legal[0].contains(&bear), "the bear is a legal target");
     state
-        .submit_decision(Decision::Targets(vec![bear]))
+        .submit_decision(Decision::Targets(vec![vec![bear]]))
         .unwrap();
     // run_to_priority auto-pays the all-colored {R}.
     let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);

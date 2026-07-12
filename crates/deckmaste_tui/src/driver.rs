@@ -234,7 +234,7 @@ mod tests {
     fn answer(state: &GameState, pending: &PendingDecision) -> Decision {
         match pending {
             PendingDecision::ChooseTargets { legal, .. } => {
-                Decision::Targets(legal.iter().map(|c| c[0]).collect())
+                Decision::Targets(legal.iter().map(|c| vec![c[0]]).collect())
             }
             PendingDecision::DeclareAttackers { .. } => Decision::Attackers(vec![]),
             PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),

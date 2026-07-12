@@ -453,7 +453,7 @@ mod tests {
             this: Some(LkiSnapshot::capture(&state, bear)),
             defending_player: None,
             anaphora: Anaphora {
-                targets: vec![bear],
+                targets: vec![vec![bear]],
                 ..Anaphora::empty()
             },
         };

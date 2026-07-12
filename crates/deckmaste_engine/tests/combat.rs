@@ -1116,7 +1116,7 @@ fn becomes_tapped_trigger_fires_on_attack_tap() {
     let face = state.players[1].object;
     assert!(legal[0].contains(&face), "any target admits the face");
     state
-        .submit_decision(Decision::Targets(vec![face]))
+        .submit_decision(Decision::Targets(vec![vec![face]]))
         .unwrap();
 
     // Priority passes resolve the placed trigger before blocks are declared.
