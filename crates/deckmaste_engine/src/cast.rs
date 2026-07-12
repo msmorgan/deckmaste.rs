@@ -974,18 +974,14 @@ impl GameState {
     pub(crate) fn announce_targets(&mut self) -> Uint {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
-        let specs: Vec<TargetSpec> = match &pending.object {
-            StackObject::Spell(o) => crate::resolve::spell_targets(&self.layers(), *o),
-            // The carried ability text is authoritative — never re-derive
-            // from the (possibly changed) source. Targets live on a top-level
-            // `OneShotEffect::Targeted` wrapper ([CR#115.1,601.2c]).
-            StackObject::Activated { ability, .. } => {
-                crate::resolve::top_targets(&ability.effect).to_vec()
-            }
-            StackObject::Triggered { .. } => {
-                unreachable!("triggers announce targets at placement, not in the announce slot")
-            }
-        };
+        if matches!(pending.object, StackObject::Triggered { .. }) {
+            unreachable!("triggers announce targets at placement, not in the announce slot");
+        }
+        // The per-kind spec derivation is shared with re-targeting a
+        // COMMITTED entry ([`Self::stack_object_target_specs`],
+        // `ChooseNewTargets`, [CR#707.10c]).
+        let view = self.layers();
+        let specs = self.stack_object_target_specs(&view, &pending.object);
         if specs.is_empty() {
             return 0;
         }
@@ -997,6 +993,45 @@ impl GameState {
         // stack-zone-keyed rows read the real object.
         let spell = pending.id;
         self.surface_target_choice(controller, specs, spell)
+    }
+
+    /// The target specs a stack object's ability carries
+    /// ([CR#601.2c,603.3d]) — the per-kind derivation shared by the announce
+    /// slot ([`Self::announce_targets`]) and re-targeting a COMMITTED entry
+    /// (`ChooseNewTargets`, [CR#707.10c]). A spell's specs are read fresh off
+    /// `view` (its `Spell` ability may have changed since the object hit the
+    /// stack, and a copy's controller can differ from the caster,
+    /// [CR#707.10a]); an activated/triggered ability's ride the text carried
+    /// at promote/placement ([CR#602.2a,603.3d]) — never re-derived from a
+    /// (possibly gone, possibly changed) source.
+    #[must_use]
+    pub(crate) fn stack_object_target_specs(
+        &self,
+        view: &crate::layer::LayeredView,
+        object: &StackObject,
+    ) -> Vec<TargetSpec> {
+        match object {
+            StackObject::Spell(o) => crate::resolve::spell_targets(view, *o),
+            StackObject::Activated { ability, .. } => {
+                crate::resolve::top_targets(&ability.effect).to_vec()
+            }
+            StackObject::Triggered {
+                source,
+                ability,
+                created,
+                ..
+            } => match created {
+                Some(t) => crate::resolve::top_targets(&t.effect).to_vec(),
+                None => match &crate::derive::abilities_of_source(self, *source)[*ability] {
+                    deckmaste_core::Ability::Triggered(t) => {
+                        crate::resolve::top_targets(&t.effect).to_vec()
+                    }
+                    other => unreachable!(
+                        "a Triggered stack object indexes a Triggered ability, got {other:?}"
+                    ),
+                },
+            },
+        }
     }
 
     /// [CR#601.2c]: surface a `ChooseTargets` decision for `player` over
@@ -1023,15 +1058,33 @@ impl GameState {
         specs: Vec<TargetSpec>,
         targeting_id: ObjectId,
     ) -> Uint {
+        let legal = self.legal_targets_for_specs(&specs, targeting_id);
+        let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
+        self.pending = Some(PendingDecision::ChooseTargets {
+            player,
+            spec: specs,
+            legal,
+        });
+        count
+    }
+
+    /// The per-spec legal-target computation ([CR#601.2c]) shared by
+    /// [`Self::surface_target_choice`] (announce / trigger placement) and
+    /// re-targeting a COMMITTED entry (`ChooseNewTargets`, [CR#707.10c]) —
+    /// `Cant(Target)` carriers ([CR#702.11b] hexproof, [CR#702.16b]
+    /// protection's targeted clause) excluded per spec. `targeting_id` is the
+    /// live stack identity each forbidding row's `by` filter evaluates
+    /// against; it anchors a target filter's `Ref(This)`/`StatOf(This, …)`
+    /// too (Mentor's lesser-power clause, [CR#702.134a]).
+    pub(crate) fn legal_targets_for_specs(
+        &self,
+        specs: &[TargetSpec],
+        targeting_id: ObjectId,
+    ) -> Vec<Vec<ObjectId>> {
         let view = self.layers();
         let rows = crate::legal::cant_target_rows(self, &view);
-        // The carrier is the targeting object's source — a spell's own source, an
-        // ability announce's minted-id source, or a placing trigger's minted-id
-        // source (minted with the trigger's `source`, so this is the ability's
-        // source object). It anchors a target filter's `Ref(This)`/`StatOf(This,
-        // …)` (Mentor's lesser-power clause, [CR#702.134a]).
         let carrier = Some(self.objects.obj(targeting_id).source);
-        let legal: Vec<Vec<ObjectId>> = specs
+        specs
             .iter()
             .map(|s| {
                 self.legal_targets(s, carrier)
@@ -1041,14 +1094,7 @@ impl GameState {
                     })
                     .collect()
             })
-            .collect();
-        let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
-        self.pending = Some(PendingDecision::ChooseTargets {
-            player,
-            spec: specs,
-            legal,
-        });
-        count
+            .collect()
     }
 
     /// [CR#601.2b]: surface a `ChooseXValue` if the in-flight announce's cost

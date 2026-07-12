@@ -114,6 +114,11 @@ pub enum Progress {
     /// [CR#601.2c]: targets were announced for the in-flight spell (a
     /// `ChooseTargets` decision surfaces when `specs > 0`).
     TargetsAnnounced { specs: Uint },
+    /// [CR#707.10c]: a `ChooseNewTargets` work item ran, re-targeting a
+    /// committed stack entry. `specs` is the entry's target-spec count (0 =
+    /// no decision surfaced — the entry was already gone, or its ability has
+    /// no targets; > 0 = a `ChooseNewTargets` decision is now pending).
+    NewTargetsOpened { specs: Uint },
     /// [CR#601.2b]: the in-flight cost's hybrid/Phyrexian symbols were
     /// concretized. `surfaced` is true when a `ChooseCostOptions` decision
     /// opened (the printed cost had a choosable symbol); false when the cost
@@ -182,6 +187,9 @@ impl GameState {
             WorkItem::AnnounceTargets => {
                 let specs = self.announce_targets();
                 Progress::TargetsAnnounced { specs }
+            }
+            WorkItem::ChooseNewTargets { player, entry } => {
+                self.open_choose_new_targets(player, entry)
             }
             WorkItem::ChooseCostOptions => {
                 let surfaced = self.choose_cost_options();
@@ -1978,6 +1986,49 @@ impl GameState {
                 }
             }
         }
+    }
+
+    /// [CR#707.10c,115.7d]: surface a `ChooseNewTargets` decision re-targeting
+    /// the COMMITTED stack entry `entry`. Re-derives the entry's target specs
+    /// via `stack_object_target_specs` (shared with the announce slot) and
+    /// their fresh legal candidates via `legal_targets_for_specs` (shared
+    /// with `surface_target_choice`), then unions in the entry's CURRENT
+    /// target per slot — leaving a slot unchanged is always allowed, even
+    /// when the current target is no longer fresh-legal (it left play,
+    /// gained hexproof, …); only a CHANGED slot must land on a fresh-legal
+    /// candidate ([CR#707.10c]).
+    ///
+    /// A no-op (no decision surfaced) when `entry` has already left the stack
+    /// — it may vanish between this work item being scheduled and running
+    /// (e.g. countered in response) — or when its ability has no targets.
+    /// Never crashes: an unresolvable retarget fizzles like any authoring
+    /// mistake.
+    fn open_choose_new_targets(&mut self, player: PlayerId, entry: ObjectId) -> Progress {
+        let Some(found) = self.stack.iter().find(|e| e.id == entry) else {
+            return Progress::NewTargetsOpened { specs: 0 };
+        };
+        let view = self.layers();
+        let specs = self.stack_object_target_specs(&view, &found.object);
+        let current = found.targets.clone();
+        if specs.is_empty() {
+            return Progress::NewTargetsOpened { specs: 0 };
+        }
+        let mut legal = self.legal_targets_for_specs(&specs, entry);
+        // [CR#707.10c]: the union rule — a slot's current target is always a
+        // keepable choice, even when it didn't make the fresh legal cut.
+        for (slot, cur) in legal.iter_mut().zip(current.iter()) {
+            if !slot.contains(cur) {
+                slot.push(*cur);
+            }
+        }
+        let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
+        self.pending = Some(PendingDecision::ChooseNewTargets {
+            player,
+            entry,
+            spec: specs,
+            legal,
+        });
+        Progress::NewTargetsOpened { specs: count }
     }
 
     fn open_discard_cards(&mut self, player: PlayerId, count: Uint) -> Progress {

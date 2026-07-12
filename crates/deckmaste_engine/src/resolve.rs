@@ -1880,13 +1880,6 @@ impl GameState {
         clippy::too_many_lines,
         reason = "one arm per player verb; splitting would scatter the dispatch"
     )]
-    #[expect(
-        clippy::match_same_arms,
-        reason = "ChooseNewTargets (grammar-only, wired in this feature's later commit) and \
-                  RollPlanarDie (documented absent-subsystem no-op) both currently return \
-                  `vec![]`, but for unrelated reasons tracked separately — merging the arms \
-                  would blur that distinction"
-    )]
     fn player_action_items(
         &self,
         action: &PlayerAction,
@@ -2079,11 +2072,21 @@ impl GameState {
                     vec![]
                 }
             }
-            // Grammar-only for now: no work items yet. Consuming this
-            // (choosing/validating new targets bound by the original
-            // targetspec, [CR#707.10c]) is wired in this feature's later
-            // commit (Task 5).
-            PlayerAction::ChooseNewTargets { .. } => vec![],
+            // [CR#707.10c,115.7d]: `by` re-targets the committed stack
+            // object `of` — the state-dependent legal-set derivation (fresh
+            // legal candidates unioned with the current target) runs at
+            // handler time (`step()`'s `open_choose_new_targets`, which also
+            // re-checks `of` is still on the stack — it may leave between
+            // this resolving and the work item running). This arm only
+            // resolves the two references; an unresolvable `by` (not a
+            // player) fizzles — authoring mistakes never crash the engine.
+            PlayerAction::ChooseNewTargets { of, by } => {
+                let entry = self.eval_reference(of, frame);
+                match self.eval_player_ref(by, frame) {
+                    Some(player) => vec![WorkItem::ChooseNewTargets { player, entry }],
+                    None => vec![],
+                }
+            }
             // [CR#705.1]: flip `count` coins — the draw happens in the work
             // item (the rng needs `&mut`); the applied batch fixes "that
             // many" to the number of won (called) / heads (uncalled) flips.

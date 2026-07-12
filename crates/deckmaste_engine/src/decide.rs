@@ -98,6 +98,7 @@ impl PendingDecision {
             | PendingDecision::ChooseManaColor { player, .. }
             | PendingDecision::ChooseManaMode { player, .. }
             | PendingDecision::ChooseTargets { player, .. }
+            | PendingDecision::ChooseNewTargets { player, .. }
             | PendingDecision::PayMana { player, .. }
             | PendingDecision::OrderTriggers { player, .. }
             | PendingDecision::DeclareAttackers { player, .. }
@@ -194,6 +195,17 @@ pub enum PendingDecision {
     /// is the candidate set for `spec[i]`; `submit_decision` re-validates.
     ChooseTargets {
         player: PlayerId,
+        spec: Vec<deckmaste_core::TargetSpec>,
+        legal: Vec<Vec<ObjectId>>,
+    },
+    /// [CR#707.10c,115.7d]: re-target a COMMITTED stack entry — surface a
+    /// `ChooseNewTargets` decision whose per-slot legal set is the fresh
+    /// legal candidates PLUS the current target (leaving a slot unchanged
+    /// is always allowed, even when the current target is illegal; a
+    /// CHANGED slot must be legal).
+    ChooseNewTargets {
+        player: PlayerId,
+        entry: ObjectId,
         spec: Vec<deckmaste_core::TargetSpec>,
         legal: Vec<Vec<ObjectId>>,
     },
@@ -818,6 +830,39 @@ impl GameState {
                     Occurrence::Batch(became)
                 };
                 self.schedule_front(vec![WorkItem::Emit(occ)]);
+                Ok(())
+            }
+            (
+                PendingDecision::ChooseNewTargets {
+                    player: _,
+                    entry,
+                    spec,
+                    legal,
+                },
+                Decision::Targets(chosen),
+            ) => {
+                // [CR#707.10c]: same length/membership validation as
+                // `ChooseTargets` above — each slot's answer is drawn from
+                // `legal[i]`, which the handler already unioned with the
+                // entry's CURRENT target (leaving a slot unchanged is always
+                // legal, even when the current target no longer qualifies
+                // fresh; a CHANGED slot must land on a fresh-legal
+                // candidate).
+                if chosen.len() != spec.len()
+                    || chosen.iter().zip(legal).any(|(c, set)| !set.contains(c))
+                {
+                    return Err(DecisionError::Illegal {
+                        reason: "illegal target selection".into(),
+                    });
+                }
+                let entry = *entry;
+                self.pending = None;
+                // [CR#707.10c]: the referenced entry may have left the stack
+                // between this decision surfacing and its answer (e.g.
+                // countered in response) — a no-op, not a crash.
+                if let Some(e) = self.stack.iter_mut().find(|e| e.id == entry) {
+                    e.targets = chosen;
+                }
                 Ok(())
             }
             (

@@ -395,7 +395,12 @@ impl StrategyEvaluator {
             other @ (PendingDecision::ChooseCostOptions { .. }
             | PendingDecision::OrderReplacements { .. }
             | PendingDecision::PreGame { .. }
-            | PendingDecision::LegendRule { .. }) => {
+            | PendingDecision::LegendRule { .. }
+            // [CR#707.10c]: a real strategy for re-targeting a committed
+            // entry is a later ticket's (`ChooseNewTargets`'s decision
+            // machinery lands here in engine-copy-spells Task 5; a smart
+            // strategy handler is Task 6's).
+            | PendingDecision::ChooseNewTargets { .. }) => {
                 todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
             }
         }

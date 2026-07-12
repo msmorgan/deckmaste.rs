@@ -3556,3 +3556,315 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
     );
     assert!(state.zones.graveyards[1].is_empty());
 }
+
+// --- ChooseNewTargets (Task 5, [CR#707.10c,115.7d])
+// ----------------------------
+
+/// A two-player game for `ChooseNewTargets` end-to-end tests: player 0 holds
+/// Lightning Bolt and Mountains; player 1 holds the Task 5 fixture — `{T}:
+/// choose new targets for target spell.` — plus Grizzly Bears (the targets)
+/// and Forests.
+fn choose_new_targets_game(seed: u64, mountains: usize) -> GameState {
+    let bolt = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let retargeter = testing_card("Creature tap-activated ChooseNewTargets Target Spell");
+    let bears = card("Grizzly Bears");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut p1 = vec![Arc::clone(&retargeter); 3];
+    p1.extend(vec![Arc::clone(&bears); 3]);
+    p1.extend(vec![Arc::clone(&forest); 4]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    for _ in 0..mountains {
+        force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
+    }
+    state
+}
+
+/// Test-only: moves `id` directly from the battlefield to its owner's
+/// graveyard WITHOUT reminting (unlike a real zone change, [CR#400.7]) — the
+/// same `ObjectId` stays a live object in `state.objects`, just no longer
+/// `InZone(Battlefield)` ([CR#110.5a]). Models "the current target is no
+/// longer a fresh-legal candidate" (it left play, gained hexproof, …) while
+/// keeping it nameable — [CR#707.10c]'s union rule cares about legality, not
+/// liveness. (The public `GameState` fields make this direct manipulation
+/// possible, like `force_onto_battlefield` above.)
+fn force_off_battlefield(state: &mut GameState, id: ObjectId) {
+    state.zones.battlefield.retain(|&o| o != id);
+    // `controller` stands in for owner here — nothing in these tests changes
+    // control, so they coincide ([CR#110.2]).
+    let owner = state.objects.obj(id).controller;
+    state.zones.graveyards[owner.index()].push(id);
+    state.objects.obj_mut(id).zone = Some(Zone::Graveyard);
+}
+
+/// Drives `state` (built by `choose_new_targets_game`) through: P0 bolts P1's
+/// `bear1`; `bear1` is then forced off the battlefield (still a live id, no
+/// longer a legal target — [CR#707.10c]'s "illegal but present" case); P1
+/// activates the retargeter's `{T}: choose new targets for target spell`,
+/// targeting the still-unresolved Bolt. Leaves a `ChooseNewTargets` decision
+/// pending. Returns `(bolt, bear1, bear2)` — `bear2` is a second Grizzly
+/// Bears left on the battlefield, the fresh-legal alternative.
+fn drive_to_choose_new_targets(state: &mut GameState) -> (ObjectId, ObjectId, ObjectId) {
+    let retargeter = force_into_play(
+        state,
+        PlayerId(1),
+        "Creature tap-activated ChooseNewTargets Target Spell",
+    );
+    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    state.objects.obj_mut(retargeter).summoning_sick = false;
+    let bear1 = force_into_play(state, PlayerId(1), "Grizzly Bears");
+    let bear2 = force_into_play(state, PlayerId(1), "Grizzly Bears");
+
+    // P0's precombat main: float {R} and cast Bolt at bear1.
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(state, PlayerId(0), 1); // {R}
+    let bolt = find_in_hand(state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for Bolt, got {stop:?}");
+    };
+    assert!(legal[0].contains(&bear1), "bear1 is a legal Bolt target");
+    state
+        .submit_decision(Decision::Targets(vec![bear1]))
+        .unwrap();
+
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "the Bolt sits on the stack");
+    assert_eq!(state.stack[0].targets, vec![bear1]);
+
+    // [CR#707.10c]: make bear1 an ILLEGAL-but-present target — still a live
+    // id, just no longer InZone(Battlefield), so it drops out of Bolt's
+    // AnyTarget candidates without vanishing from `self.objects`.
+    force_off_battlefield(state, bear1);
+
+    // P0 passes; P1 gets priority with the Bolt still unresolved. Instead of
+    // passing, P1 activates the retargeter's tap ability, targeting the Bolt.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let legal = run_to_priority(state, PlayerId(1), PhaseStep::PrecombatMain);
+    let activate = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == retargeter))
+        .cloned()
+        .expect("the retargeter's tap ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    let (_, stop) = step_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the retargeter's own ability, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&bolt),
+        "the Bolt is a legal target of Kind(Spell)"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![bolt]))
+        .unwrap();
+
+    // A mana-free cost: the very next stop is P1's priority — the retargeter
+    // ability sits on the stack above the still-unresolved Bolt.
+    let (_, stop) = step_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+        panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(1));
+    assert_eq!(state.stack.len(), 2, "the Bolt plus the retargeter ability");
+
+    // Both players pass: the retargeter ability resolves, surfacing
+    // ChooseNewTargets ([CR#707.10c]).
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+
+    (bolt, bear1, bear2)
+}
+
+/// [CR#707.10c]: leaving a re-targeted slot UNCHANGED is always legal, even
+/// when the current target is no longer a fresh-legal candidate — the
+/// surfaced legal set is the fresh candidates UNIONED with the current
+/// target, and submitting the current target back is accepted, leaving the
+/// entry's targets untouched.
+#[test]
+fn choose_new_targets_keep_current_even_if_illegal() {
+    let mut state = choose_new_targets_game(1, 1);
+    let (bolt, bear1, bear2) = drive_to_choose_new_targets(&mut state);
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseNewTargets {
+        player,
+        entry,
+        spec,
+        legal,
+    }) = stop
+    else {
+        panic!("expected ChooseNewTargets, got {stop:?}");
+    };
+    assert_eq!(
+        player,
+        PlayerId(1),
+        "the retargeter's controller chooses ([CR#707.10c] `by`)"
+    );
+    assert_eq!(entry, bolt, "re-targeting the committed Bolt entry");
+    assert_eq!(spec.len(), 1, "Bolt has one AnyTarget spec");
+    assert!(
+        legal[0].contains(&bear1),
+        "the current (now off-battlefield) target stays choosable — the \
+         union rule ([CR#707.10c])"
+    );
+    assert!(
+        legal[0].contains(&bear2),
+        "a fresh-legal candidate is also offered"
+    );
+
+    state
+        .submit_decision(Decision::Targets(vec![bear1]))
+        .unwrap();
+    assert_eq!(
+        state.stack.iter().find(|e| e.id == bolt).unwrap().targets,
+        vec![bear1],
+        "keeping the current target leaves entry.targets unchanged"
+    );
+}
+
+/// [CR#707.10c]: a CHANGED slot must land on a fresh-legal candidate — an
+/// out-of-legal-set submission is rejected and the decision stays pending
+/// (retryable, mirroring `ChooseTargets`'s own re-validation); a fresh-legal
+/// submission is accepted and overwrites the entry's targets.
+#[test]
+fn choose_new_targets_change_must_be_legal() {
+    let mut state = choose_new_targets_game(2, 1);
+    let (bolt, _bear1, bear2) = drive_to_choose_new_targets(&mut state);
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseNewTargets { legal, .. }) = stop else {
+        panic!("expected ChooseNewTargets, got {stop:?}");
+    };
+    assert!(
+        !legal[0].contains(&bolt),
+        "the Bolt's own stack id is not an AnyTarget candidate — a clean \
+         out-of-legal-set probe"
+    );
+    assert!(
+        legal[0].contains(&bear2),
+        "bear2 is a fresh-legal candidate"
+    );
+
+    assert!(
+        state
+            .submit_decision(Decision::Targets(vec![bolt]))
+            .is_err(),
+        "an out-of-legal-set target is rejected ([CR#707.10c])"
+    );
+    // Submission re-validates against the surfaced legal set, so a rejected
+    // answer leaves the decision pending — retry with a fresh-legal target.
+    state
+        .submit_decision(Decision::Targets(vec![bear2]))
+        .unwrap();
+    assert_eq!(
+        state.stack.iter().find(|e| e.id == bolt).unwrap().targets,
+        vec![bear2],
+        "changing to a fresh-legal target updates entry.targets"
+    );
+}
+
+/// [CR#707.10c]: `ChooseNewTargets` on an id no longer on the stack —
+/// simulating the referenced entry vanishing between the retargeter ability
+/// committing its own target (the Bolt) and its resolution (e.g. countered in
+/// response, in a real game) — fizzles silently: no decision surfaces, no
+/// panic, and resolution continues past the retargeter ability itself.
+#[test]
+fn choose_new_targets_fizzles_on_vanished_entry() {
+    let mut state = choose_new_targets_game(3, 1);
+    let retargeter = force_into_play(
+        &mut state,
+        PlayerId(1),
+        "Creature tap-activated ChooseNewTargets Target Spell",
+    );
+    state.objects.obj_mut(retargeter).summoning_sick = false;
+    let bear1 = force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1);
+    let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets for Bolt, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![bear1]))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let legal = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    let activate = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == retargeter))
+        .cloned()
+        .expect("the retargeter's tap ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets for the retargeter's own ability, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![bolt]))
+        .unwrap();
+
+    // The retargeter ability now sits alone on the stack, committed to
+    // re-target the Bolt. Simulate the Bolt vanishing before the retargeter
+    // ability resolves — a real game reaches this via a counter cast in
+    // response; the direct removal isolates the fizzle path from a second
+    // spell's own resolution machinery.
+    state.stack.retain(|e| e.id != bolt);
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+        panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(1));
+    assert_eq!(
+        state.stack.len(),
+        1,
+        "only the retargeter ability remains (the Bolt was removed)"
+    );
+
+    // Both players pass: the retargeter ability resolves. ChooseNewTargets
+    // fizzles on the vanished Bolt — no decision, no panic — and resolution
+    // continues straight through to the active player's priority.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+        panic!(
+            "expected resolution to continue past the fizzled retarget straight \
+             to priority (no ChooseNewTargets, no panic), got {stop:?}"
+        );
+    };
+    assert_eq!(player, PlayerId(0), "the active player gets priority next");
+    assert!(
+        state.stack.is_empty(),
+        "the retargeter ability resolved (fizzled retarget) and left no trace"
+    );
+}

@@ -156,6 +156,15 @@ pub enum WorkItem {
         cost: deckmaste_core::ManaCost,
         subject: crate::object::ObjectId,
     },
+    /// [CR#707.10c,115.7d]: re-target a COMMITTED stack entry — surface a
+    /// `ChooseNewTargets` decision whose per-slot legal set is the fresh
+    /// legal candidates PLUS the current target (leaving a slot unchanged
+    /// is always allowed, even when the current target is illegal; a
+    /// CHANGED slot must be legal).
+    ChooseNewTargets {
+        player: crate::player::PlayerId,
+        entry: crate::object::ObjectId,
+    },
     /// Resolve the named committed stack object ([CR#608]). Reads `self.stack`.
     Resolve(crate::object::ObjectId),
     /// Interpret one `OneShotEffect` node against a resolution frame
