@@ -10811,4 +10811,398 @@ mod tests {
             "a rejected wrong-kind decision leaves the CallFlip pending"
         );
     }
+
+    // ========================================================================
+    // `engine-randomness` Task 6: trigger integration ([CR#705.2,706.1]) +
+    // full-random-surface reproducibility. Unlike `trigger.rs`'s
+    // `scan_event`/`scan_triggers`-direct tests, these drive the REAL
+    // `FlipCoins`/`RollDice`/`CallFlip` pipeline end to end (`run_effect` +
+    // `drain_progress` + `submit_decision`, this module's own harness) so the
+    // rng draws and the `won` scoring are genuine, not hand-built facts.
+    // ========================================================================
+
+    /// A synthetic in-Rust creature whose sole ability is a "draw a card"
+    /// trigger watching `event` — the fire-detection body Task 6's trigger
+    /// tests register on the battlefield. Mirrors `trigger.rs`'s
+    /// `draw_on`/`put_synthetic_on_field` pair.
+    fn put_watcher(
+        state: &mut GameState,
+        controller: PlayerId,
+        event: deckmaste_core::EventFilter,
+    ) -> ObjectSource {
+        use deckmaste_core::Ability;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::TriggeredAbility;
+
+        let card = Card::Normal(CardFace {
+            name: "Randomness Watcher".into(),
+            types: vec![Type::Creature.def()],
+            abilities: vec![Ability::Triggered(TriggeredAbility {
+                ability_word: None,
+                where_x: None,
+                from: None,
+                event,
+                condition: None,
+                limits: Vec::new(),
+                effect: OneShotEffect::Act(Action::By(
+                    Reference::You,
+                    PlayerAction::Draw(Count::Literal(1)),
+                )),
+            })],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            controller,
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        state.objects.obj(id).source
+    }
+
+    /// Steps `state` forward exactly `n` times, asserting every call makes
+    /// `Progress` (never surfaces a decision or ends the game) — the
+    /// surgical alternative to `drain_progress`'s open-ended draining for a
+    /// test that drives MULTIPLE actions through one shared state.
+    /// `drain_progress`'s generous bound is fine for a test that drives a
+    /// single action and then only reads `state.history` (the Task 3/4
+    /// tests above), but draining generously a SECOND time on the same
+    /// `game()` fixture risks running past the action under test into this
+    /// bare fixture's leftover ambient turn-structure agenda (the one
+    /// `BeginStep` `GameState::new()` schedules), surfacing an unrelated
+    /// `Priority`/`DeclareAttackers` decision that then blocks the next
+    /// `run_effect` — `step()` returns `NeedsDecision` idempotently without
+    /// popping the agenda while ANY decision is pending, including a stray
+    /// one this test never answers. Panics with the offending outcome if a
+    /// step count assumption is wrong, rather than failing many calls later
+    /// with a confusing "wrong decision kind" mismatch.
+    fn step_n(state: &mut GameState, n: usize) {
+        for i in 0..n {
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                other => panic!("step {i}/{n}: expected Progress, got {other:?}"),
+            }
+        }
+    }
+
+    /// [CR#705.2]: a trigger on `CoinFlipped { won: Some(true) }` notes only
+    /// for a CALLED flip the flipper WON — never a loss, and (per the sibling
+    /// test) never an uncalled flip at all. Seed-pinned (`game()`'s seed 7):
+    /// drives single called flips — always calling heads — until this
+    /// deterministic sequence lands a win, asserting along the way that every
+    /// LOSS left the trigger silent, then that the WIN noted it exactly once.
+    /// The retry count is bounded (50 — astronomically unreachable for a fair
+    /// coin, so a real regression fails loud) but the actual path taken is
+    /// fixed by the seed, so the test is not flaky.
+    #[test]
+    fn win_flip_trigger_fires_on_won_called_flip_only() {
+        use deckmaste_core::EventFilter;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let watcher = put_watcher(
+            &mut state,
+            p0,
+            EventFilter::CoinFlipped {
+                by: Predicate::Ref(Reference::You),
+                won: Some(true),
+            },
+        );
+        let frame = frame_for(&state, p0);
+
+        let mut won = false;
+        for i in 0..50 {
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+                &frame,
+            );
+            // Pop exactly the front-scheduled `FlipCoins` work item — it
+            // sets `pending` directly; no decision surfaces on this step.
+            step_n(&mut state, 1);
+            let Some(PendingDecision::CallFlip { player }) = state.pending.clone() else {
+                panic!(
+                    "attempt {i}: expected a pending CallFlip, got {:?}",
+                    state.pending
+                );
+            };
+            assert_eq!(player, p0, "attempt {i}");
+            state.submit_decision(Decision::Answer(true)).unwrap();
+            // Pop exactly the front-scheduled `CoinFlipped` batch — one
+            // step, which also runs the trigger scan synchronously
+            // (scheduling a `TriggerFired` at the front on a match).
+            step_n(&mut state, 1);
+
+            let flips: Vec<Option<bool>> = state
+                .history
+                .entries()
+                .filter_map(|e| match &e.fact {
+                    GameEvent::CoinFlipped { won, .. } => Some(*won),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(
+                flips.len(),
+                i + 1,
+                "attempt {i}: one CoinFlipped fact per called flip so far"
+            );
+            if flips[i] == Some(true) {
+                won = true;
+                // The trigger matched — its `TriggerFired` sits at the
+                // agenda front (scheduled by the scan inside the batch-apply
+                // step above); one more step notes it into
+                // `pending_triggers`.
+                step_n(&mut state, 1);
+                assert_eq!(
+                    state.pending_triggers.len(),
+                    1,
+                    "attempt {i}: a WIN must note the win-only trigger exactly once: {:?}",
+                    state.pending_triggers
+                );
+                assert_eq!(state.pending_triggers[0].source, watcher, "attempt {i}");
+                assert_eq!(state.pending_triggers[0].controller, p0, "attempt {i}");
+                break;
+            }
+            assert!(
+                state.pending_triggers.is_empty(),
+                "attempt {i}: a LOSS must not note the win-only trigger: {:?}",
+                state.pending_triggers
+            );
+        }
+        assert!(
+            won,
+            "seed 7's called-flip sequence never won within 50 attempts"
+        );
+    }
+
+    /// [CR#705.2]: nobody wins or loses an UNCALLED flip — the same win-only
+    /// trigger (`CoinFlipped { won: Some(true) }`) must stay silent on
+    /// `FlipCoins(1, false)`, whatever the coin lands.
+    #[test]
+    fn win_flip_trigger_ignores_uncalled_flips() {
+        use deckmaste_core::EventFilter;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        put_watcher(
+            &mut state,
+            p0,
+            EventFilter::CoinFlipped {
+                by: Predicate::Ref(Reference::You),
+                won: Some(true),
+            },
+        );
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), false)),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        let flips: Vec<Option<bool>> = state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::CoinFlipped { won, .. } => Some(*won),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            flips,
+            vec![None],
+            "the uncalled flip drew but crowned no winner"
+        );
+        assert!(
+            state.pending_triggers.is_empty(),
+            "[CR#705.2]: an uncalled flip must never fire a win-only trigger: {:?}",
+            state.pending_triggers
+        );
+    }
+
+    /// [CR#706.1]: `DiceRolled` fires once PER DIE — a 2-die roll notes the
+    /// watching trigger twice, not once for the whole roll.
+    #[test]
+    fn dice_trigger_fires_per_die() {
+        use deckmaste_core::EventFilter;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        put_watcher(
+            &mut state,
+            p0,
+            EventFilter::DiceRolled {
+                by: Predicate::Ref(Reference::You),
+            },
+        );
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(2), 6)),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        assert_eq!(
+            state.pending_triggers.len(),
+            2,
+            "2 dice rolled must note the per-die trigger twice: {:?}",
+            state.pending_triggers
+        );
+    }
+
+    /// The ENTIRE random surface — uncalled flips, a called flip, dice, and a
+    /// random discard — replays bit for bit from the same seed given the same
+    /// scripted decisions. Two independent `GameState`s (same seed, same
+    /// setup), driven through the identical script, log identical
+    /// `CoinFlipped`/`DieRolled` facts and sample the identical hand cards
+    /// for the random discard.
+    ///
+    /// The discard sample is compared by POSITION in each drive's own
+    /// freshly-minted hand (`minted`), not by raw `ObjectId` — a zone move
+    /// remints the object (a fresh `ObjectId`), so only the underlying
+    /// `CardId`/`ObjectSource` spine is a stable identity; comparing by
+    /// per-drive position sidesteps relying on that spine lining up
+    /// numerically across two independently-constructed `GameState`s (it
+    /// does, since nothing but the rng draws differs between them, but the
+    /// position comparison needs no such assumption).
+    ///
+    /// The zone-move fact actually compared is `GameEvent::ZoneChanged`
+    /// (`from: Hand, to: Graveyard`) — the committed FACT a discard emits;
+    /// `ZoneWillChange` is the pre-evolution INTENT and is never recorded to
+    /// history (`record_history` skips it on purpose, folded into its
+    /// downstream `ZoneChanged`).
+    #[test]
+    fn full_random_surface_is_replayable() {
+        use deckmaste_core::Uint;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        /// One drive's recorded surface: `(heads, won)` per coin, `(natural,
+        /// result)` per die, and the discard sample's positions in `minted`.
+        type DriveResult = (Vec<(bool, Option<bool>)>, Vec<(Uint, Uint)>, Vec<usize>);
+
+        fn drive() -> DriveResult {
+            let mut state = game();
+            let p0 = PlayerId(0);
+            let frame = frame_for(&state, p0);
+
+            let minted: Vec<ObjectSource> = (0..5)
+                .map(|i| {
+                    let id = mint_in_hand(&mut state, p0, &format!("Replay Card {i}"));
+                    state.objects.obj(id).source
+                })
+                .collect();
+
+            // 2 uncalled flips — one PlayerAction, one `CoinFlipped` batch:
+            // one step to dispatch `WorkItem::FlipCoins`, one to apply the
+            // batch. (Precise `step_n`, not `drain_progress`'s open-ended
+            // bound — see `step_n`'s doc: this test drives FOUR actions
+            // through one shared state, and draining generously after each
+            // one risks falling through into this bare `game()` fixture's
+            // leftover ambient turn-structure agenda, surfacing a stray
+            // `Priority` that then blocks the next `run_effect`.)
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(2), false)),
+                &frame,
+            );
+            step_n(&mut state, 2);
+
+            // 1 called flip — the same call answer on both drives.
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::FlipCoins(Count::Literal(1), true)),
+                &frame,
+            );
+            step_n(&mut state, 1);
+            assert!(matches!(
+                state.pending,
+                Some(PendingDecision::CallFlip { .. })
+            ));
+            state.submit_decision(Decision::Answer(true)).unwrap();
+            step_n(&mut state, 1);
+
+            // RollDice(2, 20).
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::RollDice(Count::Literal(2), 20)),
+                &frame,
+            );
+            step_n(&mut state, 2);
+
+            // Random discard of 2 from the 5-card hand. THREE steps, not
+            // two: dispatch `WorkItem::DiscardRandom` (samples + schedules
+            // the `ZoneWillChange` batch), apply that intent batch (which
+            // captures LKI/remints and collects the evolved `ZoneChanged`
+            // batch into `evolving_batch` rather than applying it inline —
+            // `schedule_evolution`'s batch path front-schedules it as its
+            // own follow-on `WorkItem::Emit`), then apply THAT batch (which
+            // actually records the `ZoneChanged` facts to history).
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::Discard {
+                    count: Count::Literal(2),
+                    what: None,
+                    random: true,
+                }),
+                &frame,
+            );
+            step_n(&mut state, 3);
+
+            let flips: Vec<(bool, Option<bool>)> = state
+                .history
+                .entries()
+                .filter_map(|e| match &e.fact {
+                    GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                    _ => None,
+                })
+                .collect();
+            let rolls: Vec<(Uint, Uint)> = state
+                .history
+                .entries()
+                .filter_map(|e| match &e.fact {
+                    GameEvent::DieRolled {
+                        natural, result, ..
+                    } => Some((*natural, *result)),
+                    _ => None,
+                })
+                .collect();
+            let discarded: Vec<usize> = state
+                .history
+                .entries()
+                .filter_map(|e| match &e.fact {
+                    GameEvent::ZoneChanged {
+                        snapshot,
+                        from: Some(Zone::Hand),
+                        to: Zone::Graveyard,
+                        ..
+                    } => minted.iter().position(|&m| m == snapshot.source),
+                    _ => None,
+                })
+                .collect();
+
+            (flips, rolls, discarded)
+        }
+
+        let (a_flips, a_rolls, a_discarded) = drive();
+        let (b_flips, b_rolls, b_discarded) = drive();
+        assert_eq!(
+            a_flips.len(),
+            3,
+            "2 uncalled + 1 called ⇒ 3 CoinFlipped facts"
+        );
+        assert_eq!(
+            a_flips, b_flips,
+            "same seed ⇒ identical coin sequence (heads + won)"
+        );
+        assert_eq!(a_rolls.len(), 2, "2 dice ⇒ 2 DieRolled facts");
+        assert_eq!(
+            a_rolls, b_rolls,
+            "same seed ⇒ identical die sequence (natural + result)"
+        );
+        assert_eq!(a_discarded.len(), 2, "2 cards sampled for the discard");
+        assert_eq!(
+            a_discarded, b_discarded,
+            "same seed ⇒ identical random-discard sample"
+        );
+    }
 }
