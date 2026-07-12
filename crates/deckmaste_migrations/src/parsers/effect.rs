@@ -2763,11 +2763,18 @@ mod tests {
     }
 
     #[test]
-    fn durational_pump_for_each_nonunit_declines() {
-        // "+2/+2 for each" has no Count product form -> decline.
-        assert!(declines(
-            "Creatures you control get +2/+2 for each Goblin you control until end of turn."
-        ));
+    fn durational_pump_for_each_nonunit_scales_by_product() {
+        // "+2/+2 for each": both sides scale by the Times product.
+        assert_eq!(
+            parsed("Creatures you control get +2/+2 for each Goblin you control until end of turn."),
+            Some((
+                String::new(),
+                "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))), \
+                 Toughness(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))))]))), \
+                 duration: FixedUntil(EndOfTurn))".to_owned()
+            ))
+        );
     }
 
     #[test]

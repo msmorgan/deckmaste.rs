@@ -105,11 +105,11 @@ pub(super) fn parse_pt_changes(s: &str) -> Option<Vec<String>> {
     ])
 }
 
-/// "+1/+1" / "+1/+0" with a dynamic `count` (a `CountOf(…)` RON) ->
-/// [Power(Up(...)), Toughness(Up(...))]. Each side must be `+1` (scales to
-/// `count`) or `+0` (bare `0`); any other magnitude or a negative sign declines
-/// — the `Count` grammar has no product form, and a negative count is
-/// meaningless (object counts are non-negative [CR#107.1b]).
+/// "+1/+1" / "+1/+0" / "+2/+2" with a dynamic `count` (a `CountOf(…)` RON) ->
+/// [Power(Up(...)), Toughness(Up(...))]. Each side must be `+0` (bare `0`),
+/// `+1` (scales to `count`), or `+N` (N >= 2, scales via the `Count::Times`
+/// product); a negative sign declines — a negative count is meaningless
+/// (object counts are non-negative [CR#107.1b]).
 pub(super) fn parse_pt_changes_scaled(s: &str, count: &str) -> Option<Vec<String>> {
     let (p, t) = s.split_once('/')?;
     Some(vec![
@@ -118,13 +118,19 @@ pub(super) fn parse_pt_changes_scaled(s: &str, count: &str) -> Option<Vec<String
     ])
 }
 
-/// One signed P/T token under a dynamic count: `+1` -> the count, `+0` ->
-/// bare `0`, anything else -> `None`.
+/// One signed P/T token under a dynamic count: `+1` -> the count itself,
+/// `+0` -> bare `0`, `+N` (N >= 2) -> the product `Times(Literal(N), count)`
+/// ("twice X" = `Times(2, X)` — [CR#107.1]); a negative sign declines
+/// (object counts are non-negative [CR#107.1b]).
 fn scaled_side(tok: &str, count: &str) -> Option<String> {
-    match tok.trim() {
-        "+1" => Some(count.to_owned()),
+    let tok = tok.trim();
+    match tok {
         "+0" => Some("0".to_owned()),
-        _ => None,
+        "+1" => Some(count.to_owned()),
+        _ => {
+            let n: u32 = tok.strip_prefix('+')?.parse().ok()?;
+            (n >= 2).then(|| format!("Times(Literal({n}), {count})"))
+        }
     }
 }
 
