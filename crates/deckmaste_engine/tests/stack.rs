@@ -2958,3 +2958,149 @@ fn blink_exiles_and_returns_the_target_in_one_resolution() {
     );
     assert!(state.stack.is_empty());
 }
+
+/// P0 holds Lightning Bolt + Mountains (the spell to copy); P1's deck is the
+/// `Creature tap-activated CopySpell Target Spell` fixture (the copier) plus
+/// Forests (unused — the ability's only cost is {T}).
+fn copy_game(seed: u64, mountains: usize) -> GameState {
+    let bolt = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let copier = testing_card("Creature tap-activated CopySpell Target Spell");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    let mut p1 = vec![Arc::clone(&copier); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    for _ in 0..mountains {
+        force_onto_battlefield(&mut state, PlayerId(0), "Mountain");
+    }
+    state
+}
+
+/// [CR#707.10]: copying a spell on the stack puts a SECOND stack entry there
+/// — the copy shares the original's targets/X/paid costs but is controlled
+/// by the copying player, not the caster. P0 bolts P1's copier creature
+/// (both the spell's target and the object that will copy it); while the
+/// Bolt sits on the stack, P1 activates the copier's `{T}: copy target
+/// spell` ability targeting the Bolt itself, before it resolves.
+#[test]
+fn copied_bolt_shares_targets_and_controller() {
+    let mut state = copy_game(1, 1);
+    let copier = force_into_play(
+        &mut state,
+        PlayerId(1),
+        "Creature tap-activated CopySpell Target Spell",
+    );
+    // Documents the precondition; the turn-start untap also clears the flag
+    // for the active player's permanents ([CR#302.6]) — P1 isn't active this
+    // turn, so the fixture clears it directly like `activate.rs`'s pinger.
+    state.objects.obj_mut(copier).summoning_sick = false;
+
+    // P0's precombat main: float {R} and cast Bolt at P1's copier.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1); // {R}
+    let bolt = find_in_hand(&state, PlayerId(0), "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert!(legal[0].contains(&copier), "the copier is a legal target");
+    state
+        .submit_decision(Decision::Targets(vec![copier]))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "the Bolt sits on the stack");
+    assert_eq!(state.stack[0].targets, vec![copier]);
+
+    // P0 passes; P1 gets priority with the Bolt still unresolved. Instead of
+    // passing, P1 activates the copier's tap ability, targeting the Bolt.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let legal = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    let activate = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == copier))
+        .cloned()
+        .expect("the copier's tap ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the copy ability, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&bolt),
+        "the Bolt is a legal target of Kind(Spell)"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![bolt]))
+        .unwrap();
+
+    // A mana-free cost: the very next stop is P1's priority — the copy
+    // ability sits on the stack above the still-unresolved Bolt.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+        panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(1));
+    assert_eq!(state.stack.len(), 2, "the Bolt plus the copy ability");
+
+    // Both players pass: the copy ability resolves, pushing the Bolt's copy.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    assert_eq!(
+        state.stack.len(),
+        2,
+        "the original Bolt plus its minted copy"
+    );
+    let original = state
+        .stack
+        .iter()
+        .find(|e| !e.copy)
+        .expect("the original Bolt is still on the stack, unresolved");
+    let copy = state
+        .stack
+        .iter()
+        .find(|e| e.copy)
+        .expect("the copy ability resolved and pushed a copy entry");
+    assert_eq!(original.id, bolt, "the original entry is still the Bolt");
+    assert_ne!(
+        copy.id, original.id,
+        "the copy is a freshly minted stack object"
+    );
+    assert_eq!(copy.targets, original.targets, "shares the Bolt's target");
+    assert_eq!(copy.x, original.x, "shares the Bolt's X (none)");
+    assert_eq!(
+        copy.paid_costs, original.paid_costs,
+        "shares the Bolt's paid costs"
+    );
+    assert_eq!(
+        copy.controller,
+        PlayerId(1),
+        "the copy is controlled by the copying player, not the caster ([CR#707.10])"
+    );
+    assert_eq!(
+        copy.object,
+        StackObject::Spell(copy.id),
+        "a spell copy is itself a spell, backed by its own fresh object"
+    );
+}

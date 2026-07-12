@@ -320,10 +320,50 @@ impl GameState {
             // nothing to mutate; recording (triggers/history) rides the
             // standard funnel.
             GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => event,
-            // P0.W4 seam ([CR#707.10]): the `Copied` plumbing lands here
-            // (Task 2); nothing emits it yet — its apply (mint the copy's
-            // stack entry) is Task 3.
-            GameEvent::Copied { .. } => todo!("P0.W4: copy-on-stack apply ([CR#707.10])"),
+            // [CR#707.10]: put a copy of the referenced stack object onto
+            // the stack — "a copy of a spell is itself a spell", so a spell
+            // copy mints a fresh backing object (its own `StackObject::Spell`
+            // identity); an ability copy has no card behind it, so it keeps
+            // the SAME `StackObject::{Triggered,Activated}` source as the
+            // original ([CR#707.10b]) and only its `StackEntry.id` is fresh.
+            // All cast decisions ride the clone (targets, X, paid costs).
+            GameEvent::Copied {
+                original,
+                controller,
+                ..
+            } => {
+                let Some(entry) = self.stack.iter().find(|e| e.id == original).cloned() else {
+                    // The original vanished before this applied — fizzle
+                    // (authoring mistakes never crash the engine).
+                    return event;
+                };
+                let source = match &entry.object {
+                    StackObject::Spell(obj) => self.objects.obj(*obj).source,
+                    StackObject::Triggered { source, .. } => *source,
+                    StackObject::Activated { source, .. } => self.objects.obj(*source).source,
+                };
+                let new = self.objects.mint(source, controller, Some(Zone::Stack));
+                let copied = StackEntry {
+                    id: new,
+                    object: match &entry.object {
+                        StackObject::Spell(_) => StackObject::Spell(new),
+                        other => other.clone(),
+                    },
+                    controller,
+                    targets: entry.targets.clone(),
+                    x: entry.x,
+                    paid_costs: entry.paid_costs.clone(),
+                    copy: true,
+                };
+                self.stack.push(copied);
+                // The minted id rides the recorded event so history (and any
+                // reader of the occurrence) can see what got created.
+                GameEvent::Copied {
+                    original,
+                    copy: Some(new),
+                    controller,
+                }
+            }
             // [CR#122.1]: counters live in the object's (or player proxy's)
             // counter map. Placement sums by kind; removal saturates at zero
             // and DROPS the key, so an absent kind reads as zero everywhere

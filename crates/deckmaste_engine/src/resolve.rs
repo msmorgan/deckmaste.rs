@@ -2028,11 +2028,26 @@ impl GameState {
             PlayerAction::Reveal { .. } => {
                 todo!("P0.W6: reveal/look (emit Revealed; window lifetime [CR#701.20a])")
             }
-            // P0.W4 seams: noted slots (store is P0.W5) and spell copies.
+            // P0.W4 seam: noted slots (store is P0.W5).
             PlayerAction::ChooseAndNote(..) => {
                 todo!("P0.W4: choose-and-note (slot store is P0.W5)")
             }
-            PlayerAction::CopySpell(..) => todo!("P0.W4: copy-on-stack ([CR#707.10])"),
+            // [CR#707.10]: put a copy of the referenced stack object onto
+            // the stack — the APPLY mints it (needs &mut). A reference that
+            // doesn't resolve to a live stack entry fizzles (authoring
+            // mistakes never crash).
+            PlayerAction::CopySpell(what) => {
+                let original = self.eval_reference(what, frame);
+                if self.stack.iter().any(|e| e.id == original) {
+                    vec![WorkItem::Emit(Occurrence::single(GameEvent::Copied {
+                        original,
+                        copy: None,
+                        controller: actor,
+                    }))]
+                } else {
+                    vec![]
+                }
+            }
             // Grammar-only for now: no work items yet. Consuming this
             // (choosing/validating new targets bound by the original
             // targetspec, [CR#707.10c]) is wired in this feature's later
