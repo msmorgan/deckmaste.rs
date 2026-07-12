@@ -442,10 +442,9 @@ fn strip_negation(s: &str) -> Option<(String, &str)> {
     let stem = lower.strip_prefix("non")?;
     let atom = if let Some(c) = color_ident(stem) {
         format!("Not(ColorIs({c}))")
-    } else if let Some(t) = type_code(stem) {
-        format!("Not(Type(\"{t}\"))")
     } else {
-        return None;
+        let t = type_code(stem)?;
+        format!("Not(Type(\"{t}\"))")
     };
     Some((atom, rest.trim_start()))
 }

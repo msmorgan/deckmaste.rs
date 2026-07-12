@@ -1192,13 +1192,11 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
         .or_else(|| body.strip_suffix(" on top of your library"))
     {
         (r, "FromTop(0)")
-    } else if let Some(r) = body
-        .strip_suffix(" on the bottom of its owner's library")
-        .or_else(|| body.strip_suffix(" on the bottom of your library"))
-    {
-        (r, "FromBottom(0)")
     } else {
-        return None;
+        let r = body
+            .strip_suffix(" on the bottom of its owner's library")
+            .or_else(|| body.strip_suffix(" on the bottom of your library"))?;
+        (r, "FromBottom(0)")
     };
     let subject = rest.strip_prefix("target ")?;
     let filter = object_target_filter(subject)?;
@@ -1218,10 +1216,9 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
 fn parse_tap_untap(line: &str) -> Option<ParsedEffect> {
     let (verb, rest) = if let Some(rest) = strip_prefix_ci(line, "tap target ") {
         ("Tap", rest)
-    } else if let Some(rest) = strip_prefix_ci(line, "untap target ") {
-        ("Untap", rest)
     } else {
-        return None;
+        let rest = strip_prefix_ci(line, "untap target ")?;
+        ("Untap", rest)
     };
     let subject = rest.strip_suffix('.')?;
     let filter = object_target_filter(subject)?;

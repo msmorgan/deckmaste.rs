@@ -250,10 +250,9 @@ fn strip_count(object: &str) -> Option<(&'static str, u32, &str)> {
         ("AtLeast", r)
     } else if let Some(r) = rest.strip_prefix("or fewer ") {
         ("AtMost", r)
-    } else if let Some(r) = rest.strip_prefix("or less ") {
-        ("AtMost", r)
     } else {
-        return None;
+        let r = rest.strip_prefix("or less ")?;
+        ("AtMost", r)
     };
     Some((cmp, n, subject))
 }

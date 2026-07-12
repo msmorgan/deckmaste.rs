@@ -303,10 +303,9 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
         (subject, "BecomesBlocked")
     } else if let Some(subject) = clause.strip_suffix(" becomes tapped") {
         (subject, "BecomesTapped")
-    } else if let Some(subject) = clause.strip_suffix(" becomes untapped") {
-        (subject, "BecomesUntapped")
     } else {
-        return None;
+        let subject = clause.strip_suffix(" becomes untapped")?;
+        (subject, "BecomesUntapped")
     };
     if subject == "~" {
         Some(format!("This{verb}"))
@@ -419,11 +418,10 @@ fn parse_beginning_of(rest: &str) -> Option<(String, &str)> {
     // The plain "<possessive> <step>" / "the <step>" forms.
     let (whose_turn, step) = if let Some(step) = step_clause.strip_prefix("your ") {
         ("Your", step)
-    } else if let Some(step) = step_clause.strip_prefix("the ") {
+    } else {
+        let step = step_clause.strip_prefix("the ")?;
         // No possessive -> every player's turn of that step.
         ("EachPlayers", step)
-    } else {
-        return None;
     };
     let phase = step_phase(step)?;
     Some((
