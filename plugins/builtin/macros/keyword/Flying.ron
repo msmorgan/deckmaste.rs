@@ -3,8 +3,8 @@
 // classification; the carried name survives expand_all so Has /
 // LoseAbility name paths keep matching. A KeywordAbility-kind macro: cards
 // invoke it INSIDE the wrapper — `Keyword(Flying)` — so keyword-ness is
-// always explicit. Engine block-legality enforcement of evasion Cants is a
-// later combat task.
+// always explicit. The engine evaluates point-wise Cant(Block) rows pairwise
+// at block submission (decide.rs DeclareBlockers -> legal::block_forbidden_by).
 KeywordAbility(
     name: "Flying",
     template: "flying",
