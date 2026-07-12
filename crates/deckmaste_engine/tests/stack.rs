@@ -2990,6 +2990,37 @@ fn copy_game(seed: u64, mountains: usize) -> GameState {
     state
 }
 
+/// Like `copy_game`, but the spell to copy is a PERMANENT: P0 holds Grizzly
+/// Bears + Forests (the spell to copy); P1's deck is the copier fixture plus
+/// Forests (unused — the ability's only cost is {T}). Backs the
+/// permanent-spell-copy-vanish finding ([CR#707.10a],[CR#707.10f]).
+fn bears_copy_game(seed: u64, forests: usize) -> GameState {
+    let bears = card("Grizzly Bears");
+    let copier = testing_card("Creature tap-activated CopySpell Target Spell");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&bears); 5];
+    p0.extend(vec![Arc::clone(&forest); 5]);
+    let mut p1 = vec![Arc::clone(&copier); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    for _ in 0..forests {
+        force_onto_battlefield(&mut state, PlayerId(0), "Forest");
+    }
+    state
+}
+
 /// [CR#707.10]: copying a spell on the stack puts a SECOND stack entry there
 /// — the copy shares the original's targets/X/paid costs but is controlled
 /// by the copying player, not the caster. P0 bolts P1's copier creature
@@ -3389,4 +3420,139 @@ fn off_stack_copy_ceases_via_sba() {
         "the original Bolt is untouched, still on the stack — the SBA only \
          swept the off-stack copy"
     );
+}
+
+/// [CR#707.10a,707.10f]: a copy of a PERMANENT spell vanishes on resolution
+/// too — it does NOT take the [CR#608.3] battlefield zone move. (The
+/// CR-correct outcome, a resolving permanent-spell copy becoming a token
+/// permanent, is deferred to a follow-up ticket; vanishing is the interim
+/// placeholder, same as any other copy.) P0 casts Grizzly Bears; while it
+/// sits on the stack, P1's copier copies it (`Kind(Spell)` targets any spell
+/// on the stack, permanent or not). Only the ORIGINAL Bears should reach the
+/// battlefield.
+#[test]
+fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
+    let mut state = bears_copy_game(1, 2); // two Forests for {1}{G}
+    let copier = force_into_play(
+        &mut state,
+        PlayerId(1),
+        "Creature tap-activated CopySpell Target Spell",
+    );
+    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    state.objects.obj_mut(copier).summoning_sick = false;
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 2); // G, G
+    let bears = find_in_hand(&state, PlayerId(0), "Grizzly Bears");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
+        .unwrap();
+    // PayMana must be answered: {G} takes one green pip (forced by color),
+    // {1} takes the other green — the only legal allocation from G,G.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
+    };
+    let pay = state.auto_pay_pending();
+    state.submit_decision(Decision::Pay(pay)).unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "the Bears spell sits on the stack");
+
+    // P0 passes; P1 gets priority with Bears still unresolved. Instead of
+    // passing, P1 activates the copier's tap ability, targeting Bears.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let legal = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    let activate = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == copier))
+        .cloned()
+        .expect("the copier's tap ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for the copy ability, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&bears),
+        "the Bears spell is a legal target of Kind(Spell), permanent or not"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![bears]))
+        .unwrap();
+
+    // A mana-free cost: the very next stop is P1's priority — the copy
+    // ability sits on the stack above the still-unresolved Bears spell.
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+        panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
+    };
+    assert_eq!(player, PlayerId(1));
+    assert_eq!(state.stack.len(), 2, "Bears plus the copy ability");
+
+    // Both players pass: the copy ability resolves, pushing the Bears copy.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    assert_eq!(
+        state.stack.len(),
+        2,
+        "the original Bears plus its minted copy"
+    );
+    let copy = state
+        .stack
+        .iter()
+        .find(|e| e.copy)
+        .expect("the copy ability resolved and pushed a copy entry")
+        .id;
+
+    // Drive both spells to resolution. The copy (minted on top) resolves
+    // first; the original Bears resolves after.
+    while !state.stack.is_empty() {
+        let (_t, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while draining the stack: {other:?}"),
+        }
+    }
+    assert!(state.stack.is_empty(), "both spells left the stack");
+
+    assert!(
+        state.objects.get(bears).is_none(),
+        "the original Bears' old stack id is gone after reminting onto the battlefield"
+    );
+    assert!(
+        state.objects.get(copy).is_none(),
+        "the copy's ObjectId is gone from self.objects — it ceased, it never \
+         entered the battlefield ([CR#707.10a],[CR#707.10f])"
+    );
+
+    let bears_on_battlefield: Vec<ObjectId> = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|&o| is_card(&state, o, "Grizzly Bears"))
+        .collect();
+    assert_eq!(
+        bears_on_battlefield.len(),
+        1,
+        "exactly ONE Grizzly Bears entered the battlefield — the original, \
+         not the copy"
+    );
+    assert_eq!(
+        state.objects.obj(bears_on_battlefield[0]).controller,
+        PlayerId(0)
+    );
+
+    assert!(
+        state.zones.graveyards[0].is_empty(),
+        "no graveyard entry for the copy — it left no card behind"
+    );
+    assert!(state.zones.graveyards[1].is_empty());
 }

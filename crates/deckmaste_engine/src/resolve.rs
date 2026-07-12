@@ -89,7 +89,15 @@ impl GameState {
         match &entry.object {
             StackObject::Spell(spell) => {
                 let spell = *spell;
-                if self.is_permanent_spell(spell) {
+                if entry.copy && self.is_permanent_spell(spell) {
+                    // [CR#707.10f]: a resolving permanent-spell copy should
+                    // become a token permanent; until that support lands
+                    // (follow-up ticket), it vanishes like any other copy
+                    // ([CR#707.10a]).
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::AbilityResolved(spell),
+                    ))]);
+                } else if self.is_permanent_spell(spell) {
                     // [CR#608.3]: a permanent spell enters the battlefield.
                     // Host resolution by entry context (spec §4, [CR#303.4]): a
                     // permanent SPELL that enters attached (the Enchant
