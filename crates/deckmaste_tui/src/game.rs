@@ -121,6 +121,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn builds_two_player_twenty_life_game() {
         let state = build_game().expect("build demo game");
         assert_eq!(state.players.len(), 2);
@@ -134,6 +138,10 @@ mod tests {
     /// which a prior seed opened with zero lands every time. Both decks run 14
     /// lands in 40, so a keepable 2–5 land hand is the sensible window.
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn opening_hands_are_keepable() {
         use deckmaste_core::Type;
         let state = build_game().expect("build demo game");
@@ -157,6 +165,10 @@ mod tests {
     /// wizards mirrors the subtype registry: bare names resolve, and each
     /// `TypeDef` carries the correct `permanent` flag from the plugin data.
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn game_state_carries_the_type_registry() {
         let state = build_game().expect("build demo game");
         assert!(
@@ -175,6 +187,10 @@ mod tests {
     /// that used to panic every layer rebuild — so this finishing at all is the
     /// demo's real proof of life.
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn demo_auto_plays_to_completion() {
         use deckmaste_engine::sim::GreedyDemo;
 

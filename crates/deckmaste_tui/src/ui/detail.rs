@@ -125,6 +125,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn none_is_placeholder() {
         let state = opening();
         let view = state.layers();
@@ -135,6 +139,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn object_detail_names_the_card_and_type_line() {
         let state = opening();
         let view = state.layers();
@@ -151,6 +159,10 @@ mod tests {
     /// `deckmaste_cards` renderer over derived characteristics rather than
     /// Debug-formatting the abilities.
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn object_detail_renders_abilities_as_prose_not_debug() {
         let state = opening();
         let view = state.layers();

@@ -2371,7 +2371,10 @@ mod tests {
     /// Load a card from the wizards corpus with the builtin keyword/subtype
     /// macros in scope (the real expansion path), forcing it onto the
     /// battlefield as player 0's permanent. Reads only the macro corpus plus
-    /// the single named card file — not the whole 30k-card directory.
+    /// the single named card file — not the whole 30k-card directory. Only ever
+    /// called from `#[cfg_attr(not(wizards_corpus), ignore)]` tests, so the
+    /// corpus is guaranteed present when this runs (build.rs sets the
+    /// `wizards_corpus` cfg from the directory's presence).
     fn wizards_permanent(name: &str) -> (GameState, ObjectId) {
         use std::path::Path;
 
@@ -2408,6 +2411,10 @@ mod tests {
     /// and, with the stub, carry only the printed subtype (no all-types
     /// fill yet).
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn changeling_layers_does_not_panic() {
         // Avian Changeling: `Keyword(Changeling)` + `Keyword(Flying)`, a
         // 2/2 white Shapeshifter — exercises the keyword-macro path.
@@ -2438,6 +2445,10 @@ mod tests {
     /// devoid permanent derives colorless ([CR#604.3,105.2c]). This is the
     /// intended, correct behavior un-gated alongside Changeling by Stage 3.
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn devoid_derives_colorless() {
         // Havoc Sower: a Black creature with `Keyword(Devoid)` — Devoid's CDA
         // `Modify(of: Of(This), changes: [Colors(Set([]))])` makes it colorless.

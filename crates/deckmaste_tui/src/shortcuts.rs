@@ -222,6 +222,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn oldest_playable_land_picks_the_front_of_hand() {
         // hand = [a, b, c]; only b and c have a legal land play. The oldest
         // playable land is b — a is older but has no legal play.
@@ -239,6 +243,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn oldest_playable_land_is_none_without_a_playable_land() {
         let v = ids();
         let (a, b) = (v[0], v[1]);
@@ -369,6 +377,10 @@ mod tests {
     use crate::game;
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn arm_records_mode_and_snapshot_then_clear_removes_it() {
         let state = game::build_game().expect("build demo game");
         let mut pass = PassState::new();
@@ -388,6 +400,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn snapshot_of_reads_live_turn_coordinates() {
         let state = game::build_game().expect("build demo game");
         let s = Snapshot::of(&state);

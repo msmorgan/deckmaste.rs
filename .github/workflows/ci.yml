@@ -34,6 +34,14 @@ jobs:
       # card tests load the committed plugins/{builtin,canon,testing}, and the
       # keyword-classification drift-guard skips when the mtg-rules skill is
       # absent. Nothing here reads the gitignored ~600 MB data/ dump.
+      #
+      # Tests that need the generated `plugins/wizards` corpus (gitignored, built
+      # by `cargo xtask generate plugins/wizards` from the ~150 MB mtgjson dump
+      # under data/, which a clean runner cannot materialize) carry
+      # `#[cfg_attr(not(wizards_corpus), ignore)]`. Each crate's build.rs sets the
+      # `wizards_corpus` cfg only when the corpus directory is present, so those
+      # tests run locally and report as `ignored` here. `cargo test` skips ignored
+      # tests by default, so the plain workspace command stays green.
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test

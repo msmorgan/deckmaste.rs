@@ -185,6 +185,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn object_row_for_a_vanilla_library_creature_is_name_and_pt() {
         let state = opening();
         let view = state.layers();
@@ -205,6 +209,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn summoning_sickness_is_hidden_on_non_creatures() {
         use deckmaste_core::Type;
         use deckmaste_engine::Action;
@@ -272,6 +280,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn player_proxy_row_shows_life_not_a_card() {
         let state = opening();
         let view = state.layers();
@@ -284,6 +296,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn stack_label_names_a_spell() {
         let state = opening();
         let id = *state.zones.libraries[0].front().expect("nonempty library");
@@ -314,6 +330,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn stack_label_shows_targets() {
         let state = opening();
         let id = *state.zones.libraries[0].front().expect("nonempty library");

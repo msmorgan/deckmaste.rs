@@ -254,6 +254,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn advance_with_no_modes_surfaces_an_interactive_decision() {
         let state = game::build_game().expect("build demo game");
         let mut driver = Driver::new(state, Box::new(GreedyCreatures));
@@ -268,6 +272,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn advance_auto_plays_your_oldest_land_on_your_main() {
         use deckmaste_core::Type;
 
@@ -307,6 +315,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn armed_pass_modes_stay_legal_and_terminate() {
         // Arm "Turn" for whoever holds priority on every priority window, and
         // make trivial-but-legal choices for combat/targets. With both seats
@@ -338,6 +350,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn auto_play_produces_only_legal_decisions() {
         use deckmaste_engine::sim::GreedyDemo;
 
@@ -353,6 +369,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn autotap_and_cast_floats_mana_and_lands_the_spell() {
         use deckmaste_engine::PlayerId;
         use deckmaste_engine::sim::GreedyDemo;
@@ -436,6 +456,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn run_to_decision_stops_on_an_interactive_kind() {
         let state = game::build_game().expect("build demo game");
         let mut driver = Driver::new(state, Box::new(GreedyCreatures));

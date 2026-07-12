@@ -412,6 +412,9 @@ mod tests {
     /// (same path real wizards cards load through). Proves the Aura/Equipment/
     /// Fortification `confers:` reach a wizards card: the defs live in builtin,
     /// and the generator emits no confers-less wizards stub to shadow them.
+    /// Only ever called from `#[cfg_attr(not(wizards_corpus), ignore)]`
+    /// tests, so the corpus is guaranteed present when this runs (build.rs
+    /// sets the `wizards_corpus` cfg from the directory's presence).
     fn wizards() -> Plugin {
         Plugin::load_with_sibling_prelude(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/wizards"),
@@ -516,6 +519,10 @@ mod tests {
     /// emits no confers-less wizards stub to shadow it, so a fresh wizards card
     /// inherits the attachment rule.
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn wizards_aura_carries_innate_graveyard_sba() {
         let gift = Arc::new(wizards().card("Angelic Gift").unwrap());
         // Sanity: the loaded card actually carries the Aura subtype's confer.

@@ -501,6 +501,14 @@ mod tests {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins")
     }
 
+    /// The generated `wizards` corpus, loaded over the builtin sibling prelude.
+    /// Only ever called from `#[cfg_attr(not(wizards_corpus), ignore)]` tests,
+    /// so the corpus is guaranteed present when this runs (build.rs sets
+    /// the `wizards_corpus` cfg from the directory's presence).
+    fn wizards_corpus() -> Plugin {
+        Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap()
+    }
+
     #[test]
     fn builtin_loads_four_sba_rules() {
         let plugin = Plugin::load(
@@ -573,8 +581,12 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn sibling_prelude_brings_builtin_subtypes() {
-        let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
+        let wizards = wizards_corpus();
         // Declared in builtin/macros/types/land, visible through the prelude.
         assert!(wizards.subtypes.contains_key("Plains"));
         // wizards' own declarations load on top.
@@ -630,8 +642,19 @@ mod tests {
                 ))],
             }
         );
-        // Reaches the wizards corpus via the sibling prelude.
-        let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
+    }
+
+    /// The builtin type declarations reach the wizards corpus via the sibling
+    /// prelude. Split from
+    /// `builtin_loads_ten_canonical_types_with_permanent_flags`
+    /// so that test's builtin assertions still run on a bare checkout.
+    #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
+    fn wizards_prelude_carries_builtin_types() {
+        let wizards = wizards_corpus();
         assert!(wizards.types.contains_key("Creature"));
     }
 
@@ -674,8 +697,18 @@ mod tests {
             "confers a Continuous Power(Up) boost; got {:?}",
             counter.confers
         );
-        // Reaches the wizards corpus via the sibling prelude.
-        let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
+    }
+
+    /// The `+1/+1` counter macro reaches the wizards corpus through the builtin
+    /// prelude. Split from `builtin_defines_the_plus_one_counter` so that
+    /// test's builtin assertions still run on a bare checkout.
+    #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
+    fn wizards_prelude_carries_plus_one_counter() {
+        let wizards = wizards_corpus();
         assert!(wizards.counters.contains_key("P1P1Counter"));
     }
 
@@ -710,10 +743,14 @@ mod tests {
     /// confers-bearing def is the one in scope. Regression guard: a
     /// confers-less wizards stub would silently strip these.
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn wizards_attachment_subtypes_carry_innate_confers() {
         use deckmaste_core::Property;
 
-        let wizards = Plugin::load_with_sibling_prelude(plugins().join("wizards")).unwrap();
+        let wizards = wizards_corpus();
         for name in ["Aura", "Equipment", "Fortification"] {
             let subtype = wizards
                 .subtypes

@@ -405,6 +405,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn action_object_extracts_the_object_or_none() {
         let id = ids()[0];
         assert_eq!(action_object(&Action::CastSpell { object: id }), Some(id));
@@ -421,6 +425,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn actions_for_filters_to_the_selected_object() {
         let v = ids();
         let (a, b) = (v[0], v[1]);
@@ -440,6 +448,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn partition_surfaces_priority_targets_and_nonempty_combat() {
         let v = ids();
         let prio = PendingDecision::Priority {
@@ -470,6 +482,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn discard_is_interactive_and_built_over_the_hand() {
         let v = ids();
         // Both the cleanup hand-size discard and an effect discard surface.
@@ -488,6 +504,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn discard_caps_at_count_and_confirms_exactly_count_cards() {
         let v = ids();
         let (a, b, c) = (v[0], v[1], v[2]);
@@ -505,6 +525,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn discard_ignores_non_hand_ids_and_cancel_clears() {
         let v = ids();
         let (a, off) = (v[0], v[3]);
@@ -518,6 +542,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn for_decision_builds_one_target_slot_per_spec() {
         let v = ids();
         let pending = PendingDecision::ChooseTargets {
@@ -540,6 +568,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn targets_toggle_adds_and_removes_within_a_slot() {
         let v = ids();
         let (a, b) = (v[0], v[1]);
@@ -563,6 +595,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn targets_advance_walks_specs_and_confirms_in_order() {
         let v = ids();
         let (a, b, c) = (v[0], v[1], v[2]);
@@ -583,6 +619,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn targets_ignores_non_candidates() {
         let v = ids();
         let (a, off) = (v[0], v[3]);
@@ -598,6 +638,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn attackers_toggle_is_a_free_subset_and_confirms_any_set() {
         let v = ids();
         let (a, b, off, def) = (v[0], v[1], v[3], v[2]);
@@ -622,6 +666,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn blockers_pairing_records_blocker_attacker_pairs() {
         let v = ids();
         let (b0, b1, atk0, atk1) = (v[0], v[1], v[2], v[3]);
@@ -645,6 +693,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn blockers_unpair_undoes_pending_then_pairs() {
         let v = ids();
         let (b0, atk0) = (v[0], v[2]);
@@ -663,6 +715,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
     fn interactive_path_produces_only_legal_decisions() {
         use deckmaste_engine::Decision;
         use deckmaste_engine::PendingDecision;
