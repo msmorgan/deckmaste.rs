@@ -134,12 +134,13 @@ impl GameState {
                     let effect = self
                         .spell_effect(spell)
                         .expect("an instant/sorcery has a Spell ability");
-                    self.schedule_front(vec![
-                        WorkItem::RunEffect {
-                            effect: Box::new(effect),
-                            frame,
-                        },
-                        WorkItem::Emit(Occurrence::single(GameEvent::ZoneWillChange {
+                    let leave = if entry.copy {
+                        // [CR#707.10a]: a copy leaves the stack by CEASING to exist
+                        // — no zone move, no card. Same shape as a triggered
+                        // ability vanishing ([CR#608.2n]).
+                        GameEvent::AbilityResolved(spell)
+                    } else {
+                        GameEvent::ZoneWillChange {
                             object: spell,
                             from: Some(Zone::Stack),
                             to: Zone::Graveyard,
@@ -147,8 +148,25 @@ impl GameState {
                             position: None,
                             face: None,
                             cause: None,
-                        })),
+                        }
+                    };
+                    self.schedule_front(vec![
+                        WorkItem::RunEffect {
+                            effect: Box::new(effect),
+                            frame,
+                        },
+                        WorkItem::Emit(Occurrence::single(leave)),
                     ]);
+                } else if entry.copy {
+                    // [CR#707.10a]: a copy leaves the stack by CEASING to exist
+                    // — no zone move, no card. Same shape as a triggered
+                    // ability vanishing ([CR#608.2n]).
+                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                        GameEvent::AbilityCountered {
+                            id: spell,
+                            cause: Cause::counter(Agency::StateBasedAction, None),
+                        },
+                    ))]);
                 } else {
                     // [CR#608.2b]: all targets illegal — the spell fizzles.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
@@ -1465,9 +1483,11 @@ impl GameState {
             // graveyard (reminted off the stack, [CR#400.7]), cause-tagged
             // "Counter" so a "becomes countered" view can narrow by verb. A
             // countered ABILITY isn't a card and goes nowhere — it simply
-            // ceases (remove from stack, no zone move); that arm is the
-            // remaining seam. An object already gone from the stack
-            // ([CR#608.2b]) is a no-op. Spell is the happy path (ward's verb).
+            // ceases (remove from stack, no zone move). [CR#707.10a]: a
+            // countered COPY (of a spell or ability) ceases the same way — no
+            // card, no zone move; it shares the ABILITY arm's shape below. An
+            // object already gone from the stack ([CR#608.2b]) is a no-op.
+            // Spell is the happy path (ward's verb).
             Action::Counter(sel) => {
                 let mut events = Vec::new();
                 for object in self.eval_reference_set(sel, frame) {
@@ -1483,9 +1503,9 @@ impl GameState {
                         .stack
                         .iter()
                         .find(|e| e.id == object)
-                        .map(|e| &e.object)
+                        .map(|e| (e.copy, &e.object))
                     {
-                        Some(StackObject::Spell(spell)) => {
+                        Some((false, StackObject::Spell(spell))) => {
                             events.push(GameEvent::ZoneWillChange {
                                 object: *spell,
                                 from: Some(Zone::Stack),
@@ -1499,7 +1519,10 @@ impl GameState {
                                 )),
                             });
                         }
-                        Some(StackObject::Triggered { .. } | StackObject::Activated { .. }) => {
+                        // [CR#707.10a]: a copy of a spell, or a triggered/
+                        // activated ability (copy or not), ceases the same
+                        // way — no card, no zone move.
+                        Some(_) => {
                             events.push(GameEvent::AbilityCountered {
                                 id: object,
                                 cause: Cause::counter(

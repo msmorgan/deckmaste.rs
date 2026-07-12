@@ -3,22 +3,27 @@
 //! poison counters ([CR#704.5c]). A permanent with both +1/+1 and -1/-1
 //! counters has the smaller count of each removed ([CR#704.5q]). Creatures
 //! with lethal marked damage are destroyed ([CR#704.5g]); tokens stranded off
-//! the battlefield cease to exist ([CR#704.5d]).
+//! the battlefield cease to exist ([CR#704.5d]); a copy of a spell stranded
+//! anywhere other than the stack ceases to exist too ([CR#707.10a]).
 
+use deckmaste_core::Agency;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
+use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::LossReason;
 use crate::event::Occurrence;
 use crate::object::ObjectId;
+use crate::stack::StackObject;
 use crate::state::GameState;
 
 /// One sweep ([CR#704.3]): the `PlayerLost`, `WillDestroy` (the replaceable
-/// destruction intent), and `TokenCeased` events this check would perform. The
-/// caller emits them and re-checks until a sweep comes back empty. A destroy's
-/// LKI snapshot is captured later, at the will-change apply the `WillDestroy`
-/// resolves into (the object is still live then), not here.
+/// destruction intent), `TokenCeased`, and off-stack-copy `AbilityCountered`
+/// events this check would perform. The caller emits them and re-checks until
+/// a sweep comes back empty. A destroy's LKI snapshot is captured later, at
+/// the will-change apply the `WillDestroy` resolves into (the object is still
+/// live then), not here.
 #[must_use]
 pub fn sweep(state: &GameState) -> Vec<GameEvent> {
     let mut actions = Vec::new();
@@ -92,11 +97,34 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         }
     }
 
-    // [CR#704.5e] SEAM: a copy of a spell in a zone other than the stack (or a
-    // copy of a card outside stack/battlefield) ceases to exist. Unbuilt — no
-    // copy representation exists yet (the layer-1 copy seam awaits
-    // `core-copy-grammar` / `engine-copy-spells`); there is nothing to observe,
-    // so this is intentionally not wired here.
+    // [CR#707.10a]: a copy of a spell anywhere other than the stack
+    // ceases to exist. Native (not a rules/sba row): the sba `then`
+    // grammar (`OneShotEffect`) has no cease-to-exist shape yet —
+    // data-fy when it grows one.
+    //
+    // The resolution/counter divert (`resolve_object`'s Spell arm,
+    // `Action::Counter`) is the happy path — a copy vanishes there before it
+    // ever reaches this sweep. This is the safety net for a copy some OTHER
+    // (not yet built) generic zone-mover strands off-stack: `state.stack`
+    // still carries the copy's entry (the mover hasn't reached
+    // `remove_stack_entry` for it), but its backing object's zone reads
+    // something other than `Stack`. Reusing `AbilityCountered`'s apply
+    // (remove the stack entry, remove the object, no zone move) ceases it the
+    // same way the happy path does.
+    for entry in &state.stack {
+        if entry.copy
+            && let StackObject::Spell(spell) = &entry.object
+            && state
+                .objects
+                .get(*spell)
+                .is_some_and(|o| o.zone != Some(Zone::Stack))
+        {
+            actions.push(GameEvent::AbilityCountered {
+                id: entry.id,
+                cause: Cause::counter(Agency::StateBasedAction, None),
+            });
+        }
+    }
 
     // Attachment SBAs ([CR#704.5m..704.5p]) — GENERIC, no subtype branch.
     actions.extend(attachment_sbas(state, &view));

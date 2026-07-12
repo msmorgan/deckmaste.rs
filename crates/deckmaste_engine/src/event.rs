@@ -372,16 +372,23 @@ pub enum GameEvent {
         object: ObjectId,
         ability: Uint,
     },
-    /// [CR#608.2n]: a triggered or activated ability finished
-    /// resolving (or fizzled) and vanishes — no zone move. Its apply removes
-    /// the stack entry whose `id` is the carried (minted) token.
-    /// [CR#701.6a]: a triggered or activated ability was countered and
-    /// vanishes — no zone move. Its apply removes the stack entry whose `id`
-    /// is the carried (minted) token.
+    /// [CR#608.2n]: a triggered or activated ability fizzled (an
+    /// intervening-if no longer held, or every target went illegal) and
+    /// vanishes — no zone move. [CR#701.6a]: a triggered or activated
+    /// ability was countered and vanishes the same way. [CR#707.10a]: a
+    /// countered COPY (of a spell or ability) also vanishes here — same
+    /// shape, no card behind it either. Its apply removes the stack entry
+    /// whose `id` is the carried (minted, for a spell copy freshly minted)
+    /// token, and the backing object with it — no remint.
     AbilityCountered {
         id: ObjectId,
         cause: Cause,
     },
+    /// [CR#608.2n]: a triggered or activated ability finished resolving and
+    /// vanishes — no zone move. [CR#707.10a]: a RESOLVED copy (of a spell)
+    /// vanishes the same way instead of moving to a graveyard — it has no
+    /// card to put there. Its apply removes the stack entry whose `id` is
+    /// the carried (minted) token, and the backing object with it.
     AbilityResolved(ObjectId),
     /// Cards shown ([CR#701.20a]); `to: None` = revealed to ALL players,
     /// `Some` = "look at" — the same operation shown to a subset

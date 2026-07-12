@@ -3104,3 +3104,289 @@ fn copied_bolt_shares_targets_and_controller() {
         "a spell copy is itself a spell, backed by its own fresh object"
     );
 }
+
+/// Like `copy_game`, but P0 additionally holds Mana Leak and Islands — the
+/// [CR#118.12a] counter `countered_copy_vanishes` aims at the minted copy.
+fn copy_counter_game(seed: u64, mountains: usize, islands: usize) -> GameState {
+    let bolt = card("Lightning Bolt");
+    let mana_leak = card("Mana Leak");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let island = Arc::new(builtin().card("Island").unwrap());
+    let copier = testing_card("Creature tap-activated CopySpell Target Spell");
+    let forest = Arc::new(builtin().card("Forest").unwrap());
+    let mut p0 = vec![Arc::clone(&bolt); 5];
+    p0.extend(vec![Arc::clone(&mana_leak); 5]);
+    p0.extend(vec![Arc::clone(&mountain); 5]);
+    p0.extend(vec![Arc::clone(&island); 5]);
+    let mut p1 = vec![Arc::clone(&copier); 5];
+    p1.extend(vec![Arc::clone(&forest); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    for _ in 0..mountains {
+        force_into_play(&mut state, PlayerId(0), "Mountain");
+    }
+    for _ in 0..islands {
+        force_into_play(&mut state, PlayerId(0), "Island");
+    }
+    state
+}
+
+/// Drives an already-constructed `state` (P0 holds Lightning Bolt plus a
+/// Mountain in play; P1 holds the tap-activated copier plus a Forest) through
+/// Task 3's copy-minting flow: P0 casts Bolt at P1's face, P1 copies it with
+/// the copier's `{T}: copy target spell`. Returns `(bolt, copy, face)` with
+/// both the original Bolt and its minted copy left on the stack ([CR#707.10]).
+fn cast_and_copy_bolt_at_face(state: &mut GameState) -> (ObjectId, ObjectId, ObjectId) {
+    let copier = force_into_play(
+        state,
+        PlayerId(1),
+        "Creature tap-activated CopySpell Target Spell",
+    );
+    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    state.objects.obj_mut(copier).summoning_sick = false;
+
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(state, PlayerId(0), 1); // {R}
+    let bolt = force_into_hand(state, PlayerId(0), "Lightning Bolt");
+    let face = state.players[1].object;
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![face]))
+        .unwrap();
+
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let legal = run_to_priority(state, PlayerId(1), PhaseStep::PrecombatMain);
+    let activate = legal
+        .iter()
+        .find(|a| matches!(a, Action::ActivateAbility { object, .. } if *object == copier))
+        .cloned()
+        .expect("the copier's tap ability is offered");
+    state.submit_decision(Decision::Act(activate)).unwrap();
+
+    let (_, stop) = step_to_stop(state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        panic!("expected ChooseTargets for the copy ability, got {stop:?}");
+    };
+    state
+        .submit_decision(Decision::Targets(vec![bolt]))
+        .unwrap();
+    // A mana-free cost: the very next stop is P1's priority.
+    let _ = step_to_stop(state);
+
+    // Both players pass: the copy ability resolves, pushing the Bolt's copy.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(state);
+
+    let copy = state
+        .stack
+        .iter()
+        .find(|e| e.copy)
+        .expect("the copy ability resolved and pushed a copy entry")
+        .id;
+    (bolt, copy, face)
+}
+
+/// [CR#707.10a]: a copy leaves the stack by CEASING TO EXIST, never by moving
+/// zones — resolution is the happy path. Bolt and its copy both target P1's
+/// face (a player proxy is always a legal target, so neither resolution can
+/// fizzle the other by killing a shared creature target first). Both deal
+/// their 3 damage; only the ORIGINAL Bolt — a real card — lands in the
+/// graveyard. The copy's minted object simply disappears.
+#[test]
+fn resolved_copy_vanishes_without_zone_move() {
+    let mut state = copy_game(1, 1);
+    let (bolt, copy, face) = cast_and_copy_bolt_at_face(&mut state);
+    assert_eq!(
+        state.stack.len(),
+        2,
+        "the original Bolt plus its minted copy"
+    );
+
+    // Drive both spells to resolution.
+    let mut trace = Vec::new();
+    while !state.stack.is_empty() {
+        let (t, stop) = step_to_stop(&mut state);
+        trace.extend(t);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while draining the stack: {other:?}"),
+        }
+    }
+
+    let damage_events = trace
+        .iter()
+        .filter(|p| {
+            matches!(
+                applied(p),
+                Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == face
+            )
+        })
+        .count();
+    assert_eq!(
+        damage_events, 2,
+        "damage applied twice — the original Bolt and its copy each dealt 3, trace: {trace:?}"
+    );
+    assert_eq!(state.players[1].life, 14, "20 - 3 - 3: bolted twice over");
+    assert!(state.stack.is_empty(), "both spells left the stack");
+
+    assert!(
+        state.objects.get(bolt).is_none(),
+        "the original Bolt's old id is gone after reminting into the graveyard"
+    );
+    assert!(
+        state.objects.get(copy).is_none(),
+        "the copy's ObjectId is gone from self.objects — it ceased, it didn't remint"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        1,
+        "graveyard contains ONLY the original Bolt card — the copy left no card behind"
+    );
+    assert!(
+        is_card(&state, state.zones.graveyards[0][0], "Lightning Bolt"),
+        "the one graveyard entry is the original Bolt"
+    );
+}
+
+/// [CR#707.10a,701.6a]: a COUNTERED copy also ceases rather than moving to a
+/// graveyard. Mana Leak targets the minted copy directly (its own target
+/// choice, independent of what the original Bolt targets) and P1 — the
+/// copy's controller, "that player" ([CR#118.12a]) — declines the {3}
+/// punisher, so `Counter(It)` hits the copy.
+#[test]
+fn countered_copy_vanishes() {
+    let mut state = copy_counter_game(1, 1, 2);
+    let (_bolt, copy, _face) = cast_and_copy_bolt_at_face(&mut state);
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 2); // {1}{U}
+    let mana_leak = force_into_hand(&mut state, PlayerId(0), "Mana Leak");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: mana_leak }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+        panic!("expected ChooseTargets for Mana Leak, got {stop:?}");
+    };
+    assert!(
+        legal[0].contains(&copy),
+        "the copy is a legal target of Mana Leak's TargetOne(Spell) ([CR#707.10])"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![copy]))
+        .unwrap();
+
+    // Drive Mana Leak to resolution; P1 declines the punisher.
+    let mut declined = false;
+    loop {
+        let (_t, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) => {
+                assert_eq!(
+                    player,
+                    PlayerId(1),
+                    "Mana Leak bills the targeted copy's controller \
+                     ([CR#118.12a] \"that player\")"
+                );
+                declined = true;
+                state.submit_decision(Decision::Answer(false)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                if declined {
+                    break;
+                }
+                state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+            }
+            other => panic!("unexpected stop while resolving Mana Leak: {other:?}"),
+        }
+    }
+    assert!(declined, "Mana Leak's YesNo surfaced and was declined");
+
+    assert!(
+        state.objects.get(copy).is_none(),
+        "the copy's ObjectId is gone from self.objects"
+    );
+    assert!(
+        !state.stack.iter().any(|e| e.copy),
+        "no copy entry remains on the stack"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        1,
+        "graveyard contains only Mana Leak itself — no entry for the countered copy"
+    );
+    assert!(
+        !state.zones.graveyards[0]
+            .iter()
+            .any(|&o| is_card(&state, o, "Lightning Bolt")),
+        "no graveyard entry for the copy"
+    );
+}
+
+/// [CR#707.10a]: the native SBA safety net. If a copy of a spell somehow ends
+/// up off the stack (a future generic zone-mover, not yet built), the sweep
+/// notices and it ceases — the same "no card, no zone move" shape as the
+/// resolution/counter divert, just triggered from a different angle.
+#[test]
+fn off_stack_copy_ceases_via_sba() {
+    // A second Mountain: casting Bolt taps the first, leaving one spare to
+    // float mana with below (no card/decision needed to force a resweep).
+    let mut state = copy_game(1, 2);
+    let (bolt, copy, _face) = cast_and_copy_bolt_at_face(&mut state);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    // Force-move the copy off the stack: mutate its backing object's zone
+    // directly, the way an as-yet-unbuilt generic mover (bounce, bury) might
+    // leave it mid-transition. `state.stack` still carries the copy's entry —
+    // only the object it points at is now stranded off-stack.
+    state.objects.obj_mut(copy).zone = Some(Zone::Graveyard);
+
+    // A bare `Action::Pass` that doesn't complete an all-pass round only
+    // hands priority to the next player — it does NOT re-run `CheckSbas`
+    // (see `take_priority_action`'s `Action::Pass` arm). Tapping the spare
+    // Mountain for mana instead goes through `priority_tail()` =
+    // `[CheckSbas, PlaceTriggers, OpenPriority]` ([CR#704.3]) — the simplest
+    // action that forces a fresh sweep without resolving the still-2-deep
+    // stack (which would exercise the resolution divert, not this SBA).
+    float_mana(&mut state, PlayerId(0), 1);
+
+    assert!(
+        state.objects.get(copy).is_none(),
+        "the copy object ceased ([CR#707.10a])"
+    );
+    assert!(
+        !state.stack.iter().any(|e| e.copy),
+        "no copy entry remains on the stack"
+    );
+    assert!(
+        state.stack.iter().any(|e| e.id == bolt && !e.copy),
+        "the original Bolt is untouched, still on the stack — the SBA only \
+         swept the off-stack copy"
+    );
+}

@@ -859,9 +859,11 @@ impl GameState {
                 }
                 event
             }
-            // [CR#608.2n]: the triggered or activated ability vanishes —
-            // remove its stack entry and discard the minted token. No zone move; the
-            // source (already gone for a dies-trigger) is untouched.
+            // [CR#608.2n,701.6a,707.10a]: the triggered/activated ability —
+            // or a countered/resolved COPY of a spell or ability — vanishes:
+            // remove its stack entry and discard the (minted, for a spell
+            // copy freshly minted) backing object. No zone move; the source
+            // (already gone for a dies-trigger) is untouched.
             GameEvent::AbilityCountered { id, .. } => {
                 self.remove_stack_entry(id);
                 self.objects.remove(id);
