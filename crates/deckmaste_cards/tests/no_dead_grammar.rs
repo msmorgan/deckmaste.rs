@@ -285,11 +285,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("PlayerAction", "ChooseAndNote"),
-            "BLOCKED: the note-store has no engine runtime yet \
-            (ChooseAndNote/Count::Noted/Reference::Linked are `todo!()`, P0.W4/W5-tracked) and its \
-            only currently-legible domain (Number) has no simple real single-effect card in this \
-            batch (Three Tree City, the ticket's suggested card, needs a Color+creature-type \
-            domain NotedKind doesn't have) — see the ticket's completion notes.",
+            "BLOCKED: reader-gated engine runtime now exists for the note kinds that HAVE a reader \
+            (Number → Count::Noted; Objects → the noted group / AmongNoted; Color/CardName/Piles \
+            stay loud — no reader grammar), but no simple real single-effect card in this batch \
+            spells ChooseAndNote (Three Tree City, the ticket's suggested card, needs a \
+            Color+creature-type domain NotedKind doesn't have) — see the ticket's completion notes.",
         ),
         (
             n("PlayerAction", "FlipCoins"),
@@ -662,8 +662,9 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Count", "Noted"),
-            "BLOCKED: see PlayerAction::ChooseAndNote — its only reader, with \
-            the same engine-runtime and domain gaps.",
+            "BLOCKED: the noted-number read is engine-wired (it reads the resolution note store), \
+            but its writer PlayerAction::ChooseAndNote(Number) has no simple real single-effect \
+            card in this batch — see that node.",
         ),
         (
             n("Count", "ManaAvailable"),
@@ -723,8 +724,10 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Reference", "Linked"),
-            "BLOCKED: see PlayerAction::ChooseAndNote — the only reader for \
-            an Objects/CardName-domain note, same engine-runtime gap.",
+            "BLOCKED: the linked-ability value read ([CR#607]) stays an unbound-ref fizzle — it \
+            needs a per-(ObjectId, Ident) association store (engine-linked-abilities), distinct \
+            from the resolution note store that now serves ChooseAndNote/Count::Noted; and no \
+            real card in this batch spells it regardless.",
         ),
         (
             n("Reference", "OwnerOf"),
@@ -806,10 +809,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Selection", "AmongNoted"),
-            "BLOCKED: the among-a-noted-set choice reads the note-store, which \
-            has no engine runtime yet (same gap as OneShotEffect::Noting / PlayerAction::ChooseAndNote / \
-            Count::Noted above); its 'destroyed this way' anaphor use-case (Blood Money) is a \
-            confirmed grammar gap, not built.",
+            "BLOCKED: the among-a-noted-set choice is engine-wired (both the full-group read and \
+            the constrained-quantity chooser over the noted group's live members), but no real \
+            card in this batch spells a bare AmongNoted; its 'destroyed this way' anaphor use-case \
+            (Blood Money) needs the FURTHER-filtered product read — the OneShotEffect::Noting / \
+            Label grammar gap above — not built.",
         ),
         (
             n("Selection", "BottomOfLibrary"),

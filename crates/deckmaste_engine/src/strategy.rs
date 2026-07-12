@@ -370,7 +370,12 @@ impl StrategyEvaluator {
             PendingDecision::ChooseObjects {
                 candidates, min, ..
             } => Decision::Chosen(candidates.iter().copied().take(*min as usize).collect()),
-            PendingDecision::ChooseXValue { .. } => Decision::XValue(0),
+            // [CR#601.2b,608.2c]: the minimal always-legal default (0) — the
+            // X-announce and a resolution note number ("choose a number") alike,
+            // both answered through the `Decision::XValue` shape.
+            PendingDecision::ChooseXValue { .. } | PendingDecision::ChooseNoteNumber { .. } => {
+                Decision::XValue(0)
+            }
             // Simple shells: a legal minimal default.
             PendingDecision::ChooseModes { min, .. } => Decision::Modes((0..*min).collect()),
             PendingDecision::Division { total, targets, .. } => {

@@ -136,6 +136,10 @@ pub enum Progress {
     /// A `Noting` collection window opened (`true`) or closed (`false`)
     /// ([CR#607.2a] — fact-backed product groups).
     NoteScoped { open: bool },
+    /// [CR#608.2c,608.2d]: a resolving `ChooseAndNote` surfaced its choice —
+    /// a `ChooseNoteNumber` (number kind) or a `ChooseObjects` (objects kind)
+    /// decision is now pending.
+    NoteChoiceOpened,
     /// [CR#401.7]: a card was repositioned within its own library (no zone
     /// change — `ObjectId` preserved).
     Repositioned(crate::object::ObjectId),
@@ -246,6 +250,10 @@ impl GameState {
                     subject,
                 });
                 Progress::CostPaid
+            }
+            WorkItem::ChooseNoteNumber { player, key } => self.open_choose_note_number(player, key),
+            WorkItem::ChooseNoteObjects { player, key } => {
+                self.open_choose_note_objects(player, key)
             }
             WorkItem::Resolve(obj) => {
                 self.resolve_object(obj);
@@ -2066,6 +2074,53 @@ impl GameState {
             legal,
         });
         Progress::NewTargetsOpened { specs: count }
+    }
+
+    /// [CR#608.2c,608.2d]: surface the resolution-time NUMBER choice for a
+    /// `ChooseAndNote(key, NotedKind::Number)` ("choose a number"). Always
+    /// surfaces (engine policy: every choice is explicit); the submit stores
+    /// the answer in `resolution_notes[key]`, where `Count::Noted` reads it.
+    fn open_choose_note_number(
+        &mut self,
+        player: PlayerId,
+        key: deckmaste_core::Ident,
+    ) -> Progress {
+        self.pending = Some(PendingDecision::ChooseNoteNumber { player, key });
+        Progress::NoteChoiceOpened
+    }
+
+    /// [CR#607.2a,608.2d]: surface the OBJECT choice for a
+    /// `ChooseAndNote(key, NotedKind::Objects)`, whose picks the submit records
+    /// into the fact-backed `noted` group (read back by `AmongNoted`).
+    ///
+    /// The grammar carries NO narrowing predicate ([CR#607.2] — a bare "note
+    /// these objects" slot), so the writer defaults to the battlefield-wide
+    /// domain: every permanent, choose any number ([CR#608.2d] "as many as
+    /// able" — min 0, max = candidate count). A predicate-carrying variant is
+    /// future grammar, not this ticket; this default keeps the
+    /// write→`AmongNoted` round-trip exercisable without inventing a richer
+    /// selection policy. Player proxies have no zone, so the battlefield filter
+    /// excludes them for free.
+    fn open_choose_note_objects(
+        &mut self,
+        player: PlayerId,
+        key: deckmaste_core::Ident,
+    ) -> Progress {
+        let candidates: Vec<ObjectId> = self
+            .objects
+            .iter()
+            .filter(|o| o.zone == Some(deckmaste_core::Zone::Battlefield))
+            .map(|o| o.id)
+            .collect();
+        let max = Uint::try_from(candidates.len()).expect("battlefield object count fits Uint");
+        self.pending = Some(PendingDecision::ChooseObjects {
+            player,
+            candidates,
+            min: 0,
+            max,
+        });
+        self.choice = Some(crate::state::ChoiceContinuation::NoteObjects { key });
+        Progress::NoteChoiceOpened
     }
 
     fn open_discard_cards(&mut self, player: PlayerId, count: Uint) -> Progress {

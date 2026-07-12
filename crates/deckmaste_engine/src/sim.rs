@@ -367,7 +367,7 @@ fn choose_discards(state: &GameState, player: PlayerId, count: Uint) -> Vec<Obje
 /// strategy delegates here for everything but its own priority actions (and,
 /// for removal, targeting) — so `Priority` and `ChooseTargets` are unreachable
 /// here, which also asserts that the creature seat never chooses targets.
-fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
+pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
     match pending {
         PendingDecision::DiscardToHandSize { player, count }
         | PendingDecision::DiscardCards { player, count } => {
@@ -419,9 +419,14 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
                 .take(usize::try_from(*min).expect("min fits usize"))
                 .collect(),
         ),
-        // [CR#601.2b]: the headless strategy announces the minimum X=0 (always
-        // legal and payable). A smarter X is a follow-up.
-        PendingDecision::ChooseXValue { .. } => Decision::XValue(0),
+        // [CR#601.2b,608.2c]: the headless strategy announces the minimum (0)
+        // for both the X-announce and a resolution note number ("choose a
+        // number") — both answered through the `Decision::XValue` shape. A
+        // smarter value is a follow-up; the note-number arm closes that slice
+        // of the P0.W3 seam.
+        PendingDecision::ChooseXValue { .. } | PendingDecision::ChooseNoteNumber { .. } => {
+            Decision::XValue(0)
+        }
         // [CR#705.2]: the call is strategically null (win is a fair coin
         // either way) — the headless strategy always calls heads.
         PendingDecision::CallFlip { .. } => Decision::Answer(true),
@@ -462,7 +467,7 @@ pub(crate) fn keep_current_targets(
 }
 
 /// The seat a surfaced decision is waiting on — every variant names its player.
-fn pending_player(pending: &PendingDecision) -> PlayerId {
+pub(crate) fn pending_player(pending: &PendingDecision) -> PlayerId {
     match pending {
         PendingDecision::Priority { player, .. }
         | PendingDecision::DiscardToHandSize { player, .. }
@@ -476,6 +481,7 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::DeclareBlockers { player, .. }
         | PendingDecision::AssignCombatDamage { player, .. }
         | PendingDecision::ChooseXValue { player, .. }
+        | PendingDecision::ChooseNoteNumber { player, .. }
         | PendingDecision::ChooseNewTargets { player, .. }
         | PendingDecision::LegendRule { player, .. }
         | PendingDecision::CallFlip { player } => *player,

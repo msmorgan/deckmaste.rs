@@ -111,6 +111,7 @@ impl PendingDecision {
             | PendingDecision::OrderReplacements { player, .. }
             | PendingDecision::ChooseCostOptions { player, .. }
             | PendingDecision::ChooseXValue { player, .. }
+            | PendingDecision::ChooseNoteNumber { player, .. }
             | PendingDecision::ChooseObjects { player, .. }
             | PendingDecision::PreGame { player, .. }
             | PendingDecision::LegendRule { player, .. }
@@ -287,6 +288,15 @@ pub enum PendingDecision {
     /// [CR#601.2b]: announce the value of `{X}` in the in-flight cost. Any value
     /// >= 0 is accepted; an unpayable announcement rewinds the cast ([CR#733]).
     ChooseXValue { player: PlayerId },
+    /// [CR#608.2c,608.2d]: a resolution-time number choice for a
+    /// `ChooseAndNote(key, NotedKind::Number)` ("choose a number"). Any
+    /// nonnegative value is legal (unbounded, like `ChooseXValue`); the answer
+    /// — reusing the `Decision::XValue(Uint)` shape, which is exactly a chosen
+    /// nonnegative number — is stored in `resolution_notes[key]`.
+    ChooseNoteNumber {
+        player: PlayerId,
+        key: deckmaste_core::Ident,
+    },
     /// Order the replacement/prevention effects applicable to one event,
     /// affected player/controller choosing ([CR#616.1]) — shell.
     OrderReplacements { player: PlayerId, count: Uint },
@@ -1126,15 +1136,43 @@ impl GameState {
                 }
                 // All reads of `pending` are done; safe to mutate self.
                 self.pending = None;
-                let crate::state::ChoiceContinuation::BindChoice { effect, mut frame } = self
+                match self
                     .choice
                     .take()
                     .expect("a ChooseObjects decision stashed its continuation")
-                else {
-                    unreachable!("a ChooseObjects decision stashes a BindChoice continuation");
-                };
-                frame.anaphora.chosen = Some(chosen);
-                self.schedule_front(vec![WorkItem::RunEffect { effect, frame }]);
+                {
+                    // [CR#608.2d]: the ordinary binder path — bind the picks
+                    // as `chosen` and re-run the choosing effect.
+                    crate::state::ChoiceContinuation::BindChoice { effect, mut frame } => {
+                        frame.anaphora.chosen = Some(chosen);
+                        self.schedule_front(vec![WorkItem::RunEffect { effect, frame }]);
+                    }
+                    // [CR#607.2a,608.2d]: a `ChooseAndNote(_, Objects)` write —
+                    // record the picks into the fact-backed `noted` group under
+                    // `key` (each a live `NotedMember`, mirroring `note_enacted`'s
+                    // shape: LKI snapshot + post-move identity, here the object's
+                    // own live id). No effect re-runs; the resolution continues.
+                    // A pick that has since left play (or is a player proxy) is
+                    // skipped — never a snapshot panic (authoring mistakes never
+                    // crash).
+                    crate::state::ChoiceContinuation::NoteObjects { key } => {
+                        let members: Vec<crate::state::NotedMember> = chosen
+                            .iter()
+                            .filter(|&&id| self.objects.get(id).is_some_and(|o| o.zone.is_some()))
+                            .map(|&id| crate::state::NotedMember {
+                                snapshot: crate::lki::LkiSnapshot::capture(self, id),
+                                now: Some(id),
+                            })
+                            .collect();
+                        self.noted.insert(key, members);
+                    }
+                    other => {
+                        unreachable!(
+                            "a ChooseObjects decision stashes a BindChoice/NoteObjects \
+                             continuation, got {other:?}"
+                        )
+                    }
+                }
                 Ok(())
             }
             (PendingDecision::ChooseXValue { player }, Decision::XValue(x)) => {
@@ -1189,6 +1227,19 @@ impl GameState {
                 if !payable {
                     self.rewind_announce();
                 }
+                Ok(())
+            }
+            (PendingDecision::ChooseNoteNumber { key, .. }, Decision::XValue(n)) => {
+                // [CR#608.2c,607.2]: record the chosen number in the
+                // resolution note slot; `Count::Noted(key)` reads it back
+                // within THIS resolution. Any value >= 0 is legal (unbounded,
+                // like the X-announce), so no re-validation gate is needed.
+                // The answer reuses `Decision::XValue` — a chosen non-negative
+                // number — rather than mint a note-only twin.
+                let key = *key;
+                self.pending = None;
+                self.resolution_notes
+                    .insert(key, crate::state::NotedValue::Number(n));
                 Ok(())
             }
             (PendingDecision::ChooseCostOptions { cost, .. }, Decision::CostOptions(choices)) => {

@@ -165,6 +165,13 @@ pub enum ChoiceContinuation {
         effect: Box<deckmaste_core::OneShotEffect>,
         frame: crate::stack::Frame,
     },
+    /// A `ChooseObjects` answer for `PlayerAction::ChooseAndNote(_,
+    /// NotedKind::Objects)` ([CR#607.2a,608.2d]): instead of binding the
+    /// picks as `chosen`, record them into the fact-backed `noted` product
+    /// group under `key` (each pick captured as a live `NotedMember`), so a
+    /// later `Selection::AmongNoted`/`Reference::Linked` reads them. No
+    /// effect re-runs — the resolution simply continues.
+    NoteObjects { key: deckmaste_core::Ident },
     /// A `YesNo` answer for `OneShotEffect::May` ([CR#118.12]): true → `effect`
     /// then `if_did`; false → `if_not` (or nothing).
     May {
@@ -442,6 +449,20 @@ pub struct GameState {
     /// pushes, `EndNote` pops; while non-empty, every enacted `ZoneChanged`
     /// fact appends to each open key's group.
     pub(crate) noting: Vec<deckmaste_core::Ident>,
+    /// [CR#608.2c] resolution-scoped scalar note slots: a mid-resolution
+    /// choice ("choose a number") stored under a note key and read back
+    /// LATER IN THE SAME resolution ([CR#607.2] slot values). Distinct from
+    /// the fact-backed `noted` product group above (object SETS a noting
+    /// clause moved) — this map holds scalar choice anaphora ("that number").
+    /// A flat map suffices because resolution is stack-disciplined (one entry
+    /// resolves at a time); `resolve_object` clears it as each fresh
+    /// resolution begins, so a note never leaks into the next resolution
+    /// ([CR#608.2c] — the choice exists only within that instruction
+    /// sequence; values that OUTLIVE resolution are linked abilities
+    /// [CR#607] or as-enters choices, held by separate stores). Written by
+    /// `PlayerAction::ChooseAndNote`, read by `Count::Noted`.
+    pub(crate) resolution_notes:
+        std::collections::HashMap<deckmaste_core::Ident, crate::state::NotedValue>,
     /// [CR#401.4]: the armed post-pick arrange collector. `Some` while an
     /// `Each`/`MoveGroup` whose body repositions cards into ordered library
     /// positions is resolving; each landing records here, and the
@@ -449,6 +470,21 @@ pub struct GameState {
     /// lone `Move(_, Library(_))` reposition (a definite position, no order
     /// choice) records nothing.
     pub(crate) arrange_scope: Option<crate::state::ArrangeScope>,
+}
+
+/// The scalar value a resolution note slot stores ([CR#607.2] slots;
+/// [CR#608.2c] a choice made while applying an effect). This P0.W5 store
+/// mints only `Number` — the one note kind with an existing engine READER
+/// (`Count::Noted`). Object-set notes ride the fact-backed `noted` product
+/// group (`NotedMember`) instead of this map; Color/CardName/Piles stay
+/// unbuilt until a reader grammar for them lands (kind wiring is
+/// reader-gated).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotedValue {
+    /// A chosen non-negative number ("note that number") — written by
+    /// `PlayerAction::ChooseAndNote(_, NotedKind::Number)`, read by
+    /// `Count::Noted`.
+    Number(Uint),
 }
 
 /// One member of a noted product group ([CR#607.2a]): the enacted
@@ -558,6 +594,7 @@ impl GameState {
             evolving_batch: None,
             noted: std::collections::HashMap::new(),
             noting: Vec::new(),
+            resolution_notes: std::collections::HashMap::new(),
             arrange_scope: None,
         }
     }

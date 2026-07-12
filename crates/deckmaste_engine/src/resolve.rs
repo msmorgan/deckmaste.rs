@@ -89,6 +89,17 @@ impl GameState {
         // [CR#603.12]: a reflexive trigger looks back only over events of the
         // resolution that CREATES it, so the window resets each resolution.
         self.resolution_events.clear();
+        // [CR#608.2c]: resolution note slots exist only within the resolving
+        // entry's instruction sequence. This fresh-resolution boundary is the
+        // one canonical clear point for ALL resolution-scoped registers (see
+        // `moved_chain`/`resolution_events` above): clearing here — before any
+        // of this resolution's work items run — is equivalent to and simpler
+        // than clearing at the previous entry's completion, because no note
+        // READER (`Count::Noted`/`AmongNoted`) ever runs outside a resolution,
+        // so a note can never be observed after its own resolution ends and
+        // before the next begins. A value that must OUTLIVE resolution is a
+        // linked ability ([CR#607]) or an as-enters choice — a separate store.
+        self.resolution_notes.clear();
         match &entry.object {
             StackObject::Spell(spell) => {
                 let spell = *spell;
@@ -539,8 +550,36 @@ impl GameState {
                 let (min, max) = self.choice_bounds(quantity, candidates.len(), frame);
                 Some((self.acting_player(by, frame), candidates, min, max))
             }
+            // [CR#607.2a,608.2d]: a CONSTRAINING `AmongNoted` inside `Existing`
+            // ("exile two of THEM") is a chooser over the noted group's LIVE
+            // members — surface the same `ChooseObjects` a `Choose` binder does,
+            // re-running the binder with the picks in `chosen`. The
+            // UNCONSTRAINED group (the whole set) is not a choice, so
+            // `among_noted_choice` returns `None` and it flows through
+            // `resolve_binder`→`eval_selection_set` unchanged. `AmongNoted`
+            // carries no `by`, so the controller chooses ([CR#608.2d] default).
+            Binder::Existing(selection) => {
+                let (label, quantity) = among_noted_choice(selection)?;
+                let live = self.live_noted_members(label);
+                let (min, max) = self.choice_bounds(quantity, live.len(), frame);
+                Some((frame.controller, live, min, max))
+            }
             _ => None,
         }
+    }
+
+    /// The LIVE members of the fact-backed `noted` product group under `label`
+    /// ([CR#607.2a]): each read through its post-move identity, dropping any
+    /// that has since left play. Shared by `Selection::AmongNoted` and the
+    /// constrained-`AmongNoted` chooser in [`Self::binder_choice`].
+    fn live_noted_members(&self, label: &deckmaste_core::Ident) -> Vec<ObjectId> {
+        self.noted
+            .get(label)
+            .into_iter()
+            .flatten()
+            .filter_map(|m| m.now)
+            .filter(|&id| self.objects.get(id).is_some())
+            .collect()
     }
 
     /// The [`RefKind`](crate::stack::RefKind) of a resolved id — object vs.
@@ -2198,10 +2237,41 @@ impl GameState {
             PlayerAction::Reveal { .. } => {
                 todo!("P0.W6: reveal/look (emit Revealed; window lifetime [CR#701.20a])")
             }
-            // P0.W4 seam: noted slots (store is P0.W5).
-            PlayerAction::ChooseAndNote(..) => {
-                todo!("P0.W4: choose-and-note (slot store is P0.W5)")
-            }
+            // [CR#608.2c,608.2d,607.2] choose-and-note: a resolution choice
+            // stored under a note key, KIND-GATED. Only note kinds with an
+            // existing engine READER get wired (reader-gated); write-only kinds
+            // stay LOUD per-kind (naming the kind), so a card reaching an
+            // unbuilt kind trips a labeled seam rather than silently no-op'ing.
+            // The verb is `&self`, so it only SCHEDULES the surfacing work
+            // item; the `&mut self` handler opens the decision.
+            PlayerAction::ChooseAndNote(key, kind) => match kind {
+                // Number → the `Count::Noted` reader (scalar `resolution_notes`).
+                deckmaste_core::NotedKind::Number => vec![WorkItem::ChooseNoteNumber {
+                    player: actor,
+                    key: *key,
+                }],
+                // Objects → the fact-backed `noted` product group, read by
+                // `Selection::AmongNoted` (and the future `Reference::Linked`).
+                deckmaste_core::NotedKind::Objects => vec![WorkItem::ChooseNoteObjects {
+                    player: actor,
+                    key: *key,
+                }],
+                // No reader grammar exists yet — no chosen-color/name predicate
+                // (an `OfChosen`-equivalent), no `Selection::PilesOf` runtime —
+                // so wiring the write would be dead machinery. Stay loud.
+                deckmaste_core::NotedKind::Color => todo!(
+                    "engine seam: ChooseAndNote(Color) has no reader grammar \
+                     (no chosen-color predicate) — write-only, unbuilt ([CR#607.2])"
+                ),
+                deckmaste_core::NotedKind::CardName => todo!(
+                    "engine seam: ChooseAndNote(CardName) has no reader grammar \
+                     (no chosen-name predicate) — write-only, unbuilt ([CR#607.2])"
+                ),
+                deckmaste_core::NotedKind::Piles => todo!(
+                    "engine seam: ChooseAndNote(Piles) needs the pile store + \
+                     Selection::PilesOf reader — unbuilt ([CR#700.3a])"
+                ),
+            },
             // [CR#707.10]: put a copy of the referenced stack object onto
             // the stack — the APPLY mints it (needs &mut). A reference that
             // doesn't resolve to a live stack entry fizzles (authoring
@@ -2812,27 +2882,34 @@ impl GameState {
             // [CR#607.2a]: the fact-backed product group — the members the
             // noting clause ACTUALLY moved, read through their post-move
             // identities ("cards milled this way"); a member that has since
-            // left (a ceased token) drops out of the live read. The
-            // unconstrained quantity is the whole group; a CHOOSING
-            // quantity ("exile two of them") needs a chooser — unbuilt.
+            // left (a ceased token) drops out of the live read.
             Selection::AmongNoted(label, quantity) => {
-                if !matches!(
+                let live = self.live_noted_members(label);
+                if matches!(
                     deref_quantity(quantity),
                     deckmaste_core::Quantity::Range(None, None)
                 ) {
-                    todo!(
-                        "engine seam: a constraining AmongNoted quantity needs a chooser \
-                         ([CR#608.2d]); the full-group read is the wired path"
-                    )
+                    // Unconstrained: the whole live group ("exile them").
+                    live
+                } else {
+                    // [CR#608.2d]: a CONSTRAINING quantity ("exile two of them")
+                    // is a choice. `binder_choice` (consulted before this arm,
+                    // on the FIRST pass) surfaces a `ChooseObjects` over `live`
+                    // and re-runs the binder with the picks bound in `chosen`;
+                    // this arm reads them back on the re-run, clamped to the
+                    // still-live group. If nothing bound them — a constrained
+                    // AmongNoted evaluated OUTSIDE a binder, or the group emptied
+                    // between surface and re-run — the read is the empty group
+                    // (fizzle), never a panic (authoring mistakes never crash).
+                    frame
+                        .anaphora
+                        .chosen
+                        .iter()
+                        .flatten()
+                        .copied()
+                        .filter(|id| live.contains(id))
+                        .collect()
                 }
-                let Some(members) = self.noted.get(label) else {
-                    return Vec::new();
-                };
-                members
-                    .iter()
-                    .filter_map(|m| m.now)
-                    .filter(|&id| self.objects.get(id).is_some())
-                    .collect()
             }
         }
     }
@@ -3413,7 +3490,27 @@ impl GameState {
                     .map(|(_, entry)| Self::game_event_amount(&entry.fact))
                     .sum()
             }
-            Count::Noted(key) => todo!("P0.W4: noted read {key:?} (slot store is P0.W5)"),
+            // [CR#607.2,608.2c]: a scalar note read back in the SAME resolution
+            // ("that number"). A present `Number` note reads its value; a
+            // MISSING key (or a future non-number value) is an authoring
+            // mistake, not a legal 0 — the engine-stat-none-fizzle ruling says
+            // fizzle the consuming read, never a silent bare 0. `eval_count`
+            // returns a bare `Uint` with no fizzle channel, so — exactly as the
+            // `unbound_ref` no-op does for references — we leave a LOUD
+            // `eprintln!` breadcrumb and degrade to 0 (no `debug_assert`: the
+            // fizzle must never panic; a fizzling `Count` read is the principled
+            // fix, tracked by engine-stat-none-fizzle).
+            Count::Noted(key) => match self.resolution_notes.get(key) {
+                Some(crate::state::NotedValue::Number(n)) => *n,
+                absent_or_mistyped => {
+                    eprintln!(
+                        "deckmaste: Count::Noted({key:?}) found no number note \
+                         ({absent_or_mistyped:?}); treating as 0 — effect fizzles \
+                         (engine-stat-none-fizzle)"
+                    );
+                    0
+                }
+            },
             // [CR#120.3]: the damage marked on the referenced object — read
             // directly off the base state (damage is not a derived stat).
             // [CR#702.33c..702.33d]: multikicker's per-payment count needs
@@ -3835,6 +3932,27 @@ fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
     match q {
         deckmaste_core::Quantity::Expanded(e) => deref_quantity(&e.value),
         range @ deckmaste_core::Quantity::Range(..) => range,
+    }
+}
+
+/// A CONSTRAINING `AmongNoted` inside a selection ("exile TWO of them"): the
+/// `(label, quantity)` to surface as a chooser ([CR#608.2d]), or `None` for an
+/// UNCONSTRAINED `AmongNoted` (the whole group — not a choice) or any other
+/// selection. Peels `Selection::Expanded`.
+fn among_noted_choice(
+    selection: &Selection,
+) -> Option<(&deckmaste_core::Ident, &deckmaste_core::Quantity)> {
+    match selection {
+        Selection::Expanded(e) => among_noted_choice(&e.value),
+        Selection::AmongNoted(label, quantity)
+            if !matches!(
+                deref_quantity(quantity),
+                deckmaste_core::Quantity::Range(None, None)
+            ) =>
+        {
+            Some((label, quantity))
+        }
+        _ => None,
     }
 }
 
@@ -4527,6 +4645,8 @@ mod tests {
                         | WorkItem::Resolve(_)
                         | WorkItem::BeginNote { .. }
                         | WorkItem::EndNote
+                        | WorkItem::ChooseNoteNumber { .. }
+                        | WorkItem::ChooseNoteObjects { .. }
                 )
             );
             if !injected || state.pending.is_some() {
@@ -6487,6 +6607,323 @@ mod tests {
             state.zones.graveyards[0].is_empty(),
             "the milled cards moved on from the graveyard"
         );
+    }
+
+    // --- P0.W5 resolution note slots ([CR#608.2c,607.2]) --------------------
+
+    /// [CR#608.2c,607.2] the resolution note store round-trips a NUMBER choice:
+    /// `ChooseAndNote(Number)` surfaces a resolution-time number decision; the
+    /// submitted value lands in `resolution_notes`; a LATER clause of the SAME
+    /// resolution reads it back via `Count::Noted`. The two clauses run as
+    /// separate `Sequentially` children — each carrying its OWN frame clone
+    /// (`Sequentially` clones the frame per child up front) — so this asserts
+    /// the note rides the resolution-scoped STORE, not the frame (the
+    /// cloned-frame trap the store exists to avoid).
+    #[test]
+    fn choose_and_note_number_round_trips_through_the_store() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let (mut state, a) = bear_on_field();
+        let key = deckmaste_core::Ident::from("n");
+        let effect = OneShotEffect::Sequentially(vec![
+            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+                key,
+                deckmaste_core::NotedKind::Number,
+            )),
+            OneShotEffect::act_by_you(PlayerAction::Mill(Count::Noted(key))),
+        ]);
+        let frame = frame_src(a);
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+
+        // The first child surfaced the number choice.
+        let Some(PendingDecision::ChooseNoteNumber { player, key: pk }) = state.pending.clone()
+        else {
+            panic!("expected ChooseNoteNumber, got {:?}", state.pending);
+        };
+        assert_eq!(
+            player,
+            PlayerId(0),
+            "the effect's controller notes the number"
+        );
+        assert_eq!(pk, key);
+
+        state
+            .submit_decision(Decision::XValue(2))
+            .expect("a non-negative note number is always legal");
+        assert_eq!(
+            state.resolution_notes.get(&key),
+            Some(&crate::state::NotedValue::Number(2)),
+            "the submitted value is stored under the note key"
+        );
+
+        // The SECOND child reads it back: Mill(Noted(key)) mills exactly 2.
+        run_injected(&mut state);
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            2,
+            "Count::Noted read 2 from the store in the second child's frame clone"
+        );
+    }
+
+    /// [CR#608.2c] scope: a resolution note lives ONLY within its resolution.
+    /// A note written in one resolution is GONE when the next begins —
+    /// `resolve_object` clears `resolution_notes` at the fresh-resolution
+    /// boundary — so a `Count::Noted` read in the next resolution finds nothing
+    /// and fizzles to 0 (never a stale value, never a panic). Mirrors
+    /// `moved_chain_resets_when_a_resolution_begins`.
+    #[test]
+    fn resolution_notes_clear_when_a_fresh_resolution_begins() {
+        use deckmaste_core::CardFace;
+        use deckmaste_core::StatValue;
+
+        let (mut state, _a) = bear_on_field();
+        let key = deckmaste_core::Ident::from("n");
+        state
+            .resolution_notes
+            .insert(key, crate::state::NotedValue::Number(5));
+
+        // Drive a REAL resolution: mint a vanilla creature spell, push its
+        // `StackEntry`, and resolve it.
+        let card = Card::Normal(CardFace {
+            name: "Test Bear".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+            paid_costs: vec![],
+            copy: false,
+        });
+        state.resolve_object(spell);
+
+        assert!(
+            state.resolution_notes.is_empty(),
+            "a fresh resolution clears the note store ([CR#608.2c])"
+        );
+        // The consuming read fizzles to 0 (not the stale 5), never panics.
+        let frame = frame_src(spell);
+        assert_eq!(
+            state.eval_count(&Count::Noted(key), &frame),
+            0,
+            "Count::Noted on a cleared note fizzles to 0"
+        );
+    }
+
+    /// [CR#607.2a,608.2d] `ChooseAndNote(Objects)`: the picks are recorded into
+    /// the fact-backed `noted` product group (live members), and
+    /// `Selection::AmongNoted` reads them back. The grammar carries no
+    /// narrowing predicate, so the chooser's domain is the battlefield-wide
+    /// default (choose any number).
+    #[test]
+    fn choose_and_note_objects_writes_group_read_by_among_noted() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let (mut state, a, _b) = two_permanents_on_field();
+        let key = deckmaste_core::Ident::from("chosen");
+        let effect = OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+            key,
+            deckmaste_core::NotedKind::Objects,
+        ));
+        let frame = frame_src(a);
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+
+        let Some(PendingDecision::ChooseObjects {
+            player,
+            candidates,
+            min,
+            max,
+        }) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(player, PlayerId(0));
+        assert_eq!(
+            (min, max),
+            (0, 2),
+            "battlefield-wide domain, choose any number of the two permanents"
+        );
+        assert!(candidates.contains(&a));
+
+        state
+            .submit_decision(Decision::Chosen(vec![a]))
+            .expect("a is a battlefield candidate");
+
+        // The pick is recorded into the `noted` group, live.
+        let group = &state.noted[&key];
+        assert_eq!(group.len(), 1);
+        assert_eq!(group[0].now, Some(a));
+
+        // AmongNoted (unconstrained) reads the whole live group back.
+        assert_eq!(
+            state.eval_selection_set(
+                &Selection::AmongNoted(key, deckmaste_core::Quantity::Range(None, None)),
+                &frame,
+            ),
+            vec![a],
+            "AmongNoted reads the noted objects back"
+        );
+    }
+
+    /// [CR#607.2a,608.2d] a CONSTRAINING `AmongNoted` quantity ("destroy one of
+    /// them") surfaces a `ChooseObjects` chooser over the noted group's LIVE
+    /// members, honors the quantity's bounds, and binds the picks into the
+    /// re-run body — exactly the chooser the unconstrained full-group read does
+    /// not need.
+    #[test]
+    fn among_noted_constrained_quantity_surfaces_and_binds_chooser() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let (mut state, a, b) = two_permanents_on_field();
+        let key = deckmaste_core::Ident::from("grp");
+        // Seed the noted product group with both live permanents.
+        let ma = crate::state::NotedMember {
+            snapshot: crate::lki::LkiSnapshot::capture(&state, a),
+            now: Some(a),
+        };
+        let mb = crate::state::NotedMember {
+            snapshot: crate::lki::LkiSnapshot::capture(&state, b),
+            now: Some(b),
+        };
+        state.noted.insert(key, vec![ma, mb]);
+
+        // "Destroy exactly one of them" — a constraining AmongNoted quantity.
+        let effect = OneShotEffect::Each(deckmaste_core::Each {
+            binder: Binder::Existing(Selection::AmongNoted(
+                key,
+                deckmaste_core::Quantity::Range(Some(Count::Literal(1)), Some(Count::Literal(1))),
+            )),
+            effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+        });
+        let frame = frame_src(a);
+        state.run_effect(effect, &frame);
+
+        let Some(PendingDecision::ChooseObjects {
+            player,
+            candidates,
+            min,
+            max,
+        }) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(
+            player,
+            PlayerId(0),
+            "the controller chooses (AmongNoted has no `by`)"
+        );
+        assert_eq!((min, max), (1, 1), "exactly one, from the quantity bounds");
+        let mut got = candidates.clone();
+        got.sort();
+        let mut want = vec![a, b];
+        want.sort();
+        assert_eq!(got, want, "candidates = the noted group's live members");
+
+        // Bind the pick and run the body: exactly `a` is destroyed.
+        state
+            .submit_decision(Decision::Chosen(vec![a]))
+            .expect("a is a live member");
+        run_injected(&mut state);
+        assert!(
+            !state.zones.battlefield.contains(&a),
+            "the chosen member was destroyed"
+        );
+        assert!(
+            state.zones.battlefield.contains(&b),
+            "the un-chosen member is untouched"
+        );
+    }
+
+    /// [CR#607.2,608.2c] a `Count::Noted` read of an ABSENT key is an authoring
+    /// mistake — it fizzles to 0 (engine-stat-none-fizzle), never a panic and
+    /// never a silent-but-plausible value.
+    #[test]
+    fn count_noted_missing_key_fizzles_to_zero() {
+        let (state, a) = bear_on_field();
+        let frame = frame_src(a);
+        assert_eq!(
+            state.eval_count(&Count::Noted(deckmaste_core::Ident::from("absent")), &frame),
+            0
+        );
+    }
+
+    /// [CR#607.2] write-only note kinds with NO reader grammar stay LOUD
+    /// per-kind: `Color`/`CardName`/`Piles` trip a labeled `todo!` seam rather
+    /// than wire dead machinery.
+    #[test]
+    #[should_panic(expected = "ChooseAndNote(Color)")]
+    fn choose_and_note_color_is_a_loud_seam() {
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+                deckmaste_core::Ident::from("c"),
+                deckmaste_core::NotedKind::Color,
+            )),
+            &frame,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "ChooseAndNote(CardName)")]
+    fn choose_and_note_card_name_is_a_loud_seam() {
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+                deckmaste_core::Ident::from("cn"),
+                deckmaste_core::NotedKind::CardName,
+            )),
+            &frame,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "ChooseAndNote(Piles)")]
+    fn choose_and_note_piles_is_a_loud_seam() {
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+                deckmaste_core::Ident::from("p"),
+                deckmaste_core::NotedKind::Piles,
+            )),
+            &frame,
+        );
+    }
+
+    /// P0.W3 seam filled for the new decision kind: the mechanical strategy
+    /// notes the minimum (0, the X=0 default, via the reused `Decision::XValue`
+    /// answer), and the seat resolver names the deciding player.
+    #[test]
+    fn strategy_and_seat_cover_the_note_number_choice() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let (state, _a) = bear_on_field();
+        let pending = PendingDecision::ChooseNoteNumber {
+            player: PlayerId(1),
+            key: deckmaste_core::Ident::from("n"),
+        };
+        assert_eq!(
+            crate::sim::mechanical(&state, &pending),
+            Decision::XValue(0)
+        );
+        assert_eq!(crate::sim::pending_player(&pending), PlayerId(1));
     }
 
     /// The exchange-control card, through `Simultaneously`

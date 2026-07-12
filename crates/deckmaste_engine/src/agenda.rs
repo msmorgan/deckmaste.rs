@@ -165,6 +165,24 @@ pub enum WorkItem {
         player: crate::player::PlayerId,
         entry: crate::object::ObjectId,
     },
+    /// [CR#608.2c,608.2d]: a resolving `ChooseAndNote(key, NotedKind::Number)`
+    /// — surface a resolution-time NUMBER choice for `player`, whose answer is
+    /// stored in `resolution_notes[key]` (`Count::Noted` reads it back). The
+    /// verb (`&self`) can only schedule this; the handler (`&mut self`)
+    /// surfaces the decision.
+    ChooseNoteNumber {
+        player: crate::player::PlayerId,
+        key: deckmaste_core::Ident,
+    },
+    /// [CR#607.2a,608.2d]: a resolving `ChooseAndNote(key, NotedKind::Objects)`
+    /// — surface a `ChooseObjects` pick for `player`; the submit records the
+    /// chosen objects into the `noted` product group under `key` (read back by
+    /// `Selection::AmongNoted`). The grammar carries no narrowing predicate,
+    /// so the candidate domain is derived by the handler.
+    ChooseNoteObjects {
+        player: crate::player::PlayerId,
+        key: deckmaste_core::Ident,
+    },
     /// Resolve the named committed stack object ([CR#608]). Reads `self.stack`.
     Resolve(crate::object::ObjectId),
     /// Interpret one `OneShotEffect` node against a resolution frame
