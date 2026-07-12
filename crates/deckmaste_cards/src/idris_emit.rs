@@ -3336,6 +3336,39 @@ mod tests {
         );
     }
 
+    /// `ChooseNewTargets { by: You }` (the default) uses the terse bare
+    /// positional form — no `{by = ...}` field — mirroring the `Tap`/`Untap`
+    /// style `app` calls it sits beside ([CR#115.7d,707.10c]).
+    #[test]
+    fn choose_new_targets_you_emits_bare_positional() {
+        let action = PlayerAction::ChooseNewTargets {
+            of: Reference::This,
+            by: Reference::You,
+        };
+        let out = emit_player_action(&action, &Reference::You)
+            .expect("ChooseNewTargets with default `by` should emit");
+        assert_eq!(out, "(ChooseNewTargets This)");
+        assert!(
+            !out.contains("by"),
+            "default `by = You` shouldn't surface a `{{by = ...}}` field, got: {out}"
+        );
+    }
+
+    /// A non-default `by` (e.g. an opponent picking new targets, à la Bolt
+    /// Bend) falls back to the named-field `{by = ...}` form, following
+    /// `MayCastFor`'s `{from = ..., tag = ...}` direct-named-field precedent
+    /// ([CR#115.7d,707.10c]).
+    #[test]
+    fn choose_new_targets_other_emits_named_by_field() {
+        let action = PlayerAction::ChooseNewTargets {
+            of: Reference::This,
+            by: Reference::Opponent,
+        };
+        let out = emit_player_action(&action, &Reference::You)
+            .expect("ChooseNewTargets with a non-default `by` should emit");
+        assert_eq!(out, "(ChooseNewTargets This {by = (Only OpponentOf)})");
+    }
+
     /// `StatePredicate::WasCastWith` resolves its tag through the same
     /// `keywordspec_idris` table as `Cast.tag` (a `KeywordSpec`, unlike
     /// `WasPaidWith`'s bare string literal).
