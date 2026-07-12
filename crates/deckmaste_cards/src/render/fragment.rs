@@ -520,21 +520,14 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
 
 /// The controller-restrictor phrase among a filter's `And` parts:
 /// `ControlledBy(You)` → "you control"; `Not(ControlledBy(You))` → "you
-/// don't control"; `ControlledBy(OpponentOf(You))` → "an opponent controls".
-/// `None` when the filter carries no controller part.
+/// don't control"; `ControlledBy(OpponentOf(You))` → "an opponent controls";
+/// `ControlledBy(TeammateOf(You))` → "a teammate controls". `None` when the
+/// filter carries no controller part.
 fn controller_suffix(filter: &Predicate) -> Option<&'static str> {
     for part in flatten_all_of(filter) {
         match strip_expanded(part) {
             Predicate::Relation(RelationPredicate::ControlledBy(inner)) => {
-                return match strip_expanded(inner) {
-                    Predicate::Ref(Reference::You) => Some("you control"),
-                    Predicate::Relation(RelationPredicate::OpponentOf(who))
-                        if matches!(strip_expanded(who), Predicate::Ref(Reference::You)) =>
-                    {
-                        Some("an opponent controls")
-                    }
-                    _ => None,
-                };
+                return singular_controller_suffix(inner);
             }
             Predicate::Not(negated) => {
                 if let Predicate::Relation(RelationPredicate::ControlledBy(inner)) =
@@ -548,6 +541,32 @@ fn controller_suffix(filter: &Predicate) -> Option<&'static str> {
         }
     }
     None
+}
+
+/// The singular-register text for a `ControlledBy`'s player-predicate
+/// argument: `Ref(You)` → "you control", `OpponentOf(Ref(You))` → "an
+/// opponent controls", `TeammateOf(Ref(You))` → "a teammate controls" —
+/// mirroring `turn_owner`'s (condition.rs) article+noun convention for
+/// opponent/teammate ("an opponent's turn"/"a teammate's turn"), not
+/// [`controller_phrase`]'s plural "your opponents/teammates control". `None`
+/// for any other shape — both [`controller_suffix`] and [`subject_phrase`]'s
+/// `SingularArticle` register fall back to printing no controller suffix at
+/// all in that case, rather than duplicating this match a third time.
+fn singular_controller_suffix(inner: &Predicate) -> Option<&'static str> {
+    match strip_expanded(inner) {
+        Predicate::Ref(Reference::You) => Some("you control"),
+        Predicate::Relation(RelationPredicate::OpponentOf(who))
+            if matches!(strip_expanded(who), Predicate::Ref(Reference::You)) =>
+        {
+            Some("an opponent controls")
+        }
+        Predicate::Relation(RelationPredicate::TeammateOf(who))
+            if matches!(strip_expanded(who), Predicate::Ref(Reference::You)) =>
+        {
+            Some("a teammate controls")
+        }
+        _ => None,
+    }
 }
 
 /// A negated-subtype exclusion among a filter's `And` parts ([CR#205.3]):
@@ -693,10 +712,14 @@ pub(super) enum SubjectNumber {
 /// The filter-qualifier walk shared by [`filter_subject`] (plural) and
 /// `ability::subject_of` (singular): self-exclusion (`Not(Ref(This))` →
 /// "another"/"Other"), a color qualifier, the base type noun, and the
-/// controller suffix (`ControlledBy(..)` → "you control"/"an opponent
-/// controls"/"your teammates control"). Self-exclusion prints once even if
-/// `Not(Ref(This))` repeats among the filter's `And` parts — `other` is a
-/// flag, not a string append.
+/// controller suffix (`ControlledBy(..)`). The controller suffix is
+/// register-sensitive — resolved per-register at composition time, not
+/// pre-rendered in this loop: [`controller_phrase`] for
+/// `PluralCapitalized` ("you control"/"your opponents control"/"your
+/// teammates control") vs. [`singular_controller_suffix`] for
+/// `SingularArticle` ("you control"/"an opponent controls"/"a teammate
+/// controls"). Self-exclusion prints once even if `Not(Ref(This))` repeats
+/// among the filter's `And` parts — `other` is a flag, not a string append.
 ///
 /// The Creature filter macro expands as
 /// `Expanded(value=And([Expanded(Permanent),
@@ -714,7 +737,7 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
     let mut other = false;
     let mut base: Option<String> = None;
     let mut color: Option<Color> = None;
-    let mut control: Option<String> = None;
+    let mut control: Option<&Predicate> = None;
     for p in parts {
         match strip_expanded(p) {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
@@ -727,7 +750,7 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
                 other = true;
             }
             Predicate::Relation(RelationPredicate::ControlledBy(inner)) => {
-                control = Some(controller_phrase(inner));
+                control = Some(inner.as_ref());
             }
             // The Creature macro expands to And([Expanded(Permanent),
             // Characteristic(Type(Creature))]); check whether this part holds
@@ -771,7 +794,7 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
             }
             if let Some(c) = control {
                 s.push(' ');
-                s.push_str(&c);
+                s.push_str(&controller_phrase(c));
             }
             s
         }
@@ -786,8 +809,8 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
             } else {
                 super::effect::a_an(&described)
             };
-            match control {
-                Some(c) => format!("{head} {c}"),
+            match control.and_then(singular_controller_suffix) {
+                Some(suffix) => format!("{head} {suffix}"),
                 None => head,
             }
         }
@@ -1126,6 +1149,14 @@ mod tests {
     /// the `And` wrapper, reads singular as "a creature". Self-exclusion
     /// prints once even when `Not(Ref(This))` repeats among the `And` parts
     /// (the double-print guard).
+    ///
+    /// Also covers the opponent/teammate controller-restrictor regression:
+    /// the `SingularArticle` register must resolve `ControlledBy(..)`
+    /// through its OWN article+noun text ("an opponent controls"/"a
+    /// teammate controls"), not bleed in [`controller_phrase`]'s plural
+    /// "your opponents/teammates control" — asserted side-by-side with the
+    /// unaffected `PluralCapitalized` reading of the identical predicate, the
+    /// strongest pin for "wrong register selected".
     #[test]
     fn subject_phrase_renders_singular_and_plural_inflections() {
         let you = || Box::new(Predicate::Ref(Reference::You));
@@ -1164,6 +1195,38 @@ mod tests {
         assert_eq!(
             subject_phrase(&Predicate::creature(), SubjectNumber::SingularArticle).as_deref(),
             Some("a creature")
+        );
+
+        let opponent_controls = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+                Predicate::Relation(RelationPredicate::OpponentOf(you())),
+            ))),
+        ]);
+        assert_eq!(
+            subject_phrase(&opponent_controls, SubjectNumber::SingularArticle).as_deref(),
+            Some("another creature an opponent controls")
+        );
+        assert_eq!(
+            subject_phrase(&opponent_controls, SubjectNumber::PluralCapitalized).as_deref(),
+            Some("Other creatures your opponents control")
+        );
+
+        let teammate_controls = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+                Predicate::Relation(RelationPredicate::TeammateOf(you())),
+            ))),
+        ]);
+        assert_eq!(
+            subject_phrase(&teammate_controls, SubjectNumber::SingularArticle).as_deref(),
+            Some("another creature a teammate controls")
+        );
+        assert_eq!(
+            subject_phrase(&teammate_controls, SubjectNumber::PluralCapitalized).as_deref(),
+            Some("Other creatures your teammates control")
         );
     }
 
