@@ -201,6 +201,16 @@ fn parse_board_condition(clause: &str) -> Option<String> {
     {
         return Some(format!("Compare(Opponents(You), {cmp}, {n})"));
     }
+    // ∃ a player with life <= N ("a player has 13 or less life") — the
+    // Players countable, never Exists (player-scope; the ruled spelling).
+    if let Some(rest) = clause.strip_prefix("a player has ")
+        && let Some((cmp, n, subject)) = strip_count(rest)
+        && subject == "life"
+    {
+        return Some(format!(
+            "Compare(CountOf(Players(PlayerStatCmp(Life, {cmp}, {n}))), Greater, 0)"
+        ));
+    }
     let (controller, object) = strip_controller(clause)?;
     // A leading count word ("two or more …", "eight or more …") makes this a
     // Compare; otherwise a determiner ("a …") makes it an Exists.
@@ -687,13 +697,19 @@ mod tests {
     }
 
     #[test]
-    fn declines_existential_player_life() {
-        // "a player has 13 or less life" is EXISTENTIAL over players (∃ a
-        // player with life ≤ 13). That needs a player-life FILTER predicate
-        // (`Exists(<a player with life ≤ N>)`), not a `Count` — the
-        // `PlayerStatOf` Count reads ONE named player's life, so the census
-        // grammar still declines this form.
-        assert!(rep("~ enters tapped unless a player has 13 or less life.").is_none());
+    fn parses_existential_player_life() {
+        // ∃ a player with life <= N spells as the Players countable —
+        // `exists` is object-scoped in the grammar, so the sound form is
+        // "count of players matching the life bound is > 0".
+        assert_eq!(
+            rep("~ enters tapped unless a player has 13 or less life.").as_deref(),
+            Some(
+                tapped_unless(
+                    "Compare(CountOf(Players(PlayerStatCmp(Life, AtMost, 13))), Greater, 0)"
+                )
+                .as_str()
+            )
+        );
     }
 
     #[test]
