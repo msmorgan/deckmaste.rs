@@ -346,6 +346,9 @@ impl GameState {
                     return event;
                 };
                 let source = match &entry.object {
+                    // Safe: a live Spell entry's object id IS the entry's own id, and entry/object
+                    // removal is atomic — a live entry's Spell object can't be dead (contrast the
+                    // Activated arm below, whose SEPARATE source id can go stale).
                     StackObject::Spell(obj) => self.objects.obj(*obj).source,
                     StackObject::Triggered { source, .. } => *source,
                     StackObject::Activated { source, .. } => {
