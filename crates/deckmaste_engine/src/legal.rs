@@ -2175,10 +2175,11 @@ mod tests {
         );
     }
 
-    /// [CR#120.3d,120.3e]: `is_combatant` reads GRANT PRESENCE, not net attack
+    /// [CR#120.3e]: `is_combatant` reads GRANT PRESENCE, not net attack
     /// eligibility. A conferred creature carrying an extra plain `Cant(Attack)`
     /// still HAS the `May(Attack)` grant, so `is_combatant` is true — its
-    /// combat damage is marked ([CR#120.3d]) — even though the `Cant`
+    /// combat damage is marked ([CR#120.3e]; [CR#120.3d] is the wither/infect
+    /// counters result, not marking) — even though the `Cant`
     /// removes it from `legal_attackers`.
     #[test]
     fn is_combatant_reads_grant_presence_not_net_eligibility() {
