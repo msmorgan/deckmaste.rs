@@ -677,25 +677,48 @@ pub(super) fn capitalize(s: &str) -> String {
     }
 }
 
-/// A `Predicate` as a plural subject noun phrase: "Creatures you control",
-/// "Other creatures you control", "Creatures your opponents control".
+/// Grammatical register [`subject_phrase`]'s two callers need from the same
+/// filter-qualifier walk: [`filter_subject`]'s sentence-start plural subject
+/// ("Other creatures you control") vs. `ability::subject_of`'s mid-sentence
+/// singular subject ("another creature you control").
+#[derive(Clone, Copy)]
+pub(super) enum SubjectNumber {
+    /// Capitalized plural lead — [`filter_subject`]'s existing register.
+    PluralCapitalized,
+    /// Lowercase singular with an article/"another" determiner —
+    /// `ability::subject_of`'s register.
+    SingularArticle,
+}
+
+/// The filter-qualifier walk shared by [`filter_subject`] (plural) and
+/// `ability::subject_of` (singular): self-exclusion (`Not(Ref(This))` →
+/// "another"/"Other"), a color qualifier, the base type noun, and the
+/// controller suffix (`ControlledBy(..)` → "you control"/"an opponent
+/// controls"/"your teammates control"). Self-exclusion prints once even if
+/// `Not(Ref(This))` repeats among the filter's `And` parts — `other` is a
+/// flag, not a string append.
 ///
 /// The Creature filter macro expands as
 /// `Expanded(value=And([Expanded(Permanent),
 /// Characteristic(Type(Creature))]))`. `flatten_all_of` and `find_card_type`
 /// see through both layers.
-pub(super) fn filter_subject(f: &Predicate) -> String {
+///
+/// `None` only when the filter carries NONE of the four qualifiers above — a
+/// shape this walk has nothing to say about (a bare player reference,
+/// `Predicate::Any`, …). [`filter_subject`] maps that to its own
+/// "Permanent(s)" default (unreachable by any filter a real `SelectAll` uses
+/// today, so this never changes its output); `subject_of` maps it to its own
+/// `[unrendered: ..]` marker.
+pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<String> {
     let parts = flatten_all_of(f);
     let mut other = false;
-    let mut base = "Permanents".to_string();
-    let mut typed = false;
+    let mut base: Option<String> = None;
     let mut color: Option<Color> = None;
     let mut control: Option<String> = None;
     for p in parts {
         match strip_expanded(p) {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-                base = format!("{}s", t.as_str());
-                typed = true;
+                base = Some(t.as_str().to_string());
             }
             Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
                 color = Some(*c);
@@ -711,39 +734,70 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
             // a card type buried in a nested And.
             stripped => {
                 if let Some(t) = find_card_type(stripped) {
-                    base = format!("{}s", t.as_str());
-                    typed = true;
+                    base = Some(t.as_str().to_string());
                 }
             }
         }
     }
-    let mut s = String::new();
-    if other {
-        s.push_str("Other ");
-        if let Some(c) = color {
-            s.push_str(super::effect::color_word(c));
-            s.push(' ');
+    if base.is_none() && !other && color.is_none() && control.is_none() {
+        return None;
+    }
+    let typed = base.is_some();
+    let noun = base.unwrap_or_else(|| "Permanent".to_string());
+    Some(match number {
+        SubjectNumber::PluralCapitalized => {
+            let plural = format!("{noun}s");
+            let mut s = String::new();
+            if other {
+                s.push_str("Other ");
+                if let Some(c) = color {
+                    s.push_str(super::effect::color_word(c));
+                    s.push(' ');
+                }
+                s.push_str(&plural.to_lowercase());
+            } else if let Some(c) = color {
+                // A color qualifier rides the subject: "Black creatures get
+                // +1/+1." — printed text, never dropped.
+                s.push_str(&capitalize(super::effect::color_word(c)));
+                s.push(' ');
+                s.push_str(&plural.to_lowercase());
+            } else if typed && control.is_none() {
+                // The set-wide unqualified subject prints the "All"
+                // quantifier — "All creatures get -1/-1."
+                s.push_str("All ");
+                s.push_str(&plural.to_lowercase());
+            } else {
+                s.push_str(&plural);
+            }
+            if let Some(c) = control {
+                s.push(' ');
+                s.push_str(&c);
+            }
+            s
         }
-        s.push_str(&base.to_lowercase());
-    } else if let Some(c) = color {
-        // A color qualifier rides the subject: "Black creatures get
-        // +1/+1." — printed text, never dropped.
-        s.push_str(&capitalize(super::effect::color_word(c)));
-        s.push(' ');
-        s.push_str(&base.to_lowercase());
-    } else if typed && control.is_none() {
-        // The set-wide unqualified subject prints the "All" quantifier —
-        // "All creatures get -1/-1."
-        s.push_str("All ");
-        s.push_str(&base.to_lowercase());
-    } else {
-        s.push_str(&base);
-    }
-    if let Some(c) = control {
-        s.push(' ');
-        s.push_str(&c);
-    }
-    s
+        SubjectNumber::SingularArticle => {
+            let lower = noun.to_lowercase();
+            let described = match color {
+                Some(c) => format!("{} {lower}", super::effect::color_word(c)),
+                None => lower,
+            };
+            let head = if other {
+                format!("another {described}")
+            } else {
+                super::effect::a_an(&described)
+            };
+            match control {
+                Some(c) => format!("{head} {c}"),
+                None => head,
+            }
+        }
+    })
+}
+
+/// A `Predicate` as a plural subject noun phrase: "Creatures you control",
+/// "Other creatures you control", "Creatures your opponents control".
+pub(super) fn filter_subject(f: &Predicate) -> String {
+    subject_phrase(f, SubjectNumber::PluralCapitalized).unwrap_or_else(|| "Permanents".to_string())
 }
 
 /// Recursively search a stripped filter for a `Characteristic(Type(t))`.
@@ -1060,6 +1114,56 @@ mod tests {
         assert_eq!(
             filter_noun(&Predicate::Relation(RelationPredicate::TeammateOf(you()))),
             "teammate"
+        );
+    }
+
+    /// [`subject_phrase`]'s two inflections over the same qualified filter
+    /// (`And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])`, the
+    /// `OtherCreatureYouControl` atom): singular "another creature you
+    /// control" vs. plural "Other creatures you control" —
+    /// [`filter_subject`]'s pre-existing output, byte-identical through the
+    /// shared walk. A bare (unqualified) `Creature` filter, with or without
+    /// the `And` wrapper, reads singular as "a creature". Self-exclusion
+    /// prints once even when `Not(Ref(This))` repeats among the `And` parts
+    /// (the double-print guard).
+    #[test]
+    fn subject_phrase_renders_singular_and_plural_inflections() {
+        let you = || Box::new(Predicate::Ref(Reference::You));
+        let filtered = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(you())),
+        ]);
+        assert_eq!(
+            subject_phrase(&filtered, SubjectNumber::SingularArticle).as_deref(),
+            Some("another creature you control")
+        );
+        assert_eq!(
+            subject_phrase(&filtered, SubjectNumber::PluralCapitalized).as_deref(),
+            Some("Other creatures you control")
+        );
+        assert_eq!(filter_subject(&filtered), "Other creatures you control");
+
+        let doubled = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(you())),
+        ]);
+        assert_eq!(
+            subject_phrase(&doubled, SubjectNumber::SingularArticle).as_deref(),
+            Some("another creature you control")
+        );
+
+        let bare_and = Predicate::And(vec![Predicate::creature()]);
+        assert_eq!(
+            subject_phrase(&bare_and, SubjectNumber::SingularArticle).as_deref(),
+            Some("a creature")
+        );
+
+        assert_eq!(
+            subject_phrase(&Predicate::creature(), SubjectNumber::SingularArticle).as_deref(),
+            Some("a creature")
         );
     }
 

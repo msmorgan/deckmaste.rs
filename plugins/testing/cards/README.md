@@ -38,5 +38,11 @@ verified against the full corpus, not vibes. Current residents:
   sorcery speed only, and the once-per-turn limit SHARED across every loyalty
   ability of the permanent (not per-ability).
 
+- **Filtered Subject Triggers** — a "dies" and a leaves-the-battlefield
+  ([CR#603.6c]) trigger, both off `OtherCreatureYouControl` ("another
+  creature you control"). No canon-slice card triggers off a qualified
+  (self-excluded, controller-restricted) subject for either event; isolates
+  the shared subject-phrase qualifier walk across both `event_clause` arms.
+
 If a mechanic lands that makes one of these encodable with a real card,
 canonize the real card and delete the mock.

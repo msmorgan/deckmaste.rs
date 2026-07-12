@@ -522,15 +522,19 @@ fn lead_for(what: &Predicate) -> &'static str {
     }
 }
 
-/// A subject filter as a noun ("Baleful Strix" for the self filter,
-/// "a creature" for a Creature macro filter).
+/// A subject filter as a noun ("Baleful Strix" for the self filter, "a
+/// creature" for a Creature macro filter, "another creature you control" for
+/// a qualified filter — [`super::fragment::subject_phrase`]'s singular
+/// register).
 fn subject_of(f: &Predicate, ctx: &Ctx) -> String {
     let f = super::fragment::strip_expanded(f);
     if f.is_this() {
         return ctx.subject.to_string();
     }
-    if let Some(t) = super::fragment::find_card_type(f) {
-        return format!("a {}", t.as_str().to_lowercase());
+    if let Some(phrase) =
+        super::fragment::subject_phrase(f, super::fragment::SubjectNumber::SingularArticle)
+    {
+        return phrase;
     }
     format!("[unrendered: {f:?}]")
 }

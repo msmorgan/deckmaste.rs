@@ -22,6 +22,18 @@ fn builtin_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")
 }
 
+fn testing_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing")
+}
+
+fn testing_face(name: &str) -> CardFace {
+    let plugin = Plugin::load_with_sibling_prelude(testing_path()).unwrap();
+    match plugin.card(name).unwrap() {
+        Card::Normal(f) => f,
+        other @ Card::TwoFaced { .. } => panic!("expected a normal card, got {other:?}"),
+    }
+}
+
 fn face(name: &str) -> CardFace {
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
     match plugin.card(name).unwrap() {
@@ -540,6 +552,32 @@ fn renders_creature_dies_trigger_moonlit_wake() {
         r.rules
             .iter()
             .any(|l| l == "Whenever a creature dies, you gain 1 life."),
+        "rules: {:?}",
+        r.rules
+    );
+}
+
+// A qualified (self-excluded, controller-restricted) trigger subject must
+// keep its qualifiers — "another creature you control", not the bare "a
+// creature" a dropped filter would print.
+#[test]
+fn renders_filtered_subject_dies_trigger() {
+    let r = render_card_face(&testing_face("Filtered Subject Triggers"));
+    assert!(
+        r.rules
+            .iter()
+            .any(|l| l == "Whenever another creature you control dies, you gain 1 life."),
+        "rules: {:?}",
+        r.rules
+    );
+}
+
+#[test]
+fn renders_filtered_subject_ltb_trigger() {
+    let r = render_card_face(&testing_face("Filtered Subject Triggers"));
+    assert!(
+        r.rules.iter().any(|l| l
+            == "Whenever another creature you control leaves the battlefield, you gain 1 life."),
         "rules: {:?}",
         r.rules
     );

@@ -1,0 +1,19 @@
+// A minimal carrier of the "another creature you control" filtered-subject
+// shape (`And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])`, the
+// OtherCreatureYouControl atom) on BOTH a "dies" (ZoneChange to graveyard)
+// and a general leaves-the-battlefield ([CR#603.6c]) event trigger — no
+// canon-slice card triggers off a qualified (non-bare) subject for either
+// event, so this fixture isolates the shared subject-phrase qualifier walk
+// (fragment.rs's subject_phrase) across both event_clause arms that call
+// ability::subject_of. Oracle-equivalent: "Whenever another creature you
+// control dies, you gain 1 life." / "Whenever another creature you control
+// leaves the battlefield, you gain 1 life."
+Normal(
+    name: "Filtered Subject Triggers",
+    mana_cost: [Generic(2), Black],
+    types: [Enchantment],
+    abilities: [
+        Triggered(event: Dies(OtherCreatureYouControl), effect: GainLife(1)),
+        Triggered(event: LeavesBattlefield(OtherCreatureYouControl), effect: GainLife(1)),
+    ],
+)
