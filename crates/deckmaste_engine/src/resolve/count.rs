@@ -623,3 +623,1521 @@ fn lki_counters<'f>(
     }?;
     Some(&snapshot.counters)
 }
+
+#[cfg(test)]
+mod tests {
+
+    use std::sync::Arc;
+
+    use deckmaste_core::Action;
+    use deckmaste_core::Card;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::Count;
+    use deckmaste_core::Countable;
+    use deckmaste_core::Lookback;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StatePredicate;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
+
+    use crate::event::GameEvent;
+    use crate::object::ObjectId;
+    use crate::object::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::resolve::fixtures::*;
+    use crate::stack::Anaphora;
+    use crate::stack::Frame;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+    use crate::step::StepOutcome;
+    use crate::test_support::frame_for;
+    use crate::test_support::frame_src;
+    use crate::test_support::frame_src_targets;
+
+    /// History tallies via `EventCount`/`EventSum` — the general primitives
+    /// that subsume the old `Count::Query`/`eval_query` scalar family
+    /// ([CR#608.2i]). Fixtures are the same events; assertions use the
+    /// replacements.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one fixture exercises all five history tallies (storm/draws/lands/life-lost/life-gained) end-to-end"
+    )]
+    #[test]
+    fn history_tallies_via_event_count_sum() {
+        use deckmaste_core::Agency;
+        use deckmaste_core::Count;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Reference;
+
+        use crate::event::Cause;
+        use crate::lki::LkiSnapshot;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+        let p = PlayerId(0);
+        // A frame anchored on player p — Ref(You) resolves to p's proxy.
+        let frame = frame_for(&state, p);
+
+        // Three spells cast this turn (game-wide); `EventCount(Cast, ThisTurn)`
+        // returns the FULL count (3). The storm "−1/before this one"
+        // self-exclusion is deferred until a storm card exists — no card
+        // consumes it yet ([CR#702.40a]).
+        // Mint real objects for the Cast path (performed_matches reads their
+        // controllers via objects.obj, which panics on stale IDs).
+        let sp1 = state.objects.mint(ObjectSource::Player(p), p, None);
+        let sp2 = state.objects.mint(ObjectSource::Player(p), p, None);
+        let sp3 = state.objects.mint(ObjectSource::Player(p), p, None);
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp1));
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp2));
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp3));
+        let cast_event = EventFilter::Cast {
+            who: Predicate::Any,
+            what: Predicate::Any,
+        };
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(cast_event), Lookback::ThisTurn),
+                &frame
+            ),
+            3,
+            "storm: all casts this turn (full count; −1 self-exclusion deferred)"
+        );
+
+        // Two draws by p this turn → EventCount(Draw, by: Ref(You)) = 2.
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::WillDraw {
+                player: p,
+                source: None,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::WillDraw {
+                player: p,
+                source: None,
+            },
+        );
+        let draw_event = EventFilter::Drawn {
+            who: Predicate::Ref(Reference::You),
+            amount: None,
+        };
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(draw_event), Lookback::ThisTurn),
+                &frame
+            ),
+            2,
+            "draws by p this turn"
+        );
+
+        // One land played by p (a Play-caused battlefield entry).
+        // `lands_played_this_turn` is the direct helper; EventCount(Play,
+        // by: Ref(You)) is the generic equivalent.
+        let land = state
+            .objects
+            .mint(ObjectSource::Player(p), p, Some(Zone::Battlefield));
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::ZoneChanged {
+                snapshot: LkiSnapshot::capture(&state, land),
+                from: Some(Zone::Hand),
+                to: Zone::Battlefield,
+                face: None,
+                cause: Some(Cause {
+                    verb: "Play".into(),
+                    agency: Agency::SpecialAction,
+                    agent: None,
+                }),
+            },
+        );
+        assert_eq!(
+            state.lands_played_this_turn(p),
+            1,
+            "lands played by p this turn (direct helper)"
+        );
+        let play_event = EventFilter::Played {
+            who: Predicate::Ref(Reference::You),
+            what: Predicate::Any,
+        };
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(play_event), Lookback::ThisTurn),
+                &frame
+            ),
+            1,
+            "lands played by p via EventCount"
+        );
+
+        // Life: lost 3 then 2 (=5), gained 4.
+        // EventSum(LoseLife, by: Ref(You)) sums the amounts; EventSum(GainLife)
+        // likewise ([CR#119.3]).
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::LifeLost {
+                player: p,
+                amount: 3,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::LifeLost {
+                player: p,
+                amount: 2,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::LifeGained {
+                player: p,
+                amount: 4,
+            },
+        );
+        let lose_event = EventFilter::LifeLost {
+            who: Predicate::Ref(Reference::You),
+            amount: None,
+        };
+        let gain_event = EventFilter::LifeGained {
+            who: Predicate::Ref(Reference::You),
+            amount: None,
+        };
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_event), Lookback::ThisTurn),
+                &frame
+            ),
+            5,
+            "life lost by p this turn"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(gain_event), Lookback::ThisTurn),
+                &frame
+            ),
+            4,
+            "life gained by p this turn"
+        );
+
+        // Prior-turn entries are excluded once the turn advances.
+        state.turn.turn_number = 2;
+        let cast_event2 = EventFilter::Cast {
+            who: Predicate::Any,
+            what: Predicate::Any,
+        };
+        let draw_event2 = EventFilter::Drawn {
+            who: Predicate::Ref(Reference::You),
+            amount: None,
+        };
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(cast_event2), Lookback::ThisTurn),
+                &frame
+            ),
+            0,
+            "storm resets on new turn"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(draw_event2), Lookback::ThisTurn),
+                &frame
+            ),
+            0,
+            "draws reset on new turn"
+        );
+    }
+
+    /// `ability_used_count` counts `AbilityUsed` events keyed by (object,
+    /// ability) and respects the `Lookback` filter — `ThisTurn` excludes
+    /// prior-turn entries, `ThisGame` includes them all.
+    #[test]
+    fn ability_used_count_keys_object_ability_window() {
+        let mut state = game();
+        state.turn.turn_number = 1;
+
+        let obj_a = ObjectId::from_raw(10);
+        let obj_b = ObjectId::from_raw(20);
+
+        // Two uses of ability 0 on obj_a, one use of ability 1 on obj_a —
+        // all on the current turn.
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 0,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 0,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 1,
+            },
+        );
+
+        assert_eq!(state.ability_used_count(obj_a, 0, Lookback::ThisGame), 2);
+        assert_eq!(state.ability_used_count(obj_a, 1, Lookback::ThisGame), 1);
+        // obj_b has no uses recorded.
+        assert_eq!(state.ability_used_count(obj_b, 0, Lookback::ThisGame), 0);
+
+        // A use of (obj_a, 0) on a DIFFERENT turn.
+        state.record_history_fact(
+            2,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj_a,
+                ability: 0,
+            },
+        );
+
+        // ThisTurn (still turn 1) excludes the turn-2 entry.
+        assert_eq!(state.ability_used_count(obj_a, 0, Lookback::ThisTurn), 2);
+        // ThisGame includes it.
+        assert_eq!(state.ability_used_count(obj_a, 0, Lookback::ThisGame), 3);
+    }
+
+    /// `CountOf` is the filter's live cardinality; a `ControlledBy(Ref(You))`
+    /// relation anchors to the frame's side via the watcher.
+    #[test]
+    fn count_of_counts_live_matching_objects() {
+        let (mut state, bear) = bear_on_field();
+        // A second bear onto the battlefield, then handed to player 1.
+        let _ = second_bear_to_player_1(&mut state);
+
+        let frame = frame_src(bear);
+        let creatures = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ]);
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::Objects(Box::new(creatures.clone()))),
+                &frame
+            ),
+            2
+        );
+
+        // "Creatures you control": only the frame side's bear.
+        let yours = Predicate::And(vec![
+            creatures,
+            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
+                Predicate::Ref(Reference::You),
+            ))),
+        ]);
+        assert_eq!(
+            state.eval_count(&Count::CountOf(Countable::Objects(Box::new(yours))), &frame),
+            1
+        );
+    }
+
+    /// Mint a battlefield permanent with the given printed mana cost, with no
+    /// other characteristics — the fixture the pip-count (devotion,
+    /// [CR#700.5]) tests below drive.
+    fn permanent_with_cost(state: &mut GameState, mana_cost: &str) -> ObjectId {
+        let card = Card::Normal(CardFace {
+            name: "Test Permanent".into(),
+            mana_cost: mana_cost.parse().unwrap(),
+            types: vec![Type::Artifact.def()],
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let obj = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(obj);
+        obj
+    }
+
+    /// `CountOf(ManaSymbols(..))` ([CR#700.5] devotion) counts matching pips
+    /// in the referenced object's printed cost: a plain colored count, a
+    /// hybrid pip counting toward EACH of its colors, and an `Or` disjunction
+    /// counting either.
+    #[test]
+    fn count_of_mana_symbols_counts_devotion_pips() {
+        use deckmaste_core::SymbolPred;
+
+        let mut state = game();
+        let gg1 = permanent_with_cost(&mut state, "{G}{G}{1}");
+        let frame = frame_src(gg1);
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::CountsAs(deckmaste_core::Color::Green),
+                )),
+                &frame,
+            ),
+            2,
+            "{{G}}{{G}}{{1}} has two green pips"
+        );
+
+        let gwgw = permanent_with_cost(&mut state, "{G/W}{G/W}");
+        let frame = frame_src(gwgw);
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::CountsAs(deckmaste_core::Color::Green),
+                )),
+                &frame,
+            ),
+            2,
+            "each {{G/W}} hybrid pip counts toward green devotion"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::CountsAs(deckmaste_core::Color::White),
+                )),
+                &frame,
+            ),
+            2,
+            "…and toward white devotion too"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::This),
+                    SymbolPred::Or(vec![
+                        SymbolPred::CountsAs(deckmaste_core::Color::White),
+                        SymbolPred::CountsAs(deckmaste_core::Color::Black),
+                    ]),
+                )),
+                &frame,
+            ),
+            2,
+            "Or([White, Black]) over {{G/W}}{{G/W}} matches on the White half of each pip"
+        );
+    }
+
+    /// Mint a battlefield creature with an explicit power/toughness — the
+    /// fixture the aggregate-fold (`SumOf` over `StatOf`) test drives.
+    fn creature_with_power(state: &mut GameState, power: deckmaste_core::Int) -> ObjectId {
+        let card = Card::Normal(CardFace {
+            name: "Test Creature".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(deckmaste_core::StatValue::Number(power)),
+            toughness: Some(deckmaste_core::StatValue::Number(power)),
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let obj = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(obj);
+        obj
+    }
+
+    /// `Count::Aggregate(op, Projection)` folds a per-element `Count` over the
+    /// projected set ([CR#107.1]), mirroring `Selection::Pick`'s per-candidate
+    /// `It` binding. Devotion decomposes to `Aggregate(SumOf, Project(<your
+    /// permanents>, CountOf(ManaSymbols(It, CountsAs(Green)))))`
+    /// ([CR#700.5]); `SumOf` over `StatOf(It, Power)` totals power; every
+    /// `AggregateOp` folds the empty set to 0 (never-crash).
+    #[test]
+    fn aggregate_folds_a_projection_over_a_selection() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::Projection;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+        use deckmaste_core::SymbolPred;
+
+        let mut state = game();
+        let _ = permanent_with_cost(&mut state, "{2}{G}");
+        let _ = permanent_with_cost(&mut state, "{G}{G}");
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(src);
+
+        let your_permanents = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+
+        let devotion_green = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(your_permanents)),
+                by: Box::new(Count::CountOf(Countable::ManaSymbols(
+                    Box::new(Reference::It),
+                    SymbolPred::CountsAs(Color::Green),
+                ))),
+            },
+        );
+        assert_eq!(
+            state.eval_count(&devotion_green, &frame),
+            3,
+            "{{2}}{{G}} + {{G}}{{G}} + {{1}} = 3 green pips total"
+        );
+
+        // `SumOf` over `StatOf(It, Power)`: total power of your creatures.
+        let mut power_state = game();
+        let src = permanent_with_cost(&mut power_state, "{1}");
+        let _ = creature_with_power(&mut power_state, 2);
+        let _ = creature_with_power(&mut power_state, 5);
+        let frame = frame_src(src);
+        let total_power = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(Box::new(Predicate::And(vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::creature(),
+                ]))),
+                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            },
+        );
+        assert_eq!(power_state.eval_count(&total_power, &frame), 7);
+
+        // The empty set folds every `AggregateOp` to 0.
+        let empty = Countable::Objects(Box::new(Predicate::Not(Box::new(Predicate::Any))));
+        for op in [
+            AggregateOp::SumOf,
+            AggregateOp::MinOf,
+            AggregateOp::MaxOf,
+            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
+        ] {
+            let empty_fold = Count::Aggregate(
+                op,
+                Projection {
+                    of: empty.clone(),
+                    by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+                },
+            );
+            assert_eq!(
+                power_state.eval_count(&empty_fold, &frame),
+                0,
+                "{op:?} over the empty set is 0"
+            );
+        }
+    }
+
+    /// The cross-player fold ([CR#119.1] Arbiter of Knollridge): `Aggregate`
+    /// over a `Countable::Players` source reads each matching player's
+    /// `PlayerStatOf(It, Life)` and folds per `AggregateOp` — the
+    /// player-sourced twin of `aggregate_folds_a_projection_over_a_selection`'s
+    /// object-sourced coverage above. `MaxOf` reads the higher of the two
+    /// players' life totals ("the highest life total among all players");
+    /// every `AggregateOp` folds an EMPTY player set to 0 (never-crash) —
+    /// exercised on a real `Countable::Players` source, not just the object
+    /// analog, since `Iterator::min`/`max`'s `None` case is the concrete
+    /// panic risk (`.unwrap()` on an empty iterator) the never-crash ruling
+    /// guards against.
+    #[test]
+    fn player_aggregate_folds_life_totals_and_fizzles_to_zero_on_empty() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::ObjectKind;
+        use deckmaste_core::PlayerAttr;
+        use deckmaste_core::Projection;
+
+        let mut state = game();
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(src);
+        state.player_mut(PlayerId(0)).life = 12;
+        state.player_mut(PlayerId(1)).life = 20;
+
+        let all_players = Predicate::Kind(ObjectKind::Player);
+        let highest_life = |op: AggregateOp| {
+            Count::Aggregate(
+                op,
+                Projection {
+                    of: Countable::Players(Box::new(all_players.clone())),
+                    by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                },
+            )
+        };
+        assert_eq!(
+            state.eval_count(&highest_life(AggregateOp::MaxOf), &frame),
+            20,
+            "the highest life total among all players"
+        );
+        assert_eq!(
+            state.eval_count(&highest_life(AggregateOp::MinOf), &frame),
+            12,
+            "the lowest life total among all players"
+        );
+        assert_eq!(
+            state.eval_count(&highest_life(AggregateOp::SumOf), &frame),
+            32,
+            "the total life across all players"
+        );
+
+        // An empty player set (an authoring mistake, but must stay safe on
+        // ANY input, not just the real ≥1-player fixtures) folds every op to
+        // 0 rather than panicking on `Iterator::min`/`max` of an empty set.
+        let no_players = Predicate::Not(Box::new(Predicate::Any));
+        for op in [
+            AggregateOp::SumOf,
+            AggregateOp::MinOf,
+            AggregateOp::MaxOf,
+            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
+        ] {
+            let empty_fold = Count::Aggregate(
+                op,
+                Projection {
+                    of: Countable::Players(Box::new(no_players.clone())),
+                    by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                },
+            );
+            assert_eq!(
+                state.eval_count(&empty_fold, &frame),
+                0,
+                "{op:?} over the empty player set is 0"
+            );
+        }
+    }
+
+    /// The player-scope stat predicate ([CR#119.1]): `CountOf(Players(
+    /// PlayerStatCmp(Life, AtMost, N)))` counts players whose life total is
+    /// at most `N` — "the number of players with 13 or less life". Threshold
+    /// 13 catches only the 10-life player; threshold 5 catches neither;
+    /// threshold 20 catches both. Also exercises the predicate's
+    /// player-proxy-only match: the fixture mints a permanent (`src`) too, so
+    /// a wrongly-matching non-player object would inflate the count.
+    #[test]
+    fn players_countable_counts_by_life_threshold() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::PlayerAttr;
+
+        let mut state = game();
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(src);
+        state.player_mut(PlayerId(0)).life = 20;
+        state.player_mut(PlayerId(1)).life = 10;
+
+        let count_at_most = |threshold| {
+            Count::CountOf(Countable::Players(Box::new(Predicate::PlayerStatCmp(
+                PlayerAttr::Life,
+                Cmp::AtMost,
+                Count::Literal(threshold),
+            ))))
+        };
+
+        assert_eq!(
+            state.eval_count(&count_at_most(13), &frame),
+            1,
+            "only the 10-life player has 13 or less life"
+        );
+        assert_eq!(
+            state.eval_count(&count_at_most(5), &frame),
+            0,
+            "neither player has 5 or less life"
+        );
+        assert_eq!(
+            state.eval_count(&count_at_most(20), &frame),
+            2,
+            "both players have at most 20 life"
+        );
+    }
+
+    /// Devotion end-to-end ([CR#700.5]), the two cases
+    /// `aggregate_folds_a_projection_over_a_selection` doesn't already cover:
+    /// a two-color disjunction (`Or([White, Black])`) summed across SEPARATE
+    /// permanents (not just one object's multiple pips), and an actually
+    /// empty battlefield (no permanents minted at all, not a `Not(Any)`
+    /// filter trick).
+    #[test]
+    fn devotion_sums_a_color_disjunction_across_permanents_and_fizzles_to_zero_on_empty() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::Projection;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+        use deckmaste_core::SymbolPred;
+
+        let your_permanents = || {
+            Predicate::And(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ])
+        };
+        let devotion_wb = |of| {
+            Count::Aggregate(
+                AggregateOp::SumOf,
+                Projection {
+                    of,
+                    by: Box::new(Count::CountOf(Countable::ManaSymbols(
+                        Box::new(Reference::It),
+                        SymbolPred::Or(vec![
+                            SymbolPred::CountsAs(Color::White),
+                            SymbolPred::CountsAs(Color::Black),
+                        ]),
+                    ))),
+                },
+            )
+        };
+
+        // `{W}{B}{W/B}` split across three separate permanents you control =
+        // 1 + 1 + 1 = 3 (the hybrid pip counts toward both W and B devotion,
+        // but only once per object — `Or` matches, it doesn't double-count).
+        let mut state = game();
+        let _ = permanent_with_cost(&mut state, "{W}");
+        let _ = permanent_with_cost(&mut state, "{B}");
+        let src = permanent_with_cost(&mut state, "{W/B}");
+        let frame = frame_src(src);
+        assert_eq!(
+            state.eval_count(
+                &devotion_wb(Countable::Objects(Box::new(your_permanents()))),
+                &frame
+            ),
+            3,
+            "{{W}} + {{B}} + {{W/B}} = 3 devotion to white-and-black"
+        );
+
+        // An empty battlefield — no permanents at all, not an artificial
+        // never-matching filter — folds to 0 (never-crash). `src` itself
+        // lives in hand, so `InZone(Battlefield)` matches nothing.
+        let mut empty_state = game();
+        let card = Card::Normal(CardFace {
+            name: "Test Card".into(),
+            mana_cost: "{1}".parse().unwrap(),
+            types: vec![Type::Artifact.def()],
+            ..CardFace::default()
+        });
+        let cid = empty_state.cards.push(Arc::new(card), PlayerId(0));
+        let src = empty_state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
+        let frame = frame_src(src);
+        assert_eq!(
+            empty_state.eval_count(
+                &devotion_wb(Countable::Objects(Box::new(your_permanents()))),
+                &frame
+            ),
+            0,
+            "no permanents on the battlefield → devotion 0"
+        );
+    }
+
+    /// `StatOf` reads the DERIVED stat (a pump shows through) and the
+    /// printed mana value ([CR#202.3]).
+    #[test]
+    fn stat_of_reads_derived_stats() {
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src_targets(bear, vec![bear]);
+
+        let power = Count::StatOf(Reference::It, deckmaste_core::Stat::Power);
+        assert_eq!(state.eval_count(&power, &frame), 2);
+        assert_eq!(
+            state.eval_count(
+                &Count::StatOf(Reference::This, deckmaste_core::Stat::ManaValue),
+                &frame
+            ),
+            2,
+            "Grizzly Bears costs {{1}}{{G}}"
+        );
+
+        // A +1/+0 continuous effect shows the read rides the layer view.
+        let timestamp = state.objects.next_timestamp();
+        state.continuous.push(crate::layer::ContinuousEffect {
+            timestamp,
+            controller: PlayerId(0),
+            scope: crate::layer::ScopeResolved::Locked(vec![bear]),
+            changes: vec![deckmaste_core::Modification::Power(
+                deckmaste_core::NumericOp::Up(Count::Literal(1)),
+            )],
+            duration: deckmaste_core::Duration::EndOfGame,
+            rows: vec![],
+            origin: None,
+            is_cda: false,
+        });
+        assert_eq!(state.eval_count(&power, &frame), 3);
+    }
+
+    /// "That much" reads the amount the damage instruction fixed: the two
+    /// instructions run through the agenda, the `DamageDealt` apply records
+    /// 3, and the later `GainLife(ThatMuch)` evaluation reads it back.
+    #[test]
+    fn that_much_gains_life_equal_to_damage_dealt() {
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src_targets(bear, vec![bear]);
+        state.run_effect(
+            OneShotEffect::Sequentially(vec![
+                OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
+                OneShotEffect::act_by_you(PlayerAction::GainLife(Count::ThatMuch)),
+            ]),
+            &frame,
+        );
+        // RunEffect(damage) → Emit(DamageDealt) → RunEffect(gain) → Emit(LifeGained).
+        for _ in 0..4 {
+            let _ = state.step();
+        }
+        assert_eq!(state.objects.obj(bear).total_damage(), 3);
+        assert_eq!(state.players[0].life, 23);
+    }
+
+    #[test]
+    fn count_x_reads_announced_value() {
+        let (state, src) = bear_on_field();
+        let frame = Frame {
+            anaphora: Anaphora {
+                x: Some(3),
+                ..Anaphora::empty()
+            },
+            ..Frame::bare(src, PlayerId(0))
+        };
+        assert_eq!(state.eval_count(&Count::X, &frame), 3);
+    }
+
+    /// [CR#607.2,608.2c] a `Count::Noted` read of an ABSENT key is an authoring
+    /// mistake — it fizzles to 0 (engine-stat-none-fizzle), never a panic and
+    /// never a silent-but-plausible value.
+    #[test]
+    fn count_noted_missing_key_fizzles_to_zero() {
+        let (state, a) = bear_on_field();
+        let frame = frame_src(a);
+        assert_eq!(
+            state.eval_count(&Count::Noted(deckmaste_core::Ident::from("absent")), &frame),
+            0
+        );
+    }
+
+    /// [CR#122.1]: `Count::CounterCount(ref, kind)` reads how many `kind`
+    /// counters sit on the resolved object/player proxy; an absent kind is 0.
+    /// Counter kinds are rusty idents (`P1P1Counter`), not symbolic strings.
+    #[test]
+    fn counter_count_reads_the_objects_counter_map() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 3);
+        let frame = frame_src(bear);
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "P1P1Counter".into()),
+                &frame
+            ),
+            3
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "M1M1Counter".into()),
+                &frame
+            ),
+            0,
+            "an absent counter kind reads as zero"
+        );
+    }
+
+    /// [CR#603.10a,702.43a]: when the object a `CounterCount(This, _)` names is
+    /// GONE (a dies trigger — Modular's "for each +1/+1 counter on this
+    /// permanent" resolves after the creature left the battlefield), the count
+    /// comes from the trigger's last-known snapshot, not the stale id. Without
+    /// the LKI bridge `eval_count` would panic dereferencing the dead object.
+    #[test]
+    fn counter_count_reads_lki_when_the_object_is_gone() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 2);
+        // Snapshot the creature, then remove it — `bear` is now a stale id, the
+        // exact state a dies trigger's `This` resolves to ([CR#603.10a]).
+        let snapshot = crate::lki::LkiSnapshot::capture(&state, bear);
+        state.objects.remove(bear);
+        assert!(state.objects.get(bear).is_none(), "the object is gone");
+
+        let frame = Frame {
+            this: Some(snapshot),
+            ..Frame::bare(bear, PlayerId(0))
+        };
+
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "P1P1Counter".into()),
+                &frame
+            ),
+            2,
+            "the dying creature's last-known +1/+1 counter count"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "M1M1Counter".into()),
+                &frame
+            ),
+            0,
+            "an absent kind on the snapshot reads as zero"
+        );
+    }
+
+    /// [CR#209.1,306.5a]: `StatOf(_, Loyalty)` reads the PRINTED loyalty
+    /// characteristic off the card face, NOT the live loyalty-counter count.
+    /// A planeswalker printed at loyalty 4 carrying a single loyalty counter
+    /// reads 4 (printed), never 1 (counters). Current on-battlefield loyalty is
+    /// the separate `CounterCount(This, LoyaltyCounter)` read exercised below.
+    #[test]
+    fn stat_of_loyalty_reads_printed_loyalty() {
+        use deckmaste_core::Stat;
+
+        let (mut state, _bear) = bear_on_field();
+        let card = Card::Normal(CardFace {
+            name: "Test Walker".into(),
+            types: vec![Type::Planeswalker.def()],
+            loyalty: Some(deckmaste_core::StatValue::Number(4)),
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let walker = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(walker);
+        // A single loyalty counter — the printed read must IGNORE it.
+        state
+            .objects
+            .obj_mut(walker)
+            .counters
+            .insert("LoyaltyCounter".into(), 1);
+        let frame = frame_src(walker);
+        assert_eq!(
+            state.eval_count(&Count::StatOf(Reference::This, Stat::Loyalty), &frame),
+            4,
+            "printed loyalty (4), not the loyalty-counter count (1)"
+        );
+    }
+
+    /// [CR#306.5c,122.1e]: CURRENT on-battlefield loyalty IS the loyalty-counter
+    /// count, spelled `CounterCount(This, LoyaltyCounter)` — the companion to
+    /// the printed `StatOf(_, Loyalty)` read above, now that
+    /// `Stat::Loyalty` no longer means the counter count.
+    #[test]
+    fn counter_count_reads_current_loyalty() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("LoyaltyCounter".into(), 4);
+        let frame = frame_src(bear);
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::This), "LoyaltyCounter".into()),
+                &frame
+            ),
+            4,
+            "current loyalty = the live loyalty-counter count"
+        );
+    }
+
+    /// [CR#109.2]: an activated ability that counts "Goblins you control" — a
+    /// subtype description with no zone qualifier — means Goblin PERMANENTS on
+    /// the battlefield. The canonical (`Permanent`-scoped) filter counts
+    /// exactly the battlefield Goblins; the bare-subtype filter (no zone
+    /// scope) ALSO matches the ability's own freshly-minted on-stack
+    /// identity — which reuses the source's card id — so it over-counts by
+    /// one. With three controlled Goblins (incl. the source) Krenko makes 3
+    /// tokens, not 4. This pins the engine semantics the parser fix relies
+    /// on (see `parsers::filter::head_noun`'s `Permanent` scope).
+    #[test]
+    fn count_you_control_excludes_the_activations_own_stack_copy() {
+        // A Goblin permanent on the battlefield, player 0.
+        fn goblin(state: &mut GameState, name: &str) -> ObjectId {
+            mint_on_field(
+                state,
+                Card::Normal(CardFace {
+                    name: name.into(),
+                    types: vec![Type::Creature.def()],
+                    subtypes: vec![subtype("Goblin")],
+                    power: Some(deckmaste_core::StatValue::Number(1)),
+                    toughness: Some(deckmaste_core::StatValue::Number(1)),
+                    ..CardFace::default()
+                }),
+            )
+        }
+
+        // Builds the Krenko scenario fresh (three controlled Goblins, incl. the
+        // source, plus the activation's own Stack-zone copy of the source),
+        // runs `Create(CountOf(filter), 1/1 Goblin)` once, and returns how many
+        // tokens entered. A fresh state per call keeps the two filters'
+        // token batches from feeding each other's count. `filter` is parsed
+        // (and its `Permanent` macro expanded) through the live plugin macros.
+        fn tokens_made(filter: &str) -> usize {
+            let mut state = game();
+            let source = goblin(&mut state, "Krenko, Mob Boss");
+            let _g2 = goblin(&mut state, "Goblin Two");
+            let _g3 = goblin(&mut state, "Goblin Three");
+
+            // The activation mints a Stack-zone identity that REUSES the
+            // source's card id ([CR#602.2a]) — the LKI copy that drives the
+            // over-count. `eval_count` enumerates every object in the store, so
+            // minting it into the Stack zone is enough for the unzoned filter to
+            // reach it.
+            let src_card = state.objects.obj(source).card_id().unwrap();
+            let _stack_copy =
+                state
+                    .objects
+                    .mint(ObjectSource::Card(src_card), PlayerId(0), Some(Zone::Stack));
+
+            let parsed: Predicate = builtin().macros.read_str(filter).unwrap();
+            let frame = frame_src(source);
+            let before = state.zones.battlefield.len();
+            state.run_effect(
+                OneShotEffect::act_by_you(PlayerAction::Create(
+                    Count::CountOf(Countable::Objects(Box::new(parsed))),
+                    deckmaste_core::Token {
+                        color_indicator: vec![],
+                        supertypes: vec![],
+                        types: vec![Type::Creature.def()],
+                        subtypes: vec![subtype("Goblin")],
+                        abilities: vec![],
+                        power: Some(deckmaste_core::StatValue::Number(1)),
+                        toughness: Some(deckmaste_core::StatValue::Number(1)),
+                    }
+                    .into(),
+                    vec![],
+                )),
+                &frame,
+            );
+            // Drain the queued work (the TokenCreated batch + per-token enters).
+            while let StepOutcome::Progress(_) = state.step() {}
+            state.zones.battlefield.len() - before
+        }
+
+        // Bare subtype (the pre-fix parser output): the Stack-zone copy is a
+        // Goblin you control too, so it over-counts → 4.
+        assert_eq!(
+            tokens_made("And([Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            4,
+            "the unzoned filter wrongly counts the on-stack copy"
+        );
+
+        // The canonical battlefield-scoped filter (the post-fix parser output):
+        // the Stack-zone copy is excluded → exactly the three battlefield
+        // Goblins.
+        assert_eq!(
+            tokens_made("And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            3,
+            "[CR#109.2]: the Permanent scope counts only battlefield Goblins"
+        );
+    }
+
+    /// `Count::EventCount` is the count-valued twin of `Condition::Happened`:
+    /// it scans the history log within the given window and returns how many
+    /// facts match the `Event` pattern via `event_matches` ([CR#608.2i]).
+    /// Two creature-death facts recorded this turn → count == 2; a non-matching
+    /// pattern (zone-enter) or a turn with no facts → count == 0.
+    #[test]
+    fn event_count_counts_matching_history() {
+        use deckmaste_core::EventFilter;
+
+        use crate::lki::LkiSnapshot;
+
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: vec![Arc::clone(&bears); 10],
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        });
+        state.turn.turn_number = 1;
+
+        // Build two creature-death GameEvents (same shape as the morbid test).
+        let first_bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let first_bear = state.objects.mint(
+            ObjectSource::Card(first_bear_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(first_bear);
+        let death1 = GameEvent::ZoneChanged {
+            snapshot: LkiSnapshot::capture(&state, first_bear),
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            face: None,
+            cause: None,
+        };
+
+        let second_bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
+        let second_bear = state.objects.mint(
+            ObjectSource::Card(second_bear_card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(second_bear);
+        let death2 = GameEvent::ZoneChanged {
+            snapshot: LkiSnapshot::capture(&state, second_bear),
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            face: None,
+            cause: None,
+        };
+
+        // The creature-death event pattern (same as morbid Condition::Happened).
+        let death_pattern = EventFilter::ZoneChange {
+            what: Predicate::creature(),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        };
+
+        // A non-matching pattern: creatures entering the battlefield.
+        let enter_pattern = EventFilter::ZoneChange {
+            what: Predicate::creature(),
+            from: None,
+            to: Some(Zone::Battlefield),
+            cause: None,
+        };
+
+        let frame = frame_for(&state, PlayerId(0));
+
+        // No deaths recorded yet → 0.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
+                &frame
+            ),
+            0,
+            "no deaths recorded yet"
+        );
+
+        // Record two deaths this turn.
+        state.record_history_fact(1, None, death1);
+        state.record_history_fact(1, None, death2);
+
+        // Both deaths match → 2.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
+                &frame
+            ),
+            2,
+            "two creature deaths this turn"
+        );
+
+        // A non-matching pattern → 0.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(enter_pattern), Lookback::ThisTurn),
+                &frame
+            ),
+            0,
+            "enter pattern does not match death facts"
+        );
+
+        // Advance to turn 2: ThisTurn sees 0, ThisGame sees 2.
+        state.turn.turn_number = 2;
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
+                &frame
+            ),
+            0,
+            "ThisTurn no longer sees last turn's deaths"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::EventCount(Box::new(death_pattern), Lookback::ThisGame),
+                &frame
+            ),
+            2,
+            "ThisGame still sees last turn's deaths"
+        );
+    }
+
+    /// `EventSum` sums the `amount` field of matching `LifeLost` facts within
+    /// the window ([CR#608.2i,119.3]). Two losses of 2 and 3 by the same player
+    /// total 5; a third loss by an opponent does not contribute. After a turn
+    /// advance `ThisTurn` reads 0 while `ThisGame` still reads 5.
+    #[test]
+    fn event_sum_totals_amounts() {
+        use deckmaste_core::EventFilter;
+
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: Vec::new() },
+                PlayerConfig { deck: Vec::new() },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        });
+        state.turn.turn_number = 1;
+
+        let frame = frame_for(&state, PlayerId(0));
+
+        let lose_life_pattern = EventFilter::LifeLost {
+            who: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::You),
+            amount: None,
+        };
+
+        // No facts yet → 0.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
+                &frame
+            ),
+            0,
+            "no life-loss facts yet"
+        );
+
+        // Record two life-loss facts for player 0 (you) and one for player 1
+        // (opponent).
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::LifeLost {
+                player: PlayerId(0),
+                amount: 2,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::LifeLost {
+                player: PlayerId(0),
+                amount: 3,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::LifeLost {
+                player: PlayerId(1),
+                amount: 10,
+            },
+        );
+
+        // Only player 0's losses sum → 5.
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
+                &frame
+            ),
+            5,
+            "two life-loss facts for you: 2 + 3 = 5"
+        );
+
+        // Advance to turn 2: ThisTurn sees 0, ThisGame sees 5.
+        state.turn.turn_number = 2;
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
+                &frame
+            ),
+            0,
+            "ThisTurn no longer sees last turn's life losses"
+        );
+        assert_eq!(
+            state.eval_count(
+                &Count::EventSum(Box::new(lose_life_pattern), Lookback::ThisGame),
+                &frame
+            ),
+            5,
+            "ThisGame still sees 5 total life lost by you"
+        );
+    }
+
+    /// `EventCount(Used(by: This))` is OBJECT-scoped: it resolves `by` to the
+    /// frame's source `ObjectId` and counts that object's `AbilityUsed` facts,
+    /// NOT a watcher-pattern match ([CR#608.2i,603.2]). Two uses by the frame
+    /// object this turn → 2 (a third use by a DIFFERENT object is excluded);
+    /// after a turn advance `ThisTurn` reads 0 while `ThisGame` still reads 2.
+    #[test]
+    fn event_count_used_counts_object_ability_uses() {
+        use deckmaste_core::EventFilter;
+
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: Vec::new() },
+                PlayerConfig { deck: Vec::new() },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        });
+        state.turn.turn_number = 1;
+
+        // The frame's source is `obj`; `Used(by: This)` resolves `This` to it.
+        let obj = ObjectId::from_raw(1);
+        let other = ObjectId::from_raw(2);
+        let frame = frame_src(obj);
+
+        let used = |n| {
+            Count::EventCount(
+                Box::new(EventFilter::Used {
+                    of: Reference::This,
+                }),
+                n,
+            )
+        };
+
+        // No uses recorded yet → 0.
+        assert_eq!(
+            state.eval_count(&used(Lookback::ThisTurn), &frame),
+            0,
+            "no ability uses recorded yet"
+        );
+
+        // Two uses by `obj` this turn, and one by `other`.
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: other,
+                ability: 0,
+            },
+        );
+
+        // Only `obj`'s two uses count (`This` == frame.source == obj).
+        assert_eq!(
+            state.eval_count(&used(Lookback::ThisTurn), &frame),
+            2,
+            "two uses by the frame object; the other object's use is excluded"
+        );
+
+        // Advance to turn 2: ThisTurn sees 0, ThisGame still sees the 2.
+        state.turn.turn_number = 2;
+        assert_eq!(
+            state.eval_count(&used(Lookback::ThisTurn), &frame),
+            0,
+            "ThisTurn no longer sees last turn's uses"
+        );
+        assert_eq!(
+            state.eval_count(&used(Lookback::ThisGame), &frame),
+            2,
+            "ThisGame still sees last turn's two uses"
+        );
+    }
+
+    /// The card-facing payoff: a self-use count drives a branching condition
+    /// (`If(Compare(EventCount(Used(by: This), ThisTurn), Eq, 2), then,
+    /// else)`). The `Compare` is FALSE after one recorded use of the frame
+    /// object and TRUE after the second — the ability's own use-count keys
+    /// the branch ([CR#608.2i]).
+    #[test]
+    fn event_count_self_drives_branching_condition() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::EventFilter;
+
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig { deck: Vec::new() },
+                PlayerConfig { deck: Vec::new() },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        });
+        state.turn.turn_number = 1;
+
+        let obj = ObjectId::from_raw(1);
+        let frame = frame_src(obj);
+
+        // "if this object's abilities have been used exactly twice this turn".
+        let twice = Condition::Compare(
+            Count::EventCount(
+                Box::new(EventFilter::Used {
+                    of: Reference::This,
+                }),
+                Lookback::ThisTurn,
+            ),
+            Cmp::Eq,
+            Count::Literal(2),
+        );
+
+        // One use → not yet two → branch is FALSE.
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        assert!(
+            !state.condition_holds(&twice, &frame),
+            "one self-use does not satisfy `== 2`"
+        );
+
+        // Second use → exactly two → branch is TRUE.
+        state.record_history_fact(
+            1,
+            None,
+            GameEvent::AbilityUsed {
+                object: obj,
+                ability: 0,
+            },
+        );
+        assert!(
+            state.condition_holds(&twice, &frame),
+            "two self-uses satisfy `== 2`"
+        );
+    }
+
+    /// `Count` arithmetic ([CR#107.1]) evaluates structurally — no board
+    /// needed. `Minus` floors at 0 ([CR#107.1b]); `Half` rounds per the mode.
+    #[test]
+    fn count_arithmetic_evaluates() {
+        let state = game();
+        let frame = frame_for(&state, PlayerId(0));
+        let lit = |n| Box::new(Count::Literal(n));
+        let ev = |c: &Count| state.eval_count(c, &frame);
+        assert_eq!(ev(&Count::Plus(lit(2), lit(3))), 5);
+        assert_eq!(ev(&Count::Minus(lit(2), lit(5))), 0, "a count floors at 0");
+        assert_eq!(ev(&Count::Times(lit(2), lit(3))), 6);
+        assert_eq!(ev(&Count::Max(lit(2), lit(3))), 3);
+        assert_eq!(
+            ev(&Count::Half(deckmaste_core::RoundMode::RoundUp, lit(3))),
+            2,
+        );
+        assert_eq!(
+            ev(&Count::Half(deckmaste_core::RoundMode::RoundDown, lit(3))),
+            1,
+        );
+    }
+
+    /// A battlefield-scoped creature filter (canonical card filters carry
+    /// their own zone narrowing) — keeps the deck's hand/library bears out of
+    /// the matched set.
+    fn creatures_in_play() -> Predicate {
+        Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ])
+    }
+
+    /// `CountDistinct` ([CR#107.3]) is the distinct-union size of an axis over
+    /// the matched set: three creatures of powers 2/2/3 give two distinct
+    /// powers (Coven), and three distinct toughnesses 2/4/3.
+    #[test]
+    fn count_distinct_over_creatures() {
+        let (state, _) = battlefield_with(&["Grizzly Bears", "Giant Spider", "Centaur Courser"]);
+        let frame = frame_for(&state, PlayerId(0));
+        let powers = Count::CountDistinct(
+            deckmaste_core::Characteristic::Power,
+            Countable::Objects(Box::new(creatures_in_play())),
+        );
+        assert_eq!(
+            state.eval_count(&powers, &frame),
+            2,
+            "distinct powers {{2,3}}"
+        );
+        let toughnesses = Count::CountDistinct(
+            deckmaste_core::Characteristic::Toughness,
+            Countable::Objects(Box::new(creatures_in_play())),
+        );
+        assert_eq!(
+            state.eval_count(&toughnesses, &frame),
+            3,
+            "distinct toughnesses {{2,4,3}}",
+        );
+    }
+
+    /// `Selection::Pick` ([CR#107.1]) takes the extremal element: the creature
+    /// with the greatest power is the 3/3 Centaur Courser; the least-power pick
+    /// is the whole tied 2-power group.
+    #[test]
+    fn pick_extremal_creature_by_power() {
+        let (state, ids) = battlefield_with(&["Grizzly Bears", "Giant Spider", "Centaur Courser"]);
+        let courser = ids[2];
+        let frame = frame_for(&state, PlayerId(0));
+        let greatest = Selection::Pick {
+            op: deckmaste_core::AggregateOp::MaxOf,
+            proj: deckmaste_core::Projection {
+                of: deckmaste_core::Countable::Objects(Box::new(creatures_in_play())),
+                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            },
+        };
+        assert_eq!(
+            state.eval_selection_set(&greatest, &frame),
+            vec![courser],
+            "Centaur Courser (3 power) is the unique greatest",
+        );
+        let least = Selection::Pick {
+            op: deckmaste_core::AggregateOp::MinOf,
+            proj: deckmaste_core::Projection {
+                of: deckmaste_core::Countable::Objects(Box::new(creatures_in_play())),
+                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+            },
+        };
+        let picked = state.eval_selection_set(&least, &frame);
+        assert_eq!(picked.len(), 2, "the two 2-power creatures tie for least");
+        assert!(
+            !picked.contains(&courser),
+            "the 3-power creature is not least"
+        );
+    }
+}

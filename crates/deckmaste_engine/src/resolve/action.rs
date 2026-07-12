@@ -496,3 +496,2110 @@ impl GameState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use std::sync::Arc;
+
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::Anchor;
+    use deckmaste_core::Binder;
+    use deckmaste_core::Card;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::Count;
+    use deckmaste_core::Destination;
+    use deckmaste_core::Lookback;
+    use deckmaste_core::Modification;
+    use deckmaste_core::NumericOp;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StatePredicate;
+    use deckmaste_core::StaticEffect;
+    use deckmaste_core::Type;
+    use deckmaste_core::Uint;
+    use deckmaste_core::Zone;
+
+    use crate::Decision;
+    use crate::PendingDecision;
+    use crate::agenda::WorkItem;
+    use crate::event::GameEvent;
+    use crate::event::Occurrence;
+    use crate::matches as obj_matches;
+    use crate::object::ObjectId;
+    use crate::object::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::resolve::fixtures::*;
+    use crate::stack::StackEntry;
+    use crate::stack::StackObject;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+    use crate::step::Progress;
+    use crate::step::StepOutcome;
+    use crate::test_support::frame_for;
+    use crate::test_support::frame_src;
+    use crate::test_support::frame_src_targets;
+    use crate::trigger::TriggerBindings;
+
+    /// A two-player game with player 0's deck = Darksteel Myr (an
+    /// indestructible 0/1), one forced onto the battlefield.
+    fn myr_on_field() -> (GameState, ObjectId) {
+        let myr = Arc::new(canon().card("Darksteel Myr").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&myr, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        });
+        let m = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a Darksteel Myr in the opening hand");
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
+        state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
+        state.zones.battlefield.push(m);
+        (state, m)
+    }
+
+    /// Mint (on the battlefield, player 0) an Equipment-shaped artifact
+    /// carrying the default-deny `Innate(May(Attach(what: Ref(This), to:
+    /// Creature)))` grant — an attachment that may legally attach to a
+    /// creature host.
+    fn may_attach_creature_equipment(state: &mut GameState) -> ObjectId {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::StaticEffect;
+        let card = Card::Normal(CardFace {
+            name: "Test Equipment".into(),
+            types: vec![Type::Artifact.def()],
+            abilities: vec![Ability::Innate(Box::new(Ability::Static(
+                StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+                    what: Predicate::Ref(Reference::This),
+                    to: Predicate::creature(),
+                })),
+            )))],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// Drives the agenda forward a bounded number of steps — assert on the
+    /// post-condition, not the iteration count. A pending decision stops it.
+    fn drain(state: &mut GameState) {
+        for _ in 0..30 {
+            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
+                break;
+            }
+        }
+    }
+
+    /// [CR#701.3a]: `Attach` sets the attachment→host relation and records the
+    /// `Attached` fact. Under default-deny the attachment carries a
+    /// `May(Attach to: Creature)` grant so the (creature) host is legal.
+    #[test]
+    fn attach_sets_the_relation_and_emits_attached() {
+        let (mut state, _bear, b) = two_permanents_on_field();
+        // `b` is a creature (Grizzly Bears); mint a granted attachment for `a`.
+        let a = may_attach_creature_equipment(&mut state);
+        let frame = frame_src_targets(a, vec![b]);
+        state.run_effect(
+            OneShotEffect::Act(Action::Attach {
+                what: Reference::This,
+                to: Reference::It,
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(a).attached_to,
+            Some(b),
+            "a is attached to b"
+        );
+        assert!(
+            logged(
+                &state,
+                |e| matches!(e, GameEvent::Attached { attachment, host }
+                if *attachment == a && *host == b)
+            ),
+            "Attached fact recorded"
+        );
+    }
+
+    /// [CR#701.3a]: attaching to the host it is already on is a no-op — no
+    /// second `Attached` fact (transition-only, [CR#603.2e]).
+    #[test]
+    fn attach_to_current_host_is_a_noop() {
+        let (mut state, _bear, b) = two_permanents_on_field();
+        // Under default-deny the attachment needs a `May(Attach to: Creature)`
+        // grant, or the drain's SBA sweep would unattach it from the (creature)
+        // host `b` before the re-attach no-op is even observed.
+        let a = may_attach_creature_equipment(&mut state);
+        state.objects.obj_mut(a).attached_to = Some(b);
+        let frame = frame_src_targets(a, vec![b]);
+        state.run_effect(
+            OneShotEffect::Act(Action::Attach {
+                what: Reference::This,
+                to: Reference::It,
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(state.objects.obj(a).attached_to, Some(b));
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            "no Attached fact for a re-attach to the current host"
+        );
+    }
+
+    /// [CR#303.4d]: an attachment can't be attached to itself — a no-op.
+    #[test]
+    fn attach_to_self_is_a_noop() {
+        let (mut state, a, _b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![a]);
+        state.run_effect(
+            OneShotEffect::Act(Action::Attach {
+                what: Reference::This,
+                to: Reference::It,
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(state.objects.obj(a).attached_to, None, "host == what no-op");
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            "no Attached fact for a self-attach"
+        );
+    }
+
+    /// [CR#701.3b]: `Attach` no-ops on an illegal host — under default-deny the
+    /// attachment carries a conferred `Innate(May(Attach(what: Ref(This), to:
+    /// Creature)))` grant (the Equipment-subtype shape), and the host is a
+    /// non-creature, so no grant covers the pair: the link stays `None` and no
+    /// `Attached` fact is recorded.
+    #[test]
+    fn attach_illegal_noop() {
+        use deckmaste_core::CardFace;
+
+        let mut state = game();
+        // The attachment: an Equipment-shaped artifact whose May(Attach) grant
+        // only covers creature hosts (mirrors the Equipment subtype confer).
+        let equip = may_attach_creature_equipment(&mut state);
+
+        // The host: a non-creature artifact "Rock".
+        let rock_card = Card::Normal(CardFace {
+            name: "Rock".into(),
+            types: vec![Type::Artifact.def()],
+            ..CardFace::default()
+        });
+        let rock_id = state.cards.push(Arc::new(rock_card), PlayerId(0));
+        let rock = state.objects.mint(
+            ObjectSource::Card(rock_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(rock);
+
+        let frame = frame_src_targets(equip, vec![rock]);
+        state.run_effect(
+            OneShotEffect::Act(Action::Attach {
+                what: Reference::This,
+                to: Reference::It,
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(equip).attached_to,
+            None,
+            "illegal attach no-ops ([CR#701.3b])"
+        );
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            "no Attached fact for an illegal host"
+        );
+    }
+
+    /// [CR#701.3d]: `Unattach` clears the relation and records the `Unattached`
+    /// fact carrying the former host.
+    #[test]
+    fn unattach_clears_the_relation_and_emits_unattached() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.objects.obj_mut(a).attached_to = Some(b);
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::Unattach(Reference::This)),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(a).attached_to,
+            None,
+            "a is now unattached"
+        );
+        assert!(
+            logged(
+                &state,
+                |e| matches!(e, GameEvent::Unattached { attachment, former_host }
+                if *attachment == a && *former_host == b)
+            ),
+            "Unattached fact records the former host"
+        );
+    }
+
+    /// [CR#701.3d]: unattaching an attachment that isn't attached is a no-op —
+    /// no `Unattached` fact (transition-only, [CR#603.2e]).
+    #[test]
+    fn unattach_of_an_unattached_object_is_a_noop() {
+        let (mut state, a, _b) = two_permanents_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::Unattach(Reference::This)),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(state.objects.obj(a).attached_to, None);
+        assert!(
+            !logged(&state, |e| matches!(e, GameEvent::Unattached { .. })),
+            "no Unattached fact for an already-unattached object"
+        );
+    }
+
+    /// A `Random` group bound into the frame drives a verb with NO surfaced
+    /// decision: `Each(Random(Exactly 1, creature), Destroy(It))`
+    /// over a frame whose `chosen` holds the RNG's pick destroys exactly that
+    /// one creature. (Verbs take a single `Reference`, so plurality/choice is
+    /// the enclosing `Each`; the `Random` inline-RNG resolution is a dormant
+    /// seam that reads `frame.anaphora.chosen` — [CR#608.2d].)
+    #[test]
+    fn destroy_random_destroys_one_without_a_decision() {
+        use deckmaste_core::Each;
+        use deckmaste_core::Quantity;
+
+        use crate::step::StepOutcome;
+
+        let (mut state, bear) = bear_on_field();
+        let theirs = second_bear_to_player_1(&mut state);
+
+        let creatures = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ]);
+        // The RNG's pick is bound into the frame before the group is read.
+        let mut frame = frame_src(bear);
+        frame.anaphora.chosen = Some(vec![theirs]);
+        let before = [bear, theirs]
+            .iter()
+            .filter(|o| state.zones.battlefield.contains(o))
+            .count();
+        assert_eq!(before, 2);
+
+        state.run_effect(
+            OneShotEffect::Each(Each {
+                binder: Binder::Existing(Selection::Random(Quantity::one(), creatures)),
+                effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+            }),
+            &frame,
+        );
+        // No decision: the Random group is already bound in the frame.
+        assert!(
+            !matches!(state.step(), StepOutcome::NeedsDecision(_)),
+            "a bound Random group surfaces no decision"
+        );
+        // Pump the agenda to completion (bounded safety cap; assert on the
+        // post-condition, not the iteration count).
+        for _ in 0..30 {
+            let alive = [bear, theirs]
+                .iter()
+                .filter(|o| state.zones.battlefield.contains(o))
+                .count();
+            if alive == 1 {
+                break;
+            }
+            let _ = state.step();
+        }
+        let alive = [bear, theirs]
+            .iter()
+            .filter(|o| state.zones.battlefield.contains(o))
+            .count();
+        assert_eq!(alive, 1, "exactly one creature destroyed (the bound pick)");
+    }
+
+    /// `With(ChooseOne(creature), Destroy(That))` surfaces `ChooseObjects`; an
+    /// out-of-range count and an out-of-pool object are rejected; a legal pick
+    /// destroys exactly that creature ([CR#608.2d]). Choosing is a pre-step
+    /// (`With`) bound as `That`, never part of the verb.
+    #[test]
+    fn destroy_choose_surfaces_decision_validates_and_destroys() {
+        use deckmaste_core::Binder;
+        use deckmaste_core::With;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, bear) = bear_on_field();
+        let theirs = second_bear_to_player_1(&mut state);
+
+        let creatures = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ]);
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::ChooseOne {
+                    filter: creatures,
+                    by: Reference::You,
+                },
+                body: Box::new(OneShotEffect::Act(Action::Destroy(Reference::That(
+                    deckmaste_core::Sort::Permanent,
+                )))),
+            }),
+            &frame,
+        );
+
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects {
+            player,
+            candidates,
+            min,
+            max,
+        }) = state.step()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(player, PlayerId(0));
+        assert_eq!((min, max), (1, 1));
+        assert_eq!(
+            candidates.len(),
+            2,
+            "both battlefield creatures are candidates"
+        );
+
+        // Too many (count 2 > max 1).
+        assert!(
+            state
+                .submit_decision(Decision::Chosen(candidates.clone()))
+                .is_err(),
+            "count must be within [min, max]"
+        );
+        // Out of pool (a player proxy is not a creature).
+        assert!(
+            state
+                .submit_decision(Decision::Chosen(vec![state.player(PlayerId(0)).object]))
+                .is_err(),
+            "every chosen object must be a candidate"
+        );
+
+        // Legal: destroy player 1's creature.
+        state
+            .submit_decision(Decision::Chosen(vec![theirs]))
+            .unwrap();
+        // Pump the agenda to completion (bounded safety cap; we assert on the
+        // post-condition, not the iteration count).
+        for _ in 0..30 {
+            if !state.zones.battlefield.contains(&theirs) {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert!(
+            !state.zones.battlefield.contains(&theirs),
+            "the chosen creature is destroyed"
+        );
+        assert!(
+            state.zones.battlefield.contains(&bear),
+            "the unchosen creature survives"
+        );
+    }
+
+    /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
+    /// `Destroy` action's `WillDestroy` intent is suppressed by the
+    /// event-side cant pass ([CR#614.17]) in `apply_occurrence`, so the
+    /// Myr stays on the battlefield.
+    #[test]
+    fn indestructible_survives_destroy_action() {
+        let (mut state, myr) = myr_on_field();
+        let frame = frame_src(myr);
+        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
+        // WillDestroy applies and schedules no zone move (replaced to nothing).
+        let _ = state.step();
+        assert!(
+            state.objects.get(myr).is_some(),
+            "indestructible object still exists"
+        );
+        assert!(
+            state.zones.battlefield.contains(&myr),
+            "still on the battlefield"
+        );
+        assert!(state.zones.graveyards[0].is_empty(), "not destroyed");
+    }
+
+    /// A destructible creature still dies: `Destroy` → `WillDestroy` (nothing
+    /// replaces it) → `ZoneWillChange(Battlefield → Graveyard)` →
+    /// `ZoneChanged`, reminting it into its owner's graveyard.
+    #[test]
+    fn destroy_action_sends_a_normal_creature_to_its_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
+        // WillDestroy → ZoneWillChange → ZoneChanged.
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(state.zones.graveyards[0].len(), 1);
+    }
+
+    /// [CR#400.7]: `Move(This, Graveyard)` is a PLAIN relocation — no
+    /// `WillDestroy` intent, so it's a direct `ZoneWillChange(Battlefield →
+    /// Graveyard)` → `ZoneChanged`, reminting the object into its OWNER's
+    /// graveyard. (Indestructible would not save it — but a plain Grizzly Bears
+    /// exercises the move path.)
+    #[test]
+    fn move_sends_this_to_owner_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::Act(Action::move_to(Reference::This, Zone::Graveyard)),
+            &frame,
+        );
+        // ZoneWillChange → ZoneChanged (one fewer step than Destroy — no
+        // WillDestroy replace stage).
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            1,
+            "moved into owner's graveyard"
+        );
+    }
+
+    #[test]
+    fn action_items_for_tap_draw_loselife() {
+        let (state, src) = bear_on_field();
+        let frame = frame_src(src);
+
+        // By(You, Tap(This)) -> one Single(Tapped(src)) carrying the
+        // effect-instruction cause triple (events.md §3).
+        let items = state.action_items(&Action::by_you(PlayerAction::Tap(Reference::This)), &frame);
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped {
+                object: src,
+                cause: Some(crate::event::Cause {
+                    verb: "Tap".into(),
+                    agency: deckmaste_core::Agency::EffectInstruction,
+                    agent: Some((src, PlayerId(0))),
+                }),
+            }))]
+        );
+
+        // By(You, Draw(2)) -> two sequential Single(WillDraw) for the controller
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Draw(Count::Literal(2))),
+            &frame,
+        );
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().all(|item| matches!(
+            item,
+            WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
+                player: PlayerId(0),
+                ..
+            }))
+        )));
+
+        // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3})
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::LoseLife(Count::Literal(3))),
+            &frame,
+        );
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
+                player: PlayerId(0),
+                amount: 3,
+            }))]
+        );
+    }
+
+    /// [CR#701.26a]: only an untapped permanent can be tapped — a tap
+    /// instruction on an already-tapped object is a no-op, and a no-op is
+    /// no event ([CR#603.2e] "becomes tapped" fires on the transition only).
+    #[test]
+    fn tap_effect_skips_already_tapped() {
+        let (mut state, src) = bear_on_field();
+        state.objects.obj_mut(src).tapped = true;
+        let frame = frame_src(src);
+        let items = state.action_items(&Action::by_you(PlayerAction::Tap(Reference::This)), &frame);
+        assert_eq!(
+            items,
+            vec![],
+            "tapping an already-tapped object emits nothing"
+        );
+    }
+
+    /// [CR#701.26b]: the untap mirror — untapping an untapped object is a
+    /// no-op, no event.
+    #[test]
+    fn untap_effect_skips_already_untapped() {
+        let (state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Untap(Reference::This)),
+            &frame,
+        );
+        assert_eq!(
+            items,
+            vec![],
+            "untapping an already-untapped object emits nothing"
+        );
+    }
+
+    /// An explicit agent: `By(Target(0), Draw(2))` draws for the targeted
+    /// player, not the controller. Targets player 1's proxy.
+    #[test]
+    fn action_items_explicit_agent_draws_for_target() {
+        let (state, src) = bear_on_field();
+        let p1_proxy = state.players[1].object;
+        let frame = frame_src_targets(src, vec![p1_proxy]);
+        let items = state.action_items(
+            &Action::By(Reference::It, PlayerAction::Draw(Count::Literal(2))),
+            &frame,
+        );
+        assert_eq!(items.len(), 2);
+        assert!(items.iter().all(|item| matches!(
+            item,
+            WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
+                player: PlayerId(1),
+                ..
+            }))
+        )));
+    }
+
+    /// The Blood-Money shape ([CR#607.2a] fact-backed product groups): a
+    /// `Noting`-wrapped destroy-all over three creatures, one of which
+    /// can't be destroyed — "destroyed this way" is exactly the clause's
+    /// enacted destroy-caused `ZoneChanged` facts, so the survivor is
+    /// excluded BY CONSTRUCTION (its `WillDestroy` was canted; no move
+    /// fact exists), and the two dies-facts share one history batch id
+    /// ([CR#603.3b]).
+    #[test]
+    fn destroyed_this_way_product_group_excludes_indestructible_survivor() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // The indestructible shape ([CR#702.12b] — destruction can't
+        // happen), as the canted static.
+        let survivor = {
+            let source = "Normal(name: \"Darksteel Test\", types: [Creature], abilities: [\
+                 Static(CantHappen(ZoneChange(what: Ref(This), \
+                 from: Battlefield, to: Graveyard)))])";
+            let card = builtin()
+                .macros
+                .read_str::<deckmaste_core::Card>(source)
+                .unwrap();
+            mint_on_field(&mut state, card)
+        };
+
+        let effect = OneShotEffect::Noting(deckmaste_core::Noting {
+            key: "destroyed".into(),
+            effect: Box::new(OneShotEffect::Each(deckmaste_core::Each {
+                binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Predicate::And(
+                    vec![
+                        Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::creature(),
+                    ],
+                ))),
+                effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+            })),
+        });
+        let frame = frame_src(a);
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+
+        assert!(
+            state.objects.get(survivor).is_some()
+                && state.objects.obj(survivor).zone == Some(Zone::Battlefield),
+            "the can't-be-destroyed creature survived"
+        );
+        let group = &state.noted[&deckmaste_core::Ident::from("destroyed")];
+        assert_eq!(
+            group.len(),
+            2,
+            "the product group is the ENACTED destroy facts, not the gathered set"
+        );
+        let members: Vec<ObjectId> = group.iter().map(|m| m.snapshot.object).collect();
+        assert!(
+            members.contains(&a) && members.contains(&b),
+            "exactly the two destroyed creatures, by LKI"
+        );
+        // The dies-facts committed as ONE batch ([CR#603.3b]).
+        let ids: Vec<Option<deckmaste_core::Uint>> = state
+            .history
+            .entries()
+            .filter(|e| matches!(e.fact, GameEvent::ZoneChanged { .. }))
+            .map(|e| e.batch)
+            .collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids[0].is_some() && ids[0] == ids[1], "one shared batch id");
+    }
+
+    /// "Cards milled this way" ([CR#701.17a,701.17c,607.2a]): a
+    /// `Noting`-wrapped mill commits the three moves as ONE cause-carried
+    /// batch, populates the product group from the enacted facts, and a
+    /// following clause ACTS on the group through `AmongNoted` — exiling
+    /// exactly the milled cards.
+    #[test]
+    fn cards_milled_this_way_reads_the_enacted_product_group() {
+        let (mut state, a) = bear_on_field();
+        let libsize = state.zones.libraries[0].len();
+        assert!(libsize >= 3, "the harness deck has cards to mill");
+
+        let effect = OneShotEffect::Sequentially(vec![
+            OneShotEffect::Noting(deckmaste_core::Noting {
+                key: "milled".into(),
+                effect: Box::new(OneShotEffect::act_by_you(PlayerAction::Mill(
+                    Count::Literal(3),
+                ))),
+            }),
+            OneShotEffect::Each(deckmaste_core::Each {
+                binder: deckmaste_core::Binder::Existing(Selection::AmongNoted(
+                    "milled".into(),
+                    deckmaste_core::Quantity::Range(None, None),
+                )),
+                effect: Box::new(OneShotEffect::Act(Action::Move(
+                    Reference::It,
+                    deckmaste_core::Destination::Zone(Zone::Exile),
+                    vec![],
+                ))),
+            }),
+        ]);
+        let frame = frame_src(a);
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+
+        let group = &state.noted[&deckmaste_core::Ident::from("milled")];
+        assert_eq!(group.len(), 3, "three enacted mill facts");
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::ZoneChanged { cause: Some(c), to: Zone::Graveyard, .. }
+                    if c.verb.as_str() == "Mill"
+            )),
+            "the moves carry the Mill cause ([CR#701.17a])"
+        );
+        assert_eq!(
+            state.zones.libraries[0].len(),
+            libsize - 3,
+            "three cards left the library"
+        );
+        assert_eq!(
+            state.zones.exile.len(),
+            3,
+            "the follow-on clause exiled exactly the cards milled this way"
+        );
+        assert!(
+            state.zones.graveyards[0].is_empty(),
+            "the milled cards moved on from the graveyard"
+        );
+    }
+
+    // --- P0.W5 resolution note slots ([CR#608.2c,607.2]) --------------------
+
+    /// [CR#120.1,701.14a]: `DealDamage`'s explicit `source` is the dealer — the
+    /// emitted `DamageDealt` carries it, NOT `frame.source`. The fight shape:
+    /// `b` (the "second" slot) deals damage equal to its power to `a` (the
+    /// "first" slot), with the frame source set to `a`.
+    #[test]
+    fn deal_damage_uses_explicit_source_not_frame_source() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            OneShotEffect::Act(Action::DealDamage(
+                Reference::Target(1),
+                Count::StatOf(Reference::Target(1), deckmaste_core::Stat::Power),
+                Reference::Target(0),
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(a).total_damage(),
+            2,
+            "a took b's power (2) in damage"
+        );
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::DamageDealt { source, target, amount, .. }
+                    if *source == b && *target == a && *amount == 2
+            )),
+            "DamageDealt carries the explicit source b, not frame.source a"
+        );
+    }
+
+    /// `By(You, GainLife(3))` → one `LifeGained`; `By(You, Untap(This))` → one
+    /// `Untapped` — the mirrors of `LoseLife`/`Tap` above. The bear is tapped
+    /// first: untapping is transition-only ([CR#701.26b]).
+    #[test]
+    fn action_items_for_gainlife_untap() {
+        let (mut state, src) = bear_on_field();
+        state.objects.obj_mut(src).tapped = true;
+        let frame = frame_src(src);
+
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::GainLife(Count::Literal(3))),
+            &frame,
+        );
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained {
+                player: PlayerId(0),
+                amount: 3,
+            }))]
+        );
+
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::Untap(Reference::This)),
+            &frame,
+        );
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Untapped(src)))]
+        );
+    }
+
+    /// [CR#122.1]: `PutCounters(This, P1P1Counter, 2)` emits one `CounterPlaced`
+    /// per selected object, carrying the effect-instruction cause
+    /// (events.md §3) — its agent is the resolving source's controller.
+    /// Counter kinds are bare `CounterRef` idents, not symbolic strings.
+    #[test]
+    fn put_counters_emits_counter_placed() {
+        use deckmaste_core::Agency;
+
+        use crate::event::Cause;
+
+        let (state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::PutCounters(
+                Reference::This,
+                "P1P1Counter".into(),
+                Count::Literal(2),
+            )),
+            &frame,
+        );
+        assert_eq!(
+            items,
+            vec![WorkItem::Emit(Occurrence::Single(
+                GameEvent::CounterPlaced {
+                    object: bear,
+                    kind: "P1P1Counter".into(),
+                    amount: 2,
+                    before: 0,
+                    after: 0,
+                    cause: Some(Cause::put_counters(
+                        Agency::EffectInstruction,
+                        Some((bear, PlayerId(0))),
+                    )),
+                }
+            ))]
+        );
+    }
+
+    /// [CR#122.1]: putting zero counters is a no-op — no event (so no
+    /// "counter is put on" trigger fires for nothing).
+    #[test]
+    fn put_zero_counters_emits_nothing() {
+        let (state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        let items = state.action_items(
+            &Action::by_you(PlayerAction::PutCounters(
+                Reference::This,
+                "P1P1Counter".into(),
+                Count::Literal(0),
+            )),
+            &frame,
+        );
+        assert_eq!(items, vec![]);
+    }
+
+    /// Applying `CounterPlaced` adds to the object's counter map, and a second
+    /// placement of the same kind sums ([CR#122.1] — counters are
+    /// interchangeable).
+    #[test]
+    fn counter_placed_apply_is_additive() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 1);
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                Reference::This,
+                "P1P1Counter".into(),
+                Count::Literal(2),
+            )),
+            &frame,
+        );
+        let _ = state.step(); // applies CounterPlaced
+        assert_eq!(
+            state
+                .objects
+                .obj(bear)
+                .counters
+                .get(&deckmaste_core::Ident::from("P1P1Counter"))
+                .copied(),
+            Some(3)
+        );
+    }
+
+    /// [CR#107.14,122.1]: "you get {E}{E}" is `PutCounters(You, Energy, N)` —
+    /// a player-borne counter placement ([CR#122.1] — a counter is a marker on
+    /// an object OR player). `Reference::You` resolves to the controller's
+    /// proxy object, so the same apply path lands the energy on the PLAYER
+    /// (energy sits on the player, [CR#107.14]), and a second gain sums
+    /// ([CR#122.1] — counters are interchangeable).
+    #[test]
+    fn get_energy_adds_counters_to_the_player_proxy() {
+        let (mut state, bear) = bear_on_field();
+        let proxy = state.player(PlayerId(0)).object;
+        let frame = frame_src(bear); // controller is player 0, so `You` = P0's proxy
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                Reference::You,
+                "Energy".into(),
+                Count::Literal(2),
+            )),
+            &frame,
+        );
+        let _ = state.step(); // applies CounterPlaced onto the player proxy
+        assert_eq!(
+            state
+                .objects
+                .obj(proxy)
+                .counters
+                .get(&deckmaste_core::Ident::from("Energy"))
+                .copied(),
+            Some(2),
+            "you get {{E}}{{E}} places two energy on the player's proxy"
+        );
+
+        // A second "get {E}" sums with the first.
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                Reference::You,
+                "Energy".into(),
+                Count::Literal(1),
+            )),
+            &frame,
+        );
+        let _ = state.step();
+        assert_eq!(
+            state
+                .objects
+                .obj(proxy)
+                .counters
+                .get(&deckmaste_core::Ident::from("Energy"))
+                .copied(),
+            Some(3),
+            "energy gains accumulate on the player [CR#122.1]"
+        );
+
+        // And `Count::CounterCount(You, Energy)` reads it back — "if you have
+        // N energy" ([CR#107.14]).
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Box::new(Reference::You), "Energy".into()),
+                &frame
+            ),
+            3,
+            "CounterCount(You, Energy) reads the player's energy total"
+        );
+    }
+
+    /// Removing more counters than present clamps to zero and DROPS the key,
+    /// so `HasCounter` and the layer-7c P/T read both see absence ([CR#122.1]).
+    #[test]
+    fn counter_removed_clamps_and_drops_key() {
+        let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 1);
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::RemoveCounters(
+                Reference::This,
+                "P1P1Counter".into(),
+                Count::Literal(2),
+            )),
+            &frame,
+        );
+        let _ = state.step(); // applies CounterRemoved
+        assert!(
+            !state
+                .objects
+                .obj(bear)
+                .counters
+                .contains_key(&deckmaste_core::Ident::from("P1P1Counter")),
+            "a counter kind dropped to zero leaves no key behind"
+        );
+    }
+
+    /// [CR#701.21a]: `Sacrifice(This)` emits the verb fact, which evolves into
+    /// the Battlefield→Graveyard move — old id gone, fresh object in the
+    /// owner's graveyard.
+    #[test]
+    fn sacrifice_this_remints_to_owners_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Sacrifice(Reference::This)),
+            &frame,
+        );
+        // Sacrificed → ZoneWillChange → ZoneChanged.
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(state.zones.graveyards[0].len(), 1);
+        assert_ne!(state.zones.graveyards[0][0], bear, "reminted");
+    }
+
+    /// A sacrifice rides the same death pipeline as a destroy: the sacrificed
+    /// creature's own dies-trigger fires ([CR#603.6c] — the leaving object
+    /// watches its own departure).
+    #[test]
+    fn sacrifice_fires_the_dying_objects_dies_trigger() {
+        let card = Arc::new(canon().card("Footlight Fiend").unwrap());
+        let forest = Arc::new(builtin().card("Forest").unwrap());
+        let mut state = GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+                PlayerConfig {
+                    deck: deck(&forest, 10),
+                },
+            ],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        });
+        let card_id = state.cards.push(card, PlayerId(0));
+        let gob = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(gob);
+
+        let frame = frame_src(gob);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Sacrifice(Reference::This)),
+            &frame,
+        );
+        for _ in 0..10 {
+            if !state.pending_triggers.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert_eq!(
+            state.pending_triggers.len(),
+            1,
+            "the self-dies trigger must be noted"
+        );
+        assert!(state.objects.get(gob).is_none(), "the sacrifice happened");
+    }
+
+    /// [CR#701.13a,406.2]: exile moves an object to the shared exile zone —
+    /// from the battlefield, and (via the graveyard source arm) from a
+    /// graveyard.
+    #[test]
+    fn exile_moves_objects_from_battlefield_and_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Exile),
+                vec![],
+            )),
+            &frame,
+        );
+        // ZoneWillChange → ZoneChanged.
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old id gone");
+        assert_eq!(state.zones.exile.len(), 1);
+        let exiled = state.zones.exile[0];
+        assert_eq!(state.objects.obj(exiled).zone, Some(Zone::Exile));
+
+        // From the graveyard: force a hand card into the graveyard, exile it.
+        let card = *state.zones.hands[0].first().expect("a card in hand");
+        state.zones.hands[0].retain(|&o| o != card);
+        state.objects.obj_mut(card).zone = Some(Zone::Graveyard);
+        state.zones.graveyards[0].push(card);
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Exile),
+                vec![],
+            )),
+            &frame,
+        );
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(card).is_none(), "old graveyard id gone");
+        assert!(state.zones.graveyards[0].is_empty());
+        assert_eq!(state.zones.exile.len(), 2);
+    }
+
+    /// [CR#400.7]: `Move(This, Hand)` moves the source to its owner's hand,
+    /// reminting it — the old id is gone and a fresh object sits in hand
+    /// (the bounce family, subsuming the retired `ReturnToHand` verb). The
+    /// graveyard arm proves the move reads each object's current zone (like
+    /// `Exile`), not a hard-coded battlefield source.
+    #[test]
+    fn return_to_hand_from_battlefield_and_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        let hand_before = state.zones.hands[0].len();
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Zone(Zone::Hand),
+                vec![],
+            )),
+            &frame,
+        );
+        // ZoneWillChange → ZoneChanged.
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old battlefield id gone");
+        assert!(!state.zones.battlefield.contains(&bear));
+        assert_eq!(state.zones.hands[0].len(), hand_before + 1);
+        let returned = *state.zones.hands[0].last().expect("a returned card");
+        assert_eq!(state.objects.obj(returned).zone, Some(Zone::Hand));
+
+        // From the graveyard ([CR#400.7] reads the current zone): force a hand
+        // card into the graveyard, then return it to hand.
+        let card = *state.zones.hands[0].first().expect("a card in hand");
+        state.zones.hands[0].retain(|&o| o != card);
+        state.objects.obj_mut(card).zone = Some(Zone::Graveyard);
+        state.zones.graveyards[0].push(card);
+        let gy_hand_before = state.zones.hands[0].len();
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Zone(Zone::Hand),
+                vec![],
+            )),
+            &frame,
+        );
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(card).is_none(), "old graveyard id gone");
+        assert!(state.zones.graveyards[0].is_empty());
+        assert_eq!(state.zones.hands[0].len(), gy_hand_before + 1);
+    }
+
+    /// [CR#701.6a]: countering a spell removes it from the stack and puts it
+    /// into its owner's graveyard, reminted ([CR#400.7]) and cause-tagged
+    /// "Counter" — the spell never resolves.
+    #[test]
+    fn counter_spell_goes_to_owners_graveyard() {
+        let (mut state, bear) = bear_on_field();
+        // Stand a hand card up as a spell on the stack, owned by player 0.
+        let spell = state.zones.hands[0][0];
+        state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
+        state.objects.obj_mut(spell).zone = Some(Zone::Stack);
+        state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+            copy: false,
+        });
+        let gy_before = state.zones.graveyards[0].len();
+
+        // The source's effect counters that spell (chosen as Target(0)).
+        let frame = frame_src_targets(bear, vec![spell]);
+        state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
+        // ZoneWillChange → ZoneChanged.
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.stack.is_empty(), "spell removed from the stack");
+        assert!(state.objects.get(spell).is_none(), "old stack id gone");
+        assert_eq!(state.zones.graveyards[0].len(), gy_before + 1);
+        let countered = *state.zones.graveyards[0].last().expect("a countered spell");
+        assert_eq!(state.objects.obj(countered).zone, Some(Zone::Graveyard));
+    }
+
+    /// [CR#701.6a]: a spell carrying `Cant(Counter(on: Ref(This)))` ("this
+    /// spell can't be countered") is NOT moved off the stack by a counter
+    /// instruction — the eval hook on the counter-resolution path refuses the
+    /// counter, so the spell stays (to resolve normally); nothing hits the
+    /// graveyard. The mirror of `counter_spell_goes_to_owners_graveyard`.
+    #[test]
+    fn cant_be_countered_spell_survives_counter() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::StaticEffect;
+
+        let (mut state, bear) = bear_on_field();
+        // Mint an instant carrying "this spell can't be countered" and push it
+        // onto the stack, owned/controlled by player 0.
+        let card = Card::Normal(CardFace {
+            name: "Uncounterable".into(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Counter {
+                    by: Predicate::Any,
+                    on: Predicate::Ref(Reference::This),
+                },
+            )))],
+            ..CardFace::default()
+        });
+        let cid = state.cards.push(Arc::new(card), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+            copy: false,
+        });
+        let gy_before = state.zones.graveyards[0].len();
+
+        // The source's effect tries to counter that spell (chosen as Target(0)).
+        let frame = frame_src_targets(bear, vec![spell]);
+        state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
+        // Process the (empty) emit the refused counter scheduled. The refusal
+        // emits no ZoneWillChange, so — unlike the happy path — there is no
+        // follow-up item; step exactly once.
+        let _ = state.step();
+
+        assert!(
+            state.stack.iter().any(|e| e.id == spell),
+            "an uncounterable spell stays on the stack"
+        );
+        assert!(
+            state.objects.get(spell).is_some(),
+            "the spell object is still live (not reminted into a graveyard)"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            gy_before,
+            "nothing was countered into the graveyard"
+        );
+    }
+
+    /// [CR#701.6a]: countering an ability removes it from the stack and it
+    /// ceases (removed from stack and object store; no zone move).
+    #[test]
+    fn counter_ability_ceases() {
+        let (mut state, bear) = bear_on_field();
+        // Mint a token id for the ability.
+        let ability_id = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Stack),
+        );
+        state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
+            id: ability_id,
+            object: StackObject::Triggered {
+                source: ObjectSource::Card(state.objects.obj(bear).card_id().unwrap()),
+                ability: 0,
+                created: None,
+                bindings: TriggerBindings::default(),
+            },
+            controller: PlayerId(0),
+            targets: vec![],
+            x: None,
+            copy: false,
+        });
+
+        // The source's effect counters that ability (chosen as Target(0)).
+        let frame = frame_src_targets(bear, vec![ability_id]);
+        state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
+        // AbilityResolved applies.
+        let _ = state.step();
+
+        assert!(state.stack.is_empty(), "ability removed from the stack");
+        assert!(
+            state.objects.get(ability_id).is_none(),
+            "minted ability id gone"
+        );
+
+        let found = state
+            .history
+            .scan(Lookback::ThisGame, state.turn.turn_number)
+            .any(|e| matches!(e, GameEvent::AbilityCountered { id, .. } if *id == ability_id));
+        assert!(found, "AbilityCountered event must be recorded in history");
+    }
+
+    /// [CR#401.7]: `Move(This, Library(FromTop(0)))` puts the card on top;
+    /// `Library(FromBottom(0))` puts it on the bottom (the placement no
+    /// from-top index could name without the library size).
+    #[test]
+    fn move_to_library_top_and_bottom() {
+        use deckmaste_core::Anchor;
+        use deckmaste_core::Destination;
+
+        let (mut state, bear) = bear_on_field();
+        let bear_card = state.objects.obj(bear).card_id().expect("card-backed");
+        let lib_before = state.zones.libraries[0].len();
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Library(Anchor::FromTop(Count::Literal(0))),
+                vec![],
+            )),
+            &frame,
+        );
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert!(state.objects.get(bear).is_none(), "old id gone");
+        assert_eq!(state.zones.libraries[0].len(), lib_before + 1);
+        let top = *state.zones.libraries[0].front().expect("non-empty library");
+        assert_eq!(state.objects.obj(top).card_id(), Some(bear_card));
+        assert_eq!(state.objects.obj(top).zone, Some(Zone::Library));
+
+        // Bottom of library ([CR#401.7]): FromBottom(0) lands at the back.
+        let frame = frame_src(top);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                vec![],
+            )),
+            &frame,
+        );
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+        assert_eq!(state.zones.libraries[0].len(), lib_before + 1);
+        let bottom = *state.zones.libraries[0].back().expect("non-empty library");
+        assert_eq!(state.objects.obj(bottom).card_id(), Some(bear_card));
+    }
+
+    /// [CR#122]: `MoveCounters(AllKinds, from, to)` relocates every counter of
+    /// every kind from the source onto the destination (Fate Transfer / Ozolith
+    /// shape) — the case single-kind remove+put can't reach atomically.
+    #[test]
+    fn move_counters_all_kinds_relocates_every_counter() {
+        use deckmaste_core::CounterSpec;
+        let (mut state, a, b) = two_permanents_on_field();
+        let p1p1: deckmaste_core::Ident = "P1P1Counter".into();
+        let charge: deckmaste_core::Ident = "ChargeCounter".into();
+        state.objects.obj_mut(a).counters.insert(p1p1, 2);
+        state.objects.obj_mut(a).counters.insert(charge, 1);
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            OneShotEffect::Act(Action::MoveCounters(
+                CounterSpec::AllKinds,
+                Reference::Target(0),
+                Reference::Target(1),
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert!(
+            state.objects.obj(a).counters.is_empty(),
+            "source emptied of all counters"
+        );
+        assert_eq!(state.objects.obj(b).counters.get(&p1p1).copied(), Some(2));
+        assert_eq!(state.objects.obj(b).counters.get(&charge).copied(), Some(1));
+    }
+
+    /// [CR#122]: `MoveCounters(Named(kind, n), from, to)` moves up to `n`
+    /// counters of that kind (clamped to what the source holds) — Power Conduit
+    /// / Leech Bonder shape.
+    #[test]
+    fn move_counters_named_moves_up_to_available() {
+        use deckmaste_core::CounterRef;
+        use deckmaste_core::CounterSpec;
+        let (mut state, a, b) = two_permanents_on_field();
+        let p1p1: deckmaste_core::Ident = "P1P1Counter".into();
+        state.objects.obj_mut(a).counters.insert(p1p1, 3);
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            OneShotEffect::Act(Action::MoveCounters(
+                CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(2)),
+                Reference::Target(0),
+                Reference::Target(1),
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(a).counters.get(&p1p1).copied(),
+            Some(1),
+            "2 of 3 moved, 1 remains on source"
+        );
+        assert_eq!(state.objects.obj(b).counters.get(&p1p1).copied(), Some(2));
+    }
+
+    /// A "host gets +n/+n" static targeting this attachment's host
+    /// (`Of(AttachHostOf(This))`) — the equipped/enchanted-creature bonus.
+    fn host_pump(n: u32) -> Ability {
+        Ability::Static(StaticEffect::Modify(
+            Reference::AttachHostOf(Box::new(Reference::This)),
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(Count::Literal(n))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(n))),
+            ]),
+        ))
+    }
+
+    /// A vanilla 2/2 creature on the battlefield.
+    fn vanilla_creature(state: &mut GameState, name: &str) -> ObjectId {
+        mint_on_field(
+            state,
+            Card::Normal(CardFace {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                power: Some(deckmaste_core::StatValue::Number(2)),
+                toughness: Some(deckmaste_core::StatValue::Number(2)),
+                ..CardFace::default()
+            }),
+        )
+    }
+
+    /// [CR#702.6a]: activate the Equipment's equip ability (sorcery speed)
+    /// targeting a creature you control → the host's derived P/T includes the
+    /// Equipment's "+1/+1" bonus (via the `Of(AttachHostOf(This))` path).
+    #[test]
+    fn equip_e2e() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Bear Host");
+        // A real Equipment: the Equipment subtype confer (Innate May(Attach to:
+        // Creature) grant) + the `equip {T}` keyword + "+1/+1 to the equipped
+        // creature".
+        let equipment = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Test Sword".into(),
+                types: vec![Type::Artifact.def()],
+                subtypes: vec![subtype("Equipment")],
+                abilities: vec![keyword("Equip([Tap])"), host_pump(1)],
+                ..CardFace::default()
+            }),
+        );
+        // Base host is 2/2.
+        assert_eq!(state.layers().power(host), Some(2));
+
+        // Drive the equip activated ability: the keyword + host_pump → the
+        // activated ability is at filtered index 0 (no Innate to skew it here,
+        // but resolve via the offered legal action to be faithful).
+        let frame = frame_src_targets(equipment, vec![host]);
+        state.run_effect(
+            OneShotEffect::Act(Action::Attach {
+                what: Reference::This,
+                to: Reference::It,
+            }),
+            &frame,
+        );
+        drain(&mut state);
+
+        assert_eq!(
+            state.objects.obj(equipment).attached_to,
+            Some(host),
+            "equip attached the Equipment to the host ([CR#701.3a])"
+        );
+        assert_eq!(
+            state.layers().power(host),
+            Some(3),
+            "the equipped creature gets +1/+1 (host-targeting static landed)"
+        );
+        assert_eq!(state.layers().toughness(host), Some(3));
+    }
+
+    /// [CR#303.4,704.5m]: a CAST Aura resolves attached to the SPELL'S CHOSEN
+    /// TARGET (the cast-path host wiring), buffs it +2/+2, and is sent to its
+    /// owner's graveyard by the SBA when the host leaves.
+    #[test]
+    fn aura_cast_e2e() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Enchanted Bear");
+        // A real Aura: Enchant(creature) keyword (targeting Spell + May(Attach)
+        // grant + AsEnters) + the Aura subtype's Innate graveyard SBA + "+2/+2".
+        let aura_card = Card::Normal(CardFace {
+            name: "Test Aura".into(),
+            types: vec![Type::Enchantment.def()],
+            subtypes: vec![subtype("Aura")],
+            abilities: vec![keyword("Enchant(Type(\"Creature\"))"), host_pump(2)],
+            ..CardFace::default()
+        });
+        // Stand the Aura up as a spell on the stack, target = the host.
+        let cid = state.cards.push(Arc::new(aura_card), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            paid_costs: Vec::new(),
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![vec![host]],
+            x: None,
+            copy: false,
+        });
+        // Resolve the Aura spell — it enters attached to its chosen target.
+        // (`resolve_object` schedules the entering ZoneMove at the agenda front;
+        // `run_injected` processes just that, without parking priority.)
+        state.resolve_object(spell);
+        run_injected(&mut state);
+
+        let aura = *state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(cid))
+            .expect("the Aura entered the battlefield");
+        assert_eq!(
+            state.objects.obj(aura).attached_to,
+            Some(host),
+            "cast Aura enters attached to its chosen target ([CR#303.4])"
+        );
+        assert_eq!(
+            state.layers().power(host),
+            Some(4),
+            "the enchanted creature gets +2/+2"
+        );
+
+        // Destroy the host (source = host, `This` = the dying creature); the SBA
+        // sweep then sends the now-unattached Aura to the graveyard ([CR#704.5m]).
+        let frame = frame_src(host);
+        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
+        run_injected(&mut state);
+        for e in crate::sba::sweep(&state) {
+            state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
+            run_injected(&mut state);
+        }
+        let aura_gy = *state.zones.graveyards[PlayerId(0).index()]
+            .iter()
+            .find(|&&o| state.objects.obj(o).card_id() == Some(cid))
+            .expect("the orphaned Aura was put into its owner's graveyard ([CR#704.5m])");
+        assert_eq!(state.objects.obj(aura_gy).zone, Some(Zone::Graveyard));
+    }
+
+    /// [CR#704.5n]: when an equipped creature dies, the Equipment becomes
+    /// unattached and STAYS on the battlefield (no graveyard SBA — that's
+    /// Auras).
+    #[test]
+    fn equipment_host_dies_unattaches() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Doomed Bear");
+        let equipment = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Sticky Sword".into(),
+                types: vec![Type::Artifact.def()],
+                subtypes: vec![subtype("Equipment")],
+                abilities: vec![keyword("Equip([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        state.objects.obj_mut(equipment).attached_to = Some(host);
+
+        // Host dies.
+        let frame = frame_src_targets(equipment, vec![host]);
+        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::It)), &frame);
+        drain(&mut state);
+        for e in crate::sba::sweep(&state) {
+            state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
+            drain(&mut state);
+        }
+        assert_eq!(
+            state.objects.obj(equipment).attached_to,
+            None,
+            "the Equipment became unattached when its host died ([CR#704.5n])"
+        );
+        assert!(
+            state.zones.battlefield.contains(&equipment),
+            "the Equipment STAYS on the battlefield (not graveyarded)"
+        );
+    }
+
+    /// [CR#702.16d]: a creature that gains protection from a color drops a
+    /// colored Equipment attached to it — the SBA re-runs `attachment_legal`
+    /// (host-side protection `Cant(Attach)`) and unattaches.
+    #[test]
+    fn protection_drops_equipment() {
+        use deckmaste_core::Color;
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+
+        let mut state = game();
+        // The host gains protection from red: a host-side `Cant(Attach(what:
+        // red, to: This))` (the Protection-conferred shape, [CR#702.16d]).
+        let host = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Protected Bear".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(deckmaste_core::StatValue::Number(2)),
+                toughness: Some(deckmaste_core::StatValue::Number(2)),
+                abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Attach {
+                        what: Predicate::Characteristic(CharacteristicPredicate::ColorIs(
+                            Color::Red,
+                        )),
+                        to: Predicate::Ref(Reference::This),
+                    },
+                )))],
+                ..CardFace::default()
+            }),
+        );
+        // A RED Equipment attached to the host.
+        let equipment = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Red Sword".into(),
+                types: vec![Type::Artifact.def()],
+                color_indicator: vec![Color::Red],
+                subtypes: vec![subtype("Equipment")],
+                abilities: vec![keyword("Equip([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        state.objects.obj_mut(equipment).attached_to = Some(host);
+        // Sanity: it is currently illegal (protection) — the SBA will catch it.
+        assert!(!crate::legal::attachment_legal(&state, equipment, host));
+
+        for e in crate::sba::sweep(&state) {
+            state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
+            drain(&mut state);
+        }
+        assert_eq!(
+            state.objects.obj(equipment).attached_to,
+            None,
+            "the colored Equipment fell off the protected creature ([CR#702.16d])"
+        );
+    }
+
+    /// [CR#702.67a]: a Fortification with `fortify` activated, targeting a land
+    /// you control → attached to that land.
+    #[test]
+    fn fortify_attaches_to_land() {
+        let mut state = game();
+        let land = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Target Land".into(),
+                types: vec![Type::Land.def()],
+                ..CardFace::default()
+            }),
+        );
+        let fortification = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Test Banner".into(),
+                types: vec![Type::Artifact.def()],
+                subtypes: vec![subtype("Fortification")],
+                abilities: vec![keyword("Fortify([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        let frame = frame_src_targets(fortification, vec![land]);
+        state.run_effect(
+            OneShotEffect::Act(Action::Attach {
+                what: Reference::This,
+                to: Reference::It,
+            }),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.objects.obj(fortification).attached_to,
+            Some(land),
+            "fortify attached the Fortification to the land ([CR#702.67a])"
+        );
+    }
+
+    /// [CR#702.151b]: a reconfigured Equipment attached to a creature stops
+    /// being a creature; unattaching restores it. SEAM: the
+    /// creature-suppression static needs condition-gated layer-4 type
+    /// removal the engine doesn't have yet (see Reconfigure.ron) — so the
+    /// suppression assertion is `#[ignore]`d; the attach/unattach mechanics
+    /// are exercised here unignored.
+    #[test]
+    fn reconfigure_attaches_and_unattaches() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Recon Host");
+        // A reconfigure Equipment creature (it IS a creature when unattached).
+        let equip_creature = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Living Weapon".into(),
+                types: vec![Type::Artifact.def(), Type::Creature.def()],
+                subtypes: vec![subtype("Equipment")],
+                power: Some(deckmaste_core::StatValue::Number(1)),
+                toughness: Some(deckmaste_core::StatValue::Number(1)),
+                abilities: vec![keyword("Reconfigure([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        // Attach via reconfigure's first ability shape (Attach to a creature).
+        let frame = frame_src_targets(equip_creature, vec![host]);
+        state.run_effect(
+            OneShotEffect::Act(Action::Attach {
+                what: Reference::This,
+                to: Reference::It,
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(equip_creature).attached_to,
+            Some(host),
+            "reconfigure attached the Equipment to the creature ([CR#702.151a])"
+        );
+
+        // Unattach (reconfigure's second ability).
+        let frame = frame_src(equip_creature);
+        state.run_effect(
+            OneShotEffect::Act(Action::Unattach(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.objects.obj(equip_creature).attached_to,
+            None,
+            "reconfigure unattached the Equipment ([CR#702.151a])"
+        );
+    }
+
+    /// [CR#702.151b]: SEAM — the creature-suppression static (a reconfigured
+    /// Equipment isn't a creature while attached) needs condition-gated layer-4
+    /// type removal the layer pipeline doesn't have yet (Reconfigure.ron seam).
+    /// Ignored until that engine support lands.
+    #[test]
+    #[ignore = "engine-attach seam: conditional layer-4 type removal not built ([CR#702.151b]) — see Reconfigure.ron"]
+    fn reconfigure_suppresses_creature() {
+        let mut state = game();
+        let host = vanilla_creature(&mut state, "Recon Host");
+        let equip_creature = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Living Weapon".into(),
+                types: vec![Type::Artifact.def(), Type::Creature.def()],
+                subtypes: vec![subtype("Equipment")],
+                power: Some(deckmaste_core::StatValue::Number(1)),
+                toughness: Some(deckmaste_core::StatValue::Number(1)),
+                abilities: vec![keyword("Reconfigure([Tap])")],
+                ..CardFace::default()
+            }),
+        );
+        state.objects.obj_mut(equip_creature).attached_to = Some(host);
+        // Would-be: attached → not a creature.
+        let view = state.layers();
+        assert!(
+            !view.get(equip_creature).has_type(Type::Creature),
+            "attached reconfigure Equipment is not a creature ([CR#702.151b])"
+        );
+    }
+
+    /// [CR#702.131c]: the grant verb emits one `GotDesignation` for a player
+    /// who lacks the designation, and nothing for one who already holds it
+    /// (idempotent — keeps the SBA sweep convergent and avoids spurious facts).
+    #[test]
+    fn get_designation_emits_once_then_nothing() {
+        use crate::state::DesignationValue;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let pa = deckmaste_core::PlayerAction::GetDesignation("CitysBlessing".into());
+
+        let items = state.player_action_items(&pa, p0, &frame);
+        assert_eq!(items.len(), 1, "first grant emits exactly one fact");
+
+        // Grant it for real, then re-run: no event.
+        state
+            .designations
+            .players
+            .insert((p0, "CitysBlessing".into()), DesignationValue::Flag);
+        let items = state.player_action_items(&pa, p0, &frame);
+        assert!(items.is_empty(), "already-held designation emits nothing");
+    }
+
+    // ---- scry / arrange (the recomposed keyword-action path) ----------------
+
+    /// Mint a fresh card-backed object into `owner`'s library at the BOTTOM
+    /// (`push_back`; the front is the top). Returns its id.
+    fn mint_in_library(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
+        let cid = state.cards.push(
+            Arc::new(Card::Normal(CardFace {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                ..CardFace::default()
+            })),
+            owner,
+        );
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), owner, Some(Zone::Library));
+        state.zones.libraries[owner.index()].push_back(id);
+        id
+    }
+
+    /// The recomposed `scry n` effect ([CR#701.22a]): the committed north-star
+    /// shape — `Composite Scry (Each (Existing (TopOfLibrary n)) (Modal 1-of-2
+    /// [Move(It, Library(FromTop 0)), Move(It, Library(FromBottom 0))]))`.
+    fn scry_effect(n: Uint) -> OneShotEffect {
+        let mode = |anchor| deckmaste_core::Mode {
+            effect: OneShotEffect::Act(Action::Move(
+                Reference::It,
+                Destination::Library(anchor),
+                vec![],
+            )),
+            cost: None,
+        };
+        OneShotEffect::Act(Action::Composite {
+            name: "Scry".into(),
+            body: Box::new(OneShotEffect::Each(deckmaste_core::Each {
+                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
+                    count: Count::Literal(n),
+                    whose: Reference::You,
+                }),
+                effect: Box::new(OneShotEffect::Modal(deckmaste_core::Modal {
+                    choose: deckmaste_core::ChooseSpec {
+                        count: deckmaste_core::Quantity::Range(
+                            Some(Count::Literal(1)),
+                            Some(Count::Literal(1)),
+                        ),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::You,
+                        rider: None,
+                    },
+                    modes: vec![
+                        mode(Anchor::FromTop(Count::Literal(0))),
+                        mode(Anchor::FromBottom(Count::Literal(0))),
+                    ],
+                })),
+            })),
+        })
+    }
+
+    /// Step until a decision surfaces (or `n` steps elapse), returning the
+    /// applied events seen along the way.
+    fn drain_events(state: &mut GameState, n: usize) -> Vec<GameEvent> {
+        let mut out = Vec::new();
+        for p in drain_progress(state, n) {
+            if let Progress::Applied(occ) = p {
+                match occ {
+                    Occurrence::Single(e) => out.push(e),
+                    Occurrence::Batch(v) => out.extend(v),
+                }
+            }
+        }
+        out
+    }
+
+    /// [CR#701.22a,401.7]: scry-1 to the BOTTOM repositions the peeked card
+    /// within the SAME library — the `ObjectId` is preserved, no `ZoneChanged`
+    /// fires (a pile of one surfaces no arrange decision), and the
+    /// keyword-action event fires once the pick lands ([CR#701.22d]).
+    #[test]
+    fn scry_reposition_keeps_id_and_fires_no_zone_change() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        let c = mint_in_library(&mut state, p0, "C");
+        // library top→bottom = [a, b, c].
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60); // → the single Modal decision
+        assert!(
+            matches!(state.pending, Some(PendingDecision::ChooseModes { .. })),
+            "scry surfaces the per-card top/bottom pick, got {:?}",
+            state.pending
+        );
+        // The looker sees the peeked card.
+        assert!(state.look_grants.contains(&(p0, a)), "peek grants look");
+        // Pick mode 1 (bottom).
+        state.submit_decision(Decision::Modes(vec![1])).unwrap();
+        let events = drain_events(&mut state, 60);
+        // `a` moved to the bottom, SAME id, no zone change.
+        assert_eq!(
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![b, c, a],
+            "a repositioned to the bottom, keeping its id"
+        );
+        assert!(
+            state.objects.get(a).is_some(),
+            "the repositioned object id is preserved (not reminted)"
+        );
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::ZoneChanged { .. })),
+            "a same-library reposition fires no ZoneChanged"
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+            )),
+            "scry-1 fires the keyword-action event"
+        );
+    }
+
+    /// [CR#701.22b]: scry 0 does nothing and fires NO keyword event; scry N>0
+    /// fires exactly one `KeywordActionPerformed`.
+    #[test]
+    fn scry_zero_fires_no_event_but_nonzero_does() {
+        let p0 = PlayerId(0);
+
+        // scry 0 over a stocked library: no decision, no event.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(0), &frame);
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::KeywordActionPerformed { .. })),
+            "scry 0 emits no keyword event ([CR#701.22b])"
+        );
+
+        // scry 1 fires exactly one.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap();
+        let events = drain_events(&mut state, 60);
+        let scries = events
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+                )
+            })
+            .count();
+        assert_eq!(scries, 1, "scry 1 fires exactly one keyword event");
+    }
+
+    /// [CR#401.4]: a pile of MORE THAN ONE card at a library end surfaces one
+    /// arrange decision (both-on-top), while a scry whose picks split one card
+    /// to each end surfaces NONE (every pile is a single card).
+    #[test]
+    fn scry_arrange_surfaces_only_for_multi_card_piles() {
+        let p0 = PlayerId(0);
+
+        // Both on top → one arrange decision over the two-card pile.
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        mint_in_library(&mut state, p0, "C");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
+        drain_events(&mut state, 60);
+        let Some(PendingDecision::ArrangePile { player, objects }) = state.pending.clone() else {
+            panic!("expected an ArrangePile decision, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the scrying player arranges");
+        assert_eq!(
+            objects
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>(),
+            [a, b].into_iter().collect(),
+            "the top pile holds both peeked cards"
+        );
+
+        // One top, one bottom → two singleton piles → no arrange decision.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        mint_in_library(&mut state, p0, "C");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![1])).unwrap(); // b → bottom
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !matches!(state.pending, Some(PendingDecision::ArrangePile { .. })),
+            "two singleton piles surface no arrange decision, got {:?}",
+            state.pending
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+            )),
+            "the keyword event still fires"
+        );
+    }
+
+    /// [CR#701.22a]: a full scry-2 both-on-top round trip — the arrange decision
+    /// orders the top pile, and the library ends up in the chosen order above
+    /// the untouched rest, every id preserved.
+    #[test]
+    fn scry_two_both_top_round_trip() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        let c = mint_in_library(&mut state, p0, "C");
+        let d = mint_in_library(&mut state, p0, "D");
+        // top→bottom = [a, b, c, d].
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
+        drain_events(&mut state, 60);
+        // Arrange the top pile as b, then a (top → down).
+        state
+            .submit_decision(Decision::Arranged(vec![b, a]))
+            .unwrap();
+        drain_events(&mut state, 60);
+        assert_eq!(
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![b, a, c, d],
+            "the chosen order sits on top, the rest untouched, ids preserved"
+        );
+    }
+
+    /// [CR#401.4]: Brainstorm's group put-back — `MoveGroup(AnyOrder)` from hand
+    /// onto the top of the library moves the whole group (reminted, a real zone
+    /// change) and surfaces ONE arrange decision over the landed pile, which
+    /// then sits on top of the untouched rest of the library. The same
+    /// ordered-landing surface as scry, generalized beyond it.
+    #[test]
+    fn move_group_any_order_surfaces_arrange_over_landed_pile() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let lib = mint_in_library(&mut state, p0, "Lib"); // one card on top
+        mint_in_hand(&mut state, p0, "H1");
+        mint_in_hand(&mut state, p0, "H2");
+        let frame = frame_for(&state, p0);
+        let effect = OneShotEffect::Act(Action::MoveGroup {
+            group: Selection::SelectAll(Predicate::State(deckmaste_core::StatePredicate::InZone(
+                Zone::Hand,
+            ))),
+            arrangement: deckmaste_core::Arrangement::AnyOrder,
+            to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
+            riders: vec![],
+        });
+        state.run_effect(effect, &frame);
+        drain_events(&mut state, 60);
+        let Some(PendingDecision::ArrangePile { player, objects }) = state.pending.clone() else {
+            panic!("expected an ArrangePile decision, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the owner arranges an 'any order' group");
+        assert_eq!(objects.len(), 2, "both moved cards form the top pile");
+        assert!(
+            state.zones.hands[p0.index()].is_empty(),
+            "the hand cards left the hand"
+        );
+        assert_eq!(
+            state.zones.libraries[p0.index()].len(),
+            3,
+            "library grew by the two moved cards"
+        );
+        // Arrange the pile, then it sits on top of the pre-existing card.
+        state
+            .submit_decision(Decision::Arranged(objects.clone()))
+            .unwrap();
+        drain_events(&mut state, 60);
+        let top: Vec<_> = state.zones.libraries[p0.index()]
+            .iter()
+            .copied()
+            .take(2)
+            .collect();
+        assert_eq!(top, objects, "the arranged pile sits on top");
+        assert_eq!(
+            state.zones.libraries[p0.index()].iter().copied().nth(2),
+            Some(lib),
+            "the pre-existing card is untouched beneath the pile"
+        );
+    }
+}

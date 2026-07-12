@@ -565,3 +565,432 @@ impl GameState {
         ObjectId::null()
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use deckmaste_core::Action;
+    use deckmaste_core::Binder;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Selection;
+    use deckmaste_core::StatePredicate;
+    use deckmaste_core::Zone;
+
+    use crate::agenda::WorkItem;
+    use crate::event::Occurrence;
+    use crate::player::PlayerId;
+    use crate::resolve::fixtures::*;
+    use crate::stack::Anaphora;
+    use crate::stack::Frame;
+    use crate::test_support::frame_for;
+    use crate::test_support::frame_src;
+    use crate::test_support::frame_src_targets;
+
+    /// Card-authoring mistakes never crash the engine
+    /// ([[engine-never-crashes-on-authoring-mistakes]]): an unresolvable
+    /// authored reference degrades to the null object id (the effect
+    /// fizzles) rather than panicking. Soundness — that a well-formed
+    /// card's references always resolve — is the Idris re-emit gate's job,
+    /// not a runtime panic.
+    #[test]
+    fn unbound_reference_degrades_to_null_not_panic() {
+        use deckmaste_core::Reference;
+        use slotmap::Key;
+
+        let state = game();
+        let frame = frame_for(&state, PlayerId(0));
+        // `It` outside any binder with no lone announced target — was a panic.
+        assert!(state.eval_reference(&Reference::It, &frame).is_null());
+        // Event roles read outside any trigger — were `.expect()` panics.
+        assert!(
+            state
+                .eval_reference(&Reference::EventObject, &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_reference(&Reference::EventActor, &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_reference(&Reference::DefendingPlayer, &frame)
+                .is_null()
+        );
+        // A derived reference over an unbound inner stays null, not a secondary
+        // panic in `layers().controller()`.
+        assert!(
+            state
+                .eval_reference(&Reference::ControllerOf(Box::new(Reference::It)), &frame)
+                .is_null()
+        );
+    }
+
+    /// Bound-role reads chase the move record ([CR#400.7j]): a One `that`
+    /// binding, the `It` bindings, and the lone-target `It` fallback resolve
+    /// to the object's latest same-resolution incarnation; `Target(n)` never
+    /// chases (the announced slot stays positional).
+    #[test]
+    fn bound_role_reads_chase_the_move_record() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.moved_chain.push((a, b));
+
+        // That(Sort) over a One binding chases a -> b.
+        let mut frame = frame_src(a);
+        frame.anaphora.that = Some(crate::stack::ThatBinding {
+            cardinality: crate::stack::Cardinality::One,
+            kind: crate::stack::RefKind::Object,
+            group: vec![a],
+        });
+        assert_eq!(
+            state.eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame),
+            b
+        );
+
+        // Target(n) does NOT chase.
+        frame.anaphora.targets = vec![vec![a]];
+        assert_eq!(state.eval_reference(&Reference::Target(0), &frame), a);
+
+        // The `It` Object binding chases.
+        let snap = crate::lki::LkiSnapshot::capture(&state, a);
+        frame.anaphora.it = Some(crate::stack::ItBinding::Object(snap));
+        assert_eq!(state.eval_reference(&Reference::It, &frame), b);
+
+        // The lone-target `It` fallback chases too ("exile target creature,
+        // … return IT").
+        let lone = frame_src_targets(a, vec![a]);
+        assert_eq!(state.eval_reference(&Reference::It, &lone), b);
+    }
+
+    /// A Many `that` group chases per element via `Selection::They`.
+    #[test]
+    fn group_read_chases_per_element() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // `c` MUST come from the SAME state (see
+        // `chase_moved_follows_chain_transitively` on cross-state id
+        // collision).
+        let c = state.objects.mint(
+            crate::object::ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Battlefield),
+        );
+        state.moved_chain.push((a, c));
+        let mut frame = frame_src(a);
+        frame.anaphora.that = Some(crate::stack::ThatBinding {
+            cardinality: crate::stack::Cardinality::Many,
+            kind: crate::stack::RefKind::Object,
+            group: vec![a, b],
+        });
+        assert_eq!(
+            state.eval_selection_set(&Selection::They, &frame),
+            vec![c, b],
+            "a chases to c; b unrecorded stays b"
+        );
+    }
+
+    /// [CR#400.7,603.7c]: an object-op whose bound role resolved to a GONE id
+    /// (hidden destination / stale) is a NO-OP, not a panic.
+    #[test]
+    fn move_of_a_gone_bound_role_is_a_noop() {
+        use deckmaste_core::Destination;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let mut frame = frame_src(a);
+        frame.anaphora.that = Some(crate::stack::ThatBinding {
+            cardinality: crate::stack::Cardinality::One,
+            kind: crate::stack::RefKind::Object,
+            group: vec![a],
+        });
+        // Kill `a` outright (no record entry — e.g. it bounced to hand).
+        state.objects.remove(a);
+        let items = state.move_items(
+            &Reference::That(deckmaste_core::Sort::Card),
+            &Destination::Zone(Zone::Exile),
+            &frame,
+        );
+        assert!(
+            items.iter().all(|item| match item {
+                WorkItem::Emit(Occurrence::Batch(v)) => v.is_empty(),
+                WorkItem::Emit(Occurrence::Single(_)) => false,
+                _ => true,
+            }),
+            "a gone bound role produces no zone-change emit",
+        );
+    }
+
+    /// The product-sited `That(Sort)` ([CR#400.7j] — "exile it, then return
+    /// THAT CARD"): with no `that` binding, the read resolves to the newest
+    /// same-resolution move product; once that product leaves for a hidden
+    /// zone it is NOT found and the read degrades to null (never an older
+    /// antecedent).
+    #[test]
+    fn product_sited_that_reads_the_newest_live_move_product() {
+        use slotmap::Key;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let frame = frame_src(a);
+
+        // Nothing moved yet: unbound.
+        assert!(
+            state
+                .eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame)
+                .is_null()
+        );
+
+        // Exile `a` through the real effect machinery: the apply records the
+        // public move.
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Exile),
+                vec![],
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+        let product = state.chase_moved(a);
+        assert_ne!(product, a, "the exile reminted a new object");
+        assert_eq!(
+            state.eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame),
+            product,
+            "the product-sited That reads the exile product"
+        );
+
+        // Send the product to a HIDDEN zone: not found, and no fallback to an
+        // older antecedent.
+        let pframe = frame_src(product);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                deckmaste_core::Destination::Zone(Zone::Hand),
+                vec![],
+            )),
+            &pframe,
+        );
+        run_injected(&mut state);
+        assert!(
+            state
+                .eval_reference(&Reference::That(deckmaste_core::Sort::Card), &frame)
+                .is_null(),
+            "a product that left its public zone is NOT found ([CR#400.7])"
+        );
+    }
+
+    /// `With(Produce(Move(...)), body)` binds the move's PRE-move id as a One
+    /// `That`; after the move applies, the body's `That` chases to the
+    /// product ([CR#400.7j]).
+    #[test]
+    fn with_produce_binds_the_moved_objects_product() {
+        use deckmaste_core::Destination;
+        use deckmaste_core::With;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::Produce(Box::new(Action::Move(
+                    Reference::This,
+                    Destination::Zone(Zone::Exile),
+                    vec![],
+                ))),
+                body: Box::new(OneShotEffect::Act(Action::Move(
+                    Reference::That(deckmaste_core::Sort::Card),
+                    Destination::Zone(Zone::Battlefield),
+                    vec![],
+                ))),
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+        // The original id is gone; a NEW object is back on the battlefield.
+        assert!(state.objects.get(a).is_none(), "original exiled (stale)");
+        let back = state.chase_moved(a);
+        assert_ne!(back, a);
+        assert_eq!(
+            state.objects.get(back).unwrap().zone,
+            Some(Zone::Battlefield)
+        );
+    }
+
+    /// [CR#301.5]: `AttachHostOf(This)` from the attachment resolves to its
+    /// host.
+    #[test]
+    fn eval_reference_attach_host_of() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.objects.obj_mut(a).attached_to = Some(b);
+
+        let frame_a = frame_src(a);
+        assert_eq!(
+            state.eval_reference(
+                &Reference::AttachHostOf(Box::new(Reference::This)),
+                &frame_a
+            ),
+            b,
+            "AttachHostOf(This) from a is its host b"
+        );
+    }
+
+    /// `eval_selection_set` returns the bound set for a `Random` slot (the
+    /// value the RNG wrote into `frame.anaphora.chosen`), instead of
+    /// surfacing. (Player choice now rides `With(ChooseOne/Choose, …)`,
+    /// bound as `Those`.)
+    #[test]
+    fn eval_selection_set_reads_bound_choice() {
+        use deckmaste_core::Quantity;
+
+        let (state, bear) = bear_on_field();
+        let creatures = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ]);
+        let frame = Frame {
+            anaphora: Anaphora {
+                chosen: Some(vec![bear]),
+                ..Anaphora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
+        };
+        let sel = Selection::Random(Quantity::one(), creatures);
+        assert_eq!(state.eval_selection_set(&sel, &frame), vec![bear]);
+    }
+
+    /// A foreign chooser routes the `ChooseObjects` decision to the binder's
+    /// resolved `by` player, not the spell's controller ([CR#608.2d] — "that
+    /// player sacrifices a creature of their choice", [CR#701.21a]).
+    #[test]
+    fn foreign_by_routes_choice_to_that_player() {
+        use deckmaste_core::Binder;
+        use deckmaste_core::With;
+
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, bear) = bear_on_field();
+        let _theirs = second_bear_to_player_1(&mut state);
+        let creatures = Predicate::And(vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ]);
+        let frame = frame_src(bear);
+        state.run_effect(
+            OneShotEffect::With(With {
+                binder: Binder::ChooseOne {
+                    filter: creatures,
+                    by: Reference::Opponent,
+                },
+                body: Box::new(OneShotEffect::Act(Action::Destroy(Reference::That(
+                    deckmaste_core::Sort::Permanent,
+                )))),
+            }),
+            &frame,
+        );
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects { player, .. }) =
+            state.step()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(
+            player,
+            PlayerId(1),
+            "the opponent (the binder's `by`) makes the pick"
+        );
+    }
+
+    /// The buildable-now references: `ControllerOf`/`OwnerOf` distinguish
+    /// control from ownership ([CR#109.5,108.3]); `EventObject`/`EventActor`
+    /// read the trigger bindings ([CR#603.10a]).
+    #[test]
+    fn references_resolve_controller_owner_and_trigger_bindings() {
+        let (mut state, bear) = bear_on_field();
+        // A second Grizzly Bears from player 0's hand onto the battlefield, then
+        // handed to player 1: owner stays player 0, controller becomes player 1.
+        let theirs = second_bear_to_player_1(&mut state);
+
+        let frame = Frame {
+            this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+            anaphora: Anaphora {
+                targets: vec![vec![theirs]],
+                that_object: Some(crate::lki::LkiSnapshot::capture(&state, theirs)),
+                that_player: Some(PlayerId(1)),
+                ..Anaphora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
+        };
+
+        assert_eq!(
+            state.eval_reference(
+                &Reference::ControllerOf(Box::new(Reference::Target(0))),
+                &frame
+            ),
+            state.player(PlayerId(1)).object,
+            "controller of player 1's creature is player 1"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::OwnerOf(Box::new(Reference::Target(0))), &frame),
+            state.player(PlayerId(0)).object,
+            "owner is still player 0"
+        );
+        // The provenance-explicit event roles ([CR#603.2e]): the OBJECT (the
+        // moved/acting object) and the ACTOR (the responsible player).
+        assert_eq!(
+            state.eval_reference(&Reference::EventObject, &frame),
+            theirs,
+            "EventObject is the bound snapshot's object (the moved/acting object)"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::EventActor, &frame),
+            state.player(PlayerId(1)).object,
+            "EventActor is the responsible player"
+        );
+    }
+
+    /// The provenance-explicit patient and defending-player roles resolve from
+    /// their dedicated binding slots ([CR#608.2k,120.3,506.2]): a kind-poly
+    /// `EventPatient` (object or player) and an always-player
+    /// `DefendingPlayer`, both distinct from the agent/actor.
+    #[test]
+    fn event_patient_and_defending_player_resolve() {
+        let (mut state, bear) = bear_on_field();
+        let theirs = second_bear_to_player_1(&mut state);
+
+        // An OBJECT patient (a damage recipient creature) distinct from the
+        // agent — what makes a two-object event spellable.
+        let object_patient = Frame {
+            this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+            defending_player: Some(PlayerId(1)),
+            anaphora: Anaphora {
+                that_patient: Some(crate::trigger::EventPatient::Object(
+                    crate::lki::LkiSnapshot::capture(&state, theirs),
+                )),
+                ..Anaphora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
+        };
+        assert_eq!(
+            state.eval_reference(&Reference::EventPatient, &object_patient),
+            theirs,
+            "an object patient resolves to its object"
+        );
+        assert_eq!(
+            state.eval_reference(&Reference::DefendingPlayer, &object_patient),
+            state.player(PlayerId(1)).object,
+            "DefendingPlayer is always the player proxy"
+        );
+
+        // A PLAYER patient (a damage recipient player) resolves to the proxy.
+        let player_patient = Frame {
+            anaphora: Anaphora {
+                that_patient: Some(crate::trigger::EventPatient::Player(PlayerId(1))),
+                ..Anaphora::empty()
+            },
+            ..Frame::bare(bear, PlayerId(0))
+        };
+        assert_eq!(
+            state.eval_reference(&Reference::EventPatient, &player_patient),
+            state.player(PlayerId(1)).object,
+            "a player patient resolves to the player proxy"
+        );
+    }
+}
