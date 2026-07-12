@@ -289,9 +289,9 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     // Instead/Also/Skip triad — but it is deliberately NOT gathered here.
     // `PlayerAction::FlipCoins`/`RollDice` now draw from the seeded rng and
     // emit real `CoinFlipped`/`DieRolled` resolution events through the
-    // cant→replace→apply pipeline (`engine-randomness` Tasks 3/4), so there
-    // IS now a live event for `ReplaceRoll` to intercept — this is no longer
-    // the "nothing live to intercept" gap it once was. Gathering it here,
+    // cant→replace→apply pipeline, so there IS now a live event for
+    // `ReplaceRoll` to intercept — this is no longer the "nothing live to
+    // intercept" gap it once was. Gathering it here,
     // routing the flip/roll batches through the replacement registry, and
     // surfacing the ignore selection as a decision is scoped to the
     // `engine-replace-roll` ticket. A `StaticEffect::ReplaceRoll` on the

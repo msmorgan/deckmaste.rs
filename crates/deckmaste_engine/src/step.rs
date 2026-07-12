@@ -1252,9 +1252,6 @@ impl GameState {
                 _ => false,
             })
             .count();
-        if moved > 0 {
-            self.that_much = Some(Uint::try_from(moved).expect("batch size fits in Uint"));
-        }
         // [CR#107.3]: a flip/roll batch fixes "that many" — won flips for a
         // called flip, heads for an uncalled one ([CR#705.2]); summed
         // results for dice ([CR#706.2]).
@@ -1278,6 +1275,18 @@ impl GameState {
                 }
                 _ => {}
             }
+        }
+        // A batch is always homogeneous today — all zone-moves, or all
+        // CoinFlipped, or all DieRolled, never mixed — so the
+        // moved-then-coins-then-dice precedence below is moot. Pin that
+        // invariant: a mixed-kind batch would make the precedence order
+        // silently undefined.
+        debug_assert!(
+            !(moved > 0 && (coins > 0 || dice > 0)) && !(coins > 0 && dice > 0),
+            "a batch mixed zone-move/coin/dice event kinds — ThatMany funnel precedence is undefined for mixed batches"
+        );
+        if moved > 0 {
+            self.that_much = Some(Uint::try_from(moved).expect("batch size fits in Uint"));
         }
         if coins > 0 {
             self.that_much = Some(if any_called { wins } else { heads_up });

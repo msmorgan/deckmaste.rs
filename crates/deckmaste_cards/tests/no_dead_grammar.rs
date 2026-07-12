@@ -301,10 +301,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "DEFERRED: every real coin-flip card that PERFORMS a flip \
             branches on its own win/lose result ('If you win the flip, ...', Boompile/Mana \
             Screw/Chaotic Goo/Karplusan Minotaur) — that branch needs a Condition reading the \
-            just-emitted flip's outcome, which is DELIBERATELY unrepresentable at the engine eval \
-            layer (eval.rs's own EventFilter::CoinFlipped arm: 'won is call-relative, the record \
-            carries only the physical outcome ... a narrowed pattern matches nothing', a \
-            documented pre-existing limit, not something this task introduces). Chance Encounter/ \
+            just-emitted flip's outcome. `CoinFlipped.won` is readable only via \
+            `EventFilter::CoinFlipped`, a TRIGGER match against the already-recorded fact (e.g. \
+            Chance Encounter's 'whenever you win a coin flip'); there is no in-body Condition \
+            that reads the flip action's own result within the same effect chain, so this \
+            branch shape remains unbuilt. Chance Encounter/ \
             Tavern Scoundrel-style 'whenever you WIN a coin flip' TRIGGER cards don't need this \
             action at all (the flip happens off-card) — see EventFilter::CoinFlipped's own fixture \
             (Chance Encounter) for that half.",

@@ -379,6 +379,9 @@ impl StrategyEvaluator {
             }
             PendingDecision::Vote { .. } => Decision::VoteFor(0),
             PendingDecision::YesNo { .. } => Decision::Answer(false),
+            // A called flip is strategically null (a fair coin either way) —
+            // always calling heads is a reasonable, always-legal default.
+            PendingDecision::CallFlip { .. } => Decision::Answer(true),
             // [CR#401.4]: any permutation of the pile is legal; keep the
             // offered order (a total, always-legal default).
             PendingDecision::ArrangePile { objects, .. } => Decision::Arranged(objects.clone()),
@@ -392,8 +395,7 @@ impl StrategyEvaluator {
             other @ (PendingDecision::ChooseCostOptions { .. }
             | PendingDecision::OrderReplacements { .. }
             | PendingDecision::PreGame { .. }
-            | PendingDecision::LegendRule { .. }
-            | PendingDecision::CallFlip { .. }) => {
+            | PendingDecision::LegendRule { .. }) => {
                 todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
             }
         }
