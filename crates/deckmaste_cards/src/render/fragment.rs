@@ -752,6 +752,9 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
             Predicate::Relation(RelationPredicate::ControlledBy(inner)) => {
                 control = Some(inner.as_ref());
             }
+            // No arm for Not(ControlledBy(..)) ("you don't control") —
+            // pre-existing gap in the walk (filter_subject lacked it too
+            // before this fn existed), out of scope here.
             // The Creature macro expands to And([Expanded(Permanent),
             // Characteristic(Type(Creature))]); check whether this part holds
             // a card type buried in a nested And.
@@ -1227,6 +1230,24 @@ mod tests {
         assert_eq!(
             subject_phrase(&teammate_controls, SubjectNumber::PluralCapitalized).as_deref(),
             Some("Other creatures your teammates control")
+        );
+
+        // No `Not(Ref(This))` — the committed `CreatureOpponentControls`
+        // macro shape, so the determiner comes from `a_an(...)` rather than
+        // "another".
+        let opponent_controls_no_self_exclusion = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+                Predicate::Relation(RelationPredicate::OpponentOf(you())),
+            ))),
+        ]);
+        assert_eq!(
+            subject_phrase(
+                &opponent_controls_no_self_exclusion,
+                SubjectNumber::SingularArticle
+            )
+            .as_deref(),
+            Some("a creature an opponent controls")
         );
     }
 
