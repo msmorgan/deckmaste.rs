@@ -422,6 +422,9 @@ fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
         // [CR#601.2b]: the headless strategy announces the minimum X=0 (always
         // legal and payable). A smarter X is a follow-up.
         PendingDecision::ChooseXValue { .. } => Decision::XValue(0),
+        // [CR#705.2]: the call is strategically null (win is a fair coin
+        // either way) — the headless strategy always calls heads.
+        PendingDecision::CallFlip { .. } => Decision::Answer(true),
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
@@ -441,7 +444,8 @@ fn pending_player(pending: &PendingDecision) -> PlayerId {
         | PendingDecision::DeclareBlockers { player, .. }
         | PendingDecision::AssignCombatDamage { player, .. }
         | PendingDecision::ChooseXValue { player, .. }
-        | PendingDecision::LegendRule { player, .. } => *player,
+        | PendingDecision::LegendRule { player, .. }
+        | PendingDecision::CallFlip { player } => *player,
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
