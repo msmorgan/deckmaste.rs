@@ -346,6 +346,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn grant_single_and_list() {
         assert_eq!(
             stat("Other Goblins have haste.").as_deref(),
@@ -444,6 +448,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn can_block_only_flying() {
         // "can block only creatures with flying" → can't block non-flying
         // ([CR#509.1a]).
@@ -464,6 +472,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn equipped_creature_gets() {
         // "Equipped creature gets +N/+N" → Modify on the attach host, the same
         // shape as the already-wired "Enchanted creature".
@@ -488,6 +500,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn requirement_attack_each_combat() {
         // Goblin Rabblemaster's requirement clause → a Must(Attack) static over
         // the subject filter ([CR#508.1d]).
@@ -515,6 +531,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn pt_anthem_subtype_adjective() {
         // Elvish Archdruid's anthem: a subtype-adjective subject ("Elf creatures").
         assert_eq!(
@@ -526,6 +546,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn cost_modifier_reduce_subtype_you_cast() {
         // Goblin Warchief's reducer: "Goblin spells you cast cost {1} less to
         // cast" → a CostModifier scoped to Goblin spells the caster controls
@@ -577,6 +601,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn grant_combo_with_pt() {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),

@@ -512,6 +512,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn etb_filtered_subject_via_filter_grammar() {
         // "a creature you control" — the filter parser supplies the subject.
         assert_eq!(
@@ -639,6 +643,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn attacks_self_via_thisattacks_macro() {
         // Goblin Piledriver / Rabblemaster: "Whenever this creature attacks, …"
         // ("this creature" normalizes to ~). The self-pump scales by an
@@ -655,6 +663,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn attacks_self_dwynen_lifegain_for_each_attacking() {
         // Dwynen, Gilt-Leaf Daen: "Whenever Dwynen attacks, you gain 1 life for
         // each attacking Elf you control." (name normalizes to ~).
@@ -849,6 +861,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn beginning_of_combat_your_turn_create_token() {
         // Goblin Rabblemaster: "At the beginning of combat on your turn, create a
         // 1/1 red Goblin creature token with haste."

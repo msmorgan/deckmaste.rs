@@ -260,6 +260,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn intrinsic_keywords_render_wrapped() {
         assert_eq!(bare("Vigilance").as_deref(), Some("Keyword(Vigilance)"));
         assert_eq!(
@@ -270,6 +274,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn macro_keywords_render_wrapped_too() {
         // Non-intrinsics are KeywordAbility-kind macros invoked INSIDE the
         // wrapper — keyword-ness is always explicit on the card. (The
@@ -280,12 +288,20 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn nullary_keywords() {
         assert_eq!(bare("Menace").as_deref(), Some("Keyword(Menace)"));
         assert_eq!(bare("Defender").as_deref(), Some("Keyword(Defender)"));
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn catalog_is_derived_from_data_plus_supplement() {
         // Loaded from the Scryfall keyword catalog (not hand-listed): if the
         // data read failed we'd fall back to the ~30-entry supplement only, so
@@ -305,6 +321,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn cost_keywords() {
         assert_eq!(
             bare("Ward {2}").as_deref(),
@@ -317,6 +337,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn integer_and_integer_cost() {
         assert_eq!(
             bare("Annihilator 2").as_deref(),
@@ -357,6 +381,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn word_costs_after_the_em_dash() {
         assert_eq!(
             bare("Ward—Pay 3 life.").as_deref(),
@@ -387,6 +415,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn variable_mana_costs() {
         // {X} is part of the printed cost; what X equals is announced by the
         // controller or stated by the card [CR#107.3a,702.21b], not the
@@ -402,6 +434,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn protection_from_everything() {
         // [CR#702.16j]: protection regardless of qualities — the match-all
         // Predicate in every row of the Protection bundle.
@@ -412,6 +448,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn resolve_line_comma_gate() {
         use crate::resolve::CardKind;
         // A keyword CHAIN still declines (extract pre-splits those; a line
@@ -437,6 +477,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn word_arg_keywords_render_quality_filters() {
         assert_eq!(
             bare("Protection from black").as_deref(),
@@ -457,6 +501,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn grant_name_renders_invocation_form() {
         // Reference form (for `Has(<name>)`): bare unit ident.
         assert_eq!(match_keyword_name("hexproof").as_deref(), Some("Hexproof"));
@@ -474,6 +522,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn resolve_line_bare_keyword() {
         use crate::resolve::CardKind;
         assert_eq!(

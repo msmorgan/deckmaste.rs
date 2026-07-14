@@ -1994,6 +1994,10 @@ mod tests {
     /// index: the literal-count `PowerAndToughnessUp` can't carry the per-count
     /// multiplier, so the scaled inline `Several(...)` must stand.
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_scaled_declines_change_fold() {
         assert_eq!(
             parsed_with_macros(
@@ -2014,6 +2018,10 @@ mod tests {
     /// partially matched, failing the full-consumption gate, so the whole
     /// change (P/T pair + `GainAbility`) stays inline.
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_grant_tail_declines_change_fold() {
         assert_eq!(
             parsed_with_macros(
@@ -2149,6 +2157,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn destroy_target_shapes() {
         // The target subject parses via filter.rs into a `TargetOne(<filter>)`.
         assert_eq!(
@@ -2181,6 +2193,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn destroy_target_with_keyword_quality() {
         // "with <keyword>" now resolves to a `Has(<Keyword>)` filter clause, so a
         // keyword-quality target parses (shared filter grammar gain).
@@ -2194,6 +2210,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_team_like_overrun() {
         // Overrun: a team P/T boost + keyword grant lasting until end of turn.
         assert_eq!(
@@ -2209,6 +2229,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_self_and_target() {
         // Self pump ("~ gets …"): bare `This`, no target.
         assert_eq!(
@@ -2508,6 +2532,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn create_token_with_keyword_grants() {
         assert_eq!(
             parsed("create a 1/1 red Goblin creature token with haste."),
@@ -2594,6 +2622,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn create_token_dynamic_where_x() {
         // Krenko, Mob Boss.
         assert_eq!(
@@ -2607,6 +2639,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn create_token_dynamic_for_each() {
         assert_eq!(
             parsed("Create a 1/1 red Goblin creature token for each Goblin you control."),
@@ -2646,6 +2682,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn deal_damage_dynamic_equal_to() {
         assert_eq!(
             parsed("~ deals damage to any target equal to the number of Goblins you control."),
@@ -2657,6 +2697,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn deal_damage_dynamic_where_x() {
         assert_eq!(
             parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
@@ -2734,6 +2778,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_for_each() {
         assert_eq!(
             parsed("Creatures you control get +1/+1 for each Goblin you control until end of turn."),
@@ -2748,6 +2796,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_for_each_half_scaled() {
         // "+1/+0 for each": power scales, toughness fixed at 0.
         assert_eq!(
@@ -2763,6 +2815,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_for_each_nonunit_scales_by_product() {
         // "+2/+2 for each": both sides scale by the Times product.
         assert_eq!(
@@ -2778,6 +2834,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn durational_pump_for_each_asymmetric_scales_by_product() {
         // "+2/+0 for each" (Goblin Piledriver shape): power scales via the
         // Times product, toughness fixed at 0.
@@ -2808,6 +2868,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn gain_life_for_each_attacking_filter() {
         // Dwynen lifegain: "you gain 1 life for each attacking Elf you control."
         // The "attacking" status rides the shared filter grammar; base must be 1.

@@ -537,6 +537,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn head_nouns() {
         assert_eq!(parse_phrase("creatures").as_deref(), Some("Creature"));
         assert_eq!(parse_phrase("permanents").as_deref(), Some("Permanent"));
@@ -571,6 +575,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn prefix_adjectives() {
         assert_eq!(
             parse_phrase("other Goblins").as_deref(),
@@ -600,6 +608,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn postfix_clauses() {
         assert_eq!(
             parse_phrase("creatures you control").as_deref(),
@@ -645,6 +657,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn with_hexproof_is_a_bare_keyword_reference() {
         // `Has(...)` is a KeywordRef (bare unit ident) — a defaulted-param keyword
         // must NOT acquire invocation parens here (that wouldn't read).
@@ -661,6 +677,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn on_the_battlefield_is_consumed() {
         // "on the battlefield" is the default scope — consumed, no atom. The
         // battlefield scope still rides the head atom ([CR#109.2]): `Permanent`
@@ -676,6 +696,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn subtype_adjective_before_type_noun() {
         // "Elf creatures" → a creature with the Elf subtype.
         assert_eq!(
@@ -740,6 +764,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn subtype_head_is_plural_aware_and_catalog_gated() {
         // Irregular plurals resolve to the canonical catalog subtype, not the
         // naive singularizer's mis-derivation (`Elve`/`Zomby`).

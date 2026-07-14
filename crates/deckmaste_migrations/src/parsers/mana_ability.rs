@@ -445,6 +445,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn scaled_for_each_single_symbol() {
         // Elvish Archdruid — the `Permanent` scope ([CR#109.2]) keeps the
         // count off the ability's own on-stack copy (it would otherwise tap

@@ -150,6 +150,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn frames_durational_team_pump_like_overrun() {
         assert_eq!(
             spell("Creatures you control get +3/+3 and gain trample until end of turn.").as_deref(),

@@ -573,6 +573,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn unless_control_count_other_subtype() {
         // "three or more other Swamps" — the subtype head + "other".
         assert_eq!(
@@ -615,6 +619,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn unless_control_a_subtype() {
         assert_eq!(
             rep("~ enters tapped unless you control a Swamp.").as_deref(),
@@ -628,6 +636,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn unless_control_subtype_disjunction() {
         // "a Swamp or a Mountain" → Or two subtype filters, each you-control.
         assert_eq!(
@@ -643,6 +655,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn unless_control_typeline_disjunction() {
         // "a Mount or Vehicle" (no repeated determiner) → Or.
         assert_eq!(

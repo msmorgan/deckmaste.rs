@@ -89,6 +89,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn for_each_maps_to_countof() {
         let c = strip("{G} for each Elf you control").unwrap();
         assert_eq!(c.head, "{G}");
@@ -100,6 +104,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn where_variable_maps_to_countof() {
         let c = strip(
             "Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control",
@@ -117,6 +125,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn equal_to_maps_to_countof() {
         let c = strip("damage to any target equal to the number of Goblins you control").unwrap();
         assert_eq!(c.head, "damage to any target");
@@ -128,6 +140,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn on_the_battlefield_filter() {
         // "on the battlefield" is consumed, but the head still carries the
         // battlefield scope ([CR#109.2]) so a count never reaches a Stack-zone

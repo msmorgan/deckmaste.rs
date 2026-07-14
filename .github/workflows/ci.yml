@@ -42,6 +42,12 @@ jobs:
       # `wizards_corpus` cfg only when the corpus directory is present, so those
       # tests run locally and report as `ignored` here. `cargo test` skips ignored
       # tests by default, so the plain workspace command stays green.
+      #
+      # Same shape in deckmaste_migrations: its parser tests that mint
+      # `Subtype`/keyword atoms load the gitignored `data/catalogs` dump (Scryfall
+      # type/keyword catalogs), so they carry `#[cfg_attr(not(scryfall_catalogs),
+      # ignore)]` and that crate's build.rs sets `scryfall_catalogs` from the
+      # `data/catalogs` directory's presence.
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test

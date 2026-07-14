@@ -209,6 +209,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn sacrifice_another_subtype_cost() {
         // "another Goblin" → the self-exclusion filter, count 1.
         assert_eq!(
