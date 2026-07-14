@@ -1048,6 +1048,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ron_lsp"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "rustix"
 version = "0.38.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"

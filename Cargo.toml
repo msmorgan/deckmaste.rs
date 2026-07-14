@@ -7,6 +7,7 @@ members = [
     "crates/deckmaste_tui",
     "crates/macro_ron",
     "crates/macro_ron_derive",
+    "crates/ron_lsp",
     "crates/xtask",
 ]
 
