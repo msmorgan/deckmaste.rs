@@ -14,7 +14,7 @@
             scope: Player,
             shape: Flag,
             uniqueness: PerGame,
-            persistence: Permanent,
+            persistence: Permanently,
         ),
     ),
 )

@@ -42,7 +42,8 @@ pub enum DesignationPersistence {
     ObjectLifetime,
     UntilEndOfTurn,
     EffectSupplied,
-    Permanent,
+    /// Persists without an intrinsic expiry condition.
+    Permanently,
 }
 
 /// A designation's definition: stored (with metadata) or derived from a
@@ -75,4 +76,25 @@ pub enum DesignationDef {
 pub struct DesignationDecl {
     pub name: Ident,
     pub definition: DesignationDef,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn permanent_duration_is_spelled_adverbially() {
+        let persistence: DesignationPersistence =
+            crate::ron::options().from_str("Permanently").unwrap();
+        assert_eq!(persistence, DesignationPersistence::Permanently);
+        assert_eq!(
+            crate::ron::options().to_string(&persistence).unwrap(),
+            "Permanently"
+        );
+        assert!(
+            crate::ron::options()
+                .from_str::<DesignationPersistence>("Permanent")
+                .is_err()
+        );
+    }
 }

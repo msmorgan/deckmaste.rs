@@ -1,6 +1,6 @@
 // The commander designation ([CR#903.3]): an OBJECT designation — "an
 // attribute of the card itself", retained even across zone changes (hence
-// `Permanent` persistence, not `ObjectLifetime`). A deck may designate two
+// `Permanently` persistence, not `ObjectLifetime`). A deck may designate two
 // carriers ([CR#702.124b] partner commanders), so no uniqueness.
 // A registry row for a designation OUTSIDE the curated engine table: the
 // open vocabulary gains load-time scope enforcement through the row alone.
@@ -14,7 +14,7 @@
             scope: Object,
             shape: Flag,
             uniqueness: None,
-            persistence: Permanent,
+            persistence: Permanently,
         ),
     ),
 )
