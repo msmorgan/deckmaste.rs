@@ -4746,7 +4746,9 @@ mod tests {
             .unwrap();
         match card {
             deckmaste_core::Card::Normal(face) => face.abilities,
-            other => panic!("unexpected emblem card shape: {other:?}"),
+            other @ deckmaste_core::Card::TwoFaced { .. } => {
+                panic!("unexpected emblem card shape: {other:?}")
+            }
         }
     }
 
