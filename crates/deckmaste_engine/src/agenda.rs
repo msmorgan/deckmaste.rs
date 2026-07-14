@@ -26,7 +26,7 @@ pub enum WorkItem {
     Emit(Occurrence),
     /// [CR#704.3]: apply a state-based-action batch produced by `check_sbas`'s
     /// sweep, and re-schedule `CheckSbas` ONLY when the apply produced ≥1
-    /// fact. A batch where every event was suppressed (e.g. a `WillDestroy`
+    /// fact. A batch where every event was suppressed (e.g. an `Act(Destroy)`
     /// canted by indestructible) applies to an empty
     /// `Occurrence::Batch(vec![])` — that "nothing changed" signal
     /// terminates the SBA loop without looping forever on a persistent

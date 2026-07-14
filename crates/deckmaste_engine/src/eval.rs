@@ -266,7 +266,7 @@ impl<'a> FactView<'a> {
     /// The fact record of `event`, with live participants — `None` for
     /// plumbing events no pattern can watch (`TriggerFired`, mana movements,
     /// reveals, …). One total mapping serves every lane: an INTENT
-    /// (`WillDestroy`, `WillDraw`, `ZoneWillChange`) and its downstream fact
+    /// (`Act(Destroy)`, `WillDraw`, `ZoneWillChange`) and its downstream fact
     /// present the same kinds their patterns watch, each at its own
     /// pipeline stage.
     #[expect(
@@ -316,18 +316,6 @@ impl<'a> FactView<'a> {
                 v.to = Some(*to);
                 v.cause = cause.as_ref().map(Cow::Borrowed);
             }
-            // [CR#701.8a]: the destruction intent — its zone coordinates come
-            // from the Destroy verb's emitted entailment row, never hardcoded.
-            GameEvent::WillDestroy { object, cause } => {
-                let row =
-                    crate::entail::entailment("Destroy").expect("emitted Destroy entailment row");
-                v = FactView::bare(FactKind::ZoneChange, state);
-                v.object = Some(part(*object));
-                v.actor = controller_of(*object);
-                v.from = row.from;
-                v.to = row.to;
-                v.cause = cause.as_ref().map(Cow::Borrowed);
-            }
             // [CR#121.1]: the draw intent. Per-fact granularity is one card
             // ([CR#121.2]); the `amount` channel stays empty — a multi-card
             // amount BOUND is the `Drawn:amount` cap, deliberately kept.
@@ -341,11 +329,18 @@ impl<'a> FactView<'a> {
             // slot so `Act(Destroy(pred))` narrows it; `who` (player-report
             // verbs) is the performing player, riding the `actor` slot so
             // `Act(Scry(pred))` narrows it.
-            GameEvent::Act { verb, who, on } => {
+            GameEvent::Act {
+                verb,
+                who,
+                on,
+                cause,
+            } => {
                 v = FactView::bare(FactKind::Act, state);
                 v.act_name = Some(Cow::Borrowed(&verb.0));
                 v.object = on.as_ref().map(|o| part(*o));
                 v.actor = *who;
+                // "destroyed this way" provenance rides the atom's cause.
+                v.cause = cause.as_ref().map(Cow::Borrowed);
             }
             // [CR#120.3]: damage — source object, kind-poly recipient.
             GameEvent::DamageDealt {
@@ -574,17 +569,19 @@ impl<'a> FactView<'a> {
 }
 
 /// A PRE-EVOLUTION intent whose committed fact lands in the same
-/// [`FactKind`] downstream ([CR#603.6]): `WillDestroy` and `ZoneWillChange`
-/// both evolve into the recorded `ZoneChanged`. Triggers fire on the FACT
-/// (the scan and the trigger adapter refuse these — matching the intent
-/// would double-fire every zone-move trigger), and history views are
-/// suppressed for them (the downstream fact is the one counted); the
-/// REPLACEMENT lane is exactly where they are matched ([CR#614]).
+/// [`FactKind`] downstream ([CR#603.6]): `ZoneWillChange` evolves into the
+/// recorded `ZoneChanged`. Triggers fire on the FACT (the scan and the
+/// trigger adapter refuse these — matching the intent would double-fire
+/// every zone-move trigger), and history views are suppressed for them (the
+/// downstream fact is the one counted); the REPLACEMENT lane is exactly where
+/// they are matched ([CR#614]).
+///
+/// `Act(Destroy(x))` is NOT listed though it also evolves into a
+/// `ZoneWillChange`: its own fact view is `FactKind::Act` (not `ZoneChange`),
+/// so a "dies"/"destroyed" `ZoneChange` trigger never matches the intent — no
+/// double-fire — while the cant/replacement lane matches it AS an `Act`.
 pub(crate) fn shadowed_by_fact(event: &GameEvent) -> bool {
-    matches!(
-        event,
-        GameEvent::WillDestroy { .. } | GameEvent::ZoneWillChange { .. }
-    )
+    matches!(event, GameEvent::ZoneWillChange { .. })
 }
 
 /// Does the recorded/current turn `time` fall inside `within`, seen from

@@ -157,7 +157,7 @@ impl GameState {
         watcher: ObjectSource,
     ) -> bool {
         // [CR#603.6]: triggers fire on committed FACTS. A pre-evolution
-        // intent (`WillDestroy`/`ZoneWillChange`) presents the same
+        // intent (`Act(Destroy)`/`ZoneWillChange`) presents the same
         // fact-record kind as its downstream `ZoneChanged` — matching it
         // here would double-fire every zone-move trigger, so the trigger
         // lane refuses intents outright (the replacement lane is where

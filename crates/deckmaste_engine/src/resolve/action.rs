@@ -65,6 +65,9 @@ impl GameState {
                     verb: deckmaste_core::VerbName::from(verb),
                     who,
                     on,
+                    // Scry/surveil/fateseal reorder WITHIN a zone — no
+                    // downstream cause-tagged move rides this fact.
+                    cause: None,
                 };
                 // [CR#701.22b,614.17]: a `Cant(Act(name, on))` static suppresses
                 // the whole keyword action — the body must never run. Stage 1
@@ -107,18 +110,22 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            // [CR#701.8a]: destroy = battlefield → graveyard, through the
-            // replaceable `WillDestroy` intent so indestructible /
-            // regeneration can intercede ([CR#702.12b]); its apply commits
-            // the zone move when nothing replaces it. The cause names the
-            // verb so the "destroyed" named view can narrow by it ([CR#701.8b]
-            // — this verb or the lethal-damage SBA are its only two causes).
+            // [CR#701.8a]: destroy = the `Act(Destroy(x))` keyword action —
+            // the present-tense, guardable/replaceable intent (`Cant`/`Replaces`
+            // key on `Act(Destroy(…))`) whose apply commits the Battlefield →
+            // Graveyard move when nothing intercedes ([CR#702.12b]). The cause
+            // names the verb so the "destroyed" named view can narrow by it
+            // ([CR#701.8b] — this verb or the lethal-damage SBA are its only two
+            // causes). (`Action::Destroy` is the thin authoring verb that emits
+            // this atom; the destruction has no bespoke intent event of its own.)
             Action::Destroy(sel) => {
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::WillDestroy {
-                        object,
+                    .map(|object| GameEvent::Act {
+                        verb: deckmaste_core::VerbName::from("Destroy"),
+                        who: None,
+                        on: Some(object),
                         cause: Some(Cause::destroy(
                             Agency::EffectInstruction,
                             Some((frame.source, frame.controller)),
@@ -243,7 +250,7 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            // [CR#400.7]: a PLAIN zone move (no `WillDestroy` intent, no
+            // [CR#400.7]: a PLAIN zone move (no `Act(Destroy)` event, no
             // cause-verb fact) — each selected object moves from whatever zone
             // it's in to the `Destination`. The apply remints into the owner's
             // graveyard/hand/library (or the shared exile) — a hand
@@ -979,7 +986,7 @@ mod tests {
     }
 
     /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
-    /// `Destroy` action's `WillDestroy` intent is suppressed by the
+    /// `Destroy` action's `Act(Destroy)` event is suppressed by the
     /// event-side cant pass ([CR#614.17]) in `apply_occurrence`, so the
     /// Myr stays on the battlefield.
     #[test]
@@ -987,7 +994,7 @@ mod tests {
         let (mut state, myr) = myr_on_field();
         let frame = frame_src(myr);
         state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
-        // WillDestroy applies and schedules no zone move (replaced to nothing).
+        // Act(Destroy) applies and schedules no zone move (replaced to nothing).
         let _ = state.step();
         assert!(
             state.objects.get(myr).is_some(),
@@ -1000,7 +1007,7 @@ mod tests {
         assert!(state.zones.graveyards[0].is_empty(), "not destroyed");
     }
 
-    /// A destructible creature still dies: `Destroy` → `WillDestroy` (nothing
+    /// A destructible creature still dies: `Destroy` → `Act(Destroy)` (nothing
     /// replaces it) → `ZoneWillChange(Battlefield → Graveyard)` →
     /// `ZoneChanged`, reminting it into its owner's graveyard.
     #[test]
@@ -1008,7 +1015,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
-        // WillDestroy → ZoneWillChange → ZoneChanged.
+        // Act(Destroy) → ZoneWillChange → ZoneChanged.
         for _ in 0..3 {
             let _ = state.step();
         }
@@ -1018,7 +1025,7 @@ mod tests {
     }
 
     /// [CR#400.7]: `Move(This, Graveyard)` is a PLAIN relocation — no
-    /// `WillDestroy` intent, so it's a direct `ZoneWillChange(Battlefield →
+    /// `Act(Destroy)` event, so it's a direct `ZoneWillChange(Battlefield →
     /// Graveyard)` → `ZoneChanged`, reminting the object into its OWNER's
     /// graveyard. (Indestructible would not save it — but a plain Grizzly Bears
     /// exercises the move path.)
@@ -1031,7 +1038,7 @@ mod tests {
             &frame,
         );
         // ZoneWillChange → ZoneChanged (one fewer step than Destroy — no
-        // WillDestroy replace stage).
+        // Act(Destroy) replace stage).
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -1150,7 +1157,7 @@ mod tests {
     /// `Noting`-wrapped destroy-all over three creatures, one of which
     /// can't be destroyed — "destroyed this way" is exactly the clause's
     /// enacted destroy-caused `ZoneChanged` facts, so the survivor is
-    /// excluded BY CONSTRUCTION (its `WillDestroy` was canted; no move
+    /// excluded BY CONSTRUCTION (its `Act(Destroy)` was canted; no move
     /// fact exists), and the two dies-facts share one history batch id
     /// ([CR#603.3b]).
     #[test]

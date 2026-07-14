@@ -202,8 +202,6 @@ fn blood_token_parses() {
 // [CR#111.10w]
 #[test]
 fn vibranium_token_parses() {
-    use deckmaste_core::Cause;
-    use deckmaste_core::CausePattern;
     use deckmaste_core::ColorOrColorless;
     use deckmaste_core::EventFilter;
     use deckmaste_core::KeywordAbility;
@@ -212,8 +210,6 @@ fn vibranium_token_parses() {
     use deckmaste_core::ObjectKind;
     use deckmaste_core::Predicate;
     use deckmaste_core::StaticEffect;
-    use deckmaste_core::VerbName;
-    use deckmaste_core::Zone;
 
     // Indestructible expands from the `Keyword(Indestructible)` macro — a
     // `Composite` keyword carrying the event-side can't-happen, under the
@@ -224,18 +220,9 @@ fn vibranium_token_parses() {
         template: Some("indestructible".into()),
         value: Box::new(KeywordAbility::Composite {
             name: "Indestructible".into(),
-            abilities: vec![Ability::Static(StaticEffect::CantHappen(
-                EventFilter::ZoneChange {
-                    what: Predicate::Ref(Reference::This),
-                    from: Some(Zone::Battlefield),
-                    to: Some(Zone::Graveyard),
-                    cause: Some(Cause::Cause(CausePattern {
-                        verb: Some(VerbName::from("Destroy")),
-                        agency: None,
-                        agent: None,
-                    })),
-                },
-            ))],
+            abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
+                deckmaste_core::KeywordActionPattern::Destroy(Predicate::Ref(Reference::This)),
+            )))],
         }),
     }));
     // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The

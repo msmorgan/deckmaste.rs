@@ -61,7 +61,7 @@ optZone : Maybe Zone -> String
 optZone Nothing = "None"
 optZone (Just z) = "Some(" ++ zoneName z ++ ")"
 
--- One row: the Rust `CauseVerb` spelling, the entailed master-form KIND (an
+-- One row: the Rust `VerbName` spelling, the entailed master-form KIND (an
 -- event-caps key), the zone coordinates the verb fixes, and the caps
 -- guarantees a cause-narrowed pattern inherits (object/actor/amount; the
 -- verb's own EventKind caps where the model has one, literal for the four
@@ -83,7 +83,7 @@ entailRow verb kind from to (MkEventCaps o a m _ _ _) cite =
 millTo : Zone
 millTo = Graveyard
 
--- The closed `CauseVerb` vocabulary, one CR-cited fact form each: the
+-- The closed `VerbName` cause-verb vocabulary, one CR-cited fact form each: the
 -- normal form that makes Dies-matches-sacrifice structural and kills the
 -- stringly `Performed` verb table.
 entailmentRows : List String
@@ -113,7 +113,7 @@ entailmentRows =
 
 entailmentTable : String
 entailmentTable =
-  header "Cause-verb entailments ([CR#701] keyword actions): each CauseVerb's fact form + inherited caps."
+  header "Cause-verb entailments ([CR#701] keyword actions): each VerbName's fact form + inherited caps."
   ++ "(\n    rows: [\n" ++ concat entailmentRows ++ "    ],\n)\n"
 
 -- --------------------------------------------------------------------------

@@ -45,10 +45,11 @@ pub(crate) enum Affected {
 pub(crate) fn replaceable(e: &GameEvent) -> bool {
     matches!(
         e,
-        GameEvent::WillDestroy { .. }
-            | GameEvent::WillDraw { .. }
+        GameEvent::WillDraw { .. }
             // [CR#701,614.17]: the named keyword-action event is guardable
-            // (a `Cant(Act(…))` suppresses it) and replaceable ([CR#614]).
+            // (a `Cant(Act(…))` suppresses it — indestructible) and replaceable
+            // ([CR#614] — regeneration); `Act(Destroy(…))` is the destruction
+            // intent, subsuming the retired `WillDestroy`.
             | GameEvent::Act { .. }
             | GameEvent::ZoneWillChange { .. }
             | GameEvent::DamageDealt { .. }
@@ -70,7 +71,11 @@ pub(crate) fn replaceable(e: &GameEvent) -> bool {
 /// not yet minted, a game-scope designation flip).
 pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
     match e {
-        GameEvent::WillDestroy { object, .. }
+        // `Act(Destroy(x))` (and any object-patient keyword action) affects its
+        // `on` object — regeneration's replacement body reads it as `That`.
+        GameEvent::Act {
+            on: Some(object), ..
+        }
         | GameEvent::ZoneWillChange { object, .. }
         | GameEvent::CounterPlaced { object, .. }
         | GameEvent::CounterRemoved { object, .. }
@@ -264,8 +269,9 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         // [CR#701.19c]: an instruction-scoped "can't be regenerated" rider on
         // this destruction skips the subject's regeneration shields entirely —
         // they are NOT applied (and, being unapplied, NOT consumed). Scoped to
-        // the destroy intent (the only event regeneration replaces).
-        if matches!(e, GameEvent::WillDestroy { .. })
+        // the destroy intent `Act(Destroy(…))` (the only event regeneration
+        // replaces).
+        if matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Destroy")
             && state.no_regen_subjects.contains(&inst.subject)
         {
             continue;
@@ -926,43 +932,32 @@ mod tests {
     use crate::event::Cause;
     use crate::event::GameEvent;
 
-    /// A `WillDestroy` intent is watched by a `Destroyed(Ref(This))` would
-    /// when `this` is the dying object.
+    /// An `Act(Destroy(Ref(This)))` would (regeneration's watch) watches the
+    /// `Act(Destroy)` keyword-action intent when `this` is the dying object.
     #[test]
     fn destroyed_would_watches_will_destroy_of_self() {
         let (state, _view, id) = super::tests_support::lone_creature();
-        let would = EventFilter::ZoneChange {
-            what: Predicate::Ref(Reference::This),
-            from: Some(Zone::Battlefield),
-            to: Some(Zone::Graveyard),
-            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::VerbName::from("Destroy")),
-                agency: None,
-                agent: None,
-            })),
-        };
-        let e = GameEvent::WillDestroy {
-            object: id,
+        let would = EventFilter::Act(deckmaste_core::KeywordActionPattern::Destroy(
+            Predicate::Ref(Reference::This),
+        ));
+        let e = GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: None,
+            on: Some(id),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
         };
         assert!(replacement_watches(&state, &would, id, &e));
     }
 
-    /// A sacrifice cause is NOT watched by a destruction `would`
+    /// A sacrifice is NOT watched by a destruction `Act(Destroy(…))` would — a
+    /// sacrifice is a `ZoneWillChange`, never the Destroy keyword action
     /// ([CR#701.21a]).
     #[test]
     fn destroyed_would_does_not_watch_sacrifice() {
         let (state, _view, id) = super::tests_support::lone_creature();
-        let would = EventFilter::ZoneChange {
-            what: Predicate::Ref(Reference::This),
-            from: Some(Zone::Battlefield),
-            to: Some(Zone::Graveyard),
-            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::VerbName::from("Destroy")),
-                agency: None,
-                agent: None,
-            })),
-        };
+        let would = EventFilter::Act(deckmaste_core::KeywordActionPattern::Destroy(
+            Predicate::Ref(Reference::This),
+        ));
         let e = GameEvent::ZoneWillChange {
             object: id,
             from: Some(Zone::Battlefield),
@@ -975,20 +970,20 @@ mod tests {
         assert!(!replacement_watches(&state, &would, id, &e));
     }
 
-    /// An object carrying `CantHappen(Destroyed(Ref(This)))` makes its own
-    /// `WillDestroy` "can't happen" ([CR#614.17]).
+    /// An object carrying `CantHappen(Act(Destroy(Ref(This))))`
+    /// (indestructible) makes its own `Act(Destroy)` "can't happen"
+    /// ([CR#614.17,702.12b]).
     #[test]
     fn cant_happen_suppresses_own_destruction() {
         let (state, id) = super::tests_support::creature_with_static(
-            deckmaste_core::StaticEffect::CantHappen(EventFilter::ZoneChange {
-                what: Predicate::Ref(Reference::This),
-                from: Some(Zone::Battlefield),
-                to: Some(Zone::Graveyard),
-                cause: None,
-            }),
+            deckmaste_core::StaticEffect::CantHappen(EventFilter::Act(
+                deckmaste_core::KeywordActionPattern::Destroy(Predicate::Ref(Reference::This)),
+            )),
         );
-        let e = GameEvent::WillDestroy {
-            object: id,
+        let e = GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: None,
+            on: Some(id),
             cause: None,
         };
         assert!(cant_event(&state, &e));
@@ -1011,8 +1006,16 @@ mod tests {
                 agent: Some(Predicate::creature()),
             })),
         };
-        let intent = |agent| GameEvent::WillDestroy {
+        // A cause-bearing ZoneChange-view intent (the `Act(Destroy)` filter
+        // narrows by patient, not agent, so the agent lift is exercised on the
+        // still-cause-bearing `ZoneWillChange` — same would-lane mechanism).
+        let intent = |agent| GameEvent::ZoneWillChange {
             object: id,
+            from: Some(Zone::Battlefield),
+            to: Zone::Graveyard,
+            enters: None,
+            position: None,
+            face: None,
             cause: Some(crate::event::Cause::destroy(
                 deckmaste_core::Agency::EffectInstruction,
                 agent,
@@ -1071,7 +1074,7 @@ mod tests {
     }
 
     /// A creature with a static umbra-style `Instead` on itself, plus a
-    /// floating shield on it → both gathered for its `WillDestroy`.
+    /// floating shield on it → both gathered for its `Act(Destroy)`.
     #[test]
     fn gather_collects_static_and_floating_for_will_destroy() {
         use deckmaste_core::Duration;
@@ -1093,8 +1096,10 @@ mod tests {
             one_shot: true,
             source: id,
         });
-        let e = GameEvent::WillDestroy {
-            object: id,
+        let e = GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: None,
+            on: Some(id),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
         };
         let app = gather_applicable(&state, &e);
@@ -1123,8 +1128,10 @@ mod tests {
             one_shot: true,
             source: id,
         });
-        let e = GameEvent::WillDestroy {
-            object: id,
+        let e = GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: None,
+            on: Some(id),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
         };
         // Without the rider: the shield is gathered.
@@ -1194,16 +1201,10 @@ mod tests {
     /// destroyed" (BF→GY with verb "Destroy"), as used in replacement `would`
     /// fields.
     fn destroyed_self() -> EventFilter {
-        EventFilter::ZoneChange {
-            what: Predicate::Ref(Reference::This),
-            from: Some(Zone::Battlefield),
-            to: Some(Zone::Graveyard),
-            cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::VerbName::from("Destroy")),
-                agency: None,
-                agent: None,
-            })),
-        }
+        // Regeneration's watch: the `Act(Destroy(this))` keyword-action intent.
+        EventFilter::Act(deckmaste_core::KeywordActionPattern::Destroy(
+            Predicate::Ref(Reference::This),
+        ))
     }
 
     /// A damage-prevention static effect prevents damage dealt to the creature.

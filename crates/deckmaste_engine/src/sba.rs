@@ -18,11 +18,11 @@ use crate::object::ObjectId;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
-/// One sweep ([CR#704.3]): the `PlayerLost`, `WillDestroy` (the replaceable
-/// destruction intent), `TokenCeased`, and off-stack-copy `AbilityCountered`
+/// One sweep ([CR#704.3]): the `PlayerLost`, `Act(Destroy)` (the replaceable
+/// destruction event), `TokenCeased`, and off-stack-copy `AbilityCountered`
 /// events this check would perform. The caller emits them and re-checks until
 /// a sweep comes back empty. A destroy's LKI snapshot is captured later, at
-/// the will-change apply the `WillDestroy` resolves into (the object is still
+/// the will-change apply the `Act(Destroy)` resolves into (the object is still
 /// live then), not here.
 #[must_use]
 pub fn sweep(state: &GameState) -> Vec<GameEvent> {
@@ -259,14 +259,13 @@ fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
 /// Re-attribute a rules-SBA-emitted event to the state-based action itself
 /// ([CR#704]): a state-based action has no agent — it is the game performing
 /// the action, not an effect or the object. Preserves the cause's verb when
-/// one already exists (e.g. the `WillDestroy` "Destroy" verb stays). For
+/// one already exists (e.g. the lethal-damage SBA's `Act(Destroy)` keeps its
+/// "Destroy" verb, [CR#701.8b] — the SBA is destruction's OTHER cause). For
 /// events whose `cause` is `None` (plain `Move` actions), upserts a
 /// `StateBasedAction` cause so no rules-SBA event goes unattributed.
 fn stamp_sba_cause(ev: &mut GameEvent) {
     let cause_slot = match ev {
-        GameEvent::WillDestroy { cause, .. } | GameEvent::ZoneWillChange { cause, .. } => {
-            Some(cause)
-        }
+        GameEvent::Act { cause, .. } | GameEvent::ZoneWillChange { cause, .. } => Some(cause),
         _ => None,
     };
     let Some(cause_opt) = cause_slot else {
@@ -572,7 +571,7 @@ mod tests {
     }
 
     /// [CR#704.5g,702.12b]: an indestructible creature with lethal damage is
-    /// NOT destroyed by the SBA — the sweep emits a `WillDestroy`, and the
+    /// NOT destroyed by the SBA — the sweep emits an `Act(Destroy)`, and the
     /// event-side cant pass ([CR#614.17]) in `apply_occurrence` suppresses it
     /// before `apply` runs. The Myr stays on the battlefield.
     #[test]
@@ -583,7 +582,7 @@ mod tests {
         state.objects.obj_mut(myr).set_marked_damage(1); // toughness 1 → lethal
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
-        let _ = state.step(); // WillDestroy applies → replaced to nothing
+        let _ = state.step(); // Act(Destroy) applies → replaced to nothing
         assert!(
             state.objects.get(myr).is_some(),
             "indestructible survives lethal damage"
@@ -599,7 +598,7 @@ mod tests {
         state.sba_rules = builtin().sba_rules;
 
         // Grizzly Bears has toughness 2; set lethal damage. The sweep emits
-        // the destroy as a replaceable `WillDestroy` intent (its apply commits
+        // the destroy as a replaceable `Act(Destroy)` intent (its apply commits
         // the battlefield→graveyard move when nothing replaces it), cause-tagged
         // as the SBA destruction verb ([CR#701.8b]).
         state.objects.obj_mut(bear).set_marked_damage(2);
@@ -607,14 +606,17 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::WillDestroy {
-                    object,
+                GameEvent::Act {
+                    verb,
+                    on: Some(object),
                     cause: Some(c),
-                } if *object == bear
+                    ..
+                } if verb.as_str() == "Destroy"
+                    && *object == bear
                     && c.verb == deckmaste_core::Ident::from("Destroy")
                     && c.agency == deckmaste_core::Agency::StateBasedAction
             )),
-            "sweep should include a WillDestroy for Grizzly Bears at lethal damage"
+            "sweep should include an Act(Destroy) for Grizzly Bears at lethal damage"
         );
 
         // Sublethal: damage = 1 < toughness 2.
@@ -623,7 +625,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .all(|e| !matches!(e, GameEvent::WillDestroy { .. })),
+                .all(|e| !matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Destroy")),
             "sweep should NOT include a destroy for Grizzly Bears at sublethal damage"
         );
     }
@@ -859,7 +861,7 @@ mod tests {
         state.objects.obj_mut(bear).set_marked_damage(2);
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
-        // WillDestroy applies (nothing replaces it) → ZoneWillChange remints.
+        // Act(Destroy) applies (nothing replaces it) → ZoneWillChange remints.
         let _ = state.step();
         let _ = state.step();
         assert!(
@@ -1354,7 +1356,7 @@ mod tests {
 
     /// [CR#704.5f]: a creature whose toughness drops to 0 (via -1/-1 counters)
     /// is put into its owner's graveyard by the rules-SBA pass — emitted as a
-    /// `ZoneWillChange` to `Graveyard`, NOT a `WillDestroy` (so regeneration
+    /// `ZoneWillChange` to `Graveyard`, NOT an `Act(Destroy)` (so regeneration
     /// and indestructible cannot save it).
     #[test]
     fn toughness_zero_creature_is_put_into_graveyard() {
@@ -1376,18 +1378,18 @@ mod tests {
             "toughness-0 creature should be put into its graveyard (a Move, not a destroy); \
              got {actions:?}"
         );
-        // Must NOT be a WillDestroy — regeneration/indestructible must not save it.
+        // Must NOT be an Act(Destroy) — regeneration/indestructible must not save it.
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear)),
             "toughness-0 is a put-into-graveyard, never a destroy; got {actions:?}"
         );
     }
 
     /// [CR#704.5f,702.12b]: indestructible does NOT save a creature whose
     /// toughness drops to 0. The toughness-0 SBA emits a `ZoneWillChange`
-    /// (a Move), not a `WillDestroy`, so the cant-happen guard never fires.
+    /// (a Move), not an `Act(Destroy)`, so the cant-happen guard never fires.
     /// After the sweep applies the creature is gone.
     #[test]
     fn toughness_zero_kills_even_indestructible() {
@@ -1697,15 +1699,15 @@ mod tests {
         let actions = sba::sweep(&state);
         let n = actions
             .iter()
-            .filter(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear))
+            .filter(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear))
             .count();
-        assert_eq!(n, 1, "exactly one WillDestroy from the rule");
+        assert_eq!(n, 1, "exactly one Act(Destroy) from the rule");
         let ev = actions
             .iter()
-            .find(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear))
+            .find(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear))
             .unwrap();
-        let GameEvent::WillDestroy { cause: Some(c), .. } = ev else {
-            panic!("WillDestroy must carry a cause; got {ev:?}")
+        let GameEvent::Act { cause: Some(c), .. } = ev else {
+            panic!("Act(Destroy) must carry a cause; got {ev:?}")
         };
         assert_eq!(
             c.agency,
@@ -1737,7 +1739,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear)),
             "a creature struck by deathtouch must be destroyed ([CR#704.5h]); got {actions:?}"
         );
     }
@@ -1806,13 +1808,13 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear)),
             "a source that dealt deathtouch damage then left still destroys the target; got {actions:?}"
         );
     }
 
     /// [CR#704.5g,704.5h]: a creature with BOTH lethal damage AND a deathtouch
-    /// strike emits exactly one `WillDestroy` — the `Or` in the rule
+    /// strike emits exactly one `Act(Destroy)` — the `Or` in the rule
     /// prevents the rule from firing twice.
     #[test]
     fn lethal_and_deathtouch_emits_one_destroy() {
@@ -1829,11 +1831,11 @@ mod tests {
         let actions = sba::sweep(&state);
         let n = actions
             .iter()
-            .filter(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear))
+            .filter(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear))
             .count();
         assert_eq!(
             n, 1,
-            "Or dedups to a single WillDestroy — no double-destroy panic; got {actions:?}"
+            "Or dedups to a single Act(Destroy) — no double-destroy panic; got {actions:?}"
         );
     }
 
@@ -1848,7 +1850,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear)),
             "sublethal damage without deathtouch must not destroy; got {actions:?}"
         );
     }
@@ -1879,7 +1881,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::WillDestroy { object, .. } if *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act { verb, on: Some(object), .. } if verb.as_str() == "Destroy" && *object == bear)),
             "toughness > 0 guard: no lethal-damage destroy on a 0-toughness creature; \
              got {actions:?}"
         );

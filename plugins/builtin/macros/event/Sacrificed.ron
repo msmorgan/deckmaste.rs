@@ -1,7 +1,7 @@
 // "Sacrificed" = a permanent moves battlefield → graveyard by SACRIFICE —
 // the cause-narrowed dies-view ([CR#701.21a]: its controller moves it to
 // its owner's graveyard; a sacrifice is never a destruction, so it can't
-// be regenerated). The cause verb is the closed CauseVerb vocabulary,
+// be regenerated). The cause verb is the closed VerbName vocabulary,
 // spelled bare: `Cause(verb: Sacrifice)`.
 // Usage: Sacrificed(what) — e.g. Sacrificed(Type("Creature")).
 (

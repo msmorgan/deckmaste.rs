@@ -289,7 +289,7 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 
 /// [CR#614.1a,616.1]: a creature with `Instead(would: Destroyed(This), instead:
 /// Exile(This))` given lethal damage is EXILED, not sent to the graveyard.
-/// The registry intercepts the `WillDestroy` SBA and redirects to exile.
+/// The registry intercepts the `Act(Destroy)` SBA and redirects to exile.
 #[test]
 fn instead_redirects_destruction_to_exile() {
     // The `instead` body: Move(This, Zone(Exile)) is a `PlayerAction`; By(You, ...)
@@ -313,7 +313,7 @@ fn instead_redirects_destruction_to_exile() {
     // Mark lethal damage (toughness = 2, so damage ≥ 2 is lethal).
     state.objects.obj_mut(id).set_marked_damage(2);
 
-    // Drive SBAs: CheckSbas → sweep → WillDestroy → replace_event → exile instead.
+    // Drive SBAs: CheckSbas → sweep → Act(Destroy) → replace_event → exile instead.
     drive_sbas(&mut state);
 
     // The creature should be in exile, NOT in the graveyard.
@@ -332,7 +332,7 @@ fn instead_redirects_destruction_to_exile() {
 
 /// [CR#614.17,702.12b]: a creature with `CantHappen(Destroyed(This))`
 /// (indestructible) survives lethal damage — the cant pass suppresses
-/// `WillDestroy` before the replacement registry runs.
+/// `Act(Destroy)` before the replacement registry runs.
 #[test]
 fn indestructible_still_survives_via_cant_pass() {
     let (mut state, id) = creature_with_abilities(
@@ -443,7 +443,7 @@ fn drive(state: &mut GameState) {
 }
 
 /// [CR#616.1]: two applicable Instead-to-nothing replacements on one creature →
-/// lethal damage → `WillDestroy` → `ChooseReplacement` surfaces.
+/// lethal damage → `Act(Destroy)` → `ChooseReplacement` surfaces.
 /// Choosing either key cancels the event: creature survives, graveyard empty.
 #[test]
 fn two_applicable_replacements_surface_choice() {
@@ -631,7 +631,7 @@ fn find_on_battlefield(state: &GameState, card_id: CardId) -> ObjectId {
 // ────────────────────────────────────────────────
 
 /// [CR#701.19a,614.8]: Resolve "Regenerate ~" on a 2/2 → a shield registers.
-/// Then mark lethal damage → SBA → `WillDestroy` → the shield replaces it:
+/// Then mark lethal damage → SBA → `Act(Destroy)` → the shield replaces it:
 /// damage is removed, creature is tapped, shield is consumed. Creature
 /// survives.
 #[test]
@@ -646,7 +646,7 @@ fn regenerated_creature_survives_lethal_damage() {
     // Mark lethal damage (toughness = 2).
     state.objects.obj_mut(id).set_marked_damage(5);
 
-    // Drive SBAs: sweep → WillDestroy → shield replaces → heal + tap.
+    // Drive SBAs: sweep → Act(Destroy) → shield replaces → heal + tap.
     drive_sbas(&mut state);
 
     // Creature must still be on the battlefield (same id — it didn't move).
@@ -677,8 +677,8 @@ fn regenerated_creature_survives_lethal_damage() {
 /// with them; the post-heal re-check sees no deathtouch source and does not
 /// re-destroy the creature. Regression for the bug where a deal-time flag,
 /// decoupled from the damage, survived the heal and drove a *second*
-/// `WillDestroy` on the very next check with no shield left, wrongly destroying
-/// the creature (Drudge Skeletons vs a deathtouch attacker).
+/// `Act(Destroy)` on the very next check with no shield left, wrongly
+/// destroying the creature (Drudge Skeletons vs a deathtouch attacker).
 #[test]
 fn regenerated_creature_survives_deathtouch_strike() {
     let (mut state, id) = vanilla_creature(2, 2);
@@ -698,7 +698,7 @@ fn regenerated_creature_survives_deathtouch_strike() {
         1,
     );
 
-    // Drive SBAs: first check → WillDestroy → shield replaces → heal (marks
+    // Drive SBAs: first check → Act(Destroy) → shield replaces → heal (marks
     // cleared, taking the deathtouch provenance with them) + tap; the re-check
     // then sees no deathtouch source and no lethal damage.
     drive_sbas(&mut state);
@@ -957,7 +957,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
 
 /// [CR#702.89a,614.1a]: an Aura with umbra-armor watches the enchanted
 /// permanent's destruction. When the creature gets lethal damage:
-/// - `WillDestroy(creature)` is gathered (the Aura's static other-watches it).
+/// - `Act(Destroy(creature))` is gathered (the Aura's static other-watches it).
 /// - The `Instead` fires: remove damage from creature, destroy the Aura.
 /// - The creature SURVIVES (damage cleared); the Aura goes to the graveyard.
 #[test]
@@ -970,7 +970,7 @@ fn umbra_armor_redirects_host_destruction_to_aura() {
     // Mark lethal damage on the creature (toughness = 2).
     state.objects.obj_mut(creature).set_marked_damage(5);
 
-    // Drive SBAs: SBA sweep → WillDestroy(creature) → Aura's static gathered
+    // Drive SBAs: SBA sweep → Act(Destroy(creature)) → Aura's static gathered
     // → Instead fires → RemoveDamage + Destroy(Aura).
     drive_sbas(&mut state);
 
@@ -1060,7 +1060,7 @@ fn creature_with_non_destroy_replacement(replacement: Replacement) -> (GameState
 }
 
 /// [CR#614,616.1]: a non-destroy replacement (`GainLife` → `LoseLife`) proves the
-/// registry handles player-experienced intents, not just `WillDestroy`.
+/// registry handles player-experienced intents, not just `Act(Destroy)`.
 ///
 /// A creature carrying `Instead(would: LifeGained(who: Any), instead:
 /// LoseLife(Literal(1)))` watches a `LifeGained` intent for player 0. When the

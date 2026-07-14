@@ -4,7 +4,7 @@
 //! zone coordinates it fixes. `Sacrifice` entails a Battlefield→Graveyard
 //! `ZoneChange` [CR#701.21a], so "dies" matches a sacrifice STRUCTURALLY
 //! and the engine carries no per-verb matching arm; the verb-view forms
-//! that remain (`Played`, the `WillDestroy` intent's zone coordinates) read
+//! that remain (`Played`, the `Act(Destroy)` event's zone coordinates) read
 //! their fact shape from a row here instead of hardcoding it.
 //!
 //! One source of truth: `crates/deckmaste_cards/tables/entailments.ron` is

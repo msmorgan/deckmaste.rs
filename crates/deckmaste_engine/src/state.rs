@@ -431,7 +431,7 @@ pub struct GameState {
     /// ([CR#603.2c] — a batch is ONE occurrence).
     pub next_batch: Uint,
     /// The batch-evolution collector: `Some` only while `apply_occurrence`
-    /// is applying a `Batch`'s members. Intent evolutions (`WillDestroy` →
+    /// is applying a `Batch`'s members. Intent evolutions (`Act(Destroy)` →
     /// `ZoneWillChange` → `ZoneChanged`, a draw's move, a created token's
     /// entry fact) push here instead of front-scheduling a `Single`, and the
     /// batch apply flushes the collection as ONE follow-on `Occurrence` — a

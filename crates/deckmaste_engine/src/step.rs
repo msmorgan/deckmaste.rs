@@ -465,24 +465,6 @@ impl GameState {
                 self.objects.obj_mut(id).tapped = false;
                 event
             }
-            GameEvent::WillDestroy { object, cause } => {
-                // [CR#701.8a]: the destruction intent commits and evolves into
-                // the committed Battlefield→Graveyard move, carrying the destroy
-                // cause ([CR#701.8b]) for the "destroyed" view. Indestructible
-                // (and other cant-happen statics) are handled upstream in
-                // `apply_occurrence` via the cant pass ([CR#614.17]) — the
-                // `WillDestroy` event never reaches `apply` for such objects.
-                self.schedule_evolution(GameEvent::ZoneWillChange {
-                    object,
-                    from: Some(Zone::Battlefield),
-                    to: Zone::Graveyard,
-                    enters: None,
-                    position: None,
-                    face: None,
-                    cause: cause.clone(),
-                });
-                GameEvent::WillDestroy { object, cause }
-            }
             GameEvent::WillDraw { player, source } => {
                 // [CR#121.1]: the draw intent commits. A card present → evolve
                 // into the generic Library→Hand move (remint + LKI); the
@@ -930,13 +912,37 @@ impl GameState {
             // never a zone move).
             // Revealing is a public information event, not a state mutation.
             GameEvent::Revealed { .. } => event,
-            // [CR#701]: the named keyword-action event — a pure fact (no state
-            // mutation; the body's own events move cards / draw). One event, two
-            // roles: the guardable moment (a canted `Act` never reaches here —
-            // the cant pass, [CR#614.17], suppresses it and the
-            // `Action::Composite` resolve skips the body) AND the "whenever you
-            // scry/surveil/…" trigger fact triggers observe once it survives
-            // ([CR#701.22d]). Stage 2+ emits it from destroy/draw/mill.
+            // [CR#701]: the named keyword-action event. TWO shapes by verb:
+            //  * `Destroy` REALIZES on apply ([CR#701.8a]) — a canted (indestructible,
+            //    [CR#702.12b]) or replaced (regeneration, [CR#701.19a]) `Act(Destroy)` never
+            //    reaches here; a survivor evolves into the committed Battlefield → Graveyard move
+            //    carrying its `cause` (one of "destroyed"'s two causes, [CR#701.8b]), exactly as
+            //    the retired `WillDestroy` did.
+            //  * scry/surveil/fateseal — a pure FACT (no mutation; the body's own events already
+            //    reordered the library). The surviving `Act` is the "whenever you scry/surveil/…"
+            //    trigger fact ([CR#701.22d]).
+            GameEvent::Act {
+                verb,
+                on: Some(object),
+                cause,
+                ..
+            } if verb.as_str() == "Destroy" => {
+                self.schedule_evolution(GameEvent::ZoneWillChange {
+                    object,
+                    from: Some(Zone::Battlefield),
+                    to: Zone::Graveyard,
+                    enters: None,
+                    position: None,
+                    face: None,
+                    cause: cause.clone(),
+                });
+                GameEvent::Act {
+                    verb,
+                    who: None,
+                    on: Some(object),
+                    cause,
+                }
+            }
             GameEvent::Act { .. } => event,
             GameEvent::DesignationChanged { .. } => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
@@ -1215,7 +1221,7 @@ impl GameState {
         self.objects.remove(id);
     }
 
-    /// Routes an intent's evolution product (`WillDestroy` →
+    /// Routes an intent's evolution product (`Act(Destroy)` →
     /// `ZoneWillChange` → `ZoneChanged`, a draw's move, a token's entry
     /// fact): inside a `Batch` apply it joins the shared evolution
     /// collector — the whole batch's products commit later as ONE follow-on
@@ -1805,10 +1811,10 @@ impl GameState {
     fn emit_sba_batch(&mut self, events: Vec<GameEvent>) -> Progress {
         // Snapshot the agenda length before applying: `apply_occurrence` may
         // schedule follow-on work items at the front (e.g. `Emit(ZoneWillChange)`
-        // from a `WillDestroy.apply`). If we re-check immediately after, the
+        // from an `Act(Destroy).apply`). If we re-check immediately after, the
         // follow-ons haven't run yet so the board looks unchanged — a destructible
         // creature with lethal damage hasn't moved yet and the re-check re-emits
-        // a WillDestroy, looping. By inserting the re-check AFTER the follow-on
+        // an Act(Destroy), looping. By inserting the re-check AFTER the follow-on
         // slots the re-check runs once the ZoneWillChange and ZoneChanged facts
         // have settled (and the creature is gone), so the next sweep is clean.
         let n_before = self.agenda.len();
@@ -2769,7 +2775,7 @@ mod tests {
     }
 
     /// A simultaneous batch of intents stays ONE occurrence through every
-    /// evolution stage ([CR#603.3b,603.2c]): a destroy-all's `WillDestroy`
+    /// evolution stage ([CR#603.3b,603.2c]): a destroy-all's `Act(Destroy)`
     /// batch evolves into one `ZoneWillChange` batch and then one committed
     /// `ZoneChanged` batch — never per-member `Single`s — and the two dies-
     /// facts share a history batch id.
@@ -2778,23 +2784,23 @@ mod tests {
         let (mut state, _view, a) = crate::replace_registry::tests_support::lone_creature();
         let b = crate::replace_registry::tests_support::mint_creature_on_battlefield(&mut state);
 
+        let destroy = |object| GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: None,
+            on: Some(object),
+            cause: None,
+        };
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
-            GameEvent::WillDestroy {
-                object: a,
-                cause: None,
-            },
-            GameEvent::WillDestroy {
-                object: b,
-                cause: None,
-            },
+            destroy(a),
+            destroy(b),
         ]))]);
 
-        // Stage 1: the WillDestroy batch applies.
+        // Stage 1: the Act(Destroy) batch applies.
         let crate::step::StepOutcome::Progress(crate::step::Progress::Applied(Occurrence::Batch(
             stage1,
         ))) = state.step()
         else {
-            panic!("expected the WillDestroy batch to apply");
+            panic!("expected the Act(Destroy) batch to apply");
         };
         assert_eq!(stage1.len(), 2);
 

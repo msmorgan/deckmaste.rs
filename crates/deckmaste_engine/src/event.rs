@@ -151,18 +151,12 @@ pub enum GameEvent {
     // Shaped, unbuilt (no fixture forces it yet): `WillDiscard` (madness, above
     // Hand→Graveyard) — the replaceable intent above its committed zone change,
     // like `WillDraw` below.
-    /// The INTENT of a destruction ([CR#701.8a]). Replaceable above the
-    /// committed Battlefield→Graveyard move (like `WillDraw`): its apply checks
-    /// the object's derived view for a destruction-replacement static —
-    /// indestructible ([CR#702.12b]) or, once they exist, a regeneration
-    /// shield (an `engine-replacements` seam). Present → the destroy is
-    /// replaced to nothing (the object is untouched). Absent → it evolves
-    /// into `ZoneWillChange(Battlefield → Graveyard)` carrying `cause`, one
-    /// of "destroyed"'s two causes ([CR#701.8b]).
-    WillDestroy {
-        object: ObjectId,
-        cause: Option<Cause>,
-    },
+    //
+    // The destruction intent is NOT a bespoke variant: destroy is the
+    // `Act(Destroy(x))` keyword action (above), whose apply evolves into
+    // `ZoneWillChange(Battlefield → Graveyard)` carrying its `cause`
+    // ([CR#701.8a,701.8b]) — indestructible ([CR#702.12b]) cants it and
+    // regeneration ([CR#701.19a]) replaces it, both keyed on `Act(Destroy(…))`.
     /// The INTENT of a draw ([CR#121.1]). Replaceable (Notion Thief, Lab
     /// Maniac — future). Its apply checks the library: a card present → bind
     /// the top, bump `CardsDrawn`, and evolve into `ZoneWillChange(Library →
@@ -191,13 +185,22 @@ pub enum GameEvent {
     /// the log is the "whenever you scry/surveil/…" trigger fact
     /// ([CR#701.22d]) — no separate post-fact. RESULT-side
     /// "destroyed"/"milled"/"drawn" triggers still key on the body's
-    /// `ZoneChanged`/`Drawn` fact ([CR#700.4]). Stage 1/2 emit this only from
-    /// the `Action::Composite` resolve (scry/surveil/fateseal); the Destroy
-    /// stage makes destroy emit it and retires `WillDestroy`.
+    /// `ZoneChanged`/`Drawn` fact ([CR#700.4]). Emitted from the
+    /// `Action::Composite` resolve (scry/surveil/fateseal) and from
+    /// `Action::Destroy` (which schedules the tagged `ZoneWillChange` this
+    /// present-tense event evolves into — the intermediate `WillDestroy` intent
+    /// this subsumed is retired).
     Act {
         verb: deckmaste_core::VerbName,
         who: Option<PlayerId>,
         on: Option<ObjectId>,
+        /// The causal context this keyword action rides ([CR#701.8b]) — its
+        /// `agency`/`agent`, used to tag the downstream committed move when the
+        /// atom REALIZES on apply (`Act(Destroy)` → `ZoneWillChange`). `verb`
+        /// duplicates the atom's name; a `None` cause is a keyword action with
+        /// no downstream cause-tagged move (scry/surveil reorder within a
+        /// zone).
+        cause: Option<Cause>,
     },
 
     Tapped {

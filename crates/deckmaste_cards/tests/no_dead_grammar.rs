@@ -530,16 +530,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "DEFERRED: see Agency::CostPayment.",
         ),
         (
-            n("EventFilter", "Act"),
-            "DEFERRED: the present-tense keyword-action `Act` pattern \
-            (`KeywordActionPattern`) is exercised by the engine (scry-suppress, \
-            indestructible/regen retarget), but no CORPUS card spells `Act(…)` in a \
-            filter yet — indestructible/regeneration still author the result-side \
-            `ZoneChange(cause: Destroy)` until the Destroy stage retargets them to \
-            `CantHappen(Act(Destroy(Ref(This))))` / `Replaces(Act(Destroy(…)))`. Its \
-            atom-tag variants (Scry/Destroy/…) are token-covered.",
-        ),
-        (
             n("EventFilter", "LifeLost"),
             "DEFERRED: no life-LOSS-triggered real card in this batch \
             (life GAIN — EventFilter::LifeGained, the `GainsLife` macro — is covered by \

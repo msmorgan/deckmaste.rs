@@ -1892,7 +1892,7 @@ fn etb_trigger_draws_a_card() {
 ///
 /// Expected flow:
 /// 1. Resolve → one `Batch` of three `DamageDealt` events.
-/// 2. SBA sweep → one `Batch` of three `WillDestroy` intents (each creature has
+/// 2. SBA sweep → one `Batch` of three `Act(Destroy)` events (each creature has
 ///    lethal damage); each evolves into its battlefield→graveyard move.
 /// 3. Trigger matching notes SEVEN triggers in the same scan: the fiend's
 ///    dies-trigger plus, for EACH of the three deaths, each player's Moonlit
@@ -2025,14 +2025,14 @@ fn occurrence_batch_and_apnap_ordering() {
                 }
             }
         }
-        // Look for the WillDestroy batch (SBA destroys, one simultaneous batch
+        // Look for the Act(Destroy) batch (SBA destroys, one simultaneous batch
         // of intents; each evolves into its own battlefield→graveyard move).
         if !saw_sba_destroy_batch {
             for p in &trace {
                 if let Progress::Applied(Occurrence::Batch(events)) = p {
                     let destroys = events
                         .iter()
-                        .filter(|e| matches!(e, GameEvent::WillDestroy { .. }))
+                        .filter(|e| matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Destroy"))
                         .count();
                     if destroys >= 3 {
                         saw_sba_destroy_batch = true;

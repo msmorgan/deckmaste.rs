@@ -13,10 +13,12 @@
 // is free to keep meaning the source ability (it never moves), and the shield
 // works for "regenerate target creature" (source ≠ subject), not just self.
 //
-// The `would` inlines its `ZoneChange` rather than calling the `Destroyed`
-// macro: a `Param`/binding can't cross into a nested macro invocation's frame.
-// It is the cause-narrowed destruction view — the shape `Destroyed` expands to
-// ([CR#701.8b]: destroy verb or lethal-damage SBA).
+// The `would` watches the `Act(Destroy(…))` keyword-action INTENT — the
+// present-tense, replaceable destruction moment ([CR#701.8b]: the effect
+// destroy or the lethal-damage SBA, both perform the Destroy keyword action).
+// Replacing it here (cant→replace→apply, [CR#614]) means the Battlefield →
+// Graveyard move its apply would commit never happens; the heal/tap runs
+// instead. `Ref(EventObject)` is the captured subject the shield remembers.
 (
     name: "Regenerate",
     template: "regenerate ${0}",
@@ -24,12 +26,7 @@
     params: [Reference],
     body: CreateReplacement(
         replacement: Instead(
-            would: ZoneChange(
-                what: Ref(EventObject),
-                from: Battlefield,
-                to: Graveyard,
-                cause: Cause(verb: Destroy),
-            ),
+            would: Act(Destroy(Ref(EventObject))),
             instead: Sequentially([
                 RemoveDamage(EventObject),
                 Tap(EventObject),

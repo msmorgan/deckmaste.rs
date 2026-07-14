@@ -160,7 +160,6 @@ impl PredefinedToken {
     /// builtin token files expand to).
     #[must_use]
     pub fn token(self) -> Token {
-        use crate::CausePattern;
         use crate::ColorOrColorless;
         use crate::Count;
         use crate::EventFilter;
@@ -171,12 +170,10 @@ impl PredefinedToken {
         use crate::ObjectKind;
         use crate::Predicate;
         use crate::StaticEffect;
-        use crate::Zone;
         use crate::ability::ActivatedAbility;
         use crate::action::PlayerAction;
         use crate::cost::CostComponent;
         use crate::effect::OneShotEffect;
-        use crate::event::Cause;
         use crate::mana::ManaCost;
         use crate::mana::ManaSymbol;
         use crate::mana::SimpleManaSymbol;
@@ -215,22 +212,14 @@ impl PredefinedToken {
         };
         // Indestructible ([CR#702.12b]) as a `Composite` keyword — the printed
         // name plus the event-side can't-happen it stands for ([CR#614.17]),
-        // mirroring the builtin `Indestructible` keyword macro.
+        // mirroring the builtin `Indestructible` keyword macro: the
+        // `Act(Destroy(this))` keyword action can't happen.
         let indestructible = || {
             Ability::Keyword(KeywordAbility::Composite {
                 name: "Indestructible".into(),
-                abilities: vec![Ability::Static(StaticEffect::CantHappen(
-                    EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::This),
-                        from: Some(Zone::Battlefield),
-                        to: Some(Zone::Graveyard),
-                        cause: Some(Cause::Cause(CausePattern {
-                            verb: Some(crate::VerbName::from("Destroy")),
-                            agency: None,
-                            agent: None,
-                        })),
-                    },
-                ))],
+                abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
+                    crate::KeywordActionPattern::Destroy(Predicate::Ref(Reference::This)),
+                )))],
             })
         };
 

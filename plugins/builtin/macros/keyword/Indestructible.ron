@@ -1,16 +1,15 @@
 // Indestructible = an event-side can't-happen [CR#702.12b,614.17]: the
-// matching destruction event simply cannot occur. Covers both destroy causes
-// ([CR#701.8b]) including the lethal-damage SBA ([CR#704.5g]). The engine's
-// cant pass ([CR#614.17]) in `apply_occurrence` suppresses the `WillDestroy`
-// event before `apply` runs — the replacement registry is skipped entirely
-// ([CR#614.17c]).
+// `Act(Destroy(this))` keyword action simply cannot occur. Reads like the card
+// ("can't be destroyed") and covers both destroy causes ([CR#701.8b]) —
+// the effect destroy AND the lethal-damage SBA, which both perform the Destroy
+// keyword action. Naturally ignores a toughness-0 / lethal-state MOVE
+// ([CR#704.5f], a plain `Move`, not the Destroy atom) and sacrifice
+// ([CR#701.21a]) — neither is `Act(Destroy)`, so no cause-predicate is needed.
+// The engine's cant pass ([CR#614.17]) in `apply_occurrence` suppresses the
+// `Act(Destroy)` event before `apply` runs — the replacement registry is
+// skipped entirely ([CR#614.17c]).
 KeywordAbility(
     name: "Indestructible",
     template: "indestructible",
-    abilities: [Static(CantHappen(ZoneChange(
-            what: Ref(This),
-            from: Battlefield,
-            to: Graveyard,
-            cause: Cause(verb: Destroy),
-        )))],
+    abilities: [Static(CantHappen(Act(Destroy(Ref(This)))))],
 )

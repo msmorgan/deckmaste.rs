@@ -532,7 +532,7 @@ impl GameState {
             // fact the clause ACTUALLY enacts (its whole apply cascade sits
             // between the markers) joins `noted[key]`, never the gathered
             // input set: a destroy-all's indestructible survivor is
-            // excluded by construction (its `WillDestroy` was canted and no
+            // excluded by construction (its `Act(Destroy)` was canted and no
             // move fact exists). Later clauses read the group via
             // `Selection::AmongNoted` ("this way" anaphora).
             OneShotEffect::Noting(noting) => {

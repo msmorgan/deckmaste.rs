@@ -54,36 +54,48 @@ atom subsumes the old bespoke `Action::Destroy(Reference)` — that IS the
 rejects unknown atoms; add an `entailments.ron`-membership check. Retire the
 `CauseVerb` enum into this namespace.
 
-### The `Act` event — present tense, one event, three roles
+### The `Act` composite — ONE dual-facet event, applied atomically
 
-`GameEvent::Act(KeywordAction)` (present tense; NOT a pre/post `WillAct`/`Acted`
-pair — a surviving `Act` in the log IS the "it happened" fact). Resolving a
-keyword action:
+A keyword action is `Composite(tag, body)` (the atom's principal arg lives in
+the tag: `Destroy(Ref(This))`, `Scry(You, 2)`). It surfaces as ONE present-tense
+`GameEvent::Act` that is **simultaneously matchable on two facets** and goes
+through cant→replace→apply **as one unit** — NO unwrap step, NO second event
+below it. The asymmetry the old two-step model created (destroy's realization
+sat *below* its `Act` as a separate `ZoneWillChange`; scry's sat *above* it) is
+gone: every verb is the same dual-facet composite.
 
-1. **Guard/replace point.** Emit `Act(<atom>)`. `CantHappen`/`Replaces` bite it
-   by matching the atom. If suppressed/replaced, the realization never runs.
-2. **Unwrap on apply.** A surviving `Act` realizes per-atom, mirroring today's
-   `WillDestroy → ZoneWillChange`:
-   - `Act(Destroy(x))` → `ZoneWillChange(Battlefield→Graveyard)` tagged with the
-     Destroy atom [CR#701.8a]. (`apply(Act(Destroy(x))) == apply(Move(x,Gy))`.)
-   - `Act(Mill(n))` → top-`n` (clamped, [CR#701.17b]) → Graveyard batch.
-   - `Act(Draw(n))` → per-card, one at a time [CR#121.2]: library non-empty →
-     move top to Hand + bump `CardsDrawn`; empty → `DrewFromEmpty`
-     [CR#121.4,704.5b]. (The empty branch is why Draw keeps a card-intent — it
-     can't front-load a `ZoneWillChange{object}` with no object. Preserve
-     face-down-during-cast [CR#121.8] and the "without the word draw"
-     distinction [CR#121.5].)
-   - `Act(Scry(n))` → look + reorder (moves within the library).
-3. **Trigger fact.** The surviving `Act` is what "whenever you scry/mill/draw"
-   reads. Gated on the atom actually acting (scry 0 / fully-replaced destroy →
-   no `Act`, [CR#701.22b]). Fires post-completion so arrangement precedes it
-   ([CR#701.22d]); the guard CHECK runs at schedule-time on the `Act` value,
-   decoupled from where the fact lands (proven in Stage 1).
+- **Tag facet.** The keyword-action NAME + its participant. `Act(Destroy(_))`,
+  `Act(Scry(You))`, `Cant(Act(Destroy(Ref(This))))` (indestructible), regen,
+  "whenever you scry/mill/destroy" all bite here.
+- **Body facet.** The composite's *canonical* realized shape, derivable from the
+  tag **before** the body runs (`Destroy(x)`→`ZoneChange(Battlefield→Graveyard,
+  x)`; `Mill(who,n)`→top-`n` `→Graveyard`; `Scry`→within-library reorder, no
+  →Graveyard). "When it dies" (`ZoneChange(_→Graveyard)`) and Rest-in-Peace
+  ("if a card would go to a graveyard, exile instead") bite here — on the SAME
+  fact.
 
-`EventFilter::Act(<atom-pattern>)` matches by the atom: `Act(Destroy(Ref(This)))`
-(this only), `Act(Destroy(_))` (any destroy), `Act(Scry(_))` (any scry). The
-patient is the atom's own argument — there is NO separate `on` field and NO
-patient-default fork.
+`FactView::of(Act{…})` populates **both** the tag fields (`act_name`, `actor`,
+`object`) **and** the body-shape zone fields, so the one shared evaluator
+(`replacement_watches` → `FactView` → `eval`) matches whichever facet a filter
+names. The `eval` arms key on **facet present**, not strict `kind ==`:
+`EventFilter::Act(pat)` checks `act_name`; `EventFilter::ZoneChange{…}` checks
+the zone-shape — and a destroy composite carries both, so both fire.
+
+**Atomic apply.** A surviving `Act` COMMITS its body directly (`Act(Destroy)`
+apply *is* the Battlefield→Graveyard commit — `apply(Act(Destroy(x))) ==
+apply(Move(x,Gy))`, tagged Destroy), not a `schedule_evolution` to a separate
+replaceable `ZoneWillChange`. Realizations, all as the body facet:
+- `Destroy(x)` → `→Graveyard` [CR#701.8a]. `Mill(who,n)` → top-`n` (clamped,
+  [CR#701.17b]) batch `→Graveyard`. `Scry(who,n)` → look + within-library
+  reorder. `Surveil`/`Fateseal` likewise.
+- `Draw(who,n)` → per-card, one at a time [CR#121.2]: non-empty → top `→Hand` +
+  bump `CardsDrawn`; empty → `DrewFromEmpty` [CR#121.4,704.5b]. Draw's body-facet
+  shape is `→Hand` (not `→Graveyard`), so "when it dies" never matches it;
+  preserve face-down-during-cast [CR#121.8] and the "without the word draw"
+  distinction [CR#121.5].
+- **No-op ⇒ no `Act`.** A body that does nothing performs no keyword action, so
+  the composite never surfaces (scry 0, a fully-canted destroy — [CR#701.22b]).
+  Trigger fires post-commit so arrangement precedes it ([CR#701.22d]).
 
 ### Guards / replacements / SBAs
 
@@ -102,6 +114,13 @@ patient-default fork.
   (`Macros.idr:171,186`).
 - Preserve cant→replace→apply order ([[engine-replacements]], `step.rs:1247`) so
   an indestructible creature never consumes its regen shield [CR#702.12b].
+- **One replace step, both facets ([CR#616.1]).** Because the composite is a
+  single event, regeneration (tag facet, `Act(Destroy)`) and a graveyard-move
+  replacement (body facet, Rest-in-Peace's `→Graveyard`) are gathered into the
+  SAME [CR#616] applicable-set and the affected player orders them — fixing the
+  old two-event split (regen on `Act`, RiP on the downstream `ZoneWillChange` =
+  two replace moments that could misorder). Dual-facet matching in the shared
+  evaluator gives this for free.
 
 ### Provenance & result-side triggers
 
@@ -112,11 +131,17 @@ patient-default fork.
   same bareword namespace [CR#701.8b,701.17c].
 - "when it dies" = any Battlefield→Graveyard (shape), unchanged [CR#700.4].
 
-### Surface — positional bareword atoms, no named params
+### Surface — `Composite(tag, body)`, body is canonical stored data
 
-Card-facing text is unchanged ("Destroy target creature", "Scry 2"). RON is
-positional bareword throughout: `Act(Destroy(Ref(This)))`, `Act(Scry(2))`,
-`Act(Mill(3))` — no `name:`/`on:` binders.
+Destroy stops being a bespoke `Action::Destroy` verb: it is authored (via macro,
+so the author still writes "Destroy target creature") as
+`Composite(Destroy(x), Move(x, Graveyard))` — the body IS the zone move, as
+DATA, exactly like scry's stored reorder body. The engine holds no per-verb
+`Action::Destroy`/`WillDestroy` and no hardcoded `Act(Destroy)`→`ZoneWillChange`
+apply arm; the body-facet match-shape is read by **descending into the stored
+body's head zone-change(s)** (`Move(_,Graveyard)`→`→Graveyard`; scry's reorder →
+within-library, no graveyard) — "matches the expanded body." RON stays positional
+bareword: `Act(Destroy(Ref(This)))`, `Act(Scry(2))`, `Act(Mill(3))`.
 
 ## Blast radius (churn irrelevant — state scope)
 
@@ -128,9 +153,11 @@ positional bareword throughout: `Act(Destroy(Ref(This)))`, `Act(Scry(2))`,
   namespace (`Composite.name`, `Act`, `Cause.verb`, `KeywordDecl.name`); remove
   `Action::Destroy`, `PlayerAction::Draw/Mill`, `GameEvent::WillDestroy`, the
   `CauseVerb` enum + `as_str` + `pub use`.
-- **engine**: `Act` resolve/apply per-atom realization; retarget indestructible +
-  regen + lethal/deathtouch SBAs to `Act(Destroy(...))`; the ~8 `CauseVerb::*`
-  construction sites → the newtype.
+- **engine**: dual-facet `Act` — `FactView::of` carries tag + body-shape (descend
+  the stored body), `eval` arms match facet-present not `kind ==`, apply commits
+  the body atomically (no `ZoneWillChange` unwrap); one [CR#616] replace step over
+  both facets; retarget indestructible + regen + lethal/deathtouch SBAs to
+  `Act(Destroy(...))`; the ~8 `CauseVerb::*` construction sites → the newtype.
 - **grammar**: parse⇄render⇄idris round-trip for the atoms
   ([[parse-via-macros-design-settled]], RENDER arms required
   [[canon-card-needs-renderer-for-fidelity]]) — `parsers/effect.rs`,
@@ -141,8 +168,11 @@ positional bareword throughout: `Act(Destroy(Ref(This)))`, `Act(Scry(2))`,
 ## Non-goals
 
 - `Discard`/`WillDiscard` — shaped only; next atom once a fixture forces it.
-- Do NOT fold `ZoneWillChange` away — it stays the committed result; `Act` sits
-  above it. One `Act` atom for ALL keyword actions, not a per-verb event.
+- `ZoneWillChange` stays for PLAIN (non-keyword) moves — bounce, tuck, a bare
+  `Move`. What changes: a keyword action no longer emits a SEPARATE replaceable
+  `ZoneWillChange` below its `Act`; the dual-facet composite commits the tagged
+  zone change directly on apply. The committed post-fact (`ZoneChanged`, tag
+  carried) is unchanged.
 
 ## Verification
 
@@ -166,7 +196,16 @@ migrate-damage-sbas-to-rules.
   present-tense `GameEvent::Act`; added `EventFilter::Act`; `Composite` resolve
   emits it with the schedule-time cant gate; post-completion ordering
   ([CR#701.22d]) preserved.
-- **Stage 2 (next):** the parameterized bareword atom + `CauseVerb` retirement +
-  the full Destroy migration (macro→atom, remove `Action::Destroy`/`WillDestroy`,
-  retarget indestructible/regen/SBAs, round-trip).
-- **Stages 3–5:** Mill, Draw, then corpus re-encode + wizards regen + suites.
+- **Stage 2 (done, green — 529+213):** parameterized bareword atom + `CauseVerb`
+  retirement (→ `VerbName`); Destroy semantic migration — `WillDestroy` removed,
+  indestructible/regen/lethal-SBA retargeted to `Act(Destroy)`. DEVIATION carried:
+  `Act(Destroy)` still *unwraps* to a separate `ZoneWillChange` on apply, and a
+  thin `Action::Destroy` emitter remains — superseded by Stage 2b.
+- **Stage 2b (next) — dual-facet atomic composite.** Make `Act` one dual-facet
+  event: `FactView::of(Act{…})` carries tag + body-shape (read by descending the
+  stored body); `eval` arms match by facet-present, not strict `kind ==`; apply
+  COMMITS the body directly (kill the `Act(Destroy)`→`ZoneWillChange` unwrap,
+  step.rs:918); cant+replace gather both facets in one [CR#616] step. Author
+  destroy as `Composite(Destroy(x), Move(x, Graveyard))`; remove `Action::Destroy`.
+- **Stages 3–5:** Mill, Draw (both `Composite(tag, body)`, same dual-facet path),
+  then corpus re-encode + wizards regen + suites.
