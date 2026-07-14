@@ -1,0 +1,26 @@
+// Weather the Storm ({1}{G} Instant): "You gain 3 life. Storm (When you cast
+// this spell, copy it for each spell cast before it this turn.)" The simplest
+// self-copying storm card — no targets — graduated as the corpus fixture for
+// the Storm keyword ([CR#702.40a]) and its `Before(This)` cast-order count.
+// The `Keyword(Storm)` macro carries the composite triggered ability; the
+// printed line renders as the bare keyword name "Storm".
+// waiver: keyword-line ordering seam — the renderer emits the keyword line
+// FIRST (correct for a permanent's top-of-box keyword line, e.g. "Flying"),
+// but on an instant/sorcery a spell keyword like storm prints AFTER the
+// effect ("You gain 3 life." then "Storm"). Pure line-order divergence, no
+// semantic difference; the keyword-on-a-spell placement is an unrelated
+// renderer concern.
+Normal(
+  name: "Weather the Storm",
+  mana_cost: [
+    Generic(1),
+    Green,
+  ],
+  types: [
+    Instant,
+  ],
+  abilities: [
+    Spell(effect: GainLife(3)),
+    Keyword(Storm),
+  ],
+)

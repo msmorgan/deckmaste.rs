@@ -975,7 +975,38 @@ impl GameState {
                 window_contains(*within, fact.time, self.turn.turn_number)
                     && self.eval(inner, fact, lane, bindings)
             }
+
+            // [CR#702.40a,603.3]: the storm refinement — the fact matches iff
+            // its log position (the monotonic cast ORDER, [CR#601.2i]) is
+            // strictly before the referenced object's OWN cast. "Other …
+            // before it" falls straight out of `<`: the reference's own cast
+            // is not before itself, and a spell cast in RESPONSE (a later log
+            // position) is excluded even though it shares the turn tally. A
+            // history-lane refinement: a live fact has no `seq` and never
+            // matches, and with no frame there is no `This` to anchor.
+            EventFilter::Before(reference) => {
+                let Some(frame) = bindings.frame else {
+                    return false;
+                };
+                let anchor = self.eval_reference(reference, frame);
+                let Some(cast_seq) = self.cast_seq_of(anchor) else {
+                    return false;
+                };
+                fact.seq.is_some_and(|seq| seq < cast_seq)
+            }
         }
+    }
+
+    /// The history-log position of `object`'s own `SpellCast` fact
+    /// ([CR#601.2i]) — the monotonic cast-order anchor
+    /// [`EventFilter::Before`] compares against. `None` when the object has
+    /// no recorded cast this game (a live or uncast reference — the `Before`
+    /// refinement then matches nothing, never a panic).
+    fn cast_seq_of(&self, object: ObjectId) -> Option<usize> {
+        self.history
+            .in_window(Lookback::ThisGame, self.turn.turn_number)
+            .find(|(_, entry)| matches!(&entry.fact, GameEvent::SpellCast(o) if *o == object))
+            .map(|(seq, _)| seq)
     }
 
     /// Does the pattern's cause narrowing admit the fact's cause triple

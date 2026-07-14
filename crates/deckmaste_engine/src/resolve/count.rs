@@ -686,9 +686,11 @@ mod tests {
         let frame = frame_for(&state, p);
 
         // Three spells cast this turn (game-wide); `EventCount(Cast, ThisTurn)`
-        // returns the FULL count (3). The storm "−1/before this one"
-        // self-exclusion is deferred until a storm card exists — no card
-        // consumes it yet ([CR#702.40a]).
+        // returns the FULL count (3) — the plain tally, not the storm count.
+        // Storm's "each OTHER spell cast before it" is the separate
+        // `EventCount(AllOf[Cast, Before(This)], ThisTurn)` refinement
+        // ([CR#702.40a]; see `storm_counts_other_spells_cast_before_it`
+        // below), never a blanket −1 off this tally.
         // Mint real objects for the Cast path (performed_matches reads their
         // controllers via objects.obj, which panics on stale IDs).
         let sp1 = state.objects.mint(ObjectSource::Player(p), p, None);
@@ -707,7 +709,8 @@ mod tests {
                 &frame
             ),
             3,
-            "storm: all casts this turn (full count; −1 self-exclusion deferred)"
+            "the plain cast tally this turn is the full count (storm's before-it \
+             refinement is a separate count)"
         );
 
         // Two draws by p this turn → EventCount(Draw, by: Ref(You)) = 2.
@@ -856,6 +859,100 @@ mod tests {
             ),
             0,
             "draws reset on new turn"
+        );
+    }
+
+    /// The storm count ([CR#702.40a]): "copy it for each OTHER spell that was
+    /// cast BEFORE it this turn." Cast A, then B, then the storm spell S; the
+    /// storm count evaluated in S's frame is exactly 2 (A and B) — not 3 (S's
+    /// own cast is not "before" itself, dropped by `Before(This)`) and not 1.
+    /// This is the count `Repeat(<count>, CopySpell(This))` drives, so 2 =
+    /// two copies.
+    #[test]
+    fn storm_counts_other_spells_cast_before_it() {
+        use deckmaste_core::EventFilter;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+        let p = PlayerId(0);
+
+        // A, B, then the storm spell S — cast in that order this turn. Real
+        // objects (the Cast path reads controllers via objects.obj).
+        let sp_a = state.objects.mint(ObjectSource::Player(p), p, None);
+        let sp_b = state.objects.mint(ObjectSource::Player(p), p, None);
+        let storm = state.objects.mint(ObjectSource::Player(p), p, None);
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp_a));
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp_b));
+        state.record_history_fact(1, None, GameEvent::SpellCast(storm));
+
+        // The storm count, evaluated in the storm spell's frame (This = S).
+        let storm_count = Count::EventCount(
+            Box::new(EventFilter::AllOf(vec![
+                EventFilter::Cast {
+                    who: Predicate::Any,
+                    what: Predicate::Any,
+                },
+                EventFilter::Before(Reference::This),
+            ])),
+            Lookback::ThisTurn,
+        );
+        let frame = frame_src(storm);
+        assert_eq!(
+            state.eval_count(&storm_count, &frame),
+            2,
+            "storm copies for A and B — the two OTHER spells cast before S \
+             ([CR#702.40a]); S's own cast is excluded, so not 3, and both \
+             predecessors count, so not 1"
+        );
+    }
+
+    /// The held-priority case ([CR#603.3]): after casting the storm spell S,
+    /// a player holds priority and casts a fourth spell T before the storm
+    /// trigger resolves. T is in this turn's cast tally, and the trigger is
+    /// placed ABOVE T on the stack — yet T was cast AFTER S, so it is not
+    /// "cast before it" and the copy count stays 2. `Before(This)` keys on
+    /// cast ORDER (log position), not resolution time, so T (a later cast) is
+    /// excluded.
+    #[test]
+    fn storm_count_ignores_spells_cast_in_response() {
+        use deckmaste_core::EventFilter;
+
+        let mut state = game();
+        state.turn.turn_number = 1;
+        let p = PlayerId(0);
+
+        let sp_a = state.objects.mint(ObjectSource::Player(p), p, None);
+        let sp_b = state.objects.mint(ObjectSource::Player(p), p, None);
+        let storm = state.objects.mint(ObjectSource::Player(p), p, None);
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp_a));
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp_b));
+        state.record_history_fact(1, None, GameEvent::SpellCast(storm));
+
+        let storm_count = Count::EventCount(
+            Box::new(EventFilter::AllOf(vec![
+                EventFilter::Cast {
+                    who: Predicate::Any,
+                    what: Predicate::Any,
+                },
+                EventFilter::Before(Reference::This),
+            ])),
+            Lookback::ThisTurn,
+        );
+        let frame = frame_src(storm);
+        assert_eq!(
+            state.eval_count(&storm_count, &frame),
+            2,
+            "baseline before the response: A and B"
+        );
+
+        // T cast in response, AFTER S (a later log position).
+        let sp_t = state.objects.mint(ObjectSource::Player(p), p, None);
+        state.record_history_fact(1, None, GameEvent::SpellCast(sp_t));
+        assert_eq!(
+            state.eval_count(&storm_count, &frame),
+            2,
+            "T was cast after S — not 'before it' ([CR#603.3]) — so the copy \
+             count stays 2, never 3"
         );
     }
 

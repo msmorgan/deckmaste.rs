@@ -1,0 +1,37 @@
+// Storm = a triggered ability that functions on the stack ([CR#702.40a]):
+// "When you cast this spell, copy it for each other spell that was cast before
+// it this turn. If the spell has any targets, you may choose new targets for
+// any of the copies." An unparameterized composite-triggered keyword (like
+// Mentor/Flying's `KeywordAbility(name, template, abilities)` form); multiple
+// instances trigger separately ([CR#702.40b]), the engine's per-instance
+// handling.
+//
+// Pieces (all over existing primitives):
+//   - trigger:  `Cast(what: Ref(This))` — "when you cast this spell"
+//               ([CR#601.2i]); the storm spell's own cast is the onset.
+//   - count:    `EventCount(AllOf([Cast(who: Any, what: Any), Before(This)]),
+//               ThisTurn)` — "each OTHER spell that was cast before it this
+//               turn". `Before(This)` ([CR#702.40a]) keys on cast ORDER (log
+//               position), so This's own cast (not before itself) drops out —
+//               the "other" — and a spell cast in RESPONSE, a later cast the
+//               turn tally still holds ([CR#603.3]), is excluded. This is why
+//               a plain `EventCount(Cast, ThisTurn)` is wrong.
+//   - effect:   `Repeat(<count>, CopySpell(This))` ([CR#707.10]) — put that
+//               many copies of the storm spell onto the stack.
+//
+// The reminder's "you may choose new targets for any of the copies" rider is
+// OMITTED: it is a "may" ([CR#707.10c]) — a copy keeps the original's targets
+// by default, which is always legal — and `Repeat` binds no per-copy
+// reference for `ChooseNewTargets` to name. The copy count (the substantive
+// storm behavior) is fully modeled.
+KeywordAbility(
+    name: "Storm",
+    template: "storm",
+    abilities: [Triggered(
+        event: Cast(what: Ref(This)),
+        effect: Repeat(
+            EventCount(AllOf([Cast(who: Any, what: Any), Before(This)]), ThisTurn),
+            CopySpell(This),
+        ),
+    )],
+)

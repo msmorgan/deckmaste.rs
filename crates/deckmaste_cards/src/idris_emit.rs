@@ -2717,6 +2717,12 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                 "EventFilter::Within not yet mapped (a history-lane refinement, not valid on a live trigger)",
             ));
         }
+        EventFilter::Before(..) => {
+            return Err(gap(
+                "EventFilter::Before not yet mapped (the storm history-lane cast-order refinement, \
+                 reached only under the already-gapped Count::EventCount)",
+            ));
+        }
         EventFilter::Expanded(_) => {
             return Err(gap(
                 "unexpanded EventFilter macro invocation remained after expand_all",

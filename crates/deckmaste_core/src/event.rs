@@ -525,6 +525,16 @@ pub enum EventFilter {
     /// `Happened`/`EventCount`/`EventSum` (history lanes); vacuous, and
     /// refused, in live lanes ([CR#603.2]).
     Within(Box<EventFilter>, Lookback),
+    /// The storm refinement ([CR#702.40a]): the occurrence happened strictly
+    /// BEFORE the referenced object's OWN cast this window — keyed on cast
+    /// ORDER ([CR#601.2i]), never resolution time. `Before(This)` delivers
+    /// storm's "each OTHER spell cast before it this turn": the storm spell's
+    /// own cast is not before itself (so "other" falls out), and a spell cast
+    /// in RESPONSE — a later cast the turn's tally still holds, placed above
+    /// the storm trigger ([CR#603.3]) — is excluded. A history-lane
+    /// refinement, legal only under `EventCount`/`EventSum`; a live fact has
+    /// no recorded cast position to compare and never matches.
+    Before(Reference),
     /// A remembered `EventFilter` macro invocation (`Dies`, `Enters`,
     /// `Sacrificed`, …). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
@@ -674,6 +684,8 @@ mod tests {
         for source in [
             "Nth(n: 2, of: Cast(who: Ref(You)), within: ThisTurn)",
             "Within(LifeGained(who: Ref(You)), ThisTurn)",
+            "Before(This)",
+            "AllOf([Cast(who: Any, what: Any), Before(This)])",
             "OneOrMore(ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard))",
             "Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play)))",
             "AllOf([ZoneChange(what: Any, to: Battlefield), ZoneChange(what: Type(\"Land\"))])",
