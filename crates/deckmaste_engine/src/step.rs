@@ -522,6 +522,13 @@ impl GameState {
                 self.apply_token_created(player, token);
                 event
             }
+            GameEvent::EmblemCreated {
+                player,
+                ref abilities,
+            } => {
+                self.apply_emblem_created(player, abilities.clone());
+                event
+            }
             GameEvent::TokenCeased(id) => {
                 self.apply_token_ceased(id);
                 event
@@ -1151,6 +1158,26 @@ impl GameState {
             face: None,
             cause: None,
         });
+    }
+
+    /// Applies an `EmblemCreated` ([CR#114.1]): synthesizes an abilities-only
+    /// def ([CR#114.3]) into the card table (owner = `player`, [CR#114.2]) and
+    /// mints the object straight into the command zone (controller = `player`).
+    /// Unlike a token, an emblem does NOT enter the battlefield — it's never a
+    /// permanent ([CR#114.5]) and never summoning-sick — so there is no
+    /// `ZoneChanged` fact and no enter-trigger scan. Its abilities function
+    /// from the command zone ([CR#114.4]); no SBA ever removes it (it isn't
+    /// a permanent and a command-zone object can't be destroyed —
+    /// [CR#114.5,408.1]).
+    pub(crate) fn apply_emblem_created(
+        &mut self,
+        player: PlayerId,
+        abilities: Vec<deckmaste_core::Ability>,
+    ) {
+        let card = self.cards.push_emblem(abilities, player);
+        let source = ObjectSource::Card(card);
+        let new = self.objects.mint(source, player, Some(Zone::Command));
+        self.zones.command.push(new);
     }
 
     /// Applies a `TokenCeased` ([CR#704.5d,111.7]): removes the token object

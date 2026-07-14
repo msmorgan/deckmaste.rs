@@ -1548,6 +1548,26 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             "You get the city's blessing.".to_string()
         }
         PlayerAction::GetDesignation(name) => format!("You get {name}."),
+        // [CR#114.1]: "You get an emblem with «ability»." The emblem carries
+        // only its abilities ([CR#114.3]) — render them through the same
+        // `rules` walk a card face uses (a nameless, typeless view), quoted as
+        // the emblem's text.
+        PlayerAction::GetEmblem(abilities) => {
+            let view = super::CardView {
+                name: "",
+                mana_cost: None,
+                supertypes: &[],
+                types: &[],
+                subtypes: &[],
+                power: None,
+                toughness: None,
+                abilities,
+            };
+            format!(
+                "You get an emblem with \"{}\".",
+                super::rules(&view).join(" ")
+            )
+        }
         // [CR#701.19a]: remove all damage as part of regeneration.
         PlayerAction::RemoveDamage(r) => {
             format!("Remove all damage from {}.", fragment::reference(r, ctx))

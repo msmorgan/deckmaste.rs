@@ -673,6 +673,21 @@ impl GameState {
         for zone in self.zones.graveyards.iter().chain(self.zones.hands.iter()) {
             watchers.extend(zone.iter().map(|&id| Watcher::Live(id)));
         }
+        // [CR#114.4]: an emblem's abilities function from the command zone —
+        // add the command-zone emblems as live watchers (the per-ability
+        // from-zone gate below treats Command as their default function zone).
+        watchers.extend(
+            self.zones
+                .command
+                .iter()
+                .filter(|&&id| {
+                    self.objects
+                        .obj(id)
+                        .card_id()
+                        .is_some_and(|c| self.cards.get(c).is_emblem)
+                })
+                .map(|&id| Watcher::Live(id)),
+        );
         if let GameEvent::ZoneChanged {
             snapshot,
             from: Some(Zone::Battlefield),
@@ -699,6 +714,14 @@ impl GameState {
                 }
                 Watcher::Leaving(s) => (s.source, s.controller, s.clone()),
             };
+            // [CR#113.6b,114.4]: the DEFAULT function zone of this watcher's
+            // abilities — the battlefield for an ordinary object, but the
+            // command zone for an emblem (whose abilities have no `from` yet
+            // still function from there).
+            let default_zone = match source {
+                ObjectSource::Card(c) if self.cards.get(c).is_emblem => Zone::Command,
+                _ => Zone::Battlefield,
+            };
             for (idx, ability) in crate::derive::abilities_of_source(self, source)
                 .iter()
                 .enumerate()
@@ -707,10 +730,11 @@ impl GameState {
                     continue;
                 };
                 // [CR#113.6,113.6b]: the ability triggers only while its source
-                // is in its function-zone (`from`, default battlefield). A
-                // graveyard/hand object considers only its graveyard/hand
-                // triggers; a battlefield permanent only its battlefield ones.
-                if watcher_zone != Some(t.from.unwrap_or(Zone::Battlefield)) {
+                // is in its function-zone (`from`, default battlefield — command
+                // for an emblem). A graveyard/hand object considers only its
+                // graveyard/hand triggers; a battlefield permanent only its
+                // battlefield ones; an emblem only its command-zone ones.
+                if watcher_zone != Some(t.from.unwrap_or(default_zone)) {
                     continue;
                 }
                 if !self.event_matches(&t.event, event, source) {
@@ -4704,6 +4728,122 @@ mod tests {
             fired_count(&state, watcher_source),
             1,
             "the named bear's death satisfies Where(Matches(It, Named(…)))"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Emblems ([CR#114.1]) — an abilities-only object minted into the command
+    // zone; its static and triggered abilities function FROM there ([CR#114.4]).
+    // -------------------------------------------------------------------------
+
+    /// Parse an emblem's abilities (a RON ability list under the canon macro
+    /// scope) — the `Vec<Ability>` a `GetEmblem` payload carries ([CR#114.1]).
+    fn emblem_abilities(inner: &str) -> Vec<deckmaste_core::Ability> {
+        let src = format!("Normal(name: \"E\", types: [], abilities: [{inner}])");
+        let card = canon()
+            .macros
+            .read_str::<deckmaste_core::Card>(&src)
+            .unwrap();
+        match card {
+            deckmaste_core::Card::Normal(face) => face.abilities,
+            other => panic!("unexpected emblem card shape: {other:?}"),
+        }
+    }
+
+    /// [CR#114.4]: an emblem's STATIC ability functions from the command zone.
+    /// The Glorious-Anthem static minted as an emblem for player 0 buffs that
+    /// player's battlefield creature +1/+1, exactly as the same static on a
+    /// battlefield permanent would — proving the layer gather admits a
+    /// command-zone emblem. Also proves the object presents as an `Emblem`
+    /// ([CR#114.5]), is owned/controlled by the getter ([CR#114.2]), and lives
+    /// in the command zone.
+    #[test]
+    fn emblem_static_ability_functions_from_command_zone() {
+        use deckmaste_core::ObjectKind;
+
+        let (mut state, bear) = bear_on_field(); // player 0's 2/2 Grizzly Bears
+        assert_eq!(state.layers().power(bear), Some(2), "baseline 2/2 bear");
+
+        let abilities = emblem_abilities(
+            "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+             Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))))",
+        );
+        state.apply_emblem_created(PlayerId(0), abilities);
+
+        let emblem = *state
+            .zones
+            .command
+            .last()
+            .expect("emblem in the command zone");
+        assert_eq!(
+            crate::target::object_kind(&state, emblem),
+            ObjectKind::Emblem,
+            "the object presents as an Emblem ([CR#114.5])"
+        );
+        assert_eq!(
+            state.objects.obj(emblem).controller,
+            PlayerId(0),
+            "controlled by the getter ([CR#114.2])"
+        );
+        assert_eq!(state.owner_of(emblem), PlayerId(0), "owned by the getter");
+        assert_eq!(state.objects.obj(emblem).zone, Some(Zone::Command));
+
+        let view = state.layers();
+        assert_eq!(
+            view.power(bear),
+            Some(3),
+            "the command-zone emblem's static buffs the controller's creature +1/+1"
+        );
+        assert_eq!(view.toughness(bear), Some(3), "…on toughness too");
+    }
+
+    /// [CR#114.4]: an emblem's TRIGGERED ability fires from the command zone. An
+    /// emblem carrying "whenever a creature dies, gain 1 life" (default `from`,
+    /// i.e. no explicit zone) fires when a creature dies — proving the trigger
+    /// watcher set admits command-zone emblems and the from-zone gate treats an
+    /// emblem's default function zone as the command zone.
+    #[test]
+    fn emblem_triggered_ability_fires_from_command_zone() {
+        let (mut state, bear) = bear_on_field();
+        let abilities = emblem_abilities(
+            "Triggered(event: ZoneChange(what: Type(\"Creature\"), from: Battlefield, \
+             to: Graveyard), effect: GainLife(1))",
+        );
+        state.apply_emblem_created(PlayerId(0), abilities);
+        let emblem = *state.zones.command.last().unwrap();
+        let emblem_source = state.objects.obj(emblem).source;
+
+        let died = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
+        state.scan_triggers(&Occurrence::single(died));
+        assert_eq!(
+            fired_count(&state, emblem_source),
+            1,
+            "the emblem's triggered ability fires from the command zone ([CR#114.4])"
+        );
+    }
+
+    /// [CR#114.5,408.1]: no state-based action removes an emblem — it isn't a
+    /// permanent and a command-zone object can't be destroyed. After a full SBA
+    /// sweep the emblem object is still present in the command zone (and the
+    /// token-cease SBA, which keys on `is_token`, never touches it).
+    #[test]
+    fn emblem_persists_across_sba_sweep() {
+        let (mut state, _bear) = bear_on_field();
+        let abilities =
+            emblem_abilities("Static(Each(SelectAll(Creature), Modify(It, Power(Up(1)))))");
+        state.apply_emblem_created(PlayerId(0), abilities);
+        let emblem = *state.zones.command.last().unwrap();
+
+        let events = crate::sba::sweep(&state);
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::TokenCeased(id) if *id == emblem)),
+            "the SBA sweep never ceases an emblem ([CR#114.5,408.1])"
+        );
+        assert!(
+            state.objects.get(emblem).is_some() && state.zones.command.contains(&emblem),
+            "the emblem persists in the command zone"
         );
     }
 

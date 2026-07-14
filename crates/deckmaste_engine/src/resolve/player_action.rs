@@ -144,8 +144,19 @@ impl GameState {
                 // `Action::Move`.
                 self.move_items(reference, destination, frame)
             }
-            // P0.W5 seam: emblem minting into the command zone.
-            PlayerAction::GetEmblem(..) => todo!("P0.W5: emblems ([CR#114.1])"),
+            // [CR#114.1]: the actor gets an emblem carrying `abilities`. The
+            // synthesis + command-zone mint happens at apply (the `&mut self`
+            // stage); here we only emit the fact. Getting an emblem is not a
+            // zone-change trigger ([CR#114.5] — an emblem is never a
+            // permanent; it never enters the battlefield).
+            PlayerAction::GetEmblem(abilities) => {
+                vec![WorkItem::Emit(Occurrence::single(
+                    GameEvent::EmblemCreated {
+                        player: actor,
+                        abilities: abilities.clone(),
+                    },
+                ))]
+            }
             // [CR#701.24a]: shuffle the actor's library; the Shuffled
             // apply randomizes via the seeded rng.
             PlayerAction::Shuffle => {

@@ -43,6 +43,9 @@ pub fn object_kind(state: &GameState, id: ObjectId) -> ObjectKind {
     match obj.source {
         ObjectSource::Player(_) => ObjectKind::Player,
         ObjectSource::Card(_) if obj.zone == Some(Zone::Stack) => ObjectKind::Spell,
+        // [CR#114.5]: an emblem is neither a card nor a permanent — check it
+        // before the token/card arms so every card/type filter excludes it.
+        ObjectSource::Card(c) if state.cards.get(c).is_emblem => ObjectKind::Emblem,
         ObjectSource::Card(c) if state.cards.get(c).is_token => ObjectKind::Token,
         ObjectSource::Card(_) => ObjectKind::Card,
     }

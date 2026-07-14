@@ -994,6 +994,46 @@ fn renders_get_designation() {
     );
 }
 
+/// [CR#114.1]: "You get an emblem with «ability»." — the emblem's abilities
+/// render through the same rules walk a card face uses, quoted as its text.
+#[test]
+fn renders_get_emblem() {
+    use deckmaste_core::Ability;
+    use deckmaste_core::Action;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::PlayerAction;
+    use deckmaste_core::Reference;
+    use deckmaste_core::SpellAbility;
+    use deckmaste_core::Type;
+
+    // The Glorious-Anthem static, parsed under the canon macro scope.
+    let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
+    let emblem_ability: Ability = plugin
+        .macros
+        .read_str(
+            "Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+             Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))))",
+        )
+        .unwrap();
+    let face = CardFace {
+        name: "Test Emblem Granter".into(),
+        types: vec![Type::Sorcery.def()],
+        abilities: vec![Ability::Spell(SpellAbility {
+            ability_word: None,
+            effect: OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GetEmblem(vec![emblem_ability]),
+            )),
+        })],
+        ..CardFace::default()
+    };
+    assert_eq!(
+        render_card_face(&face).rules,
+        vec!["You get an emblem with \"Creatures you control get +1/+1.\".".to_string()]
+    );
+}
+
 /// A graveyard-FUNCTIONING static ([CR#113.6,604.3]) renders its "As long as ~
 /// is in your graveyard," function-zone qualifier (the incarnation cycle
 /// shape).

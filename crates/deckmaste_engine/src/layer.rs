@@ -454,8 +454,13 @@ fn gather(
         if obj.card_id().is_none() {
             continue; // player proxy — no static abilities
         }
-        // Static abilities function only on the battlefield ([CR#611.3b]).
-        if obj.zone != Some(Zone::Battlefield) {
+        // Static abilities function only on the battlefield ([CR#611.3b]) —
+        // EXCEPT an emblem's, which function from the command zone ([CR#114.4]).
+        // Gate the command admittance on "emblem" so an ordinary command-zone
+        // object (none today) isn't swept in.
+        let emblem_in_command = obj.zone == Some(Zone::Command)
+            && obj.card_id().is_some_and(|c| state.cards.get(c).is_emblem);
+        if obj.zone != Some(Zone::Battlefield) && !emblem_in_command {
             continue;
         }
         let timestamp = obj.timestamp;

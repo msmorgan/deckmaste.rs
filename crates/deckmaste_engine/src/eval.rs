@@ -507,6 +507,9 @@ impl<'a> FactView<'a> {
             | GameEvent::AbilityCountered { .. }
             | GameEvent::DrewFromEmpty(_)
             | GameEvent::TokenCeased(_)
+            // [CR#114.1]: getting an emblem is not a watchable zone change —
+            // no "whenever you get an emblem" pattern exists yet.
+            | GameEvent::EmblemCreated { .. }
             | GameEvent::PlayerLost { .. }
             | GameEvent::PlayerWon { .. }
             | GameEvent::ManaAdded { .. }

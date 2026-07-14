@@ -704,6 +704,28 @@ mod tests {
         );
     }
 
+    /// [CR#114.1]: `GetEmblem` is a player verb carrying the emblem's
+    /// abilities. Bare it reads as `By(You, …)`, writes bare, and the ability
+    /// payload round-trips text → `GetEmblem` → text.
+    #[test]
+    fn get_emblem_round_trips_bare() {
+        let ron = "GetEmblem([Static(Modify(It, Power(Up(1))))])";
+        let v = read(ron);
+        assert!(
+            matches!(
+                &v,
+                Action::By(Reference::You, PlayerAction::GetEmblem(a)) if a.len() == 1
+            ),
+            "a bare player verb reads as By(You, …) with one ability, got {v:?}"
+        );
+        let written = write(&v);
+        assert!(
+            !written.contains("By("),
+            "By(You, …) should write bare, got {written}"
+        );
+        assert_eq!(read(&written), v, "text → GetEmblem → text round-trips");
+    }
+
     /// `By(You, …)` writes the player action bare and round-trips.
     #[test]
     fn by_you_round_trips_bare() {

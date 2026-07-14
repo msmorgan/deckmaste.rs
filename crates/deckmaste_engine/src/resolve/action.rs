@@ -2288,6 +2288,41 @@ mod tests {
         assert!(items.is_empty(), "already-held designation emits nothing");
     }
 
+    /// [CR#114.1]: the `GetEmblem` verb lowers to exactly one `EmblemCreated`
+    /// fact carrying the emblem's abilities for the actor — the resolution wire
+    /// the command-zone mint (`apply_emblem_created`) applies.
+    #[test]
+    fn get_emblem_emits_emblem_created_for_the_actor() {
+        use crate::event::GameEvent;
+        use crate::event::Occurrence;
+
+        let state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let abilities = vec![deckmaste_core::Ability::Static(
+            deckmaste_core::StaticEffect::Modify(
+                deckmaste_core::Reference::It,
+                deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Up(
+                    deckmaste_core::Count::Literal(1),
+                )),
+            ),
+        )];
+        let pa = deckmaste_core::PlayerAction::GetEmblem(abilities.clone());
+
+        let items = state.player_action_items(&pa, p0, &frame);
+        assert_eq!(items.len(), 1, "GetEmblem emits exactly one fact");
+        match &items[0] {
+            crate::agenda::WorkItem::Emit(Occurrence::Single(GameEvent::EmblemCreated {
+                player,
+                abilities: emitted,
+            })) => {
+                assert_eq!(*player, p0, "the emblem goes to the actor ([CR#114.2])");
+                assert_eq!(*emitted, abilities, "carries the payload abilities");
+            }
+            other => panic!("expected one EmblemCreated emit, got {other:?}"),
+        }
+    }
+
     // ---- scry / arrange (the recomposed keyword-action path) ----------------
 
     /// Mint a fresh card-backed object into `owner`'s library at the BOTTOM

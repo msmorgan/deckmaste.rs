@@ -204,6 +204,16 @@ pub enum GameEvent {
         player: PlayerId,
         token: Token,
     },
+    /// [CR#114.1]: a player gets an emblem. Its apply synthesizes an
+    /// abilities-only def ([CR#114.3]) into the card table and mints the object
+    /// straight into the command zone, both owned and controlled by that player
+    /// ([CR#114.2]). Getting an emblem is not itself a zone-change — no
+    /// `ZoneChanged` fact — but "whenever you get an emblem"-style triggers
+    /// would match here.
+    EmblemCreated {
+        player: PlayerId,
+        abilities: Vec<deckmaste_core::Ability>,
+    },
     /// [CR#704.5d,111.7]: a token found in a zone other than the battlefield
     /// ceases to exist. Its apply removes the object from its zone and the
     /// store outright — no remint, no `ZoneChanged` fact (the token doesn't

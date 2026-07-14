@@ -55,6 +55,11 @@ pub struct CardInstance {
     /// `Predicate::Kind(Card)` excludes them) and the ceases-to-exist SBA
     /// ([CR#704.5d]) keys on it.
     pub is_token: bool,
+    /// [CR#114.5]: an emblem is neither a card nor a permanent, and "Emblem"
+    /// isn't a card type. Set for entries synthesized by `EmblemCreated`; the
+    /// def carries only the emblem's abilities ([CR#114.3]), and `object_kind`
+    /// reports `Emblem` so every card/type/permanent filter excludes it.
+    pub is_emblem: bool,
     /// The face's INTRINSIC printed abilities (not type/subtype conferrals,
     /// which the layer-4 fold re-derives per pass), precomputed at setup so the
     /// layer pipeline's base values are an `Arc` bump per rebuild instead of a
@@ -83,7 +88,7 @@ impl Cards {
     ///
     /// Panics if the card table exceeds `Uint::MAX` entries.
     pub(crate) fn push(&mut self, def: Arc<Card>, owner: PlayerId) -> CardId {
-        self.push_inner(def, owner, false)
+        self.push_inner(def, owner, false, false)
     }
 
     /// Adds a created token's synthesized definition ([CR#111.2]: `owner` is
@@ -113,13 +118,35 @@ impl Cards {
             loyalty: None,
             defense: None,
         }));
-        self.push_inner(def, owner, true)
+        self.push_inner(def, owner, true, false)
+    }
+
+    /// Adds an emblem's synthesized definition ([CR#114.1]: created by an
+    /// effect, owned by that effect's controller — [CR#114.2]) and returns its
+    /// id. An emblem has NO characteristics other than its abilities
+    /// ([CR#114.3]): the def is a genuinely typeless, nameless, cost-less
+    /// one-faced `Card` carrying only `abilities`, flagged `is_emblem` so it
+    /// presents as neither a card nor a permanent ([CR#114.5]). It rides the
+    /// same derivation / layer machinery as a token, so its abilities function
+    /// through `abilities_of_source` unchanged.
+    pub(crate) fn push_emblem(&mut self, abilities: Vec<Ability>, owner: PlayerId) -> CardId {
+        let def = Arc::new(Card::Normal(CardFace {
+            abilities,
+            ..CardFace::default()
+        }));
+        self.push_inner(def, owner, false, true)
     }
 
     /// # Panics
     ///
     /// Panics if the card table exceeds `Uint::MAX` entries.
-    fn push_inner(&mut self, def: Arc<Card>, owner: PlayerId, is_token: bool) -> CardId {
+    fn push_inner(
+        &mut self,
+        def: Arc<Card>,
+        owner: PlayerId,
+        is_token: bool,
+        is_emblem: bool,
+    ) -> CardId {
         let id = CardId(Uint::try_from(self.0.len()).expect("card table fits in Uint"));
         let face = crate::derive::face(&def);
         let printed = Arc::new(crate::derive::printed_of_face(face));
@@ -131,6 +158,7 @@ impl Cards {
             def,
             owner,
             is_token,
+            is_emblem,
             printed,
             subtypes,
             colors,

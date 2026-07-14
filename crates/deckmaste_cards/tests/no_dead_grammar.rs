@@ -281,7 +281,15 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("PlayerAction", "GetEmblem"),
-            "DEFERRED: no emblem-granting real card in this batch.",
+            "DEFERRED: the engine (command-zone mint + static/triggered sourcing) and the \
+            parse/render grammar arm now exist and are covered by unit tests, but no \
+            emblem-granting real card is graduatable in this batch: every canon emblem-granter \
+            (Garruk Cursed Huntsman, Daretti, Kiora, Ob Nixilis of the Black Oath, Dovin Baan, \
+            Teferi's Talent, The Capitoline Triad, Professor Dellian Fel) is a fully-Unparsed \
+            multi-ability planeswalker/permanent whose OTHER abilities need unimplemented \
+            machinery (loyalty-ability activation, animation, prevention, token creation, \
+            variable exile costs) — graduating one would drag in all of it. See the \
+            core-emblems ticket's completion notes.",
         ),
         (
             n("PlayerAction", "ChooseAndNote"),
@@ -815,9 +823,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("ObjectKind", "Emblem"),
-            "DEFERRED: no real card in this batch filters over emblems (the \
-            emblem-granting side, PlayerAction::GetEmblem, is itself DEFERRED above — no emblem \
-            card in canon yet).",
+            "DEFERRED: no real card in this batch FILTERS over emblems. The emblem object kind \
+            is now live in the engine (`object_kind` reports `Emblem` for a command-zone emblem) \
+            and the emblem-granting verb PlayerAction::GetEmblem is implemented + grammar-covered, \
+            but no canon card targets/counts emblems, and no emblem-granting card is graduatable \
+            yet (see PlayerAction::GetEmblem above).",
         ),
         (
             n("CharacteristicPredicate", "Named"),
