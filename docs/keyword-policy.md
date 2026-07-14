@@ -334,8 +334,10 @@ This policy authorizes, but does not itself perform:
    interceptors (indestructible, regeneration, madness) to key off the named
    composite; sequence them behind the `Simultaneous` generalization the Fight
    demotion already needs (§13).
-6. **Build the missing intrinsic verbs** — `Transform` `[CR#701.27]` and
-   `Search` `[CR#701.23]` have no `Action`/`PlayerAction` variant yet (§10).
+6. **Build the remaining intrinsic verb** — `Transform` `[CR#701.27]` has no
+   `Action`/`PlayerAction` variant yet (§10). Search `[CR#701.23]` is now
+   represented by `Binder::{Search, SearchOne}`; its grammar is present, while
+   runtime search/choice consumption remains an engine seam.
 7. **Close the Idris action gap** — add `Fateseal` (and further composites as
    their macros land) to `KeywordActionSpec` (§14).
 8. **Build the staged composite actions** — Explore, Connive, Bolster, Search-

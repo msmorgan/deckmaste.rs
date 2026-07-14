@@ -10,7 +10,7 @@ delivered by `macro-slot-codec` + the parse-batch campaign).
 The shape: an effect naming two or more independent object references that must
 be lifted OUT of the body into `Effect::Targeted` target declarations, e.g.
 - fights — `Target creature you control fights target creature you don't control`
-  (~98 lines), which the bespoke `resolve.rs::fight_effect` handles today;
+  (~98 lines), which the bespoke `resolve/effect.rs::fight_effect` handles today;
 - exchange / then-return — `Exile target creature you control, then return that
   card…` and the ~136 `exile target …` compound lines;
 - any "target A … target B …" body where the two targets differ in filter.

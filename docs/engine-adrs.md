@@ -22,12 +22,14 @@ concern, like hidden-information views.
 ## UD-9 — LKI snapshot extent — DECIDED
 
 A snapshot is an **enumerated-field value**, not a full object copy:
-`LkiSnapshot { object, source, controller, tapped, damage, left }`
-(`crates/deckmaste_engine/src/lki.rs`), where `source` is the `CardId` spine
-that derives printed characteristics. Extent policy: fields are added as
-consumers demand them (triggers, damage attribution), never removed; the
-snapshot is a VALUE riding the event — no retained object references
-(GC-freedom is the point; see the zone-changes-immediate design note).
+`LkiSnapshot { object, source, controller, tapped, damage, counters, left }`
+(`crates/deckmaste_engine/src/lki.rs`), where `source` is the `ObjectSource`
+spine that derives printed characteristics and owner. The counter map supports
+consumers such as Modular, Undying, and Persist after the live object is gone.
+Extent policy: fields are added as consumers demand them (triggers, damage
+attribution), never removed; the snapshot is a VALUE riding the event — no
+retained object references (GC-freedom is the point; see the
+zone-changes-immediate design note).
 
 ## UD-12 — intra-batch event ordering — DECIDED
 

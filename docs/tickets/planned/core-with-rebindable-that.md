@@ -11,7 +11,7 @@ edit — it reshapes a core type and the engine's shield capture/matching key.
 
 `CreateReplacement.subject` is a load-bearing engine matching key, coupled across
 six layers: the core field (`crates/deckmaste_core/src/action.rs`), shield
-creation freezing it (`resolve.rs::create_shield`), `floating_watches` matching
+creation freezing it (`resolve/effect.rs::create_shield`), `floating_watches` matching
 events BY frozen subject identity (`replace_registry.rs` — whose doc-comment notes
 the `would` clause's `Ref(EventObject)` filter can't be evaluated by a frameless
 gather, which is exactly why the captured field exists), emit/render

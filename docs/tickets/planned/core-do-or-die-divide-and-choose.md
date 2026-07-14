@@ -23,7 +23,7 @@ premise has drifted. Recommend splitting into a `core:` emit/render/RON slice
    `Option`/default and have the emitter synthesize the Idris no-op
    `Sequentially []`, or force RON to spell an explicit empty `other`.
 2. **Done item 4 ("engine unchanged; a semantic test pins it") is drifted — the
-   engine never resolved this card.** `crates/deckmaste_engine/src/resolve.rs`
+   engine never resolved this card.** `crates/deckmaste_engine/src/resolve/effect.rs`
    has no arm for `SeparatePiles`/`ChoosePile`/`DivideAndChoose`; they hit the
    catch-all `todo!` choice seam, and there is no existing Do-or-Die / pile
    engine test. So there is no behavior to leave "unchanged," and a semantic

@@ -6,7 +6,7 @@ should `TypeDef.permanent: bool` become a structured `TypeKind`? Sketch:
 
     kind: Spell | Permanent{can_attack, can_block, ...}
 
-Today `permanent` is a bare bool read by `is_permanent_spell` (resolve.rs) to
+Today `permanent` is a bare bool read by `is_permanent_spell` (`resolve/mod.rs`) to
 fork battlefield-entry vs resolve; combat capability is NOT a field — it's
 conferred data (`Creature.ron`'s `TypeDef.confers` grants
 `May(Attack)`/`May(Block)`, default-deny).

@@ -13,7 +13,8 @@ revealed card into their graveyard.
 
 Engine gaps (the landed partition primitive does NOT cover this):
 - **Reveal seam** — `PlayerAction::Reveal` / `GameEvent::Revealed { objects, to }`
-  are SHAPED but unbuilt (`todo!("P0.W6")` in `resolve.rs` + `step.rs`). Explore
+  are SHAPED but unbuilt (`todo!("P0.W6")` in `resolve/player_action.rs` and
+  `step.rs`). Explore
   reveals the top card to all players, so this seam must be built first (emit
   `Revealed`; reveal-window lifetime [CR#701.20a]).
 - **Branch on a revealed card's characteristic** — "if a land card is revealed": a

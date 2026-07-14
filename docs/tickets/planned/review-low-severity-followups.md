@@ -7,10 +7,9 @@ needs: []
   are dead/unreachable and model non-continuous values (a
   `ModifyPlayer(You, SetTo(Life, 20))` is a silent no-op) — drop them or document
   as read-only axes invalid for `PlayerMod`.
-- Stale docs: `Modification::flatten` still says `Several([AddPower,
-  AddToughness])` (`continuous.rs:198`); `Selection::Those` / `Effect::With` docs
-  cite a nonexistent `Reference::That` (`selection.rs:69`, `effect.rs:84`);
-  `from_zone_qualified` doc says "While" but emits "As long as".
+- Stale doc: `from_zone_qualified` says "While" but emits "As long as"
+  (`render/ability.rs`). The `Modification::flatten` and `Reference::That`
+  documentation findings from the original review have since been corrected.
 - `library_position` deep-offset renders "2 from the top"
   (`render/fragment.rs:380`) — ungrammatical for a rare non-zero anchor.
 - `macro_ron_derive/input.rs` accepts trailing-default layouts the deserializer

@@ -757,8 +757,16 @@ data-driven, never a closed Rust enum).
 
 ## 11. The kind list, consolidated
 
-Candidate `MacroKind`s / core types, roughly in dependency order. ✓ = exists
-today.
+This section is the **historical grammar-build snapshot** from which the current
+core vocabulary was developed. Its checkmarks and priority ordering describe
+that planning point; they are not a current implementation-status table. For
+current concept-by-concept grammar and engine status, use
+`docs/conformance.md`. In particular, many formerly proposed rows below now
+exist as core types and registered RON kinds, including filters, references,
+events, conditions, quantities, replacements, and designation declarations.
+
+Candidate `MacroKind`s / core types at that planning point, roughly in
+dependency order. ✓ meant "already existed" at the time of the snapshot.
 
 | Kind | What it is | Macro examples |
 |---|---|---|
@@ -786,18 +794,16 @@ today.
 | **CastModifier** | alt/additional costs, permissions, reductions | `Flashback(cost)`, `Affinity(Filter)` |
 | **Deontic** | may/can't/must/toll over proposed actions (§9) | `Cant(Attack(by: Ref(This)))`, evasion macros, `Flash` |
 
-Not every row needs to be a `MacroKind` — only positions where bare *names*
-should expand (Filter, Event, Condition, Effect, Cost, Designation,
-CounterKind, TokenSpec clearly qualify; Duration or Mode may never need
-named macros). But each needs a serde type with a stable position name, and
-the open-vocabulary rows (Subtype ✓, CounterKind, Designation, keyword
-names, ability words) need **declaration support** à la
-`MacroSet::declare`, so plugins can mint new ones alongside the mechanic
-that introduces them.
+The design criterion was that not every row needed to be a `MacroKind` — only
+positions where bare *names* should expand. Each did need a serde type with a
+stable position name, while open-vocabulary rows needed declaration support so
+plugins could mint new names alongside the mechanic that introduced them.
+Current registrations live in `crates/deckmaste_core/src/ron.rs`; current gaps
+live in `docs/conformance.md`.
 
-### Corpus-driven priority
+### Historical corpus-driven priority
 
-By line coverage, the build order that pays off fastest:
+The original line-coverage-driven build order was:
 
 1. **Filter + binding + Quantity** — underlies 21.9% target lines, 13.5%
    you-control, 9.4% each-selectors; nothing else can be expressed without it.
@@ -814,7 +820,7 @@ By line coverage, the build order that pays off fastest:
    designation and counter declarations should land with the macro-
    declaration mechanism.
 
-### Open questions
+### Historical open questions
 
 - One Filter over objects *and* players, or split ObjectFilter/PlayerFilter
   with a union at target positions? ("any target" argues for union.)

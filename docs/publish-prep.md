@@ -1,26 +1,22 @@
-# Publish prep: getting this repo ready for GitHub
+# Publish prep: historical completion record
 
 2026-06-10
 
-Goal: publish this repo publicly after a README pass. This doc is the
-checklist and the reasoning; work through it top to bottom. Items are ordered
-hard-blockers first. Repo rules in CLAUDE.md (jj, citations, workspaces)
-apply to all of this work.
+This was the planning checklist used to prepare the repository for publication.
+It is retained as a decision record, not as an active checklist. Publication
+prep subsequently chose a PolyForm Noncommercial license, added the README's
+fan-content and license sections, and added CI. Current instructions and claims
+live in `README.md`, `LICENSE.md`, `Cargo.toml`, and `.github/workflows/ci.yml`.
 
-## 1. LICENSE (hard blocker)
+## 1. License — completed with a different decision
 
-Without a license file the code is all-rights-reserved and nobody can legally
-use it. Add the standard Rust dual license:
+The initial proposal was the standard Rust MIT/Apache-2.0 dual license. The
+project instead adopted PolyForm Noncommercial 1.0.0. `LICENSE.md` contains the
+license and the root package declares `PolyForm-Noncommercial-1.0.0` in
+`Cargo.toml`. The card-data policy remains a separate concern; see §2 and
+`docs/card-data.md`.
 
-- `LICENSE-MIT` and `LICENSE-APACHE` at the repo root.
-- `license = "MIT OR Apache-2.0"` in the workspace `Cargo.toml` (use
-  `[workspace.package]` and have crates inherit with `license.workspace =
-  true`).
-
-The dual license covers the **code only**. The card encodings are a separate
-question — see §2.
-
-## 2. IP note for card data (hard blocker)
+## 2. IP note for card data — completed
 
 The repo touches Wizards of the Coast IP in three tiers:
 
@@ -33,21 +29,20 @@ The repo touches Wizards of the Coast IP in three tiers:
   real card names and derive from oracle text. These **are** published, so
   the README needs a fan-content section.
 
-Add to the README (verbatim boilerplate WotC asks for):
+The plan required the README to include the Fan Content Policy notice:
 
 > Deckmaste is unofficial Fan Content permitted under the
 > [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy).
 > Not approved/endorsed by Wizards. Portions of the materials used are
 > property of Wizards of the Coast. © Wizards of the Coast LLC.
 
-Also state the split explicitly: code is MIT/Apache-2.0; card names, oracle
-text, and the Comprehensive Rules remain WotC property; this project is
-non-commercial.
+The README now states the current PolyForm Noncommercial license and the WotC
+ownership/fan-content split. `docs/card-data.md` is the current data policy.
 
-## 3. README
+## 3. README — completed
 
-Lead with what works **today**; honest scoping reads better than letting
-people discover it. Suggested skeleton:
+The README pass followed this outline, with current scope rather than the
+temporary card-count estimate:
 
 1. **One-paragraph pitch** — a Magic: The Gathering rules engine in Rust,
    built around a typed card-encoding language rather than per-card scripts.
@@ -55,9 +50,8 @@ people discover it. Suggested skeleton:
    continuous-effects system, replacement effects, last-known information,
    state-based actions, the stack, triggers, combat, turn structure. People
    who know MTG know these are where hobby engines die; name them.
-3. **Honest scope line** — ~2,057 of ~31k cards encoded so far (recount at
-   publish time: `find plugins -name '*.ron' | wc -l`). In-progress, and the
-   taxonomy work (`docs/rules-taxonomy.md`) is the plan for the rest.
+3. **Honest scope line** — describe the curated vertical slice without a
+   quickly stale card-count total.
 4. **Architecture** — one line per crate: `deckmaste_core` (the card
    language: abilities, effects, costs, zones…), `deckmaste_engine` (game
    state and rules), `deckmaste_cards` (corpus + suite), `deckmaste_migrations`
@@ -65,25 +59,27 @@ people discover it. Suggested skeleton:
    `xtask` (tooling).
 5. **The cite-check system** — a paragraph on `cargo xtask cite check` /
    `cite bless` and `cr-citations.lock`: code cites CR rule numbers in
-   bracketed `CR#…` form and CI catches stale or unregistered citations against the
-   rules snapshot. This is the most novel dev-tooling idea in the repo;
+   bracketed `CR#…` form and the local checker catches stale or unregistered
+   citations against the rules snapshot. This is the most novel dev-tooling idea in the repo;
    don't bury it.
 6. **Getting started** — build prereqs, `scripts/fetch_data` (note the
    ~600 MB download), `cargo xtask generate plugins/wizards`, then how to run
    the test suite. Flag which steps need the data and which don't.
 7. **Fan-content / license section** — from §2 above.
 
-Selling-point numbers as of this writing, for flavor if wanted: 7 workspace
-crates, ~29k lines of Rust, 434 tests, workspace-wide `clippy::pedantic`.
+The old selling-point counts (7 crates, ~29k lines of Rust, 434 tests) were
+point-in-time planning figures and are intentionally not current claims. The
+workspace now has eight library/tool crates plus the thin root binary.
 
-## 4. CI
+## 4. CI — completed
 
-There is no `.github/` yet. Add one workflow: `cargo fmt --check`, clippy
-(deny warnings — pedantic is already on workspace-wide), `cargo test`.
+`.github/workflows/ci.yml` now runs formatting, workspace-wide clippy with
+warnings denied, and workspace tests. Data-dependent corpus tests are ignored
+when their local generated inputs are absent.
 
-The complication: parts of the `deckmaste_cards` suite load
-`plugins/wizards`, which is generated from the 600 MB `data/` dump that CI
-won't have. Investigate which tests actually need it, then pick one:
+The complication considered at the time was that parts of the
+`deckmaste_cards` suite loaded `plugins/wizards`, generated from the 600 MB
+`data/` dump unavailable to CI. The alternatives considered were:
 
 - **(a)** run only the crates/tests that don't need data (e.g.
   `cargo test --workspace --exclude deckmaste_cards`, or an env-var/feature
@@ -93,10 +89,14 @@ won't have. Investigate which tests actually need it, then pick one:
 - **(c)** commit a tiny fixture subset of generated wizards files used only
   in CI.
 
-Whichever is chosen, `cargo xtask cite check` should also run in CI — it's
-fast and it's the repo's signature check.
+The implemented workflow uses conditional ignores for tests whose generated
+inputs are absent, so a clean checkout can still run the plain workspace test
+command.
 
-## 5. Hygiene sweep
+Citation checking remains a local gate because CI does not install the
+mtg-rules skill or its CR snapshot; the workflow documents that limitation.
+
+## 5. Hygiene sweep — historical checklist
 
 - Confirm `.idea/` is ignored (it exists locally).
 - Decide whether `docs/tickets/` and `CLAUDE.md` stay public. Both are
@@ -111,7 +111,7 @@ fast and it's the repo's signature check.
   `repository`, `keywords` on the root package (even if never pushed to
   crates.io, GitHub renders nicer with them).
 
-## 6. At publish time
+## 6. Publication verification — historical checklist
 
 - Recount the numbers quoted in the README (cards encoded, tests, LOC) so
   they're true on day one.

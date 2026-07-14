@@ -4,7 +4,7 @@ needs: []
 **Engine: divided distribution (`DivideAmong` / `split_evenly`) is rules-illegal
 and not player-chosen.** Found in the 2026-06-29 code review.
 
-`split_evenly` (`crates/deckmaste_engine/src/resolve.rs:453`) splits the total
+`split_evenly` (`crates/deckmaste_engine/src/resolve/effect.rs`) splits the total
 evenly: when chosen targets > total, some recipients get a **0** share (divided
 damage/counters must put at least one on each recipient); when the group resolves
 to 0 elements the whole total is silently dropped. The division is also fixed

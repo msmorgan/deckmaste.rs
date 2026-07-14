@@ -10,7 +10,7 @@ threshold / scaling value in costs and effects.
 A batch attempt verified against the CR that party is **not** a set-union of
 distinct subtypes, so it does **not** fit the existing
 `Count::CountDistinct(Characteristic, Countable)` primitive (`count.rs`,
-evaluated via `distinct_keys` in `resolve.rs`). Encoding it as `CountDistinct`
+evaluated via `distinct_keys` in `resolve/count.rs`). Encoding it as `CountDistinct`
 would be provably wrong (violates the `fix-convenient-not-quite-right` ruling):
 
 - `[CR#700.8]` — a party is *up to one each* of Cleric, Rogue, Warrior, Wizard
@@ -30,8 +30,8 @@ party.**
   *rejected on correctness* (ignores the `[CR#700.8b]` matching). (A2) new
   `Count::PartySize(Reference)` primitive; engine computes the max matching over
   the 4 classes among that player's creatures, cap 4 — correct, minimal-ish,
-  must be wired into BOTH count evaluators (`resolve.rs` ~2844 and `layer.rs`
-  ~998). (A3) a generalized "max distinct-role matching" Count taking an explicit
+  must be wired into BOTH count evaluators (`resolve/count.rs` and `layer.rs`).
+  (A3) a generalized "max distinct-role matching" Count taking an explicit
   role-set + object filter — more reusable (future "choose a party" / Stick
   Together, `[CR#700.8d]`), more surface.
 - **B — where the 4 class names live.** Hardcoded const (precedent
