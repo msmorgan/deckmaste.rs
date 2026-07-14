@@ -110,7 +110,7 @@ replaceable `ZoneWillChange`. Realizations, all as the body facet:
   intrinsic bit of `Act(Draw)` apply (body still pure data either way). Preserve
   face-down-during-cast [CR#121.8] and the "without the word draw" distinction
   [CR#121.5]. NOTE: this decomposition is Draw-specific — Mill is SIMULTANEOUS
-  ([CR#701.17a], "the milled cards" group [CR#701.17d]), so `MillN ≠ Repeat(n,
+  ([CR#701.17a], "the milled cards" group [CR#603.3b]), so `MillN ≠ Repeat(n,
   Mill(1))`; Mill keeps a count and realizes as a batch/group `→Graveyard` move.
   Scry likewise keeps its count.
 - **No-op ⇒ no `Act`.** A body that does nothing performs no keyword action, so

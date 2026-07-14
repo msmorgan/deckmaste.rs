@@ -324,36 +324,6 @@ impl GameState {
                 }]
             }
             // core-action-riders-cost-modes: shapes landed, execution seams.
-            // [CR#701.17a]: mill — the actor puts that many cards from the
-            // top of their library into their graveyard, as ONE simultaneous
-            // batch of cause-carried moves ("milled this way" reads find
-            // them by the Mill cause, [CR#701.17c]).
-            PlayerAction::Mill(count) => {
-                let n = self.eval_count(count, frame) as usize;
-                // [CR#701.17b]: milling more cards than the library holds
-                // mills as many as possible.
-                let events: Vec<GameEvent> = self.zones.libraries[actor.index()]
-                    .iter()
-                    .take(n)
-                    .map(|&object| GameEvent::ZoneWillChange {
-                        object,
-                        from: Some(Zone::Library),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: Some(Cause::mill(
-                            Agency::EffectInstruction,
-                            Some((frame.source, frame.controller)),
-                        )),
-                    })
-                    .collect();
-                if events.is_empty() {
-                    vec![]
-                } else {
-                    vec![WorkItem::Emit(occurrence_of(events))]
-                }
-            }
             PlayerAction::VentureIntoDungeon => {
                 todo!("engine seam: venture into the dungeon ([CR#701.49a]) — dungeons unbuilt")
             }

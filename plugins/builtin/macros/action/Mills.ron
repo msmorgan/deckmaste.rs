@@ -1,15 +1,29 @@
-// "mills" — the third-person mill verb phrase ([CR#701.17a]: that player
-// puts that many cards from the top of their library into their
-// graveyard). A parse/render TEMPLATE over the core `Mill` player action:
-// the declarative-subject production parses "target player / each
-// opponent / each player" into the agent, matches the remaining verb
-// phrase against this template, and emits `By(<agent>, Mills(n))`, which
-// expands in place to `By(<agent>, Mill(n))` — kind `PlayerAction` has no
-// remembered-expansion wrapper, so the macro is pure spelling sugar.
+// "[subject] mills N" ([CR#701.17a]): the DECLARATIVE-SUBJECT mill — that
+// player puts the top N cards of their library into their graveyard, as one
+// simultaneous group ([CR#603.3b]). The keyword action as DATA: a `Composite`
+// whose tag is `Mill(who, n)` and whose body is the batch `MoveGroup` of the
+// top N of `who`'s library to their graveyard (clamped to library size,
+// [CR#701.17b]). There is no bespoke `Mill` verb; the engine realizes the
+// stored group move tagged with the `Mill` cause so "milled this way" reads
+// find the cards ([CR#701.17c]).
+//
+// `who` (Param(0)) rides BOTH the atom and the group selection's `whose`. The
+// template renders the subject context-aware ("Target player mills five
+// cards."); the count spells its noun via the `card|cards` modifier.
+//
+// Usage: Mills(It, 5) (the announced player target, Tome Scour) /
+// Mills(It, 20) (Jace Beleren).
 (
     name: "Mills",
-    template: "mills ${0:card|cards}",
-    kinds: [PlayerAction],
-    params: [Count],
-    body: Mill(Param(0)),
+    template: "${0} mills ${1:card|cards}",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    body: Composite(
+        Mill(Param(0), Param(1)),
+        MoveGroup(
+            group: TopOfLibrary(count: Param(1), whose: Param(0)),
+            arrangement: AnyOrder,
+            to: Graveyard,
+        ),
+    ),
 )

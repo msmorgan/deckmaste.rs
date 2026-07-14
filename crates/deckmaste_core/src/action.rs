@@ -33,8 +33,9 @@ pub enum KeywordAction {
     Surveil(Reference, Count),
     /// "fateseal N" ([CR#701.20a]) — `who` scries an opponent's library.
     Fateseal(Reference, Count),
-    /// "mill N" ([CR#701.17a]). Defined here as an atom; its macro/engine
-    /// wiring lands in a later stage (still a `PlayerAction` until then).
+    /// "mill N" ([CR#701.17a]) — `who` puts the top N of their library into
+    /// their graveyard as one simultaneous group ([CR#603.3b]). Built by
+    /// [`Action::mill`]; there is no bespoke `Mill` `PlayerAction`.
     Mill(Reference, Count),
     /// "draw N" ([CR#121.1]). Defined-but-unwired until its later stage.
     Draw(Reference, Count),
@@ -331,10 +332,6 @@ pub enum PlayerAction {
         Destination,
         #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
     ),
-    /// Mill a number of cards ([CR#701.17a] — the player puts that many cards
-    /// from the top of their library into their graveyard). The shape;
-    /// engine execution is keyword-action work elsewhere.
-    Mill(Count),
     /// "[Player] ventures into the dungeon" ([CR#701.49a]) — a footing verb:
     /// the venture-marker/dungeon machinery is the engine's; the agent rides
     /// [`Action::By`].
@@ -493,6 +490,33 @@ impl Action {
                 what,
                 crate::Zone::Graveyard,
             ))),
+        )
+    }
+
+    /// "`who` mills `count`" ([CR#701.17a]) — the keyword action as data: a
+    /// [`Composite`](Action::Composite) whose tag is `Mill(who, count)` and
+    /// whose body is the BATCH relocation of the top `count` cards of `who`'s
+    /// library to their graveyard, moved as ONE simultaneous group
+    /// ([CR#701.17a], "the milled cards" as a group — [CR#603.3b]), clamped to
+    /// the library size ([CR#701.17b]). A group move
+    /// ([`MoveGroup`](Action::MoveGroup)
+    /// over a [`TopOfLibrary`](crate::Selection::TopOfLibrary) selection), NOT
+    /// a per-card `Repeat`: mill is simultaneous. The graveyard is not an
+    /// ordered landing here (the arrangement rides for the group shape but
+    /// the batch lands unarranged), so `arrangement` is the neutral
+    /// [`AnyOrder`](crate::Arrangement::AnyOrder). Authored via the
+    /// `Mill`/`Mills` macros so the card still writes "Mill three cards." /
+    /// "Target player mills five cards."
+    #[must_use]
+    pub fn mill(who: Reference, count: Count) -> Action {
+        Action::Composite(
+            KeywordAction::Mill(who.clone(), count.clone()),
+            Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
+                group: Selection::TopOfLibrary { count, whose: who },
+                arrangement: crate::Arrangement::AnyOrder,
+                to: Destination::Zone(crate::Zone::Graveyard),
+                riders: Vec::new(),
+            })),
         )
     }
 }
@@ -975,10 +999,11 @@ mod tests {
     }
 
     /// The new verb shapes — `ExtraPhase` ([CR#500.8]), day/night
-    /// ([CR#731.1]), `TheRingTempts` ([CR#701.54a]), and the player verbs
-    /// `Mill` ([CR#701.17a]) / `VentureIntoDungeon` ([CR#701.49a]) — read and
-    /// round-trip; the player verbs read bare as `By(You, …)`. (Fight is now a
-    /// grammar macro over `DealDamage`, not a primitive verb.)
+    /// ([CR#731.1]), `TheRingTempts` ([CR#701.54a]), and the player verb
+    /// `VentureIntoDungeon` ([CR#701.49a]) — read and round-trip; the player
+    /// verb reads bare as `By(You, …)`. (Fight is now a grammar macro over
+    /// `DealDamage`, not a primitive verb; Mill is now the `Composite`
+    /// keyword-action atom `Action::mill`, not a `PlayerAction`.)
     #[test]
     fn new_verb_shapes_round_trip() {
         let phase = Action::ExtraPhase(crate::PhaseKind::Combat, Reference::You);
@@ -996,10 +1021,6 @@ mod tests {
         let tempt = Action::TheRingTempts(Reference::You);
         assert_eq!(read("TheRingTempts(You)"), tempt);
         assert_eq!(read(&write(&tempt)), tempt);
-
-        let mill = Action::by_you(PlayerAction::Mill(Count::Literal(3)));
-        assert_eq!(read("Mill(Literal(3))"), mill);
-        assert_eq!(read(&write(&mill)), mill);
 
         let venture = Action::by_you(PlayerAction::VentureIntoDungeon);
         assert_eq!(read("VentureIntoDungeon"), venture);
@@ -1106,6 +1127,37 @@ mod tests {
                 "Composite(Scry(You,2),Each(binder:Existing(TopOfLibrary(count:2,whose:You)),effect:Move(It,Library(FromTop(0)))))"
             ),
             scry
+        );
+    }
+
+    /// `Action::mill` ([CR#701.17a]) is the `Composite(Mill(who, n), <group
+    /// move>)` keyword-action atom — a `MoveGroup` of the top `n` of `who`'s
+    /// library to their graveyard ([CR#603.3b], simultaneous), NOT a
+    /// `PlayerAction`. The `who` rides both the atom and the group selection's
+    /// `whose`; it round-trips bareword-positional.
+    #[test]
+    fn mill_composite_round_trips() {
+        let mill = Action::mill(Reference::It, Count::Literal(5));
+        assert_eq!(
+            mill,
+            Action::Composite(
+                KeywordAction::Mill(Reference::It, Count::Literal(5)),
+                Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
+                    group: Selection::TopOfLibrary {
+                        count: Count::Literal(5),
+                        whose: Reference::It,
+                    },
+                    arrangement: Arrangement::AnyOrder,
+                    to: Destination::Zone(crate::Zone::Graveyard),
+                    riders: Vec::new(),
+                })),
+            )
+        );
+        assert_eq!(read(&write(&mill)), mill);
+        assert!(
+            write(&mill).starts_with("Composite(Mill(It,5),"),
+            "atom renders bareword-positional, got {}",
+            write(&mill)
         );
     }
 }

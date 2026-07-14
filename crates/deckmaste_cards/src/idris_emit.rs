@@ -1665,25 +1665,6 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             }
             emit_action(&Action::Move(r.clone(), dest.clone(), riders.clone()))
         }
-        PlayerAction::Mill(n) => {
-            // "[actor] mills n" = move the actor's own top n library cards to
-            // the graveyard. Idris has no bare `Mill` verb (only the
-            // `KeywordActionSpec` composite tag over the primitives, per
-            // `Core.idr`'s `Composite` doc comment), so it's rebuilt here.
-            let top = app("topFrom", vec![emit_count(n)?, emit_reference(actor)?]);
-            let move_ = app(
-                "MoveArranged",
-                vec![
-                    top,
-                    "SameOrder".to_string(),
-                    "(ToZone Graveyard)".to_string(),
-                ],
-            );
-            Ok(app(
-                "Composite",
-                vec!["Mill".to_string(), format!("(Act {move_})")],
-            ))
-        }
         PlayerAction::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?])),
         PlayerAction::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?])),
         PlayerAction::PutCounters(r, kind, count) => {

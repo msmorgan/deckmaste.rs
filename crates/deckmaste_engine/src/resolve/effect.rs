@@ -1227,6 +1227,12 @@ impl GameState {
                 }
                 _ => true,
             },
+            // A BATCH keyword action (mill, [CR#701.17a]): an empty group — an
+            // empty library, or `count` 0 — mills nothing, so no "you milled"
+            // trigger ([CR#701.17b,701.22b]).
+            OneShotEffect::Act(deckmaste_core::Action::MoveGroup { group, .. }) => {
+                !self.eval_selection_set(group, frame).is_empty()
+            }
             // A guarded keyword action — e.g. fight fires no "fights" event when
             // either creature is no longer a creature on the battlefield
             // ([CR#701.14b], the `If (both are creatures) …` guard). Look
@@ -1911,7 +1917,10 @@ mod tests {
                 key,
                 deckmaste_core::NotedKind::Number,
             )),
-            OneShotEffect::act_by_you(PlayerAction::Mill(Count::Noted(key))),
+            OneShotEffect::Act(deckmaste_core::Action::mill(
+                deckmaste_core::Reference::You,
+                Count::Noted(key),
+            )),
         ]);
         let frame = frame_src(a);
         state.run_effect(effect, &frame);

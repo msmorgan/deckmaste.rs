@@ -87,6 +87,15 @@ impl GameState {
                     to: move_shape.map(|(_, t)| t),
                     cause,
                 };
+                // Dual-facet BATCH shape ([CR#701.17a,603.3b]): a player-verb
+                // whose stored body is a GROUP move to a plain zone (mill →
+                // top-N to the graveyard). Realized as ONE simultaneous
+                // cause-tagged batch, then the aggregate `Act` fact — reorder-
+                // style (the trigger fires post-commit, [CR#701.22d]), NOT the
+                // atomic-commit branch: the per-card graveyard `ZoneWillChange`s
+                // are where a graveyard replacement (Rest-in-Peace) bites, so the
+                // `Act` needs no per-object guard facet.
+                let group_move = composite_body_group_move(body);
                 let mut items = Vec::new();
                 if move_shape.is_some() {
                     // [CR#701.8a,616.1]: a move-verb — emit the dual-facet `Act`
@@ -95,6 +104,46 @@ impl GameState {
                     // event-side cant pass in `apply_occurrence` suppresses an
                     // indestructible ([CR#702.12b]) patient.
                     items.push(WorkItem::Emit(Occurrence::single(act)));
+                } else if let Some((group, to_zone)) = group_move {
+                    // [CR#701.22b,614.17]: a "can't mill" static suppresses the
+                    // whole keyword action — gate the batch here at schedule time,
+                    // like the reorder branch.
+                    let suppressed = crate::replace_registry::cant_event(self, &act);
+                    if !suppressed {
+                        // The result moves carry the atom's cause so "milled this
+                        // way" reads find them ([CR#701.17c]); the batch clamps to
+                        // library size via `TopOfLibrary`'s `take(n)` ([CR#701.17b]).
+                        let cause = match atom {
+                            Ka::Mill(..) => Some(Cause::mill(
+                                Agency::EffectInstruction,
+                                Some((frame.source, frame.controller)),
+                            )),
+                            _ => None,
+                        };
+                        let events: Vec<GameEvent> = self
+                            .eval_selection_set(&group, frame)
+                            .into_iter()
+                            .map(|object| GameEvent::ZoneWillChange {
+                                object,
+                                from: Some(
+                                    self.objects.obj(object).zone.expect("mill a zoned object"),
+                                ),
+                                to: to_zone,
+                                enters: None,
+                                position: None,
+                                face: None,
+                                cause: cause.clone(),
+                            })
+                            .collect();
+                        // [CR#701.17b,701.22b]: an empty batch (empty library)
+                        // performs no keyword action — no batch, no `Act`, no
+                        // trigger. A non-empty attempt lands the batch, then the
+                        // aggregate `Act` once the cards are in the graveyard.
+                        if !events.is_empty() {
+                            items.push(WorkItem::Emit(occurrence_of(events)));
+                            items.push(WorkItem::Emit(Occurrence::single(act)));
+                        }
+                    }
                 } else {
                     // [CR#701.22b,614.17]: a reorder verb — a `Cant(Act(name,
                     // on))` static suppresses the whole keyword action, so the
@@ -560,6 +609,29 @@ fn composite_body_head_move_to(body: &deckmaste_core::OneShotEffect) -> Option<Z
     match body {
         E::Expanded(e) => composite_body_head_move_to(&e.value),
         E::Act(A::Move(_, Destination::Zone(z), _)) => Some(*z),
+        _ => None,
+    }
+}
+
+/// The BODY-facet GROUP relocation of a keyword-action [`Action::Composite`]
+/// ([CR#701.17a,603.3b]): the [`Selection`](deckmaste_core::Selection) its
+/// stored body's HEAD moves as ONE simultaneous batch, plus the plain zone they
+/// land in. `Mill(who, n)`'s body is `MoveGroup { group: TopOfLibrary(n, who),
+/// to: Graveyard }` → `Some((group, Graveyard))`; a single-move (Destroy) or a
+/// reorder (scry, an `Each`) body → `None`. Read off the stored body ("matches
+/// the expanded body", [CR#701.8a]) rather than a per-verb table.
+fn composite_body_group_move(
+    body: &deckmaste_core::OneShotEffect,
+) -> Option<(deckmaste_core::Selection, Zone)> {
+    use deckmaste_core::Action as A;
+    use deckmaste_core::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => composite_body_group_move(&e.value),
+        E::Act(A::MoveGroup {
+            group,
+            to: Destination::Zone(z),
+            ..
+        }) => Some((group.clone(), *z)),
         _ => None,
     }
 }
@@ -1258,7 +1330,8 @@ mod tests {
         let effect = OneShotEffect::Sequentially(vec![
             OneShotEffect::Noting(deckmaste_core::Noting {
                 key: "milled".into(),
-                effect: Box::new(OneShotEffect::act_by_you(PlayerAction::Mill(
+                effect: Box::new(OneShotEffect::Act(Action::mill(
+                    Reference::You,
                     Count::Literal(3),
                 ))),
             }),
@@ -1301,6 +1374,158 @@ mod tests {
         assert!(
             state.zones.graveyards[0].is_empty(),
             "the milled cards moved on from the graveyard"
+        );
+    }
+
+    /// [CR#701.17b,603.3b]: `Action::mill(You, n)` moves the top `n` of the
+    /// library to the graveyard as ONE simultaneous batch, clamped to library
+    /// size — milling 100 from a bounded library mills the whole library (never
+    /// an out-of-range panic), and the moves share one batch id ([CR#603.3b]).
+    #[test]
+    fn mill_clamps_to_library_size_as_one_batch() {
+        let (mut state, a) = bear_on_field();
+        let libsize = state.zones.libraries[0].len();
+        assert!(
+            (1..100).contains(&libsize),
+            "a bounded non-empty library to over-mill"
+        );
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(100))),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            state.zones.libraries[0].is_empty(),
+            "the whole library milled — clamped to size ([CR#701.17b])"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            libsize,
+            "every library card reached the graveyard"
+        );
+        let batches: Vec<Option<deckmaste_core::Uint>> = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(
+                    e.fact,
+                    GameEvent::ZoneChanged {
+                        to: Zone::Graveyard,
+                        ..
+                    }
+                )
+            })
+            .map(|e| e.batch)
+            .collect();
+        assert_eq!(batches.len(), libsize, "one committed move per milled card");
+        assert!(
+            batches.iter().all(|b| b.is_some() && *b == batches[0]),
+            "the milled cards land as ONE simultaneous batch ([CR#603.3b])"
+        );
+    }
+
+    /// [CR#701.22d]: the aggregate `Act(Mill)` fact lands AFTER the milled cards
+    /// reach the graveyard (a "whenever you mill" trigger keys on it), and
+    /// [CR#701.17b,701.22b]: milling from an EMPTY library performs no keyword
+    /// action — no `Act(Mill)`, so no trigger.
+    #[test]
+    fn act_mill_fires_post_commit_and_not_from_an_empty_library() {
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        let facts: Vec<GameEvent> = state.history.entries().map(|e| e.fact.clone()).collect();
+        let act_pos = facts
+            .iter()
+            .position(|f| matches!(f, GameEvent::Act { verb, .. } if verb.as_str() == "Mill"))
+            .expect("the mill emits its aggregate Act(Mill) fact");
+        let last_gy = facts
+            .iter()
+            .rposition(|f| {
+                matches!(
+                    f,
+                    GameEvent::ZoneChanged {
+                        to: Zone::Graveyard,
+                        ..
+                    }
+                )
+            })
+            .expect("the milled cards committed to the graveyard");
+        assert!(
+            act_pos > last_gy,
+            "Act(Mill) fires AFTER the cards reach the graveyard ([CR#701.22d])"
+        );
+
+        // Empty the library, mill again: no keyword action, no Act(Mill).
+        state.zones.libraries[0].clear();
+        let before = state.history.entries().count();
+        state.run_effect(
+            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert!(
+            !state
+                .history
+                .entries()
+                .skip(before)
+                .any(|e| matches!(&e.fact, GameEvent::Act { verb, .. } if verb.as_str() == "Mill")),
+            "an empty-library mill performs no keyword action ([CR#701.17b,701.22b])"
+        );
+    }
+
+    /// [CR#616.1]: a Rest-in-Peace-style `→Graveyard` replacement bites the mill
+    /// batch's per-card `ZoneWillChange`s directly — the milled cards are
+    /// exiled instead of hitting the graveyard (Mill needs no dual-facet
+    /// guard; the batch's own zone changes are the replaceable moment).
+    #[test]
+    fn rest_in_peace_replaces_milled_cards_with_exile() {
+        let (mut state, a) = bear_on_field();
+        // "If a card would be put into a graveyard, exile it instead."
+        let rip = deckmaste_core::Replacement::Instead {
+            would: deckmaste_core::EventFilter::ZoneChange {
+                what: Predicate::Any,
+                from: None,
+                to: Some(Zone::Graveyard),
+                cause: None,
+            },
+            instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
+        };
+        let card = Arc::new(Card::Normal(CardFace {
+            name: "Rest in Peace".into(),
+            types: vec![Type::Enchantment.def()],
+            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(rip)))],
+            ..CardFace::default()
+        }));
+        let card_id = state.cards.push(card, PlayerId(0));
+        let rip_id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(rip_id);
+
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            state.zones.graveyards[0].is_empty(),
+            "the Rest-in-Peace replacement kept the milled cards out of the graveyard"
+        );
+        assert_eq!(
+            state.zones.exile.len(),
+            2,
+            "both milled cards were exiled instead ([CR#616.1])"
         );
     }
 

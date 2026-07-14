@@ -982,6 +982,19 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         Action::Composite(deckmaste_core::KeywordAction::Destroy(r), _) => {
             format!("Destroy {}.", fragment::reference(r, ctx))
         }
+        // [CR#701.17a]: mill is `Composite(Mill(who, n), <group move>)` — render
+        // the tag. `You` keeps the imperative "Mill N cards."; a non-`You`
+        // performer renders subject-declarative ("Target player mills five
+        // cards.", [CR#701.17a]). The `MoveGroup` body is engine realization, not
+        // printed. Precedes the generic `Composite(_, body)` arm below.
+        Action::Composite(deckmaste_core::KeywordAction::Mill(who, n), _) => match who {
+            Reference::You => mill_imperative(n),
+            other => format!(
+                "{} mills {}.",
+                capitalize_first(&fragment::reference(other, ctx)),
+                counted_cards(n),
+            ),
+        },
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
         // target spell" (Mana Leak's punisher branch).
         Action::Counter(r) => format!("Counter {}.", fragment::reference(r, ctx)),
@@ -1433,6 +1446,34 @@ fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Opti
     None
 }
 
+/// "a card" / "three cards" / "N cards" — the counted-cards object a mill/draw
+/// phrase takes ([CR#701.17a,121.1]). Literal 1 is "a card"; small literals
+/// spell out; a dynamic count renders through [`fragment::count`].
+fn counted_cards(c: &Count) -> String {
+    match c.literal_value() {
+        Some(1) => "a card".to_owned(),
+        Some(n) => match fragment::number_word(n) {
+            Some(word) => format!("{word} cards"),
+            None => format!("{n} cards"),
+        },
+        None => format!("{} cards", fragment::count(c)),
+    }
+}
+
+/// The imperative you-form of mill ([CR#701.17a]) — "Mill a card." / "Mill
+/// three cards." / "Mill X cards." The `You`-performer render of a
+/// `Composite(Mill(You, n), …)`.
+fn mill_imperative(c: &Count) -> String {
+    match c {
+        Count::Literal(1) => "Mill a card.".to_string(),
+        Count::Literal(n) => match fragment::number_word(*n) {
+            Some(word) => format!("Mill {word} cards."),
+            None => format!("Mill {n} cards."),
+        },
+        c => format!("Mill {} cards.", fragment::count(c)),
+    }
+}
+
 /// The THIRD-PERSON verb phrase of a player action — the declarative-subject
 /// tail ("mills two cards", "loses 2 life") a non-`You` `By` agent or an
 /// `Each` player loop prefixes with its subject. A remembered verb-macro
@@ -1440,19 +1481,10 @@ fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Opti
 /// carry structural fallbacks. `None` = no third-person phrase (the caller
 /// falls back to the imperative render).
 fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
-    let counted_cards = |c: &Count| match c.literal_value() {
-        Some(1) => "a card".to_owned(),
-        Some(n) => match fragment::number_word(n) {
-            Some(word) => format!("{word} cards"),
-            None => format!("{n} cards"),
-        },
-        None => format!("{} cards", fragment::count(c)),
-    };
     match pa {
         PlayerAction::Expanded(e) => {
             super::template::expanded(e, "it").or_else(|| third_person_verb_phrase(&e.value))
         }
-        PlayerAction::Mill(c) => Some(format!("mills {}", counted_cards(c))),
         PlayerAction::Draw(c) => Some(format!("draws {}", counted_cards(c))),
         PlayerAction::Discard {
             count,
@@ -1487,14 +1519,6 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             None => format!("Draw {n} cards."),
         },
         PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
-        // Mill ([CR#701.17a]) — the imperative you-form; object counts spell
-        // out as words ("Mill three cards.").
-        PlayerAction::Mill(Count::Literal(1)) => "Mill a card.".to_string(),
-        PlayerAction::Mill(Count::Literal(n)) => match fragment::number_word(*n) {
-            Some(word) => format!("Mill {word} cards."),
-            None => format!("Mill {n} cards."),
-        },
-        PlayerAction::Mill(c) => format!("Mill {} cards.", fragment::count(c)),
         // A remembered verb-macro expansion (`Mills(2)` under an explicit
         // `By`): the imperative frame renders the expanded CORE action —
         // the third-person template belongs to the declarative subjects.

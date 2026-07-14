@@ -1,7 +1,7 @@
 // The declarative-subject mill exemplar ([CR#701.17a]): "Target player
-// mills five cards." — the announced player target read back as `It`, the
-// verb phrase through the `Mills` PlayerAction macro (expanding to the
-// core `Mill` under `By`).
+// mills five cards." — the announced player target read back as `It`,
+// routed through the `Mills(who, n)` macro (the keyword-action `Composite`
+// whose body batch-moves that player's top five to their graveyard).
 Normal(
   name: "Tome Scour",
   mana_cost: [
@@ -12,7 +12,7 @@ Normal(
   ],
   abilities: [
     Spell(
-      effect: Targeted(targets: [TargetOne(Player)], effect: By(It, Mills(5))),
+      effect: Targeted(targets: [TargetOne(Player)], effect: Mills(It, 5)),
     ),
   ],
 )
