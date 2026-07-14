@@ -1,5 +1,5 @@
 #!/usr/bin/env fish
-# scripts/hooks/jj_guard.fish — PreToolUse(Bash) guard.
+# scripts/hooks/jj_guard.fish — Claude Code / Codex PreToolUse(Bash) guard.
 #
 # Two rules, both about routing through the project's own tooling:
 #   1. jj must go through a RELATIVE scripts/jj — `scripts/jj`, `./scripts/jj`, or
@@ -15,7 +15,8 @@
 
 set -l payload (cat | string collect)
 test (printf '%s' $payload | jq -r '.tool_name // ""') = Bash; or exit 0
-set -l cmd (printf '%s' $payload | jq -r '.tool_input.command // ""')
+# Claude Code names the command field `command`; Codex's command tool uses `cmd`.
+set -l cmd (printf '%s' $payload | jq -r '.tool_input.command // .tool_input.cmd // ""')
 
 # Every jj invocation (bare `jj`, or `<path>/jj`, at a command position — start, or
 # after ; & | && || newline ( or a command/exec/sudo/… wrapper) must be a relative,
