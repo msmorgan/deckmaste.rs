@@ -310,9 +310,9 @@ mod tests {
             },
             condition: None,
             limits: vec![],
-            effect: OneShotEffect::Act(deckmaste_core::Action::By(
+            effect: OneShotEffect::Act(deckmaste_core::Action::draw(
                 Reference::You,
-                deckmaste_core::PlayerAction::Draw(deckmaste_core::Count::Literal(1)),
+                deckmaste_core::Count::Literal(1),
             )),
         };
         let card = Card::Normal(CardFace {

@@ -543,10 +543,6 @@ mod tests {
     fn bare_player_action_embeds_at_action_slot() {
         let macros = macro_set();
         assert_eq!(
-            macros.read_str::<Action>("Draw(1)").unwrap(),
-            Action::by_you(PlayerAction::Draw(Count::Literal(1))),
-        );
-        assert_eq!(
             macros.read_str::<Action>("Sacrifice(This)").unwrap(),
             Action::by_you(PlayerAction::Sacrifice(Reference::This)),
         );
@@ -556,14 +552,14 @@ mod tests {
         );
     }
 
-    /// An explicit different agent (`By(It, Draw(3))` — Ancestral
-    /// Recall) reads natively through `Action`'s own variants, not the embed.
+    /// An explicit different agent (`By(It, GainLife(3))`) reads natively
+    /// through `Action`'s own variants, not the embed.
     #[test]
     fn explicit_agent_reads_natively_at_action_slot() {
         let macros = macro_set();
         assert_eq!(
-            macros.read_str::<Action>("By(It, Draw(3))").unwrap(),
-            Action::By(Reference::It, PlayerAction::Draw(Count::Literal(3))),
+            macros.read_str::<Action>("By(It, GainLife(3))").unwrap(),
+            Action::By(Reference::It, PlayerAction::GainLife(Count::Literal(3))),
         );
     }
 
@@ -588,17 +584,17 @@ mod tests {
         let mut macros = macro_set();
         macros
             .insert(&def(r#"(
-                    name: "DrawTwo",
+                    name: "GainTwo",
                     kinds: [PlayerAction],
-                    body: Draw(2),
+                    body: GainLife(2),
                 )"#))
             .unwrap();
-        let action: Action = macros.read_str("DrawTwo").unwrap();
+        let action: Action = macros.read_str("GainTwo").unwrap();
         let Action::By(Reference::You, PlayerAction::Expanded(expanded)) = action else {
             panic!("expected By(You, PlayerAction::Expanded(..)), got {action:?}");
         };
-        assert_eq!(expanded.name, "DrawTwo");
-        assert_eq!(*expanded.value, PlayerAction::Draw(Count::Literal(2)));
+        assert_eq!(expanded.name, "GainTwo");
+        assert_eq!(*expanded.value, PlayerAction::GainLife(Count::Literal(2)));
     }
 
     /// Same pin for the `TargetSpec` positions (the announce-list type).
@@ -716,12 +712,12 @@ mod tests {
         let mut macros = macro_set();
         macros
             .insert(&def(r#"(
-                    name: "DrawTwo",
+                    name: "GainTwo",
                     kinds: [OneShotEffect],
-                    body: Draw(2),
+                    body: GainLife(2),
                 )"#))
             .unwrap();
-        let effect: OneShotEffect = macros.read_str("Sequentially([DrawTwo])").unwrap();
+        let effect: OneShotEffect = macros.read_str("Sequentially([GainTwo])").unwrap();
         let OneShotEffect::Sequentially(steps) = &effect else {
             panic!("expected a sequence, got {effect:?}");
         };
@@ -730,14 +726,14 @@ mod tests {
         let expanded = effect.expand_all();
         assert_eq!(
             expanded,
-            OneShotEffect::Sequentially(vec![OneShotEffect::act_by_you(PlayerAction::Draw(
+            OneShotEffect::Sequentially(vec![OneShotEffect::act_by_you(PlayerAction::GainLife(
                 Count::Literal(2),
             ))])
         );
         let written = deckmaste_core::ron::options().to_string(&expanded).unwrap();
-        assert!(!written.contains("DrawTwo"), "macro name leaked: {written}");
+        assert!(!written.contains("GainTwo"), "macro name leaked: {written}");
         // A `Count` literal writes bare — `2`, never `Literal(2)`.
-        assert_eq!(written, "Sequentially([Draw(2)])");
+        assert_eq!(written, "Sequentially([GainLife(2)])");
     }
 
     /// The literal sugar applies to `Count` through the glue's registry:

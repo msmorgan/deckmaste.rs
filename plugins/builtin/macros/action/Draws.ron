@@ -1,11 +1,26 @@
-// "draws" — the third-person draw verb phrase ([CR#121.1]). A parse/render
-// template over the core `Draw` player action for the declarative-subject
-// production ("Target player draws two cards", "Each player draws a
-// card"); expands in place to `Draw(n)`.
+// "[subject] draws N" ([CR#121.1]): the DECLARATIVE-SUBJECT draw — that player
+// draws N cards, ONE AT A TIME ([CR#121.2] — a per-card sequence, NOT a
+// simultaneous batch like mill). The keyword action as DATA, the twin of
+// `Mills`: a `Composite` whose tag is `Draw(who, n)` and whose body DESCRIBES
+// the top-N Library → Hand relocation (an `Each` per-card move). `who`
+// (Param(0)) rides BOTH the atom and the body selection's `whose`. The engine
+// does NOT run the body — it emits N single-card `Act(Draw)` attempts, each
+// binding the library top LATE and empty-checking BEFORE its move (an empty
+// library loses the game, [CR#120.3,104.3c]).
+//
+// The template renders the subject context-aware ("Target player draws two
+// cards.", "Each player draws a card."); the count spells its noun via the
+// `card|cards` modifier.
+//
+// Usage: Draws(It, 1) (the announced player target / Each-bound player, Jace
+// Beleren) / Draws(Target(0), 2).
 (
     name: "Draws",
-    template: "draws ${0:card|cards}",
-    kinds: [PlayerAction],
-    params: [Count],
-    body: Draw(Param(0)),
+    template: "${0} draws ${1:card|cards}",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    body: Composite(
+        Draw(Param(0), Param(1)),
+        Each(binder: Existing(TopOfLibrary(count: Param(1), whose: Param(0))), effect: Move(It, Hand)),
+    ),
 )

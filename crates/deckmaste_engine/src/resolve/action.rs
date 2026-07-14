@@ -144,6 +144,27 @@ impl GameState {
                             items.push(WorkItem::Emit(Occurrence::single(act)));
                         }
                     }
+                } else if let Ka::Draw(_, n) = atom {
+                    // [CR#121.1,121.2]: the per-card draw lane. Draw N cards ONE
+                    // AT A TIME — the engine emits N independent single-card
+                    // `Act(Draw)` attempts (each its own replace/cant/empty
+                    // opportunity, [CR#121.2]), NOT one batch (contrast mill)
+                    // and NOT the stored body (which is the render/re-emit facet
+                    // only — an executing Each would no-op on an empty library
+                    // and MISS the draw-from-empty loss). Each `Act(Draw)`
+                    // carries no patient (`on: None`); its APPLY binds the
+                    // library top LATE and either commits the Library → Hand
+                    // move (cause `Draw`, the success fact) or sets
+                    // `drew_from_empty` ([CR#120.3,104.3c]) — the empty check
+                    // runs BEFORE the move, so a last-card success is
+                    // unambiguous. A "can't draw" static suppresses all N
+                    // ([CR#614.17]).
+                    if !crate::replace_registry::cant_event(self, &act) {
+                        let count = self.eval_count(n, frame);
+                        for _ in 0..count {
+                            items.push(WorkItem::Emit(Occurrence::single(act.clone())));
+                        }
+                    }
                 } else {
                     // [CR#701.22b,614.17]: a reorder verb — a `Cant(Act(name,
                     // on))` static suppresses the whole keyword action, so the
@@ -1168,16 +1189,16 @@ mod tests {
             }))]
         );
 
-        // By(You, Draw(2)) -> two sequential Single(WillDraw) for the controller
-        let items = state.action_items(
-            &Action::by_you(PlayerAction::Draw(Count::Literal(2))),
-            &frame,
-        );
+        // draw(You, 2) -> two sequential single-card Act(Draw) for the
+        // controller ([CR#121.2] per-card, `on: None` — the drawn card binds
+        // at apply).
+        let items = state.action_items(&Action::draw(Reference::You, Count::Literal(2)), &frame);
         assert_eq!(items.len(), 2);
         assert!(items.iter().all(|item| matches!(
             item,
-            WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
-                player: PlayerId(0),
+            WorkItem::Emit(Occurrence::Single(GameEvent::Act {
+                who: Some(PlayerId(0)),
+                on: None,
                 ..
             }))
         )));
@@ -1229,22 +1250,20 @@ mod tests {
         );
     }
 
-    /// An explicit agent: `By(Target(0), Draw(2))` draws for the targeted
-    /// player, not the controller. Targets player 1's proxy.
+    /// An explicit agent: `draw(It, 2)` draws for the announced/bound player
+    /// (`It`), not the controller. Targets player 1's proxy.
     #[test]
     fn action_items_explicit_agent_draws_for_target() {
         let (state, src) = bear_on_field();
         let p1_proxy = state.players[1].object;
         let frame = frame_src_targets(src, vec![p1_proxy]);
-        let items = state.action_items(
-            &Action::By(Reference::It, PlayerAction::Draw(Count::Literal(2))),
-            &frame,
-        );
+        let items = state.action_items(&Action::draw(Reference::It, Count::Literal(2)), &frame);
         assert_eq!(items.len(), 2);
         assert!(items.iter().all(|item| matches!(
             item,
-            WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
-                player: PlayerId(1),
+            WorkItem::Emit(Occurrence::Single(GameEvent::Act {
+                who: Some(PlayerId(1)),
+                on: None,
                 ..
             }))
         )));

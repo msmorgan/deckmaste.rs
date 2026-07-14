@@ -1,3 +1,7 @@
+// waiver: render deferred — the renderer has no arms for the "player with the
+// most life gains control" upkeep clause (Compare/CountOf over players,
+// GainControl); the engine encoding is complete, render skipped at graduation
+// pending those arms (noncanon-wc99 follow-up).
 Normal(
     name: "Wild Dogs",
     mana_cost: [Green],

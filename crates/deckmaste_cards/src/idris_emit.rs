@@ -1592,11 +1592,6 @@ fn emit_action(a: &Action) -> R {
     })
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one arm per player verb; splitting would scatter the dispatch (mirrors \
-              resolve.rs's player_action_items)"
-)]
 fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
     // The player verbs whose Idris constructor carries a `{default You actor}`
     // are emitted through the positional `<verb>By` helper, always passing the
@@ -1604,7 +1599,6 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
     // (`Reveal`/`PutCounters`/`Tap`/`Untap`/…) can only be the default `You`,
     // so a non-`You` actor there is a gap.
     match pa {
-        PlayerAction::Draw(c) => Ok(app("drawBy", vec![emit_reference(actor)?, emit_count(c)?])),
         PlayerAction::Discard {
             count,
             what,

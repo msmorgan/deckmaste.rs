@@ -1,0 +1,23 @@
+// "Draw N" ([CR#121.1]): the imperative YOU-form draw — you draw N cards, ONE
+// AT A TIME ([CR#121.2] — a per-card sequence, NOT a simultaneous batch like
+// mill). Scry's sibling on the draw lane, the twin of `Mill`: the keyword
+// action as DATA — a `Composite` whose tag is `Draw(You, n)` and whose body
+// DESCRIBES the top-N Library → Hand relocation (an `Each` per-card move). The
+// engine does NOT run the body: it emits N independent single-card `Act(Draw)`
+// attempts, each of which binds the library top LATE and empty-checks BEFORE
+// its move (an empty library loses the game, [CR#120.3,104.3c] — an executing
+// `Each` body would silently no-op and MISS that loss). The declarative-subject
+// form ("Target player draws N cards.") is the `Draws(who, n)` macro; this is
+// the bare you-imperative.
+//
+// Usage: Draw(1) -> "Draw a card." / Draw(3) -> "Draw three cards."
+(
+    name: "Draw",
+    template: "draw ${0:card|cards}",
+    kinds: [OneShotEffect],
+    params: [Count],
+    body: Composite(
+        Draw(You, Param(0)),
+        Each(binder: Existing(TopOfLibrary(count: Param(0))), effect: Move(It, Hand)),
+    ),
+)

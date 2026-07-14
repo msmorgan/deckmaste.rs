@@ -1,6 +1,7 @@
 // "[subject] mills N" ([CR#701.17a]): the DECLARATIVE-SUBJECT mill — that
 // player puts the top N cards of their library into their graveyard, as one
-// simultaneous group ([CR#603.3b]). The keyword action as DATA: a `Composite`
+// group — a single instruction, not per-card like draw ([CR#121.2]). The
+// keyword action as DATA: a `Composite`
 // whose tag is `Mill(who, n)` and whose body is the batch `MoveGroup` of the
 // top N of `who`'s library to their graveyard (clamped to library size,
 // [CR#701.17b]). There is no bespoke `Mill` verb; the engine realizes the

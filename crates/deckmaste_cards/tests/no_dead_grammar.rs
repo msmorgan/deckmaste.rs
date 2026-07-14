@@ -182,6 +182,16 @@ fn structurally_untagged() -> BTreeSet<Node> {
 fn accept_allowlist() -> Vec<(Node, &'static str)> {
     vec![
         (
+            n("Reference", "Coalesce"),
+            "DEFERRED: Coalesce IS live — it is the Rhystic payer in Rhystic \
+            Lightning (`MayPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]))` — the \
+            target's controller pays, or the target itself if it's a player). But that card \
+            lives in plugins/wizards, and this gate counts only canon/testing/builtin; the \
+            noncanon-wc99 graduation dropped the burn-targeting Rust override that had kept a \
+            counted-dir fixture. Fix = add a canon/testing Rhystic-toll card; unrelated to \
+            keyword-action work.",
+        ),
+        (
             n("OneShotEffect", "Label"),
             "BLOCKED: Label's only real use-case in this batch (Blood Money's \
             'destroyed this way' product-group read-back) is the same confirmed grammar gap as \

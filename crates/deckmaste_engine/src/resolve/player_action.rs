@@ -63,17 +63,6 @@ impl GameState {
                     vec![WorkItem::Emit(occurrence_of(events))]
                 }
             }
-            PlayerAction::Draw(qty) => {
-                let n = self.eval_count(qty, frame);
-                (0..n)
-                    .map(|_| {
-                        WorkItem::Emit(Occurrence::Single(GameEvent::WillDraw {
-                            player: actor,
-                            source: Some(frame.source),
-                        }))
-                    })
-                    .collect()
-            }
             PlayerAction::LoseLife(qty) => {
                 let amount = self.eval_count(qty, frame);
                 vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
@@ -1506,10 +1495,7 @@ mod tests {
                 event,
                 condition: None,
                 limits: Vec::new(),
-                effect: OneShotEffect::Act(Action::By(
-                    Reference::You,
-                    PlayerAction::Draw(Count::Literal(1)),
-                )),
+                effect: OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
             })],
             ..CardFace::default()
         });

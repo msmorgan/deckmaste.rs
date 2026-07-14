@@ -1,6 +1,7 @@
 // "Mill N" ([CR#701.17a]): the imperative YOU-form self-mill — you put the top
-// N cards of your library into your graveyard, as one simultaneous group
-// ([CR#603.3b]), clamped to library size ([CR#701.17b]). Scry's sibling on the
+// N cards of your library into your graveyard, as one group — a single
+// instruction, not per-card like draw ([CR#121.2]); clamped to library size
+// ([CR#701.17b]). Scry's sibling on the
 // mill lane: the keyword action as DATA — a `Composite` whose tag is
 // `Mill(You, n)` and whose body is the batch `MoveGroup` of the top N of your
 // library to your graveyard. The declarative-subject form ("Target player mills

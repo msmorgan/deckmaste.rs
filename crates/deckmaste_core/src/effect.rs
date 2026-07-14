@@ -452,8 +452,8 @@ mod tests {
     #[test]
     fn verbs_read_flat() {
         assert_eq!(
-            read("Draw(Literal(1))"),
-            act_by_you(PlayerAction::Draw(Count::Literal(1))),
+            read("GainLife(Literal(1))"),
+            act_by_you(PlayerAction::GainLife(Count::Literal(1))),
         );
         assert_eq!(
             read("GainLife(Literal(3))"),
@@ -521,10 +521,10 @@ mod tests {
     #[test]
     fn explicit_agent_reads_flat() {
         assert_eq!(
-            read("By(It, Draw(Literal(3)))"),
+            read("By(It, GainLife(Literal(3)))"),
             OneShotEffect::Act(Action::By(
                 Reference::It,
-                PlayerAction::Draw(Count::Literal(3)),
+                PlayerAction::GainLife(Count::Literal(3)),
             )),
         );
     }
@@ -534,19 +534,19 @@ mod tests {
     #[test]
     fn structural_forms_read_flat() {
         assert_eq!(
-            read("Sequentially([Draw(Literal(1)), GainLife(Literal(1))])"),
+            read("Sequentially([GainLife(Literal(1)), GainLife(Literal(1))])"),
             OneShotEffect::Sequentially(vec![
-                act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                act_by_you(PlayerAction::GainLife(Count::Literal(1))),
                 act_by_you(PlayerAction::GainLife(Count::Literal(1))),
             ]),
         );
-        let may = read("May(effect: Draw(Literal(1)))");
+        let may = read("May(effect: GainLife(Literal(1)))");
         let OneShotEffect::May(may) = may else {
             panic!("expected May");
         };
         assert_eq!(
             *may.effect,
-            act_by_you(PlayerAction::Draw(Count::Literal(1)))
+            act_by_you(PlayerAction::GainLife(Count::Literal(1)))
         );
         assert!(may.if_did.is_none() && may.if_not.is_none());
     }
@@ -555,28 +555,28 @@ mod tests {
     fn act_serializes_flat() {
         // A `Count` literal writes bare — `1`, never `Literal(1)`.
         assert_eq!(
-            write(&act_by_you(PlayerAction::Draw(Count::Literal(1)))),
-            "Draw(1)"
+            write(&act_by_you(PlayerAction::GainLife(Count::Literal(1)))),
+            "GainLife(1)"
         );
     }
 
     #[test]
     fn effects_round_trip() {
         let cases = [
-            "Draw(Literal(1))",
+            "GainLife(Literal(1))",
             "GainLife(Literal(3))",
             "Sacrifice(This)",
-            "By(It,Draw(Literal(3)))",
+            "By(It,GainLife(Literal(3)))",
             "DealDamage(This,Literal(3),It)",
             "AddMana(Literal(1),AnyColor)",
             // Destroy is the `Composite` the `Action::destroy` ctor builds;
             // the raw dual-facet spelling round-trips through plain RON.
             "Composite(Destroy(This),Move(This,Graveyard))",
-            "Sequentially([Draw(Literal(1)),GainLife(Literal(1))])",
-            "May(effect:Draw(Literal(1)))",
+            "Sequentially([GainLife(Literal(1)),GainLife(Literal(1))])",
+            "May(effect:GainLife(Literal(1)))",
             // `Each.binder` is a many-`Binder` (the set of all creatures wrapped
             // in `Existing`), binding `It` per element.
-            "Each(binder:Existing(SelectAll(Type(\"Creature\"))),effect:Draw(Literal(1)))",
+            "Each(binder:Existing(SelectAll(Type(\"Creature\"))),effect:GainLife(Literal(1)))",
             // Brainstorm's shape in the new model: choose 2 cards (a many-binder
             // `With`), then `Each` over the bound group (`Existing(They)`), moving
             // each onto the library via the `It` element. Core reader has no
@@ -629,7 +629,7 @@ mod tests {
     #[test]
     fn may_pay_round_trips_with_and_without_or_else() {
         // No "if you don't" branch — `or_else` omitted.
-        let bare = "MayPay(cost:[Mana([Generic(1)])],and_then:Draw(1))";
+        let bare = "MayPay(cost:[Mana([Generic(1)])],and_then:GainLife(1))";
         let parsed = read(bare);
         let OneShotEffect::MayPay(m) = &parsed else {
             panic!("expected MayPay, got {parsed:?}");
@@ -640,7 +640,7 @@ mod tests {
 
         // With an explicit actor and an "if you don't" branch.
         let full =
-            "MayPay(actor:It,cost:[Mana([Generic(2)])],and_then:Draw(2),or_else:LoseLife(1))";
+            "MayPay(actor:It,cost:[Mana([Generic(2)])],and_then:GainLife(2),or_else:LoseLife(1))";
         assert_eq!(write(&read(full)), full, "full MayPay round-trips");
     }
 
@@ -754,8 +754,9 @@ mod tests {
     /// `Each : Bindable b Many k -> …`).
     #[test]
     fn each_binds_via_binder() {
-        let v =
-            read("Each(binder:Existing(SelectAll(Type(\"Creature\"))),effect:Draw(Literal(1)))");
+        let v = read(
+            "Each(binder:Existing(SelectAll(Type(\"Creature\"))),effect:GainLife(Literal(1)))",
+        );
         let OneShotEffect::Each(e) = &v else {
             panic!("expected Each, got {v:?}");
         };

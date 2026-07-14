@@ -2548,7 +2548,17 @@ mutual
   public export
   refIntro : {k : RefKind} -> Reference b k -> List Ant
   refIntro (ControllerOf r) = refIntro r
-  refIntro (Coalesce rs) = concatMap refIntro rs
+  -- Explicit structural recursion over the coalesced references (each `r` a
+  -- subterm of `Coalesce rs`), NOT `concatMap refIntro rs`: the higher-order
+  -- form hides the decreasing argument from the totality checker, which
+  -- `%default total` (line 14) then rejects — and its non-totality cascades
+  -- through `actionIntro`/`introduces`/`seqIntro`/`intro`, failing the whole
+  -- `Core.idr` build and every re-emit typecheck.
+  refIntro (Coalesce rs) = coalesceIntro rs
+    where
+      coalesceIntro : List (Reference b k) -> List Ant
+      coalesceIntro [] = []
+      coalesceIntro (r :: rrs) = refIntro r ++ coalesceIntro rrs
   refIntro (OwnerOf r) = refIntro r
   refIntro (AttachHostOf r) = refIntro r
   refIntro _ = []

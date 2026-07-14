@@ -3644,10 +3644,12 @@ mod tests {
                     Reference::You,
                     Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                 ),
-                then: Box::new(OneShotEffect::act_by_you(PlayerAction::Draw(
+                then: Box::new(OneShotEffect::Act(Action::draw(
+                    Reference::You,
                     Count::Literal(3),
                 ))),
-                otherwise: Some(Box::new(OneShotEffect::act_by_you(PlayerAction::Draw(
+                otherwise: Some(Box::new(OneShotEffect::Act(Action::draw(
+                    Reference::You,
                     Count::Literal(2),
                 )))),
             }),
@@ -3780,10 +3782,7 @@ mod tests {
         let (mut sd, p0, lib_before) = secrets_on_stack(10);
         let dframe = frame_for(&sd, p0);
         sd.run_effect(
-            OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Draw(Count::Literal(3)),
-            )),
+            OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(3))),
             &dframe,
         );
         let _ = drain_progress(&mut sd, 40);

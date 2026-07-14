@@ -389,10 +389,22 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         panic!("Unless must expand to MustPay, got {:?}", exp.value);
     };
     assert_eq!(m.actor, Reference::You, "the payer defaults to You");
+    // `Draw(1)` is now the `Draw` macro (like `Mill`), so the unpaid branch is
+    // its remembered `Expanded` wrapping the `Composite(Draw(You, 1), …)`.
+    let OneShotEffect::Expanded(draw_exp) = m.or_else.as_ref() else {
+        panic!(
+            "or_else should be the remembered Draw expansion, got {:?}",
+            m.or_else
+        );
+    };
+    assert_eq!(draw_exp.name.as_str(), "Draw");
     assert!(
         matches!(
-            m.or_else.as_ref(),
-            OneShotEffect::Act(Action::By(_, PlayerAction::Draw(_)))
+            draw_exp.value.as_ref(),
+            OneShotEffect::Act(Action::Composite(
+                deckmaste_core::KeywordAction::Draw(_, _),
+                _
+            ))
         ),
         "or_else carries the unpaid branch"
     );

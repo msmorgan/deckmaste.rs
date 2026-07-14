@@ -1,6 +1,10 @@
 // Cursed Scroll's choose-name/random-reveal sequence is deliberately authored
 // in canon: it is a singularly awkward Oracle template, not a useful general
 // migration-parser production.
+// waiver: render deferred — the renderer has no arms for the choose-a-name /
+// random hand-reveal / conditional-damage clause (ChooseAndNote, Random, hand
+// Reveal, If); the engine encoding is complete, render skipped at graduation
+// pending those arms (noncanon-wc99 follow-up).
 Normal(
     name: "Cursed Scroll",
     mana_cost: [Generic(1)],

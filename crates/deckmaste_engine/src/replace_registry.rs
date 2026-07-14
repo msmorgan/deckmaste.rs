@@ -45,12 +45,12 @@ pub(crate) enum Affected {
 pub(crate) fn replaceable(e: &GameEvent) -> bool {
     matches!(
         e,
-        GameEvent::WillDraw { .. }
-            // [CR#701,614.17]: the named keyword-action event is guardable
-            // (a `Cant(Act(…))` suppresses it — indestructible) and replaceable
-            // ([CR#614] — regeneration); `Act(Destroy(…))` is the destruction
-            // intent, subsuming the retired `WillDestroy`.
-            | GameEvent::Act { .. }
+        // [CR#701,614.17]: the named keyword-action event is guardable
+        // (a `Cant(Act(…))` suppresses it — indestructible) and replaceable
+        // ([CR#614] — regeneration); `Act(Destroy(…))` is the destruction
+        // intent (subsuming the retired `WillDestroy`) and `Act(Draw)` the draw
+        // intent (subsuming the retired `WillDraw` — Notion Thief / Lab Maniac).
+        GameEvent::Act { .. }
             | GameEvent::ZoneWillChange { .. }
             | GameEvent::DamageDealt { .. }
             | GameEvent::LifeGained { .. }
@@ -80,7 +80,14 @@ pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
         | GameEvent::CounterPlaced { object, .. }
         | GameEvent::CounterRemoved { object, .. }
         | GameEvent::DamageDealt { target: object, .. } => Some(Affected::Object(*object)),
-        GameEvent::WillDraw { player, .. }
+        // A player-report keyword action (`Act(Draw)`, scry/mill/…) with no
+        // patient affects its performer — a draw replacement reads the drawing
+        // player ([CR#121.1,616.1]).
+        GameEvent::Act {
+            who: Some(player),
+            on: None,
+            ..
+        }
         | GameEvent::LifeGained { player, .. }
         | GameEvent::LifeLost { player, .. }
         | GameEvent::GotDesignation { player, .. } => Some(Affected::Player(*player)),

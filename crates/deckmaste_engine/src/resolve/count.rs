@@ -551,7 +551,7 @@ impl GameState {
             | GameEvent::DamageDealt { amount, .. }
             | GameEvent::CounterPlaced { amount, .. }
             | GameEvent::CounterRemoved { amount, .. } => *amount,
-            GameEvent::WillDraw { .. } | GameEvent::ZoneChanged { .. } => 1,
+            GameEvent::ZoneChanged { .. } => 1,
             other => unreachable!("EventSum reached a fact kind with no amount channel: {other:?}"),
         }
     }
@@ -725,23 +725,30 @@ mod tests {
              refinement is a separate count)"
         );
 
-        // Two draws by p this turn → EventCount(Draw, by: Ref(You)) = 2.
-        state.record_history_fact(
-            1,
-            None,
-            GameEvent::WillDraw {
-                player: p,
-                source: None,
-            },
-        );
-        state.record_history_fact(
-            1,
-            None,
-            GameEvent::WillDraw {
-                player: p,
-                source: None,
-            },
-        );
+        // Two draws by p this turn → EventCount(Drawn, by: Ref(You)) = 2. A
+        // draw's SUCCESS fact is the committed Library → Hand move tagged
+        // `cause: Draw` ([CR#121.2] — one fact per card), which projects to
+        // `FactKind::Drawn`.
+        for _ in 0..2 {
+            let drawn = state
+                .objects
+                .mint(ObjectSource::Player(p), p, Some(Zone::Hand));
+            state.record_history_fact(
+                1,
+                None,
+                GameEvent::ZoneChanged {
+                    snapshot: LkiSnapshot::capture(&state, drawn),
+                    from: Some(Zone::Library),
+                    to: Zone::Hand,
+                    face: None,
+                    cause: Some(Cause {
+                        verb: "Draw".into(),
+                        agency: Agency::EffectInstruction,
+                        agent: None,
+                    }),
+                },
+            );
+        }
         let draw_event = EventFilter::Drawn {
             who: Predicate::Ref(Reference::You),
             amount: None,

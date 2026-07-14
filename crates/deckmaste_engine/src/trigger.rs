@@ -3349,7 +3349,6 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::Count;
         use deckmaste_core::OneShotEffect;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
 
         deckmaste_core::TriggeredAbility {
@@ -3359,10 +3358,7 @@ mod tests {
             event,
             condition: None,
             limits: Vec::new(),
-            effect: OneShotEffect::Act(Action::By(
-                Reference::You,
-                PlayerAction::Draw(Count::Literal(1)),
-            )),
+            effect: OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
         }
     }
 
@@ -3526,7 +3522,6 @@ mod tests {
         use deckmaste_core::EventFilter;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::PhaseStep;
-        use deckmaste_core::PlayerAction;
         use deckmaste_core::Reference;
         use deckmaste_core::TriggeredAbility;
         use deckmaste_core::WhoseTurn;
@@ -3544,10 +3539,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new(),
-                effect: OneShotEffect::Act(Action::By(
-                    Reference::You,
-                    PlayerAction::Draw(Count::Literal(1)),
-                )),
+                effect: OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
             })],
             ..CardFace::default()
         })
@@ -4559,24 +4551,41 @@ mod tests {
     // Player-experienced facts — Draw / LoseLife / GainLife ([CR#121.1,119.3])
     // -------------------------------------------------------------------------
 
-    /// `Drawn(who: Ref(You))` matches `WillDraw` for the watcher's
-    /// controller ([CR#121.1]) and not another player's draw.
+    /// `Drawn(who: Ref(You))` matches a draw's SUCCESS fact — the committed
+    /// Library → Hand move tagged `cause: Draw` ([CR#121.2]) — for the
+    /// watcher's controller ([CR#121.1]) and not another player's draw. The
+    /// drawing player is the moved card's controller (the `snapshot`).
     #[test]
-    fn performed_matches_draw_matches_will_draw() {
-        let (state, bear) = bear_on_field();
+    fn performed_matches_draw_matches_drawn_zone_change() {
+        let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Drawn {
             who: Predicate::Ref(Reference::You),
             amount: None,
         };
-        let you_draw = GameEvent::WillDraw {
-            player: PlayerId(0),
-            source: None,
+        let draw_fact = |state: &GameState, card| GameEvent::ZoneChanged {
+            snapshot: LkiSnapshot::capture(state, card),
+            from: Some(Zone::Library),
+            to: Zone::Hand,
+            face: None,
+            cause: Some(crate::event::Cause {
+                verb: "Draw".into(),
+                agency: deckmaste_core::Agency::EffectInstruction,
+                agent: None,
+            }),
         };
-        let opp_draw = GameEvent::WillDraw {
-            player: PlayerId(1),
-            source: None,
-        };
+        let you_card = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Hand),
+        );
+        let opp_card = state.objects.mint(
+            ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Hand),
+        );
+        let you_draw = draw_fact(&state, you_card);
+        let opp_draw = draw_fact(&state, opp_card);
         assert!(
             state.event_matches(&pattern, &you_draw, watcher_source),
             "your own draw matches by: Ref(You)"

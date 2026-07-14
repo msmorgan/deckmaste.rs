@@ -245,7 +245,11 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // that per-element form ([CR#608.2]). This is the renderer half of the
         // `core-many-binder-group-move` seam.
         OneShotEffect::Each(fe) => {
-            if let OneShotEffect::Act(act) = &*fe.effect
+            // Peel a remembered macro invocation (`Draws(It, 1)` →
+            // `Expanded`) to its core `Act` so the collective renderer sees the
+            // keyword-action tag ("Each player draws a card."), not "For each
+            // player, …".
+            if let OneShotEffect::Act(act) = peel_expanded(&fe.effect)
                 && let Some(collective) = each_collective(act, &fe.binder, ctx)
             {
                 return collective;
@@ -649,6 +653,24 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         Action::Composite(deckmaste_core::KeywordAction::Destroy(Reference::It), _) => {
             Some(format!("Destroy {}.", each_group()))
         }
+        // [CR#121.1,121.2]: "Each player draws N cards." — draw is
+        // `Composite(Draw(It, n), <body>)` over the loop element as performer
+        // (Jace Beleren's "[+2]: Each player draws a card."); the twin mill form
+        // reads "Each player mills N cards." Both render the tag.
+        Action::Composite(deckmaste_core::KeywordAction::Draw(Reference::It, n), _) => {
+            Some(format!(
+                "{} draws {}.",
+                capitalize_first(&each_group()),
+                counted_cards(n),
+            ))
+        }
+        Action::Composite(deckmaste_core::KeywordAction::Mill(Reference::It, n), _) => {
+            Some(format!(
+                "{} mills {}.",
+                capitalize_first(&each_group()),
+                counted_cards(n),
+            ))
+        }
         // A group move to the library reads "Put <group> on top/the bottom of
         // your library." — Brainstorm's "put two cards … on top": the chosen
         // group's own phrase, not "each" ([CR#401.7]). A multi-card put
@@ -991,6 +1013,19 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             Reference::You => mill_imperative(n),
             other => format!(
                 "{} mills {}.",
+                capitalize_first(&fragment::reference(other, ctx)),
+                counted_cards(n),
+            ),
+        },
+        // [CR#121.1,121.2]: draw is `Composite(Draw(who, n), <body>)` — render
+        // the tag, twin of the mill arm above. `You` keeps the imperative "Draw
+        // N cards."; a non-`You` performer renders subject-declarative ("Target
+        // player draws N cards."). The `Each` body is engine realization (the
+        // per-card late library-top bind), not printed.
+        Action::Composite(deckmaste_core::KeywordAction::Draw(who, n), _) => match who {
+            Reference::You => draw_imperative(n),
+            other => format!(
+                "{} draws {}.",
                 capitalize_first(&fragment::reference(other, ctx)),
                 counted_cards(n),
             ),
@@ -1474,6 +1509,20 @@ fn mill_imperative(c: &Count) -> String {
     }
 }
 
+/// The imperative you-form of draw ([CR#121.1]) — "Draw a card." / "Draw three
+/// cards." / "Draw X cards." The `You`-performer render of a
+/// `Composite(Draw(You, n), …)`.
+fn draw_imperative(c: &Count) -> String {
+    match c {
+        Count::Literal(1) => "Draw a card.".to_string(),
+        Count::Literal(n) => match fragment::number_word(*n) {
+            Some(word) => format!("Draw {word} cards."),
+            None => format!("Draw {n} cards."),
+        },
+        c => format!("Draw {} cards.", fragment::count(c)),
+    }
+}
+
 /// The THIRD-PERSON verb phrase of a player action — the declarative-subject
 /// tail ("mills two cards", "loses 2 life") a non-`You` `By` agent or an
 /// `Each` player loop prefixes with its subject. A remembered verb-macro
@@ -1485,7 +1534,6 @@ fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
         PlayerAction::Expanded(e) => {
             super::template::expanded(e, "it").or_else(|| third_person_verb_phrase(&e.value))
         }
-        PlayerAction::Draw(c) => Some(format!("draws {}", counted_cards(c))),
         PlayerAction::Discard {
             count,
             what: None,
@@ -1512,13 +1560,6 @@ fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
 
 fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
     match pa {
-        PlayerAction::Draw(Count::Literal(1)) => "Draw a card.".to_string(),
-        // Object counts spell out as words ("Draw three cards.").
-        PlayerAction::Draw(Count::Literal(n)) => match fragment::number_word(*n) {
-            Some(word) => format!("Draw {word} cards."),
-            None => format!("Draw {n} cards."),
-        },
-        PlayerAction::Draw(c) => format!("Draw {} cards.", fragment::count(c)),
         // A remembered verb-macro expansion (`Mills(2)` under an explicit
         // `By`): the imperative frame renders the expanded CORE action —
         // the third-person template belongs to the declarative subjects.
@@ -1893,7 +1934,8 @@ mod tests {
         };
         let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
         let draw = || {
-            Box::new(OneShotEffect::act_by_you(PlayerAction::Draw(
+            Box::new(OneShotEffect::Act(Action::draw(
+                Reference::You,
                 Count::Literal(1),
             )))
         };
@@ -2437,8 +2479,8 @@ mod tests {
                         )),
                     ))]),
                 }]),
-                body: Box::new(deckmaste_core::OneShotEffect::act_by_you(
-                    PlayerAction::Draw(Count::Literal(1)),
+                body: Box::new(deckmaste_core::OneShotEffect::Act(
+                    deckmaste_core::Action::draw(deckmaste_core::Reference::You, Count::Literal(1)),
                 )),
             }),
             &ctx,
@@ -2514,7 +2556,7 @@ mod tests {
             targets: &[],
             that: None,
         };
-        let draw = || OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1)));
+        let draw = || OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1)));
         let discard = || {
             OneShotEffect::act_by_you(PlayerAction::Discard {
                 count: Count::Literal(1),

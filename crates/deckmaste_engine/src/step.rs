@@ -337,7 +337,6 @@ impl GameState {
             | GameEvent::LifeGained { amount, .. }
             | GameEvent::CounterPlaced { amount, .. }
             | GameEvent::CounterRemoved { amount, .. } => self.that_much = Some(*amount),
-            GameEvent::WillDraw { .. } => self.that_much = Some(1),
             _ => {}
         }
         #[expect(
@@ -465,31 +464,9 @@ impl GameState {
                 self.objects.obj_mut(id).tapped = false;
                 event
             }
-            GameEvent::WillDraw { player, source } => {
-                // [CR#121.1]: the draw intent commits. A card present → evolve
-                // into the generic Library→Hand move (remint + LKI); the
-                // returned `WillDraw` fact is what `CardsDrawnThisTurn` counts
-                // in the history log. An empty library → DrewFromEmpty, the
-                // failed-draw fact the loss SBA keys on ([CR#121.4,704.5b]).
-                if let Some(&top) = self.zones.libraries[player.index()].front() {
-                    self.schedule_evolution(GameEvent::ZoneWillChange {
-                        object: top,
-                        from: Some(Zone::Library),
-                        to: Zone::Hand,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: None,
-                    });
-                    GameEvent::WillDraw { player, source }
-                } else {
-                    self.player_mut(player).drew_from_empty = true;
-                    GameEvent::DrewFromEmpty(player)
-                }
-            }
             GameEvent::DrewFromEmpty(player) => {
-                // Today only `WillDraw`'s apply-time transform produces this
-                // fact; the arm exists for future direct emitters (e.g. a
+                // The `Act(Draw)` apply-time transform produces this on an empty
+                // library; the arm also serves future direct emitters (a
                 // replacement effect rewriting a draw).
                 self.player_mut(player).drew_from_empty = true;
                 event
@@ -923,6 +900,56 @@ impl GameState {
             //  * a reorder verb (scry/surveil/fateseal) — a pure FACT (no mutation; the body's own
             //    events already reordered the library). The surviving `Act` is the "whenever you
             //    scry/surveil/…" trigger fact ([CR#701.22d]).
+            //  * the DRAW verb (`on: None`, below) — the atomic single-card draw, whose drawn
+            //    object binds LATE (the library top at apply): its own arm, not the move-verb
+            //    branch above ([CR#121.1,121.2]).
+            //
+            // [CR#121.1,121.2]: the atomic single-card draw. `Act(Draw)` carries NO
+            // patient `on` — the drawn card is the library top, bound LATE at apply.
+            // This is the relocated draw apply: a card present → schedule the
+            // Library → Hand move tagged `cause: Draw` (the SUCCESS fact
+            // `FactKind::Drawn` reads — what "whenever you draw a card" +
+            // `CardsDrawn` count, distinct from a non-draw Library → Hand move,
+            // [CR#121.5]) and log the `Act(Draw)` attempt fact; an empty library →
+            // `DrewFromEmpty`, the failed-draw fact the loss SBA keys on
+            // ([CR#121.4,704.5b]). The empty check runs BEFORE the move so a
+            // last-card success is unambiguous. `that_much = 1` — one card per
+            // draw ([CR#121.2]); "draw N" is `Repeat(n, Draw)`, N such attempts.
+            GameEvent::Act {
+                verb,
+                who: Some(player),
+                on: None,
+                from,
+                to,
+                cause,
+            } if verb.0.as_str() == "Draw" => {
+                if let Some(&top) = self.zones.libraries[player.index()].front() {
+                    self.that_much = Some(1);
+                    self.schedule_evolution(GameEvent::ZoneWillChange {
+                        object: top,
+                        from: Some(Zone::Library),
+                        to: Zone::Hand,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: Some(crate::event::Cause::draw(
+                            deckmaste_core::Agency::EffectInstruction,
+                            None,
+                        )),
+                    });
+                    GameEvent::Act {
+                        verb,
+                        who: Some(player),
+                        on: None,
+                        from,
+                        to,
+                        cause,
+                    }
+                } else {
+                    self.player_mut(player).drew_from_empty = true;
+                    GameEvent::DrewFromEmpty(player)
+                }
+            }
             GameEvent::Act {
                 verb,
                 who,
@@ -1693,9 +1720,17 @@ impl GameState {
             // [CR#504.1]; [CR#103.8a] (two-player): turn 1 is the starting
             // player's, who skips their first draw.
             PhaseStep::Beginning(BeginningStep::Draw) if self.turn.turn_number > 1 => {
-                vec![WorkItem::Emit(Occurrence::single(GameEvent::WillDraw {
-                    player: self.turn.active_player,
-                    source: None,
+                // [CR#121.1,504.1]: the turn-based draw is the same atomic
+                // `Act(Draw)` keyword action as an effect draw — the active
+                // player draws one card (`on: None`, the drawn card binds at
+                // apply). A turn-based action has no source object.
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::Act {
+                    verb: deckmaste_core::VerbName::from("Draw"),
+                    who: Some(self.turn.active_player),
+                    on: None,
+                    from: None,
+                    to: None,
+                    cause: None,
                 }))]
             }
             PhaseStep::Beginning(BeginningStep::Draw) => vec![],

@@ -244,7 +244,7 @@ impl PredefinedToken {
             Self::Clue => (
                 vec![],
                 vec![mana(2), sac],
-                OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                OneShotEffect::Act(crate::Action::draw(Reference::You, Count::Literal(1))),
             ),
             // [CR#111.10g] "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
             Self::Blood => (
@@ -259,7 +259,7 @@ impl PredefinedToken {
                     })),
                     sac,
                 ],
-                OneShotEffect::act_by_you(PlayerAction::Draw(Count::Literal(1))),
+                OneShotEffect::Act(crate::Action::draw(Reference::You, Count::Literal(1))),
             ),
             // [CR#111.10w] indestructible; "{T}: Add {C}. This mana can't be
             // spent to cast a nonartifact spell."

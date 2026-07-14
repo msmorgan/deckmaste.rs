@@ -557,8 +557,10 @@ fn cycling_confers_from_hand_discard_self_draw() {
         "cycling cost is the printed cost + discard this card, spliced flat"
     );
 
-    // (3) OneShotEffect = draw a card.
-    let expected_effect: OneShotEffect = ron_options().from_str("Draw(Literal(1))").unwrap();
+    // (3) OneShotEffect = draw a card — the `Draw(1)` macro (Cycling's body
+    // uses `effect: Draw(1)`), read back through the same macro set so the
+    // remembered `Expanded` shape matches exactly.
+    let expected_effect: OneShotEffect = plugin.macros.read_str("Draw(1)").unwrap();
     assert_eq!(act.effect, expected_effect, "cycling draws a card");
 }
 

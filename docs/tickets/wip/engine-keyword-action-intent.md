@@ -240,5 +240,105 @@ migrate-damage-sbas-to-rules.
   untouched by this stage. Wizards regen + broad corpus re-encode stays Stage
   3–5 (no committed corpus card needed re-encoding — the `Destroy` macro
   renders identically, no fidelity re-bless).
-- **Stages 3–5:** Mill, Draw (both `Composite(tag, body)`, same dual-facet path),
-  then corpus re-encode + wizards regen + suites.
+- **Stage 3a — idris cleanup (done, green; idris build 0, re-emit 5/5).** Removed
+  the now-dead `Action.Destroy` constructor from `Core.idr` (+ its `actionEventCaps`/
+  `actionIntro` arms); added a `destroy` macro to `Macros.idr`
+  (`Composite (Destroy r) (Act (Move r (ToZone Graveyard)))`) and migrated every
+  hand-written `Act (Destroy …)` in `Cards.idr`/`Spec.idr` to `Act (destroy …)`
+  (the constructor was NOT actually dead — the worked corpus + soundness suite used
+  it; the "dead" claim held only for the Rust emitter). Spec's `failing`
+  regression pins still fire with their pinned messages.
+- **Stage 3b — Mill (done, green — core 214, engine 535+, cards suites, idris
+  Tome Scour/Jace PASS, cite 0/0).** Mill is the BATCH lane: atom
+  `KeywordAction::Mill(Reference, Count)` authored `Composite(Mill(who, n),
+  MoveGroup(TopOfLibrary(count: n, whose: who), AnyOrder, Graveyard))` via new
+  `Action::mill` ctor + `Mill`/`Mills` macros. `PlayerAction::Mill` retired. The
+  Composite resolve gained a group-move lane (`composite_body_group_move`): reorder-
+  style (batch emitted, then the aggregate `Act(Mill)` post-commit, [CR#701.22d]),
+  the per-card `→Graveyard` `ZoneWillChange`s carry the `Mill` cause (so
+  "milled this way" reads + Rest-in-Peace bite them directly), clamped to library
+  size by `TopOfLibrary`'s `take(n)`; empty library ⇒ no batch, no `Act`.
+  `composite_body_acts` gained a `MoveGroup` arm. Render: a `Composite(Mill(who,n))`
+  arm (You ⇒ "Mill N cards."; other ⇒ "<who> mills N cards.") replacing the
+  `PlayerAction::Mill` arms. Re-encoded Tome Scour + Jace Beleren to `Mills(It, N)`
+  (render text unchanged). NOTE: the CR mill sub-rule the ticket had cited for
+  "the milled cards are a group" (701 dot 17d) is actually about single-card-mill
+  replacement multiplicity, NOT batch simultaneity — so that claim now uses the
+  repo's one-occurrence convention `[CR#603.3b]` instead (a corrected mis-cite).
+- **Stage 4 — Draw (Rust DONE + green; idris + wizards pending).** Draw mirrors
+  Mill's lane (count-carrying atom, per-card realization).
+  - **DESIGN DECISION — count-carrying, NOT drop-count+Repeat (deviation from the
+    earlier plan; flagged for USER review).** The atom is `KeywordAction::Draw(
+    Reference, Count)` — count on the atom, exactly like `Mill(Reference, Count)`.
+    `Action::draw(who, n)` authors `Composite(Draw(who, n), Each(Existing(
+    TopOfLibrary(n, who)), Move(It, Hand)))` (the `Each` body is the render/re-emit
+    facet only — NOT executed). This session's earlier plan (and the USER's
+    exploratory `DrawN = Repeat(n, Draw(who))` message) proposed a count-LESS
+    single-card atom + `Repeat`. Reversed to count-carrying because: (1) the idris
+    soundness spec's `KeywordActionSpec.Draw : Reference -> Count` (`Core.idr`) is
+    ALREADY count-carrying, mirroring `Mill` — drop-count would have diverged from
+    the source-of-truth; (2) it mirrors Mill's architecture uniformly (one
+    `Composite` shape, one render arm, one `each_collective`/Targeted subject path
+    — the `Repeat(n, Composite)` form instead broke `each_collective`/Targeted
+    rendering for Jace's per-player draws, forcing bespoke draw-only render
+    recognizers); (3) it is **behaviorally equivalent** to `Repeat(n, Draw(who))` —
+    the resolve emits N independent single-card `Act(Draw)` attempts (each
+    empty-checked + replaceable, [CR#121.2]), the same per-card sequence `Repeat`
+    would produce. Both are CR-correct; count-carrying is the cleaner, idris-aligned
+    representation. **USER may veto in favor of the `Repeat` form.** Retired
+    `PlayerAction::Draw` + `GameEvent::WillDraw`.
+  - The Composite resolve gained a Draw lane (`else if let Ka::Draw(_, n)`): eval
+    the count, emit N `Act(Draw)` occurrences (gated once on a "can't draw"
+    static). Each `Act(Draw)` carries `on: None` (the drawn card binds LATE);
+    its APPLY (`step.rs`, the relocated WillDraw apply) checks the library BEFORE
+    the move — empty ⇒ **set `drew_from_empty`** (the intrinsic loss path,
+    unchanged SBA, [CR#120.3,104.3c,704.5b]); else schedule `ZoneWillChange(top,
+    Library→Hand, cause: Draw)` (`Cause::draw` added) + `that_much = 1`.
+  - Re-keyed the RESULT-side draw fact: `FactKind::Drawn` (what `EventFilter::Drawn`/
+    `EventCount`/`ThatMany`/CardsDrawn read) moved from `WillDraw` onto the committed
+    `ZoneChanged(Library→Hand, cause: Draw)` (the SUCCESS fact; a non-draw
+    Library→Hand keeps `FactKind::ZoneChange`, [CR#121.5]); `Act(Draw)` (tag) is
+    the attempt fact (`EventFilter::Act(Kap::Draw)`). `replace_registry` moved the
+    draw's replaceable+affected onto `Act(Draw)`.
+  - Macros `Draw`/`Draws` now mirror `Mill`/`Mills` (`kinds: [OneShotEffect]`,
+    `Composite(Draw(You|who, n), Each(…))`). Render: `Composite(Draw(who, n))` arm
+    + `draw_imperative` (twin of `mill_imperative`); `each_collective` gained
+    `Composite(Draw(It, n))` + `Composite(Mill(It, n))` arms and the `Each` render
+    now peels `Expanded` so `Draws(It, 1)` reads collectively ("Each player draws a
+    card." — Jace +2). Jace Beleren re-encoded (`Draws(It, 1)`); Clue/Blood tokens
+    use `Action::draw(You, 1)`.
+  - **Gates green:** core 218, engine 536 (0 failed), cards suites (fidelity,
+    no_dead_grammar 48, render, tokens, keywords, builtin), migrations (M2 stale
+    `Mills` test fixed), cite 0 stale, fmt + clippy clean.
+  - **idris re-emit gate: FIXED + GREEN.** Was globally red on a PRE-EXISTING
+    `Core.idr` totality failure (the noncanon-wc99 merge brought
+    `Reference::Coalesce`, whose `refIntro` arm used the higher-order `concatMap
+    refIntro rs` that `%default total` rejects — cascading through
+    `actionIntro`/`introduces`/`seqIntro`/`intro` and failing every re-emit and
+    the whole `Core.idr` build; a stale `.ttc` had masked it at the prior
+    session's merge). Rewrote the `Coalesce` arm as explicit structural recursion
+    (`coalesceIntro`); `idris2 --check Core.idr` + `idris2 --build mtg.ipkg` now
+    pass, and `cargo xtask idris-check plugins/canon <card>` PASSES for draw
+    (Elvish Visionary, Treasure Cruise, Jace Beleren) AND non-draw (Grizzly
+    Bears) cards — so the count-carrying `Composite(Draw who n)(Each …)` is
+    RE-EMIT-VALIDATED against idris `KeywordActionSpec.Draw`.
+  - **SETTLED (user, 2026-07-14) — bespoke idris `Action.Draw` STAYS; the
+    Rust↔idris Draw divergence is ACCEPTED, not a loose end.** idris keeps its
+    bespoke `Action.Draw : Count -> Action` (the analog of the retired Rust
+    `PlayerAction::Draw`); the hand-authored `Cards.idr`/`Spec.idr` keep writing
+    `Act (Draw (^N))`. So Draw is deliberately asymmetric: **Rust = Composite-only**
+    (`Composite(KeywordAction::Draw(who,n), Each …)`, no `PlayerAction::Draw`);
+    **idris = bespoke `Action.Draw` retained** for its authoring corpus. Rationale:
+    unifying idris would force migrating ~20 hand-authored sites off `Act (Draw
+    (^N))` — an AUTHORED-SURFACE restructuring ([[authored-surface-ergonomics-
+    rulings]]) — and it's NOT correctness-required (package builds; the Rust
+    re-emit path goes through the Composite form, validated against
+    `KeywordActionSpec.Draw`; the two coexist). **Do NOT "clean up" `Action.Draw`
+    as dead/incomplete in a future pass — this asymmetry is intentional.** Also
+    recorded in memory [[engine-draw-rust-idris-divergence]].
+  - **Count-carrying `Draw` CONFIRMED (user, 2026-07-14)** — the reversal to
+    `KeywordAction::Draw(Reference, Count)` (Mill-parity, idris-aligned) stands.
+- **Stage 5 — wizards regen + full suites: DONE, green.** Wizards regenerated
+  (30,520 cards); full `deckmaste_cards` suites incl. corpus render-fidelity +
+  no-dead-grammar + canon + builtin pass, 0 ignored (`wizards_corpus` cfg set);
+  engine + core green.

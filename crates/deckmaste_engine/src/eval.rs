@@ -294,7 +294,22 @@ impl<'a> FactView<'a> {
                 cause,
                 ..
             } => {
-                v = FactView::bare(FactKind::ZoneChange, state);
+                // [CR#121.2,121.5]: a committed Library → Hand move tagged
+                // `cause: Draw` IS the SUCCESS draw fact — `FactKind::Drawn`,
+                // what "whenever you draw a card" / `CardsDrawn` read — NOT a
+                // generic zone change (a non-draw tutor-to-hand keeps
+                // `FactKind::ZoneChange`, so "without using the word draw"
+                // stays honest). The attempt-level fact is the `Act(Draw)`.
+                let drawn = *to == Zone::Hand
+                    && cause.as_ref().is_some_and(|c| c.verb.as_str() == "Draw");
+                v = FactView::bare(
+                    if drawn {
+                        FactKind::Drawn
+                    } else {
+                        FactKind::ZoneChange
+                    },
+                    state,
+                );
                 v.object = Some(Part::Gone(Cow::Borrowed(snapshot)));
                 v.actor = Some(snapshot.controller);
                 v.from = *from;
@@ -315,13 +330,6 @@ impl<'a> FactView<'a> {
                 v.from = *from;
                 v.to = Some(*to);
                 v.cause = cause.as_ref().map(Cow::Borrowed);
-            }
-            // [CR#121.1]: the draw intent. Per-fact granularity is one card
-            // ([CR#121.2]); the `amount` channel stays empty — a multi-card
-            // amount BOUND is the `Drawn:amount` cap, deliberately kept.
-            GameEvent::WillDraw { player, .. } => {
-                v = FactView::bare(FactKind::Drawn, state);
-                v.actor = Some(*player);
             }
             // [CR#701]: the named keyword-action event — guard/replace moment
             // AND trigger fact in one. `verb` is the matched keyword name;

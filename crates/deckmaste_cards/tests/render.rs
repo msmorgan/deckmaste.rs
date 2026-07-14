@@ -1094,10 +1094,8 @@ fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::Action;
     use deckmaste_core::CardFace;
     use deckmaste_core::Condition;
-    use deckmaste_core::Count;
     use deckmaste_core::EventFilter;
     use deckmaste_core::OneShotEffect;
-    use deckmaste_core::PlayerAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationPredicate;
@@ -1120,9 +1118,9 @@ fn renders_trigger_with_turnof_intervening_if() {
                 RelationPredicate::OpponentOf(Box::new(Predicate::Ref(Reference::You))),
             ))),
             limits: vec![],
-            effect: OneShotEffect::Act(Action::By(
+            effect: OneShotEffect::Act(Action::draw(
                 Reference::You,
-                PlayerAction::Draw(Count::Literal(1)),
+                deckmaste_core::Count::Literal(1),
             )),
         })],
         ..CardFace::default()

@@ -415,9 +415,9 @@ mod tests {
         PathBuf::from("test/dummy.ron")
     }
 
-    /// `Draw` in a Do cost is flagged as ineligible.
+    /// A non-cost-eligible player action (`GainLife`) in a Do cost is flagged.
     #[test]
-    fn lint_flags_draw_cards_in_do_cost() {
+    fn lint_flags_ineligible_action_in_do_cost() {
         let token = Token {
             color_indicator: vec![],
             supertypes: vec![],
@@ -427,7 +427,10 @@ mod tests {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![CostComponent::do_(PlayerAction::Draw(Count::Literal(1)))].into(),
+                cost: vec![CostComponent::do_(PlayerAction::GainLife(Count::Literal(
+                    1,
+                )))]
+                .into(),
                 condition: None,
                 limits: vec![],
                 effect: add_one_any(),
@@ -439,7 +442,7 @@ mod tests {
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
         assert_eq!(failures.len(), 1, "expected exactly one lint failure");
         assert!(
-            failures[0].1.contains("Draw"),
+            failures[0].1.contains("GainLife"),
             "message should mention the action: {}",
             failures[0].1
         );
@@ -492,7 +495,9 @@ mod tests {
                     name: "BadCost".into(),
                     args: ExpansionArgs::none(),
                     template: None,
-                    value: Box::new(CostComponent::do_(PlayerAction::Draw(Count::Literal(1)))),
+                    value: Box::new(CostComponent::do_(PlayerAction::GainLife(Count::Literal(
+                        1,
+                    )))),
                 })]
                 .into(),
                 condition: None,
@@ -504,8 +509,12 @@ mod tests {
         };
         let mut failures = Vec::new();
         lint_card_abilities(&dummy_path(), &token.abilities, &mut failures);
-        assert_eq!(failures.len(), 1, "expected the inner Draw to be flagged");
-        assert!(failures[0].1.contains("Draw"), "{}", failures[0].1);
+        assert_eq!(
+            failures.len(),
+            1,
+            "expected the inner ineligible action to be flagged"
+        );
+        assert!(failures[0].1.contains("GainLife"), "{}", failures[0].1);
     }
 
     /// Non-activated abilities are ignored by the lint.

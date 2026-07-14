@@ -110,6 +110,16 @@ impl Cause {
         Self::verb("Mill", agency, agent)
     }
 
+    /// "Draw" ([CR#121.1]) — the named view of a draw's Library → Hand move.
+    /// The `Act(Draw)` apply tags the committed move with it so the SUCCESS
+    /// fact (`FactKind::Drawn`, what "whenever you draw a card" reads) is
+    /// distinguishable from a non-draw Library → Hand relocation ([CR#121.5]
+    /// "without using the word draw").
+    #[must_use]
+    pub fn draw(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Draw", agency, agent)
+    }
+
     /// "Play" ([CR#305.2,116.2a]) — the land-drop cause (an effect putting a
     /// land onto the battlefield is NOT a play, [CR#701.18a]).
     #[must_use]
@@ -149,26 +159,22 @@ pub enum GameEvent {
     StepBegan(PhaseStep),
     Untapped(ObjectId),
     // Shaped, unbuilt (no fixture forces it yet): `WillDiscard` (madness, above
-    // Hand→Graveyard) — the replaceable intent above its committed zone change,
-    // like `WillDraw` below.
+    // Hand→Graveyard) — the replaceable intent above its committed zone change.
     //
-    // The destruction intent is NOT a bespoke variant: destroy is the
-    // `Act(Destroy(x))` keyword action (above), a dual-facet event whose apply
-    // COMMITS the Battlefield → Graveyard move directly (carrying its `cause`,
-    // [CR#701.8a,701.8b]) — no separate replaceable `ZoneWillChange` below it.
-    // Indestructible ([CR#702.12b]) cants it and regeneration ([CR#701.19a])
-    // replaces it, both keyed on `Act(Destroy(…))`.
-    /// The INTENT of a draw ([CR#121.1]). Replaceable (Notion Thief, Lab
-    /// Maniac — future). Its apply checks the library: a card present → bind
-    /// the top, bump `CardsDrawn`, and evolve into `ZoneWillChange(Library →
-    /// Hand)`; an empty library → `DrewFromEmpty` ([CR#121.4,704.5b]). `source`
-    /// is the object that drew the card, or `None` for the turn-based draw-step
-    /// draw ([CR#504.1]) — "the first card you draw on your draw step" keys on
-    /// `None`.
-    WillDraw {
-        player: PlayerId,
-        source: Option<ObjectId>,
-    },
+    // Neither the destruction NOR the draw intent is a bespoke variant: both are
+    // keyword actions (above). Destroy is `Act(Destroy(x))`, a dual-facet event
+    // whose apply COMMITS the Battlefield → Graveyard move directly (carrying
+    // its `cause`, [CR#701.8a,701.8b]) — no separate replaceable `ZoneWillChange`
+    // below it; indestructible ([CR#702.12b]) cants it and regeneration
+    // ([CR#701.19a]) replaces it, both keyed on `Act(Destroy(…))`. Draw is the
+    // atomic single-card `Act(Draw)` ([CR#121.1,121.2]): its apply binds the
+    // library top LATE and either commits the Library → Hand move (tagged
+    // `cause: Draw`, the success fact) or sets `drew_from_empty`
+    // ([CR#121.4,704.5b]) — "draw N" is `Repeat(n, Draw)`. A future draw
+    // replacement (Notion Thief, Lab Maniac) keys on `Act(Draw)`.
+    /// The failed-draw fact ([CR#121.4,704.5b]): a draw attempt over an empty
+    /// library. Set by the `Act(Draw)` apply and by any direct emitter (a
+    /// replacement rewriting a draw); the loss SBA keys on the flag it sets.
     DrewFromEmpty(PlayerId),
 
     /// A NAMED keyword action ([CR#701]) — the ONE present-tense event that

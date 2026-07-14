@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn activated_ability_parses() {
-        let ability = read_ability("Activated(cost: [Tap], effect: Draw(Literal(1)))");
+        let ability = read_ability("Activated(cost: [Tap], effect: GainLife(Literal(1)))");
         assert_eq!(
             ability,
             Ability::Activated(ActivatedAbility {
@@ -294,7 +294,7 @@ mod tests {
                 limits: vec![],
                 effect: OneShotEffect::Act(Action::By(
                     Reference::You,
-                    PlayerAction::Draw(Count::Literal(1))
+                    PlayerAction::GainLife(Count::Literal(1))
                 )),
             })
         );
@@ -328,7 +328,7 @@ mod tests {
     fn activated_from_zone_defaults_battlefield_and_reads_hand() {
         // omitted `from` → None (the battlefield default), omitted on write.
         let parsed: ActivatedAbility = crate::ron::options()
-            .from_str("(cost: [Tap], effect: Draw(Literal(1)))")
+            .from_str("(cost: [Tap], effect: GainLife(Literal(1)))")
             .unwrap();
         assert_eq!(parsed.from, None);
         let written = crate::ron::options().to_string(&parsed).unwrap();
@@ -336,7 +336,7 @@ mod tests {
 
         // `from: Hand` reads as Some(Hand) and round-trips.
         let from_hand: ActivatedAbility = crate::ron::options()
-            .from_str("(cost: [Tap], from: Hand, effect: Draw(Literal(1)))")
+            .from_str("(cost: [Tap], from: Hand, effect: GainLife(Literal(1)))")
             .unwrap();
         assert_eq!(from_hand.from, Some(crate::Zone::Hand));
         let reser = crate::ron::options().to_string(&from_hand).unwrap();
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn triggered_ability_parses() {
         let ability = read_ability(
-            "Triggered(event: ZoneChange(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))",
+            "Triggered(event: ZoneChange(what: Ref(This), to: Graveyard), effect: GainLife(Literal(1)))",
         );
         let Ability::Triggered(triggered) = ability else {
             panic!("expected a triggered ability");
@@ -359,7 +359,7 @@ mod tests {
             triggered.effect,
             OneShotEffect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Draw(Count::Literal(1))
+                PlayerAction::GainLife(Count::Literal(1))
             ))
         );
         assert!(triggered.condition.is_none());
@@ -375,7 +375,7 @@ mod tests {
     fn triggered_from_zone_defaults_battlefield_and_reads_graveyard() {
         let omitted: TriggeredAbility = crate::ron::options()
             .from_str(
-                "(event: ZoneChange(what: Ref(This), to: Graveyard), effect: Draw(Literal(1)))",
+                "(event: ZoneChange(what: Ref(This), to: Graveyard), effect: GainLife(Literal(1)))",
             )
             .unwrap();
         assert_eq!(omitted.from, None);
@@ -383,7 +383,7 @@ mod tests {
         assert!(!written.contains("from"), "absent from omitted: {written}");
 
         let from_gy: TriggeredAbility = crate::ron::options()
-            .from_str("(event: Cast(who: Ref(You)), from: Graveyard, effect: Draw(Literal(1)))")
+            .from_str("(event: Cast(who: Ref(You)), from: Graveyard, effect: GainLife(Literal(1)))")
             .unwrap();
         assert_eq!(from_gy.from, Some(crate::Zone::Graveyard));
         let reser = crate::ron::options().to_string(&from_gy).unwrap();

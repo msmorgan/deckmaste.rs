@@ -884,7 +884,7 @@ mod tests {
 
     #[test]
     fn cost_summary_returns_none_on_non_eligible_do_cost() {
-        let cost = vec![CostComponent::do_(PlayerAction::Draw(
+        let cost = vec![CostComponent::do_(PlayerAction::GainLife(
             deckmaste_core::Count::Literal(1),
         ))];
         assert!(

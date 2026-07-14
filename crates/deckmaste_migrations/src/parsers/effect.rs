@@ -2297,10 +2297,12 @@ mod tests {
     }
 
     /// The emitted invocations READ back through the builtin macros: the
-    /// `PlayerAction`-kind verb macros expand to the core player actions
-    /// (`Mills(2)` → `Mill(2)` under `By`), remembered with their template
-    /// so the render side prints the verb phrase back — the
-    /// parse-via-macros round trip at the read boundary.
+    /// declarative-subject keyword-action macros expand to their core
+    /// `Composite` (`Mills(It, 2)` → `Composite(Mill(It, 2), …)`), remembered
+    /// with their template so the render side prints the verb phrase back — the
+    /// parse-via-macros round trip at the read boundary. (`Mills`/`Draws` are
+    /// now `OneShotEffect`-kind `Composite` macros, no longer `PlayerAction`s
+    /// under `By`.)
     #[test]
     fn declarative_subject_emissions_read_back() {
         use std::path::Path;
@@ -2308,26 +2310,25 @@ mod tests {
         let plugin = deckmaste_cards::plugin::Plugin::load(plugins.join("builtin")).unwrap();
         let effect: deckmaste_core::OneShotEffect = plugin
             .macros
-            .read_str("Each(binder: Existing(SelectAll(Player)), effect: By(It, Mills(2)))")
+            .read_str("Each(binder: Existing(SelectAll(Player)), effect: Mills(It, 2))")
             .unwrap();
         let deckmaste_core::OneShotEffect::Each(each) = effect else {
             panic!("expected Each, got {effect:?}");
         };
-        let deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::By(
-            deckmaste_core::Reference::It,
-            ref action,
-        )) = *each.effect
-        else {
-            panic!("expected By(It, …), got {:?}", each.effect);
-        };
-        let deckmaste_core::PlayerAction::Expanded(exp) = action else {
-            panic!("expected a remembered Mills expansion, got {action:?}");
+        let deckmaste_core::OneShotEffect::Expanded(exp) = &*each.effect else {
+            panic!("expected a remembered Mills expansion, got {:?}", each.effect);
         };
         assert_eq!(exp.name.as_str(), "Mills");
-        assert_eq!(
-            *exp.value,
-            deckmaste_core::PlayerAction::Mill(deckmaste_core::Count::Literal(2)),
-            "Mills(2) expands to the core Mill under By"
+        assert!(
+            matches!(
+                exp.value.as_ref(),
+                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::Composite(
+                    deckmaste_core::KeywordAction::Mill(deckmaste_core::Reference::It, _),
+                    _,
+                ))
+            ),
+            "Mills(It, 2) expands to Composite(Mill(It, 2), …), got {:?}",
+            exp.value
         );
     }
 
