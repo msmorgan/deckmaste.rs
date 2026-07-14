@@ -119,10 +119,10 @@ tWeaken = weakenResolve {w = Just Card} {cd = One}
 -- an announced slot's antecedent is read back as an anaphor — the wildcard
 -- `It` (Lightning Bolt's `DealDamage(This, 3, It)`) and the sorted `That`.
 tTargetInScope : OneShotEffect Base
-tTargetInScope = Targeted [Target (^1) creature] (Act (Destroy It))
+tTargetInScope = Targeted [Target (^1) creature] (Act (destroy It))
 
 tTargetBySort : OneShotEffect Base
-tTargetBySort = Targeted [Target (^1) creature] (Act (Destroy (That (OfType Creature))))
+tTargetBySort = Targeted [Target (^1) creature] (Act (destroy (That (OfType Creature))))
 
 -- a Many-binder's group is read back as the plural anaphor `They`,
 -- iterated with `Each` (the group-move shape).
@@ -131,7 +131,7 @@ tTheyInWith = With (Choose (^2) inHand) (Each (Existing They) (Act (Move It (ToZ
 
 -- a ONE-binder's choice is the deterministic FRAME — `It` reads it directly.
 tItInWith : OneShotEffect Base
-tItInWith = With (ChooseOne creature) (Act (Destroy It))
+tItInWith = With (ChooseOne creature) (Act (destroy It))
 
 -- a multi-type card may carry one subtype per card type [CR#205.3c]
 tLandCreature : Card
@@ -550,7 +550,7 @@ tDevotion = Aggregate SumOf (eachOf (And [permanent, ControlledBy you])
 -- counters: the `HasCounter` predicate facet + the put/remove verbs
 tCounters : OneShotEffect Base
 tCounters = Sequentially [ Each (Existing (SelectAll creature)) (Act (PutCounters p1p1 (Literal 1) It))
-                     , Each (Existing (SelectAll (Not (HasCounter p1p1)))) (Act (Destroy It)) ]
+                     , Each (Existing (SelectAll (Not (HasCounter p1p1)))) (Act (destroy It)) ]
 
 -- anthem: a static `Each` over a controller-predicate filter, with layer mods
 tAnthem : Ability Base
@@ -602,7 +602,7 @@ tGlobalSbas =
     MkSbaRule (And [creature, InZone Battlefield])
               (And [ Compare (StatOf This Toughness) Greater (^0)
                    , Compare (Damage This) AtLeast (StatOf This Toughness) ])
-              (Act (Destroy This))
+              (Act (destroy This))
     -- 0-toughness [CR#704.5f]: toughness ≤ 0 → PUT INTO graveyard (a `Move`, NOT a `Destroy` — regeneration
     -- can't replace it; the Move-vs-Destroy choice is exactly what encodes that)
   , MkSbaRule (And [creature, InZone Battlefield])
@@ -814,7 +814,7 @@ failing "distinctOk"
 failing "Target ((^) 1) creature, Target ((^) 1) creature"
   tBadAmbiguousThat : OneShotEffect Base
   tBadAmbiguousThat = Targeted [Target (^1) creature, Target (^1) creature]
-    (Act (Destroy (That (OfType Creature))))
+    (Act (destroy (That (OfType Creature))))
 
 -- ...and the wildcard trips it too: inside a trigger body the event's role
 -- antecedent is in scope, so an announced slot + `It` is a guess (the Goblin
@@ -829,7 +829,7 @@ failing "queryRoles thisEnters"
 failing "resolveStack (Just Token) One"
   tBadOneFromMany : OneShotEffect Base
   tBadOneFromMany = Sequentially [ Act (CreateToken (^2) (^: { types := [Creature] }))
-                             , Act (Destroy (That Token)) ]
+                             , Act (destroy (That Token)) ]
 
 -- ...nor a plural anaphor a ONE antecedent (read it as `It`/`That w`).
 failing "resolveStack Nothing Many ((bindTargets"
@@ -983,7 +983,7 @@ failing ".hasActor = True"
 -- patient ([CR#120.3,608.2k]), so the read has no sound binder.
 failing ".patientKind = Just"
   tBadEventPatientNoKind : Ability Base
-  tBadEventPatientNoKind = Triggered (MkEventQuery [Draw] []) (Act (Destroy EventPatient))
+  tBadEventPatientNoKind = Triggered (MkEventQuery [Draw] []) (Act (destroy EventPatient))
 
 -- `DefendingPlayer` where no combat onset supplies one: an enters trigger has
 -- no defender ([CR#506.2,508.5]).

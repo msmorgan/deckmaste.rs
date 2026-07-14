@@ -213,6 +213,16 @@ public export
 mill : Count b -> OneShotEffect b
 mill n = Act (Composite (Mill You n) (Each (Existing (TopOfLibrary n)) (Act (Move It (ToZone Graveyard)))))
 
+-- destroy r ([CR#701.8a]): move r from the battlefield to its owner's graveyard, tagged as the Destroy
+-- keyword action so indestructible/regeneration and "whenever ~ destroys" match on the tag facet while
+-- "when it dies"/Rest-in-Peace match on the body's →Graveyard facet. Authored as DATA (a `Composite`
+-- over a `Move`) — the action-side twin of the `Destroy` RON macro; this is what `idris_emit` produces
+-- for the Rust `Destroy` verb. Returns an `Action` (used as `Act (destroy It)`), unlike the `Act`-wrapped
+-- reorder macros above.
+public export
+destroy : Reference b AnObject -> Action b
+destroy r = Composite (Destroy r) (Act (Move r (ToZone Graveyard)))
+
 -- scry n ([CR#701.22a]): look at the top n, then put each on top or on the bottom; the within-group
 -- order is the [CR#401.4] "any order" freebie (simultaneous `Each`). The per-card top/bottom pick is a
 -- 1-of-2 `Modal`.

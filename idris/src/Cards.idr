@@ -236,7 +236,7 @@ card_OblivionStone = Normal $ ^:
             (Act (PutCounters fateCounter (Literal 1) It)))
       , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
           (Sequentially
-            [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter fateCounter)]))) (Act (Destroy It))
+            [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter fateCounter)]))) (Act (destroy It))
             , Each (Existing (SelectAll permanent)) (Act (RemoveCounters fateCounter (CountersOn fateCounter It) It)) ])
       ]
   }
@@ -725,12 +725,12 @@ card_WearTear = TwoFaced Split
   (^: { name := Just "Wear"
       , manaCost := [^1, ^Red]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (hasType Artifact)] (Act (Destroy It))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Artifact)] (Act (destroy It))) ]
       })
   (^: { name := Just "Tear"
       , manaCost := [^White]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (hasType Enchantment)] (Act (Destroy It))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Enchantment)] (Act (destroy It))) ]
       })
 
 -- Brazen Borrower // Petty Theft — an ADVENTURE card ([CR#715]): a creature whose "adventure" half is

@@ -2214,9 +2214,10 @@ mutual
       -- (There is no "exile until ~" verb. A duration-bounded zone change is `Relocate` (a
       --  StaticEffect) under a `Continuously`/`While` duration — see `Relocate` and
       --  card_BanishingLight. Permanent exile is just `Move … (ToZone Exile)`.)
-      -- destroy [CR#701.8] / counter a stack object [CR#701.6a]. (Return-to-hand is just
-      -- `Move … Hand` — `Move` is owner-relative — so there's no dedicated bounce verb.)
-      Destroy : Reference b AnObject -> Action b
+      -- counter a stack object [CR#701.6a]. (Destroy [CR#701.8] is NOT a primitive verb:
+      -- it composites as `Composite (Destroy r) (Move r Graveyard)` via the `destroy` macro,
+      -- like scry/mill. Return-to-hand is just `Move … Hand` — `Move` is owner-relative —
+      -- so there's no dedicated bounce verb.)
       Counter : Reference b AnObject -> Action b
       -- tap / untap [CR#701.26]; attach / unattach [CR#701.3].
       Tap : Reference b AnObject -> Action b
@@ -2318,7 +2319,6 @@ mutual
   actionEventCaps (Action.RemoveCounters _ _ _) = eventKindCaps RemoveCounters
   actionEventCaps (Action.Reveal _)           = NoCaps   -- reveals bind nothing ([CR#701.20a])
   actionEventCaps (Action.DealDamage _ _)     = NoCaps
-  actionEventCaps (Action.Destroy _)          = NoCaps
   actionEventCaps (Action.Counter _)          = NoCaps
   actionEventCaps (Action.RemoveAllDamage _)  = NoCaps
   actionEventCaps (Action.RemoveFromCombat _) = NoCaps
@@ -2576,7 +2576,6 @@ mutual
   actionIntro (Action.DealDamage n r) = [amountAnte]
   actionIntro (Action.GainLife n) = [amountAnte]
   actionIntro (Action.LoseLife n) = [amountAnte]
-  actionIntro (Action.Destroy r) = refIntro r
   actionIntro (Action.Counter r) = refIntro r
   actionIntro (Action.Tap r) = refIntro r
   actionIntro (Action.Untap r) = refIntro r
