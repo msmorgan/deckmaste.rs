@@ -5,6 +5,13 @@
 
 use crate::resolve::ResolveCtx;
 
+// This parser is infallible today, but its signature is the `AbilityParser`
+// fn-pointer type shared by every sibling in `resolve::REGISTRY`, so the
+// `Result` is load-bearing regardless of whether this body can fail.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "signature must match the AbilityParser fn-pointer table in resolve::REGISTRY"
+)]
 pub(crate) fn resolve_line(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     Ok(parse_exile_colored_card(line))
 }

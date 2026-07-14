@@ -75,7 +75,7 @@ impl CardSource {
             return Arc::new(card);
         }
         match self.wizards.card(name) {
-            Ok(card) => return Arc::new(card),
+            Ok(card) => Arc::new(card),
             Err(error) => panic!("card {name:?} not available: {error:?}"),
         }
     }

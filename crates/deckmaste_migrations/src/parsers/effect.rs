@@ -402,23 +402,40 @@ fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Opt
     let Some((subject, verb_phrase)) = player_subject(body) else {
         return Ok(None);
     };
-    // Full-line consumption (and same-kind ambiguity) is judged inside the
-    // matcher itself.
-    let Some(m) = ctx
-        .index
-        .match_with("PlayerAction", verb_phrase, player_verb_slot_reader)?
-    else {
+    // Two verb families share this third-person surface but lower differently,
+    // so route by the macro KIND that matches (no per-verb arms). Full-line
+    // consumption and same-kind ambiguity are judged inside the matcher itself.
+    //
+    // The bare `PlayerAction` verbs (discard, gain/lose life) take no subject
+    // slot: the acting player is supplied by the `By(It, …)` wrapper. The
+    // CR-701 keyword actions that became `OneShotEffect` `Composite` macros
+    // (mill, draw) instead carry the actor as their own leading `${0}`
+    // Reference, so re-attach the `It` anaphor and let the macro read it as that
+    // slot — the invocation is already `Mills(It, N)` / `Draws(It, N)`, needing
+    // no `By` wrapper.
+    let (inv, wrap_by) = if let Some(m) =
+        ctx.index
+            .match_with("PlayerAction", verb_phrase, player_verb_slot_reader)?
+    {
+        (m.invocation, true)
+    } else if let Some(m) = ctx.index.match_with(
+        "OneShotEffect",
+        &format!("it {verb_phrase}"),
+        player_verb_slot_reader,
+    )? {
+        (m.invocation, false)
+    } else {
         return Ok(None);
     };
-    let inv = m.invocation;
+    let body = if wrap_by { format!("By(It, {inv})") } else { inv };
     Ok(Some(match subject {
         PlayerSubject::Target(spec) => ParsedEffect {
             targets: vec![spec],
-            effect: format!("By(It, {inv})"),
+            effect: body,
         },
         PlayerSubject::Each(filter) => ParsedEffect {
             targets: Vec::new(),
-            effect: format!("Each(binder: Existing(SelectAll({filter})), effect: By(It, {inv}))"),
+            effect: format!("Each(binder: Existing(SelectAll({filter})), effect: {body})"),
         },
     }))
 }
@@ -458,24 +475,28 @@ fn player_subject(body: &str) -> Option<(PlayerSubject, &str)> {
     None
 }
 
-/// The slot reader for the third-person player-verb templates: their only
-/// slot type is `Count`, read as ONE leading token (a spelled cardinal, "a",
-/// or a bare decimal) so the template's own literal tail (" cards", " life")
+/// The slot reader for the third-person player-verb templates. Each slot is
+/// ONE leading token so the template's own literal tail (" cards", " life")
 /// stays for the matcher — unlike [`macro_slot_reader`], which consumes the
-/// whole clause tail.
+/// whole clause tail. Two slot types occur:
+///
+/// - `Count` — a spelled cardinal, "a", or a bare decimal.
+/// - `Reference` — the leading `${0}` actor of the `OneShotEffect`
+///   keyword-action templates (`${0} mills …`, `${0} draws …`). Only the `It`
+///   anaphor is read here: `parse_declarative_subject` re-attaches it after
+///   stripping the subject, so the macro carries the acting player itself.
 fn player_verb_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
-    if ty != "Count" {
-        return None;
-    }
     let token = input.split_whitespace().next()?;
-    let n = number_word(token)?;
     // The token is at the head of `input` (templates put whitespace between
     // segments), so its byte length is the consumed span.
-    let start = input.find(token)?;
-    if start != 0 {
+    if input.find(token)? != 0 {
         return None;
     }
-    Some((n.to_string(), token.len()))
+    match ty {
+        "Count" => Some((number_word(token)?.to_string(), token.len())),
+        "Reference" if token.eq_ignore_ascii_case("it") => Some(("It".to_owned(), token.len())),
+        _ => None,
+    }
 }
 
 /// The bounded `Count` slot reader for delimiter-separated templates like
@@ -2149,16 +2170,13 @@ mod tests {
     fn declarative_subject_player_verbs() {
         assert_eq!(
             parsed_with_macros("Target player mills two cards."),
-            Some((
-                "TargetOne(Player)".to_owned(),
-                "By(It, Mills(2))".to_owned()
-            ))
+            Some(("TargetOne(Player)".to_owned(), "Mills(It, 2)".to_owned()))
         );
         assert_eq!(
             parsed_with_macros("Each opponent mills a card."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: By(It, Mills(1)))"
+                "Each(binder: Existing(SelectAll(OpponentOf(Ref(You)))), effect: Mills(It, 1))"
                     .to_owned()
             ))
         );
@@ -2178,10 +2196,7 @@ mod tests {
         );
         assert_eq!(
             parsed_with_macros("Target player draws three cards."),
-            Some((
-                "TargetOne(Player)".to_owned(),
-                "By(It, Draws(3))".to_owned()
-            ))
+            Some(("TargetOne(Player)".to_owned(), "Draws(It, 3)".to_owned()))
         );
         // The count reader tops out at spelled cardinals + decimals; a
         // trailing rider ("at random") leaves the phrase unconsumed.
@@ -2316,7 +2331,10 @@ mod tests {
             panic!("expected Each, got {effect:?}");
         };
         let deckmaste_core::OneShotEffect::Expanded(exp) = &*each.effect else {
-            panic!("expected a remembered Mills expansion, got {:?}", each.effect);
+            panic!(
+                "expected a remembered Mills expansion, got {:?}",
+                each.effect
+            );
         };
         assert_eq!(exp.name.as_str(), "Mills");
         assert!(

@@ -409,10 +409,10 @@ impl StrategyEvaluator {
                 Decision::XValue(0)
             }
             PendingDecision::ChooseNoteCardName { player, .. } => {
-                let name = state.zones.hands[player.index()]
-                    .first()
-                    .map(|&id| crate::derive::face(state.def(id)).name.clone())
-                    .unwrap_or_else(|| "Mountain".to_owned());
+                let name = state.zones.hands[player.index()].first().map_or_else(
+                    || "Mountain".to_owned(),
+                    |&id| crate::derive::face(state.def(id)).name.clone(),
+                );
                 Decision::CardName(name)
             }
             // Simple shells: a legal minimal default.

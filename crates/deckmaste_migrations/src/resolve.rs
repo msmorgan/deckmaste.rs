@@ -400,21 +400,22 @@ mod tests {
     /// macro handles it).
     #[test]
     fn ascend_on_spell_folds_into_spell_effect() {
-        // A Sorcery with Ascend + a draw effect, both already line-resolved.
-        // `<E>` = `Draw(1)` — a CORE-PARSEABLE effect: this is route
-        // (a) from the task. The migrations spell parser may emit macro-flavored
-        // atoms (e.g. `Draw(2)`), but the round-trip assertion below uses the
-        // BARE `deckmaste_core::ron::options()` reader — the same reader
-        // `resolve_cards`/`graduate` round-trips card RON through — so the
-        // fixture must be one the bare core reader accepts. `Draw(1)`
-        // is exactly such a form (cf. the `Activated(... Draw(1))`
-        // round-trip test in `deckmaste_core::ability`).
+        // A Sorcery with Ascend + a life-gain effect, both already
+        // line-resolved. `<E>` = `GainLife(1)` — a CORE-PARSEABLE effect: this
+        // is route (a) from the task. The migrations spell parser may emit
+        // macro-flavored atoms (e.g. `Draws(2)`), but the round-trip assertion
+        // below uses the BARE `deckmaste_core::ron::options()` reader — the same
+        // reader `resolve_cards`/`graduate` round-trips card RON through — so the
+        // fixture must be one the bare core reader accepts. A bare one-token
+        // player verb (`GainLife(1)`) is exactly such a form; draw/mill are no
+        // longer bare-core (they lower to `Composite(Draw/Mill(who, n), …)`),
+        // so the Ascend fold is exercised with a surviving bare `PlayerAction`.
         let mut face = TodoCardFace {
             name: "Test Spell".into(),
             types: vec![RawIdent("Sorcery".into())],
             abilities: vec![
                 TodoAbility::Parsed("Keyword(Ascend)".into()),
-                TodoAbility::Parsed("Spell(effect: Draw(1))".into()),
+                TodoAbility::Parsed("Spell(effect: GainLife(1))".into()),
             ],
             ..Default::default()
         };
@@ -448,7 +449,7 @@ mod tests {
         );
         // The original effect value is preserved verbatim inside the wrap.
         assert!(
-            spell.contains("Draw(1)"),
+            spell.contains("GainLife(1)"),
             "original effect preserved: {spell}"
         );
         // The wrapped Spell string re-parses into a typed Ability (no garbage).
