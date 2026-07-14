@@ -465,7 +465,7 @@ fn renders_synthesized_lose_life_and_destroy() {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
-                OneShotEffect::Act(Action::Destroy(Reference::It)),
+                OneShotEffect::Act(Action::destroy(Reference::It)),
             )),
         })],
         ..CardFace::default()

@@ -496,15 +496,17 @@ fn choose_pile(cp: &deckmaste_core::ChoosePile, ctx: &Ctx) -> String {
 /// the shapes the corpus needs are recognized; `None` declines to the
 /// caller's structural fallback.
 fn pile_collective(body: &OneShotEffect, group_phrase: &str) -> Option<String> {
+    use deckmaste_core::KeywordAction;
     match body {
-        OneShotEffect::Act(Action::Destroy(Reference::It)) => {
+        OneShotEffect::Act(Action::Composite(KeywordAction::Destroy(Reference::It), _)) => {
             Some(format!("Destroy all creatures in {group_phrase}."))
         }
-        // `DestroyNoRegen`'s expansion: `Sequentially([Destroy(It), Until(
-        // ForThisEvent, [Cant(Regenerate(on: It))])])` ([CR#701.19c]).
+        // `DestroyNoRegen`'s expansion: `Sequentially([Composite(Destroy(It),
+        // Move(It, Graveyard)), Until(ForThisEvent, [Cant(Regenerate(on:
+        // It))])])` ([CR#701.19c]).
         OneShotEffect::Sequentially(parts) => match parts.as_slice() {
             [
-                OneShotEffect::Act(Action::Destroy(Reference::It)),
+                OneShotEffect::Act(Action::Composite(KeywordAction::Destroy(Reference::It), _)),
                 OneShotEffect::Until(Duration::ForThisEvent, statics),
             ] => match statics.as_slice() {
                 [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Regenerate { .. }))] => Some(
@@ -641,8 +643,12 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
                 each_group(),
             ))
         }
-        // "Destroy each <group>." ([CR#701.8a]).
-        Action::Destroy(Reference::It) => Some(format!("Destroy {}.", each_group())),
+        // "Destroy each <group>." ([CR#701.8a]) — destroy is the
+        // `Composite(Destroy(It), Move(It, Graveyard))` the `Destroy` macro
+        // builds; the tag carries the printed keyword.
+        Action::Composite(deckmaste_core::KeywordAction::Destroy(Reference::It), _) => {
+            Some(format!("Destroy {}.", each_group()))
+        }
         // A group move to the library reads "Put <group> on top/the bottom of
         // your library." — Brainstorm's "put two cards … on top": the chosen
         // group's own phrase, not "each" ([CR#401.7]). A multi-card put
@@ -969,7 +975,13 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 where_x.map_or_else(String::new, |w| format!(", {w}")),
             )
         }
-        Action::Destroy(r) => format!("Destroy {}.", fragment::reference(r, ctx)),
+        // [CR#701.8a]: destroy is `Composite(Destroy(r), Move(r, Graveyard))` —
+        // render the tag as "Destroy <patient>." context-aware (the `Move` body
+        // is engine realization, not printed). This specific arm precedes the
+        // generic `Composite(_, body)` below.
+        Action::Composite(deckmaste_core::KeywordAction::Destroy(r), _) => {
+            format!("Destroy {}.", fragment::reference(r, ctx))
+        }
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
         // target spell" (Mana Leak's punisher branch).
         Action::Counter(r) => format!("Counter {}.", fragment::reference(r, ctx)),
@@ -2509,7 +2521,7 @@ mod tests {
         // A group verb on the per-element `It` → the collective sentence.
         let destroy = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-            effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+            effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
         });
         assert_eq!(effect(&destroy, &ctx), "Destroy each creature.");
         // A body the collapse does not recognise → the per-element form.

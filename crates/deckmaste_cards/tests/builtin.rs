@@ -422,7 +422,10 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     };
     assert!(matches!(
         parts[0],
-        OneShotEffect::Act(Action::Destroy(Reference::This))
+        OneShotEffect::Act(Action::Composite(
+            deckmaste_core::KeywordAction::Destroy(Reference::This),
+            _
+        ))
     ));
     assert!(
         matches!(&parts[1], OneShotEffect::Until(Duration::ForThisEvent, statics) if statics.len() == 1),

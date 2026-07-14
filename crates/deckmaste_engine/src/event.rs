@@ -153,10 +153,11 @@ pub enum GameEvent {
     // like `WillDraw` below.
     //
     // The destruction intent is NOT a bespoke variant: destroy is the
-    // `Act(Destroy(x))` keyword action (above), whose apply evolves into
-    // `ZoneWillChange(Battlefield → Graveyard)` carrying its `cause`
-    // ([CR#701.8a,701.8b]) — indestructible ([CR#702.12b]) cants it and
-    // regeneration ([CR#701.19a]) replaces it, both keyed on `Act(Destroy(…))`.
+    // `Act(Destroy(x))` keyword action (above), a dual-facet event whose apply
+    // COMMITS the Battlefield → Graveyard move directly (carrying its `cause`,
+    // [CR#701.8a,701.8b]) — no separate replaceable `ZoneWillChange` below it.
+    // Indestructible ([CR#702.12b]) cants it and regeneration ([CR#701.19a])
+    // replaces it, both keyed on `Act(Destroy(…))`.
     /// The INTENT of a draw ([CR#121.1]). Replaceable (Notion Thief, Lab
     /// Maniac — future). Its apply checks the library: a card present → bind
     /// the top, bump `CardsDrawn`, and evolve into `ZoneWillChange(Library →
@@ -185,21 +186,32 @@ pub enum GameEvent {
     /// the log is the "whenever you scry/surveil/…" trigger fact
     /// ([CR#701.22d]) — no separate post-fact. RESULT-side
     /// "destroyed"/"milled"/"drawn" triggers still key on the body's
-    /// `ZoneChanged`/`Drawn` fact ([CR#700.4]). Emitted from the
-    /// `Action::Composite` resolve (scry/surveil/fateseal) and from
-    /// `Action::Destroy` (which schedules the tagged `ZoneWillChange` this
-    /// present-tense event evolves into — the intermediate `WillDestroy` intent
-    /// this subsumed is retired).
+    /// `ZoneChanged`/`Drawn` fact ([CR#700.4]). A move-verb (`Act(Destroy)`)
+    /// carries its body facet in `from`/`to` and COMMITS that move directly on
+    /// apply — ONE dual-facet event through cant→replace→apply, never a second
+    /// replaceable `ZoneWillChange` below it ([CR#616.1]); the reorder verbs
+    /// (scry/surveil/fateseal) run their body ahead of a `None`-shape
+    /// post-fact.
     Act {
         verb: deckmaste_core::VerbName,
         who: Option<PlayerId>,
         on: Option<ObjectId>,
+        /// The BODY facet ([CR#603.6]) — the composite's canonical realized
+        /// zone-change, derived from the stored `Move` body BEFORE it runs
+        /// (`Destroy(x)` → `from: Battlefield, to: Graveyard`). A move-verb
+        /// carries `Some`; the apply COMMITS this move directly (atomic — no
+        /// separate replaceable `ZoneWillChange` below it). A reorder verb
+        /// (scry/surveil/fateseal) reorders WITHIN a zone and carries `None`,
+        /// so a `ZoneChange(→Graveyard)` query never matches it. Paired with
+        /// the tag facet (`verb`/`on`/`who`) so ONE event is matchable on both
+        /// ([CR#616.1]).
+        from: Option<Zone>,
+        to: Option<Zone>,
         /// The causal context this keyword action rides ([CR#701.8b]) — its
-        /// `agency`/`agent`, used to tag the downstream committed move when the
-        /// atom REALIZES on apply (`Act(Destroy)` → `ZoneWillChange`). `verb`
-        /// duplicates the atom's name; a `None` cause is a keyword action with
-        /// no downstream cause-tagged move (scry/surveil reorder within a
-        /// zone).
+        /// `agency`/`agent`, used to tag the committed move the move-verb apply
+        /// performs ([CR#701.8a]). `verb` duplicates the atom's name; a `None`
+        /// cause is a keyword action with no cause-tagged move
+        /// (scry/surveil reorder within a zone).
         cause: Option<Cause>,
     },
 

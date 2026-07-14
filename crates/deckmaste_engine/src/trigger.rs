@@ -3094,6 +3094,49 @@ mod tests {
         );
     }
 
+    /// [CR#700.4] "when it dies" off a COMPOSITE destroy: an effect
+    /// `Act(Destroy)` — now committed atomically (no separate `ZoneWillChange`)
+    /// — still produces the `ZoneChanged(Battlefield→Graveyard)` fact the
+    /// self-dies trigger fires on. The trigger fires on the committed body
+    /// fact, not the `Act` tag, so it fires exactly once.
+    #[test]
+    fn dies_trigger_fires_off_a_composite_destroy() {
+        use deckmaste_core::Action;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Reference;
+
+        let (mut state, goblin) = fixture_on_field("Footlight Fiend");
+        let frame = crate::test_support::frame_src(goblin);
+        // An EFFECT destroy (not the lethal-damage SBA) — the dual-facet
+        // `Act(Destroy)` commits Battlefield→Graveyard on apply.
+        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
+        for _ in 0..30 {
+            if !state.pending_triggers.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert!(
+            state.objects.get(goblin).is_none(),
+            "the composite destroy reminted the goblin into the graveyard"
+        );
+        assert_eq!(
+            state.pending_triggers.len(),
+            1,
+            "the self-dies trigger fires exactly once off the composite destroy"
+        );
+        assert_eq!(
+            state.pending_triggers[0]
+                .bindings
+                .this
+                .as_ref()
+                .unwrap()
+                .object,
+            goblin,
+            "LKI snapshot of the destroyed goblin",
+        );
+    }
+
     /// A non-watching board: a `Grizzly Bears` dying notes NOTHING (it has
     /// no triggered abilities, and no other watcher cares).
     #[test]

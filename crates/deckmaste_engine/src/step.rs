@@ -912,34 +912,37 @@ impl GameState {
             // never a zone move).
             // Revealing is a public information event, not a state mutation.
             GameEvent::Revealed { .. } => event,
-            // [CR#701]: the named keyword-action event. TWO shapes by verb:
-            //  * `Destroy` REALIZES on apply ([CR#701.8a]) — a canted (indestructible,
-            //    [CR#702.12b]) or replaced (regeneration, [CR#701.19a]) `Act(Destroy)` never
-            //    reaches here; a survivor evolves into the committed Battlefield → Graveyard move
-            //    carrying its `cause` (one of "destroyed"'s two causes, [CR#701.8b]), exactly as
-            //    the retired `WillDestroy` did.
-            //  * scry/surveil/fateseal — a pure FACT (no mutation; the body's own events already
-            //    reordered the library). The surviving `Act` is the "whenever you scry/surveil/…"
-            //    trigger fact ([CR#701.22d]).
+            // [CR#701]: the named keyword-action event. TWO shapes by facet:
+            //  * a MOVE-verb (`Act(Destroy)`, [CR#701.8a]) carries its body facet (`from`/`to`) and
+            //    COMMITS that zone change directly here — the single dual-facet event IS the
+            //    Battlefield → Graveyard move, carrying its `cause` (one of "destroyed"'s two
+            //    causes, [CR#701.8b]). A canted (indestructible, [CR#702.12b]) or replaced
+            //    (regeneration, [CR#701.19a]; Rest in Peace's `→Graveyard`) `Act` never reaches
+            //    this apply — there is NO second replaceable `ZoneWillChange` below it
+            //    ([CR#616.1]).
+            //  * a reorder verb (scry/surveil/fateseal) — a pure FACT (no mutation; the body's own
+            //    events already reordered the library). The surviving `Act` is the "whenever you
+            //    scry/surveil/…" trigger fact ([CR#701.22d]).
             GameEvent::Act {
                 verb,
+                who,
                 on: Some(object),
+                from,
+                to: Some(to),
                 cause,
-                ..
-            } if verb.as_str() == "Destroy" => {
-                self.schedule_evolution(GameEvent::ZoneWillChange {
-                    object,
-                    from: Some(Zone::Battlefield),
-                    to: Zone::Graveyard,
-                    enters: None,
-                    position: None,
-                    face: None,
-                    cause: cause.clone(),
-                });
+            } if self.objects.get(object).is_some() => {
+                // Commit the body move atomically ([CR#603.10a] LKI snapshot,
+                // move+remint, `ZoneChanged`) via the shared helper — the same
+                // commit half a plain `ZoneWillChange` runs, so the destroy
+                // composite offers EXACTLY ONE cant/replace opportunity (on the
+                // `Act`, above) and none downstream.
+                self.apply_zone_will_change(object, from, to, None, None, None, cause.clone());
                 GameEvent::Act {
                     verb,
-                    who: None,
+                    who,
                     on: Some(object),
+                    from,
+                    to: Some(to),
                     cause,
                 }
             }
@@ -2774,11 +2777,13 @@ mod tests {
         );
     }
 
-    /// A simultaneous batch of intents stays ONE occurrence through every
-    /// evolution stage ([CR#603.3b,603.2c]): a destroy-all's `Act(Destroy)`
-    /// batch evolves into one `ZoneWillChange` batch and then one committed
-    /// `ZoneChanged` batch — never per-member `Single`s — and the two dies-
-    /// facts share a history batch id.
+    /// Atomic dual-facet apply ([CR#616.1,603.3b]): a destroy-all's
+    /// `Act(Destroy)` batch commits DIRECTLY into one `ZoneChanged` batch —
+    /// there is NO intermediate `ZoneWillChange` stage (the single-replace
+    /// invariant: exactly one cant/replace opportunity, on the `Act`, none
+    /// downstream). The batch stays ONE occurrence through every stage
+    /// ([CR#603.2c]) — never per-member `Single`s — and the two dies-facts
+    /// share a history batch id.
     #[test]
     fn batch_of_intents_evolves_as_one_batch() {
         let (mut state, _view, a) = crate::replace_registry::tests_support::lone_creature();
@@ -2788,7 +2793,12 @@ mod tests {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(object),
-            cause: None,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: Some(crate::event::Cause::destroy(
+                deckmaste_core::Agency::EffectInstruction,
+                None,
+            )),
         };
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
             destroy(a),
@@ -2804,34 +2814,30 @@ mod tests {
         };
         assert_eq!(stage1.len(), 2);
 
-        // Stage 2: ONE ZoneWillChange batch (not two Singles).
+        // Stage 2: ONE committed ZoneChanged batch, applied DIRECTLY from the
+        // Act batch — no intervening ZoneWillChange stage.
         let crate::step::StepOutcome::Progress(crate::step::Progress::Applied(Occurrence::Batch(
             stage2,
         ))) = state.step()
         else {
-            panic!("expected one ZoneWillChange batch");
+            panic!("expected one ZoneChanged batch");
         };
         assert_eq!(stage2.len(), 2);
         assert!(
             stage2
                 .iter()
-                .all(|e| matches!(e, GameEvent::ZoneWillChange { .. })),
-            "stage 2 is the intent batch, got {stage2:?}"
+                .all(|e| matches!(e, GameEvent::ZoneChanged { .. })),
+            "stage 2 is the committed fact batch (no ZoneWillChange), got {stage2:?}"
         );
 
-        // Stage 3: ONE committed ZoneChanged batch.
-        let crate::step::StepOutcome::Progress(crate::step::Progress::Applied(Occurrence::Batch(
-            stage3,
-        ))) = state.step()
-        else {
-            panic!("expected one ZoneChanged batch");
-        };
-        assert_eq!(stage3.len(), 2);
+        // Single-replace evidence: no replaceable `ZoneWillChange` ever entered
+        // the history for the destroy — the `Act` committed the move itself.
         assert!(
-            stage3
-                .iter()
-                .all(|e| matches!(e, GameEvent::ZoneChanged { .. })),
-            "stage 3 is the committed fact batch, got {stage3:?}"
+            !state
+                .history
+                .entries()
+                .any(|e| matches!(e.fact, GameEvent::ZoneWillChange { .. })),
+            "a composite destroy emits NO separate replaceable ZoneWillChange"
         );
 
         // The two dies-facts share one history batch id.

@@ -875,7 +875,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
             PlayerAction::RemoveDamage(Reference::AttachHostOf(Box::new(Reference::This))),
         )),
         // [CR#702.89a]: destroy this Aura.
-        OneShotEffect::Act(Action::Destroy(Reference::This)),
+        OneShotEffect::Act(Action::destroy(Reference::This)),
     ]);
 
     let umbra_armor = Replacement::Instead {

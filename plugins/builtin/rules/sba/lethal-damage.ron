@@ -1,7 +1,9 @@
 // [CR#704.5g,704.5h]: a creature with toughness > 0 that has lethal marked damage
 // OR was dealt damage by a deathtouch source is destroyed. One rule (not two): a
-// creature matching both must emit a single WillDestroy — two in a batch panics
+// creature matching both must emit a single Act(Destroy) — two in a batch panics
 // (the second snapshots the deleted object). OneOf gives that dedup natively.
+// `Destroy(This)` is the `Destroy` macro (the `Composite` whose body IS the
+// Battlefield → Graveyard move); the Act commits it atomically on apply.
 [
     SbaRule(
         scope: Type("Creature"),

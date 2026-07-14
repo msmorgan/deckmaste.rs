@@ -944,6 +944,8 @@ mod tests {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
         };
         assert!(replacement_watches(&state, &would, id, &e));
@@ -984,6 +986,8 @@ mod tests {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
             cause: None,
         };
         assert!(cant_event(&state, &e));
@@ -1100,10 +1104,112 @@ mod tests {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 2);
+    }
+
+    /// [CR#616.1] dual-facet gather: because the destroy composite is ONE event
+    /// carrying BOTH facets, regeneration (the TAG facet, `Act(Destroy(This))`,
+    /// a floating shield on the subject) and a Rest-in-Peace-style graveyard
+    /// replacement (the BODY facet, `ZoneChange(→Graveyard)`, a battlefield
+    /// static) gather into the SAME applicable-set — the affected player then
+    /// orders them. The old two-event split put these on different events
+    /// (regen on the `Act`, Rest in Peace on a downstream `ZoneWillChange`) =
+    /// two replace moments; now there is one.
+    #[test]
+    fn regen_tag_and_graveyard_body_gather_in_one_step() {
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::TurnMarker;
+
+        // Rest in Peace: a battlefield static replacing any `→Graveyard` with
+        // exile. It watches the BODY facet of the destroy `Act`.
+        let rip = deckmaste_core::Replacement::Instead {
+            would: EventFilter::ZoneChange {
+                what: Predicate::Any,
+                from: None,
+                to: Some(Zone::Graveyard),
+                cause: None,
+            },
+            instead: OneShotEffect::Act(deckmaste_core::Action::move_to(
+                Reference::EventObject,
+                Zone::Exile,
+            )),
+        };
+        let (mut state, subject) =
+            tests_support::creature_with_static(StaticEffect::Replacement(Box::new(rip)));
+
+        // A regeneration shield on the SUBJECT: watches the TAG facet.
+        let regen = deckmaste_core::Replacement::Instead {
+            would: destroyed_self(),
+            instead: OneShotEffect::Sequentially(vec![]),
+        };
+        state.shields.push(ReplacementInstance {
+            id: InstanceId(0),
+            replacement: regen,
+            subject,
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            one_shot: true,
+            source: subject,
+        });
+
+        let e = GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: None,
+            on: Some(subject),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
+        };
+        let app = gather_applicable(&state, &e);
+        assert_eq!(
+            app.len(),
+            2,
+            "both facets — regen (tag) and RiP (body) — gather on the one Act"
+        );
+    }
+
+    /// [CR#603.6] dual-facet matching is BODY-shape-gated: a reorder `Act`
+    /// (scry, `from`/`to` = `None`) is NOT a zone change, so a
+    /// `ZoneChange(→Graveyard)` replacement `would` does not watch it — while
+    /// the move-verb destroy `Act` (shape present) does.
+    #[test]
+    fn graveyard_would_matches_destroy_body_not_scry() {
+        let (state, _view, id) = super::tests_support::lone_creature();
+        let would = EventFilter::ZoneChange {
+            what: Predicate::Any,
+            from: None,
+            to: Some(Zone::Graveyard),
+            cause: None,
+        };
+        let destroy = GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: None,
+            on: Some(id),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
+        };
+        let scry = GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Scry"),
+            who: Some(crate::player::PlayerId(0)),
+            on: None,
+            from: None,
+            to: None,
+            cause: None,
+        };
+        assert!(
+            replacement_watches(&state, &would, id, &destroy),
+            "a →Graveyard would bites the destroy composite's BODY facet"
+        );
+        assert!(
+            !replacement_watches(&state, &would, id, &scry),
+            "a scry Act (no zone shape) is not a →Graveyard zone change"
+        );
     }
 
     /// [CR#701.19c]: an instruction-scoped "can't be regenerated" rider makes
@@ -1132,6 +1238,8 @@ mod tests {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
         };
         // Without the rider: the shield is gathered.

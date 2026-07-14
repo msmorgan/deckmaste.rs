@@ -42,8 +42,11 @@ argument, consistent with the already-parameterized `KeywordSpec` (`Ward Cost`,
 `Protection Quality`):
 
 ```
-KeywordAction = Destroy Reference | Draw Count | Mill Count
-              | Scry Count | Surveil Count | Fight Reference | …
+KeywordAction = Destroy Reference | Draw Reference        -- single-object atoms
+              | Mill Ref Count | Scry Ref Count | Surveil Ref Count  -- who + count
+              | Fight Reference Reference | …
+  -- Draw is SINGLE (no count): DrawN = Repeat(n, Draw(who)) [CR#121.2].
+  -- Mill/Scry keep a count (batch / look-N-at-once), NOT Repeat.
 ```
 
 Authored positionally as a **bareword** atom (one shared bare-ident newtype for
@@ -88,11 +91,28 @@ replaceable `ZoneWillChange`. Realizations, all as the body facet:
 - `Destroy(x)` → `→Graveyard` [CR#701.8a]. `Mill(who,n)` → top-`n` (clamped,
   [CR#701.17b]) batch `→Graveyard`. `Scry(who,n)` → look + within-library
   reorder. `Surveil`/`Fateseal` likewise.
-- `Draw(who,n)` → per-card, one at a time [CR#121.2]: non-empty → top `→Hand` +
-  bump `CardsDrawn`; empty → `DrewFromEmpty` [CR#121.4,704.5b]. Draw's body-facet
-  shape is `→Hand` (not `→Graveyard`), so "when it dies" never matches it;
-  preserve face-down-during-cast [CR#121.8] and the "without the word draw"
-  distinction [CR#121.5].
+- `Draw` is the ATOMIC single-object lane WITH Destroy, with a PURE-DATA body:
+  the atom is a SINGLE card draw `Draw(Reference)` (no count — [CR#121.2]
+  "individual card draws"), body `With(TopOfLibrary(1), Move(That, Hand))`.
+  `Act(Draw)` is a single-object dual-facet composite that RETIRES `WillDraw`
+  fully (as `Act(Destroy)` retired `WillDestroy`) — no card-intent, no
+  front-loaded `ZoneWillChange`; on an empty library the binder yields nothing
+  and the move no-ops. Multiplicity is a macro: `DrawN(who, n) = Repeat(n,
+  Draw(who))` (`OneShotEffect::Repeat(Count, …)` exists, effect.rs). A single
+  `Draw(who)` ALWAYS emits `Act(Draw)` (one ATTEMPT — the rules key on it), even
+  from an empty library; the "no-op ⇒ no `Act`" rule fires only on a NULL
+  instruction (`Repeat(0, …)`), never on an attempt that found no card.
+  **Draw-from-empty is authored, not baked in** ([[rules-sba-subsystem]]): a
+  reaction rule sets the persistent drew-from-empty flag on `Act(Draw)`-over-an-
+  empty-library [CR#120.3,104.3c], and the existing loss `SbaRule` keys on that
+  flag [CR#704.5b]. STAGE-4 design point to validate: whether the rules layer can
+  set that flag reactively (fully authored) or the flag-set stays a one-line
+  intrinsic bit of `Act(Draw)` apply (body still pure data either way). Preserve
+  face-down-during-cast [CR#121.8] and the "without the word draw" distinction
+  [CR#121.5]. NOTE: this decomposition is Draw-specific — Mill is SIMULTANEOUS
+  ([CR#701.17a], "the milled cards" group [CR#701.17d]), so `MillN ≠ Repeat(n,
+  Mill(1))`; Mill keeps a count and realizes as a batch/group `→Graveyard` move.
+  Scry likewise keeps its count.
 - **No-op ⇒ no `Act`.** A body that does nothing performs no keyword action, so
   the composite never surfaces (scry 0, a fully-canted destroy — [CR#701.22b]).
   Trigger fires post-commit so arrangement precedes it ([CR#701.22d]).
@@ -201,11 +221,24 @@ migrate-damage-sbas-to-rules.
   indestructible/regen/lethal-SBA retargeted to `Act(Destroy)`. DEVIATION carried:
   `Act(Destroy)` still *unwraps* to a separate `ZoneWillChange` on apply, and a
   thin `Action::Destroy` emitter remains — superseded by Stage 2b.
-- **Stage 2b (next) — dual-facet atomic composite.** Make `Act` one dual-facet
-  event: `FactView::of(Act{…})` carries tag + body-shape (read by descending the
-  stored body); `eval` arms match by facet-present, not strict `kind ==`; apply
-  COMMITS the body directly (kill the `Act(Destroy)`→`ZoneWillChange` unwrap,
-  step.rs:918); cant+replace gather both facets in one [CR#616] step. Author
-  destroy as `Composite(Destroy(x), Move(x, Graveyard))`; remove `Action::Destroy`.
+- **Stage 2b (done, green — 213+533+cards, idris 5/5) — dual-facet atomic
+  composite.** `GameEvent::Act` gained `from`/`to` (body facet, derived from the
+  stored `Move` body by `composite_body_head_move_to`, not a per-verb table);
+  `FactView::of(Act)` carries both facets; the `eval` `ZoneChange` arm matches a
+  shaped `Act` in the **Replacement lane only** (so Rest-in-Peace's `→Graveyard`
+  gathers with regeneration in ONE [CR#616.1] step, while dies TRIGGERS still
+  fire on the committed `ZoneChanged` — no double-fire); the move-verb `Act`
+  apply COMMITS the body via `apply_zone_will_change` (single replace
+  opportunity, no downstream `ZoneWillChange`). Destroy authored as
+  `Composite(Destroy(x), Move(x, Graveyard))` via `Action::destroy` ctor + a
+  `Destroy` macro; `Action::Destroy` removed; render/idris route through the
+  `Composite` arms (fidelity unchanged, idris emits `Composite (Destroy r)
+  (moveAttacking r Graveyard)` — typechecks). DEVIATIONS: the idris
+  `Core.idr` `Action.Destroy` constructor is now unused (harmless; emit never
+  produces it) — cleanup deferred; canon `Collective Resistance`/`Do or Die`
+  keep PRE-EXISTING emitter gaps (`EventFilter::Act`, `SeparatePiles`),
+  untouched by this stage. Wizards regen + broad corpus re-encode stays Stage
+  3–5 (no committed corpus card needed re-encoding — the `Destroy` macro
+  renders identically, no fidelity re-bless).
 - **Stages 3–5:** Mill, Draw (both `Composite(tag, body)`, same dual-facet path),
   then corpus re-encode + wizards regen + suites.

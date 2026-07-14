@@ -61,31 +61,57 @@ impl GameState {
                     // `Fight(a, _)` narrow; the second is the body's business.
                     Ka::Fight(a, _) => ("Fight", None, Some(self.eval_reference(a, frame))),
                 };
+                // Dual-facet BODY shape ([CR#603.6]): descend the stored body's
+                // HEAD to a canonical single relocation of the patient `on` to a
+                // DIFFERENT zone (`Destroy(x)` → `Move(x, Graveyard)`). A
+                // move-verb carries this shape and COMMITS it directly on apply
+                // (ONE replaceable event); a reorder verb (scry/surveil/fateseal,
+                // whose body head is an `Each`) has no such shape → `None`, and
+                // its body runs ahead of the post-fact.
+                let move_shape: Option<(Zone, Zone)> = on.and_then(|obj| {
+                    let to = composite_body_head_move_to(body)?;
+                    let from = self.objects.get(obj).and_then(|o| o.zone)?;
+                    (from != to).then_some((from, to))
+                });
+                let cause = move_shape.map(|_| {
+                    Cause::destroy(
+                        Agency::EffectInstruction,
+                        Some((frame.source, frame.controller)),
+                    )
+                });
                 let act = GameEvent::Act {
                     verb: deckmaste_core::VerbName::from(verb),
                     who,
                     on,
-                    // Scry/surveil/fateseal reorder WITHIN a zone — no
-                    // downstream cause-tagged move rides this fact.
-                    cause: None,
+                    from: move_shape.map(|(f, _)| f),
+                    to: move_shape.map(|(_, t)| t),
+                    cause,
                 };
-                // [CR#701.22b,614.17]: a `Cant(Act(name, on))` static suppresses
-                // the whole keyword action — the body must never run. Stage 1
-                // gates the body on the cant pass here at schedule time; the
-                // surviving `Act` emit still flows through the shared
-                // occurrence/apply cant+replacement path. (Stage 2+ folds
-                // replacement suppression into this gate.)
-                let suppressed = crate::replace_registry::cant_event(self, &act);
                 let mut items = Vec::new();
-                if !suppressed {
-                    items.push(WorkItem::RunEffect {
-                        effect: body.clone(),
-                        frame: frame.clone(),
-                    });
-                    // [CR#701.22b]: a body that does nothing performs no keyword
-                    // action, so no `Act` (and no trigger) — the scry-0 rule.
-                    if self.composite_body_acts(body, frame) {
-                        items.push(WorkItem::Emit(Occurrence::single(act)));
+                if move_shape.is_some() {
+                    // [CR#701.8a,616.1]: a move-verb — emit the dual-facet `Act`
+                    // whose apply commits the body move atomically. No body
+                    // `RunEffect` (that would be a second replaceable event); the
+                    // event-side cant pass in `apply_occurrence` suppresses an
+                    // indestructible ([CR#702.12b]) patient.
+                    items.push(WorkItem::Emit(Occurrence::single(act)));
+                } else {
+                    // [CR#701.22b,614.17]: a reorder verb — a `Cant(Act(name,
+                    // on))` static suppresses the whole keyword action, so the
+                    // body must never run. Gate the body on the cant pass here at
+                    // schedule time; the surviving `Act` emit still flows through
+                    // the shared occurrence/apply cant+replacement path.
+                    let suppressed = crate::replace_registry::cant_event(self, &act);
+                    if !suppressed {
+                        items.push(WorkItem::RunEffect {
+                            effect: body.clone(),
+                            frame: frame.clone(),
+                        });
+                        // [CR#701.22b]: a body that does nothing performs no
+                        // keyword action, so no `Act` (and no trigger) — scry-0.
+                        if self.composite_body_acts(body, frame) {
+                            items.push(WorkItem::Emit(Occurrence::single(act)));
+                        }
                     }
                 }
                 items
@@ -110,30 +136,11 @@ impl GameState {
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
-            // [CR#701.8a]: destroy = the `Act(Destroy(x))` keyword action —
-            // the present-tense, guardable/replaceable intent (`Cant`/`Replaces`
-            // key on `Act(Destroy(…))`) whose apply commits the Battlefield →
-            // Graveyard move when nothing intercedes ([CR#702.12b]). The cause
-            // names the verb so the "destroyed" named view can narrow by it
-            // ([CR#701.8b] — this verb or the lethal-damage SBA are its only two
-            // causes). (`Action::Destroy` is the thin authoring verb that emits
-            // this atom; the destruction has no bespoke intent event of its own.)
-            Action::Destroy(sel) => {
-                let events: Vec<GameEvent> = self
-                    .eval_reference_set(sel, frame)
-                    .into_iter()
-                    .map(|object| GameEvent::Act {
-                        verb: deckmaste_core::VerbName::from("Destroy"),
-                        who: None,
-                        on: Some(object),
-                        cause: Some(Cause::destroy(
-                            Agency::EffectInstruction,
-                            Some((frame.source, frame.controller)),
-                        )),
-                    })
-                    .collect();
-                vec![WorkItem::Emit(occurrence_of(events))]
-            }
+            // [CR#701.8a]: destroy has no bespoke verb — it is the
+            // `Composite(Destroy(x), Move(x, Graveyard))` the `Action::destroy`
+            // ctor / `Destroy` macro builds, handled by the `Composite` arm
+            // above (which reads the body facet off the stored move and commits
+            // it atomically on the one `Act(Destroy)` event).
             // The named player performs the verb: resolve `who` to the acting
             // player, then dispatch the `PlayerAction`. `By(You, …)` (the
             // implicit-you default) resolves to `frame.controller` — identical
@@ -539,6 +546,24 @@ impl GameState {
     }
 }
 
+/// The BODY-facet destination of a keyword-action [`Action::Composite`]
+/// ([CR#603.6]): the plain zone its stored body's HEAD relocates the patient
+/// to. `Destroy`'s body is `Move(x, Graveyard)` → `Some(Graveyard)`; a reorder
+/// verb's body head is an `Each`/`If` (scry/surveil/fateseal/fight) → `None`.
+/// Read "matches the expanded body" ([CR#701.8a]) rather than a per-verb table,
+/// so a later move-verb (Mill/Draw) needs no new arm here. Only the HEAD is
+/// inspected — a within-`Each` reorder move (scry) is never mistaken for the
+/// composite's own relocation.
+fn composite_body_head_move_to(body: &deckmaste_core::OneShotEffect) -> Option<Zone> {
+    use deckmaste_core::Action as A;
+    use deckmaste_core::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => composite_body_head_move_to(&e.value),
+        E::Act(A::Move(_, Destination::Zone(z), _)) => Some(*z),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -869,7 +894,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Each(Each {
                 binder: Binder::Existing(Selection::Random(Quantity::one(), creatures)),
-                effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+                effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             }),
             &frame,
         );
@@ -924,7 +949,7 @@ mod tests {
                     filter: creatures,
                     by: Reference::You,
                 },
-                body: Box::new(OneShotEffect::Act(Action::Destroy(Reference::That(
+                body: Box::new(OneShotEffect::Act(Action::destroy(Reference::That(
                     deckmaste_core::Sort::Permanent,
                 )))),
             }),
@@ -993,7 +1018,7 @@ mod tests {
     fn indestructible_survives_destroy_action() {
         let (mut state, myr) = myr_on_field();
         let frame = frame_src(myr);
-        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
+        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
         // Act(Destroy) applies and schedules no zone move (replaced to nothing).
         let _ = state.step();
         assert!(
@@ -1014,7 +1039,7 @@ mod tests {
     fn destroy_action_sends_a_normal_creature_to_its_graveyard() {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
-        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
+        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
         // Act(Destroy) → ZoneWillChange → ZoneChanged.
         for _ in 0..3 {
             let _ = state.step();
@@ -1185,7 +1210,7 @@ mod tests {
                         Predicate::creature(),
                     ],
                 ))),
-                effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+                effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             })),
         });
         let frame = frame_src(a);
@@ -2076,7 +2101,7 @@ mod tests {
         // Destroy the host (source = host, `This` = the dying creature); the SBA
         // sweep then sends the now-unattached Aura to the graveyard ([CR#704.5m]).
         let frame = frame_src(host);
-        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::This)), &frame);
+        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
         run_injected(&mut state);
         for e in crate::sba::sweep(&state) {
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
@@ -2110,7 +2135,7 @@ mod tests {
 
         // Host dies.
         let frame = frame_src_targets(equipment, vec![host]);
-        state.run_effect(OneShotEffect::Act(Action::Destroy(Reference::It)), &frame);
+        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::It)), &frame);
         drain(&mut state);
         for e in crate::sba::sweep(&state) {
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);

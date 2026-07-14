@@ -1509,7 +1509,8 @@ fn emit_action(a: &Action) -> R {
                 emit_count(count)?,
             ],
         ),
-        Action::Destroy(r) => app("Destroy", vec![emit_reference(r)?]),
+        // Destroy is not a bespoke verb — it emits through the `Composite` arm
+        // below (`Composite (Destroy r) (Act (moveAttacking r Graveyard))`).
         Action::Counter(r) => app("Counter", vec![emit_reference(r)?]),
         Action::Attach { what, to } => {
             app("Attach", vec![emit_reference(what)?, emit_reference(to)?])
@@ -3424,6 +3425,29 @@ mod tests {
         let out = emit_state_filter(&StatePredicate::WasCastWith(CostTag::from("Evoke")))
             .expect("WasCastWith(Evoke) should emit");
         assert_eq!(out, "(WasCastWith Evoke)");
+    }
+
+    /// [CR#701.8a]: destroy has no bespoke Idris `Action` — it emits through the
+    /// parameterized `KeywordActionSpec` composite whose body IS the
+    /// Battlefield → Graveyard `moveAttacking`. Same
+    /// `Composite`/`moveAttacking` machinery scry uses (proven to
+    /// typecheck), now with the `Destroy` tag.
+    #[test]
+    fn destroy_emits_composite_over_a_graveyard_move() {
+        let out = emit_action(&deckmaste_core::Action::destroy(Reference::This))
+            .expect("the destroy composite should emit");
+        assert!(
+            out.contains("Composite"),
+            "expected a Composite, got: {out}"
+        );
+        assert!(
+            out.contains("Destroy This"),
+            "expected the Destroy tag, got: {out}"
+        );
+        assert!(
+            out.contains("moveAttacking") && out.contains("Graveyard"),
+            "expected the body to be the →Graveyard move, got: {out}"
+        );
     }
 
     /// `Condition::CastWith` has no direct Idris `Condition` counterpart, so

@@ -1,0 +1,24 @@
+// "Destroy [permanent]" ([CR#701.8a]): the keyword action as DATA — a
+// `Composite` whose tag is `Destroy(x)` and whose body IS the Battlefield →
+// owner's-graveyard `Move`. There is no bespoke `Destroy` verb; the engine
+// reads the body facet ("→Graveyard") off this stored move and commits it
+// atomically on the one present-tense `Act(Destroy)` event (dual-facet:
+// indestructible cants it, regeneration / Rest-in-Peace replace it, all on the
+// SAME event — [CR#616.1,702.12b,701.19a]).
+//
+// The param is a `Reference` (the patient — `This`, a bound `Target`, `It`). It
+// appears in BOTH the tag and the body's `Move` source, so the composite's
+// realized shape matches its expanded body. Template "Destroy ${0}" renders the
+// reference context-aware ("Destroy target creature.").
+//
+// Usage: Destroy(This) / Destroy(It) / Destroy(Target(0)).
+(
+    name: "Destroy",
+    template: "Destroy ${0}",
+    kinds: [OneShotEffect],
+    params: [Reference],
+    body: Composite(
+        Destroy(Param(0)),
+        Move(Param(0), Graveyard),
+    ),
+)

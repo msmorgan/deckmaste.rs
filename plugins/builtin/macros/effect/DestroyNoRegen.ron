@@ -17,7 +17,9 @@
     kinds: [OneShotEffect],
     params: [Reference],
     body: Sequentially([
-        Destroy(Param(0)),
+        // Destroy inlined as its `Composite` (the body IS the Battlefield →
+        // Graveyard `Move`) rather than a nested `Destroy` macro invocation.
+        Composite(Destroy(Param(0)), Move(Param(0), Graveyard)),
         Until(ForThisEvent, [Cant(Regenerate(on: Ref(Param(0))))]),
     ]),
 )

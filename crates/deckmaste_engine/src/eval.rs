@@ -333,12 +333,20 @@ impl<'a> FactView<'a> {
                 verb,
                 who,
                 on,
+                from,
+                to,
                 cause,
             } => {
                 v = FactView::bare(FactKind::Act, state);
                 v.act_name = Some(Cow::Borrowed(&verb.0));
                 v.object = on.as_ref().map(|o| part(*o));
                 v.actor = *who;
+                // The BODY facet ([CR#603.6]): a move-verb (`Act(Destroy)`)
+                // carries its realized zone-change so a `ZoneChange(→Graveyard)`
+                // replacement (Rest in Peace) bites the SAME event as the tag
+                // facet ([CR#616.1]); a reorder verb leaves these `None`.
+                v.from = *from;
+                v.to = *to;
                 // "destroyed this way" provenance rides the atom's cause.
                 v.cause = cause.as_ref().map(Cow::Borrowed);
             }
@@ -662,7 +670,21 @@ impl GameState {
                 to,
                 cause,
             } => {
-                fact.kind == FactKind::ZoneChange
+                // Dual-facet ([CR#603.6,616.1]): a plain `ZoneChange` fact, OR —
+                // in the REPLACEMENT lane only — a keyword-action `Act` carrying
+                // a body-facet zone shape (a move-verb: `from`/`to` present). So
+                // a `→Graveyard` replacement (Rest in Peace) bites the destroy
+                // composite's BODY facet, gathered with regeneration (the TAG
+                // facet, matched by the `Act` arm) into ONE applicable-set. The
+                // relaxation is Replacement-only: the committed `ZoneChanged`
+                // fact still carries the dies/enters TRIGGER, so matching the
+                // `Act` there too would double-fire. A reorder `Act` (from/to
+                // `None`) never matches — `zone_ok` fails, and a shapeless
+                // `ZoneChange` query is gated out by the facet check.
+                let body_facet = lane == Lane::Replacement
+                    && fact.kind == FactKind::Act
+                    && (fact.from.is_some() || fact.to.is_some());
+                (fact.kind == FactKind::ZoneChange || body_facet)
                     && zone_ok(*from, fact.from)
                     && zone_ok(*to, fact.to)
                     && cause

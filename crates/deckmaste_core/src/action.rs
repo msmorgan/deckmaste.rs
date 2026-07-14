@@ -38,8 +38,9 @@ pub enum KeywordAction {
     Mill(Reference, Count),
     /// "draw N" ([CR#121.1]). Defined-but-unwired until its later stage.
     Draw(Reference, Count),
-    /// "destroy [object]" ([CR#701.8a]) — the patient permanent. Subsumes the
-    /// bespoke `Action::Destroy`; its engine wiring lands in the Destroy stage.
+    /// "destroy [object]" ([CR#701.8a]) — the patient permanent. Destroy has no
+    /// bespoke verb: it is [`Action::destroy`], a `Composite` whose body is the
+    /// Battlefield → Graveyard [`Move`](Action::Move).
     Destroy(Reference),
     /// "[a] fights [b]" ([CR#701.14a]) — the two fighter objects.
     Fight(Reference, Reference),
@@ -165,8 +166,6 @@ pub enum Action {
     /// redirected/arbitrary-source damage — e.g. each half of a fight, where a
     /// creature deals damage equal to its power to the other ([CR#701.14a]).
     DealDamage(Reference, Count, Reference),
-    /// Destroy the referenced permanent ([CR#701.8]).
-    Destroy(Reference),
     /// Counter the referenced spell or ability on the stack ([CR#701.6a]) — a
     /// countered spell moves to its owner's graveyard; a countered ability
     /// simply ceases. "Can't be countered" is deontic-layer territory, not
@@ -184,7 +183,7 @@ pub enum Action {
     Unattach(Reference),
     /// Move the referenced object to a [`Destination`] ([CR#400.7]) — a plain
     /// zone change (emits `ZoneWillChange`), NOT destruction (so indestructible
-    /// does not apply, distinct from [`Destroy`](Action::Destroy)) and NOT a
+    /// does not apply, distinct from [`Action::destroy`]) and NOT a
     /// sacrifice. A graveyard/hand/library destination is the object's
     /// *owner's*; exile is the shared exile zone. The destination is a bare
     /// zone name (`Move(This, Graveyard)` — the [CR#704.5m] Aura graveyard SBA)
@@ -478,6 +477,24 @@ impl Action {
     pub fn move_to(what: Reference, zone: crate::Zone) -> Action {
         Action::Move(what, Destination::Zone(zone), Vec::new())
     }
+
+    /// "Destroy [permanent]" ([CR#701.8a]) — the keyword action as data: a
+    /// [`Composite`](Action::Composite) whose tag is `Destroy(what)` and whose
+    /// body IS the Battlefield → owner's-graveyard [`Move`](Action::Move).
+    /// There is no bespoke `Destroy` verb; the engine reads the body facet
+    /// ("→Graveyard") off this stored move and commits it atomically on the one
+    /// `Act(Destroy)` event ([CR#616.1]). Authored via the `Destroy` macro so
+    /// the card still writes "Destroy target creature".
+    #[must_use]
+    pub fn destroy(what: Reference) -> Action {
+        Action::Composite(
+            KeywordAction::Destroy(what.clone()),
+            Box::new(crate::OneShotEffect::Act(Action::move_to(
+                what,
+                crate::Zone::Graveyard,
+            ))),
+        )
+    }
 }
 
 impl PlayerAction {
@@ -672,7 +689,13 @@ mod tests {
             read("DealDamage(This, Literal(3), It)"),
             Action::DealDamage(Reference::This, Count::Literal(3), Reference::It,),
         );
-        assert_eq!(read("Destroy(This)"), Action::Destroy(Reference::This),);
+        // Destroy is no longer a bespoke verb — it is the `Composite` the
+        // `Action::destroy` ctor builds (body = the Battlefield → Graveyard
+        // `Move`); the raw Composite spelling round-trips through plain RON.
+        assert_eq!(
+            read("Composite(Destroy(This),Move(This,Graveyard))"),
+            Action::destroy(Reference::This),
+        );
     }
 
     /// `DealDamage`'s `source` is required and always spelled first; the common

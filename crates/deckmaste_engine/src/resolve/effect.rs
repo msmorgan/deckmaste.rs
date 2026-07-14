@@ -2087,7 +2087,7 @@ mod tests {
                 key,
                 deckmaste_core::Quantity::Range(Some(Count::Literal(1)), Some(Count::Literal(1))),
             )),
-            effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+            effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
         });
         let frame = frame_src(a);
         state.run_effect(effect, &frame);
@@ -3055,7 +3055,7 @@ mod tests {
                     filter: creatures,
                     by: Reference::You,
                 },
-                effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+                effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             }),
             &frame,
         );
@@ -3218,7 +3218,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Each(Each {
                 binder: Binder::Existing(Selection::SelectAll(creatures)),
-                effect: Box::new(OneShotEffect::Act(Action::Destroy(Reference::It))),
+                effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             }),
             &frame,
         );

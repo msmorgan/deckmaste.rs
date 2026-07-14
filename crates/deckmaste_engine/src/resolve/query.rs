@@ -899,7 +899,7 @@ mod tests {
                     filter: creatures,
                     by: Reference::Opponent,
                 },
-                body: Box::new(OneShotEffect::Act(Action::Destroy(Reference::That(
+                body: Box::new(OneShotEffect::Act(Action::destroy(Reference::That(
                     deckmaste_core::Sort::Permanent,
                 )))),
             }),

@@ -480,9 +480,11 @@ mod tests {
     /// Verb patients are now a single bare [`Reference`].
     #[test]
     fn new_verbs_read_flat() {
+        // `Counter` is a source verb (Destroy is now the `Composite` the
+        // `Action::destroy` ctor builds, not a bareword core verb).
         assert_eq!(
-            read("Destroy(This)"),
-            OneShotEffect::Act(Action::Destroy(Reference::This)),
+            read("Counter(This)"),
+            OneShotEffect::Act(Action::Counter(Reference::This)),
         );
         assert_eq!(
             read("Tap(This)"),
@@ -567,8 +569,9 @@ mod tests {
             "By(It,Draw(Literal(3)))",
             "DealDamage(This,Literal(3),It)",
             "AddMana(Literal(1),AnyColor)",
-            // Verb patients are a single bare `Reference` now.
-            "Destroy(This)",
+            // Destroy is the `Composite` the `Action::destroy` ctor builds;
+            // the raw dual-facet spelling round-trips through plain RON.
+            "Composite(Destroy(This),Move(This,Graveyard))",
             "Sequentially([Draw(Literal(1)),GainLife(Literal(1))])",
             "May(effect:Draw(Literal(1)))",
             // `Each.binder` is a many-`Binder` (the set of all creatures wrapped
@@ -763,7 +766,7 @@ mod tests {
         assert_eq!(read(&write(&v)), v, "round-trip");
 
         // Iterating the With-bound group: `Each(Existing(They), …)` reads `It`.
-        let over_group = read("Each(binder:Existing(They),effect:Destroy(It))");
+        let over_group = read("Each(binder:Existing(They),effect:Counter(It))");
         assert!(matches!(
             over_group,
             OneShotEffect::Each(ref e) if matches!(e.binder, crate::Binder::Existing(Selection::They)),
@@ -777,12 +780,12 @@ mod tests {
     /// field's type. Both forms round-trip.
     #[test]
     fn sorted_anaphors_resolve_by_slot() {
-        // Reference slot: `Destroy(That(Creature))`'s patient is a single
+        // Reference slot: `Counter(That(Creature))`'s patient is a single
         // sorted anaphor.
-        let reference_slot = read("Destroy(That(Creature))");
+        let reference_slot = read("Counter(That(Creature))");
         assert_eq!(
             reference_slot,
-            OneShotEffect::Act(Action::Destroy(Reference::That(crate::Sort::OfType(
+            OneShotEffect::Act(Action::Counter(Reference::That(crate::Sort::OfType(
                 crate::Type::Creature
             )))),
             "`That(Creature)` in a Reference slot is Reference::That",
