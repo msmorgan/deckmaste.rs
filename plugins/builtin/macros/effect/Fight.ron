@@ -24,8 +24,8 @@
     kinds: [OneShotEffect],
     params: [Reference, Reference],
     body: Composite(
-        name: "Fight",
-        body: If(
+        Fight(Param(0), Param(1)),
+        If(
             condition: And([
                 Matches(Param(0), And([Permanent, Type("Creature")])),
                 Matches(Param(1), And([Permanent, Type("Creature")])),

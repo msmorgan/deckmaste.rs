@@ -530,12 +530,15 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "DEFERRED: see Agency::CostPayment.",
         ),
         (
-            n("CauseVerb", "Play"),
-            "DEFERRED: no card in this batch narrows a Cause pattern by this \
-            verb (Destroy/Sacrifice/Exile/Fight are exercised via Do or Die/Fling/Otherworldly \
-            Journey's DestroyNoRegen).",
+            n("EventFilter", "Act"),
+            "DEFERRED: the present-tense keyword-action `Act` pattern \
+            (`KeywordActionPattern`) is exercised by the engine (scry-suppress, \
+            indestructible/regen retarget), but no CORPUS card spells `Act(…)` in a \
+            filter yet — indestructible/regeneration still author the result-side \
+            `ZoneChange(cause: Destroy)` until the Destroy stage retargets them to \
+            `CantHappen(Act(Destroy(Ref(This))))` / `Replaces(Act(Destroy(…)))`. Its \
+            atom-tag variants (Scry/Destroy/…) are token-covered.",
         ),
-        (n("CauseVerb", "Explore"), "DEFERRED: see CauseVerb::Play."),
         (
             n("EventFilter", "LifeLost"),
             "DEFERRED: no life-LOSS-triggered real card in this batch \
@@ -1169,4 +1172,49 @@ fn no_dead_grammar_nodes() {
         }
         panic!("{msg}");
     }
+}
+
+/// The cause-verb TYPO GATE ([[engine-keyword-action-intent]] Stage 2a): with
+/// the closed `CauseVerb` enum retired into the bareword [`VerbName`] newtype,
+/// the type no longer rejects an unknown verb (any bareword parses) — so this
+/// gate does, by MEMBERSHIP against the closed vocabulary the Idris model emits
+/// (`crates/deckmaste_cards/tables/entailments.ron`). Every `Cause(verb: X)`
+/// spelled anywhere in the corpus must name a verb the entailment table
+/// carries; a typo (`Desroy`) or an out-of-vocab verb fails here, recovering
+/// the safety the enum used to give at compile time.
+#[test]
+fn cause_verbs_are_entailment_rows() {
+    // The closed cause-verb vocabulary: the `verb: "…"` column of the emitted
+    // entailment table.
+    let table = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tables/entailments.ron"),
+    )
+    .expect("read entailments.ron");
+    let row_verb = Regex::new(r#"verb:\s*"([A-Za-z]+)""#).unwrap();
+    let known: BTreeSet<String> = row_verb
+        .captures_iter(&table)
+        .map(|c| c[1].to_string())
+        .collect();
+    assert!(
+        known.len() >= 9,
+        "entailments table should carry the closed cause-verb vocab; got {known:?}"
+    );
+
+    // Every corpus `Cause(verb: <bareword>)` must be a known row. (The verb is
+    // authored BAREWORD now — `Cause(verb: Destroy)`, never quoted.)
+    let use_verb = Regex::new(r"Cause\(\s*verb:\s*([A-Za-z]+)").unwrap();
+    let mut bad: BTreeSet<String> = BTreeSet::new();
+    for text in accept_corpus() {
+        for c in use_verb.captures_iter(&text) {
+            let verb = c[1].to_string();
+            if !known.contains(&verb) {
+                bad.insert(verb);
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "cause verb(s) outside the closed entailments.ron vocabulary (typo, or a verb needing \
+         a new emitted row): {bad:?}\nknown: {known:?}"
+    );
 }

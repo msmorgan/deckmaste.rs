@@ -1,156 +1,172 @@
 ---
 needs: []
 ---
-Collapse the bespoke removal/draw/mill machinery into the ONE keyword-action
-primitive the engine already has (`Action::Composite{name, body}`). Every CR-701
-keyword action — Scry, Surveil, Destroy, Mill (and the shaped-later Discard) —
-becomes a macro over that single primitive; the engine holds zero per-verb
-`Action`/`PlayerAction` variants and zero per-verb intent events. The name rides
-the emitted zone-change as its `cause`, and the deontic / replacement / trigger
-layer keys on that cause — which the filter language already speaks
-[CR#701.8a,121.1,701.17a,701.22b].
+Unify every CR-701 keyword action — Scry, Surveil, Destroy, Mill, Draw (Discard
+later) — behind ONE parameterized, closed, idris-sourced atom family wrapped by a
+single present-tense `Act` event. The engine holds zero bespoke per-verb
+`Action`/`PlayerAction` variants and zero per-verb intent events; keyword-action
+NAMES are bareword closed atoms (not quoted, not a hand-maintained core enum);
+the deontic/replacement/trigger/provenance layers all key on the one `Act` atom.
+[CR#701.8a,121.1,701.17a,701.22b]
 
-## The insight
+## The insight (evidence)
 
-Destroy/Draw/Mill are "named zone moves". The engine already models the guard
-side of that entirely in terms of the CAUSE of a zone change, not bespoke intent
-events:
+Keyword-action names are a CLOSED grammar vocabulary, not open data, and the
+engine already models the guard side by the CAUSE of a zone change, not bespoke
+intent events:
 
-- `EventFilter::ZoneChange { what, from, to, cause }` (`event.rs:264`) — the
-  `cause` field narrows by cause triple: "'destroyed' admits exactly two causes
-  ([CR#701.8b]); 'sacrificed' is never destruction ([CR#701.21a]); omitted = any
-  cause ('dies', [CR#700.4])". There is **no** `WillDestroy`/`WillDraw` variant in
-  `EventFilter` — guards already watch "a Bf→Gy change *caused by Destroy*".
-- `EventFilter::Drawn { who, amount }` (`event.rs:307`) — draw is already a
-  first-class filterable fact, per-card ([CR#121.2]).
-- `ZoneWillChange` is itself the replaceable pre-commit intent (`step.rs`
-  apply commits it) and already carries `cause`.
+- **Closed atom namespace.** Idris models these as closed sum types —
+  `data KeywordActionSpec = Scry | Surveil | Mill | Fight` (`idris/src/Core.idr:2177`),
+  `data KeywordSpec = Flying | … | Indestructible | Ward Cost | Protection Quality`
+  (parameterized on the ability side) — and the re-emit bridge REJECTS any name
+  outside them (`idris_emit.rs:1571` gap-errors on an unknown `Composite` name).
+  Contrast the explicitly-OPEN `CounterKind` (`Core.idr:245`). The same name
+  namespace is ALREADY bareword on its reference side (`KeywordRef(Ident)` reads
+  `Has(Flying)` bare, `keyword.rs:50`); `Composite(name: "Ward")` quoting is an
+  inconsistency wart.
+- **Guards already key on cause, not intent-type.** `EventFilter::ZoneChange`
+  carries `cause` (`event.rs:264`); the closed verb vocab is `entailments.ron`
+  (9 verbs, emitted from idris `EmitTables.idr`). `ZoneWillChange` is itself the
+  replaceable pre-commit form and carries `cause`. So the bespoke
+  `GameEvent::WillDestroy` is a redundant second intent layer.
+- `Action::Destroy(Reference)`, `PlayerAction::Draw/Mill` are bespoke per-verb
+  variants where Scry/Surveil are already macro-over-`Composite` — the
+  special-casing the macro layer exists to kill ([[minimal-primitives-keyword-macros]]).
 
-So the bespoke `GameEvent::WillDestroy` (`event.rs:154`) is a *redundant second
-intent layer* above `ZoneWillChange` — it exists only to give indestructible /
-regeneration a "destroy" hook, but `ZoneWillChange{cause: Destroy}` is that hook.
-And `Action::Destroy` / `PlayerAction::Draw` / `PlayerAction::Mill` are per-verb
-engine variants where Scry/Surveil are already just macros over `Composite` —
-the exact special-casing the macro layer exists to eliminate
-([[minimal-primitives-keyword-macros]], [[keyword-authoring]]).
+## Design — one parameterized atom, one `Act` event
 
-## Design — one primitive, macros on top
+### The keyword-action atom (closed, parameterized, bareword, idris-sourced)
 
-### Sole keyword-action primitive + one named intent
+Parameterize the idris `KeywordActionSpec` to carry each verb's principal
+argument, consistent with the already-parameterized `KeywordSpec` (`Ward Cost`,
+`Protection Quality`):
 
-`Action::Composite { name: Ident, body: OneShotEffect }` stays as the ONLY
-keyword-action verb (`action.rs:234`). Resolving it:
+```
+KeywordAction = Destroy Reference | Draw Count | Mill Count
+              | Scry Count | Surveil Count | Fight Reference | …
+```
 
-1. emits a guardable/replaceable **`GameEvent::KeywordAction { name, patient }`**
-   intent (the named-action moment — new; the "WillAct" layer). If a deontic
-   `Cant` or a replacement bites it, the action is suppressed/replaced and the
-   body never runs.
-2. otherwise runs `body`, producing the RESULT events (a `ZoneWillChange` carrying
-   `cause: name`, `CardsDrawn`, …).
-3. then (gated on the body actually acting, [CR#701.22b]) emits the post-fact
-   `KeywordActionPerformed{name}` for "whenever you scry/mill/draw" triggers —
-   unchanged from today.
+Authored positionally as a **bareword** atom (one shared bare-ident newtype for
+the whole keyword-action-name namespace — `Composite`/`Act`/`Cause`/`KeywordDecl`
+names — mirroring `KeywordRef`/`CostTag`; fixes the `"Ward"` quoting wart). The
+atom subsumes the old bespoke `Action::Destroy(Reference)` — that IS the
+`Destroy(Reference)` arm, not a variant to keep. Typo-safety: the re-emit gate
+rejects unknown atoms; add an `entailments.ron`-membership check. Retire the
+`CauseVerb` enum into this namespace.
 
-The verb thus rides TWO layers by design: the **name** on the pre-intent
-(`KeywordAction`) is what guards/replacements bite; the **cause** on the result
-zone-change is what triggers read. This mirrors the CR — indestructible acts on
-the destroy *attempt* ([CR#702.12b]) while "dies" fires on the *resulting move*
-([CR#700.4]).
+### The `Act` event — present tense, one event, three roles
 
-### Destroy / Mill — pure named zone-change bodies
+`GameEvent::Act(KeywordAction)` (present tense; NOT a pre/post `WillAct`/`Acted`
+pair — a surviving `Act` in the log IS the "it happened" fact). Resolving a
+keyword action:
 
-`destroy(x)` and `mill(n)` become macros expanding to `Composite`:
+1. **Guard/replace point.** Emit `Act(<atom>)`. `CantHappen`/`Replaces` bite it
+   by matching the atom. If suppressed/replaced, the realization never runs.
+2. **Unwrap on apply.** A surviving `Act` realizes per-atom, mirroring today's
+   `WillDestroy → ZoneWillChange`:
+   - `Act(Destroy(x))` → `ZoneWillChange(Battlefield→Graveyard)` tagged with the
+     Destroy atom [CR#701.8a]. (`apply(Act(Destroy(x))) == apply(Move(x,Gy))`.)
+   - `Act(Mill(n))` → top-`n` (clamped, [CR#701.17b]) → Graveyard batch.
+   - `Act(Draw(n))` → per-card, one at a time [CR#121.2]: library non-empty →
+     move top to Hand + bump `CardsDrawn`; empty → `DrewFromEmpty`
+     [CR#121.4,704.5b]. (The empty branch is why Draw keeps a card-intent — it
+     can't front-load a `ZoneWillChange{object}` with no object. Preserve
+     face-down-during-cast [CR#121.8] and the "without the word draw"
+     distinction [CR#121.5].)
+   - `Act(Scry(n))` → look + reorder (moves within the library).
+3. **Trigger fact.** The surviving `Act` is what "whenever you scry/mill/draw"
+   reads. Gated on the atom actually acting (scry 0 / fully-replaced destroy →
+   no `Act`, [CR#701.22b]). Fires post-completion so arrangement precedes it
+   ([CR#701.22d]); the guard CHECK runs at schedule-time on the `Act` value,
+   decoupled from where the fact lands (proven in Stage 1).
 
-- `destroy(x)` → `Composite{ name:"Destroy", body: Move(x, Graveyard) }` where the
-  emitted `ZoneWillChange` carries `cause: Destroy` [CR#701.8a,701.8b]. No
-  `WillDestroy`.
-- `mill(n)` → `Composite{ name:"Mill", body: MoveGroup(top-n, Graveyard) }`,
-  `cause: Mill`, clamped to library size [CR#701.17a,701.17b]. Replaces the
-  inline `PlayerAction::Mill` batch and gives Mill its first-class name (so
-  "milled this way" reads `KeywordActionPerformed{"Mill"}` / the `Mill` cause,
-  not only Noting product-groups) [CR#701.17c].
+`EventFilter::Act(<atom-pattern>)` matches by the atom: `Act(Destroy(Ref(This)))`
+(this only), `Act(Destroy(_))` (any destroy), `Act(Scry(_))` (any scry). The
+patient is the atom's own argument — there is NO separate `on` field and NO
+patient-default fork.
 
-### Draw — same primitive, a richer body
+### Guards / replacements / SBAs
 
-Draw can't front-load a `ZoneWillChange{object: top-card}`: an empty library has
-no object to name, yet empty→loss must still fire [CR#121.4,704.5b]. So the
-`draw(n)` macro → `Composite{ name:"Draw", body: <draw-body> }` whose body keeps a
-draw-intent: for each of `n` (one at a time, [CR#121.2]) check the library — a
-card present → move top to hand (`cause: Draw`, bump `CardsDrawn`); empty →
-`DrewFromEmpty`. This is the Draw keyword action's DEFINITION (as reorder is
-Scry's), living in the body — NOT a bespoke `Action::Draw`. Preserve
-face-down-during-cast [CR#121.8] and the "without the word draw" distinction
-[CR#121.5] (carried by `cause: Draw` vs a plain move) exactly as today.
-
-### Guards / replacements — point at the NAMED action
-
-The deontic/replacement layer watches the `KeywordAction` pre-intent by name, not
-the result zone-change. A new `EventFilter::KeywordAction { name, patient }`
-variant lets `Cant`/replacements reference it.
-
-- Indestructible [CR#702.12b]: `Cant(KeywordAction(Destroy, patient: This))` —
-  reads exactly like the card ("can't be destroyed"). Naturally ignores the
-  toughness-0 move ([CR#704.5f]) and sacrifice ([CR#701.21a]) — they are not the
-  Destroy keyword action, so NO cause-predicate is needed. Must still cover BOTH
-  the effect destroy AND the lethal-damage / deathtouch SBAs: those now perform
-  the Destroy keyword action (emit `KeywordAction(Destroy)` with
-  `Agency::StateBasedAction`) instead of the bespoke `WillDestroy` (`sba.rs:248`)
-  — census "destroy immunity (SBA + Destroy)".
-- Regeneration [CR#701.19a]: floating replacement watching
-  `KeywordAction(Destroy)` (was watching `WillDestroy`, `replace_registry.rs:270`);
-  "can't be regenerated" rider unchanged [CR#701.19c].
+- Indestructible [CR#702.12b]: `StaticEffect::CantHappen(Act(Destroy(Ref(This))))`
+  — reads like the card. (`CantHappen` takes an `EventFilter`; `Deontic::Cant` is
+  for Attack/Block-style `DeonticAction`s and does NOT apply.) Ignores toughness-0
+  ([CR#704.5f]) and sacrifice ([CR#701.21a]) — not the Destroy atom. Covers the
+  effect destroy AND the lethal / deathtouch SBAs, which now PERFORM the Destroy
+  keyword action (`Act(Destroy(x))`, `Agency::StateBasedAction`) instead of
+  `WillDestroy` (`sba.rs:248`) — census "destroy immunity (SBA + Destroy)".
+- "Creatures can't be destroyed" (global) = `CantHappen(Act(Destroy(_)))`.
+- Regeneration [CR#701.19a]: `Replaces(Act(Destroy(Ref(This))) → tap + heal +
+  remove-from-combat)` (was watching `WillDestroy`, `replace_registry.rs:270`);
+  "can't be regenerated" rider unchanged [CR#701.19c]. idris already models both
+  as `CantHappen`/`Replaces (MkEventQuery [Destroy] [Patient (SameAs This)])`
+  (`Macros.idr:171,186`).
 - Preserve cant→replace→apply order ([[engine-replacements]], `step.rs:1247`) so
   an indestructible creature never consumes its regen shield [CR#702.12b].
-- Empty-draw loss SBA unchanged (reads `DrewFromEmpty`).
 
-### Result-side triggers — unchanged, cause-keyed
+### Provenance & result-side triggers
 
-"When it dies" watches any Bf→Gy ([CR#700.4]); "destroyed"/"milled"/"drawn"
-narrow by `cause` / read `Drawn` — the existing `EventFilter::ZoneChange{cause}`
-and `EventFilter::Drawn`, untouched.
+- "destroyed/milled this way" = the result zone-moves tagged with THIS `Act`
+  instance's atom (generalizes the existing "milled this way" Noting
+  product-groups; 1004 "this way" corpus hits vs ~1 standalone destroy≠dies
+  trigger). The `cause` on a result `ZoneChange` = the producing `Act`'s atom,
+  same bareword namespace [CR#701.8b,701.17c].
+- "when it dies" = any Battlefield→Graveyard (shape), unchanged [CR#700.4].
 
-## Blast radius
+### Surface — positional bareword atoms, no named params
 
-- `action.rs`: remove `Action::Destroy`, `PlayerAction::Draw`, `PlayerAction::Mill`.
-- `event.rs`: add `GameEvent::KeywordAction{name, patient}` (pre-intent) +
-  `EventFilter::KeywordAction{name, patient}`; remove `GameEvent::WillDestroy`.
-  `step.rs`: the `Composite` resolve emits `KeywordAction` then the body's result
-  events; keep the draw library-check/empty→loss logic as the Draw body's
-  behavior (its status as a top-level `WillDraw` folds under the Draw composite).
-- Macros (`deckmaste_cards/src/macros.rs`): add/point `destroy`/`draw`/`mill` at
-  `Composite` (mill/scry pattern already exists from macro-keyword-actions).
-- Parse⇄render⇄idris round-trip ([[parse-via-macros-design-settled]]): rewire
-  `parsers/effect.rs`, `render/effect.rs:648,975,1446-1488`, `idris_emit.rs:1510`
-  to the macro form; a new/changed grammar needs its RENDER arm
-  ([[canon-card-needs-renderer-for-fidelity]]).
-- `replace_registry.rs` / `sba.rs`: retarget indestructible + regen from
-  `WillDestroy` to `KeywordAction(Destroy)`; the lethal / deathtouch SBAs perform
-  the Destroy keyword action (emit `KeywordAction(Destroy)`,
-  `Agency::StateBasedAction`) instead of `WillDestroy`.
-- Regenerate wizards; run the cards suite once.
+Card-facing text is unchanged ("Destroy target creature", "Scry 2"). RON is
+positional bareword throughout: `Act(Destroy(Ref(This)))`, `Act(Scry(2))`,
+`Act(Mill(3))` — no `name:`/`on:` binders.
+
+## Blast radius (churn irrelevant — state scope)
+
+- **idris**: parameterize `KeywordActionSpec` (`Scry Nat | Destroy Reference |
+  Mill Nat | Draw Nat | …`); verify re-emit soundness — this is the gate's turf
+  ([[idris-probe-soundness-gate]]); if a verb genuinely resists parameterization,
+  report rather than force.
+- **core types**: one shared bare-ident newtype for the keyword-action-name
+  namespace (`Composite.name`, `Act`, `Cause.verb`, `KeywordDecl.name`); remove
+  `Action::Destroy`, `PlayerAction::Draw/Mill`, `GameEvent::WillDestroy`, the
+  `CauseVerb` enum + `as_str` + `pub use`.
+- **engine**: `Act` resolve/apply per-atom realization; retarget indestructible +
+  regen + lethal/deathtouch SBAs to `Act(Destroy(...))`; the ~8 `CauseVerb::*`
+  construction sites → the newtype.
+- **grammar**: parse⇄render⇄idris round-trip for the atoms
+  ([[parse-via-macros-design-settled]], RENDER arms required
+  [[canon-card-needs-renderer-for-fidelity]]) — `parsers/effect.rs`,
+  `render/effect.rs:648,975,1446-1488`, `idris_emit.rs:1510`.
+- re-encode existing `Composite(name: "…")` corpus to bareword-positional;
+  regenerate `plugins/wizards`; re-bless fidelity (render text unaffected).
 
 ## Non-goals
 
-- `Discard`/`WillDiscard` — shaped only, not built here (slots in as the next
-  macro once a fixture forces it, exactly as it's shaped today).
-- No card-authoring-surface change: `Destroy(Target(0))` / `Draw(...)` / `Mill(...)`
-  still read identically ([[authored-surface-ergonomics-rulings]] governs the
-  surface, not the engine enum).
-- Do NOT fold `ZoneWillChange` away — it stays the committed result event. The
-  new `KeywordAction` intent sits ABOVE it (the named-action moment), it does not
-  replace it. One named intent for ALL keyword actions, not a per-verb event.
+- `Discard`/`WillDiscard` — shaped only; next atom once a fixture forces it.
+- Do NOT fold `ZoneWillChange` away — it stays the committed result; `Act` sits
+  above it. One `Act` atom for ALL keyword actions, not a per-verb event.
 
 ## Verification
 
-TDD off existing coverage — behavior is identical, so these MUST stay green:
-`action.rs` destroy/draw/mill/indestructible (`:805,:863,:951,:972,:1013,:1096,
-:1122,:1186`); `sba.rs` lethal/deathtouch/indestructible/toughness-zero
-(`:579,:596,:1393,:1693,:1725,:1818,:1843,:1860`); `replace_registry.rs:337`.
-Add: a destroy and a scry proven to flow through the SAME `Composite` path; a
-`ZoneChange{cause: Destroy}` canted by indestructible while a toughness-0 move is
-not. `cargo xtask cite check` clean; `cite audit --diff` the touched CR cites.
-Cards suite once (new emit shape → wizards regen).
+TDD off existing coverage — behavior identical, MUST stay green: `action.rs`
+destroy/draw/mill/indestructible (`:805,:863,:951,:972,:1013,:1096,:1122,:1186`);
+`sba.rs` lethal/deathtouch/indestructible/toughness-zero (`:579,:596,:1393,:1693,
+:1725,:1818,:1843,:1860`); `replace_registry.rs:337`; the Stage-1 scry tests +
+`cant_act_suppresses_composite_body`. Add: a destroy and a scry through the SAME
+`Act` path; `Act(Destroy(_))` canted by indestructible while a toughness-0 move
+is not; `entailments.ron`-membership rejection of an unknown atom.
+`no_dead_grammar`, fidelity, keywords, builtin/canon load, idris re-emit,
+`cargo xtask cite check` all green; `cite audit --diff` the touched cites.
 
-Deps (all in `done/`): engine-replacements, engine-resolve-actions,
+Deps (all `done/`): engine-replacements, engine-resolve-actions,
 macro-keyword-actions, engine-cause-constructors, engine-trigger-events,
 migrate-damage-sbas-to-rules.
+
+## Progress
+
+- **Stage 1 (done, green — 529+213):** collapsed `KeywordActionPerformed`→ one
+  present-tense `GameEvent::Act`; added `EventFilter::Act`; `Composite` resolve
+  emits it with the schedule-time cant gate; post-completion ordering
+  ([CR#701.22d]) preserved.
+- **Stage 2 (next):** the parameterized bareword atom + `CauseVerb` retirement +
+  the full Destroy migration (macro→atom, remove `Action::Destroy`/`WillDestroy`,
+  retarget indestructible/regen/SBAs, round-trip).
+- **Stages 3–5:** Mill, Draw, then corpus re-encode + wizards regen + suites.

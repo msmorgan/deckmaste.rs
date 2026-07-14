@@ -211,14 +211,14 @@ modifyPT op = [Alter Power op, Alter Toughness (ptTwin op)]
 -- so a simultaneous `Each` over the top-n needs no `Arrangement`.
 public export
 mill : Count b -> OneShotEffect b
-mill n = Act (Composite Mill (Each (Existing (TopOfLibrary n)) (Act (Move It (ToZone Graveyard)))))
+mill n = Act (Composite (Mill You n) (Each (Existing (TopOfLibrary n)) (Act (Move It (ToZone Graveyard)))))
 
 -- scry n ([CR#701.22a]): look at the top n, then put each on top or on the bottom; the within-group
 -- order is the [CR#401.4] "any order" freebie (simultaneous `Each`). The per-card top/bottom pick is a
 -- 1-of-2 `Modal`.
 public export
 scry : Count b -> OneShotEffect b
-scry n = Act (Composite Scry
+scry n = Act (Composite (Scry You n)
   (Each (Existing (TopOfLibrary n))
     (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
       [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
@@ -227,7 +227,7 @@ scry n = Act (Composite Scry
 -- surveil n ([CR#701.25a]): scry's shape, but the spill zone is the graveyard, not the library bottom.
 public export
 surveil : Count b -> OneShotEffect b
-surveil n = Act (Composite Surveil
+surveil n = Act (Composite (Surveil You n)
   (Each (Existing (TopOfLibrary n))
     (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
       [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))

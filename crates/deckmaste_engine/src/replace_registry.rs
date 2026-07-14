@@ -47,6 +47,9 @@ pub(crate) fn replaceable(e: &GameEvent) -> bool {
         e,
         GameEvent::WillDestroy { .. }
             | GameEvent::WillDraw { .. }
+            // [CR#701,614.17]: the named keyword-action event is guardable
+            // (a `Cant(Act(…))` suppresses it) and replaceable ([CR#614]).
+            | GameEvent::Act { .. }
             | GameEvent::ZoneWillChange { .. }
             | GameEvent::DamageDealt { .. }
             | GameEvent::LifeGained { .. }
@@ -933,7 +936,7 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::CauseVerb::Destroy),
+                verb: Some(deckmaste_core::VerbName::from("Destroy")),
                 agency: None,
                 agent: None,
             })),
@@ -955,7 +958,7 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::CauseVerb::Destroy),
+                verb: Some(deckmaste_core::VerbName::from("Destroy")),
                 agency: None,
                 agent: None,
             })),
@@ -1196,7 +1199,7 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::CauseVerb::Destroy),
+                verb: Some(deckmaste_core::VerbName::from("Destroy")),
                 agency: None,
                 agent: None,
             })),
@@ -1301,7 +1304,7 @@ mod tests {
             from: None,
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::CauseVerb::Sacrifice),
+                verb: Some(deckmaste_core::VerbName::from("Sacrifice")),
                 agency: None,
                 agent: None,
             })),

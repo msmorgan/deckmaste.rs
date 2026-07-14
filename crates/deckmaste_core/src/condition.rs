@@ -210,7 +210,7 @@ mod tests {
     fn happened_reads() {
         use crate::Cause;
         use crate::CausePattern;
-        use crate::CauseVerb;
+        use crate::VerbName;
         use crate::Zone;
 
         assert_eq!(
@@ -223,7 +223,7 @@ mod tests {
                     from: Some(Zone::Battlefield),
                     to: Some(Zone::Graveyard),
                     cause: Some(Cause::Cause(CausePattern {
-                        verb: Some(CauseVerb::Sacrifice),
+                        verb: Some(VerbName::from("Sacrifice")),
                         agency: None,
                         agent: None,
                     })),

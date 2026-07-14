@@ -176,6 +176,30 @@ pub enum GameEvent {
     },
     DrewFromEmpty(PlayerId),
 
+    /// A NAMED keyword action ([CR#701]) — the ONE present-tense event that
+    /// serves both roles: the guardable/replaceable moment AND the "it
+    /// happened" fact. `verb` is the printed keyword name-atom
+    /// (`Scry`/`Destroy`/…, the retired-`CauseVerb` [`VerbName`] namespace);
+    /// `who` is the RESOLVED performing player for the player-report verbs
+    /// (scry/surveil/fateseal/mill/draw) — the actor "whenever an opponent
+    /// draws" reads; `on` is the RESOLVED patient object for the object verbs
+    /// (destroy/fight). At most one of `who`/`on` is set for today's atoms.
+    /// Matched by [`EventFilter::Act`](deckmaste_core::EventFilter::Act)'s
+    /// [`KeywordActionPattern`](deckmaste_core::KeywordActionPattern) on BOTH
+    /// lanes: a `Cant(Act(…))` static ([CR#702.12b]) suppresses the whole
+    /// action so its body never runs ([CR#701.22b]), while a surviving `Act` in
+    /// the log is the "whenever you scry/surveil/…" trigger fact
+    /// ([CR#701.22d]) — no separate post-fact. RESULT-side
+    /// "destroyed"/"milled"/"drawn" triggers still key on the body's
+    /// `ZoneChanged`/`Drawn` fact ([CR#700.4]). Stage 1/2 emit this only from
+    /// the `Action::Composite` resolve (scry/surveil/fateseal); the Destroy
+    /// stage makes destroy emit it and retires `WillDestroy`.
+    Act {
+        verb: deckmaste_core::VerbName,
+        who: Option<PlayerId>,
+        on: Option<ObjectId>,
+    },
+
     Tapped {
         object: ObjectId,
         /// Tap causes are trigger-visible language ([CR#107.5] cost vs
@@ -408,18 +432,6 @@ pub enum GameEvent {
     Revealed {
         objects: Vec<ObjectId>,
         to: Option<Vec<PlayerId>>,
-    },
-    /// A named keyword action ([CR#701]) completed — the trigger hook for
-    /// "whenever you scry/surveil/…". `name` is the printed keyword
-    /// ("Scry"/"Surveil"/"Fateseal"/"Mill"/…), carried like
-    /// `KeywordAbility::Composite { name, .. }` so triggers match on the name
-    /// via `as_str()`; the engine never special-cases the keyword. Emitted by
-    /// resolving an [`Action::Composite`](deckmaste_core::Action::Composite)
-    /// AFTER its body acts — never for a body that did nothing (scry 0,
-    /// [CR#701.22b]). A pure fact (no state delta).
-    KeywordActionPerformed {
-        player: PlayerId,
-        name: deckmaste_core::Ident,
     },
     /// A GAME-scope designation transition in the W5 registry (day/night,
     /// [CR#731.1] — "day becomes night" = losing one designation and

@@ -161,7 +161,6 @@ impl PredefinedToken {
     #[must_use]
     pub fn token(self) -> Token {
         use crate::CausePattern;
-        use crate::CauseVerb;
         use crate::ColorOrColorless;
         use crate::Count;
         use crate::EventFilter;
@@ -226,7 +225,7 @@ impl PredefinedToken {
                         from: Some(Zone::Battlefield),
                         to: Some(Zone::Graveyard),
                         cause: Some(Cause::Cause(CausePattern {
-                            verb: Some(CauseVerb::Destroy),
+                            verb: Some(crate::VerbName::from("Destroy")),
                             agency: None,
                             agent: None,
                         })),

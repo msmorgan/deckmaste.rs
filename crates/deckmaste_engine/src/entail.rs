@@ -1,6 +1,6 @@
 //! The emitted cause-verb ENTAILMENT table ([CR#701] keyword actions),
 //! computed from the Idris model (`EmitTables.idr`): each closed
-//! [`deckmaste_core::CauseVerb`]'s fact form — its master-form kind and the
+//! [`deckmaste_core::VerbName`]'s fact form — its master-form kind and the
 //! zone coordinates it fixes. `Sacrifice` entails a Battlefield→Graveyard
 //! `ZoneChange` [CR#701.21a], so "dies" matches a sacrifice STRUCTURALLY
 //! and the engine carries no per-verb matching arm; the verb-view forms
@@ -42,7 +42,7 @@ struct EntailmentFile {
 }
 
 /// The verb's entailment row, if the closed vocabulary carries one — the
-/// emitter covers every [`deckmaste_core::CauseVerb`], so a miss means the
+/// emitter covers every [`deckmaste_core::VerbName`], so a miss means the
 /// verb is outside the closed set.
 pub(crate) fn entailment(verb: &str) -> Option<&'static EntailmentRow> {
     static TABLE: LazyLock<HashMap<String, EntailmentRow>> = LazyLock::new(|| {

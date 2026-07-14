@@ -31,24 +31,59 @@ impl GameState {
     )]
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
-            // [CR#701]: a named keyword action — run `body`, then emit the
-            // keyword-action fact a "whenever you scry/surveil" trigger reads,
-            // gated on the body ACTUALLY acting (scry 0 does nothing and emits
-            // no event, [CR#701.22b]). The body's own items are scheduled ahead
-            // of the fact by `schedule_front`, so the fact lands after the whole
-            // keyword action completes (including any post-pick arrangement).
-            Action::Composite { name, body } => {
-                let mut items = vec![WorkItem::RunEffect {
-                    effect: body.clone(),
-                    frame: frame.clone(),
-                }];
-                if self.composite_body_acts(body, frame) {
-                    items.push(WorkItem::Emit(Occurrence::single(
-                        GameEvent::KeywordActionPerformed {
-                            player: frame.controller,
-                            name: *name,
-                        },
-                    )));
+            // [CR#701]: a named keyword action rides ONE present-tense `Act`
+            // event that is BOTH the guardable/replaceable moment and the
+            // "whenever you scry/surveil" trigger fact — no separate pre/post
+            // pair. It is gated on the body ACTUALLY acting (scry 0 does nothing
+            // → no `Act`, no trigger, [CR#701.22b]) and lands AFTER the body so
+            // the trigger fires once the keyword action completes, including any
+            // post-pick arrangement ([CR#701.22d]): the body's own items are
+            // scheduled ahead of the `Act` emit by `schedule_front`. The guard
+            // role does NOT need the event logged first — the cant CHECK below
+            // runs at schedule time, deciding whether the body runs at all,
+            // decoupled from where the surviving fact lands in the log.
+            Action::Composite(atom, body) => {
+                // Decompose the keyword-action atom into the present-tense `Act`
+                // event's resolved coordinates: `who` (the performing player,
+                // for the player-report verbs) rides the `actor` slot; `on` (the
+                // patient object, for the object verbs) rides `object`. DESIGN
+                // NOTE: these are RESOLVED ids, not symbolic `Reference`s — the
+                // guard's `FactView` has no frame to resolve against.
+                use deckmaste_core::KeywordAction as Ka;
+                let (verb, who, on): (&str, Option<_>, Option<ObjectId>) = match atom {
+                    Ka::Scry(who, _) => ("Scry", self.eval_player_ref(who, frame), None),
+                    Ka::Surveil(who, _) => ("Surveil", self.eval_player_ref(who, frame), None),
+                    Ka::Fateseal(who, _) => ("Fateseal", self.eval_player_ref(who, frame), None),
+                    Ka::Mill(who, _) => ("Mill", self.eval_player_ref(who, frame), None),
+                    Ka::Draw(who, _) => ("Draw", self.eval_player_ref(who, frame), None),
+                    Ka::Destroy(what) => ("Destroy", None, Some(self.eval_reference(what, frame))),
+                    // Fight's first fighter rides `object` for existence + the
+                    // `Fight(a, _)` narrow; the second is the body's business.
+                    Ka::Fight(a, _) => ("Fight", None, Some(self.eval_reference(a, frame))),
+                };
+                let act = GameEvent::Act {
+                    verb: deckmaste_core::VerbName::from(verb),
+                    who,
+                    on,
+                };
+                // [CR#701.22b,614.17]: a `Cant(Act(name, on))` static suppresses
+                // the whole keyword action — the body must never run. Stage 1
+                // gates the body on the cant pass here at schedule time; the
+                // surviving `Act` emit still flows through the shared
+                // occurrence/apply cant+replacement path. (Stage 2+ folds
+                // replacement suppression into this gate.)
+                let suppressed = crate::replace_registry::cant_event(self, &act);
+                let mut items = Vec::new();
+                if !suppressed {
+                    items.push(WorkItem::RunEffect {
+                        effect: body.clone(),
+                        frame: frame.clone(),
+                    });
+                    // [CR#701.22b]: a body that does nothing performs no keyword
+                    // action, so no `Act` (and no trigger) — the scry-0 rule.
+                    if self.composite_body_acts(body, frame) {
+                        items.push(WorkItem::Emit(Occurrence::single(act)));
+                    }
                 }
                 items
             }
@@ -2355,9 +2390,9 @@ mod tests {
             )),
             cost: None,
         };
-        OneShotEffect::Act(Action::Composite {
-            name: "Scry".into(),
-            body: Box::new(OneShotEffect::Each(deckmaste_core::Each {
+        OneShotEffect::Act(Action::Composite(
+            deckmaste_core::KeywordAction::Scry(Reference::You, Count::Literal(n)),
+            Box::new(OneShotEffect::Each(deckmaste_core::Each {
                 binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(n),
                     whose: Reference::You,
@@ -2379,7 +2414,7 @@ mod tests {
                     ],
                 })),
             })),
-        })
+        ))
     }
 
     /// Step until a decision surfaces (or `n` steps elapse), returning the
@@ -2444,14 +2479,14 @@ mod tests {
         assert!(
             events.iter().any(|e| matches!(
                 e,
-                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+                GameEvent::Act { verb, .. } if verb.as_str() == "Scry"
             )),
             "scry-1 fires the keyword-action event"
         );
     }
 
     /// [CR#701.22b]: scry 0 does nothing and fires NO keyword event; scry N>0
-    /// fires exactly one `KeywordActionPerformed`.
+    /// fires exactly one `Act`.
     #[test]
     fn scry_zero_fires_no_event_but_nonzero_does() {
         let p0 = PlayerId(0);
@@ -2464,9 +2499,7 @@ mod tests {
         state.run_effect(scry_effect(0), &frame);
         let events = drain_events(&mut state, 60);
         assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, GameEvent::KeywordActionPerformed { .. })),
+            !events.iter().any(|e| matches!(e, GameEvent::Act { .. })),
             "scry 0 emits no keyword event ([CR#701.22b])"
         );
 
@@ -2484,7 +2517,7 @@ mod tests {
             .filter(|e| {
                 matches!(
                     e,
-                    GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+                    GameEvent::Act { verb, .. } if verb.as_str() == "Scry"
                 )
             })
             .count();
@@ -2543,9 +2576,75 @@ mod tests {
         assert!(
             events.iter().any(|e| matches!(
                 e,
-                GameEvent::KeywordActionPerformed { name, .. } if name.as_str() == "Scry"
+                GameEvent::Act { verb, .. } if verb.as_str() == "Scry"
             )),
             "the keyword event still fires"
+        );
+    }
+
+    /// [CR#701.22b,614.17]: a `Cant(Act(name: "Scry"))` static on the
+    /// battlefield suppresses the scry `Action::Composite`'s `Act` event, so
+    /// its body never runs — no per-card decision surfaces, no `Act` fact
+    /// fires, and the library is untouched. Absent the static, the same scry
+    /// runs normally. Proves the keyword-action event flows through the guard
+    /// (cant) pass, modelled on `replace_registry`'s
+    /// indestructible/cant-happen patterns.
+    #[test]
+    fn cant_act_suppresses_composite_body() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::StaticEffect;
+
+        let p0 = PlayerId(0);
+
+        // ABSENT the cant: scry-1 runs, surfacing the per-card top/bottom pick.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60);
+        assert!(
+            matches!(state.pending, Some(PendingDecision::ChooseModes { .. })),
+            "without the cant, scry runs and surfaces its pick, got {:?}",
+            state.pending
+        );
+
+        // WITH a `Cant(Act(Scry(Any)))` static on the battlefield: the
+        // Act event is suppressed, so the body never runs.
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Scry Warden".into(),
+                types: vec![Type::Creature.def()],
+                abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
+                    deckmaste_core::KeywordActionPattern::Scry(Predicate::Any),
+                )))],
+                ..CardFace::default()
+            }),
+        );
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !matches!(state.pending, Some(PendingDecision::ChooseModes { .. })),
+            "the canted Act suppresses the scry body — its per-card pick never surfaces, got {:?}",
+            state.pending
+        );
+        assert!(
+            !events.iter().any(|e| matches!(e, GameEvent::Act { .. })),
+            "a suppressed composite fires no keyword-action fact"
+        );
+        assert_eq!(
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![a, b],
+            "the library is untouched — the scry body never ran"
         );
     }
 

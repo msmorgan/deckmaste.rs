@@ -1566,17 +1566,23 @@ fn emit_action(a: &Action) -> R {
         Action::CreateReplacement { .. } => {
             return Err(gap("Action::CreateReplacement has no Idris counterpart"));
         }
-        // `Composite name body` ([CR#701]): the named keyword action —
-        // `Composite Scry (Each …)` etc. The `KeywordActionSpec` is one of
-        // the committed Idris constructors (`Scry | Surveil | Mill | Fight`);
-        // any other keyword (e.g. Fateseal — no Idris spec yet) is a gap.
-        Action::Composite { name, body } => {
-            let spec = match name.as_str() {
-                "Scry" | "Surveil" | "Mill" | "Fight" => name.as_str().to_string(),
-                other => {
-                    return Err(gap(format!(
-                        "Composite keyword action {other:?} has no Idris KeywordActionSpec"
-                    )));
+        // `Composite <atom> body` ([CR#701]): the named keyword action —
+        // `Composite (Scry You 2) (Each …)` etc. The atom is a parameterized
+        // `KeywordActionSpec` constructor (`Scry who n | … | Destroy r |
+        // Fight a b`); `Fateseal` has no Idris spec yet, so it is a gap.
+        Action::Composite(atom, body) => {
+            use deckmaste_core::KeywordAction as Ka;
+            let spec = match atom {
+                Ka::Scry(who, n) => app("Scry", vec![emit_reference(who)?, emit_count(n)?]),
+                Ka::Surveil(who, n) => app("Surveil", vec![emit_reference(who)?, emit_count(n)?]),
+                Ka::Mill(who, n) => app("Mill", vec![emit_reference(who)?, emit_count(n)?]),
+                Ka::Draw(who, n) => app("Draw", vec![emit_reference(who)?, emit_count(n)?]),
+                Ka::Destroy(r) => app("Destroy", vec![emit_reference(r)?]),
+                Ka::Fight(a, b) => app("Fight", vec![emit_reference(a)?, emit_reference(b)?]),
+                Ka::Fateseal(..) => {
+                    return Err(gap(
+                        "Composite keyword action Fateseal has no Idris KeywordActionSpec",
+                    ));
                 }
             };
             app("Composite", vec![spec, emit_effect(body)?])
@@ -2556,6 +2562,14 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         EventFilter::Drawn { who, amount } => {
             reject_amount(amount)?;
             (vec!["Draw".to_string()], actor_facet(who)?)
+        }
+        // [CR#701]: the named keyword-action intent filter. Stage 1 plumbing
+        // only — its Idris `EventKind` mapping lands with the destroy/draw/mill
+        // migration (engine-keyword-action-intent Stage 2+).
+        EventFilter::Act { .. } => {
+            return Err(gap(
+                "EventFilter::Act has no Idris EventKind counterpart yet ([CR#701]) — engine-keyword-action-intent Stage 2+",
+            ));
         }
         EventFilter::CounterPlaced { kind, on, amount } => {
             reject_amount(amount)?;

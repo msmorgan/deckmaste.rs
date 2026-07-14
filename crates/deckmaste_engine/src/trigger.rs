@@ -2018,7 +2018,7 @@ mod tests {
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: Some(Cause::Cause(CausePattern {
-                    verb: Some(deckmaste_core::CauseVerb::Destroy),
+                    verb: Some(deckmaste_core::VerbName::from("Destroy")),
                     agency: None,
                     agent: None,
                 })),
@@ -2225,7 +2225,7 @@ mod tests {
         };
         let pattern = EventFilter::ZoneChange {
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::CauseVerb::Destroy),
+                verb: Some(deckmaste_core::VerbName::from("Destroy")),
                 agency: None,
                 agent: Some(Predicate::Characteristic(CharacteristicPredicate::Type(
                     Type::Creature.name(),
@@ -2767,7 +2767,7 @@ mod tests {
             from: None,
             to: None,
             cause: Some(deckmaste_core::Cause::Cause(deckmaste_core::CausePattern {
-                verb: Some(deckmaste_core::CauseVerb::Sacrifice),
+                verb: Some(deckmaste_core::VerbName::from("Sacrifice")),
                 agency: None,
                 agent: None,
             })),

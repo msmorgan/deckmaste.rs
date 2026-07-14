@@ -182,6 +182,9 @@ pub(crate) enum FactKind {
     Used,
     CoinFlipped,
     DiceRolled,
+    /// A named keyword action ([CR#701]) — the `GameEvent::Act` event
+    /// that [`EventFilter::Act`](deckmaste_core::EventFilter::Act) watches.
+    Act,
 }
 
 /// THE one fact record ([CR#603.2]): `{kind, object, patient, actor, source,
@@ -223,6 +226,9 @@ pub(crate) struct FactView<'a> {
     /// A designation record's `(name, becomes)` ([CR#109.3,731.1a]) —
     /// `becomes` only for game-scope transitions (day/night).
     pub designation: Option<(Cow<'a, Ident>, Option<Cow<'a, Ident>>)>,
+    /// The printed keyword-action name of an `Act` fact ([CR#701]) —
+    /// what [`EventFilter::Act`](deckmaste_core::EventFilter::Act) matches by.
+    pub act_name: Option<Cow<'a, Ident>>,
     /// The turn the fact occurred in ([CR#608.2i] windows; the current turn
     /// for a live fact).
     pub time: Uint,
@@ -251,6 +257,7 @@ impl<'a> FactView<'a> {
             won: None,
             step: None,
             designation: None,
+            act_name: None,
             time: state.turn.turn_number,
             seq: None,
         }
@@ -327,6 +334,18 @@ impl<'a> FactView<'a> {
             GameEvent::WillDraw { player, .. } => {
                 v = FactView::bare(FactKind::Drawn, state);
                 v.actor = Some(*player);
+            }
+            // [CR#701]: the named keyword-action event — guard/replace moment
+            // AND trigger fact in one. `verb` is the matched keyword name;
+            // `on` (object verbs) is the resolved patient, riding the `object`
+            // slot so `Act(Destroy(pred))` narrows it; `who` (player-report
+            // verbs) is the performing player, riding the `actor` slot so
+            // `Act(Scry(pred))` narrows it.
+            GameEvent::Act { verb, who, on } => {
+                v = FactView::bare(FactKind::Act, state);
+                v.act_name = Some(Cow::Borrowed(&verb.0));
+                v.object = on.as_ref().map(|o| part(*o));
+                v.actor = *who;
             }
             // [CR#120.3]: damage — source object, kind-poly recipient.
             GameEvent::DamageDealt {
@@ -515,7 +534,6 @@ impl<'a> FactView<'a> {
             | GameEvent::ManaAdded { .. }
             | GameEvent::ManaEmptied { .. }
             | GameEvent::Revealed { .. }
-            | GameEvent::KeywordActionPerformed { .. }
             | GameEvent::Shuffled(_)
             | GameEvent::Unattached { .. }
             | GameEvent::DamageRemoved { .. } => return None,
@@ -548,6 +566,7 @@ impl<'a> FactView<'a> {
                     b.map(|b| Cow::Owned(b.into_owned())),
                 )
             }),
+            act_name: self.act_name.map(|n| Cow::Owned(n.into_owned())),
             time: self.time,
             seq: self.seq,
         }
@@ -691,6 +710,45 @@ impl GameState {
                 fact.kind == FactKind::Drawn
                     && (amount.is_none() || fact.amount.is_some())
                     && self.actor_matches(who, fact.actor, bindings)
+            }
+
+            // [CR#701]: the named keyword-action pre-intent — matched by the
+            // `KeywordActionPattern` atom, decomposed per-verb. The verb TAG
+            // fixes the name; the atom's `Predicate` arg narrows the fact's
+            // performer (`actor`, for the player-report verbs) or patient
+            // (`object`, for the object verbs). Count is not carried — a
+            // keyword-action trigger matches any amount. Indestructible /
+            // regeneration and `Cant(Act(…))` bite here.
+            EventFilter::Act(pattern) => {
+                use deckmaste_core::KeywordActionPattern as Kap;
+                let named = |n: &str| fact.act_name.as_deref().map(Ident::as_str) == Some(n);
+                fact.kind == FactKind::Act
+                    && match pattern {
+                        Kap::Scry(who) => {
+                            named("Scry") && self.actor_matches(who, fact.actor, bindings)
+                        }
+                        Kap::Surveil(who) => {
+                            named("Surveil") && self.actor_matches(who, fact.actor, bindings)
+                        }
+                        Kap::Fateseal(who) => {
+                            named("Fateseal") && self.actor_matches(who, fact.actor, bindings)
+                        }
+                        Kap::Mill(who) => {
+                            named("Mill") && self.actor_matches(who, fact.actor, bindings)
+                        }
+                        Kap::Draw(who) => {
+                            named("Draw") && self.actor_matches(who, fact.actor, bindings)
+                        }
+                        Kap::Destroy(patient) => {
+                            named("Destroy")
+                                && self.part_matches(patient, fact.object.as_ref(), bindings)
+                        }
+                        Kap::Fight(a, b) => {
+                            named("Fight")
+                                && self.part_matches(a, fact.object.as_ref(), bindings)
+                                && self.part_matches(b, fact.patient.as_ref(), bindings)
+                        }
+                    }
             }
 
             // [CR#122.1]: an omitted pattern `kind` watches any counter kind.

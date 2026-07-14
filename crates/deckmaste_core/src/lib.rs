@@ -16,6 +16,7 @@ pub use action::Anchor;
 pub use action::Arrangement;
 pub use action::Destination;
 pub use action::EnterRider;
+pub use action::KeywordAction;
 pub use action::PlayerAction;
 
 mod binder;
@@ -131,13 +132,14 @@ pub use event::Agency;
 pub use event::BeginningStep;
 pub use event::Cause;
 pub use event::CausePattern;
-pub use event::CauseVerb;
 pub use event::CombatStep;
 pub use event::EndingStep;
 pub use event::EventFilter;
+pub use event::KeywordActionPattern;
 pub use event::PhaseKind;
 pub use event::PhaseStep;
 pub use event::StateChange;
+pub use event::VerbName;
 pub use event::WhoseTurn;
 
 mod filter;

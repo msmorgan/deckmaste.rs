@@ -204,7 +204,6 @@ fn blood_token_parses() {
 fn vibranium_token_parses() {
     use deckmaste_core::Cause;
     use deckmaste_core::CausePattern;
-    use deckmaste_core::CauseVerb;
     use deckmaste_core::ColorOrColorless;
     use deckmaste_core::EventFilter;
     use deckmaste_core::KeywordAbility;
@@ -213,6 +212,7 @@ fn vibranium_token_parses() {
     use deckmaste_core::ObjectKind;
     use deckmaste_core::Predicate;
     use deckmaste_core::StaticEffect;
+    use deckmaste_core::VerbName;
     use deckmaste_core::Zone;
 
     // Indestructible expands from the `Keyword(Indestructible)` macro — a
@@ -230,7 +230,7 @@ fn vibranium_token_parses() {
                     from: Some(Zone::Battlefield),
                     to: Some(Zone::Graveyard),
                     cause: Some(Cause::Cause(CausePattern {
-                        verb: Some(CauseVerb::Destroy),
+                        verb: Some(VerbName::from("Destroy")),
                         agency: None,
                         agent: None,
                     })),

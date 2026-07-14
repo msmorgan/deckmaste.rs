@@ -144,69 +144,89 @@ pub enum Agency {
     SpecialAction,
 }
 
-/// The named cause VERBS a pattern may narrow by — the closed grammar
-/// vocabulary behind "sacrificed"/"destroyed"/"discarded" views. Each verb's
-/// fact form is one CR-cited row of the emitted entailment table
+/// A cause VERB NAME — a bareword name-atom drawn from the closed grammar
+/// vocabulary behind "sacrificed"/"destroyed"/"discarded" views (and the
+/// present-tense `Act`'s verb tag). Each verb's fact form is one CR-cited row
+/// of the emitted entailment table
 /// (`crates/deckmaste_cards/tables/entailments.ron`): `Sacrifice` entails
 /// `ZoneChange { from: Battlefield, to: Graveyard }` [CR#701.21a], `Mill`
 /// entails `ZoneChange { from: Library, to: Graveyard }` [CR#701.17a] — so
-/// `Dies` matches a sacrifice structurally, and a cause-narrowed pattern
-/// admits exactly its verb's occurrences. Grows only through the closed-verb
-/// admission test.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum CauseVerb {
-    /// [CR#701.21a] — never a destruction (regeneration can't replace it).
-    Sacrifice,
-    /// [CR#701.8a]; one of "destroyed"'s exactly two causes ([CR#701.8b]).
-    Destroy,
-    /// [CR#701.9a].
-    Discard,
-    /// [CR#701.13a].
-    Exile,
-    /// [CR#701.17a].
-    Mill,
-    /// [CR#701.18a] — the land-drop cause (an effect putting a land onto
-    /// the battlefield is NOT a play).
-    Play,
-    /// [CR#701.14a] — fight damage is noncombat damage ([CR#701.14d]).
-    Fight,
-    /// [CR#701.44a].
-    Explore,
-    /// [CR#701.19a] — the visible fact of an applied regeneration shield
-    /// is the tap.
-    Regenerate,
+/// `Dies` matches a sacrifice structurally, and a cause-narrowed pattern admits
+/// exactly its verb's occurrences.
+///
+/// An [`Ident`]-backed newtype (the retired `CauseVerb` closed enum, folded
+/// into the one keyword-action/cause NAME namespace) authored BAREWORD, exactly
+/// like [`CostTag`](crate::CostTag)/[`KeywordRef`](crate::KeywordRef) — a use
+/// reads `Cause(verb: Destroy)`, never `verb: "Destroy"`. Typo-safety is no
+/// longer the type's job (any bareword parses) but the GATE's: the
+/// `entailments.ron`-membership check rejects a verb outside the closed vocab
+/// (`no_dead_grammar`'s `cause_verbs_are_entailment_rows`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct VerbName(pub Ident);
+
+impl VerbName {
+    /// The canonical fact-side spelling — the engine's cause triples and `Act`
+    /// verb tags store this string; a pattern verb matches a fact verb by it.
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        self.0.as_str()
+    }
 }
 
-impl CauseVerb {
-    /// The canonical fact-side spelling — the engine's cause triples store
-    /// verbs as `Ident`s (`crate::event::Cause` constructors on the engine
-    /// side); a pattern verb matches a fact verb by this string.
-    #[must_use]
-    pub fn as_str(self) -> &'static str {
-        match self {
-            CauseVerb::Sacrifice => "Sacrifice",
-            CauseVerb::Destroy => "Destroy",
-            CauseVerb::Discard => "Discard",
-            CauseVerb::Exile => "Exile",
-            CauseVerb::Mill => "Mill",
-            CauseVerb::Play => "Play",
-            CauseVerb::Fight => "Fight",
-            CauseVerb::Explore => "Explore",
-            CauseVerb::Regenerate => "Regenerate",
+impl From<&str> for VerbName {
+    fn from(s: &str) -> Self {
+        VerbName(s.into())
+    }
+}
+
+impl crate::Expand for VerbName {
+    // A leaf: a name, never an expandable value.
+    fn expand_all(self) -> Self {
+        self
+    }
+}
+
+impl Serialize for VerbName {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // A unit variant writes as a bare identifier in RON.
+        serializer.serialize_unit_variant("VerbName", 0, self.0.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for VerbName {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // A bare identifier is a unit enum variant in the serde data model —
+        // the same channel `CostTag`/`KeywordRef` read through.
+        struct NameVisitor;
+        impl<'de> serde::de::Visitor<'de> for NameVisitor {
+            type Value = VerbName;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a cause/act verb name (bare identifier)")
+            }
+            fn visit_enum<A: serde::de::EnumAccess<'de>>(
+                self,
+                data: A,
+            ) -> Result<Self::Value, A::Error> {
+                use serde::de::VariantAccess;
+                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                variant.unit_variant()?;
+                Ok(VerbName(ident))
+            }
         }
+        deserializer.deserialize_enum("", &[], NameVisitor)
     }
 }
 
 /// A trigger-side predicate over an event's cause triple (verb, agency,
 /// agent). Every omitted coordinate matches anything. `verb` names the
-/// entailed view ([`CauseVerb`] — "Destroy", "Sacrifice", …); `agent`
+/// entailed view ([`VerbName`] — `Destroy`, `Sacrifice`, …); `agent`
 /// filters the causing object/controller (Karmic Justice's "a spell or
 /// ability an opponent controls"). Agent-IDENTITY equality ("destroyed this
 /// way") is a binding concern, not a pattern — it rides the event log.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct CausePattern {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub verb: Option<CauseVerb>,
+    pub verb: Option<VerbName>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agency: Option<Agency>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -225,6 +245,36 @@ pub struct CausePattern {
 pub enum Cause {
     /// Every PRESENT coordinate must match (the conjunction).
     Cause(CausePattern),
+}
+
+/// The trigger/guard PATTERN twin of [`KeywordAction`](crate::KeywordAction) —
+/// what [`EventFilter::Act`] matches a performed keyword action by. Same
+/// closed, bareword-positional atom family, but its arguments are
+/// [`Predicate`]s (not [`Reference`]s), exactly the
+/// [`Action`](crate::Action)-vs-`EventFilter` split: `Act(Destroy(Ref(This)))`
+/// (this permanent only), `Act(Destroy(Any))` (any destroy), `Act(Scry(You))`
+/// ("whenever you scry"), `Act(Draw( OpponentOf(Ref(You))))` ("whenever an
+/// opponent draws"). The performer predicate rides the same player-first slot
+/// as the value atom's `who`; the COUNT is not carried — a keyword-action
+/// trigger never narrows by amount, so the pattern matches any count. The
+/// engine decomposes this per-verb against the fact view (verb tag ⇒ kind,
+/// object/performer `Predicate` ⇒ `object`/`actor`).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum KeywordActionPattern {
+    /// "whenever `who` scries" ([CR#701.22a]).
+    Scry(Predicate),
+    /// "whenever `who` surveils" ([CR#701.25a]).
+    Surveil(Predicate),
+    /// "whenever `who` fateseals" ([CR#701.20a]).
+    Fateseal(Predicate),
+    /// "whenever `who` mills" ([CR#701.17a]).
+    Mill(Predicate),
+    /// "whenever `who` draws" ([CR#121.1]).
+    Draw(Predicate),
+    /// "[patient] is destroyed / can't be destroyed" ([CR#701.8a,702.12b]).
+    Destroy(Predicate),
+    /// "whenever [a] fights [b]" ([CR#701.14a]).
+    Fight(Predicate, Predicate),
 }
 
 /// The unified event-query language ([CR#603.2] and kin): master-form
@@ -259,7 +309,7 @@ pub enum EventFilter {
     /// to: Graveyard` is a prelude macro over this. `cause` narrows by the
     /// cause triple ("destroyed" admits exactly two causes, [CR#701.8b];
     /// "sacrificed" is never destruction, [CR#701.21a]); omitted = any
-    /// cause ("dies", [CR#700.4]). Each [`CauseVerb`]'s entailed fact form
+    /// cause ("dies", [CR#700.4]). Each [`VerbName`]'s entailed fact form
     /// is an emitted entailment-table row.
     ZoneChange {
         #[serde(default = "Predicate::any")]
@@ -310,6 +360,16 @@ pub enum EventFilter {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         amount: Option<CountBound>,
     },
+    /// A NAMED keyword action ([CR#701]) — the ONE present-tense event
+    /// (`GameEvent::Act`) that is both the guardable/replaceable moment and the
+    /// "whenever you scry/surveil/…" trigger fact. Matched by the
+    /// [`KeywordActionPattern`] atom (bareword-positional, args are
+    /// [`Predicate`]s): indestructible reads `Act(Destroy(Ref(This)))`
+    /// ([CR#702.12b]); a `Cant(Act(…))` static suppresses the whole action so
+    /// its body never runs ([CR#701.22b]); "whenever you scry" is `Act(Scry(
+    /// You))`. Distinct from the RESULT-side `ZoneChange`/`Drawn` filters
+    /// "destroyed"/"drawn" triggers key on ([CR#700.4]).
+    Act(KeywordActionPattern),
     /// Counters were placed on an object or player ([CR#122.1]). An omitted
     /// `kind` watches any counter kind.
     CounterPlaced {
@@ -574,8 +634,8 @@ mod tests {
     /// The cause position is an enum (single variant today) so the name
     /// is structural: it always reads `Cause(verb: …)` — a bare
     /// `(verb: …)` tuple does not parse (user ruling), and boolean
-    /// variants can accrete without respelling files. The verb is the
-    /// closed [`CauseVerb`] vocabulary, spelled bare.
+    /// variants can accrete without respelling files. The verb is a
+    /// [`VerbName`] name-atom, spelled bare.
     #[test]
     fn zone_change_cause_named_and_never_bare() {
         assert_eq!(
@@ -589,7 +649,7 @@ mod tests {
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: Some(Cause::Cause(CausePattern {
-                    verb: Some(CauseVerb::Destroy),
+                    verb: Some(VerbName::from("Destroy")),
                     agency: None,
                     agent: None,
                 })),

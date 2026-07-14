@@ -1025,7 +1025,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // [CR#701]: a named keyword action is transparent to structural
         // rendering — its meaning IS its body (the printed keyword name rides
         // the macro template when authored via a macro).
-        Action::Composite { body, .. } => effect(body, ctx),
+        Action::Composite(_, body) => effect(body, ctx),
         // [CR#701.13a]/[CR#400.7]: exiling a graveyard-hate target — "Exile
         // target [<type>] card from a graveyard." — any player's graveyard,
         // per `any_graveyard_card_filter` (migrations effect.rs), so "from a

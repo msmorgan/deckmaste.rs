@@ -71,7 +71,7 @@ fn destroyed_self() -> EventFilter {
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-            verb: Some(deckmaste_core::CauseVerb::Destroy),
+            verb: Some(deckmaste_core::VerbName::from("Destroy")),
             agency: None,
             agent: None,
         })),
@@ -564,7 +564,7 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-            verb: Some(deckmaste_core::CauseVerb::Destroy),
+            verb: Some(deckmaste_core::VerbName::from("Destroy")),
             agency: None,
             agent: None,
         })),
@@ -884,7 +884,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
-                verb: Some(deckmaste_core::CauseVerb::Destroy),
+                verb: Some(deckmaste_core::VerbName::from("Destroy")),
                 agency: None,
                 agent: None,
             })),

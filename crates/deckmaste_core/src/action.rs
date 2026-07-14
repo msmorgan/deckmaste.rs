@@ -1,11 +1,49 @@
+use serde::Deserialize;
+use serde::Serialize;
+
 use crate::Count;
 use crate::CounterRef;
+use crate::Expand;
 use crate::Expansion;
 use crate::Reference;
 use crate::Selection;
 use crate::SupportsMacros;
 use crate::TokenSpec;
 use crate::mana::ManaProduction;
+
+/// The closed, parameterized keyword-action atom family ([CR#701]) — the
+/// recognizable payload an [`Action::Composite`] performs and the present-tense
+/// `Act` event carries. Mirrors the Idris `KeywordActionSpec` (`Core.idr`),
+/// which grows this vocabulary; the atom is authored BAREWORD-POSITIONAL
+/// (`Destroy(Target(0))`, `Scry(You, 2)`) — the variant tag is the printed
+/// keyword and its args are the verb's operands, no `name:`/`on:` binders.
+///
+/// Heterogeneous by design (matching the Idris arms): the player-report verbs
+/// (Scry/Surveil/Fateseal/Mill/Draw) carry the PERFORMING player `who`
+/// (player-first, always explicit — `Scry(You, 2)`, never elided) then the
+/// count; `Destroy` carries its patient object; `Fight` its two fighters. This
+/// is the value/authoring side (arguments are [`Reference`]s); the
+/// trigger/guard PATTERN twin is [`crate::KeywordActionPattern`] (arguments are
+/// [`crate::Predicate`]s), exactly the [`Action`]-vs-`EventFilter` split.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum KeywordAction {
+    /// "scry N" ([CR#701.22a]) — `who` looks at the top N of their library.
+    Scry(Reference, Count),
+    /// "surveil N" ([CR#701.25a]).
+    Surveil(Reference, Count),
+    /// "fateseal N" ([CR#701.20a]) — `who` scries an opponent's library.
+    Fateseal(Reference, Count),
+    /// "mill N" ([CR#701.17a]). Defined here as an atom; its macro/engine
+    /// wiring lands in a later stage (still a `PlayerAction` until then).
+    Mill(Reference, Count),
+    /// "draw N" ([CR#121.1]). Defined-but-unwired until its later stage.
+    Draw(Reference, Count),
+    /// "destroy [object]" ([CR#701.8a]) — the patient permanent. Subsumes the
+    /// bespoke `Action::Destroy`; its engine wiring lands in the Destroy stage.
+    Destroy(Reference),
+    /// "[a] fights [b]" ([CR#701.14a]) — the two fighter objects.
+    Fight(Reference, Reference),
+}
 
 /// A position within a library ([CR#401.7]): an offset counted from the top or
 /// from the bottom. `FromTop(0)` is the very top, `FromBottom(0)` the very
@@ -220,21 +258,17 @@ pub enum Action {
         duration: crate::continuous::Duration,
         one_shot: bool,
     },
-    /// A named keyword action ([CR#701]) — a printed keyword verb
-    /// (`name`, e.g. "Scry"/"Surveil"/"Fateseal") whose meaning IS its
-    /// `body` effect, run when this resolves. Mirrors the Idris `Composite :
-    /// KeywordActionSpec -> OneShotEffect -> Action`: the keyword-action
-    /// macros desugar to a `Composite` so there are no bespoke
+    /// A named keyword action ([CR#701]) — the [`KeywordAction`] atom (the
+    /// printed keyword verb + its operands, e.g. `Scry(You, 2)`) whose meaning
+    /// IS its `body` effect, run when this resolves. Mirrors the Idris
+    /// `Composite : KeywordActionSpec b -> OneShotEffect b -> Action b`: the
+    /// keyword-action macros desugar to a `Composite` so there are no bespoke
     /// `Scry`/`Surveil` verbs. Resolving it runs `body`, then (when the body
-    /// actually acts — scry 0 does nothing, [CR#701.22b]) emits the named
-    /// keyword-action event a "whenever you scry/surveil" trigger reads,
-    /// exactly like `KeywordAbility::Composite { name, .. }` on the ability
-    /// side. `body` is boxed to break the `Action` → `OneShotEffect` → `Action`
-    /// size cycle.
-    Composite {
-        name: crate::Ident,
-        body: Box<crate::OneShotEffect>,
-    },
+    /// actually acts — scry 0 does nothing, [CR#701.22b]) emits the present-
+    /// tense `Act(<atom>)` event a "whenever you scry/surveil" trigger reads,
+    /// exactly like `KeywordAbility::Composite` on the ability side. `body` is
+    /// boxed to break the `Action` → `OneShotEffect` → `Action` size cycle.
+    Composite(KeywordAction, Box<crate::OneShotEffect>),
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
     #[macro_ron(embed)]
@@ -1018,14 +1052,14 @@ mod tests {
         assert_eq!(read(&write(&explicit)), explicit);
     }
 
-    /// `Composite name body` ([CR#701]) reads flat (the `Act` compartment is
-    /// transparent) and round-trips — the keyword-action verb the
-    /// scry/surveil/fateseal macros desugar to.
+    /// `Composite(<atom>, body)` ([CR#701]) reads bareword-positional and
+    /// round-trips — the keyword-action atom the scry/surveil/fateseal macros
+    /// desugar to. The atom spells its performer player-first (`Scry(You, 2)`).
     #[test]
     fn composite_round_trips() {
-        let scry = Action::Composite {
-            name: crate::Ident::new("Scry"),
-            body: Box::new(crate::OneShotEffect::Each(crate::Each {
+        let scry = Action::Composite(
+            KeywordAction::Scry(Reference::You, Count::Literal(2)),
+            Box::new(crate::OneShotEffect::Each(crate::Each {
                 binder: crate::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
                     whose: Reference::You,
@@ -1036,7 +1070,19 @@ mod tests {
                     vec![],
                 ))),
             })),
-        };
+        );
         assert_eq!(read(&write(&scry)), scry);
+        // The atom renders BAREWORD-POSITIONAL, performer player-first.
+        assert!(
+            write(&scry).starts_with("Composite(Scry(You,2),"),
+            "atom must render bareword-positional, got {}",
+            write(&scry)
+        );
+        assert_eq!(
+            read(
+                "Composite(Scry(You,2),Each(binder:Existing(TopOfLibrary(count:2,whose:You)),effect:Move(It,Library(FromTop(0)))))"
+            ),
+            scry
+        );
     }
 }

@@ -1291,7 +1291,7 @@ impl GameState {
         match a {
             Action::Move(_, Destination::Library(_), _)
             | Action::By(_, PlayerAction::Move(_, Destination::Library(_), _)) => true,
-            Action::Composite { body, .. } => Self::body_repositions_ordered(body),
+            Action::Composite(_, body) => Self::body_repositions_ordered(body),
             _ => false,
         }
     }
@@ -2303,14 +2303,14 @@ mod tests {
                 tgt.clone(),
             ))
         };
-        OneShotEffect::Act(Action::Composite {
-            name: "Fight".into(),
-            body: Box::new(OneShotEffect::If(deckmaste_core::If {
+        OneShotEffect::Act(Action::Composite(
+            deckmaste_core::KeywordAction::Fight(x.clone(), y.clone()),
+            Box::new(OneShotEffect::If(deckmaste_core::If {
                 condition: Condition::And(vec![is_creature(x), is_creature(y)]),
                 then: Box::new(OneShotEffect::Simultaneously(vec![half(y, x), half(x, y)])),
                 otherwise: None,
             })),
-        })
+        ))
     }
 
     /// [CR#701.14a]: a fight — each creature deals damage equal to its power to
@@ -2349,10 +2349,7 @@ mod tests {
         assert_eq!(state.objects.obj(a).total_damage(), 2, "a took b's power");
         assert_eq!(state.objects.obj(b).total_damage(), 2, "b took a's power");
         assert!(
-            logged(&state, |e| matches!(
-                e,
-                GameEvent::KeywordActionPerformed { .. }
-            )),
+            logged(&state, |e| matches!(e, GameEvent::Act { .. })),
             "the fight fired its 'fights' keyword-action fact"
         );
     }
@@ -2377,10 +2374,7 @@ mod tests {
             "neither creature deals damage ([CR#701.14b])"
         );
         assert!(
-            !logged(&state, |e| matches!(
-                e,
-                GameEvent::KeywordActionPerformed { .. }
-            )),
+            !logged(&state, |e| matches!(e, GameEvent::Act { .. })),
             "no fight occurred, so no 'fights' fact"
         );
         assert_eq!(state.objects.obj(a).total_damage(), 0);

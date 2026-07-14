@@ -8,8 +8,8 @@
     kinds: [OneShotEffect],
     params: [Count],
     body: Composite(
-        name: "Surveil",
-        body: Each(
+        Surveil(You, Param(0)),
+        Each(
             binder: Existing(TopOfLibrary(count: Param(0))),
             effect: Modal(
                 choose: (count: Range(Literal(1), Literal(1))),

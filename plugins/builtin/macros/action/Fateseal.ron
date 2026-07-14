@@ -9,8 +9,8 @@
     kinds: [OneShotEffect],
     params: [Count],
     body: Composite(
-        name: "Fateseal",
-        body: Each(
+        Fateseal(You, Param(0)),
+        Each(
             binder: Existing(TopOfLibrary(count: Param(0), whose: Opponent)),
             effect: Modal(
                 choose: (count: Range(Literal(1), Literal(1))),

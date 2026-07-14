@@ -2175,7 +2175,25 @@ mutual
   -- grows with card pressure (Surveil, Proliferate, the bends, …).
   namespace KeywordActionSpec
     public export
-    data KeywordActionSpec = Scry | Surveil | Mill | Fight
+    -- PARAMETERIZED (indexed) so each atom carries its natural arguments — the
+    -- recognizable payload the `Act` event/filter matches on (the desugared
+    -- `body` also mentions them, but the body is gone once the event fires). The
+    -- arg-carrying arms mirror the already-parameterized `KeywordSpec`
+    -- (`Ward Cost`, `Protection Quality`). Heterogeneous by design:
+    --  * player-report verbs (Scry/Surveil/Mill/Draw) carry the PERFORMING player
+    --    `who` (so `Act` records who scried/drew/milled — "whenever an opponent
+    --    draws") then the count. `who` is an EXPLICIT positional (player-first),
+    --    always named — the surface is `Scry You n`, never elided.
+    --  * `Destroy` carries the patient object; its performer is the cause's
+    --    agent/source (not a player), so no `who`.
+    --  * `Fight` carries its two fighter objects.
+    data KeywordActionSpec : Ctx -> Type where
+      Scry    : Reference b APlayer -> Count b -> KeywordActionSpec b
+      Surveil : Reference b APlayer -> Count b -> KeywordActionSpec b
+      Mill    : Reference b APlayer -> Count b -> KeywordActionSpec b
+      Draw    : Reference b APlayer -> Count b -> KeywordActionSpec b
+      Destroy : Reference b AnObject -> KeywordActionSpec b
+      Fight   : Reference b AnObject -> Reference b AnObject -> KeywordActionSpec b
 
   -- The verbs ([CR#701]). `OneShotEffect::Act` wraps these. Object verbs carry an object
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).
@@ -2270,7 +2288,7 @@ mutual
       -- `KeywordAbility.Composite` — the mechanics are just the primitives, but the tag lets the engine
       -- RECOGNIZE the action ("scry 2" = `Composite Scry (…)`) so "whenever you scry"/Aang's "whenever
       -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: OneShotEffect::KeywordAction.
-      Composite : KeywordActionSpec -> OneShotEffect b -> Action b
+      Composite : KeywordActionSpec b -> OneShotEffect b -> Action b
       -- roll `sides`-sided dice ([CR#706.1]) `count` times; the RESULT rides the pushed
       -- `amountAnte` antecedent (a later `Compare ThatMany …` reads it, [CR#706.2]).
       RollDice : (count : Count b) -> (sides : Nat) -> Action b

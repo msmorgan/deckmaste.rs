@@ -342,7 +342,7 @@ impl GameState {
         }
         #[expect(
             clippy::match_same_arms,
-            reason = "large apply dispatch; the pure-fact arms and the `KeywordActionPerformed` arm both return `event` unchanged but sit hundreds of lines apart with distinct explanatory comments — merging would wreck the structure"
+            reason = "large apply dispatch; the pure-fact arms and the `Act` arm both return `event` unchanged but sit hundreds of lines apart with distinct explanatory comments — merging would wreck the structure"
         )]
         match event {
             // Pure facts: nothing to mutate. `BecameTarget` ([CR#601.2c])
@@ -930,9 +930,14 @@ impl GameState {
             // never a zone move).
             // Revealing is a public information event, not a state mutation.
             GameEvent::Revealed { .. } => event,
-            // Notification only — no state mutation. Fired once the keyword
-            // action's body has completed ([CR#701.22d]), so triggers observe it.
-            GameEvent::KeywordActionPerformed { .. } => event,
+            // [CR#701]: the named keyword-action event — a pure fact (no state
+            // mutation; the body's own events move cards / draw). One event, two
+            // roles: the guardable moment (a canted `Act` never reaches here —
+            // the cant pass, [CR#614.17], suppresses it and the
+            // `Action::Composite` resolve skips the body) AND the "whenever you
+            // scry/surveil/…" trigger fact triggers observe once it survives
+            // ([CR#701.22d]). Stage 2+ emits it from destroy/draw/mill.
+            GameEvent::Act { .. } => event,
             GameEvent::DesignationChanged { .. } => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
             }
