@@ -1744,6 +1744,15 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             Ok("RollPlanarDie".to_string())
         }
         PlayerAction::CopySpell(what) => Ok(app("Copy", vec![emit_reference(what)?])),
+        // [CR#608.2g]: casting a referenced card as a resolution effect. The
+        // Idris north-star `Core.idr` has no resolution-time `Cast` effect verb
+        // (casting there rides the 601 deontic-permission pipeline, `Enact
+        // Cast`), so the probe records this as an unmapped gap rather than
+        // data-fying an intrinsic it doesn't model.
+        PlayerAction::Cast(_) => Err(gap(
+            "PlayerAction::Cast (resolution-time cast-as-effect, [CR#608.2g]) has no Idris \
+             OneShotEffect counterpart — Idris casts via the 601 permission pipeline",
+        )),
         // `{default You by}` on the Idris side: the terse positional form
         // when `by` is the default `You` (mirrors the `Tap`/`Untap`-style
         // bare `app` calls above); named-field syntax to override it

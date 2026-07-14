@@ -263,6 +263,26 @@ impl GameState {
     /// # Panics
     ///
     /// Panics on any `OneShotEffect` variant not wired for Stage 3.
+    /// [CR#608.2g]: if `may`'s body is a bare `Cast(<ref>)` verb, resolve the
+    /// caster (the `By` agent, `You` by default) and the referent object it
+    /// would cast — so the `May` arm can gate the "yes" offer on
+    /// [`can_cast_as_effect`](Self::can_cast_as_effect). `None` for any other
+    /// `May` body (the ordinary "you may [do]", offered unconditionally). The
+    /// referent id may be null/stale; the gate treats that as uncastable.
+    fn may_cast_referent(
+        &self,
+        may: &deckmaste_core::May,
+        frame: &Frame,
+    ) -> Option<(crate::player::PlayerId, crate::object::ObjectId)> {
+        match peel_effect(&may.effect) {
+            OneShotEffect::Act(Action::By(actor, PlayerAction::Cast(what))) => Some((
+                self.acting_player(actor, frame),
+                self.eval_reference(what, frame),
+            )),
+            _ => None,
+        }
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per effect-frame variant; splitting would scatter the dispatch"
@@ -802,6 +822,27 @@ impl GameState {
             // yes, if_not on no) runs when the answer comes back — the `May`
             // continuation in `submit_decision`.
             OneShotEffect::May(may) => {
+                // [CR#608.2g]: "you may cast that card. If you don't, …" — the
+                // "yes" (cast) branch is offered ONLY when a legal, payable cast
+                // of the referent exists; otherwise the offer is empty and the
+                // `if_not` branch runs (faithful even when the card is
+                // uncastable — a land, an unaffordable cost, no legal target).
+                // Detected structurally: a `May` whose body is a bare `Cast`
+                // verb, gated by `can_cast_as_effect` before surfacing YesNo.
+                if let Some((caster, object)) = self.may_cast_referent(&may, frame)
+                    && !self.can_cast_as_effect(caster, object)
+                {
+                    let items = may
+                        .if_not
+                        .into_iter()
+                        .map(|effect| WorkItem::RunEffect {
+                            effect,
+                            frame: frame.clone(),
+                        })
+                        .collect();
+                    self.schedule_front(items);
+                    return;
+                }
                 self.pending = Some(crate::decide::PendingDecision::YesNo {
                     player: frame.controller,
                 });

@@ -945,8 +945,35 @@ impl GameState {
     /// Panics if `object` is not in its controller's hand — engine invariant.
     pub(crate) fn begin_cast(&mut self, object: ObjectId) {
         let controller = self.objects.obj(object).controller;
-        self.remove_from_hand(controller, object);
-        self.objects.obj_mut(object).zone = Some(Zone::Stack);
+        self.begin_cast_from(object, Zone::Hand, controller);
+    }
+
+    /// [CR#601.2a,601.2b]: the general open-announce, from any `origin` zone
+    /// under `controller`'s control — the hand cast ([`begin_cast`]) and the
+    /// cast-as-effect ([CR#608.2g] — casting the referenced card from the zone
+    /// it's in, e.g. Chandra's just-exiled card) share this body. Removes
+    /// `object` from `origin`, moves it to the stack, and opens the announce
+    /// slot recording `origin` so a rewound/countered cast returns there.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `object` is not in `origin` — the caller validated the zone
+    /// (engine invariant, not caller input).
+    ///
+    /// [`begin_cast`]: GameState::begin_cast
+    pub(crate) fn begin_cast_from(&mut self, object: ObjectId, origin: Zone, controller: PlayerId) {
+        match origin {
+            Zone::Hand => self.remove_from_hand(self.objects.obj(object).controller, object),
+            Zone::Exile => self.remove_from_exile(object),
+            Zone::Graveyard => self.remove_from_graveyard(self.owner_of(object), object),
+            Zone::Library => self.remove_from_library(self.owner_of(object), object),
+            Zone::Battlefield => self.remove_from_battlefield(object),
+            other => unreachable!("cannot begin a cast from {other:?}"),
+        }
+        let obj = self.objects.obj_mut(object);
+        obj.zone = Some(Zone::Stack);
+        // [CR#608.2g,601.2a]: the caster controls the spell it casts.
+        obj.controller = controller;
         self.announcing = Some(PendingStackEntry {
             optional_components: Vec::new(),
             paid_costs: Vec::new(),
@@ -954,13 +981,91 @@ impl GameState {
             id: object,
             object: StackObject::Spell(object),
             controller,
-            origin: Zone::Hand,
+            origin,
             targets: vec![],
             // [CR#601.2b]: filled by the `ChooseXValue` step before `PayCost`.
             x: None,
             // [CR#601.2b]: filled by the `ChooseCostOptions` step before `PayCost`.
             concretized: None,
         });
+    }
+
+    /// [CR#608.2g]: may `caster` cast `object` as a resolution-time
+    /// effect grants? The effect SUPPLIES the permission, so this skips the
+    /// timing ([CR#307.1]) and zone/hand gates `can_cast` enforces — but the
+    /// card must still be castable at all: not a land ([CR#305.9] — lands are
+    /// played, never cast), a non-empty printed mana cost ([CR#118.6]), a legal
+    /// candidate for every target spec ([CR#601.2c]), and a cost the caster's
+    /// pool can cover ([CR#601.2g]). This is the gate on the `May` "yes" branch
+    /// for `Cast(<ref>)`: offered only when it holds, else the `if_not` branch
+    /// runs ([CR#608.2g] — the empty offer defaults to "you don't").
+    #[must_use]
+    pub(crate) fn can_cast_as_effect(&self, caster: PlayerId, object: ObjectId) -> bool {
+        // Never-crash: a stale/absent referent (the object left its zone, or
+        // the anaphor resolved to nothing) is simply not castable — guard
+        // before `layers()`/`confers_may_play`, both of which panic on a dead
+        // id. An object already on the stack (mid-cast) is not re-castable.
+        let Some(obj) = self.objects.get(object) else {
+            return false;
+        };
+        match obj.zone {
+            None | Some(Zone::Stack) => return false,
+            Some(_) => {}
+        }
+        let view = self.layers();
+        // [CR#305.9]: lands are never cast — keyed on the conferred May(Play),
+        // per-face correct for an MDFC land//spell (never a `Type::Land` test).
+        if crate::legal::confers_may_play(self, &view, object) {
+            return false;
+        }
+        // [CR#118.6]: an empty mana cost is "no mana cost" — an unpayable base.
+        let face = crate::derive::face(self.def(object));
+        if face.mana_cost.is_empty() {
+            return false;
+        }
+        let Some(cost) = self.mana_cost(object) else {
+            return false;
+        };
+        // [CR#601.2c]: every target spec must have a legal candidate.
+        let carrier = Some(self.objects.obj(object).source);
+        let specs = crate::resolve::spell_targets(&view, object);
+        let legal: Vec<Vec<ObjectId>> = specs
+            .iter()
+            .map(|spec| self.legal_targets(spec, carrier))
+            .collect();
+        if !crate::resolve::announce_satisfiable(&specs, &legal) {
+            return false;
+        }
+        // [CR#601.2g]: the caster's pool (with the spell's own PayPips statics)
+        // must be able to cover the cost.
+        self.gate_mana_affordable(caster, &cost, object, Some(object))
+    }
+
+    /// [CR#608.2g]: the work-item chain that casts `object` from resolution,
+    /// under `caster`'s control, from the zone `object` is currently in. Reuses
+    /// the shared [CR#601.2a..601.2i] announce schedule (`BeginCast` → optional
+    /// costs → X → targets → cost options → pay → the `SpellCast` becomes-cast)
+    /// but WITHOUT the priority tail — "no player receives priority after it's
+    /// cast" ([CR#608.2g]), so the currently-resolving ability's remaining work
+    /// continues once the spell is on the stack. The opening shell is a
+    /// dedicated `BeginCastFromResolution` (which records the object's live
+    /// zone as the cast origin and re-controls it) rather than the
+    /// hand-only `BeginCast`.
+    #[must_use]
+    pub(crate) fn cast_as_effect_items(&self, object: ObjectId, caster: PlayerId) -> Vec<WorkItem> {
+        let origin = self
+            .objects
+            .obj(object)
+            .zone
+            .expect("a castable referent is in a zone");
+        Self::announce_schedule_no_priority(
+            WorkItem::BeginCastFromResolution {
+                object,
+                origin,
+                caster,
+            },
+            crate::event::GameEvent::SpellCast(object),
+        )
     }
 
     /// [CR#601.2c]: surface a `ChooseTargets` decision if the in-flight

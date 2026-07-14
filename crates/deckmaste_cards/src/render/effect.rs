@@ -134,10 +134,7 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // `if_not` are unused by any current fixture; the base "You may …"
         // form is the
         // only shape rendered so far.
-        OneShotEffect::May(m) => {
-            let inner = super::ability::lower_first(&trim_period(&effect(&m.effect, ctx)));
-            format!("You may {inner}.")
-        }
+        OneShotEffect::May(m) => render_may(m, ctx),
         // The multi-part spelling of `Continuously` ([CR#611.2c] — a list of
         // static parts sharing one duration, the Boros Charm mode-2 shape).
         // Parts join "and" — the common case is one part; the corpus has no
@@ -1580,6 +1577,11 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             counter_phrase(kind, count),
             fragment::reference(r, ctx),
         ),
+        // [CR#608.2g]: "Cast that card." — the resolution-time cast verb. The
+        // enclosing `May` supplies the "You may "/"If you don't, …" framing
+        // (Chandra's "You may cast that card."); this renders the bare
+        // instruction, its patient the surrounding effect's anaphor.
+        PlayerAction::Cast(r) => format!("Cast {}.", fragment::reference(r, ctx)),
         // [CR#104.2b]: "You win the game." — immediate on resolution; the
         // `CantWin` suppression is engine-side, not part of the sentence.
         PlayerAction::WinGame => "You win the game.".to_string(),
@@ -1587,6 +1589,25 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::LoseGame => "You lose the game.".to_string(),
         other => format!("[unrendered: {other:?}]."),
     }
+}
+
+/// [CR#608.2d]: "You may [effect]." with the optional "If you do, …" / "If you
+/// don't, …" riders (Chandra's "You may cast that card. If you don't, ~ deals 2
+/// damage to each opponent."). Each rider is a full sentence whose subject the
+/// inner effect supplies, so it stands capitalized after the base clause.
+fn render_may(m: &deckmaste_core::May, ctx: &Ctx) -> String {
+    use std::fmt::Write as _;
+    let inner = super::ability::lower_first(&trim_period(&effect(&m.effect, ctx)));
+    let mut out = format!("You may {inner}.");
+    if let Some(did) = &m.if_did {
+        let did = super::ability::lower_first(&trim_period(&effect(did, ctx)));
+        let _ = write!(out, " If you do, {did}.");
+    }
+    if let Some(not) = &m.if_not {
+        let not = trim_period(&effect(not, ctx));
+        let _ = write!(out, " If you don't, {not}.");
+    }
+    out
 }
 
 /// "Add {W}." / "Add {C}{C}." / "Add one mana of any color." / "Add {W} or

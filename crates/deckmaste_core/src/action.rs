@@ -327,6 +327,25 @@ pub enum PlayerAction {
     /// copy on the stack, NOT casting one; [CR#707.12] casting rides the
     /// 601 pipeline).
     CopySpell(Reference),
+    /// "[Player] may cast [the referenced card]" as an effect ([CR#608.2g]) —
+    /// the resolution-time cast primitive. The named player casts the
+    /// referenced object by following the [CR#601.2a..601.2i] casting steps
+    /// (the same pipeline `legal.rs`/`cast.rs` drive for a hand cast), EXCEPT
+    /// no player receives priority after it's cast: the cast spell becomes the
+    /// topmost object on the stack and the currently-resolving spell or ability
+    /// continues to resolve ([CR#608.2g]). The effect GRANTS the permission
+    /// ([CR#608.2g] — "specifically instructs or allows"), so this cast
+    /// bypasses the normal timing/zone [`DeonticAction::Cast`] gate for the
+    /// referenced card; the card is moved to the stack "from where it is"
+    /// ([CR#601.2a]), exile for Chandra. The referenced card is bound by
+    /// the surrounding effect (Chandra's just-exiled "that card" =
+    /// [`Reference::That`]/ [`Reference::It`]); "you may cast that card. If
+    /// you don't, …" is `May { effect: Cast(<that card>), if_not: <else>
+    /// }`, whose "yes" branch is offered only when a legal, payable cast
+    /// exists ([CR#608.2g] — the offer is empty otherwise, so the `if_not`
+    /// branch runs). A reference that resolves to no castable object
+    /// fizzles (authoring mistakes never crash the engine).
+    Cast(Reference),
     /// `by` picks new targets for the stack object `of`, bound by its
     /// original targetspec ([CR#115.7d,707.10c] — Bolt Bend, Redirect,
     /// copy-with-new-targets). Each target slot may be LEFT UNCHANGED even
@@ -973,6 +992,30 @@ mod tests {
         );
         assert_eq!(read("MoveCounters(AllKinds, Target(0), Target(1))"), all);
         assert_eq!(read(&write(&all)), all);
+    }
+
+    /// [CR#608.2g]: `Cast(Reference)` is a player verb — bare it reads as
+    /// `By(You, …)` (the implicit-you caster) and round-trips. "That card" is
+    /// the surrounding effect's anaphor.
+    #[test]
+    fn cast_round_trips_bare() {
+        let v = Action::by_you(PlayerAction::Cast(Reference::That(crate::Sort::Card)));
+        let written = write(&v);
+        assert!(
+            !written.contains("By("),
+            "By(You, …) should write bare, got {written}"
+        );
+        assert_eq!(
+            read("Cast(That(Card))"),
+            v,
+            "a bare player verb reads as By(You, …)"
+        );
+        assert_eq!(read(&written), v, "text → Cast → text round-trips");
+
+        // An explicit caster reads native (e.g. `By(It, Cast(It))`).
+        let explicit = Action::By(Reference::It, PlayerAction::Cast(Reference::It));
+        assert_eq!(read("By(It, Cast(It))"), explicit);
+        assert_eq!(read(&write(&explicit)), explicit);
     }
 
     /// `Composite name body` ([CR#701]) reads flat (the `Act` compartment is

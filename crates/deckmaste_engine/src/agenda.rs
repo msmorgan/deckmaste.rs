@@ -60,6 +60,17 @@ pub enum WorkItem {
     OpenPriority,
     /// [CR#601.2a,601.2b]: move the spell to the stack and open the announce slot.
     BeginCast(crate::object::ObjectId),
+    /// [CR#608.2g]: open the announce slot for a spell cast DURING resolution
+    /// — the same [CR#601.2a] move-to-stack, but from `object`'s current
+    /// `origin` zone (Chandra's just-exiled card) under `caster`'s control,
+    /// since the effect grants the permission ([CR#608.2g]). The opening shell
+    /// of [`GameState::cast_as_effect_items`](crate::state::GameState); the
+    /// shared announce items follow, but no priority tail ([CR#608.2g]).
+    BeginCastFromResolution {
+        object: crate::object::ObjectId,
+        origin: deckmaste_core::Zone,
+        caster: crate::player::PlayerId,
+    },
     /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
     /// ability text + source LKI into the announce slot. The shared
     /// `AnnounceTargets`/`PayCost` items follow; `AbilityActivated` promotes

@@ -1977,7 +1977,26 @@ impl GameState {
     /// shared `priority_tail` re-opens priority for the actor.
     #[must_use]
     pub(crate) fn announce_schedule(begin: WorkItem, cast_event: GameEvent) -> Vec<WorkItem> {
-        let mut items = vec![
+        let mut items = Self::announce_schedule_no_priority(begin, cast_event);
+        items.extend(Self::priority_tail());
+        items
+    }
+
+    /// [CR#608.2g]: the [CR#601.2a..601.2i] announce procedure WITHOUT the
+    /// priority tail — a spell cast during resolution follows the same
+    /// announce steps, "except no player receives priority after it's cast."
+    /// The currently-resolving spell or ability continues once the cast spell
+    /// is the topmost stack object, so this omits the `CheckSbas`/
+    /// `PlaceTriggers`/`OpenPriority` [`priority_tail`](Self::priority_tail)
+    /// (the resolution's own trailing sweep runs at its end). The shared body
+    /// of [`announce_schedule`](Self::announce_schedule), which appends the
+    /// tail for the priority-restarting hand-cast/activation path.
+    #[must_use]
+    pub(crate) fn announce_schedule_no_priority(
+        begin: WorkItem,
+        cast_event: GameEvent,
+    ) -> Vec<WorkItem> {
+        vec![
             begin,
             WorkItem::AnnounceOptionalCosts { index: 0 },
             WorkItem::AnnounceX,
@@ -1985,9 +2004,7 @@ impl GameState {
             WorkItem::ChooseCostOptions,
             WorkItem::PayCost,
             WorkItem::Emit(Occurrence::single(cast_event)),
-        ];
-        items.extend(Self::priority_tail());
-        items
+        ]
     }
 
     /// The per-unit provenance riders a `source` contributes to the mana it

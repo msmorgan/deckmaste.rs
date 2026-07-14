@@ -107,7 +107,12 @@ impl GameState {
     /// `Distribute`/`With`, never the verb itself.
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
-            Selection::SelectAll(f) => crate::target::candidates(self, f),
+            // Thread the carrier (like `Pick`) so a carrier-relative predicate
+            // resolves rather than panicking frameless: "each opponent" =
+            // `SelectAll(OpponentOf(Ref(You)))` reads `Ref(You)` off the watcher.
+            Selection::SelectAll(f) => {
+                crate::target::candidates_with(self, f, Some(self.frame_watcher(frame)))
+            }
 
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
             // shared `Projection` ([`Count::Aggregate`]'s element-twin). Each

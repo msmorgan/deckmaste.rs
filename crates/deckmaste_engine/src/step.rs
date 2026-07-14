@@ -184,6 +184,15 @@ impl GameState {
                 self.begin_cast(object);
                 Progress::Announcing(object)
             }
+            WorkItem::BeginCastFromResolution {
+                object,
+                origin,
+                caster,
+            } => {
+                // [CR#608.2g]: cast the referenced card from the zone it's in.
+                self.begin_cast_from(object, origin, caster);
+                Progress::Announcing(object)
+            }
             WorkItem::BeginActivate { object, ability } => {
                 self.begin_activate(object, ability);
                 Progress::Announcing(object)

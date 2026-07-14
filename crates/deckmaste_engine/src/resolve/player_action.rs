@@ -267,6 +267,25 @@ impl GameState {
                     vec![]
                 }
             }
+            // [CR#608.2g]: cast the referenced card DURING resolution — the
+            // actor follows the [CR#601.2a..601.2i] steps (reusing the shared
+            // announce chain), except no player receives priority after it's
+            // cast; the cast spell becomes the topmost stack object and the
+            // currently-resolving ability continues. The May "yes" branch that
+            // reaches this arm was already gated on `can_cast_as_effect` (the
+            // effect grants the permission, [CR#608.2g]), so a live castable
+            // referent is expected; a reference that no longer resolves to a
+            // castable object fizzles (authoring mistakes never crash).
+            PlayerAction::Cast(what) => {
+                let object = self.eval_reference(what, frame);
+                // `can_cast_as_effect` guards a null/stale/wrong-zone referent
+                // (never-crash) and returns false, so a bad reference fizzles.
+                if self.can_cast_as_effect(actor, object) {
+                    self.cast_as_effect_items(object, actor)
+                } else {
+                    vec![]
+                }
+            }
             // [CR#707.10c,115.7d]: `by` re-targets the committed stack
             // object `of` — the state-dependent legal-set derivation (fresh
             // legal candidates unioned with the current target) runs at

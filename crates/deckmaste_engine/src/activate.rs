@@ -66,8 +66,9 @@ pub(crate) fn is_loyalty_ability(cost: &deckmaste_core::Cost) -> bool {
 
 /// One pass over an activation cost ([CR#602.2b,601.2f..601.2h]): the summed
 /// mana, the {T}/{Q} components, and cost-eligible verb actions. `None` when a
-/// component is not payable (a non-eligible `Do(...)` verb; loyalty costs wait
-/// for core-loyalty-costs).
+/// component is not payable (a non-eligible `Do(...)` verb). Loyalty `+N`/`−N`
+/// costs are cost-eligible `PutCounters`/`RemoveCounters` and pay through the
+/// verb path like any other ([CR#606.4]).
 pub(crate) struct CostSummary {
     pub mana: ManaCost,
     pub tap: bool,
