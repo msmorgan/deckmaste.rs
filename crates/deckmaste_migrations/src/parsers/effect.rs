@@ -2134,6 +2134,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn classic_manland_animation() {
         assert_eq!(
             parsed("~ becomes a 2/1 red Warrior creature with first strike until end of turn. It's still a land."),
@@ -2412,6 +2416,10 @@ mod tests {
     /// ([`filter::parse_phrase`]'s controller postfix), sweeping past the
     /// bare-noun shapes `deal_damage_each_shapes` pins.
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn deal_damage_each_filtered_recipient() {
         assert_eq!(
             parsed("~ deals 3 damage to each creature your opponents control."),
@@ -3993,6 +4001,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
     fn deal_damage_broadened_targets() {
         // "target opponent" — a single opponent player.
         assert_eq!(
