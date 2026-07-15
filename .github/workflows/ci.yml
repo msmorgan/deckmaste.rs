@@ -30,24 +30,42 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      # A bare checkout is enough: the engine tests build game state in Rust, the
-      # card tests load the committed plugins/{builtin,canon,testing}, and the
-      # keyword-classification drift-guard skips when the mtg-rules skill is
-      # absent. Nothing here reads the gitignored ~600 MB data/ dump.
+
+      # The gitignored reference data (Scryfall catalogs, CR keywords, mtgjson
+      # AtomicCards) is too bulky to commit to this repo, so it lives in the
+      # `deckmaste.rs_data` mirror (public, self-refreshed weekly). Pull it in
+      # and stage it so each crate's build.rs detects the fixtures and flips its
+      # cfg on — otherwise the catalog/corpus tests below report as `ignored`
+      # (they carry `#[cfg_attr(not(<cfg>), ignore)]`).
       #
-      # Tests that need the generated `plugins/wizards` corpus (gitignored, built
-      # by `cargo xtask generate plugins/wizards` from the ~150 MB mtgjson dump
-      # under data/, which a clean runner cannot materialize) carry
-      # `#[cfg_attr(not(wizards_corpus), ignore)]`. Each crate's build.rs sets the
-      # `wizards_corpus` cfg only when the corpus directory is present, so those
-      # tests run locally and report as `ignored` here. `cargo test` skips ignored
-      # tests by default, so the plain workspace command stays green.
-      #
-      # Same shape in deckmaste_migrations: its parser tests that mint
-      # `Subtype`/keyword atoms load the gitignored `data/catalogs` dump (Scryfall
-      # type/keyword catalogs), so they carry `#[cfg_attr(not(scryfall_catalogs),
-      # ignore)]` and that crate's build.rs sets `scryfall_catalogs` from the
-      # `data/catalogs` directory's presence.
+      # `data/catalogs` + `data/rules` -> `scryfall_catalogs` cfg -> the
+      # deckmaste_migrations `Subtype`/keyword parser tests run for real. The
+      # mirror is public, so no token/secret — the checkout is tokenless and the
+      # steps run for every push and PR (forks included).
+      - name: fetch CI data mirror
+        uses: actions/checkout@v4
+        with:
+          repository: msmorgan/deckmaste.rs_data
+          path: _data
+      - name: stage data (+ decompress mtgjson)
+        run: |
+          sudo apt-get update && sudo apt-get install -y xz-utils
+          mkdir -p data/mtgjson
+          cp -r _data/data/catalogs data/
+          cp -r _data/data/rules data/
+          xz -dkc _data/data/mtgjson/cache/AtomicCards.json.xz > data/mtgjson/AtomicCards.json
+
+      # Generate the gitignored `plugins/wizards` corpus from the staged mtgjson
+      # AtomicCards, so each crate's build.rs sets `wizards_corpus` and the
+      # otherwise-`ignored` corpus tests run. `--minimal` is REQUIRED: plain
+      # `generate` also builds keyword/action/ability-word stubs, which need
+      # `data/rules/cr.json` — NOT in the mirror (fetch_data --minimal skips it).
+      # `--minimal` runs subtype stubs + extract/resolve/graduate, all satisfiable
+      # from the mirror. Verified: the --minimal corpus passes the full workspace
+      # suite (fewer cards graduate than a full-stub corpus, but every gated test
+      # is green against it).
+      - name: generate wizards corpus
+        run: cargo xtask generate --minimal plugins/wizards
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
