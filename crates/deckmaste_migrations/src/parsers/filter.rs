@@ -3,6 +3,7 @@
 //! filter parsing). Strict: an unrecognized head noun or any unconsumed token
 //! declines (`None`) — a wrong filter would graduate a wrong card.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
@@ -42,6 +43,49 @@ static SUBTYPES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     set.insert("Vibranium".to_string());
     set
 });
+
+/// Subtype name -> its parent card-type category ("Land", "Artifact",
+/// "Creature", "Enchantment", "Planeswalker", "Battle"). Used by the
+/// library-search family ([`crate::parsers::effect`]) to reconstruct the
+/// implicit card type a bare subtype phrase names ("a Forest card" -> a LAND
+/// card with the Forest subtype; "an Equipment card" -> an ARTIFACT card with
+/// the Equipment subtype) — the oracle text never spells the redundant type
+/// word, but the `Predicate` needs it (a subtype alone doesn't determine a
+/// card type without the catalog). "spell" has no per-word card-type
+/// spelling (Arcane/Trap/… name no single `Type`), so it's excluded — a spell
+/// subtype used bare is presently unmodeled. A subtype present in more than
+/// one catalog keeps its FIRST (declaration-order) category; none of the
+/// catalogs currently overlap in practice.
+static SUBTYPE_CATEGORY: LazyLock<HashMap<String, &'static str>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    for (category, type_name) in [
+        ("creature", "Creature"),
+        ("artifact", "Artifact"),
+        ("enchantment", "Enchantment"),
+        ("land", "Land"),
+        ("planeswalker", "Planeswalker"),
+        ("battle", "Battle"),
+    ] {
+        let Ok(bytes) = crate::data::scryfall::catalog_bytes(&format!("{category}-types")) else {
+            continue;
+        };
+        let Ok(catalog) = crate::data::scryfall::Catalog::parse(&bytes) else {
+            continue;
+        };
+        for entry in &catalog.data {
+            map.entry(entry.to_string()).or_insert(type_name);
+        }
+    }
+    map
+});
+
+/// The parent card-type category for a known catalog subtype ("Forest" ->
+/// "Land", "Equipment" -> "Artifact"), or `None` if `word` names no subtype
+/// in a category with a per-word card type. Case-sensitive, like
+/// [`is_subtype`].
+pub(crate) fn subtype_category(word: &str) -> Option<&'static str> {
+    SUBTYPE_CATEGORY.get(word).copied()
+}
 
 /// Parse an object-description phrase into a `Predicate` RON string, or `None`.
 pub(crate) fn parse_phrase(phrase: &str) -> Option<String> {
@@ -320,7 +364,15 @@ pub(super) fn type_code(word: &str) -> Option<&'static str> {
     })
 }
 
-fn strip_color(s: &str) -> Option<(String, &str)> {
+/// A leading color/color-count adjective ("black", "colorless",
+/// "multicolored") -> its atom (`ColorIs(<C>)`, or the bare `Colorless`/
+/// `Multicolored`), plus the remaining head. `pub(crate)` beyond
+/// [`parse_phrase`]'s own prefix loop: the library-search filter grammar
+/// ([`crate::parsers::effect`]) reuses it directly for "a colorless creature
+/// card" / "a multicolored permanent card", which need the same
+/// color-or-color-count adjective this shares with battlefield-object
+/// descriptions.
+pub(crate) fn strip_color(s: &str) -> Option<(String, &str)> {
     let (first, rest) = s.split_once(' ')?;
     let atom = match first.to_ascii_lowercase().as_str() {
         "colorless" => "Colorless".to_string(),

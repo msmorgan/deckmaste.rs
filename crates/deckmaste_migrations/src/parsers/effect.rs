@@ -97,6 +97,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_gains_control(line) {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_search_library(line) {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_reanimate(line) {
         return Ok(Some(p));
     }
@@ -1354,6 +1357,241 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
 /// (multi-target) all leave a trailing/leading clause neither match arm
 /// below strips, so those decline (`None`) rather than mis-parse — reported
 /// as a follow-up, not built here.
+/// The library-search / tutor family ([CR#701.23a]): `Search your library
+/// for <filter>[, reveal <pronoun>], put <pronoun> <destination>[ tapped],
+/// then shuffle.` -> `With(binder: SearchOne(filter: <predicate>), body:
+/// Sequentially([Reveal(what: That(Card))?, Move(That(Card), <zone>,
+/// <riders>), Shuffle]))`. `SearchOne`'s `by`/`whose`/`from` all stay
+/// defaulted (`You`/`You`/`[Library]`) — every card this production covers
+/// is a self-search of one's own library; a foreign subject ("its
+/// controller may search their library …") is a distinct `Binder::by`/`by:
+/// EventActor` shape this production doesn't attempt, and a graveyard-search
+/// twin (`from`) likewise declines.
+///
+/// Only ONE found card (`SearchOne`, quantity always exactly one) is built
+/// here: a plural "up to N … cards" search needs a group verb
+/// ([`Action::MoveGroup`]) this migration doesn't yet produce, and a plural
+/// reveal has no primitive at all (`PlayerAction::Reveal.what` is a single
+/// [`Reference`], never a group) — both stay `Unparsed` rather than emit a
+/// lossy/wrong structure. Likewise declined: "a card named …" (self-name
+/// search — no established `Named` self-reference convention yet), a
+/// dynamic-count filter ("… with mana value X"), a heterogeneous multi-find
+/// ("a Zombie card and a Swamp card" — two DIFFERENT filters, not one), and
+/// any destination outside hand/battlefield/graveyard (attach riders,
+/// control-changing riders, a foreign "their hand").
+fn parse_search_library(line: &str) -> Option<ParsedEffect> {
+    let body = strip_prefix_ci(line, "search your library for ")?.strip_suffix('.')?;
+    let body = body.strip_suffix(", then shuffle")?;
+    let (head, reveal, zone, tapped) = search_tail(body)?;
+    let filter = search_card_filter(head.trim())?;
+    let riders = if tapped { "[Tapped]" } else { "[]" };
+    let mut parts = Vec::with_capacity(3);
+    if reveal {
+        parts.push("Reveal(what: That(Card))".to_owned());
+    }
+    parts.push(format!("Move(That(Card), {zone}, {riders})"));
+    parts.push("Shuffle".to_owned());
+    Some(ParsedEffect {
+        targets: Vec::new(),
+        effect: format!(
+            "With(binder: SearchOne(filter: {filter}), body: Sequentially([{}]))",
+            parts.join(", ")
+        ),
+    })
+}
+
+/// Peels the trailing "[reveal <pronoun>, ]put <pronoun> <destination>"
+/// clause off a search body (the ", then shuffle" tail already stripped by
+/// the caller), returning `(head, reveal, zone RON, tapped)`. The pronoun
+/// reads either "it"/"them" or the equally-common "that card"/"those cards"
+/// register — both oracle idioms for the same found-card anaphor
+/// ([CR#701.23a]), so both parse to the identical structure; only the
+/// singular register is built (see [`parse_search_library`]'s doc for the
+/// plural gap). `head` still carries the filter phrase verbatim, commas and
+/// all ("a basic Plains, Swamp, or Forest card") — the suffix match is exact,
+/// so it can't misfire on the filter's own internal commas.
+fn search_tail(body: &str) -> Option<(&str, bool, &'static str, bool)> {
+    const CANDIDATES: &[(&str, bool, &str, bool)] = &[
+        (", reveal it, put it into your hand", true, "Hand", false),
+        (
+            ", reveal that card, put it into your hand",
+            true,
+            "Hand",
+            false,
+        ),
+        (", put it into your hand", false, "Hand", false),
+        (", put that card into your hand", false, "Hand", false),
+        (
+            ", put it onto the battlefield tapped",
+            false,
+            "Battlefield",
+            true,
+        ),
+        (
+            ", put that card onto the battlefield tapped",
+            false,
+            "Battlefield",
+            true,
+        ),
+        (", put it onto the battlefield", false, "Battlefield", false),
+        (
+            ", put that card onto the battlefield",
+            false,
+            "Battlefield",
+            false,
+        ),
+        (", put it into your graveyard", false, "Graveyard", false),
+        (
+            ", put that card into your graveyard",
+            false,
+            "Graveyard",
+            false,
+        ),
+    ];
+    for (suffix, reveal, zone, tapped) in CANDIDATES {
+        if let Some(head) = body.strip_suffix(suffix) {
+            return Some((head, *reveal, zone, *tapped));
+        }
+    }
+    None
+}
+
+/// The library-search filter grammar: an object-description phrase headed by
+/// a determiner ("a"/"an") describing a CARD (not a battlefield permanent —
+/// the library-search twin of [`graveyard_card_type`]) -> its `Predicate`
+/// RON, or `None` for an unmodeled phrase. Recognizes:
+/// - bare "a card" -> `Kind(Card)`.
+/// - a plain card-type noun ("a creature card", "an artifact card", "a land
+///   card") -> `Type("<T>")`, optionally with a color/color-count adjective ("a
+///   green creature card" -> `And([Type("Creature"), ColorIs(Green)])`; "a
+///   colorless artifact card" -> `And([Type("Artifact"), Colorless])`).
+/// - "a basic land card" / "a basic <Subtype>[, <Subtype>, or <Subtype>] card"
+///   -> `Supertype(Basic)` (plus a `Subtype`/`Or([Subtype, …])` when a specific
+///   land type is named — the oracle text never redundantly repeats "land"
+///   alongside a named subtype, so the type word is implicit and supplied
+///   here).
+/// - "a snow land card" -> `Supertype(Snow)`.
+/// - a bare subtype (or subtype "or"-list), no "basic": "a Forest card", "an
+///   Equipment card", "a Swamp or Mountain card", "a Dragon permanent card"
+///   (the redundant "permanent" qualifier is dropped) -> the subtype's own
+///   parent card type, read off [`filter::subtype_category`], plus the
+///   `Subtype`/`Or([…])` atom.
+/// - "<X> card or a <Y> card" -> `Or([<X>, <Y>])`, each side recursively this
+///   same grammar (Wayfarer's Bauble's "a basic land card or a Desert card").
+fn search_card_filter(head: &str) -> Option<String> {
+    if let Some((left, right)) = split_full_phrase_or(head) {
+        return Some(format!(
+            "Or([{}, {}])",
+            search_card_filter(left.trim())?,
+            search_card_filter(right.trim())?
+        ));
+    }
+    let phrase = strip_prefix_ci(head, "a ").or_else(|| strip_prefix_ci(head, "an "))?;
+    let descriptor = phrase
+        .strip_suffix(" card")
+        .or_else(|| (phrase == "card").then_some(""))?;
+    search_card_descriptor(descriptor)
+}
+
+/// Splits "<X> or a <Y>" / "<X> or an <Y>" at the first " or " boundary whose
+/// right side re-opens with its own determiner — the marker that
+/// distinguishes a top-level disjunction of two FULL noun phrases from a
+/// bare subtype-list disjunction inside one phrase ("a Swamp or Mountain
+/// card" has no determiner after "or", so it stays one phrase for
+/// [`search_card_descriptor`] to split instead).
+fn split_full_phrase_or(head: &str) -> Option<(&str, &str)> {
+    let idx = head.find(" or ")?;
+    let left = &head[..idx];
+    let right = &head[idx + " or ".len()..];
+    (right.starts_with("a ") || right.starts_with("an ")).then_some((left, right))
+}
+
+/// The determiner-stripped, "card"/"cards"-suffix-stripped descriptor ->
+/// `Predicate` RON. See [`search_card_filter`] for the shapes.
+fn search_card_descriptor(d: &str) -> Option<String> {
+    if d.is_empty() {
+        return Some("Kind(Card)".to_owned());
+    }
+    if let Some(rest) = strip_prefix_ci(d, "basic ") {
+        if rest.eq_ignore_ascii_case("land") {
+            return Some("And([Type(\"Land\"), Supertype(Basic)])".to_owned());
+        }
+        let (category, subtype_expr) = subtype_list_predicate(rest)?;
+        if category != "Land" {
+            return None;
+        }
+        return Some(format!(
+            "And([Type(\"Land\"), Supertype(Basic), {subtype_expr}])"
+        ));
+    }
+    if let Some(rest) = strip_prefix_ci(d, "snow ") {
+        return rest
+            .eq_ignore_ascii_case("land")
+            .then(|| "And([Type(\"Land\"), Supertype(Snow)])".to_owned());
+    }
+    // A color/color-count adjective ("a green creature card", "a colorless
+    // artifact card", "a multicolored permanent card").
+    if let Some((color_atom, rest)) = filter::strip_color(d)
+        && let Some(ty) = graveyard_card_type(rest)
+    {
+        return Some(format!("And([{ty}, {color_atom}])"));
+    }
+    if let Some(ty) = graveyard_card_type(d) {
+        return Some(ty);
+    }
+    // A bare subtype (or subtype "or"-list), possibly qualified by the
+    // redundant "permanent" word ("a Dragon permanent card").
+    let d = d.strip_suffix(" permanent").unwrap_or(d);
+    let (category, subtype_expr) = subtype_list_predicate(d)?;
+    Some(format!("And([Type(\"{category}\"), {subtype_expr}])"))
+}
+
+/// A bare subtype word, or an "or"-list of them ("Plains", "Swamp or
+/// Mountain", "Plains, Swamp, or Forest") -> (parent card-type category,
+/// `Subtype`/`Or([Subtype, …])` RON). Every member must share ONE category
+/// (a "Swamp or Equipment" cross-category list is unmodeled); an unknown
+/// subtype declines the whole clause.
+fn subtype_list_predicate(text: &str) -> Option<(&'static str, String)> {
+    let members = split_or_list(text);
+    let mut category: Option<&'static str> = None;
+    let mut atoms = Vec::with_capacity(members.len());
+    for member in &members {
+        if member.is_empty() || member.contains(' ') {
+            return None;
+        }
+        let cat = filter::subtype_category(member)?;
+        match category {
+            Some(c) if c != cat => return None,
+            _ => category = Some(cat),
+        }
+        atoms.push(format!(
+            "Subtype(\"{}\")",
+            crate::ident::to_rust_ident(member)
+        ));
+    }
+    let expr = if atoms.len() == 1 {
+        atoms.into_iter().next().unwrap()
+    } else {
+        format!("Or([{}])", atoms.join(", "))
+    };
+    Some((category?, expr))
+}
+
+/// Splits an "A"/"A or B"/"A, B, or C" list (the search-filter subtype-list
+/// register — no repeated determiner, unlike [`split_full_phrase_or`]) into
+/// its members.
+fn split_or_list(text: &str) -> Vec<&str> {
+    if let Some(idx) = text.rfind(", or ") {
+        let mut members: Vec<&str> = text[..idx].split(", ").map(str::trim).collect();
+        members.push(text[idx + ", or ".len()..].trim());
+        return members;
+    }
+    if let Some((a, b)) = text.split_once(" or ") {
+        return vec![a.trim(), b.trim()];
+    }
+    vec![text.trim()]
+}
+
 fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "return ")?.strip_suffix('.')?;
     // Self-reanimation: "Return ~/it from your graveyard to the
@@ -3953,6 +4191,319 @@ mod tests {
         ));
         assert!(declines(
             "Put target creature third from the top of its owner's library."
+        ));
+    }
+
+    /// The library-search / tutor family's hand-destination shape
+    /// ([CR#701.23a]) — the most common (Renegade Map's "reveal it, put it
+    /// into your hand"), plus the "reveal that card" register and the
+    /// no-reveal variant, both equally common oracle idioms for the same
+    /// structure.
+    #[test]
+    fn search_library_hand_destination() {
+        assert_eq!(
+            parsed(
+                "Search your library for a basic land card, reveal it, put it into your hand, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic)])), body: \
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // The "that card" register parses identically.
+        assert_eq!(
+            parsed(
+                "Search your library for a basic land card, reveal that card, put it into your hand, then shuffle."
+            ),
+            parsed(
+                "Search your library for a basic land card, reveal it, put it into your hand, then shuffle."
+            ),
+        );
+        // No reveal — an equally attested oracle idiom for the same hand
+        // destination.
+        assert_eq!(
+            parsed("Search your library for a card, put it into your hand, then shuffle."),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: Kind(Card)), body: Sequentially([Move(That(Card), \
+                 Hand, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    /// The battlefield-destination shape, tapped and untapped — no reveal
+    /// (a battlefield arrival is already public).
+    #[test]
+    fn search_library_battlefield_destination() {
+        assert_eq!(
+            parsed(
+                "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic)])), body: \
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed(
+                "Search your library for a basic land card, put it onto the battlefield, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic)])), body: \
+                 Sequentially([Move(That(Card), Battlefield, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // The "that card" register, again equivalent.
+        assert_eq!(
+            parsed(
+                "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle."
+            ),
+            parsed(
+                "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+            ),
+        );
+    }
+
+    /// The graveyard-destination shape.
+    #[test]
+    fn search_library_graveyard_destination() {
+        assert_eq!(
+            parsed("Search your library for a card, put it into your graveyard, then shuffle."),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: Kind(Card)), body: Sequentially([Move(That(Card), \
+                 Graveyard, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    /// A bare card-type-noun filter ("a creature card", "an artifact card")
+    /// -> `Type("<T>")` — the library-search twin of
+    /// [`graveyard_card_type`], which this production reuses directly.
+    #[test]
+    fn search_library_type_filters() {
+        assert_eq!(
+            parsed(
+                "Search your library for a creature card, reveal it, put it into your hand, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: Type(\"Creature\")), body: \
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        assert_eq!(
+            parsed(
+                "Search your library for a land card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: Type(\"Land\")), body: \
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // A colored card-type filter — "a green creature card".
+        assert_eq!(
+            parsed(
+                "Search your library for a green creature card, reveal it, put it into your hand, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Creature\"), ColorIs(Green)])), body: \
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // A color-COUNT adjective (not a color itself) — "a colorless
+        // creature card" (Eldrazi tutors: Sylvan Scrying's twin, "colorless"
+        // is `Colorless`, not `ColorIs`).
+        assert_eq!(
+            parsed(
+                "Search your library for a colorless creature card, reveal it, put it into your hand, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Creature\"), Colorless])), body: \
+                 Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    /// A bare subtype (or subtype list) filter, with no "basic" qualifier —
+    /// the subtype's own parent card type is read off the catalog
+    /// ([`filter::subtype_category`]), which the oracle text never spells
+    /// redundantly ("a Forest card", not "a Forest land card").
+    #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype parse"
+    )]
+    fn search_library_bare_subtype_filters() {
+        assert_eq!(
+            parsed(
+                "Search your library for a Forest card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Subtype(\"Forest\")])), body: \
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // An artifact subtype — "an Equipment card".
+        assert_eq!(
+            parsed(
+                "Search your library for an Equipment card, reveal it, put it into your hand, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Artifact\"), Subtype(\"Equipment\")])), \
+                 body: Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), \
+                 Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // A two-member subtype disjunction, no "basic" — "a Swamp or Mountain
+        // card".
+        assert_eq!(
+            parsed(
+                "Search your library for a Swamp or Mountain card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Or([Subtype(\"Swamp\"), \
+                 Subtype(\"Mountain\")])])), body: Sequentially([Move(That(Card), Battlefield, \
+                 [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // The redundant "permanent" qualifier is dropped — "a Dragon
+        // permanent card".
+        assert_eq!(
+            parsed(
+                "Search your library for a Dragon permanent card, put that card onto the battlefield, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Creature\"), Subtype(\"Dragon\")])), \
+                 body: Sequentially([Move(That(Card), Battlefield, []), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    /// "basic" plus a single land subtype, or a comma-"or" list of them —
+    /// Wayfarer's Bauble / dual-land fetch shapes.
+    #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype parse"
+    )]
+    fn search_library_basic_subtype_filters() {
+        assert_eq!(
+            parsed(
+                "Search your library for a basic Plains card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic), \
+                 Subtype(\"Plains\")])), body: Sequentially([Move(That(Card), Battlefield, \
+                 [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // A 3-member comma-"or" list — "a basic Plains, Swamp, or Forest
+        // card".
+        assert_eq!(
+            parsed(
+                "Search your library for a basic Plains, Swamp, or Forest card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic), \
+                 Or([Subtype(\"Plains\"), Subtype(\"Swamp\"), Subtype(\"Forest\")])])), body: \
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // "snow land" — a different supertype, same no-subtype shape as
+        // "basic land".
+        assert_eq!(
+            parsed(
+                "Search your library for a snow land card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Snow)])), body: \
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    /// A top-level "X card or a Y card" disjunction of two full filter
+    /// phrases (Wayfarer's Bauble's "a basic land card or a Desert card") —
+    /// distinct from the bare subtype-list disjunction (no repeated
+    /// determiner) [`search_library_basic_subtype_filters`] covers.
+    #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype parse"
+    )]
+    fn search_library_or_of_full_filters() {
+        assert_eq!(
+            parsed(
+                "Search your library for a basic land card or a Desert card, put it onto the battlefield tapped, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: Or([And([Type(\"Land\"), Supertype(Basic)]), \
+                 And([Type(\"Land\"), Subtype(\"Desert\")])])), body: \
+                 Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
+                    .to_owned()
+            ))
+        );
+    }
+
+    /// Declined shapes: a plural "up to N" search (no group-reveal primitive,
+    /// and this migration doesn't yet produce `MoveGroup`), a self-name
+    /// search ("a card named ~" — no established self-reference convention
+    /// for `Named`), a dynamic mana-value filter, a heterogeneous multi-find,
+    /// and a foreign destination ("their hand").
+    #[test]
+    fn search_library_declines_unbuilt_shapes() {
+        assert!(declines(
+            "Search your library for up to two basic land cards, reveal them, put them into your hand, then shuffle."
+        ));
+        assert!(declines(
+            "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle."
+        ));
+        assert!(declines(
+            "Search your library for a card named ~, put it onto the battlefield tapped, then shuffle."
+        ));
+        assert!(declines(
+            "Search your library for a creature card with mana value 3 or less, reveal it, put it into your hand, then shuffle."
+        ));
+        assert!(declines(
+            "Search your library for a Zombie card and a Swamp card, reveal them, put them into your hand, then shuffle."
+        ));
+        assert!(declines(
+            "Search your library for a basic land card, reveal it, put it into their hand, then shuffle."
+        ));
+        // The library-position tail this production doesn't build.
+        assert!(declines(
+            "Search your library for an enchantment card, reveal it, then shuffle and put that card on top."
         ));
     }
 

@@ -5,6 +5,8 @@ use std::fmt::Write as _;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Arrangement;
+use deckmaste_core::Binder;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Color;
 use deckmaste_core::Count;
 use deckmaste_core::CounterSpec;
@@ -14,19 +16,23 @@ use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::EnterRider;
 use deckmaste_core::Modification;
+use deckmaste_core::ObjectKind;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
 use deckmaste_core::PlayerAttr;
+use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::Sort;
 use deckmaste_core::Stat;
 use deckmaste_core::StatValue;
 use deckmaste_core::StaticEffect;
+use deckmaste_core::Supertype;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Token;
 use deckmaste_core::TokenSpec;
 use deckmaste_core::TurnMarker;
+use deckmaste_core::With;
 use deckmaste_core::Zone;
 
 use super::Ctx;
@@ -233,6 +239,9 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // anaphor, so `With(ChooseOne(Creature), Sacrifice(That))` renders
         // "Sacrifice a creature."
         OneShotEffect::With(w) => {
+            if let Some(rendered) = search_library(w) {
+                return rendered;
+            }
             let phrase = binder_phrase(&w.binder, ctx);
             effect(&w.body, &ctx.with_that(&phrase))
         }
@@ -355,6 +364,223 @@ fn reveal_until_body(body: &OneShotEffect, whose_poss: &str) -> Option<String> {
         "Put that card {found_dest} and the rest on {} of {whose_poss} library{order}.",
         fragment::library_position(anchor),
     ))
+}
+
+/// The library-search / tutor family ([CR#701.23a]): `With(SearchOne(filter),
+/// Sequentially([Reveal(That(Card))?, Move(That(Card), <zone>, <riders>),
+/// Shuffle]))` -> "Search your library for `<filter>`, [reveal it,] put it
+/// `<destination>`, then shuffle." `None` for any binder/body shape outside
+/// this exact pattern (a foreign subject, a graveyard search, a plural
+/// `Search`, an unrecognized body) — the caller falls back to the generic
+/// `With` rendering, matching every other bespoke-shape renderer in this file
+/// (`reveal_until`, `separate_piles`, …).
+///
+/// Only the self-search-your-own-library shape is recognized: `SearchOne`
+/// with `by`/`whose` both the default `You` and `from` the default
+/// `[Library]` — mirroring `deckmaste_migrations`' `parse_search_library`
+/// production, which only ever builds that shape.
+fn search_library(w: &With) -> Option<String> {
+    let Binder::SearchOne {
+        filter,
+        by: Reference::You,
+        whose: Reference::You,
+        from,
+        if_none: None,
+    } = peel_binder(&w.binder)
+    else {
+        return None;
+    };
+    if from.as_slice() != [Zone::Library] {
+        return None;
+    }
+    let OneShotEffect::Sequentially(parts) = w.body.as_ref() else {
+        return None;
+    };
+    let (reveal, move_part, shuffle_part) = match parts.as_slice() {
+        [a, b, c] => (Some(a), b, c),
+        [a, b] => (None, a, b),
+        _ => return None,
+    };
+    if let Some(r) = reveal
+        && !matches!(
+            r,
+            OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Reveal {
+                    what: Reference::That(Sort::Card),
+                    to: None,
+                },
+            ))
+        )
+    {
+        return None;
+    }
+    let OneShotEffect::Act(Action::Move(
+        Reference::That(Sort::Card),
+        Destination::Zone(zone),
+        riders,
+    )) = move_part
+    else {
+        return None;
+    };
+    let (dest_phrase, tapped_ok) = match zone {
+        Zone::Hand => ("into your hand", false),
+        Zone::Battlefield => ("onto the battlefield", true),
+        Zone::Graveyard => ("into your graveyard", false),
+        _ => return None,
+    };
+    let tapped = match riders.as_slice() {
+        [] => false,
+        [EnterRider::Tapped] if tapped_ok => true,
+        _ => return None,
+    };
+    if !matches!(
+        shuffle_part,
+        OneShotEffect::Act(Action::By(Reference::You, PlayerAction::Shuffle))
+    ) {
+        return None;
+    }
+    let noun = search_filter_phrase(filter)?;
+    let mut out = format!("Search your library for {noun}");
+    if reveal.is_some() {
+        out.push_str(", reveal it");
+    }
+    let _ = write!(
+        out,
+        ", put it {dest_phrase}{}",
+        if tapped { " tapped" } else { "" }
+    );
+    out.push_str(", then shuffle.");
+    Some(out)
+}
+
+/// See through a macro invocation to its expanded value — the `Binder`-side
+/// twin of [`peel_expanded`] ([`Predicate`]) / `strip_expanded` (used
+/// elsewhere in this crate). No current macro invocation targets a `Binder`
+/// position, but every other structural-shape recognizer in this file peels
+/// its node's `Expanded` wrapper before matching, so this keeps
+/// [`search_library`] consistent rather than assuming its input is never
+/// macro-provenance.
+fn peel_binder(binder: &Binder) -> &Binder {
+    match binder {
+        Binder::Expanded(e) => peel_binder(&e.value),
+        other => other,
+    }
+}
+
+/// The noun phrase a [`search_library`] filter renders as ("a basic land
+/// card", "a Forest card", "an artifact card", "a green creature card", "a
+/// basic Plains, Swamp, or Forest card"), or `None` for a filter shape
+/// outside the grammar `deckmaste_migrations`' `search_card_filter` builds.
+/// The mirror image of that parser: a `Subtype` atom's card-type word is
+/// always implicit (never printed — the subtype alone identifies the
+/// category), a `Supertype(Basic)` with no subtype prints "basic land", and a
+/// `Supertype(Snow)` prints "snow land".
+fn search_filter_phrase(filter: &Predicate) -> Option<String> {
+    if let Predicate::Or(members) = filter {
+        let phrases: Vec<String> = members
+            .iter()
+            .map(search_filter_phrase)
+            .collect::<Option<_>>()?;
+        return Some(phrases.join(" or "));
+    }
+    if matches!(filter, Predicate::Kind(ObjectKind::Card)) {
+        return Some("a card".to_owned());
+    }
+    let mut ty: Option<&str> = None;
+    let mut supertype: Option<Supertype> = None;
+    let mut color: Option<&'static str> = None;
+    let mut subtypes: Vec<&str> = Vec::new();
+    for atom in flatten_and(filter) {
+        match atom {
+            Predicate::Characteristic(CharacteristicPredicate::Type(t)) => ty = Some(t.as_str()),
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
+                supertype = Some(*s);
+            }
+            Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
+                color = Some(color_word(*c));
+            }
+            Predicate::Characteristic(CharacteristicPredicate::Colorless) => {
+                color = Some("colorless");
+            }
+            Predicate::Characteristic(CharacteristicPredicate::Multicolored) => {
+                color = Some("multicolored");
+            }
+            Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) => {
+                subtypes.push(s.as_str());
+            }
+            Predicate::Or(members) => {
+                for m in members {
+                    let Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) = m else {
+                        return None;
+                    };
+                    subtypes.push(s.as_str());
+                }
+            }
+            _ => return None,
+        }
+    }
+    let ty = ty?;
+    let descriptor = if subtypes.is_empty() {
+        let type_word = type_word(ty)?;
+        match (supertype, color) {
+            (Some(Supertype::Basic), None) => format!("basic {type_word}"),
+            (Some(Supertype::Snow), None) => format!("snow {type_word}"),
+            (None, Some(c)) => format!("{c} {type_word}"),
+            (None, None) => type_word.to_owned(),
+            _ => return None,
+        }
+    } else {
+        let list = join_or_list(&subtypes);
+        match supertype {
+            Some(Supertype::Basic) => format!("basic {list}"),
+            None => list,
+            _ => return None,
+        }
+    };
+    Some(a_an(&format!("{descriptor} card")))
+}
+
+/// The lowercase card-type word a search filter's `Type` atom names ("Land",
+/// "Creature", …), or `None` for a type this family never searches for
+/// (Dungeon, Kindred — no printed "search your library for a dungeon card").
+fn type_word(ty: &str) -> Option<&'static str> {
+    Some(match ty {
+        "Land" => "land",
+        "Creature" => "creature",
+        "Artifact" => "artifact",
+        "Enchantment" => "enchantment",
+        "Instant" => "instant",
+        "Sorcery" => "sorcery",
+        "Planeswalker" => "planeswalker",
+        "Battle" => "battle",
+        _ => return None,
+    })
+}
+
+/// "A" / "A or B" / "A, B, or C" — the search-filter subtype-list register
+/// ([`join_or_list`]'s parser-side twin is `search_card_filter`'s
+/// `split_or_list`).
+fn join_or_list(items: &[&str]) -> String {
+    match items {
+        [] => String::new(),
+        [a] => (*a).to_string(),
+        [a, b] => format!("{a} or {b}"),
+        _ => {
+            let (last, rest) = items.split_last().expect("non-empty");
+            format!("{}, or {last}", rest.join(", "))
+        }
+    }
+}
+
+/// Flattens a (possibly trivial) `And` into its member atoms — the `Vec`
+/// counterpart of `fragment`'s private `flatten_all_of`, kept local since
+/// this file has no visibility into that one.
+fn flatten_and(filter: &Predicate) -> Vec<&Predicate> {
+    match filter {
+        Predicate::And(members) => members.iter().flat_map(flatten_and).collect(),
+        other => vec![other],
+    }
 }
 
 /// A delayed triggered ability's lead-in + body ([CR#603.7]). See
@@ -2534,6 +2760,80 @@ mod tests {
             })),
         });
         assert_eq!(effect(&with, &ctx), "Discard two cards.");
+    }
+
+    /// The library-search / tutor family's bespoke render ([CR#701.23a]) —
+    /// the migrations parser's `With(SearchOne(filter), Sequentially([...]))`
+    /// shape round-trips to the exact oracle sentence, both the
+    /// hand-destination (reveal) and battlefield-destination (tapped) forms.
+    #[test]
+    fn search_library_renders_hand_and_battlefield_destinations() {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::EnterRider;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Sort;
+        use deckmaste_core::Supertype;
+
+        let ctx = Ctx {
+            subject: "Tutor",
+            targets: &[],
+            that: None,
+        };
+        let basic_land = || {
+            Predicate::And(vec![
+                Predicate::Characteristic(CharacteristicPredicate::Type(
+                    deckmaste_core::Ident::new("Land"),
+                )),
+                Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
+            ])
+        };
+        let hand = OneShotEffect::With(With {
+            binder: Binder::SearchOne {
+                filter: basic_land(),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library],
+                if_none: None,
+            },
+            body: Box::new(OneShotEffect::Sequentially(vec![
+                OneShotEffect::act_by_you(PlayerAction::Reveal {
+                    what: Reference::That(Sort::Card),
+                    to: None,
+                }),
+                OneShotEffect::Act(Action::Move(
+                    Reference::That(Sort::Card),
+                    Destination::Zone(Zone::Hand),
+                    vec![],
+                )),
+                OneShotEffect::act_by_you(PlayerAction::Shuffle),
+            ])),
+        });
+        assert_eq!(
+            effect(&hand, &ctx),
+            "Search your library for a basic land card, reveal it, put it into your hand, then shuffle."
+        );
+
+        let battlefield = OneShotEffect::With(With {
+            binder: Binder::SearchOne {
+                filter: basic_land(),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library],
+                if_none: None,
+            },
+            body: Box::new(OneShotEffect::Sequentially(vec![
+                OneShotEffect::Act(Action::Move(
+                    Reference::That(Sort::Card),
+                    Destination::Zone(Zone::Battlefield),
+                    vec![EnterRider::Tapped],
+                )),
+                OneShotEffect::act_by_you(PlayerAction::Shuffle),
+            ])),
+        });
+        assert_eq!(
+            effect(&battlefield, &ctx),
+            "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+        );
     }
 
     /// The loot/rummage render round-trip ([CR#121.1,701.9b,608.2c]): the
