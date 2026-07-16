@@ -46,13 +46,17 @@ pub(crate) enum Affected {
 pub(crate) fn replaceable(e: &GameEvent) -> bool {
     matches!(
         e,
-        // [CR#701,614.17]: the named keyword-action event is guardable
-        // (a `Cant(Act(…))` suppresses it — indestructible) and replaceable
-        // ([CR#614] — regeneration); `Act(Destroy(…))` is the destruction
-        // intent (subsuming the retired `WillDestroy`) and `Act(Draw)` the draw
-        // intent (subsuming the retired `WillDraw` — Notion Thief / Lab Maniac).
-        GameEvent::Act { .. }
-            | GameEvent::ZoneChange { snapshot: None, .. }
+        // [CR#701,614.17]: the FUTURE keyword-action event (`committed: false`)
+        // is the ONE guardable/replaceable window — a `Cant(Act(…))` suppresses
+        // it (indestructible) and a replacement rewrites/replaces it
+        // (regeneration, madness, Leyline). The committed PAST fact
+        // (`committed: true`), recorded by `FinalizeAct`, opens NO window (this
+        // gate refuses it) so a finalized fact never re-triggers cant/replace —
+        // the exact analogue of `ZoneChange`'s `snapshot: None` future gate.
+        GameEvent::Act {
+            committed: false,
+            ..
+        } | GameEvent::ZoneChange { snapshot: None, .. }
             | GameEvent::DamageDealt { .. }
             | GameEvent::LifeGained { .. }
             | GameEvent::LifeLost { .. }
@@ -1011,6 +1015,8 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
+            committed: false,
+            contents: None,
         };
         assert!(replacement_watches(&state, &would, id, &e));
     }
@@ -1054,6 +1060,8 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: None,
+            committed: false,
+            contents: None,
         };
         assert!(cant_event(&state, &e));
     }
@@ -1173,6 +1181,8 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
+            committed: false,
+            contents: None,
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 2);
@@ -1230,6 +1240,8 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
+            committed: false,
+            contents: None,
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(
@@ -1259,6 +1271,8 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
+            committed: false,
+            contents: None,
         };
         let scry = GameEvent::Act {
             verb: deckmaste_core::VerbName::from("Scry"),
@@ -1267,6 +1281,8 @@ mod tests {
             from: None,
             to: None,
             cause: None,
+            committed: false,
+            contents: None,
         };
         assert!(
             replacement_watches(&state, &would, id, &destroy),
@@ -1307,6 +1323,8 @@ mod tests {
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
+            committed: false,
+            contents: None,
         };
         // Without the rider: the shield is gathered.
         assert_eq!(gather_applicable(&state, &e).len(), 1);

@@ -13,6 +13,31 @@ pub enum LibraryEnd {
     Bottom,
 }
 
+/// What must have committed since a `FinalizeAct`'s `mark` for the keyword
+/// action's PAST name-fact to record ([CR#616.1] finalization). A future `Act`
+/// opens the ONE replacement window; its `FinalizeAct` watcher then OBSERVES
+/// the outcome — whether the action passed unchanged, was redirected, or was
+/// replaced away — and records the name-fact iff the verb's characteristic
+/// change actually landed. This is what makes a redirected discard/mill still a
+/// discard/mill ([CR#701.9c,701.17c]) while a fully-replaced one leaves no fact
+/// or trigger ([CR#614.17]) — with no facet-rewriting machinery.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FinalizeWatch {
+    /// ≥1 of these patients zone-changed since `mark`, to ANY destination
+    /// ([CR#701.9c,701.17c]: a redirected card is still discarded/milled) —
+    /// the move verbs (destroy/discard/mill). Resolved to concrete ids before
+    /// the window, so it observes the outcome whether the action passed or was
+    /// replaced.
+    Patients(Vec<crate::object::ObjectId>),
+    /// A `Draw`-caused move for this player committed since `mark` (draw,
+    /// [CR#121.2]) — an empty-library attempt commits none, so no draw fact.
+    Performer(crate::player::PlayerId),
+    /// The body's arrange ran (scry/surveil/fateseal, [CR#701.22d]).
+    /// Scheduled only by the passed action's apply (a replaced action never
+    /// reaches it), so it records unconditionally — the body definitely ran.
+    BodyRan,
+}
+
 /// One unit of engine work. `step()` pops exactly one; handlers schedule
 /// follow-ups at the agenda *front*, ahead of previously queued work.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,5 +279,18 @@ pub enum WorkItem {
         library_owner: crate::player::PlayerId,
         end: LibraryEnd,
         count: deckmaste_core::Uint,
+    },
+    /// [CR#616.1]: the finalization watcher planted alongside a future `Act`
+    /// window. After the window resolves (the action passed, was redirected, or
+    /// was replaced away) this observes `resolution_events[mark..]` for
+    /// `watch`'s characteristic committed change and, on a hit, emits the
+    /// committed PAST `Act` fact (`act` with `committed: true`) — recording it
+    /// and firing its "whenever you …" triggers. A miss records nothing (a
+    /// replaced-away mill, a regenerated destroy, an empty-library draw). `act`
+    /// is the future window event; the handler flips its phase marker.
+    FinalizeAct {
+        act: GameEvent,
+        watch: FinalizeWatch,
+        mark: usize,
     },
 }

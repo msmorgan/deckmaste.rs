@@ -13,6 +13,7 @@ use deckmaste_core::Zone;
 use rand::RngExt;
 use rand::seq::SliceRandom;
 
+use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
 use crate::event::GameEvent;
@@ -147,6 +148,11 @@ pub enum Progress {
     /// piles of more than one card still need an arrange decision (0 = every
     /// pile was ≤1 card, nothing surfaced).
     PilesArranged { deciding: Uint },
+    /// [CR#616.1]: a `FinalizeAct` watcher observed its keyword action's
+    /// outcome. `recorded` is true when the characteristic change committed and
+    /// the PAST name-fact was scheduled; false when nothing committed (replaced
+    /// away / regenerated / empty) and the fact died silently.
+    ActFinalized { recorded: bool },
 }
 
 impl GameState {
@@ -311,6 +317,7 @@ impl GameState {
                 end,
                 count,
             } => self.arrange_group_landing(arranger, &arrangement, library_owner, end, count),
+            WorkItem::FinalizeAct { act, watch, mark } => self.finalize_act(act, &watch, mark),
         };
         StepOutcome::Progress(progress)
     }
@@ -896,100 +903,159 @@ impl GameState {
             // never a zone move).
             // Revealing is a public information event, not a state mutation.
             GameEvent::Revealed { .. } => event,
-            // [CR#701]: the named keyword-action event. TWO shapes by facet:
-            //  * a MOVE-verb (`Act(Destroy)`, [CR#701.8a]) carries its body facet (`from`/`to`) and
-            //    COMMITS that zone change directly here — the single dual-facet event IS the
-            //    Battlefield → Graveyard move, carrying its `cause` (one of "destroyed"'s two
-            //    causes, [CR#701.8b]). A canted (indestructible, [CR#702.12b]) or replaced
-            //    (regeneration, [CR#701.19a]; Rest in Peace's `→Graveyard`) `Act` never reaches
-            //    this apply — there is NO second replaceable future-form `ZoneChange` below it
-            //    ([CR#616.1]).
-            //  * a reorder verb (scry/surveil/fateseal) — a pure FACT (no mutation; the body's own
-            //    events already reordered the library). The surviving `Act` is the "whenever you
-            //    scry/surveil/…" trigger fact ([CR#701.22d]).
-            //  * the DRAW verb (`on: None`, below) — the atomic single-card draw, whose drawn
-            //    object binds LATE (the library top at apply): its own arm, not the move-verb
-            //    branch above ([CR#121.1,121.2]).
-            //
-            // [CR#121.1,121.2]: the atomic single-card draw. `Act(Draw)` carries NO
-            // patient `on` — the drawn card is the library top, bound LATE at apply.
-            // This is the relocated draw apply: a card present → schedule the
-            // Library → Hand move tagged `cause: Draw` (the SUCCESS fact
-            // `FactKind::Drawn` reads — what "whenever you draw a card" +
-            // `CardsDrawn` count, distinct from a non-draw Library → Hand move,
-            // [CR#121.5]) and log the `Act(Draw)` attempt fact; an empty library →
-            // `DrewFromEmpty`, the failed-draw fact the loss SBA keys on
-            // ([CR#121.4,704.5b]). The empty check runs BEFORE the move so a
-            // last-card success is unambiguous. `that_much = 1` — one card per
-            // draw ([CR#121.2]); "draw N" is `Repeat(n, Draw)`, N such attempts.
+            // [CR#701,616.1]: a FUTURE keyword-action window that PASSED
+            // (unreplaced, uncanted) — the apply unwraps its contents DIRECTLY,
+            // opening NO second replacement window, per the verb's commit
+            // discipline. `FinalizeAct` then records the past name-fact iff the
+            // characteristic change committed. A REPLACED or CANTED window never
+            // reaches here. The committed PAST fact (`committed: true`, emitted
+            // by `FinalizeAct`) applies as a pure record (arm below).
             GameEvent::Act {
                 verb,
-                who: Some(player),
-                on: None,
+                who,
+                on,
                 from,
                 to,
                 cause,
-            } if verb.0.as_str() == "Draw" => {
-                if let Some(&top) = self.zones.libraries[player.index()].front() {
-                    self.that_much = Some(1);
-                    self.schedule_evolution(GameEvent::ZoneChange {
-                        snapshot: None,
-                        object: top,
-                        from: Some(Zone::Library),
-                        to: Zone::Hand,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        // The emitting lane owns the attribution: the effect
-                        // lane tags `EffectInstruction` + the instructing
-                        // source, the draw step tags `TurnBasedAction`
-                        // ([CR#703.4d]) — don't reconstruct a sourceless one
-                        // here (that erased the agent from every drawn-card
-                        // fact in history).
-                        cause: cause.clone().or_else(|| {
+                committed: false,
+                contents,
+            } => {
+                // The future window, stripped of resolution plumbing — reused
+                // as the record the paired `FinalizeAct` commits, and as this
+                // apply's inert (skipped) return value.
+                let rebuilt = || GameEvent::Act {
+                    verb,
+                    who,
+                    on,
+                    from,
+                    to,
+                    cause: cause.clone(),
+                    committed: false,
+                    contents: None,
+                };
+                if verb.0.as_str() == "Draw"
+                    && on.is_none()
+                    && let Some(player) = who
+                {
+                    // [CR#121.1,121.2]: the atomic single-card draw — the drawn
+                    // card is the library top, bound LATE. A card present →
+                    // commit Library → Hand (cause `Draw`, the `FactKind::Drawn`
+                    // success fact) and schedule THIS draw's own `FinalizeAct`
+                    // (a per-card `mark`, so it observes only its own move);
+                    // empty → `DrewFromEmpty`, no draw fact ([CR#121.4,704.5b]).
+                    // The empty check runs BEFORE the move. `that_much = 1` —
+                    // one card per draw.
+                    if let Some(&top) = self.zones.libraries[player.index()].front() {
+                        self.that_much = Some(1);
+                        let mark = self.resolution_events.len();
+                        // The emitting lane owns the attribution ([CR#703.4d]):
+                        // the effect lane tags `EffectInstruction` + its source;
+                        // don't reconstruct a sourceless cause here.
+                        let draw_cause = cause.clone().or_else(|| {
                             Some(crate::event::Cause::draw(
                                 deckmaste_core::Agency::EffectInstruction,
                                 None,
                             ))
-                        }),
-                    });
-                    GameEvent::Act {
-                        verb,
-                        who: Some(player),
-                        on: None,
-                        from,
-                        to,
-                        cause,
+                        });
+                        self.schedule_front(vec![
+                            WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
+                                snapshot: None,
+                                object: top,
+                                from: Some(Zone::Library),
+                                to: Zone::Hand,
+                                enters: None,
+                                position: None,
+                                face: None,
+                                cause: draw_cause,
+                            })),
+                            WorkItem::FinalizeAct {
+                                act: rebuilt(),
+                                watch: crate::agenda::FinalizeWatch::Performer(player),
+                                mark,
+                            },
+                        ]);
+                        rebuilt()
+                    } else {
+                        self.player_mut(player).drew_from_empty = true;
+                        GameEvent::DrewFromEmpty(player)
                     }
+                } else if let Some(contents) = contents {
+                    if let Some((group, to_zone)) =
+                        crate::resolve::composite_body_group(&contents.body)
+                    {
+                        // [CR#701.17a,603.3b]: mill — derive the top-slice group
+                        // and commit it as ONE simultaneous batch (the evolving
+                        // collector batches their `ZoneChange` facts), directly,
+                        // no second window. Re-vet each card is still in the
+                        // library (the schedule-time list may have gone stale).
+                        // `FinalizeAct` was planted at the window.
+                        let patients = self.eval_selection_set(&group, &contents.frame);
+                        debug_assert!(
+                            self.evolving_batch.is_none(),
+                            "a mill commits as its own Single occurrence"
+                        );
+                        self.evolving_batch = Some(Vec::new());
+                        for object in patients {
+                            if self.objects.get(object).and_then(|o| o.zone) == Some(Zone::Library)
+                            {
+                                self.apply_zone_will_change(
+                                    object,
+                                    Some(Zone::Library),
+                                    to_zone,
+                                    None,
+                                    None,
+                                    None,
+                                    cause.clone(),
+                                );
+                            }
+                        }
+                        self.flush_evolving_batch();
+                        rebuilt()
+                    } else {
+                        // [CR#701.22a,701.14a]: a reorder / fight — schedule the
+                        // arrange (or reciprocal-damage) body as agenda work (a
+                        // decision can't complete inside an apply), then THIS
+                        // action's `FinalizeAct`. Reached only because the
+                        // window passed, so a replaced/canted action records
+                        // nothing, and the surviving fact lands AFTER the body
+                        // ([CR#701.22d]).
+                        let mark = self.resolution_events.len();
+                        self.schedule_front(vec![
+                            WorkItem::RunEffect {
+                                effect: Box::new(contents.body),
+                                frame: contents.frame,
+                            },
+                            WorkItem::FinalizeAct {
+                                act: rebuilt(),
+                                watch: crate::agenda::FinalizeWatch::BodyRan,
+                                mark,
+                            },
+                        ]);
+                        rebuilt()
+                    }
+                } else if let (Some(object), Some(to)) = (on, to)
+                    && self.objects.get(object).and_then(|o| o.zone) == from
+                {
+                    // [CR#701.8a,616.1]: destroy / bound discard — commit the
+                    // patient's move DIRECTLY ([CR#603.10a] LKI snapshot,
+                    // move+remint), no second window. The `from`-guard is
+                    // re-checked (the schedule-time vet may have gone stale); a
+                    // mismatch commits nothing and the window's `FinalizeAct`
+                    // records no fact.
+                    self.apply_zone_will_change(object, from, to, None, None, None, cause.clone());
+                    rebuilt()
                 } else {
-                    self.player_mut(player).drew_from_empty = true;
-                    GameEvent::DrewFromEmpty(player)
+                    // A guard mismatch or degenerate shape at apply — commit
+                    // nothing; the planted `FinalizeAct` finds no change and the
+                    // fact dies.
+                    rebuilt()
                 }
             }
+            // The committed PAST keyword-action fact — a pure record (its
+            // characteristic change already committed); apply mutates nothing.
             GameEvent::Act {
-                verb,
-                who,
-                on: Some(object),
-                from,
-                to: Some(to),
-                cause,
-            } if self.objects.get(object).is_some() => {
-                // Commit the body move atomically ([CR#603.10a] LKI snapshot,
-                // move+remint, past-form `ZoneChange`) via the shared helper —
-                // the same commit half a plain future-form `ZoneChange` runs,
-                // so the destroy composite offers EXACTLY ONE cant/replace
-                // opportunity (on the `Act`, above) and none downstream.
-                self.apply_zone_will_change(object, from, to, None, None, None, cause.clone());
-                GameEvent::Act {
-                    verb,
-                    who,
-                    on: Some(object),
-                    from,
-                    to: Some(to),
-                    cause,
-                }
-            }
-            GameEvent::Act { .. } => event,
+                committed: true, ..
+            } => event,
             GameEvent::DesignationChanged { .. } => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
             }
@@ -1442,6 +1508,74 @@ impl GameState {
         }
     }
 
+    /// [CR#616.1]: observe a keyword action's outcome and record its PAST
+    /// name-fact iff the characteristic change committed since `mark`. The
+    /// move verbs watch their patients zone-changing to ANY destination — a
+    /// redirected card is still discarded/milled ([CR#701.9c,701.17c],
+    /// Megrim-under-madness/Leyline); draw watches a `Draw`-caused move for the
+    /// drawing player (an empty library commits none, so no draw fact); a
+    /// reorder/fight `FinalizeAct` is scheduled only by a PASSED apply (after
+    /// the arrange/damage body), so it records unconditionally ([CR#701.22d]).
+    /// A miss records nothing — a replaced-away mill, a regenerated destroy, an
+    /// empty draw. The committed fact is front-scheduled as an `Emit`: it
+    /// records + fires its "whenever you …" triggers, and `replaceable()`
+    /// refuses it so it opens no fresh window.
+    fn finalize_act(&mut self, act: GameEvent, watch: &FinalizeWatch, mark: usize) -> Progress {
+        let committed = match watch {
+            FinalizeWatch::BodyRan => true,
+            FinalizeWatch::Patients(ids) => self.resolution_events[mark..].iter().any(|e| {
+                matches!(
+                    e,
+                    GameEvent::ZoneChange { snapshot: Some(_), object, .. } if ids.contains(object)
+                )
+            }),
+            FinalizeWatch::Performer(player) => self.resolution_events[mark..].iter().any(|e| {
+                let GameEvent::ZoneChange {
+                    snapshot: Some(snap),
+                    cause: Some(c),
+                    ..
+                } = e
+                else {
+                    return false;
+                };
+                c.verb.as_str() == "Draw"
+                    && match snap.source {
+                        crate::object::ObjectSource::Card(card) => {
+                            self.cards.get(card).owner == *player
+                        }
+                        crate::object::ObjectSource::Player(_) => false,
+                    }
+            }),
+        };
+        if committed {
+            let done = match act {
+                GameEvent::Act {
+                    verb,
+                    who,
+                    on,
+                    from,
+                    to,
+                    cause,
+                    ..
+                } => GameEvent::Act {
+                    verb,
+                    who,
+                    on,
+                    from,
+                    to,
+                    cause,
+                    committed: true,
+                    contents: None,
+                },
+                other => other,
+            };
+            self.schedule_front(vec![WorkItem::Emit(Occurrence::single(done))]);
+        }
+        Progress::ActFinalized {
+            recorded: committed,
+        }
+    }
+
     /// The occurrence-level "that much" fix for cause-amount zone changes
     /// ([CR#107.3] magnitude anaphora): a discard/mill clause's amount is
     /// its CARD COUNT — "discards all the cards in their hand, then draws
@@ -1536,7 +1670,12 @@ impl GameState {
                 GameEvent::TriggerFired { .. }
                 | GameEvent::AbilityResolved(_)
                 | GameEvent::TurnBegan { .. }
-                | GameEvent::ZoneChange { snapshot: None, .. } => {}
+                | GameEvent::ZoneChange { snapshot: None, .. }
+                // The FUTURE keyword-action window is not a recorded fact — its
+                // committed PAST form (recorded by `FinalizeAct`) is what
+                // history/triggers read ([CR#603.6]); recording the future too
+                // would double-count every keyword-action query.
+                | GameEvent::Act { committed: false, .. } => {}
                 _ => {
                     self.note_enacted(event);
                     // [CR#603.12]: the resolution-scoped window a reflexive
@@ -1773,6 +1912,10 @@ impl GameState {
                         deckmaste_core::Agency::TurnBasedAction,
                         None,
                     )),
+                    // The FUTURE window; its apply late-binds the top card and
+                    // schedules the draw's `FinalizeAct`.
+                    committed: false,
+                    contents: None,
                 }))]
             }
             PhaseStep::Beginning(BeginningStep::Draw) => vec![],
@@ -2323,9 +2466,7 @@ impl GameState {
         let hand = &self.zones.hands[player.index()];
         let picks: Vec<ObjectId> = idx.into_iter().map(|i| hand[i]).collect();
         let events = crate::decide::discard_batch(player, picks);
-        if !events.is_empty() {
-            self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
-        }
+        self.schedule_discard_acts(events);
         Progress::RandomDiscarded {
             count: Uint::try_from(n).expect("sampled count fits Uint"),
         }
@@ -2877,6 +3018,8 @@ mod tests {
                 deckmaste_core::Agency::EffectInstruction,
                 None,
             )),
+            committed: false,
+            contents: None,
         };
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
             destroy(a),

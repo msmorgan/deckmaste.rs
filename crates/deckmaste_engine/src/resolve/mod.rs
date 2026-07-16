@@ -26,6 +26,8 @@ mod player_action;
 mod query;
 mod targets;
 
+// The mill apply re-derives its top-slice group off the stored body facet.
+pub(crate) use action::composite_body_group;
 // Target-set machinery moved to `targets`; external callers keep the old
 // `crate::resolve::…` paths.
 pub(crate) use targets::announce_satisfiable;

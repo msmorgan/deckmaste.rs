@@ -455,7 +455,11 @@ impl GameState {
                 GameEvent::TriggerFired { .. }
                 | GameEvent::AbilityResolved(_)
                 | GameEvent::TurnBegan { .. }
-                | GameEvent::ZoneChange { snapshot: None, .. } => continue,
+                | GameEvent::ZoneChange { snapshot: None, .. }
+                // The FUTURE keyword-action window is not trigger-scanned; its
+                // committed PAST form (`FinalizeAct`) carries the
+                // "whenever you scry/discard/…" trigger fact ([CR#701.22d]).
+                | GameEvent::Act { committed: false, .. } => continue,
                 GameEvent::Blocked { attacker, .. } if !blocked_attackers.insert(*attacker) => {
                     continue;
                 }

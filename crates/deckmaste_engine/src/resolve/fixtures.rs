@@ -151,6 +151,9 @@ pub(super) fn run_injected(state: &mut GameState) {
                     | WorkItem::ChooseNoteNumber { .. }
                     | WorkItem::ChooseNoteCardName { .. }
                     | WorkItem::ChooseNoteObjects { .. }
+                    // A keyword action's finalization watcher is injected
+                    // resolution work, like the `Emit` it records ([CR#616.1]).
+                    | WorkItem::FinalizeAct { .. }
             )
         );
         if !injected || state.pending.is_some() {

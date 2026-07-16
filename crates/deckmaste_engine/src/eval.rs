@@ -344,6 +344,12 @@ impl<'a> FactView<'a> {
                 from,
                 to,
                 cause,
+                // Both phases lower identically ([CR#603.6]) — the future
+                // window and its committed past fact present the same
+                // name/result descriptions their patterns watch; `contents` is
+                // resolution plumbing no pattern reads.
+                committed: _,
+                contents: _,
             } => {
                 v = FactView::bare(FactKind::Act, state);
                 v.act_name = Some(Cow::Borrowed(&verb.0));

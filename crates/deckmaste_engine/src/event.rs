@@ -220,6 +220,25 @@ pub enum GameEvent {
         /// cause is a keyword action with no cause-tagged move
         /// (scry/surveil reorder within a zone).
         cause: Option<Cause>,
+        /// The phase marker ([CR#616.1], mirroring `ZoneChange`'s `snapshot`
+        /// law): `false` = the FUTURE, replaceable window — the ONE cant →
+        /// replace moment for every description of this keyword action; `true`
+        /// = the committed, trigger-visible PAST fact, recorded by
+        /// `FinalizeAct` only once the verb's characteristic change actually
+        /// committed. `replaceable()` gates on `committed: false`;
+        /// `record_history`/`scan_triggers` skip it; a committed `Act` opens no
+        /// window.
+        committed: bool,
+        /// The keyword action's unresolved CONTENTS + resolution context —
+        /// carried ONLY on the future form of a verb whose apply must unwrap a
+        /// body it cannot reconstruct from the flat coordinates: mill's
+        /// top-slice group derivation ([CR#701.17a]) and the scry family's
+        /// arrange `RunEffect` ([CR#701.22a]). `None` for the single-move verbs
+        /// (destroy/discard commit `on`/`from`/`to` directly) and draw (its
+        /// apply late-binds the library top), and always `None` once committed
+        /// (the recorded fact carries no resolution context — it never enters
+        /// `FactView`).
+        contents: Option<Box<ActContents>>,
     },
 
     Tapped {
@@ -521,6 +540,21 @@ pub enum GameEvent {
     DamageRemoved {
         object: ObjectId,
     },
+}
+
+/// A future keyword action's unresolved contents + the resolution frame it was
+/// scheduled in ([CR#603.6] — a keyword action IS its contents). Rides
+/// [`GameEvent::Act::contents`] so the apply half can unwrap a body the flat
+/// `Act` coordinates can't reconstruct: mill derives its top-slice group and
+/// commits the batch ([CR#701.17a]); the scry family schedules its arrange as
+/// agenda work ([CR#701.22a] — a decision can't complete inside an apply). The
+/// frame anchors the body's references (`You`/`It`/`This`, `Count`s). Dropped
+/// once the action commits — the recorded past fact carries no resolution
+/// context.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActContents {
+    pub body: deckmaste_core::OneShotEffect,
+    pub frame: crate::stack::Frame,
 }
 
 /// How a permanent enters the battlefield ([CR#110.5] status; face-down is

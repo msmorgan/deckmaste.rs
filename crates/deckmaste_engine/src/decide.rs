@@ -607,6 +607,7 @@ fn cost_body_effect(
 use deckmaste_core::Agency;
 use deckmaste_core::Zone;
 
+use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::derive;
 use crate::event::Cause;
@@ -635,6 +636,11 @@ pub(crate) fn discard_batch(player: PlayerId, objects: Vec<ObjectId>) -> Vec<Gam
             from: Some(Zone::Hand),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::discard(Agency::EffectInstruction, None)),
+            // Each per-card discard is a FUTURE window ([CR#616.1]) whose apply
+            // commits the single Hand → Graveyard move; a bound single move
+            // needs no `contents`.
+            committed: false,
+            contents: None,
         })
         .collect()
 }
@@ -1648,10 +1654,35 @@ impl GameState {
         // entailment row's `amount` — fixes "that many" for a following
         // draw ([CR#107.3]; the `apply_occurrence` funnel counts the batch).
         let events = discard_batch(player, objects);
-        if !events.is_empty() {
-            self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
-        }
+        self.schedule_discard_acts(events);
         Ok(())
+    }
+
+    /// Schedule a discard's per-card `Act(Discard)` windows as ONE simultaneous
+    /// batch ([CR#603.3b] — the choice was batched) plus each card's own
+    /// `FinalizeAct` watcher ([CR#616.1]): every card commits its Hand →
+    /// Graveyard move in the batch apply, and each finalizes independently on
+    /// its own patient — so a redirected discard (madness → Exile) still
+    /// records its name-fact ([CR#701.9c]) and a suppressed one records
+    /// none. Shared by the chosen (`submit_discards`) and random
+    /// (`discard_random`) paths.
+    pub(crate) fn schedule_discard_acts(&mut self, acts: Vec<GameEvent>) {
+        if acts.is_empty() {
+            return;
+        }
+        let mark = self.resolution_events.len();
+        let mut items = Vec::with_capacity(acts.len() + 1);
+        items.push(WorkItem::Emit(Occurrence::Batch(acts.clone())));
+        for act in acts {
+            if let GameEvent::Act { on: Some(on), .. } = act {
+                items.push(WorkItem::FinalizeAct {
+                    act,
+                    watch: FinalizeWatch::Patients(vec![on]),
+                    mark,
+                });
+            }
+        }
+        self.schedule_front(items);
     }
 
     /// [CR#603.3b]: apply an `OrderTriggers` answer — validate `order` is a

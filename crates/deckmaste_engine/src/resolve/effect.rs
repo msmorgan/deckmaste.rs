@@ -126,7 +126,11 @@ impl GameState {
     /// `Distribute`. `TheRef` is a singleton, `Existing` evaluates its
     /// `Selection`, and a chooser (`ChooseOne`/`Choose`) reads the picks that a
     /// prior [`Self::binder_choice`] surfaced into `frame.anaphora.chosen`.
-    fn resolve_binder(&self, binder: &deckmaste_core::Binder, frame: &Frame) -> Vec<ObjectId> {
+    pub(crate) fn resolve_binder(
+        &self,
+        binder: &deckmaste_core::Binder,
+        frame: &Frame,
+    ) -> Vec<ObjectId> {
         use deckmaste_core::Binder;
         match peel_binder(binder) {
             Binder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
@@ -633,11 +637,14 @@ impl GameState {
                     OneShotEffect::Act(action)
                         if !matches!(action, Action::CreateReplacement { .. }) =>
                     {
-                        // Resolve every element's work items up front. Only a
-                        // pure-event body — one whose items are all `Emit` —
-                        // collapses to a single simultaneous batch ([CR#700.1]).
-                        // A choice-bearing body (e.g. `By(player, Discard)`,
-                        // whose `action_items` yield `DiscardCards` /
+                        // Resolve every element's work items up front. A
+                        // pure keyword-action body — one whose items are all
+                        // `Emit` (the event windows) plus their `FinalizeAct`
+                        // watchers — collapses its windows into a single
+                        // simultaneous batch ([CR#700.1]), the watchers riding
+                        // AFTER so each still finalizes on its own patient. A
+                        // choice-bearing body (e.g. `By(player, Discard)`, whose
+                        // `action_items` yield `DiscardCards` /
                         // `ChooseManaColor` / `OpenDistribute`) must NOT be
                         // batched: those items pause per element, and keeping
                         // only the `Emit`s would silently drop them (each player
@@ -647,24 +654,29 @@ impl GameState {
                             .into_iter()
                             .map(|obj| self.action_items(action, &bind_it(self, obj)))
                             .collect();
-                        let all_emit = per_element
-                            .iter()
-                            .flatten()
-                            .all(|item| matches!(item, WorkItem::Emit(_)));
-                        if all_emit {
+                        let batchable = per_element.iter().flatten().all(|item| {
+                            matches!(item, WorkItem::Emit(_) | WorkItem::FinalizeAct { .. })
+                        });
+                        if batchable {
                             let mut events: Vec<GameEvent> = Vec::new();
+                            let mut finalizers: Vec<WorkItem> = Vec::new();
                             for item in per_element.into_iter().flatten() {
-                                if let WorkItem::Emit(occ) = item {
-                                    match occ {
-                                        crate::event::Occurrence::Single(e) => events.push(e),
-                                        crate::event::Occurrence::Batch(v) => events.extend(v),
+                                match item {
+                                    WorkItem::Emit(crate::event::Occurrence::Single(e)) => {
+                                        events.push(e);
                                     }
+                                    WorkItem::Emit(crate::event::Occurrence::Batch(v)) => {
+                                        events.extend(v);
+                                    }
+                                    other => finalizers.push(other),
                                 }
                             }
                             let mut items = Vec::new();
                             if !events.is_empty() {
                                 items.push(WorkItem::Emit(occurrence_of(events)));
                             }
+                            // The watchers finalize AFTER the batch commits.
+                            items.extend(finalizers);
                             if can_reposition {
                                 items.push(WorkItem::ArrangePiles);
                             }
@@ -1241,13 +1253,15 @@ impl GameState {
         }
     }
 
-    /// Whether an [`Action::Composite`]'s `body` will actually do something
-    /// this resolution — the gate on emitting the keyword-action fact
-    /// ([CR#701.22b]: scry 0 is a no-op and fires no "you scried" trigger). The
-    /// keyword-action macros all wrap an `Each` over a peek selection, so an
-    /// empty peek (count 0, or an empty library) means nothing happened; any
-    /// other body is assumed to act.
-    pub(super) fn composite_body_acts(&self, body: &OneShotEffect, frame: &Frame) -> bool {
+    /// Whether an [`Action::Composite`]'s reorder/guarded `body` will actually
+    /// do something this resolution — the fizzle gate for the verbs whose
+    /// "did it happen" can't be read off flat coordinates ([CR#701.22b]: scry 0
+    /// fires no "you scried" trigger; [CR#701.14b]: a fight whose guard fails
+    /// does nothing). An `Each` over a peek is a no-op when the peek is empty;
+    /// an `If`-guarded body looks through to the branch its condition selects.
+    /// The move verbs (destroy/discard/mill) vet their coordinates directly in
+    /// `composite_items` instead.
+    pub(crate) fn composite_body_would_act(&self, body: &OneShotEffect, frame: &Frame) -> bool {
         match peel_effect(body) {
             OneShotEffect::Each(each) => match peel_binder(&each.binder) {
                 deckmaste_core::Binder::Existing(_) | deckmaste_core::Binder::TheRef(_) => {
@@ -1255,23 +1269,13 @@ impl GameState {
                 }
                 _ => true,
             },
-            // A BATCH keyword action (mill, [CR#701.17a]): an empty group — an
-            // empty library, or `count` 0 — mills nothing, so no "you milled"
-            // trigger ([CR#701.17b,701.22b]).
-            OneShotEffect::Act(deckmaste_core::Action::MoveGroup { group, .. }) => {
-                !self.eval_selection_set(group, frame).is_empty()
-            }
-            // A guarded keyword action — e.g. fight fires no "fights" event when
-            // either creature is no longer a creature on the battlefield
-            // ([CR#701.14b], the `If (both are creatures) …` guard). Look
-            // through to whichever branch the condition selects.
             OneShotEffect::If(i) => {
                 if self.condition_holds(&i.condition, frame) {
-                    self.composite_body_acts(&i.then, frame)
+                    self.composite_body_would_act(&i.then, frame)
                 } else {
                     i.otherwise
                         .as_ref()
-                        .is_some_and(|o| self.composite_body_acts(o, frame))
+                        .is_some_and(|o| self.composite_body_would_act(o, frame))
                 }
             }
             _ => true,
