@@ -25,74 +25,130 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     let Some(cost) = cost::parse_cost(cost_clause, VariableMana::Allow, Some(ctx.index))? else {
         return Ok(None);
     };
-    // Peel a trailing "Activate only once each turn/game." use-limit sentence
-    // ([CR#602.5b]) off the effect body so the body proper parses on its own;
-    // the limit rides on the `Activated` frame as a `limits: [...]` field. A
-    // bare `Activate only once …` with no trailing condition is required — an
-    // "… and only if …" extension is a state predicate this parser does not
-    // yet structure, so it stays attached and the body parse declines below.
-    let (effect_clause, limits) = peel_use_limit(effect_clause);
-    let (effect_clause, from, window) = peel_activation_context(effect_clause);
-    let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
+    // Peel a trailing "Activate only …" rider sentence off the effect body so
+    // the body proper parses on its own; the rider's fields ride on the
+    // `Activated` frame beside it. An unrecognized rider clause (an "and only
+    // if …" this parser can't ground, "Any player may activate this ability."
+    // — no core slot for who may activate) leaves `effect_clause` untouched,
+    // so the body parse declines below rather than silently dropping the
+    // restriction.
+    let (effect_clause, riders) = peel_activation_riders(effect_clause, ctx)?;
+    let Some(parsed) = effect::parse_clause(&effect_clause, ctx)? else {
         return Ok(None);
     };
-    Ok(Some(render(&cost, from, window, limits, &parsed)))
+    Ok(Some(render(&cost, riders.as_ref(), &parsed)))
 }
 
-fn peel_activation_context(
+/// The fields an "Activate only …" rider sentence lowers onto the
+/// `Activated` frame — the activation `window`, a use `limit`, an activation
+/// `condition`, and (for a graveyard-functioning self-return) the `from`
+/// zone.
+#[derive(Default)]
+struct Riders {
+    from: Option<&'static str>,
+    window: Option<&'static str>,
+    condition: Option<String>,
+    limit: Option<&'static str>,
+}
+
+/// Split the trailing "Activate only <clause>[ and only <clause>]*." rider
+/// sentence off `effect_clause`, lowering each recognized clause onto a
+/// [`Riders`] frame — the window ("as a sorcery", "as an instant", "during
+/// your turn", "during your upkeep"), a use-limit ("once each turn"/"once
+/// each game"/"once"), or a state condition ("if <phrase>", routed through
+/// the `Condition`-kind macro index, [`apply_rider_clause`]). Multiple
+/// clauses join " and only " ("Activate only as a sorcery and only once each
+/// turn."). Returns `(body, Some(riders))` when a trailing rider sentence was
+/// found and every one of its clauses was recognized; `(effect_clause, None)`
+/// both when there is no such sentence AND when one of its clauses isn't one
+/// this grammar grounds — the whole rider then stays attached, unstripped, so
+/// the body parse below declines rather than silently dropping a restriction.
+fn peel_activation_riders(
     effect_clause: &str,
-) -> (&str, Option<&'static str>, Option<&'static str>) {
-    let Some(effect) = effect_clause.strip_suffix(" Activate only during your upkeep.") else {
-        return (effect_clause, None, None);
+    ctx: &ResolveCtx,
+) -> anyhow::Result<(String, Option<Riders>)> {
+    let Some(rest) = effect_clause.strip_suffix('.') else {
+        return Ok((effect_clause.to_owned(), None));
     };
-    let from = effect
-        .contains(" from your graveyard ")
-        .then_some("Graveyard");
-    (effect, from, Some("DuringStep(Beginning(Upkeep), Your)"))
-}
-
-/// Split a trailing "Activate only once each turn." / "Activate only once each
-/// game." sentence ([CR#602.5b]) off `effect_clause`, returning the body before
-/// it plus the `UseLimit` RON token (`OncePerTurn` / `OncePerGame`). With no
-/// such sentence the body is returned unchanged and `None`. Only the exact bare
-/// forms peel: an "… and only if …" tail (a state condition this parser can't
-/// structure yet) is left in place so the body parse declines rather than
-/// silently dropping the condition.
-fn peel_use_limit(effect_clause: &str) -> (&str, Option<&'static str>) {
-    for (sentence, token) in [
-        ("Activate only once each turn.", "OncePerTurn"),
-        ("Activate only once each game.", "OncePerGame"),
-    ] {
-        if let Some(head) = effect_clause.strip_suffix(sentence) {
-            return (head.trim_end(), Some(token));
+    let Some((body, clause)) = rest.rsplit_once(". Activate only ") else {
+        return Ok((effect_clause.to_owned(), None));
+    };
+    let mut riders = Riders::default();
+    for part in clause.split(" and only ") {
+        if !apply_rider_clause(part.trim(), &mut riders, ctx)? {
+            return Ok((effect_clause.to_owned(), None));
         }
     }
-    (effect_clause, None)
+    // A self-return-from-graveyard body ("Return ~ from your graveyard …",
+    // self-ref) marks the ability as functioning from the graveyard; a
+    // `target … from your graveyard` OBJECT description (a different card
+    // the effect reaches into the graveyard for) must not trip this — the
+    // self-ref substring is exact enough to tell them apart.
+    if body.contains("~ from your graveyard") {
+        riders.from = Some("Graveyard");
+    }
+    // `body` is `effect_clause` with its own trailing period consumed as
+    // half of the ". Activate only " delimiter — reattach it, since the body
+    // is a complete sentence in its own right and the downstream effect
+    // grammar expects one.
+    Ok((format!("{body}."), Some(riders)))
 }
 
-/// Wraps a cost list + optional `UseLimit` + [`ParsedEffect`] in the
-/// `Activated` frame, emitting `limits:` only when a use-limit rider was peeled
-/// and `targets:` only when the effect declares any. The limit sits on the
-/// outer frame, beside (not inside) any `Targeted` wrapper.
-fn render(
-    cost: &[String],
-    from: Option<&str>,
-    window: Option<&str>,
-    limits: Option<&str>,
-    parsed: &ParsedEffect,
-) -> String {
+/// Recognize one " and only "-joined clause of an "Activate only …" rider,
+/// folding it onto `riders`. An "if <phrase>" clause routes `<phrase>`
+/// through the `Condition`-kind macro index — new condition phrasings are
+/// added by authoring a macro under `plugins/builtin/macros/condition/`, not
+/// by extending this match. Returns `false` for a clause this grammar
+/// doesn't ground (the caller declines the whole rider then).
+fn apply_rider_clause(part: &str, riders: &mut Riders, ctx: &ResolveCtx) -> anyhow::Result<bool> {
+    match part {
+        "as a sorcery" => riders.window = Some("SorcerySpeed"),
+        "as an instant" => riders.window = Some("InstantSpeed"),
+        "during your turn" => riders.window = Some("DuringTurn(Your)"),
+        "during your upkeep" => riders.window = Some("DuringStep(Beginning(Upkeep), Your)"),
+        "once each turn" => riders.limit = Some("OncePerTurn"),
+        "once each game" | "once" => riders.limit = Some("OncePerGame"),
+        _ => {
+            let Some(phrase) = part.strip_prefix("if ") else {
+                return Ok(false);
+            };
+            let Some(m) = ctx.index.match_kind("Condition", phrase)? else {
+                return Ok(false);
+            };
+            riders.condition = Some(m.macro_name.to_string());
+        }
+    }
+    Ok(true)
+}
+
+/// Wraps a cost list + optional [`Riders`] + [`ParsedEffect`] in the
+/// `Activated` frame, emitting each rider field only when peeled and
+/// `targets:` only when the effect declares any. The rider fields sit on the
+/// outer frame, beside (not inside) any `Targeted` wrapper, in the
+/// `ActivatedAbility` struct's declared order (`from`, `window`,
+/// `condition`, `limits`).
+fn render(cost: &[String], riders: Option<&Riders>, parsed: &ParsedEffect) -> String {
     let cost = cost.join(", ");
-    let from = from.map_or(String::new(), |z| format!(", from: {z}"));
-    let window = window.map_or(String::new(), |w| format!(", window: {w}"));
-    let limits = limits.map_or(String::new(), |l| format!(", limits: [{l}]"));
+    let from = riders
+        .and_then(|r| r.from)
+        .map_or(String::new(), |z| format!(", from: {z}"));
+    let window = riders
+        .and_then(|r| r.window)
+        .map_or(String::new(), |w| format!(", window: {w}"));
+    let condition = riders
+        .and_then(|r| r.condition.as_deref())
+        .map_or(String::new(), |c| format!(", condition: {c}"));
+    let limits = riders
+        .and_then(|r| r.limit)
+        .map_or(String::new(), |l| format!(", limits: [{l}]"));
     if parsed.targets.is_empty() {
         format!(
-            "Activated(cost: [{cost}]{from}{window}{limits}, effect: {})",
+            "Activated(cost: [{cost}]{from}{window}{condition}{limits}, effect: {})",
             parsed.effect
         )
     } else {
         format!(
-            "Activated(cost: [{cost}]{from}{window}{limits}, effect: Targeted(targets: [{}], effect: {}))",
+            "Activated(cost: [{cost}]{from}{window}{condition}{limits}, effect: Targeted(targets: [{}], effect: {}))",
             parsed.targets.join(", "),
             parsed.effect
         )
@@ -286,8 +342,6 @@ mod tests {
     fn declines_unknown_effects_and_non_activated_lines() {
         // The mana parser's domain: `Add` isn't an effect production here.
         assert!(act("{T}: Add {G}.").is_none());
-        // Activation instructions after the effect sentence decline.
-        assert!(act("{T}: Draw a card. Activate only as a sorcery.").is_none());
         // No cost colon at all.
         assert!(act("Flying").is_none());
         assert!(act("When ~ dies, draw a card.").is_none());
@@ -342,9 +396,11 @@ mod tests {
         assert_eq!(with_rider, spliced);
     }
 
-    /// A `... and only if ...` extension on the rider is a state condition this
-    /// parser does not yet structure, so the whole line declines rather than
-    /// silently dropping the condition.
+    /// A `... and only if ...` extension whose condition phrase has no
+    /// matching `Condition` macro is a state predicate this parser can't
+    /// ground, so the whole line declines rather than silently dropping it.
+    /// (The empty test ctx used by `act` also has no macro index at all, so
+    /// this declines the same way even a real condition phrase would.)
     #[test]
     fn declines_rider_with_trailing_condition() {
         assert!(
@@ -359,6 +415,125 @@ mod tests {
         assert_eq!(
             act("{2}{R}{R}{R}: Return ~ from your graveyard to your hand. Activate only during your upkeep.").as_deref(),
             Some("Activated(cost: [Mana([Generic(2),Red,Red,Red])], from: Graveyard, window: DuringStep(Beginning(Upkeep), Your), effect: Move(This, Hand))")
+        );
+    }
+
+    /// A `target … from your graveyard` OBJECT description (a different card
+    /// the effect reaches into the graveyard for, not the ability's own
+    /// source) must NOT trip the graveyard-functioning `from` detection —
+    /// only a self-referential `~ from your graveyard` does.
+    #[test]
+    fn graveyard_target_object_does_not_set_from() {
+        let out = act(
+            "{U}{U}: Return target creature card from your graveyard to your hand. \
+             Activate only during your upkeep.",
+        )
+        .unwrap();
+        assert!(!out.contains("from: Graveyard"), "no self-ref: {out}");
+        assert!(out.contains("window: DuringStep(Beginning(Upkeep), Your)"));
+    }
+
+    /// "Activate only as a sorcery." — the dominant rider in the wizards
+    /// one-away set — maps to `window: SorcerySpeed`.
+    #[test]
+    fn sorcery_speed_rider() {
+        let with_rider = act("{1}: Draw a card. Activate only as a sorcery.").unwrap();
+        let bare = act("{1}: Draw a card.").unwrap();
+        let spliced = bare.replacen("], effect:", "], window: SorcerySpeed, effect:", 1);
+        assert_eq!(with_rider, spliced);
+    }
+
+    /// "Activate only as an instant." maps to the (explicit, otherwise
+    /// implicit) `window: InstantSpeed`.
+    #[test]
+    fn instant_speed_rider() {
+        let with_rider = act("{1}: Draw a card. Activate only as an instant.").unwrap();
+        let bare = act("{1}: Draw a card.").unwrap();
+        let spliced = bare.replacen("], effect:", "], window: InstantSpeed, effect:", 1);
+        assert_eq!(with_rider, spliced);
+    }
+
+    /// "Activate only during your turn." (bare — no "before attackers are
+    /// declared" tail) maps to `window: DuringTurn(Your)`.
+    #[test]
+    fn during_your_turn_rider() {
+        let with_rider = act("{1}: Draw a card. Activate only during your turn.").unwrap();
+        let bare = act("{1}: Draw a card.").unwrap();
+        let spliced = bare.replacen("], effect:", "], window: DuringTurn(Your), effect:", 1);
+        assert_eq!(with_rider, spliced);
+    }
+
+    /// The "…, before attackers are declared" compound has no core `Timing`
+    /// slot (a window bounded ABOVE by a step, rather than pinned to one, isn't
+    /// modeled) — the whole line declines rather than dropping the qualifier.
+    #[test]
+    fn declines_before_attackers_are_declared_compound() {
+        assert!(
+            act("{T}: ~ deals 1 damage to any target. \
+                 Activate only during your turn, before attackers are declared.")
+            .is_none()
+        );
+    }
+
+    /// "Any player may activate this ability." has no core slot for WHO may
+    /// activate an ability — the whole line declines.
+    #[test]
+    fn declines_any_player_may_activate() {
+        assert!(
+            act("{1}: ~ gets +1/+1 until end of turn. Any player may activate this ability.")
+                .is_none()
+        );
+    }
+
+    /// "Activate only as a sorcery and only once each turn." — two clauses
+    /// joined " and only ", both folding onto the same `Activated` frame
+    /// (window and limits, in the struct's declared order).
+    #[test]
+    fn sorcery_and_once_per_turn_combo() {
+        let with_rider = act("{1}: ~ gets +1/+1 until end of turn. \
+             Activate only as a sorcery and only once each turn.")
+        .unwrap();
+        let bare = act("{1}: ~ gets +1/+1 until end of turn.").unwrap();
+        let spliced = bare.replacen(
+            "], effect:",
+            "], window: SorcerySpeed, limits: [OncePerTurn], effect:",
+            1,
+        );
+        assert_eq!(with_rider, spliced);
+    }
+
+    /// "Activate only if <phrase>." routes `<phrase>` through the
+    /// `Condition`-kind macro index ([`crate::parsers::effect::parse_if`]'s
+    /// sibling path) — needs the real builtin index (the empty test ctx has
+    /// no macros).
+    #[test]
+    fn if_condition_rider_via_macro() {
+        let with_rider = resolve_line(
+            "{2}, {T}: Draw a card. \
+             Activate only if there are seven or more cards in your graveyard.",
+            &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+        )
+        .unwrap();
+        assert_eq!(
+            with_rider.as_deref(),
+            Some(
+                "Activated(cost: [Mana([Generic(2)]), Tap], \
+                 condition: SevenOrMoreCardsInYourGraveyard, effect: Draw(1))"
+            )
+        );
+    }
+
+    /// An "if <phrase>" whose phrase has no matching `Condition` macro
+    /// declines the whole line, even with the real builtin macro index.
+    #[test]
+    fn declines_if_condition_with_no_macro() {
+        assert!(
+            resolve_line(
+                "{2}, {T}: Draw a card. Activate only if ~ is a creature.",
+                &crate::parsers::test_ctx::builtin_ctx(CardKind::Permanent),
+            )
+            .unwrap()
+            .is_none()
         );
     }
 }

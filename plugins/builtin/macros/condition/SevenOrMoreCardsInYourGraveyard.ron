@@ -1,0 +1,12 @@
+// "there are seven or more cards in your graveyard" — the Threshold-style
+// graveyard census. A `Condition`-kind macro so it stands as the
+// `condition:` of an `ActivatedAbility`'s "Activate only if …" rider and any
+// other condition-reading frame. Reuses the exact `And([InZone(Graveyard),
+// Owner(Ref(You))])` graveyard-census idiom other productions already use
+// (Delve, ShuffleYourGraveyardIntoLibrary).
+(
+    name: "SevenOrMoreCardsInYourGraveyard",
+    template: "there are seven or more cards in your graveyard",
+    kinds: [Condition],
+    body: Compare(CountOf(Objects(And([InZone(Graveyard), Owner(Ref(You))]))), AtLeast, 7),
+)

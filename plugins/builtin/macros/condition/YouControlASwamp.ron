@@ -1,0 +1,9 @@
+// "you control a Swamp" — a board census over the basic land subtype. A
+// `Condition`-kind macro for an `ActivatedAbility`'s "Activate only if …"
+// rider.
+(
+    name: "YouControlASwamp",
+    template: "you control a Swamp",
+    kinds: [Condition],
+    body: Exists(And([InZone(Battlefield), Subtype("Swamp"), ControlledBy(Ref(You))])),
+)

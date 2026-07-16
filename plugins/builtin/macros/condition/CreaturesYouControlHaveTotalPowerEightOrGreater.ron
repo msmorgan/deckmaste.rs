@@ -1,0 +1,15 @@
+// "creatures you control have total power 8 or greater" — a `SumOf` fold
+// over each controlled creature's power. A `Condition`-kind macro for an
+// `ActivatedAbility`'s "Activate only if …" rider. `Aggregate(SumOf, (of:
+// …, by: StatOf(It, Power)))` is the same "total power" idiom `count.rs`'s
+// own doc example uses.
+(
+    name: "CreaturesYouControlHaveTotalPowerEightOrGreater",
+    template: "creatures you control have total power 8 or greater",
+    kinds: [Condition],
+    body: Compare(
+        Aggregate(SumOf, (of: Objects(And([InZone(Battlefield), Type("Creature"), ControlledBy(Ref(You))])), by: StatOf(It, Power))),
+        AtLeast,
+        8,
+    ),
+)

@@ -1,16 +1,21 @@
 //! Rendering for `Condition` predicates — the intervening-if / "only if"
 //! clauses around triggered and activated abilities ([CR#603.4,602.5b]).
 
+use deckmaste_core::AggregateOp;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Cmp;
 use deckmaste_core::Condition;
 use deckmaste_core::Count;
+use deckmaste_core::Countable;
+use deckmaste_core::PlayerAttr;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
+use deckmaste_core::Stat;
 use deckmaste_core::StatePredicate;
 use deckmaste_core::Status;
 use deckmaste_core::Supertype;
+use deckmaste_core::Zone;
 
 use super::Ctx;
 use super::fragment::strip_expanded;
@@ -42,10 +47,68 @@ pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
                 super::fragment::counter_noun(kind.as_str()),
             )
         }
+        // "you have the city's blessing" ([`YouHaveTheCitysBlessing`
+        // Condition macro](../../../../plugins/builtin/macros/condition/YouHaveTheCitysBlessing.
+        // ron)).
+        Condition::Matches(Reference::You, filter)
+            if matches!(
+                strip_expanded(filter),
+                Predicate::State(StatePredicate::Designated(name)) if name.as_str() == "CitysBlessing"
+            ) =>
+        {
+            "you have the city's blessing".to_string()
+        }
+        // "there are seven or more cards in your graveyard"
+        // ([`SevenOrMoreCardsInYourGraveyard`]).
+        Condition::Compare(
+            Count::CountOf(Countable::Objects(f)),
+            Cmp::AtLeast,
+            Count::Literal(7),
+        ) if f.as_ref() == &graveyard_cards_you_own() => {
+            "there are seven or more cards in your graveyard".to_string()
+        }
+        // "creatures you control have total power 8 or greater"
+        // ([`CreaturesYouControlHaveTotalPowerEightOrGreater`]).
+        Condition::Compare(
+            Count::Aggregate(AggregateOp::SumOf, proj),
+            Cmp::AtLeast,
+            Count::Literal(8),
+        ) if matches!(&proj.of, Countable::Objects(f) if f.as_ref() == &creatures_you_control())
+            && proj.by.as_ref() == &Count::StatOf(Reference::It, Stat::Power) =>
+        {
+            "creatures you control have total power 8 or greater".to_string()
+        }
+        // "you control three or more artifacts" ([`YouControlThreeOrMoreArtifacts`]).
+        Condition::Compare(
+            Count::CountOf(Countable::Objects(f)),
+            Cmp::AtLeast,
+            Count::Literal(3),
+        ) if f.as_ref() == &permanents_you_control(deckmaste_core::Type::Artifact.name()) => {
+            "you control three or more artifacts".to_string()
+        }
+        // "you have no cards in hand" ([`YouHaveNoCardsInHand`]).
+        Condition::Compare(
+            Count::PlayerStatOf(Reference::You, PlayerAttr::HandSize),
+            Cmp::Eq,
+            Count::Literal(0),
+        ) => "you have no cards in hand".to_string(),
+        // "you control a Swamp"/"an Island"/"a Mountain"/"a Plains"/"a
+        // Forest" (the `YouControlA<Land>` basic-land census macros).
+        Condition::Exists(f) if basic_land_you_control(f).is_some() => {
+            format!(
+                "you control {}",
+                basic_land_you_control(f).expect("checked above")
+            )
+        }
         // "you control X" / "an opponent controls X" ([CR#603.4]) — the
-        // `YouControl`/`AnOpponentControls` macros' `Exists` shape.
+        // `YouControl`/`AnOpponentControls` macros' `Exists` shape. AFTER the
+        // basic-land census arm above: that arm's 3-atom filter isn't the
+        // 2-atom `And([object, ControlledBy])` shape this one reads, and a
+        // guarded specific arm must precede the unguarded generic one.
         Condition::Exists(pred) => exists_phrase(pred),
-        // "<subject> is <predicate>" — the `SubjectIs` macro's shape.
+        // "<subject> is <predicate>" — the `SubjectIs` macro's shape. AFTER
+        // the city's-blessing arm above, which is a `Matches(You, Designated)`
+        // this generic arm would otherwise shadow into a marker.
         Condition::Matches(r, pred) => matches_phrase(r, pred, ctx, false),
         // "<subject> isn't <predicate>" — the `SubjectIsnt` macro's shape
         // (`Not(Matches(..))`). Any other negated condition falls through to
@@ -55,6 +118,64 @@ pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
             other => format!("[unrendered: Not({other:?})]"),
         },
         other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+/// The `And([InZone(Battlefield), Owner|ControlledBy(Ref(You)), …])` census
+/// filter shapes the `plugins/builtin/macros/condition/*.ron` board-census
+/// macros are authored against — matched STRUCTURALLY (never by reading the
+/// macro's own `template:` field), mirroring this file's existing
+/// `Compare(CounterCount(...), ...)` arm and the crate-wide `Expanded`
+/// peeling convention.
+fn graveyard_cards_you_own() -> Predicate {
+    Predicate::And(vec![
+        Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+        Predicate::Relation(RelationPredicate::Owner(Box::new(Predicate::Ref(
+            Reference::You,
+        )))),
+    ])
+}
+
+fn creatures_you_control() -> Predicate {
+    permanents_you_control(deckmaste_core::Type::Creature.name())
+}
+
+/// `And([InZone(Battlefield), Type(ty), ControlledBy(Ref(You))])` — the
+/// battlefield-census filter for a single card type, controlled by you.
+fn permanents_you_control(ty: deckmaste_core::Ident) -> Predicate {
+    Predicate::And(vec![
+        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(ty)),
+        Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Reference::You,
+        )))),
+    ])
+}
+
+/// `And([InZone(Battlefield), Subtype(name), ControlledBy(Ref(You))])` for
+/// one of the five basic land subtypes — the `YouControlA<Land>` macros'
+/// shared shape. Returns the printed land phrase ("a Swamp", "an Island")
+/// when `f` is exactly that shape for a recognized basic land name.
+fn basic_land_you_control(f: &Predicate) -> Option<&'static str> {
+    let Predicate::And(parts) = f else { return None };
+    let [
+        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Subtype(name)),
+        Predicate::Relation(RelationPredicate::ControlledBy(controller)),
+    ] = parts.as_slice()
+    else {
+        return None;
+    };
+    if controller.as_ref() != &Predicate::Ref(Reference::You) {
+        return None;
+    }
+    match name.as_str() {
+        "Swamp" => Some("a Swamp"),
+        "Island" => Some("an Island"),
+        "Mountain" => Some("a Mountain"),
+        "Plains" => Some("a Plains"),
+        "Forest" => Some("a Forest"),
+        _ => None,
     }
 }
 
@@ -282,6 +403,97 @@ mod tests {
                 &ctx()
             ),
             "it's a teammate's turn"
+        );
+    }
+
+    /// The board-census "Activate only if …" condition macros
+    /// (`plugins/builtin/macros/condition/*.ron`) render back to their own
+    /// printed phrase — checked structurally, matching how `condition()`
+    /// recognizes them (never by reading the macro's own `template:` field).
+    #[test]
+    fn renders_board_census_condition_macros() {
+        assert_eq!(
+            condition(
+                &Condition::Compare(
+                    Count::CountOf(Countable::Objects(Box::new(graveyard_cards_you_own()))),
+                    Cmp::AtLeast,
+                    Count::Literal(7),
+                ),
+                &ctx()
+            ),
+            "there are seven or more cards in your graveyard"
+        );
+        assert_eq!(
+            condition(
+                &Condition::Compare(
+                    Count::Aggregate(
+                        AggregateOp::SumOf,
+                        deckmaste_core::Projection {
+                            of: Countable::Objects(Box::new(creatures_you_control())),
+                            by: Box::new(Count::StatOf(Reference::It, Stat::Power)),
+                        },
+                    ),
+                    Cmp::AtLeast,
+                    Count::Literal(8),
+                ),
+                &ctx()
+            ),
+            "creatures you control have total power 8 or greater"
+        );
+        assert_eq!(
+            condition(
+                &Condition::Compare(
+                    Count::CountOf(Countable::Objects(Box::new(permanents_you_control(
+                        deckmaste_core::Type::Artifact.name()
+                    )))),
+                    Cmp::AtLeast,
+                    Count::Literal(3),
+                ),
+                &ctx()
+            ),
+            "you control three or more artifacts"
+        );
+        assert_eq!(
+            condition(
+                &Condition::Compare(
+                    Count::PlayerStatOf(Reference::You, PlayerAttr::HandSize),
+                    Cmp::Eq,
+                    Count::Literal(0),
+                ),
+                &ctx()
+            ),
+            "you have no cards in hand"
+        );
+        for (subtype, phrase) in [
+            ("Swamp", "a Swamp"),
+            ("Island", "an Island"),
+            ("Mountain", "a Mountain"),
+            ("Plains", "a Plains"),
+            ("Forest", "a Forest"),
+        ] {
+            let filter = Predicate::And(vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Subtype(
+                    subtype.into(),
+                )),
+                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]);
+            assert_eq!(
+                condition(&Condition::Exists(filter), &ctx()),
+                format!("you control {phrase}")
+            );
+        }
+        assert_eq!(
+            condition(
+                &Condition::Matches(
+                    Reference::You,
+                    Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
+                ),
+                &ctx()
+            ),
+            "you have the city's blessing"
         );
     }
 

@@ -1,0 +1,9 @@
+// "you control three or more artifacts" — a board census over the
+// `Artifact` type. A `Condition`-kind macro for an `ActivatedAbility`'s
+// "Activate only if …" rider.
+(
+    name: "YouControlThreeOrMoreArtifacts",
+    template: "you control three or more artifacts",
+    kinds: [Condition],
+    body: Compare(CountOf(Objects(And([InZone(Battlefield), Type("Artifact"), ControlledBy(Ref(You))]))), AtLeast, 3),
+)

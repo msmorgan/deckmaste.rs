@@ -1,0 +1,9 @@
+// "you have no cards in hand" — the player's hand-size attribute compared
+// to zero. A `Condition`-kind macro for an `ActivatedAbility`'s "Activate
+// only if …" rider.
+(
+    name: "YouHaveNoCardsInHand",
+    template: "you have no cards in hand",
+    kinds: [Condition],
+    body: Compare(PlayerStatOf(Ref(You), HandSize), Eq, 0),
+)

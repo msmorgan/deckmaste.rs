@@ -221,7 +221,76 @@ pub(super) fn activated(a: &deckmaste_core::ActivatedAbility, view: &CardView) -
     };
     let cost = effect::activated_cost(&a.cost.0, &ctx);
     let body = effect::effect(&a.effect, &ctx);
-    from_zone_qualified(a.from, view.name, format!("{cost}: {body}"))
+    let rider = activation_rider(a, &ctx);
+    from_zone_qualified(a.from, view.name, format!("{cost}: {body}{rider}"))
+}
+
+/// The trailing "Activate only …" rider sentence an `ActivatedAbility`'s
+/// `window`/`condition`/`limits` fields print — the
+/// render-direction mirror of the migration parser's
+/// `activated_ability::peel_activation_riders`. Empty when none of the three
+/// fields are set. Clause order: window, then condition, then each limit —
+/// a fixed printed order (real cards vary which clause leads when several
+/// combine; this renderer picks one canonical order rather than tracking
+/// which was printed first).
+fn activation_rider(a: &deckmaste_core::ActivatedAbility, ctx: &Ctx) -> String {
+    use deckmaste_core::UseLimit;
+
+    // A loyalty ability's sorcery-speed-only + shared-once-per-turn gate is
+    // an implicit RULE, never printed as its own rider sentence — real cards
+    // print "+2: Each player draws a card." with no trailing "Activate
+    // only …" at all. `LoyaltyOncePerTurn` uniquely marks that shape (it
+    // always pairs with `window: SorcerySpeed` on the same ability, per this
+    // field's own doc comment on `UseLimit`), so its presence suppresses the
+    // whole rider rather than printing a sentence no loyalty ability prints.
+    if a.limits.contains(&UseLimit::LoyaltyOncePerTurn) {
+        return String::new();
+    }
+
+    let mut clauses: Vec<String> = Vec::new();
+    if let Some(window) = a.window {
+        clauses.push(activation_window_clause(window));
+    }
+    if let Some(cond) = &a.condition {
+        clauses.push(format!("if {}", super::condition::condition(cond, ctx)));
+    }
+    clauses.extend(a.limits.iter().map(|l| use_limit_clause(*l)));
+    if clauses.is_empty() {
+        String::new()
+    } else {
+        format!(" Activate only {}.", clauses.join(" and only "))
+    }
+}
+
+/// A [`Timing`](deckmaste_core::Timing) window as the clause following
+/// "Activate only ": "as a sorcery", "during your turn". Reuses
+/// [`whose_word`]/[`step_noun`] — the same building blocks the
+/// triggered-ability "At the beginning of your upkeep" event clause uses.
+fn activation_window_clause(t: deckmaste_core::Timing) -> String {
+    use deckmaste_core::Timing;
+    match t {
+        Timing::InstantSpeed => "as an instant".to_string(),
+        Timing::SorcerySpeed => "as a sorcery".to_string(),
+        Timing::DuringTurn(whose) => format!("during {} turn", whose_word(whose)),
+        Timing::DuringStep(step, whose) => match step_noun(step) {
+            Some(noun) => format!("during {} {noun}", whose_word(whose)),
+            None => format!("[unrendered window: {t:?}]"),
+        },
+    }
+}
+
+/// A [`UseLimit`](deckmaste_core::UseLimit) as the clause following
+/// "Activate only ": "once each turn", "once each game". The shared loyalty
+/// use-limit never reaches this renderer today —
+/// a loyalty ability prints via its own `LoyaltyPlus`/`Minus`/`Zero` macro
+/// template, not the generic `activated()` line — but reads the same
+/// "once each turn" phrase if it ever does.
+fn use_limit_clause(l: deckmaste_core::UseLimit) -> String {
+    use deckmaste_core::UseLimit;
+    match l {
+        UseLimit::OncePerTurn | UseLimit::LoyaltyOncePerTurn => "once each turn".to_string(),
+        UseLimit::OncePerGame => "once each game".to_string(),
+    }
 }
 
 /// Whether an activated ability's effect (through its `Targeted` wrapper, if
@@ -309,11 +378,11 @@ fn matches_subject(cond: &Condition) -> Option<&Reference> {
 ///   than repeating the name/noun.
 /// - `text` leads with the card's own name (`ctx.subject`, `Reference::This`'s
 ///   plain rendering) but the condition DIDN'T name that subject ("As long as
-///   you control an artifact, Aerial Engineer gets …") — this IS the
-///   sentence's first (only) self-mention, so it must survive
-///   BYTE-FOR-BYTE: `fidelity::normalize`'s self-reference collapse is an
-///   exact-case substring match, and lowercasing the lead letter (the plain
-///   [`lower_first`] this replaces) would break it.
+///   you control an artifact, Aerial Engineer gets …") — this IS the sentence's
+///   first (only) self-mention, so it must survive BYTE-FOR-BYTE:
+///   `fidelity::normalize`'s self-reference collapse is an exact-case substring
+///   match, and lowercasing the lead letter (the plain [`lower_first`] this
+///   replaces) would break it.
 /// - Anything else falls back to the plain [`lower_first`], unchanged.
 fn conditionally_lead(text: &str, cond: &Condition, ctx: &Ctx) -> String {
     if let Some(subject) = matches_subject(cond).map(|r| super::fragment::modify_subject(r, ctx))
@@ -1436,6 +1505,77 @@ mod tests {
             from_zone_qualified(Some(Zone::Hand), "Force of Will", "Foo.".into()),
             "As long as Force of Will is in your hand, foo."
         );
+    }
+
+    /// The trailing "Activate only …" rider — a window, a use-limit, both
+    /// combined, and neither — renders back to the parser's own peeled
+    /// sentence; a `LoyaltyOncePerTurn` limit suppresses the whole rider
+    /// (a loyalty ability's sorcery-speed-only + shared-once-per-turn gate
+    /// is an implicit rule, never printed).
+    #[test]
+    fn activation_rider_renders_window_and_limit() {
+        use deckmaste_core::Action;
+        use deckmaste_core::ActivatedAbility;
+        use deckmaste_core::Cost;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Timing;
+        use deckmaste_core::UseLimit;
+
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let base = ActivatedAbility {
+            ability_word: None,
+            cost: Cost(vec![]),
+            from: None,
+            window: None,
+            condition: None,
+            limits: vec![],
+            effect: OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(1)),
+            )),
+        };
+
+        let sorcery = ActivatedAbility {
+            window: Some(Timing::SorcerySpeed),
+            ..base.clone()
+        };
+        assert_eq!(
+            activation_rider(&sorcery, &ctx),
+            " Activate only as a sorcery."
+        );
+
+        let once_per_turn = ActivatedAbility {
+            limits: vec![UseLimit::OncePerTurn],
+            ..base.clone()
+        };
+        assert_eq!(
+            activation_rider(&once_per_turn, &ctx),
+            " Activate only once each turn."
+        );
+
+        let combo = ActivatedAbility {
+            window: Some(Timing::SorcerySpeed),
+            limits: vec![UseLimit::OncePerTurn],
+            ..base.clone()
+        };
+        assert_eq!(
+            activation_rider(&combo, &ctx),
+            " Activate only as a sorcery and only once each turn."
+        );
+
+        assert_eq!(activation_rider(&base, &ctx), "");
+
+        let loyalty = ActivatedAbility {
+            window: Some(Timing::SorcerySpeed),
+            limits: vec![UseLimit::LoyaltyOncePerTurn],
+            ..base
+        };
+        assert_eq!(activation_rider(&loyalty, &ctx), "");
     }
 
     /// A bare `PayPips` static renders to its keyword name
