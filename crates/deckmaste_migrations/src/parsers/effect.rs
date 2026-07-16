@@ -1472,10 +1472,12 @@ fn search_tail(body: &str) -> Option<(&str, bool, &'static str, bool)> {
 ///   here).
 /// - "a snow land card" -> `Supertype(Snow)`.
 /// - a bare subtype (or subtype "or"-list), no "basic": "a Forest card", "an
-///   Equipment card", "a Swamp or Mountain card", "a Dragon permanent card"
-///   (the redundant "permanent" qualifier is dropped) -> the subtype's own
-///   parent card type, read off [`filter::subtype_category`], plus the
-///   `Subtype`/`Or([…])` atom.
+///   Equipment card", "a Swamp or Mountain card" -> the subtype's own parent
+///   card type, read off [`filter::subtype_category`], plus the
+///   `Subtype`/`Or([…])` atom. A "<Subtype> permanent card" phrase ("a Dragon
+///   permanent card", "a Rebel permanent card") is NOT modeled — see
+///   [`search_card_descriptor`]'s doc for why the "permanent" qualifier can't
+///   just be dropped.
 /// - "<X> card or a <Y> card" -> `Or([<X>, <Y>])`, each side recursively this
 ///   same grammar (Wayfarer's Bauble's "a basic land card or a Desert card").
 fn search_card_filter(head: &str) -> Option<String> {
@@ -1530,7 +1532,7 @@ fn search_card_descriptor(d: &str) -> Option<String> {
             .then(|| "And([Type(\"Land\"), Supertype(Snow)])".to_owned());
     }
     // A color/color-count adjective ("a green creature card", "a colorless
-    // artifact card", "a multicolored permanent card").
+    // artifact card", "a multicolored creature card").
     if let Some((color_atom, rest)) = filter::strip_color(d)
         && let Some(ty) = graveyard_card_type(rest)
     {
@@ -1539,9 +1541,16 @@ fn search_card_descriptor(d: &str) -> Option<String> {
     if let Some(ty) = graveyard_card_type(d) {
         return Some(ty);
     }
-    // A bare subtype (or subtype "or"-list), possibly qualified by the
-    // redundant "permanent" word ("a Dragon permanent card").
-    let d = d.strip_suffix(" permanent").unwrap_or(d);
+    // A bare subtype (or subtype "or"-list) — "a Forest card", "a Swamp or
+    // Mountain card". NOTE: a trailing "permanent" qualifier ("a Dragon
+    // permanent card", "a Rebel permanent card") is NOT stripped here: unlike
+    // "card"/"cards", "permanent" is a card-type-CLASS constraint (any
+    // permanent type), not redundant with the subtype's own catalog category
+    // — "a Rebel permanent card" must match a Tribal Enchantment — Rebel
+    // (Bound in Silence), which `subtype_category("Rebel")` (Creature) would
+    // wrongly exclude. No existing grammar expresses "any permanent type,
+    // further restricted by subtype", so this declines rather than inject a
+    // wrong `Type`.
     let (category, subtype_expr) = subtype_list_predicate(d)?;
     Some(format!("And([Type(\"{category}\"), {subtype_expr}])"))
 }
@@ -4388,19 +4397,26 @@ mod tests {
                     .to_owned()
             ))
         );
-        // The redundant "permanent" qualifier is dropped — "a Dragon
-        // permanent card".
-        assert_eq!(
-            parsed(
-                "Search your library for a Dragon permanent card, put that card onto the battlefield, then shuffle."
-            ),
-            Some((
-                String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Creature\"), Subtype(\"Dragon\")])), \
-                 body: Sequentially([Move(That(Card), Battlefield, []), Shuffle]))"
-                    .to_owned()
-            ))
-        );
+    }
+
+    /// A "<Subtype> permanent card" phrase declines rather than dropping the
+    /// "permanent" qualifier: "a Rebel permanent card" must match a Tribal
+    /// Enchantment — Rebel (Bound in Silence), which injecting
+    /// `Type("Creature")` (Rebel's catalog category) would wrongly exclude —
+    /// "permanent" is a card-type-CLASS constraint, not a redundant repeat of
+    /// the subtype's own category.
+    #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype parse"
+    )]
+    fn search_library_declines_subtype_permanent_card() {
+        assert!(declines(
+            "Search your library for a Dragon permanent card, put that card onto the battlefield, then shuffle."
+        ));
+        assert!(declines(
+            "Search your library for a Rebel permanent card, put that card onto the battlefield, then shuffle."
+        ));
     }
 
     /// "basic" plus a single land subtype, or a comma-"or" list of them —

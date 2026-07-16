@@ -369,7 +369,7 @@ pub(super) fn type_code(word: &str) -> Option<&'static str> {
 /// `Multicolored`), plus the remaining head. `pub(crate)` beyond
 /// [`parse_phrase`]'s own prefix loop: the library-search filter grammar
 /// ([`crate::parsers::effect`]) reuses it directly for "a colorless creature
-/// card" / "a multicolored permanent card", which need the same
+/// card" / "a multicolored creature card", which need the same
 /// color-or-color-count adjective this shares with battlefield-object
 /// descriptions.
 pub(crate) fn strip_color(s: &str) -> Option<(String, &str)> {
