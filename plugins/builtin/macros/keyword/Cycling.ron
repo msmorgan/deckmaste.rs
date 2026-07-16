@@ -3,8 +3,8 @@
 // card: Draw a card." The printed [cost] is the macro's list param; the
 // generic `Splice(Param(0))` list-splice inlines its components ahead of the
 // fixed discard-self at read time, yielding one flat cost list.
-// The discard is of THIS card (`Discard(what: This)`), not a free-choice
-// discard. `from: Hand` is the zone-of-function seam [CR#702.29b]. Typecycling
+// The discard is of THIS card (the bound `DiscardThis` cost macro — the
+// single-move discard composite), not a free-choice discard. `from: Hand` is the zone-of-function seam [CR#702.29b]. Typecycling
 // [CR#702.29e] (the library-search variant) is out of scope — base cycling
 // only (the parser declines a multi-component cycling cost).
 (
@@ -16,7 +16,7 @@
         name: "Cycling",
         abilities: [Activated(
             from: Hand,
-            cost: [Splice(Param(0)), Do(Discard(count: 1, what: This))],
+            cost: [Splice(Param(0)), DiscardThis],
             effect: Draw(1),
         )],
     ),

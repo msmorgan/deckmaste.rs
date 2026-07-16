@@ -1,0 +1,14 @@
+// "Discard this card:" ([CR#702.29a]) — the BOUND self-discard cost
+// (cycling, reinforce): the degenerate no-choice discard of the card the
+// ability rides on. The keyword action as DATA in its single-move form: a
+// `Composite` whose tag is `Discard(You, 1)` and whose body IS the Hand →
+// Graveyard `Move` of `This` — the destroy shape, committed atomically on
+// ONE dual-facet `Act(Discard)` where madness's replacement bites
+// ([CR#702.35a]; cycling a madness card exiles it instead). `SacrificeThis`'s
+// sibling on the cost lane.
+(
+    name: "DiscardThis",
+    template: "Discard this card",
+    kinds: [CostComponent],
+    body: Do(Composite(Discard(You, 1), Move(This, Graveyard))),
+)

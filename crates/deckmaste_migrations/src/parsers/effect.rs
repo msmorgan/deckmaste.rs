@@ -2007,12 +2007,12 @@ fn parse_draw(line: &str) -> Option<ParsedEffect> {
 
 /// `Discard N card(s)[ at random].` — no targets. Case-insensitive lead
 /// ("discard" or "Discard"). The common form ([CR#701.9b]): no `what`, so
-/// the discarding player (`You`, implicit) chooses `count` cards from hand.
-/// The "at random" rider is a trivial suffix strip, not a `what` selection
-/// — `random: true`, omitted (default `false`) otherwise. The imperative
-/// effect-body sibling of [`parse_draw`]; the cost-side "Discard a card"
-/// (`Do(Discard(count: N))`) is [`crate::parsers::cost::discard`] — same
-/// leaf shape, different frame.
+/// the discarding player (`You`, implicit) chooses `count` cards from hand
+/// — the `Discard(N)` composite macro. The "at random" rider routes to the
+/// `DiscardAtRandom(N)` twin (the flag rides the body's `FromHand`
+/// selection). The imperative effect-body sibling of [`parse_draw`]; the
+/// cost-side "Discard a card" (`DiscardCards(N)`) is
+/// [`crate::parsers::cost::discard`] — same composite, different frame.
 fn parse_discard(line: &str) -> Option<ParsedEffect> {
     let rest = strip_prefix_ci(line, "discard ")?.strip_suffix('.')?;
     let (rest, random) = match rest.strip_suffix(" at random") {
@@ -2024,11 +2024,7 @@ fn parse_discard(line: &str) -> Option<ParsedEffect> {
         .strip_suffix(" cards")
         .or_else(|| rest.strip_suffix(" card"))?;
     let n = number_word(count)?;
-    let effect = if random {
-        format!("Discard(count: {n}, random: true)")
-    } else {
-        format!("Discard(count: {n})")
-    };
+    let effect = if random { format!("DiscardAtRandom({n})") } else { format!("Discard({n})") };
     Some(ParsedEffect {
         targets: Vec::new(),
         effect,
@@ -2524,7 +2520,7 @@ mod tests {
             parsed_with_macros("Each player discards two cards."),
             Some((
                 String::new(),
-                "Each(binder: Existing(SelectAll(Player)), effect: By(It, Discards(2)))".to_owned()
+                "Each(binder: Existing(SelectAll(Player)), effect: Discards(It, 2))".to_owned()
             ))
         );
         assert_eq!(
@@ -2543,7 +2539,15 @@ mod tests {
         assert!(
             parsed_with_macros("Target player mills half their library, rounded down.").is_none()
         );
-        assert!(parsed_with_macros("Each player discards a card at random.").is_none());
+        assert_eq!(
+            parsed_with_macros("Each player discards a card at random."),
+            Some((
+                String::new(),
+                "Each(binder: Existing(SelectAll(Player)), effect: DiscardsAtRandom(It, 1))"
+                    .to_owned()
+            )),
+            "the at-random declarative parses through the DiscardsAtRandom macro"
+        );
     }
 
     /// The bounded `Count` slot reader for `"gets +${0}/+${1}"`-shaped
@@ -3888,7 +3892,7 @@ mod tests {
             parsed("Draw a card, then discard a card."),
             Some((
                 String::new(),
-                "Sequentially([Draw(1), Discard(count: 1)])".to_owned()
+                "Sequentially([Draw(1), Discard(1)])".to_owned()
             ))
         );
     }
@@ -3901,7 +3905,7 @@ mod tests {
             parsed("Discard a card, then draw a card."),
             Some((
                 String::new(),
-                "Sequentially([Discard(count: 1), Draw(1)])".to_owned()
+                "Sequentially([Discard(1), Draw(1)])".to_owned()
             ))
         );
     }
@@ -3914,7 +3918,7 @@ mod tests {
             parsed("Draw two cards, then discard a card."),
             Some((
                 String::new(),
-                "Sequentially([Draw(2), Discard(count: 1)])".to_owned()
+                "Sequentially([Draw(2), Discard(1)])".to_owned()
             ))
         );
     }
@@ -3928,7 +3932,7 @@ mod tests {
             parsed("Draw a card, then discard a card at random."),
             Some((
                 String::new(),
-                "Sequentially([Draw(1), Discard(count: 1, random: true)])".to_owned()
+                "Sequentially([Draw(1), DiscardAtRandom(1)])".to_owned()
             ))
         );
     }

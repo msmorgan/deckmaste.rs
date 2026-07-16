@@ -13,7 +13,7 @@
 //     only while the card is in a graveyard.
 //   - cost: the printed [cost] THEN exile this card. Exile is a pure zone move
 //     now ([CR#701.13]): the cost-eligible player verb `Move(This, Exile)` — the
-//     exile twin of cycling's discard-self (`Discard(count: 1, what: This)`).
+//     exile twin of cycling's discard-self (the `DiscardThis` cost macro).
 //     The card moves ITSELF (`This`) from the graveyard to exile as part of the
 //     cost ([CR#601.2b]); once paid it's too late to remove the card to fizzle
 //     the ability. `Do(Move(This, Exile))` is a `CostComponent::Do` over that

@@ -1,0 +1,21 @@
+// "[subject] discards N cards at random" ([CR#701.9b]) — the
+// declarative-subject at-random discard (Hymn to Tourach's "Target player
+// discards two cards at random."). `DiscardAtRandom`'s subject-carrying
+// twin, exactly as `Discards` is `Discard`'s: `who` (Param(0)) rides both
+// the atom and the `FromHand` selection's `whose`; `random: true` rides the
+// selection.
+//
+// Usage: DiscardsAtRandom(It, 2) (the announced player target).
+(
+    name: "DiscardsAtRandom",
+    template: "${0} discards ${1:card|cards} at random",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    body: Composite(
+        Discard(Param(0), Param(1)),
+        Each(
+            binder: Existing(FromHand(count: Param(1), whose: Param(0), random: true)),
+            effect: Move(It, Graveyard),
+        ),
+    ),
+)

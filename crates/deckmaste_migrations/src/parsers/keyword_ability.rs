@@ -392,7 +392,7 @@ mod tests {
         );
         assert_eq!(
             bare("Cycling—Discard a card.").as_deref(),
-            Some("Keyword(Cycling([Do(Discard(count: 1))]))")
+            Some("Keyword(Cycling([DiscardCards(1)]))")
         );
         // A chosen-sacrifice cost after the em dash (the filter grammar now
         // resolves the subject) — e.g. Ward—Sacrifice a creature.
@@ -405,7 +405,7 @@ mod tests {
         );
         assert_eq!(
             bare("Equip—Discard a card.").as_deref(),
-            Some("Keyword(Equip([Do(Discard(count: 1))]))")
+            Some("Keyword(Equip([DiscardCards(1)]))")
         );
         // A comma-separated cost list mixes mana and word costs.
         assert_eq!(

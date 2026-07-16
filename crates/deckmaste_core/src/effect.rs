@@ -489,13 +489,14 @@ mod tests {
             read("Tap(This)"),
             act_by_you(PlayerAction::Tap(Reference::This)),
         );
+        // Discard is now the `Composite` the `Action::discard` ctor builds
+        // ([CR#701.9]), like Destroy — the structural spelling reads flat.
         assert_eq!(
-            read("Discard(count: Literal(1))"),
-            act_by_you(PlayerAction::Discard {
-                count: Count::Literal(1),
-                what: None,
-                random: false
-            }),
+            read(
+                "Composite(Discard(You, Literal(1)), Each(binder: Existing(FromHand(count: \
+                 Literal(1))), effect: Move(It, Graveyard)))"
+            ),
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(1), false)),
         );
     }
 

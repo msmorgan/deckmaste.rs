@@ -933,6 +933,18 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
                 counted_cards(n),
             ))
         }
+        // [CR#701.9a,701.9b]: "Each player discards N cards[ at random]." —
+        // discard is `Composite(Discard(It, n), <body>)` over the loop
+        // element as performer, the mill/draw twin; the at-random qualifier
+        // rides the body's `FromHand` selection.
+        Action::Composite(deckmaste_core::KeywordAction::Discard(Reference::It, n), body) => {
+            Some(format!(
+                "{} discards {}{}.",
+                capitalize_first(&each_group()),
+                counted_cards(n),
+                if deckmaste_core::discard_body_random(body) { " at random" } else { "" },
+            ))
+        }
         // A group move to the library reads "Put <group> on top/the bottom of
         // your library." — Brainstorm's "put two cards … on top": the chosen
         // group's own phrase, not "each" ([CR#401.7]). A multi-card put
@@ -1216,6 +1228,10 @@ fn turn_marker(m: TurnMarker) -> &'static str {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per action verb; splitting would scatter the dispatch"
+)]
 fn action(a: &Action, ctx: &Ctx) -> String {
     match a {
         // Damage always names its source in oracle text ("~ deals 3 damage
@@ -1292,6 +1308,34 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 counted_cards(n),
             ),
         },
+        // [CR#701.9a]: discard is `Composite(Discard(who, n), <body>)` —
+        // render the tag, twin of the mill/draw arms above. `You` keeps the
+        // imperative ("Discard a card.", with the body's `random` flag as
+        // the " at random" qualifier, [CR#701.9b]); a non-`You` performer
+        // renders subject-declarative ("Target player discards two cards.").
+        // The BOUND form ("discard this card", [CR#702.29a]) names its card
+        // in the body's single-move head. The body is engine realization
+        // (the batched hand choice → per-card events), not printed.
+        Action::Composite(deckmaste_core::KeywordAction::Discard(who, n), body) => {
+            let random = deckmaste_core::discard_body_random(body);
+            match (who, deckmaste_core::discard_body_what(body)) {
+                (Reference::You, Some(what)) => {
+                    format!("Discard {}.", fragment::reference(what, ctx))
+                }
+                (Reference::You, None) => discard_imperative(n, random),
+                (other, Some(what)) => format!(
+                    "{} discards {}.",
+                    capitalize_first(&fragment::reference(other, ctx)),
+                    fragment::reference(what, ctx),
+                ),
+                (other, None) => format!(
+                    "{} discards {}{}.",
+                    capitalize_first(&fragment::reference(other, ctx)),
+                    counted_cards(n),
+                    if random { " at random" } else { "" },
+                ),
+            }
+        }
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
         // target spell" (Mana Leak's punisher branch).
         Action::Counter(r) => format!("Counter {}.", fragment::reference(r, ctx)),
@@ -1583,7 +1627,7 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
     for component in cost {
         match component {
             CostComponent::Do(pa) => {
-                let phrase = trim_period(&player_action(pa, ctx));
+                let phrase = trim_period(&do_action_phrase(pa, ctx));
                 parts.push(super::ability::lower_first(&phrase));
             }
             // A cost-side choose-then-pay step ([CR#601.2b]): bind the binder's
@@ -1595,7 +1639,7 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
                 for inner_comp in body {
                     match inner_comp {
                         CostComponent::Do(pa) => {
-                            let p = trim_period(&player_action(pa, &inner));
+                            let p = trim_period(&do_action_phrase(pa, &inner));
                             parts.push(super::ability::lower_first(&p));
                         }
                         _ => return None,
@@ -1606,6 +1650,17 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
         }
     }
     Some(parts.join(" and "))
+}
+
+/// The verb phrase a `CostComponent::Do(action)` cost renders
+/// ([CR#601.2b]): a player verb (`By(You, ...)`) through the imperative
+/// `player_action` clause; a keyword-action composite ("Discard a card:",
+/// [CR#701.9]) through its `action` tag arm.
+fn do_action_phrase(act: &Action, ctx: &Ctx) -> String {
+    match act {
+        Action::By(_, pa) => player_action(pa, ctx),
+        other => action(other, ctx),
+    }
 }
 
 /// An activated ability's printed cost line ([CR#602.1] — cost components
@@ -1633,8 +1688,11 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
 /// does the variable `−X` loyalty cost ([CR#601.2b] — `Count::X`, printed as
 /// `[−X]`, e.g. Ugin, the Spirit Dragon); any other dynamic count falls
 /// back to the generic render.
-fn loyalty_cost_prefix(pa: &PlayerAction) -> Option<String> {
+fn loyalty_cost_prefix(action: &Action) -> Option<String> {
     let is_loyalty = |c: &deckmaste_core::CounterRef| c.as_str() == "LoyaltyCounter";
+    let Action::By(_, pa) = action else {
+        return None;
+    };
     match pa {
         PlayerAction::PutCounters(Reference::This, counter, count) if is_loyalty(counter) => {
             match count.literal_value()? {
@@ -1683,7 +1741,7 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
                 if let Some(prefix) = loyalty_cost_prefix(pa) {
                     parts.push(prefix);
                 } else {
-                    let phrase = trim_period(&player_action(pa, ctx));
+                    let phrase = trim_period(&do_action_phrase(pa, ctx));
                     // [CR#602.1]'s printed convention capitalizes each verb-cost
                     // segment ("{T}, Sacrifice a Goblin: ..."), unlike a body
                     // verb clause joined mid-sentence.
@@ -1701,7 +1759,7 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
                 for inner_comp in body {
                     match inner_comp {
                         CostComponent::Do(pa) => {
-                            let p = trim_period(&player_action(pa, &inner));
+                            let p = trim_period(&do_action_phrase(pa, &inner));
                             parts.push(capitalize_first(&p));
                         }
                         other => parts.push(format!("[unrendered: {other:?}]")),
@@ -1742,7 +1800,7 @@ fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Opti
     if let [CostComponent::With { binder, body }] = cost
         && let Binder::ChooseOne { filter, .. } = binder.as_ref()
         && let [CostComponent::Do(pa)] = body.0.as_slice()
-        && let PlayerAction::Sacrifice(Reference::That(_)) = pa.as_ref()
+        && let Action::By(_, PlayerAction::Sacrifice(Reference::That(_))) = pa.as_ref()
     {
         return Some(format!("the sacrificed {}", fragment::filter_noun(filter)));
     }
@@ -1770,6 +1828,18 @@ fn mill_imperative(c: &Count) -> String {
     format!("Mill {}.", counted_cards(c))
 }
 
+/// The imperative you-form of discard ([CR#701.9a]) — "Discard a card." /
+/// "Discard 2 cards." / "Discard a card at random." The `You`-performer
+/// render of a `Composite(Discard(You, n), …)` whose body is the chosen
+/// (unbound) form; `random` is the body selection's flag ([CR#701.9b]).
+fn discard_imperative(c: &Count, random: bool) -> String {
+    let suffix = if random { " at random" } else { "" };
+    match c {
+        Count::Literal(1) => format!("Discard a card{suffix}."),
+        c => format!("Discard {} cards{suffix}.", fragment::count(c)),
+    }
+}
+
 /// The imperative you-form of draw ([CR#121.1]) — "Draw a card." / "Draw three
 /// cards." / "Draw X cards." The `You`-performer render of a
 /// `Composite(Draw(You, n), …)`.
@@ -1788,11 +1858,6 @@ fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {
         PlayerAction::Expanded(e) => {
             super::template::expanded(e, "it").or_else(|| third_person_verb_phrase(&e.value))
         }
-        PlayerAction::Discard {
-            count,
-            what: None,
-            random: false,
-        } => Some(format!("discards {}", counted_cards(count))),
         PlayerAction::LoseLife(c) => Some(format!("loses {} life", fragment::count(c))),
         PlayerAction::GainLife(c) => Some(format!("gains {} life", fragment::count(c))),
         // Dictate of Karametra's "that land's controller adds one mana of
@@ -1834,31 +1899,6 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         // chosen permanent ("sacrifice a creature", Fling) arrives pre-bound as
         // `Reference::That` from an enclosing `With`, which supplies the phrase.
         PlayerAction::Sacrifice(r) => format!("Sacrifice {}.", fragment::reference(r, ctx)),
-        // Discard ([CR#701.9]): a named card via `what` (e.g. the `With`-bound
-        // anaphor), else `count` cards chosen from hand; `random` appends the
-        // "at random" qualifier ([CR#701.9b]).
-        PlayerAction::Discard { what: Some(r), .. } => {
-            format!("Discard {}.", fragment::reference(r, ctx))
-        }
-        PlayerAction::Discard {
-            count: Count::Literal(1),
-            what: None,
-            random,
-        } => {
-            if *random {
-                "Discard a card at random.".to_string()
-            } else {
-                "Discard a card.".to_string()
-            }
-        }
-        PlayerAction::Discard {
-            count,
-            what: None,
-            random,
-        } => {
-            let suffix = if *random { " at random" } else { "" };
-            format!("Discard {} cards{suffix}.", fragment::count(count))
-        }
         // A player-performed relocation ([CR#400.7]). Exiling is a pure zone
         // move ([CR#701.13]) — "Exile X."; a library destination mirrors
         // `Action::Move`'s "Put X on top/the bottom of your library."
@@ -2777,7 +2817,6 @@ mod tests {
     #[test]
     fn with_choose_many_renders_discard_two_cards() {
         use deckmaste_core::ObjectKind;
-        use deckmaste_core::PlayerAction;
         let ctx = Ctx {
             subject: "Wheel",
             targets: &[],
@@ -2789,11 +2828,10 @@ mod tests {
                 filter: Predicate::Kind(ObjectKind::Card),
                 by: Reference::You,
             },
-            body: Box::new(OneShotEffect::act_by_you(PlayerAction::Discard {
-                count: Count::Literal(2),
-                what: Some(Reference::That(deckmaste_core::Sort::Card)),
-                random: false,
-            })),
+            body: Box::new(OneShotEffect::Act(Action::discard_what(
+                Reference::You,
+                Reference::That(deckmaste_core::Sort::Card),
+            ))),
         });
         assert_eq!(effect(&with, &ctx), "Discard two cards.");
     }
@@ -2953,20 +2991,14 @@ mod tests {
     /// sentence, both orders (loot and rummage).
     #[test]
     fn sequentially_renders_loot_and_rummage() {
-        use deckmaste_core::PlayerAction;
         let ctx = Ctx {
             subject: "it",
             targets: &[],
             that: None,
         };
         let draw = || OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1)));
-        let discard = || {
-            OneShotEffect::act_by_you(PlayerAction::Discard {
-                count: Count::Literal(1),
-                what: None,
-                random: false,
-            })
-        };
+        let discard =
+            || OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(1), false));
         let loot = OneShotEffect::Sequentially(vec![draw(), discard()]);
         assert_eq!(effect(&loot, &ctx), "Draw a card, then discard a card.");
         let rummage = OneShotEffect::Sequentially(vec![discard(), draw()]);

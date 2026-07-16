@@ -18,6 +18,8 @@ pub use action::Destination;
 pub use action::EnterRider;
 pub use action::KeywordAction;
 pub use action::PlayerAction;
+pub use action::discard_body_random;
+pub use action::discard_body_what;
 
 mod binder;
 pub use binder::Binder;

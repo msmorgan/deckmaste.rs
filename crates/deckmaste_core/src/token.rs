@@ -184,7 +184,7 @@ impl PredefinedToken {
             types: vec![Type::Artifact],
             confers: vec![],
         };
-        let sac = CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This)));
+        let sac = CostComponent::do_(PlayerAction::Sacrifice(Reference::This));
         let mana = |n: u32| {
             CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
                 SimpleManaSymbol::Generic(n),
@@ -252,11 +252,11 @@ impl PredefinedToken {
                 vec![
                     mana(1),
                     CostComponent::Tap,
-                    CostComponent::Do(Box::new(PlayerAction::Discard {
-                        count: Count::Literal(1),
-                        what: None,
-                        random: false,
-                    })),
+                    CostComponent::do_action(crate::Action::discard(
+                        Reference::You,
+                        Count::Literal(1),
+                        false,
+                    )),
                     sac,
                 ],
                 OneShotEffect::Act(crate::Action::draw(Reference::You, Count::Literal(1))),
@@ -367,7 +367,7 @@ mod tests {
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This))),
+                    CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
                 ]
                 .into(),
                 condition: None,
@@ -505,7 +505,7 @@ mod tests {
                 window: None,
                 cost: vec![
                     CostComponent::Tap,
-                    CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This))),
+                    CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
                 ]
                 .into(),
                 condition: None,

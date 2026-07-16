@@ -4,7 +4,7 @@ Token(
     subtypes: [Blood],
     abilities: [
         Activated(
-            cost: [Mana([Generic(1)]), Tap, Do(Discard(count: 1)), SacrificeThis],
+            cost: [Mana([Generic(1)]), Tap, DiscardCards(1), SacrificeThis],
             effect: Draw(1),
         )
     ],

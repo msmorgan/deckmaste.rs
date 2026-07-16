@@ -158,11 +158,12 @@ pub enum GameEvent {
     },
     StepBegan(PhaseStep),
     Untapped(ObjectId),
-    // Shaped, unbuilt (no fixture forces it yet): `WillDiscard` (madness, above
-    // Hand→Graveyard) — the replaceable intent above its committed zone change.
-    //
-    // Neither the destruction NOR the draw intent is a bespoke variant: both are
-    // keyword actions (above). Destroy is `Act(Destroy(x))`, a dual-facet event
+    // No intent event is a bespoke variant: destruction, draw, AND discard are
+    // keyword actions (above). Discard is the per-card `Act(Discard)`
+    // ([CR#701.9a]) — the batched hand choice realizes one dual-facet event per
+    // card, each committing its Hand → Graveyard move atomically; madness
+    // ([CR#702.35a]) replaces it (the role the retired `WillDiscard`
+    // placeholder reserved). Destroy is `Act(Destroy(x))`, a dual-facet event
     // whose apply COMMITS the Battlefield → Graveyard move directly (carrying
     // its `cause`, [CR#701.8a,701.8b]) — no separate replaceable `ZoneWillChange`
     // below it; indestructible ([CR#702.12b]) cants it and regeneration

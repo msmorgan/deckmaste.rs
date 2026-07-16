@@ -94,3 +94,38 @@ top-of-library slice:
 Zero bespoke `PlayerAction::Discard` / `WillDiscard`; Discard authored as
 `Composite(Discard(who, n), <hand→graveyard>)`; madness expressible as a
 replacement over `Act(Discard)`; Rust + idris re-emit + wizards corpus green.
+
+## Resolution (2026-07-16)
+
+Built as specced; rulings settled during the fold:
+
+- **Batch choice, per-card events.** One `DiscardCards` decision picks the
+  cards ([CR#701.9b]); the submission mints one dual-facet `Act(Discard)`
+  per card (who + card + Hand→Graveyard facet, cause `Discard`), each
+  individually cantable/replaceable — a multi-discard fires "whenever a
+  player discards a card" once per card (Liliana's Caress ruling), and
+  madness reroutes ITS card only ([CR#702.35a]). Cleanup's
+  discard-to-hand-size and cost payments ride the same `discard_batch`, so
+  madness works off cycling and cleanup discards for free.
+- **`Selection::FromHand { count, whose, random }`** — the one new Selection
+  primitive (idris twin added), following the zone-anchored family
+  (`TopOfLibrary`/`TopOfGraveyard`). **No `chooser` field**: "another player
+  chooses" is authored as look + choose + bound discard (the Coercion
+  shape, `Action::discard_what`), never a selection flag.
+- **Bound form** ("discard this card", [CR#702.29a]) =
+  `Composite(Discard(who, 1), Move(what, Graveyard))` — destroy's
+  single-move lane, committed atomically, no decision.
+- **Costs**: `CostComponent::Do` widened from `Box<PlayerAction>` to
+  `Box<Action>` (= the idris `Do : Action b -> Cost b`); existing RON
+  spellings unchanged via the `By` embed. New cost macros `DiscardThis`
+  (cycling/reinforce) and `DiscardCards(n)` (Blood token); effect macros
+  `Discard`/`Discards` rebuilt as composites + `DiscardAtRandom`/
+  `DiscardsAtRandom` twins.
+- **[CR#701.9c]** (hidden-zone discard, undefined characteristics → illegal
+  cost payment, [CR#733] rewind) — a cost/handling-illegal concern, NOT this
+  atom; lands with the [CR#733] machinery.
+- **Madness proper** still needs its keyword macro + the hand-zone static
+  sourcing ([[engine-static-ability-zone-gating]] — replacements are
+  gathered from the battlefield today); the `Act(Discard)` window itself is
+  built and fixture-tested (`madness_style_replacement_exiles_its_card_only`,
+  the Bag-of-Holding shape).

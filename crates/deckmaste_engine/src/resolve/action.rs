@@ -56,6 +56,20 @@ impl GameState {
                     Ka::Fateseal(who, _) => ("Fateseal", self.eval_player_ref(who, frame), None),
                     Ka::Mill(who, _) => ("Mill", self.eval_player_ref(who, frame), None),
                     Ka::Draw(who, _) => ("Draw", self.eval_player_ref(who, frame), None),
+                    // Discard carries BOTH facets: `who` (the discarding
+                    // player) always; `on` (the card) only in the BOUND form
+                    // ("discard this card", [CR#702.29a]) — lifted off the
+                    // body's single-move head below, so the dual-facet move
+                    // lane commits it atomically (destroy's shape). The
+                    // common chosen form has no patient yet (the choice is a
+                    // resolution decision, [CR#701.9b]) — its per-card
+                    // `Act(Discard)` events are minted AFTER the choice.
+                    Ka::Discard(who, _) => (
+                        "Discard",
+                        self.eval_player_ref(who, frame),
+                        deckmaste_core::discard_body_what(body)
+                            .map(|what| self.eval_reference(what, frame)),
+                    ),
                     Ka::Destroy(what) => ("Destroy", None, Some(self.eval_reference(what, frame))),
                     // Fight's first fighter rides `object` for existence + the
                     // `Fight(a, _)` narrow; the second is the body's business.
@@ -83,6 +97,15 @@ impl GameState {
                         Agency::EffectInstruction,
                         Some((frame.source, frame.controller)),
                     )),
+                    // The committed move's cause names the VERB — "destroyed"
+                    // ([CR#701.8b]) vs "discarded" ([CR#701.9a]) — so
+                    // cause-narrowed triggers/reads find the right family.
+                    Ka::Discard(..) => move_shape.map(|_| {
+                        Cause::discard(
+                            Agency::EffectInstruction,
+                            Some((frame.source, frame.controller)),
+                        )
+                    }),
                     _ => move_shape.map(|_| {
                         Cause::destroy(
                             Agency::EffectInstruction,
@@ -181,6 +204,36 @@ impl GameState {
                         for _ in 0..count {
                             items.push(WorkItem::Emit(Occurrence::single(act.clone())));
                         }
+                    }
+                } else if let Ka::Discard(_, n) = atom {
+                    // [CR#701.9b]: the CHOSEN-from-hand discard lane. The
+                    // choice is batched up front (ONE decision picks `count`
+                    // cards — or a uniform sample, for the body's `random`
+                    // flag), then the submission mints one per-card
+                    // `Act(Discard)` each — each its own replace/cant
+                    // opportunity (madness exiles ITS card only,
+                    // [CR#702.35a]) and its own "whenever a player discards
+                    // a card" fact (a multi-discard fires such a trigger
+                    // once per card). The stored body (an `Each` over
+                    // `FromHand`) is the render/re-emit facet only — an
+                    // executing body would need a synchronous read of a
+                    // hidden-zone CHOICE. A "can't discard" static
+                    // suppresses the whole action ([CR#614.17]); count
+                    // clamps to hand size at the decision
+                    // (`open_discard_cards`), and a 0-card discard performs
+                    // no keyword action — no event, no trigger.
+                    // (An unresolvable `who` is an authoring mistake —
+                    // fizzle, never crash.)
+                    if !crate::replace_registry::cant_event(self, &act)
+                        && let Some(player) = who
+                    {
+                        let count = self.eval_count(n, frame);
+                        let item = if deckmaste_core::discard_body_random(body) {
+                            WorkItem::DiscardRandom { player, count }
+                        } else {
+                            WorkItem::DiscardCards { player, count }
+                        };
+                        items.push(item);
                     }
                 } else {
                     // [CR#701.22b,614.17]: a reorder verb — a `Cant(Act(name,
@@ -1562,6 +1615,224 @@ mod tests {
             state.zones.exile.len(),
             2,
             "both milled cards were exiled instead ([CR#616.1])"
+        );
+    }
+
+    /// [CR#701.9b]: the chosen-discard lane — ONE batched choice of `count`
+    /// cards, realized as PER-CARD `Act(Discard)` events: a multi-discard
+    /// logs one fact per card ("whenever a player discards a card" fires
+    /// once per card — Liliana's Caress's ruling), and each committed
+    /// Hand → Graveyard move carries the `Discard` cause.
+    #[test]
+    fn discard_choice_realizes_per_card_act_events() {
+        use crate::Decision;
+        use crate::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), false)),
+            &frame,
+        );
+        let _ = state.step(); // DiscardOpened
+        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { player, count }) =
+            state.step()
+        else {
+            panic!("expected the batched card choice, got {:?}", state.pending);
+        };
+        assert_eq!((player, count), (PlayerId(0), 2), "one choice of 2 cards");
+        let picks = state.zones.hands[0][..2].to_vec();
+        state
+            .submit_decision(Decision::Discard(picks.clone()))
+            .unwrap();
+        run_injected(&mut state);
+
+        let acts = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(&e.fact, crate::event::GameEvent::Act { verb, who, on, .. }
+                    if verb.as_str() == "Discard"
+                        && *who == Some(PlayerId(0))
+                        && on.is_some_and(|o| picks.contains(&o)))
+            })
+            .count();
+        assert_eq!(
+            acts, 2,
+            "a 2-card discard is TWO per-card Act(Discard) facts"
+        );
+        assert_eq!(state.zones.graveyards[0].len(), 2, "both cards committed");
+        let discard_causes = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(&e.fact, crate::event::GameEvent::ZoneChanged { cause: Some(c), .. }
+                    if c.verb.as_str() == "Discard")
+            })
+            .count();
+        assert_eq!(
+            discard_causes, 2,
+            "each committed move carries the Discard cause"
+        );
+    }
+
+    /// Whether `zone` holds an object printed with `name` — zone changes
+    /// REMINT ids ([CR#400.7]), so post-move membership is checked by the
+    /// backing card, never a pre-move `ObjectId`.
+    fn zone_has_named(state: &GameState, zone: &[crate::object::ObjectId], name: &str) -> bool {
+        zone.iter()
+            .any(|&o| matches!(state.def(o), deckmaste_core::Card::Normal(f) if f.name == name))
+    }
+
+    /// [CR#702.35a]: the madness window — a replacement over `Act(Discard)`
+    /// of a NAMED card reroutes THAT card's Hand → Graveyard to exile, and no
+    /// other's: per-card events mean per-card replacement. (The fixture rides
+    /// a battlefield permanent — the Bag-of-Holding shape — because statics
+    /// are gathered from the battlefield today; sourcing madness's static
+    /// from the HAND is the static-ability-zone-gating seam, not this
+    /// window's.)
+    #[test]
+    fn madness_style_replacement_exiles_its_card_only() {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::KeywordActionPattern;
+
+        use crate::Decision;
+        use crate::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, a) = bear_on_field();
+        // "If a player would discard [Madness Card], exile it instead."
+        let madness = deckmaste_core::Replacement::Instead {
+            would: EventFilter::Act(KeywordActionPattern::Discard(
+                Predicate::Any,
+                Predicate::Characteristic(CharacteristicPredicate::Named("Madness Card".into())),
+            )),
+            instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
+        };
+        mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Madness Watcher".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+                    madness,
+                )))],
+                ..CardFace::default()
+            }),
+        );
+        let mad = mint_in_hand(&mut state, PlayerId(0), "Madness Card");
+        let plain = state.zones.hands[0][0];
+        assert_ne!(mad, plain);
+
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), false)),
+            &frame,
+        );
+        let _ = state.step();
+        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { .. }) = state.step() else {
+            panic!("expected the batched card choice, got {:?}", state.pending);
+        };
+        state
+            .submit_decision(Decision::Discard(vec![mad, plain]))
+            .unwrap();
+        run_injected(&mut state);
+
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Madness Card"),
+            "the madness-watched card was exiled instead ([CR#702.35a])"
+        );
+        assert!(
+            !zone_has_named(&state, &state.zones.graveyards[0], "Madness Card"),
+            "the replaced discard never reaches the graveyard"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            1,
+            "the OTHER discarded card still goes to the graveyard — per-card replacement"
+        );
+    }
+
+    /// [CR#702.29a]: the BOUND discard ("discard this card") — no choice
+    /// surfaces; the one dual-facet `Act(Discard)` commits the named card's
+    /// Hand → Graveyard move atomically, exactly the destroy shape.
+    #[test]
+    fn discard_what_commits_the_bound_card_without_a_choice() {
+        let (mut state, _a) = bear_on_field();
+        let card = mint_in_hand(&mut state, PlayerId(0), "Cycled Card");
+        // Cycling's frame: the ability's source IS the hand card (`This`).
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::You, Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            state.pending.is_none(),
+            "the bound form surfaces no card choice ([CR#702.29a])"
+        );
+        assert!(
+            zone_has_named(&state, &state.zones.graveyards[0], "Cycled Card"),
+            "the named card was discarded"
+        );
+        assert!(
+            !state.zones.hands[0].contains(&card),
+            "the named card left the hand"
+        );
+        let acts = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(&e.fact, crate::event::GameEvent::Act { verb, on, .. }
+                    if verb.as_str() == "Discard" && *on == Some(card))
+            })
+            .count();
+        assert_eq!(acts, 1, "ONE dual-facet Act(Discard) commits the move");
+    }
+
+    /// [CR#614.17]: a "can't discard" static (`CantHappen(Act(Discard(…)))`)
+    /// suppresses the whole keyword action at schedule time — no choice
+    /// surfaces, no event, no trigger.
+    #[test]
+    fn cant_discard_suppresses_the_whole_action() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::KeywordActionPattern;
+
+        let (mut state, a) = bear_on_field();
+        mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "No Discards".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
+                    KeywordActionPattern::Discard(Predicate::Any, Predicate::Any),
+                )))],
+                ..CardFace::default()
+            }),
+        );
+        let hand_before = state.zones.hands[0].len();
+        let frame = frame_src(a);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(1), false)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(state.pending.is_none(), "no card choice surfaces");
+        assert_eq!(
+            state.zones.hands[0].len(),
+            hand_before,
+            "no card left the hand"
+        );
+        assert!(
+            !state.history.entries().any(|e| {
+                matches!(&e.fact, crate::event::GameEvent::Act { verb, .. }
+                    if verb.as_str() == "Discard")
+            }),
+            "a canted discard performs no keyword action — no fact, no trigger"
         );
     }
 

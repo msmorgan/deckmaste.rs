@@ -559,11 +559,11 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
             CostComponent::Do(action)
                 if matches!(
                     action.as_ref(),
-                    PlayerAction::PutCounters(
+                    deckmaste_core::Action::By(_, PlayerAction::PutCounters(
                         deckmaste_core::Reference::This,
                         counter,
                         _,
-                    ) if *counter == CounterRef::from("LoyaltyCounter")
+                    )) if *counter == CounterRef::from("LoyaltyCounter")
                 )
         )),
         "LoyaltyPlus pays with a PutCounters(This, LoyaltyCounter, N) verb, got {components:?}"
@@ -588,11 +588,11 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
             CostComponent::Do(action)
                 if matches!(
                     action.as_ref(),
-                    PlayerAction::RemoveCounters(
+                    deckmaste_core::Action::By(_, PlayerAction::RemoveCounters(
                         deckmaste_core::Reference::This,
                         counter,
                         _,
-                    ) if *counter == CounterRef::from("LoyaltyCounter")
+                    )) if *counter == CounterRef::from("LoyaltyCounter")
                 )
         )),
         "LoyaltyMinus pays with a RemoveCounters(This, LoyaltyCounter, N) verb, got {components:?}"

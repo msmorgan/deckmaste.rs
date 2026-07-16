@@ -476,8 +476,24 @@ pub(crate) fn unless_cost_action(
     use deckmaste_core::PlayerAction;
     use deckmaste_core::Reference;
     match component {
-        // A verb cost is paid by `who` performing it ([CR#601.2h]).
-        CostComponent::Do(pa) => Action::By(who.clone(), (**pa).clone()),
+        // A verb cost is paid by `who` performing it ([CR#601.2h]) — re-agent
+        // the implicit-you action onto `who`: a player verb swaps its `By`
+        // agent; the discard composite ([CR#701.9]) is rebuilt around `who`
+        // (its `who` rides both the atom and the body's `FromHand` selection).
+        CostComponent::Do(action) => match &**action {
+            Action::By(_, pa) => Action::By(who.clone(), pa.clone()),
+            Action::Composite(deckmaste_core::KeywordAction::Discard(_, count), body) => {
+                match deckmaste_core::discard_body_what(body) {
+                    Some(what) => Action::discard_what(who.clone(), what.clone()),
+                    None => Action::discard(
+                        who.clone(),
+                        count.clone(),
+                        deckmaste_core::discard_body_random(body),
+                    ),
+                }
+            }
+            other => other.clone(),
+        },
         // {T}/{Q} tap/untap the source permanent the cost rides on.
         CostComponent::Tap => Action::By(who.clone(), PlayerAction::Tap(Reference::This)),
         CostComponent::Untap => Action::By(who.clone(), PlayerAction::Untap(Reference::This)),
@@ -598,19 +614,26 @@ use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::state::GameState;
 
-/// [CR#701.9a]: the Hand→Graveyard batch a discard emits — ONE simultaneous
-/// batch ([CR#603.3b]); shared by the chosen path (`submit_discards`) and
-/// the random path (`discard_random`).
-pub(crate) fn discard_batch(objects: Vec<ObjectId>) -> Vec<GameEvent> {
+/// [CR#701.9a]: the batch of PER-CARD `Act(Discard)` events a discard emits —
+/// scheduled as ONE simultaneous batch (the choice was batched, [CR#603.3b])
+/// but minted per-card, because each card's discard is its own replaceable/
+/// cantable moment ([CR#616.1]): madness reroutes ITS card's Hand→Graveyard
+/// to exile and no other's ([CR#702.35a]), and "whenever a player discards a
+/// card" fires once per card. Each surviving `Act` is dual-facet (performer +
+/// patient + the Hand→Graveyard body facet) and COMMITS its move atomically
+/// at apply — the destroy shape, no second replaceable `ZoneWillChange`
+/// below it. Shared by the chosen path (`submit_discards`), the random path
+/// (`discard_random`), and cleanup's discard-to-hand-size ([CR#514.1] — a
+/// discard like any other: madness and discard triggers see it).
+pub(crate) fn discard_batch(player: PlayerId, objects: Vec<ObjectId>) -> Vec<GameEvent> {
     objects
         .into_iter()
-        .map(|object| GameEvent::ZoneWillChange {
-            object,
+        .map(|object| GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Discard"),
+            who: Some(player),
+            on: Some(object),
             from: Some(Zone::Hand),
-            to: Zone::Graveyard,
-            enters: None,
-            position: None,
-            face: None,
+            to: Some(Zone::Graveyard),
             cause: Some(Cause::discard(Agency::EffectInstruction, None)),
         })
         .collect()
@@ -1623,7 +1646,7 @@ impl GameState {
         // ([CR#603.3b]), and the clause's amount — its card count, the
         // entailment row's `amount` — fixes "that many" for a following
         // draw ([CR#107.3]; the `apply_occurrence` funnel counts the batch).
-        let events = discard_batch(objects);
+        let events = discard_batch(player, objects);
         if !events.is_empty() {
             self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
         }

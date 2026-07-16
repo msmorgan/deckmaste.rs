@@ -271,6 +271,13 @@ pub enum KeywordActionPattern {
     Mill(Predicate),
     /// "whenever `who` draws" ([CR#121.1]).
     Draw(Predicate),
+    /// "whenever `who` discards [what]" ([CR#701.9a]) — TWO slots, like
+    /// [`Fight`](Self::Fight): the performer AND the discarded card, because
+    /// the discard event carries both coordinates and replacements narrow by
+    /// either. Madness reads `Act(Discard(Any, Ref(This)))` — "if a player
+    /// would discard THIS card" ([CR#702.35a]); "whenever you discard a
+    /// card" is `Act(Discard(Ref(You), Any))`.
+    Discard(Predicate, Predicate),
     /// "[patient] is destroyed / can't be destroyed" ([CR#701.8a,702.12b]).
     Destroy(Predicate),
     /// "whenever [a] fights [b]" ([CR#701.14a]).

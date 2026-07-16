@@ -34,14 +34,22 @@ pub enum CostComponent {
     Tap,
     /// The {Q} symbol.
     Untap,
-    /// Pay by performing a verb: the payer is implicitly you, so this holds a
-    /// bare [`PlayerAction`] (no `By` wrapper). Only cost-eligible ones
-    /// (`PlayerAction::is_cost_eligible`) belong here — enforced by the cards
-    /// crate's validation lint, not the parser. Boxed: `PlayerAction` dwarfs
-    /// the other variants, and `CostComponent` rides in `Vec<CostComponent>`
-    /// cost lists, so an unboxed variant would size every element to it
+    /// Pay by performing an action ([CR#118.3]) — the Idris `Do : Action b
+    /// -> Cost b`. The payer is implicitly you: a bare player verb
+    /// (`Do(Sacrifice(This))`) reads as `By(You, …)` through
+    /// [`Action::By`]'s `#[macro_ron(embed)]` lift, so the common spellings
+    /// are unchanged; holding the full [`Action`](crate::Action) is what
+    /// lets a keyword-action composite be a cost — "Discard a card:" is
+    /// `Do(Discard(1))`, cycling's "Discard this card:" the bound
+    /// [`discard_what`](crate::Action::discard_what) form
+    /// ([CR#701.9,702.29a]). Only cost-eligible actions
+    /// ([`Action::is_cost_eligible`](crate::Action::is_cost_eligible))
+    /// belong here — enforced by the cards crate's validation lint, not the
+    /// parser. Boxed: `Action` dwarfs the other variants, and
+    /// `CostComponent` rides in `Vec<CostComponent>` cost lists, so an
+    /// unboxed variant would size every element to it
     /// (`clippy::large_enum_variant`).
-    Do(Box<PlayerAction>),
+    Do(Box<crate::Action>),
     /// A *nested* cost list. It exists only to let a macro splice a
     /// list-valued cost param into a larger cost list — the body writes
     /// `cost: [Cost(Param(0)), Do(Discard(…))]`, so the spliced `[Mana(…)]`
@@ -94,11 +102,20 @@ pub enum CostComponent {
 
 impl CostComponent {
     /// Pay by performing a (cost-eligible) player verb —
-    /// `Do(Box::new(action))`, hiding the box the boxed variant requires.
-    /// Eligibility itself stays a cards-layer validation lint ([CR#601.2b],
-    /// `PlayerAction::is_cost_eligible`).
+    /// `Do(Box::new(By(You, action)))`, hiding the box and the implicit-you
+    /// `By` wrapper the widened variant requires. Eligibility itself stays a
+    /// cards-layer validation lint ([CR#601.2b],
+    /// [`Action::is_cost_eligible`](crate::Action::is_cost_eligible)).
     #[must_use]
     pub fn do_(action: PlayerAction) -> CostComponent {
+        CostComponent::Do(Box::new(crate::Action::by_you(action)))
+    }
+
+    /// Pay by performing a full [`Action`](crate::Action) — the
+    /// keyword-action composite forms ("Discard a card:" —
+    /// [CR#701.9,601.2b]).
+    #[must_use]
+    pub fn do_action(action: crate::Action) -> CostComponent {
         CostComponent::Do(Box::new(action))
     }
 }
@@ -293,7 +310,6 @@ mod tests {
         use crate::CharacteristicPredicate;
         use crate::Predicate;
         use crate::Type;
-        use crate::action::Destination;
         use crate::action::PlayerAction;
 
         // "sacrifice a creature": choose one creature, then Sacrifice(That(Creature)).
@@ -310,12 +326,12 @@ mod tests {
         };
         assert_eq!(read(&to_string(&with)), with, "With cost round-trips");
 
-        // Exile-as-cost is a player Move to the Exile zone.
-        let exile = CostComponent::do_(PlayerAction::Move(
-            Reference::This,
-            Destination::Zone(crate::Zone::Exile),
-            vec![],
-        ));
+        // Exile-as-cost is a Move to the Exile zone. In `Action` position
+        // the bare `Move(This, Exile)` spelling resolves to the DIRECT
+        // `Action::Move` (the direct variant shadows the `By(You, …)`
+        // embed), so that is the canonical stored form.
+        let exile =
+            CostComponent::do_action(crate::Action::move_to(Reference::This, crate::Zone::Exile));
         assert_eq!(
             read(&to_string(&exile)),
             exile,
@@ -332,9 +348,6 @@ mod tests {
     /// `[Mana(…), Do(…)]` (cycling, [CR#702.29a]).
     #[test]
     fn nested_cost_survives_read_and_normalizes_flat() {
-        use crate::action::PlayerAction;
-        use crate::count::Count;
-
         // The named Cost variant wraps a sub-list.
         let comp: CostComponent = crate::ron::options().from_str("Cost([Tap])").unwrap();
         assert!(
@@ -344,16 +357,16 @@ mod tests {
 
         // Faithful read: the nested Cost SURVIVES verbatim — no read-time flatten.
         let lumpy: Cost = crate::ron::options()
-            .from_str("[Cost([Mana([Generic(2)])]), Do(Discard(count: Literal(1), what: This))]")
+            .from_str(
+                "[Cost([Mana([Generic(2)])]), \
+                 Do(Composite(Discard(You, Literal(1)), Move(This, Graveyard)))]",
+            )
             .unwrap();
         let mana_two = CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
             SimpleManaSymbol::Generic(2),
         )]));
-        let discard_self = CostComponent::Do(Box::new(PlayerAction::Discard {
-            count: Count::Literal(1),
-            what: Some(Reference::This),
-            random: false,
-        }));
+        let discard_self =
+            CostComponent::do_action(crate::Action::discard_what(Reference::You, Reference::This));
         assert_eq!(
             lumpy,
             Cost(vec![
@@ -396,7 +409,7 @@ mod tests {
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
             read("Do(Sacrifice(This))"),
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This))),
+            CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
         );
     }
 

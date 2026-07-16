@@ -603,7 +603,7 @@ mod tests {
         };
         assert_eq!(
             activated.cost[1],
-            CostComponent::Do(Box::new(PlayerAction::Sacrifice(Reference::This)))
+            CostComponent::do_(PlayerAction::Sacrifice(Reference::This))
         );
     }
 }

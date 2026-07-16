@@ -270,7 +270,7 @@ card_LilianaOfTheVeil = Normal $ ^:
   , loyalty := Just 3
   , abilities :=
       [ Activated (Do (PutCounters loyaltyCounter (Literal 1) This))
-          (Each (Existing eachPlayer) (Act (Discard {actor = It} (^1)))) {window = AsSorcery, limits = [OncePerTurn]}
+          (Each (Existing eachPlayer) (discards It (^1))) {window = AsSorcery, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters loyaltyCounter (Literal 2) This))
           (Targeted [Target (^1) Anyone]
             (Act (Sacrifice creature {actor = It}))) {window = AsSorcery, limits = [OncePerTurn]}
@@ -1140,7 +1140,7 @@ card_SmugglersCopter = Normal $ ^:
   , abilities :=
       [ keyword Flying
       , Triggered (MkEventQuery [Begins Attack, Begins Block] [Agent (SameAs This)])
-          (May (Sequentially [Act (Draw (^1)), Act (Discard (^1))]))   -- loot on attack or block
+          (May (Sequentially [Act (Draw (^1)), discard (^1)]))   -- loot on attack or block
       , crew (^1)                                                  -- Crew 1
       ]
   , power := Just 3

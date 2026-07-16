@@ -13,7 +13,7 @@
 //     `Splice(Param(1))` list-splice inlines its components ahead of the fixed
 //     discard-self at read time, yielding one flat cost list — exactly the
 //     Cycling discard-this construction. The discard is of THIS card
-//     (`Discard(what: This)`), not a free-choice discard.
+//     (the bound `DiscardThis` cost macro), not a free-choice discard.
 //
 // The effect is a `Targeted` ([CR#115.1,601.2c], the target declared on the
 // `Targeted` wrapper — the same `Target(Exactly(1), filter)` shape Modular and
@@ -30,7 +30,7 @@
         name: "Reinforce",
         abilities: [Activated(
             from: Hand,
-            cost: [Splice(Param(1)), Do(Discard(count: 1, what: This))],
+            cost: [Splice(Param(1)), DiscardThis],
             effect: Targeted(
                 targets: [Target(Exactly(1), Type("Creature"))],
                 effect: PutCounters(It, P1P1Counter, Param(0)),

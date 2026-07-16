@@ -171,11 +171,9 @@ fn blood_token_parses() {
     let mana_1 = CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
         SimpleManaSymbol::Generic(1),
     )]));
-    let discard_one = CostComponent::Do(Box::new(PlayerAction::Discard {
-        count: Count::Literal(1),
-        what: None,
-        random: false,
-    }));
+    // Read through the builtin macro set so the remembered `Expanded`
+    // wrapper (the `DiscardCards(1)` cost macro) matches exactly.
+    let discard_one: CostComponent = builtin().macros.read_str("DiscardCards(1)").unwrap();
     let token = builtin().token("Blood").unwrap();
     assert_eq!(
         token,

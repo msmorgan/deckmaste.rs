@@ -505,35 +505,6 @@ impl GameState {
                     ManaSpec::ProducedByEvent => vec![],
                 }
             }
-            PlayerAction::Discard {
-                count,
-                what,
-                random,
-            } => {
-                if *random {
-                    // [CR#701.9b]: random discard — no decision (no choice
-                    // exists); the work item samples from the seeded rng
-                    // when it applies (the hand may change before then).
-                    let count = self.eval_count(count, frame);
-                    return vec![WorkItem::DiscardRandom {
-                        player: actor,
-                        count,
-                    }];
-                }
-                // [CR#701.9b]: the actor chooses which cards — surfaced as a
-                // decision when the work item applies (the hand may change
-                // before then). A named `what` (discard a *specific* card) as a
-                // resolution EFFECT is unbuilt; cycling's "discard this card"
-                // ([CR#702.29a]) is a COST, paid in `activate.rs`, never here.
-                if let Some(sel) = what {
-                    todo!("discard a named selection as a resolution effect: {sel:?}");
-                }
-                let count = self.eval_count(count, frame);
-                vec![WorkItem::DiscardCards {
-                    player: actor,
-                    count,
-                }]
-            }
             PlayerAction::Create(qty, spec, riders) => {
                 if !riders.is_empty() {
                     todo!(
@@ -828,11 +799,7 @@ mod tests {
         let frame = frame_src(src);
         let hand_before = state.zones.hands[0].len();
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Discard {
-                count: Count::Literal(2),
-                what: None,
-                random: false,
-            }),
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), false)),
             &frame,
         );
         let _ = state.step(); // DiscardOpened
@@ -861,11 +828,7 @@ mod tests {
         // Clamp: an instruction to discard far more than the hand holds
         // discards the whole hand.
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Discard {
-                count: Count::Literal(99),
-                what: None,
-                random: false,
-            }),
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(99), false)),
             &frame,
         );
         let _ = state.step();
@@ -1250,11 +1213,7 @@ mod tests {
         }
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::act_by_you(PlayerAction::Discard {
-                count: Count::Literal(2),
-                what: None,
-                random: true,
-            }),
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), true)),
             &frame,
         );
         // Drain until the discard resolves (graveyard gains 2) or SOME
@@ -1795,11 +1754,7 @@ mod tests {
             // own follow-on `WorkItem::Emit`), then apply THAT batch (which
             // actually records the `ZoneChanged` facts to history).
             state.run_effect(
-                OneShotEffect::act_by_you(PlayerAction::Discard {
-                    count: Count::Literal(2),
-                    what: None,
-                    random: true,
-                }),
+                OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), true)),
                 &frame,
             );
             step_n(&mut state, 3);

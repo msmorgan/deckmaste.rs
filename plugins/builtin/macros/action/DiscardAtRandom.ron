@@ -1,0 +1,22 @@
+// "Discard N cards at random" ([CR#701.9b] — the affected player does NOT
+// choose): the imperative YOU-form at-random discard. Same `Composite` as
+// the chosen-form `Discard` macro, with the body's `FromHand` selection
+// carrying `random: true` — the at-random detail is the SELECTION's, not
+// the atom's; the engine samples uniformly from the seeded rng instead of
+// surfacing the card choice, then realizes the same per-card
+// `Act(Discard)` events (madness still bites per card, [CR#702.35a]).
+//
+// Usage: DiscardAtRandom(1) -> "Discard a card at random."
+(
+    name: "DiscardAtRandom",
+    template: "discard ${0:card|cards} at random",
+    kinds: [OneShotEffect],
+    params: [Count],
+    body: Composite(
+        Discard(You, Param(0)),
+        Each(
+            binder: Existing(FromHand(count: Param(0), random: true)),
+            effect: Move(It, Graveyard),
+        ),
+    ),
+)

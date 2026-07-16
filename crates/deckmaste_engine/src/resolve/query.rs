@@ -105,6 +105,10 @@ impl GameState {
     /// `They`/`TheGroup`/`TopOfLibrary` name an already-bound group. A
     /// per-object instruction runs over this set via an enclosing `Each`/
     /// `Distribute`/`With`, never the verb itself.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per selection shape; splitting would scatter the dispatch"
+    )]
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
             // Thread the carrier (like `Pick`) so a carrier-relative predicate
@@ -175,6 +179,14 @@ impl GameState {
                     None => Vec::new(),
                 }
             }
+            // A hand CHOICE ([CR#701.9b]) — never a synchronous read: the
+            // discard composite's resolve lane surfaces it as a
+            // `DiscardCards` decision (or samples, for `random`) and the
+            // stored body is the render/re-emit facet only. Reaching this
+            // evaluator means a `FromHand` was authored outside a discard
+            // composite — an authoring mistake; fizzle to the empty group
+            // (never-crash).
+            Selection::FromHand { .. } => Vec::new(),
             // The RNG's picks, bound into the frame before the selection is
             // read ([CR#608.2d]). No current card surfaces a `Random` group
             // (player choice now lives in `With(ChooseOne/Choose, …)`); this

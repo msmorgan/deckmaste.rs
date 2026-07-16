@@ -1161,9 +1161,12 @@ impl GameState {
                 continue;
             };
             let reference = match pa.as_ref() {
-                PlayerAction::Sacrifice(r)
-                | PlayerAction::Move(r, _, _)
-                | PlayerAction::Discard { what: Some(r), .. } => Some(r),
+                Action::By(_, PlayerAction::Sacrifice(r) | PlayerAction::Move(r, _, _)) => Some(r),
+                // The bound discard form ("discard this card") names its
+                // moved card in the body's single-move head.
+                Action::Composite(deckmaste_core::KeywordAction::Discard(..), body) => {
+                    deckmaste_core::discard_body_what(body)
+                }
                 _ => None,
             };
             // Only a directly-resolvable reference is captured here; a
@@ -1674,11 +1677,11 @@ mod tests {
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::creature(),
             ]))),
-            effect: Box::new(OneShotEffect::act_by_you(PlayerAction::Discard {
-                count: Count::Literal(1),
-                what: None,
-                random: false,
-            })),
+            effect: Box::new(OneShotEffect::Act(Action::discard(
+                Reference::You,
+                Count::Literal(1),
+                false,
+            ))),
         });
         state.run_effect(effect, &frame);
 

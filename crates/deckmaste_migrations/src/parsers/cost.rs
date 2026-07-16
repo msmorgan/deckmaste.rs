@@ -95,15 +95,17 @@ fn pay_life(text: &str) -> Option<String> {
     Some(format!("Do(LoseLife({n}))"))
 }
 
-/// `Discard a card` / `Discard N cards` -> `Do(Discard(count: N))` (cards of
-/// the payer's choice — no `what`). Riders ("at random", "your hand") decline.
+/// `Discard a card` / `Discard N cards` -> `DiscardCards(N)` — the
+/// chosen-from-hand discard composite as a cost ([CR#701.9,601.2b]), the
+/// discard sibling of `Sacrifice ~` -> `SacrificeThis`. Riders ("at
+/// random", "your hand") decline.
 fn discard(text: &str) -> Option<String> {
     let rest = text.strip_prefix("Discard ")?;
     let count = rest
         .strip_suffix(" cards")
         .or_else(|| rest.strip_suffix(" card"))?;
     let n = effect::number_word(count)?;
-    Some(format!("Do(Discard(count: {n}))"))
+    Some(format!("DiscardCards({n})"))
 }
 
 /// `Sacrifice <subject>` (non-self) -> the cost-side choose-then-pay `With`

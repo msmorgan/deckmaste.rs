@@ -4,6 +4,7 @@
 //! announce flow (`announce_targets` / `pay_cost`) is shared with activated
 //! abilities ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
+use deckmaste_core::Action as CoreAction;
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
@@ -467,7 +468,7 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// exactly as the effect-side frame reads X. `None` when no X was announced
 /// (the common no-X cost), leaving each `Count::X`-free verb untouched.
 fn verb_payment_items(
-    verbs: &[PlayerAction],
+    verbs: &[CoreAction],
     source: ObjectId,
     player: PlayerId,
     x: Option<Uint>,
@@ -479,7 +480,7 @@ fn verb_payment_items(
             let mut frame = Frame::bare(source, player);
             frame.anaphora.x = x;
             WorkItem::RunEffect {
-                effect: Box::new(OneShotEffect::act_by_you(verb.clone())),
+                effect: Box::new(OneShotEffect::Act(verb.clone())),
                 frame,
             }
         })
@@ -492,22 +493,31 @@ fn verb_payment_items(
 /// trigger: an activation whose cost carries such a verb must announce X even
 /// without an `{X}` mana symbol. Looks through `Expanded` macro wrappers,
 /// mirroring `verb_cost_payable`.
-fn verb_mentions_cost_x(verb: &PlayerAction) -> bool {
+fn verb_mentions_cost_x(verb: &CoreAction) -> bool {
+    fn player_verb_mentions_x(verb: &PlayerAction) -> bool {
+        match verb {
+            PlayerAction::LoseLife(count)
+            | PlayerAction::PutCounters(_, _, count)
+            | PlayerAction::RemoveCounters(_, _, count) => count.mentions_x(),
+            PlayerAction::Expanded(e) => player_verb_mentions_x(&e.value),
+            _ => false,
+        }
+    }
     match verb {
-        PlayerAction::LoseLife(count)
-        | PlayerAction::Discard { count, .. }
-        | PlayerAction::PutCounters(_, _, count)
-        | PlayerAction::RemoveCounters(_, _, count) => count.mentions_x(),
-        PlayerAction::Expanded(e) => verb_mentions_cost_x(&e.value),
+        CoreAction::By(_, pa) => player_verb_mentions_x(pa),
+        // An X-discard ("discard X cards") — the count rides the atom.
+        CoreAction::Composite(deckmaste_core::KeywordAction::Discard(_, count), _) => {
+            count.mentions_x()
+        }
         _ => false,
     }
 }
 
 /// Unwrap the `CostComponent::Do(action)` verbs `concretize` produces for
-/// Phyrexian-life picks ([CR#107.4f]) back into the `PlayerAction`s
+/// Phyrexian-life picks ([CR#107.4f]) back into the [`Action`]s
 /// `verb_payment_items` schedules. `concretize` only ever emits
 /// `Do(LoseLife(2))` here, so any other shape is an engine invariant violation.
-fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<PlayerAction> {
+fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<CoreAction> {
     verbs
         .iter()
         .map(|c| match c {
@@ -694,9 +704,9 @@ impl GameState {
     /// emits only `Do(LoseLife(n))` for life picks ([CR#107.4f]); any other
     /// shape contributes 0 (its own structural check in `can_pay_verbs` covers
     /// it — this sum is purely the shared-life constraint).
-    fn life_cost_of(&self, verb: &PlayerAction, frame: &Frame) -> Uint {
+    fn life_cost_of(&self, verb: &CoreAction, frame: &Frame) -> Uint {
         match verb {
-            PlayerAction::LoseLife(count) => self.eval_count(count, frame),
+            CoreAction::By(_, PlayerAction::LoseLife(count)) => self.eval_count(count, frame),
             _ => 0,
         }
     }

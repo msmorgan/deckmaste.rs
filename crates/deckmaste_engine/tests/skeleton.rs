@@ -438,7 +438,10 @@ fn cleanup_discards_to_hand_size() {
         Progress::Applied(Occurrence::Batch(events))
             if events.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneWillChange { object, cause: Some(c), .. }
+                // The cleanup discard is per-card `Act(Discard)` events
+                // ([CR#701.9a] — one replaceable moment per card; madness
+                // works off a cleanup discard like any other).
+                GameEvent::Act { on: Some(object), cause: Some(c), .. }
                     if *object == chosen && c.verb.as_str() == "Discard"
             ))
     )));

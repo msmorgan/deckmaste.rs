@@ -2298,7 +2298,7 @@ impl GameState {
         let idx = rand::seq::index::sample(&mut self.rng, len, n);
         let hand = &self.zones.hands[player.index()];
         let picks: Vec<ObjectId> = idx.into_iter().map(|i| hand[i]).collect();
-        let events = crate::decide::discard_batch(picks);
+        let events = crate::decide::discard_batch(player, picks);
         if !events.is_empty() {
             self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
         }

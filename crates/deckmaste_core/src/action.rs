@@ -45,6 +45,23 @@ pub enum KeywordAction {
     /// replaceable, NOT one simultaneous batch like mill). Built by
     /// [`Action::draw`]; there is no bespoke `Draw` `PlayerAction`.
     Draw(Reference, Count),
+    /// "`who` discards N" ([CR#701.9a]) — mirrors [`Draw`](Self::Draw)
+    /// (player-first, then the count). The count rides the atom, but WHICH
+    /// cards is the body's business: the common form's body is an
+    /// [`Each`](crate::Each) over a
+    /// [`FromHand`](crate::Selection::FromHand) selection (the affected
+    /// player's batch choice, [CR#701.9b] — one choice of `count` cards,
+    /// front-loaded), realized as `count` per-card `Act(Discard)` events —
+    /// each individually replaceable/cantable (madness exiles ITS card and
+    /// no other, [CR#702.35a]; "whenever a player discards a card" fires
+    /// once per card). The "at random" variant rides the selection's
+    /// `random` flag, not the atom. "Discard this card" (cycling's cost,
+    /// [CR#702.29a]) is the degenerate no-choice form: the body is the
+    /// single Hand → Graveyard [`Move`](Action::Move) of the named card
+    /// (built by [`Action::discard_what`]), committed on ONE dual-facet
+    /// `Act(Discard)` like destroy's. Built by [`Action::discard`]; there
+    /// is no bespoke `Discard` `PlayerAction`.
+    Discard(Reference, Count),
     /// "destroy [object]" ([CR#701.8a]) — the patient permanent. Destroy has no
     /// bespoke verb: it is [`Action::destroy`], a `Composite` whose body is the
     /// Battlefield → Graveyard [`Move`](Action::Move).
@@ -293,19 +310,6 @@ pub enum Action {
 /// writes the invocation back.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum PlayerAction {
-    /// Discard cards ([CR#701.9]). `count` is how many; the optional `what`
-    /// names *which* — omitted = the discarding player chooses `count` from
-    /// hand (the common form, [CR#701.9b]). "Discard this card" (cycling's
-    /// cost, [CR#702.29a]) is `Discard(count: Literal(1), what: This)`.
-    /// `random: true` is the "discard at random" form ([CR#701.9b] — the
-    /// affected player does not choose); senseless combined with a `what`.
-    Discard {
-        count: Count,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        what: Option<Reference>,
-        #[serde(default, skip_serializing_if = "crate::ability::is_false")]
-        random: bool,
-    },
     /// Gain an amount of life ([CR#119.3]).
     GainLife(Count),
     /// Lose an amount of life — pay-life when in a cost ([CR#119.3]).
@@ -551,6 +555,96 @@ impl Action {
             })),
         )
     }
+
+    /// "`who` discards `count`" ([CR#701.9a]) — the keyword action as data:
+    /// a [`Composite`](Action::Composite) whose tag is `Discard(who, count)`
+    /// and whose body DESCRIBES the chosen-from-hand Hand → Graveyard
+    /// relocation: an [`Each`](crate::Each) over a
+    /// [`FromHand`](crate::Selection::FromHand) selection carrying the
+    /// count, the hand's owner, and the `random` flag ([CR#701.9b] — the
+    /// affected player chooses by default; `random: true` is "at random").
+    /// Like draw, the body is NOT the executor — the choice is a real
+    /// decision (a hidden-zone selection, not a deterministic top-N read),
+    /// so the engine surfaces it (or samples, for random) and then emits one
+    /// `Act(Discard)` per chosen card: the choice is BATCHED up front
+    /// ([CR#701.9b], one choice of `count` cards) but the events are
+    /// PER-CARD — "whenever a player discards a card" fires once per card,
+    /// and a replacement (madness, [CR#702.35a]) reroutes ITS card only.
+    /// The stored body is the faithful render/re-emit facet. Authored via
+    /// the `Discard`/`Discards` macros so the card still writes "Discard two
+    /// cards." / "Each opponent discards a card."
+    #[must_use]
+    pub fn discard(who: Reference, count: Count, random: bool) -> Action {
+        Action::Composite(
+            KeywordAction::Discard(who.clone(), count.clone()),
+            Box::new(crate::OneShotEffect::Each(crate::Each {
+                binder: crate::Binder::Existing(Selection::FromHand {
+                    count,
+                    whose: who,
+                    random,
+                }),
+                effect: Box::new(crate::OneShotEffect::Act(Action::move_to(
+                    Reference::It,
+                    crate::Zone::Graveyard,
+                ))),
+            })),
+        )
+    }
+
+    /// "Discard [this card / that card]" ([CR#701.9a]) — the degenerate
+    /// NO-CHOICE discard of a named card: cycling's "Discard this card" cost
+    /// ([CR#702.29a]) and the bound "that player discards that card" form.
+    /// A [`Composite`](Action::Composite) whose tag is `Discard(who, 1)` and
+    /// whose body IS the single Hand → owner's-graveyard
+    /// [`Move`](Action::Move) — the destroy shape: the engine reads the body
+    /// facet off the stored move and commits it atomically on the ONE
+    /// dual-facet `Act(Discard)` event ([CR#616.1]), where madness's
+    /// replacement bites ([CR#702.35a]).
+    #[must_use]
+    pub fn discard_what(who: Reference, what: Reference) -> Action {
+        Action::Composite(
+            KeywordAction::Discard(who, Count::Literal(1)),
+            Box::new(crate::OneShotEffect::Act(Action::move_to(
+                what,
+                crate::Zone::Graveyard,
+            ))),
+        )
+    }
+}
+
+/// The BOUND-form patient of a discard composite's stored body
+/// ([CR#702.29a] "discard this card"): the reference its body's HEAD moves,
+/// when that head is a single relocation (`Move(This, Graveyard)` →
+/// `Some(This)`). The chosen form (an `Each` over
+/// [`FromHand`](Selection::FromHand)) → `None`. Read off the stored body
+/// ("matches the expanded body") — shared by the engine's resolve lane, the
+/// renderer, and the Idris emitter, so the three can never disagree on
+/// which form a discard is.
+#[must_use]
+pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
+    use crate::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => discard_body_what(&e.value),
+        E::Act(Action::Move(what, Destination::Zone(_), _)) => Some(what),
+        _ => None,
+    }
+}
+
+/// Whether a discard composite's stored body selects AT RANDOM
+/// ([CR#701.9b]): its `Each` binder is a [`FromHand`](Selection::FromHand)
+/// selection carrying `random: true`. The at-random detail is the
+/// selection's, not the tag's — shared like [`discard_body_what`].
+#[must_use]
+pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
+    use crate::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => discard_body_random(&e.value),
+        E::Each(each) => matches!(
+            &each.binder,
+            crate::Binder::Existing(Selection::FromHand { random: true, .. })
+        ),
+        _ => false,
+    }
 }
 
 impl PlayerAction {
@@ -579,12 +673,35 @@ impl PlayerAction {
                 | PlayerAction::Move(..)
                 | PlayerAction::Tap(_)
                 | PlayerAction::Untap(_)
-                | PlayerAction::Discard { .. }
                 | PlayerAction::LoseLife(_)
                 | PlayerAction::PutCounters(..)
                 | PlayerAction::RemoveCounters(..)
                 | PlayerAction::Reveal { .. }
         )
+    }
+}
+
+impl Action {
+    /// Whether this action may appear in a cost (`CostComponent::Do`) —
+    /// the [`Action`]-level twin of [`PlayerAction::is_cost_eligible`],
+    /// needed since `Do` holds a full [`Action`] (the Idris `Do : Action b
+    /// -> Cost b`). A player verb defers to its own eligibility (the agent
+    /// is the payer); the ONE cost-eligible composite is the discard
+    /// keyword action ("Discard a card:", cycling's "Discard this card:" —
+    /// [CR#701.9,702.29a]): the payer performs it, nothing targets
+    /// ([CR#601.2b..601.2c]).
+    #[must_use]
+    pub fn is_cost_eligible(&self) -> bool {
+        match self {
+            Action::By(_, pa) => pa.is_cost_eligible(),
+            // The discard composite, plus the DIRECT `Action::Move`:
+            // `Do(Move(This, Exile))` (Scavenge's self-exile) reads as the
+            // direct variant — in `Action` position it shadows the
+            // `By(You, …)` embed — and is the same payer-performed
+            // relocation ([CR#701.13]).
+            Action::Composite(KeywordAction::Discard(..), _) | Action::Move(..) => true,
+            _ => false,
+        }
     }
 }
 
@@ -615,15 +732,13 @@ mod tests {
         );
         assert!(PlayerAction::Tap(Reference::This).is_cost_eligible());
         assert!(PlayerAction::Untap(Reference::This).is_cost_eligible());
-        assert!(
-            PlayerAction::Discard {
-                count: Count::Literal(1),
-                what: None,
-                random: false
-            }
-            .is_cost_eligible()
-        );
         assert!(PlayerAction::LoseLife(Count::Literal(1)).is_cost_eligible());
+        // The Action-level twin ([CR#601.2b]): a `By` defers to its verb;
+        // the ONE cost-eligible composite is the discard keyword action
+        // ("Discard a card:", cycling's bound form — [CR#701.9,702.29a]).
+        assert!(Action::discard(Reference::You, Count::Literal(1), false).is_cost_eligible());
+        assert!(Action::discard_what(Reference::You, Reference::This).is_cost_eligible());
+        assert!(!Action::draw(Reference::You, Count::Literal(1)).is_cost_eligible());
         // Counter costs ride these two verbs (loyalty `+N`/`−N`, "remove a
         // counter:", "pay {E}") — no dedicated counter-cost verb
         // ([CR#606.4]).
@@ -651,60 +766,35 @@ mod tests {
         );
     }
 
-    /// `Discard` carries an OPTIONAL `what` naming *which* cards ([CR#701.9]):
-    /// omitted = the discarding player chooses `count` from hand (the common
-    /// form); present = those specific cards. "Discard this card" (cycling's
-    /// cost, [CR#702.29a]) is `Discard(count: Literal(1), what: This)`.
+    /// The discard keyword action as data ([CR#701.9]): [`Action::discard`]
+    /// builds `Composite(Discard(who, n), Each(FromHand …))` — the CHOSEN
+    /// form, the affected player picking `n` from hand ([CR#701.9b]) — and
+    /// [`Action::discard_what`] the BOUND single-move form ("discard this
+    /// card", cycling's cost [CR#702.29a]), the destroy shape. Both
+    /// round-trip structurally, and the body facets read back through the
+    /// shared descent helpers.
     #[test]
-    fn discard_takes_optional_selection() {
-        // count-only: the `what` selection is absent.
-        assert_eq!(
-            read("Discard(count: Literal(2))"),
-            Action::By(
-                Reference::You,
-                PlayerAction::Discard {
-                    count: Count::Literal(2),
-                    what: None,
-                    random: false
-                },
-            ),
-        );
-        // "discard this card" names the specific card via `what`.
-        assert_eq!(
-            read("Discard(count: Literal(1), what: This)"),
-            Action::By(
-                Reference::You,
-                PlayerAction::Discard {
-                    count: Count::Literal(1),
-                    what: Some(Reference::This),
-                    random: false,
-                },
-            ),
-        );
-        // an absent `what` is omitted on write and round-trips; the This form too.
-        let bare = Action::By(
-            Reference::You,
-            PlayerAction::Discard {
-                count: Count::Literal(2),
-                what: None,
-                random: false,
-            },
-        );
-        let written = write(&bare);
+    fn discard_composite_forms_round_trip() {
+        let chosen = Action::discard(Reference::You, Count::Literal(2), false);
+        let Action::Composite(KeywordAction::Discard(who, n), body) = &chosen else {
+            panic!("expected a discard Composite, got {chosen:?}");
+        };
+        assert_eq!(*who, Reference::You);
+        assert_eq!(*n, Count::Literal(2));
         assert!(
-            !written.contains("what"),
-            "absent `what` omitted: {written}"
+            discard_body_what(body).is_none(),
+            "chosen form binds no card"
         );
-        assert_eq!(read(&written), bare);
-        let this = Action::By(
-            Reference::You,
-            PlayerAction::Discard {
-                count: Count::Literal(1),
-                what: Some(Reference::This),
-                random: false,
-            },
-        );
-        assert_eq!(read(&write(&this)), this);
+        assert!(!discard_body_random(body));
+        assert_eq!(read(&write(&chosen)), chosen);
+
+        let bound = Action::discard_what(Reference::You, Reference::This);
+        let Action::Composite(KeywordAction::Discard(_, n), body) = &bound else {
+            panic!("expected a discard Composite, got {bound:?}");
+        };
+        assert_eq!(*n, Count::Literal(1), "a bound discard is one card");
+        assert_eq!(discard_body_what(body), Some(&Reference::This));
+        assert_eq!(read(&write(&bound)), bound);
     }
 
     /// A bare player verb reads as `By(You, …)` — the implicit-you default:
@@ -1060,23 +1150,19 @@ mod tests {
         assert_eq!(read(&write(&venture)), venture);
     }
 
-    /// `Discard`'s `random` flag ([CR#701.9b]) defaults false (omitted on
-    /// write) and round-trips when set — "discard a card at random".
+    /// The at-random flag ([CR#701.9b]) rides the body's `FromHand`
+    /// selection, not the atom: it defaults false (omitted on write) and
+    /// the random form round-trips — "discard a card at random".
     #[test]
-    fn discard_random_defaults_and_round_trips() {
-        let chosen = read("Discard(count: Literal(1))");
-        let Action::By(_, PlayerAction::Discard { random, .. }) = &chosen else {
-            panic!("expected Discard, got {chosen:?}");
-        };
-        assert!(!random, "omitted random defaults to false");
+    fn discard_random_rides_the_selection_and_round_trips() {
+        let chosen = Action::discard(Reference::You, Count::Literal(1), false);
         assert!(!write(&chosen).contains("random"), "false random omitted");
 
-        let random = Action::by_you(PlayerAction::Discard {
-            count: Count::Literal(1),
-            what: None,
-            random: true,
-        });
-        assert_eq!(read("Discard(count: Literal(1), random: true)"), random);
+        let random = Action::discard(Reference::You, Count::Literal(1), true);
+        let Action::Composite(_, body) = &random else {
+            panic!("expected a discard Composite, got {random:?}");
+        };
+        assert!(discard_body_random(body));
         assert_eq!(read(&write(&random)), random);
     }
 

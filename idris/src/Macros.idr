@@ -213,6 +213,39 @@ public export
 mill : Count b -> OneShotEffect b
 mill n = Act (Composite (Mill You n) (Each (Existing (TopOfLibrary n)) (Act (Move It (ToZone Graveyard)))))
 
+-- discard n ([CR#701.9a]): choose n cards from your hand and put them into your graveyard. The choice
+-- is the affected player's, batched up front ([CR#701.9b] -- one pick of n cards); the engine realizes
+-- per-card `Act (Discard ...)` events, so madness ([CR#702.35a]) and "whenever ... discards a card" bite
+-- card-by-card. The `discards`/`discardsAtRandom` forms carry an explicit subject; `discardThis` is the
+-- bound no-choice cost form ([CR#702.29a]).
+public export
+discard : Count b -> OneShotEffect b
+discard n = Act (Composite (Discard You n) (Each (Existing (FromHand n You False)) (Act (Move It (ToZone Graveyard)))))
+
+-- discard n at random ([CR#701.9b] -- no choice; a uniform sample): `FromHand`'s flag flipped.
+public export
+discardAtRandom : Count b -> OneShotEffect b
+discardAtRandom n = Act (Composite (Discard You n) (Each (Existing (FromHand n You True)) (Act (Move It (ToZone Graveyard)))))
+
+-- who discards n ([CR#701.9a]): the declarative-subject discard -- `who` rides both the atom and the
+-- hand selection.
+public export
+discards : Reference b APlayer -> Count b -> OneShotEffect b
+discards who n = Act (Composite (Discard who n) (Each (Existing (FromHand n who False)) (Act (Move It (ToZone Graveyard)))))
+
+-- who discards n at random (Hymn to Tourach).
+public export
+discardsAtRandom : Reference b APlayer -> Count b -> OneShotEffect b
+discardsAtRandom who n = Act (Composite (Discard who n) (Each (Existing (FromHand n who True)) (Act (Move It (ToZone Graveyard)))))
+
+-- discard THIS card ([CR#702.29a] -- cycling/reinforce's cost): the degenerate no-choice discard of a
+-- named card, destroy's shape -- a `Composite` over the single Hand -> Graveyard `Move`, committed on
+-- ONE dual-facet `Act (Discard ...)` where madness bites. Returns an `Action` (used as `Do discardThis`
+-- in a cost), like `destroy`.
+public export
+discardThis : Action b
+discardThis = Composite (Discard You (^1)) (Act (Move This (ToZone Graveyard)))
+
 -- destroy r ([CR#701.8a]): move r from the battlefield to its owner's graveyard, tagged as the Destroy
 -- keyword action so indestructible/regeneration and "whenever ~ destroys" match on the tag facet while
 -- "when it dies"/Rest-in-Peace match on the body's →Graveyard facet. Authored as DATA (a `Composite`

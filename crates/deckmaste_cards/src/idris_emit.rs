@@ -1242,6 +1242,20 @@ fn emit_selection(s: &Selection) -> R {
             "TopOfGraveyard",
             vec![emit_count(count)?, emit_reference(of)?],
         ),
+        // [CR#701.9b]: the chosen-from-hand selection — explicit args like
+        // `TopOfGraveyard` (count, hand owner, at-random flag).
+        Selection::FromHand {
+            count,
+            whose,
+            random,
+        } => app(
+            "FromHand",
+            vec![
+                emit_count(count)?,
+                emit_reference(whose)?,
+                if *random { "True" } else { "False" }.to_string(),
+            ],
+        ),
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
         Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),
@@ -1376,7 +1390,11 @@ fn emit_cost_component(c: &CostComponent) -> R {
         CostComponent::ManaCostOf(r) => app("ManaCostOf", vec![emit_reference(r)?]),
         CostComponent::Tap => "(Do (Tap This))".to_string(),
         CostComponent::Untap => "(Do (Untap This))".to_string(),
-        CostComponent::Do(action) => app("Do", vec![emit_player_action(action, &Reference::You)?]),
+        // `Do : Action b -> Cost b` is UNRESTRICTED in Idris; the widened
+        // Rust `Do(Box<Action>)` now matches it one-to-one — a bare player
+        // verb arrives as `By(You, …)` and re-emits through the `<verb>By`
+        // helpers, a discard composite emits as `Composite (Discard …) …`.
+        CostComponent::Do(action) => app("Do", vec![emit_action(action)?]),
         CostComponent::Cost(_) => {
             return Err(gap("CostComponent::Cost should have been normalized away"));
         }
@@ -1423,7 +1441,7 @@ fn emit_with_cost_as_predicate_verb(binder: &deckmaste_core::Binder, body: &Cost
     }
     match &normalized[0] {
         CostComponent::Do(action) => match action.as_ref() {
-            PlayerAction::Sacrifice(Reference::That(_)) => {
+            Action::By(_, PlayerAction::Sacrifice(Reference::That(_))) => {
                 let sac = app(
                     "sacrificeBy",
                     vec![emit_reference(by)?, emit_filter(filter)?],
@@ -1578,6 +1596,7 @@ fn emit_action(a: &Action) -> R {
                 Ka::Surveil(who, n) => app("Surveil", vec![emit_reference(who)?, emit_count(n)?]),
                 Ka::Mill(who, n) => app("Mill", vec![emit_reference(who)?, emit_count(n)?]),
                 Ka::Draw(who, n) => app("Draw", vec![emit_reference(who)?, emit_count(n)?]),
+                Ka::Discard(who, n) => app("Discard", vec![emit_reference(who)?, emit_count(n)?]),
                 Ka::Destroy(r) => app("Destroy", vec![emit_reference(r)?]),
                 Ka::Fight(a, b) => app("Fight", vec![emit_reference(a)?, emit_reference(b)?]),
                 Ka::Fateseal(..) => {
@@ -1599,21 +1618,6 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
     // (`Reveal`/`PutCounters`/`Tap`/`Untap`/…) can only be the default `You`,
     // so a non-`You` actor there is a gap.
     match pa {
-        PlayerAction::Discard {
-            count,
-            what,
-            random,
-        } => {
-            if what.is_some() || *random {
-                return Err(gap(
-                    "Discard{what|random} has no Idris Discard counterpart (Idris Discard is count-only)",
-                ));
-            }
-            Ok(app(
-                "discardBy",
-                vec![emit_reference(actor)?, emit_count(count)?],
-            ))
-        }
         PlayerAction::GainLife(c) => Ok(app(
             "gainLifeBy",
             vec![emit_reference(actor)?, emit_count(c)?],

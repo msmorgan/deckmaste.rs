@@ -1,13 +1,26 @@
-// "discards" — the third-person discard verb phrase ([CR#701.9]; the
-// affected player chooses which cards, [CR#701.9b]). A parse/render
-// template over the core `Discard` player action for the
-// declarative-subject production ("Target player discards a card",
-// "Each opponent discards two cards"); expands in place to
-// `Discard(count: n)`.
+// "[subject] discards N" ([CR#701.9a]): the DECLARATIVE-SUBJECT discard —
+// that player chooses N cards from their hand and discards them
+// ([CR#701.9b]). The keyword action as DATA, `Mills`'s twin on the discard
+// lane: a `Composite` whose tag is `Discard(who, n)` and whose body is the
+// `Each` over the `FromHand` choice of `who`'s hand. The engine batches the
+// choice up front and realizes N per-card `Act(Discard)` events (madness
+// bites per card, [CR#702.35a]; discard triggers fire once per card).
+//
+// `who` (Param(0)) rides BOTH the atom and the hand selection's `whose`. The
+// template renders the subject context-aware ("Target player discards a
+// card."; "Each opponent discards two cards.").
+//
+// Usage: Discards(It, 1) (the announced player target) / Discards(It, 2).
 (
     name: "Discards",
-    template: "discards ${0:card|cards}",
-    kinds: [PlayerAction],
-    params: [Count],
-    body: Discard(count: Param(0)),
+    template: "${0} discards ${1:card|cards}",
+    kinds: [OneShotEffect],
+    params: [Reference, Count],
+    body: Composite(
+        Discard(Param(0), Param(1)),
+        Each(
+            binder: Existing(FromHand(count: Param(1), whose: Param(0))),
+            effect: Move(It, Graveyard),
+        ),
+    ),
 )

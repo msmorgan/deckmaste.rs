@@ -521,7 +521,6 @@ fn cycling_confers_from_hand_discard_self_draw() {
     use deckmaste_core::Cost;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Zone;
-    use deckmaste_core::ron::options as ron_options;
 
     let plugin = builtin();
     let kw: KeywordAbility = plugin
@@ -546,11 +545,15 @@ fn cycling_confers_from_hand_discard_self_draw() {
     // (1) Functions from hand ([CR#702.29a]).
     assert_eq!(act.from, Some(Zone::Hand), "cycling activates from hand");
 
-    // (2) Cost = printed cost ({2}) THEN discard this card. `Splice(Param(0))`
-    // inlines the printed cost ahead of the fixed discard-self at read time, so
-    // the cost is FLAT — no nested `Cost` wrapper.
-    let flat_cost: Cost = ron_options()
-        .from_str("[Mana([Generic(2)]), Do(Discard(count: Literal(1), what: This))]")
+    // (2) Cost = printed cost ({2}) THEN discard this card (the `DiscardThis`
+    // cost macro — the bound single-move discard composite, [CR#702.29a]).
+    // `Splice(Param(0))` inlines the printed cost ahead of the fixed
+    // discard-self at read time, so the cost is FLAT — no nested `Cost`
+    // wrapper. Read back through the same macro set so the remembered
+    // `Expanded` shape matches exactly.
+    let flat_cost: Cost = plugin
+        .macros
+        .read_str("[Mana([Generic(2)]), DiscardThis]")
         .unwrap();
     assert_eq!(
         act.cost, flat_cost,
@@ -585,7 +588,6 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::TargetSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
-    use deckmaste_core::ron::options as ron_options;
 
     let plugin = builtin();
     let kw: KeywordAbility = plugin
@@ -610,11 +612,14 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     // (1) Functions from hand ([CR#702.77a]).
     assert_eq!(act.from, Some(Zone::Hand), "reinforce activates from hand");
 
-    // (2) Cost = printed cost ({1}{G}) THEN discard this card. `Splice(Param(1))`
-    // inlines the printed cost ahead of the fixed discard-self at read time, so
-    // the cost is FLAT — no nested `Cost` wrapper.
-    let flat_cost: Cost = ron_options()
-        .from_str("[Mana([Generic(1),Green]), Do(Discard(count: Literal(1), what: This))]")
+    // (2) Cost = printed cost ({1}{G}) THEN discard this card (the
+    // `DiscardThis` cost macro — the bound single-move discard composite,
+    // [CR#702.29a]). `Splice(Param(1))` inlines the printed cost ahead of the
+    // fixed discard-self at read time, so the cost is FLAT — no nested `Cost`
+    // wrapper. Read back through the same macro set.
+    let flat_cost: Cost = plugin
+        .macros
+        .read_str("[Mana([Generic(1),Green]), DiscardThis]")
         .unwrap();
     assert_eq!(
         act.cost, flat_cost,

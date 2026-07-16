@@ -766,6 +766,18 @@ impl GameState {
                         Kap::Draw(who) => {
                             named("Draw") && self.actor_matches(who, fact.actor, bindings)
                         }
+                        // Discard narrows by BOTH coordinates ([CR#701.9a]):
+                        // the performer AND the discarded card — madness's
+                        // "if a player would discard THIS card"
+                        // ([CR#702.35a]) reads the patient; "whenever you
+                        // discard" reads the performer. The chosen form's
+                        // pre-choice tag event carries no patient yet — an
+                        // `Any` object slot matches it.
+                        Kap::Discard(who, what) => {
+                            named("Discard")
+                                && self.actor_matches(who, fact.actor, bindings)
+                                && self.part_matches(what, fact.object.as_ref(), bindings)
+                        }
                         Kap::Destroy(patient) => {
                             named("Destroy")
                                 && self.part_matches(patient, fact.object.as_ref(), bindings)

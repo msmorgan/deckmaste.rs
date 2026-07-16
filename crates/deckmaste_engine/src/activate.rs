@@ -5,6 +5,7 @@
 //! path.
 
 use deckmaste_core::Ability;
+use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::Cmp;
 use deckmaste_core::CostComponent;
@@ -57,9 +58,11 @@ pub(crate) fn is_loyalty_ability(cost: &deckmaste_core::Cost) -> bool {
     summary.verbs.iter().any(|v| {
         matches!(
             v,
-            PlayerAction::PutCounters(Reference::This, counter, _)
-                | PlayerAction::RemoveCounters(Reference::This, counter, _)
-                    if *counter == loyalty
+            Action::By(
+                _,
+                PlayerAction::PutCounters(Reference::This, counter, _)
+                    | PlayerAction::RemoveCounters(Reference::This, counter, _),
+            ) if *counter == loyalty
         )
     })
 }
@@ -73,11 +76,13 @@ pub(crate) struct CostSummary {
     pub mana: ManaCost,
     pub tap: bool,
     pub untap: bool,
-    /// Cost-eligible verb components ([`PlayerAction::is_cost_eligible`]):
-    /// Sacrifice, Exile, Tap, Untap, Discard, `LoseLife`, `RemoveCounters`,
-    /// Reveal. Collected for payment; non-eligible `Do(_)` causes
-    /// `cost_summary` to return `None`.
-    pub verbs: Vec<PlayerAction>,
+    /// Cost-eligible verb components ([`Action::is_cost_eligible`]): the
+    /// player verbs (Sacrifice, Exile, Tap, Untap, `LoseLife`,
+    /// `RemoveCounters`, Reveal — as implicit-you `By` actions) and the
+    /// discard keyword-action composite ("Discard a card:", [CR#701.9]).
+    /// Collected for payment; non-eligible `Do(_)` causes `cost_summary` to
+    /// return `None`.
+    pub verbs: Vec<Action>,
     /// `ManaCostOf(reference)` components: pay mana equal to the referenced
     /// object's printed mana cost ([CR#202.1]). The reference can only be
     /// resolved against a live frame, so it is collected here and folded into
@@ -127,7 +132,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut symbols: Vec<ManaSymbol> = Vec::new();
     let mut tap = false;
     let mut untap = false;
-    let mut verbs: Vec<PlayerAction> = Vec::new();
+    let mut verbs: Vec<Action> = Vec::new();
     let mut mana_cost_of: Vec<Reference> = Vec::new();
     let mut tap_totals: Vec<TapTotalReq> = Vec::new();
     let mut withs: Vec<CostComponent> = Vec::new();
@@ -601,7 +606,7 @@ impl GameState {
     pub(crate) fn can_pay_verbs(
         &self,
         player: PlayerId,
-        verbs: &[PlayerAction],
+        verbs: &[Action],
         subject: ObjectId,
     ) -> bool {
         // Same anchoring as the condition gate (`can_activate` above): the
@@ -630,9 +635,45 @@ impl GameState {
             .all(|verb| self.verb_cost_payable(verb, player, &frame))
     }
 
-    /// Whether one cost-eligible verb can be paid in full ([CR#601.2h]). Looks
-    /// through `Expanded` macro wrappers.
-    fn verb_cost_payable(&self, verb: &PlayerAction, player: PlayerId, frame: &Frame) -> bool {
+    /// Whether one cost-eligible action can be paid in full ([CR#601.2h]).
+    /// A player verb (`By(You, …)`) defers to the verb match below; the
+    /// discard keyword-action composite ([CR#701.9,601.2h]) needs at least
+    /// `count` cards in hand for the chosen form (partial payment is
+    /// forbidden), while the bound "discard this card" form
+    /// ([CR#702.29a]) always names its one card, so it is payable like the
+    /// other single-`Reference` verbs.
+    fn verb_cost_payable(&self, verb: &Action, player: PlayerId, frame: &Frame) -> bool {
+        match verb {
+            Action::By(_, pa) => self.player_verb_cost_payable(pa, player, frame),
+            // The direct-variant relocation (`Do(Move(This, Exile))`,
+            // Scavenge) — a single `Reference` always names its one object,
+            // so it is payable, like the `By`-wrapped verbs.
+            Action::Move(..) => true,
+            Action::Composite(deckmaste_core::KeywordAction::Discard(_, count), body) => {
+                if deckmaste_core::discard_body_what(body).is_some() {
+                    // The bound form names its one card ([CR#702.29a]) —
+                    // payable; choose-feasibility isn't its concern.
+                    true
+                } else {
+                    // [CR#601.2h]: the chosen form needs the full count.
+                    let need = self.eval_count(count, frame) as usize;
+                    self.zones.hands[player.index()].len() >= need
+                }
+            }
+            // `cost_summary` only collects cost-eligible actions, so nothing
+            // else reaches here.
+            other => unreachable!("non-cost-eligible action in a cost summary: {other:?}"),
+        }
+    }
+
+    /// Whether one cost-eligible PLAYER verb can be paid in full
+    /// ([CR#601.2h]). Looks through `Expanded` macro wrappers.
+    fn player_verb_cost_payable(
+        &self,
+        verb: &PlayerAction,
+        player: PlayerId,
+        frame: &Frame,
+    ) -> bool {
         #[expect(
             clippy::match_same_arms,
             reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope Reveal seam)"
@@ -649,21 +690,6 @@ impl GameState {
                     .unwrap_or(deckmaste_core::Uint::MAX);
                 life >= amount
             }
-            // [CR#601.2h]: discard needs at least that many cards in hand
-            // (partial payment is forbidden). A named `what` (cycling's
-            // "discard this card", [CR#702.29a]) is payable when those specific
-            // cards resolve, same as the other selection-cost verbs.
-            PlayerAction::Discard { count, what, .. } => match what {
-                None => {
-                    let need = self.eval_count(count, frame) as usize;
-                    self.zones.hands[player.index()].len() >= need
-                }
-                // A named `what` is a single `Reference` (`This`/a target/a
-                // cost-`With`-bound `That`) — it always names its one card, so
-                // it is payable ([CR#601.2h]). The choose-feasibility of
-                // "discard a card you choose" lives in the cost `With` binder.
-                Some(_) => true,
-            },
             // Sacrifice/Move (exile is `Move(_, Exile)`)/Tap/Untap take a single
             // `Reference` — it always names its one object, so it is payable.
             // The choose-feasibility of "sacrifice a creature" lives in the
@@ -701,7 +727,7 @@ impl GameState {
             // the reveal window).
             PlayerAction::Reveal { .. } => true,
             // Look through a remembered macro invocation.
-            PlayerAction::Expanded(e) => self.verb_cost_payable(&e.value, player, frame),
+            PlayerAction::Expanded(e) => self.player_verb_cost_payable(&e.value, player, frame),
             // `cost_summary` only collects cost-eligible verbs, so nothing else
             // reaches here.
             other => unreachable!("non-cost-eligible verb in a cost summary: {other:?}"),
@@ -919,7 +945,10 @@ mod tests {
         // The exact shape a `Cycling([Mana([Generic(2)])])` expansion produces
         // under faithful read: the printed cost rides in a nested `Cost`.
         let lumpy: Cost = deckmaste_core::ron::options()
-            .from_str("[Cost([Mana([Generic(2)])]), Do(Discard(count: Literal(1), what: This))]")
+            .from_str(
+                "[Cost([Mana([Generic(2)])]), \
+                 Do(Composite(Discard(You, Literal(1)), Move(This, Graveyard)))]",
+            )
             .unwrap();
         // Pre-condition: read really is lumpy (a nested Cost survives).
         assert!(
@@ -934,8 +963,11 @@ mod tests {
         assert!(!summary.tap && !summary.untap);
         assert_eq!(summary.verbs.len(), 1, "the discard-self verb is collected");
         assert!(
-            matches!(summary.verbs[0], PlayerAction::Discard { .. }),
-            "the verb is the discard-self, got {:?}",
+            matches!(
+                summary.verbs[0],
+                Action::Composite(deckmaste_core::KeywordAction::Discard(..), _)
+            ),
+            "the verb is the discard-self composite, got {:?}",
             summary.verbs[0],
         );
 
@@ -1494,7 +1526,9 @@ mod tests {
         assert!(
             state.can_pay_verbs(
                 player,
-                &[PlayerAction::LoseLife(deckmaste_core::Count::Literal(0))],
+                &[Action::by_you(PlayerAction::LoseLife(
+                    deckmaste_core::Count::Literal(0),
+                ))],
                 obj,
             ),
             "paying 0 life is always allowed [CR#119.4b]"
@@ -1524,7 +1558,9 @@ mod tests {
         assert!(
             state.can_pay_verbs(
                 player,
-                &[PlayerAction::LoseLife(deckmaste_core::Count::Literal(2))],
+                &[Action::by_you(PlayerAction::LoseLife(
+                    deckmaste_core::Count::Literal(2),
+                ))],
                 obj,
             ),
             "without an (unbuilt) can't-lose-life lock, a LoseLife(2) cost is payable at 20 life"
@@ -1537,11 +1573,11 @@ mod tests {
         let mut state = game();
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
-        let verbs = [PlayerAction::Discard {
-            count: deckmaste_core::Count::Literal(1),
-            what: None,
-            random: false,
-        }];
+        let verbs = [Action::discard(
+            Reference::You,
+            deckmaste_core::Count::Literal(1),
+            false,
+        )];
 
         // Empty hand: not payable.
         assert!(
@@ -1567,7 +1603,11 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         assert!(
-            state.can_pay_verbs(player, &[PlayerAction::Sacrifice(Reference::This)], obj,),
+            state.can_pay_verbs(
+                player,
+                &[Action::by_you(PlayerAction::Sacrifice(Reference::This))],
+                obj,
+            ),
             "a self-sacrifice always has its one object to pay with"
         );
     }
@@ -1582,11 +1622,11 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let proxy = state.player(player).object;
-        let verbs = [PlayerAction::RemoveCounters(
+        let verbs = [Action::by_you(PlayerAction::RemoveCounters(
             Reference::You,
             deckmaste_core::CounterRef::from("Energy"),
             deckmaste_core::Count::Literal(2),
-        )];
+        ))];
 
         // Zero energy: pay {E}{E} is unpayable.
         assert!(
@@ -1627,11 +1667,11 @@ mod tests {
         let mut state = game();
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
-        let verbs = [PlayerAction::RemoveCounters(
+        let verbs = [Action::by_you(PlayerAction::RemoveCounters(
             Reference::This,
             deckmaste_core::CounterRef::from("LoyaltyCounter"),
             deckmaste_core::Count::Literal(3),
-        )];
+        ))];
 
         // No loyalty counters: −3 is unpayable.
         assert!(

@@ -362,7 +362,7 @@ fn lint_card_types(
 /// The `Do(action)` a cost component reduces to, looking through any
 /// remembered macro invocation (`CostComponent::Expanded`). `None` for
 /// non-`Do` components (mana, tap, untap).
-fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::PlayerAction> {
+fn cost_action(component: &CostComponent) -> Option<&deckmaste_core::Action> {
     match component {
         CostComponent::Do(action) => Some(action),
         CostComponent::Expanded(expansion) => cost_action(&expansion.value),
