@@ -61,7 +61,7 @@ from the implementation and tests, not inferred solely from surviving P0 tags.
 
 | skill concept | deckmaste | status |
 |---|---|---|
-| zone-change master event (object, from, to, position, face, cause) | core `EventFilter::ZoneChange` (cause verbs = the closed `CauseVerb` entailment table); engine `ZoneWillChange`/`ZoneChanged` | ✓ — every emitter is face-up today (morph/manifest post-P0); a face-narrowed pattern is no longer spellable (the coordinate returns with the morph grammar) |
+| zone-change master event (object, from, to, position, face, cause) | core `EventFilter::ZoneChange` (cause verbs = the open `VerbName` newtype, its vocabulary gated by the `cause_verbs_are_entailment_rows` corpus test against the emitted entailments table); engine `ZoneWillChange`/`ZoneChanged` | ✓ — every emitter is face-up today (morph/manifest post-P0); a face-narrowed pattern is no longer spellable (the coordinate returns with the morph grammar) |
 | named views: dies / enters | builtin `Dies`/`ThisDies`/`Enters`/`ThisEnters` macros | ✓ |
 | named views: sacrificed / discarded / played | cause triples on `ZoneWillChange`/`ZoneChanged` | ✓ |
 | named views: destroyed (cause-restricted) | verb "Destroy" cause rides BOTH causes ([CR#701.8b]: the `Destroy` arm + the lethal-damage SBA); builtin `Destroyed` macro | ✓ |

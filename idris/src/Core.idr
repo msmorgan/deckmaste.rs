@@ -2168,11 +2168,11 @@ mutual
       TriggerOnSpend : OneShotEffect (bindIt PaidSpellAnte b) -> ManaRider b  -- (3) a delayed trigger when the mana is spent ([CR#603.7a]); `It` = the object paid for
 
   -- the COMPOSITE keyword actions ([CR#701]) — the ones the grammar desugars rather than naming as a
-  -- primitive verb (Reveal/Shuffle/Destroy/… ARE primitive verbs below). Their mechanics are just the
-  -- primitives, but the engine must still RECOGNIZE the verb so triggers/replacements can name it
-  -- ("whenever you scry", Aang's "whenever you waterbend …"). The amount/operands ride the desugared
-  -- body, so the tag is a unit; `Action.Composite` carries it. Minimal set today — the four with macros;
-  -- grows with card pressure (Surveil, Proliferate, the bends, …).
+  -- primitive verb (Reveal/Shuffle/… ARE primitive verbs below; Destroy is NOT — it composites over
+  -- `Move` via the `destroy` macro). Their mechanics are just the primitives, but the engine must still
+  -- RECOGNIZE the verb so triggers/replacements can name it ("whenever you scry", Aang's "whenever you
+  -- waterbend …"); `Action.Composite` carries the tag. Minimal set today — the six constructors below;
+  -- grows with card pressure (Proliferate, the bends, …).
   namespace KeywordActionSpec
     public export
     -- PARAMETERIZED (indexed) so each atom carries its natural arguments — the
@@ -2231,7 +2231,8 @@ mutual
       GrantDesignation : (d : Designation) -> Reference b (designationKindScope d) -> Action b
       Attach : (what : Reference b AnObject) -> (to : Reference b AnObject) -> Action b
       Unattach : Reference b AnObject -> Action b
-      -- a player verb: the `actor` draws n cards. Rust: PlayerAction::Draw(Count).
+      -- a player verb: the `actor` draws n cards. Rust has no bespoke draw — its twin is the
+      -- `KeywordAction::Draw` `Composite` lane (a settled, intentional asymmetry; this verb stays).
       Draw : {default You actor : Reference b APlayer} -> Count b -> Action b
       -- the `actor` gains n life. Rust: PlayerAction::GainLife(Count).
       GainLife : {default You actor : Reference b APlayer} -> Count b -> Action b
@@ -2287,8 +2288,10 @@ mutual
       -- a COMPOSITE keyword action ([CR#701]): `tag` NAMES the verb, `body` is its primitive desugaring
       -- (`Each`/`With`/`Modal`/`Sequentially` over the verbs above). The action-side twin of
       -- `KeywordAbility.Composite` — the mechanics are just the primitives, but the tag lets the engine
-      -- RECOGNIZE the action ("scry 2" = `Composite Scry (…)`) so "whenever you scry"/Aang's "whenever
-      -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: Action::Composite(KeywordAction, …), reached via Act.
+      -- RECOGNIZE the action ("scry 2" = `Composite (Scry You (^2)) (…)`) so "whenever you scry"/Aang's
+      -- "whenever you waterbend" match. Built by the `scry`/`surveil`/`mill`/`destroy` macros here and
+      -- the RON grammar macros (e.g. `Fight`, `plugins/builtin/macros/effect/Fight.ron`).
+      -- Rust: Action::Composite(KeywordAction, Box<OneShotEffect>), reached via the flattened `Act`.
       Composite : KeywordActionSpec b -> OneShotEffect b -> Action b
       -- roll `sides`-sided dice ([CR#706.1]) `count` times; the RESULT rides the pushed
       -- `amountAnte` antecedent (a later `Compare ThatMany …` reads it, [CR#706.2]).

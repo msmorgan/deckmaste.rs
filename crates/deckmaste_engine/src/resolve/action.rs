@@ -73,12 +73,23 @@ impl GameState {
                     let from = self.objects.get(obj).and_then(|o| o.zone)?;
                     (from != to).then_some((from, to))
                 });
-                let cause = move_shape.map(|_| {
-                    Cause::destroy(
+                let cause = match atom {
+                    // The draw lane's `Act` carries its own cause so the apply
+                    // half commits the Library → Hand move with the real
+                    // attribution (source + controller) instead of a
+                    // reconstructed sourceless one — the turn-based draw emits
+                    // the same event with `Agency::TurnBasedAction`.
+                    Ka::Draw(..) => Some(Cause::draw(
                         Agency::EffectInstruction,
                         Some((frame.source, frame.controller)),
-                    )
-                });
+                    )),
+                    _ => move_shape.map(|_| {
+                        Cause::destroy(
+                            Agency::EffectInstruction,
+                            Some((frame.source, frame.controller)),
+                        )
+                    }),
+                };
                 let act = GameEvent::Act {
                     verb: deckmaste_core::VerbName::from(verb),
                     who,
@@ -120,19 +131,25 @@ impl GameState {
                             )),
                             _ => None,
                         };
+                        // Fizzle, never panic: the macro-built group
+                        // (`TopOfLibrary`) only yields library cards, but a
+                        // raw-authored `Composite` body can select ZONELESS
+                        // objects (player proxies) — skip those instead of
+                        // panicking on bad authoring.
                         let events: Vec<GameEvent> = self
                             .eval_selection_set(&group, frame)
                             .into_iter()
-                            .map(|object| GameEvent::ZoneWillChange {
-                                object,
-                                from: Some(
-                                    self.objects.obj(object).zone.expect("mill a zoned object"),
-                                ),
-                                to: to_zone,
-                                enters: None,
-                                position: None,
-                                face: None,
-                                cause: cause.clone(),
+                            .filter_map(|object| {
+                                let from = self.objects.obj(object).zone?;
+                                Some(GameEvent::ZoneWillChange {
+                                    object,
+                                    from: Some(from),
+                                    to: to_zone,
+                                    enters: None,
+                                    position: None,
+                                    face: None,
+                                    cause: cause.clone(),
+                                })
                             })
                             .collect();
                         // [CR#701.17b,701.22b]: an empty batch (empty library)

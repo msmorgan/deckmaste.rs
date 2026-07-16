@@ -207,10 +207,18 @@ impl GameState {
                 if self.objects.get(object).is_none() {
                     vec![]
                 } else {
-                    let to = to
-                        .as_ref()
-                        .and_then(|who| self.eval_player_ref(who, frame))
-                        .map(|player| vec![player]);
+                    // Fail CLOSED: an authored subset-look (`to: Some(..)`)
+                    // whose player doesn't resolve fizzles the reveal — it
+                    // must NOT widen into the `to: None` "revealed to all
+                    // players" form (bad authoring fizzles; a private look
+                    // never silently goes public).
+                    let to = match to {
+                        None => None,
+                        Some(who) => match self.eval_player_ref(who, frame) {
+                            Some(player) => Some(vec![player]),
+                            None => return vec![],
+                        },
+                    };
                     vec![WorkItem::Emit(Occurrence::single(GameEvent::Revealed {
                         objects: vec![object],
                         to,

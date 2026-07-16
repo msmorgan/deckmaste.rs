@@ -8,13 +8,15 @@
 //
 // The param is a `Reference` (the patient — `This`, a bound `Target`, `It`). It
 // appears in BOTH the tag and the body's `Move` source, so the composite's
-// realized shape matches its expanded body. Template "Destroy ${0}" renders the
-// reference context-aware ("Destroy target creature.").
+// realized shape matches its expanded body. Template "destroy ${0}" renders the
+// reference context-aware ("Destroy target creature." — sentence-start
+// capitalization is the renderer's; templates stay lowercase like every
+// sibling verb macro).
 //
 // Usage: Destroy(This) / Destroy(It) / Destroy(Target(0)).
 (
     name: "Destroy",
-    template: "Destroy ${0}",
+    template: "destroy ${0}",
     kinds: [OneShotEffect],
     params: [Reference],
     body: Composite(

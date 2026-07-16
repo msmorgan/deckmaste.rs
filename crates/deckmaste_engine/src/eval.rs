@@ -1222,14 +1222,22 @@ impl GameState {
         upto: Option<usize>,
         bindings: &Bindings<'_>,
     ) -> usize {
+        // Fail CLOSED like the `EventFilter::Within` arm: a departed
+        // watcher's `SinceYour` window matches nothing — never borrow the
+        // active player's anchor as a guess. (The owner argument is unused
+        // by every other `Lookback`.)
+        let owner = match self.controller_of_source(bindings.watcher) {
+            Some(owner) => owner,
+            None if matches!(within, Lookback::SinceYour(_)) => return 0,
+            None => self.turn.active_player,
+        };
         self.history
             .in_window_for(
                 within,
                 self.turn.turn_number,
                 self.turn.current,
                 self.turn.active_player,
-                self.controller_of_source(bindings.watcher)
-                    .unwrap_or(self.turn.active_player),
+                owner,
             )
             .filter(|(seq, _)| upto.is_none_or(|u| *seq <= u))
             .filter_map(|(_, entry)| entry.view.as_ref())

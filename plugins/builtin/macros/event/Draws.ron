@@ -2,9 +2,10 @@
 // event/GainsLife's shape (a player-identity subject via
 // `filter::recipient_phrase`, no `~` shorthand). Mind the underlying event:
 // the body expands to `Drawn`, not `Draws` — `Draws` is only this macro's
-// own name (the `PlayerAction`-kind macro of the same name, "draws N
-// cards", is a completely different expansion; macro names are namespaced
-// per-kind, so the two coexist without conflict).
+// own name (the `OneShotEffect`-kind Composite macro of the same name,
+// "${0} draws ${1:card|cards}" with a leading Reference subject slot, is a
+// completely different expansion; macro names are namespaced per-kind, so
+// the two coexist without conflict).
 // Usage: Draws(who) — e.g. Draws(Ref(You)), Draws(OpponentOf(Ref(You))).
 (
     name: "Draws",

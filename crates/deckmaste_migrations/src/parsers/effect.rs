@@ -389,15 +389,16 @@ fn self_reference(phrase: &str) -> Option<String> {
 /// player-verb family ("Target player mills two cards", "Each opponent
 /// discards a card", "Each player loses 2 life"): the subject phrase parses
 /// into the agent, and the remaining THIRD-PERSON verb phrase is handed to
-/// the macro-template path — the `PlayerAction`-kind macros' templates
-/// (`mills ${0:card|cards}`, `draws …`, `discards …`, `loses ${0} life`,
-/// `gains ${0} life`) do the verb matching, so there are NO per-verb parser
-/// arms here. A targeted subject declares its announce slot and the agent
-/// reads the announced player as `It` ([CR#115.3]); an "each" subject wraps
-/// the verb in `Each` over the player set, the agent being the iteration
-/// anaphor `It` per element ([CR#608.2d]). The second-person "you" subject
-/// is NOT handled here — its verb phrase conjugates differently ("you
-/// mill", not "mills"), so it stays with the bespoke you-productions.
+/// the macro-template path — the macro templates do the verb matching (the
+/// bare `PlayerAction`-kind `discards ${0:card|cards}` / `loses ${0} life` /
+/// `gains ${0} life`, and the `OneShotEffect`-kind Composite macros'
+/// two-slot `${0} mills ${1:card|cards}` / `${0} draws …`), so there are NO
+/// per-verb parser arms here. A targeted subject declares its announce slot
+/// and the agent reads the announced player as `It` ([CR#115.3]); an "each"
+/// subject wraps the verb in `Each` over the player set, the agent being the
+/// iteration anaphor `It` per element ([CR#608.2d]). The second-person "you"
+/// subject is NOT handled here — its verb phrase conjugates differently
+/// ("you mill", not "mills"), so it stays with the bespoke you-productions.
 fn parse_declarative_subject(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
     let Some(body) = line.strip_suffix('.') else {
         return Ok(None);

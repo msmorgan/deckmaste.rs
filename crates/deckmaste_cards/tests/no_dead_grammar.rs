@@ -1200,9 +1200,17 @@ fn cause_verbs_are_entailment_rows() {
         "entailments table should carry the closed cause-verb vocab; got {known:?}"
     );
 
-    // Every corpus `Cause(verb: <bareword>)` must be a known row. (The verb is
-    // authored BAREWORD now — `Cause(verb: Destroy)`, never quoted.)
-    let use_verb = Regex::new(r"Cause\(\s*verb:\s*([A-Za-z]+)").unwrap();
+    // Every corpus cause-struct `verb:` field must be a known row. RON is
+    // lenient about the spellings this must survive: the struct name is
+    // optional (`(verb: Destroy)` parses as a `Cause`/`CausePattern` too),
+    // named fields are ORDER-FREE (`Cause(agency: CostPayment, verb: X)`),
+    // and a quoted `verb: "X"` deserializes into the open `VerbName` newtype
+    // just as silently as a bareword — so anchor on the field inside any
+    // paren group (simple ident-valued fields may precede), not on a
+    // first-position `Cause(verb:` spelling.
+    let use_verb =
+        Regex::new(r#"\(\s*(?:[A-Za-z_]+\s*:\s*[A-Za-z_]+\s*,\s*)*verb\s*:\s*"?([A-Za-z]+)"?"#)
+            .unwrap();
     let mut bad: BTreeSet<String> = BTreeSet::new();
     for text in accept_corpus() {
         for c in use_verb.captures_iter(&text) {

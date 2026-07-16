@@ -4,8 +4,8 @@
 // - [CR#701.14b] both-or-neither: the `If` guard fires the batch only when BOTH
 //   fighters are still creatures on the battlefield (`Creature` = a creature
 //   permanent). If either isn't, `then` never runs — neither deals damage, and
-//   `Composite`'s `KeywordActionPerformed{Fight}` is suppressed (no fight, no
-//   "fights" trigger).
+//   `Composite`'s `Act{Fight}` event is suppressed (no fight, no "fights"
+//   trigger).
 // - simultaneity: the `Simultaneously` batch — both halves read the pre-damage
 //   powers and land together, SBAs after the whole batch.
 // - [CR#701.14c] self-fight: same object both sides → two `X -> X` packets, which

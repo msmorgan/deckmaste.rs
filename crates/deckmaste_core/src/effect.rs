@@ -451,8 +451,8 @@ mod tests {
     #[test]
     fn verbs_read_flat() {
         assert_eq!(
-            read("GainLife(Literal(1))"),
-            act_by_you(PlayerAction::GainLife(Count::Literal(1))),
+            read("LoseLife(Literal(1))"),
+            act_by_you(PlayerAction::LoseLife(Count::Literal(1))),
         );
         assert_eq!(
             read("GainLife(Literal(3))"),

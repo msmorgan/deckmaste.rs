@@ -14,9 +14,18 @@
 # is allowed (don't interfere with non-Bash tools or malformed payloads).
 
 set -l payload (cat | string collect)
-test (printf '%s' $payload | jq -r '.tool_name // ""') = Bash; or exit 0
-# Claude Code names the command field `command`; Codex's command tool uses `cmd`.
-set -l cmd (printf '%s' $payload | jq -r '.tool_input.command // .tool_input.cmd // ""')
+# Claude Code's shell tool is named `Bash` and carries the command in
+# `tool_input.command`; Codex's shell tool reports other tool names but always
+# carries `tool_input.cmd`. Gate on the payload SHAPE, not the tool name — the
+# old `tool_name == Bash` early-exit made the `cmd` fallback dead code, letting
+# bare jj/git through from Codex.
+set -l cmd
+if test (printf '%s' $payload | jq -r '.tool_name // ""') = Bash
+    set cmd (printf '%s' $payload | jq -r '.tool_input.command // ""')
+else
+    set cmd (printf '%s' $payload | jq -r '.tool_input.cmd // ""')
+end
+test -n "$cmd"; or exit 0
 
 # Every jj invocation (bare `jj`, or `<path>/jj`, at a command position — start, or
 # after ; & | && || newline ( or a command/exec/sudo/… wrapper) must be a relative,

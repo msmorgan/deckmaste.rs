@@ -935,10 +935,18 @@ impl GameState {
                         enters: None,
                         position: None,
                         face: None,
-                        cause: Some(crate::event::Cause::draw(
-                            deckmaste_core::Agency::EffectInstruction,
-                            None,
-                        )),
+                        // The emitting lane owns the attribution: the effect
+                        // lane tags `EffectInstruction` + the instructing
+                        // source, the draw step tags `TurnBasedAction`
+                        // ([CR#703.4d]) — don't reconstruct a sourceless one
+                        // here (that erased the agent from every drawn-card
+                        // fact in history).
+                        cause: cause.clone().or_else(|| {
+                            Some(crate::event::Cause::draw(
+                                deckmaste_core::Agency::EffectInstruction,
+                                None,
+                            ))
+                        }),
                     });
                     GameEvent::Act {
                         verb,
@@ -1736,7 +1744,12 @@ impl GameState {
                     on: None,
                     from: None,
                     to: None,
-                    cause: None,
+                    // [CR#703.4d]: agency distinguishes the draw-step draw
+                    // from an effect-instructed one in recorded history.
+                    cause: Some(crate::event::Cause::draw(
+                        deckmaste_core::Agency::TurnBasedAction,
+                        None,
+                    )),
                 }))]
             }
             PhaseStep::Beginning(BeginningStep::Draw) => vec![],

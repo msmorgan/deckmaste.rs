@@ -245,7 +245,7 @@ surveil n = Act (Composite (Surveil You n)
 
 -- fight is no longer a hand-written Idris macro: it's a RON grammar macro over
 -- `DealDamage` (`plugins/builtin/macros/effect/Fight.ron`). Its emitted form —
--- `Composite Fight (If (And [Matches …]) (Simultaneously [dealDamageFrom …, …]))`,
+-- `Composite (Fight a b) (If (And [Matches …]) (Simultaneously [dealDamageFrom …, …]))`,
 -- guarding both-or-neither ([CR#701.14b]) with the engine coalescing a
 -- self-fight's packets ([CR#701.14c]) — is exercised by the canon idris-check
 -- (Pounce), not a helper here.

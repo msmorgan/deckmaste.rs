@@ -1152,10 +1152,11 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 enter_rider_phrase(riders, ctx),
             )
         }
-        // A non-`You` agent renders subject-declarative ("Target player
-        // mills two cards.", [CR#701.17a]); the implicit-`You` default keeps
-        // the imperative form ("Draw a card."). A verb with no third-person
-        // phrase falls back to the imperative render.
+        // A non-`You` agent renders subject-declarative ("Target opponent
+        // loses 2 life."); the implicit-`You` default keeps the imperative
+        // form ("Discard a card."). A verb with no third-person phrase falls
+        // back to the imperative render. (Mill/draw no longer route here —
+        // they left `PlayerAction` for the `Composite` keyword-action lane.)
         Action::By(who, pa) => match who {
             Reference::You => player_action(pa, ctx),
             other => third_person_verb_phrase(pa).map_or_else(
@@ -1504,34 +1505,20 @@ fn counted_cards(c: &Count) -> String {
 /// three cards." / "Mill X cards." The `You`-performer render of a
 /// `Composite(Mill(You, n), …)`.
 fn mill_imperative(c: &Count) -> String {
-    match c {
-        Count::Literal(1) => "Mill a card.".to_string(),
-        Count::Literal(n) => match fragment::number_word(*n) {
-            Some(word) => format!("Mill {word} cards."),
-            None => format!("Mill {n} cards."),
-        },
-        c => format!("Mill {} cards.", fragment::count(c)),
-    }
+    format!("Mill {}.", counted_cards(c))
 }
 
 /// The imperative you-form of draw ([CR#121.1]) — "Draw a card." / "Draw three
 /// cards." / "Draw X cards." The `You`-performer render of a
 /// `Composite(Draw(You, n), …)`.
 fn draw_imperative(c: &Count) -> String {
-    match c {
-        Count::Literal(1) => "Draw a card.".to_string(),
-        Count::Literal(n) => match fragment::number_word(*n) {
-            Some(word) => format!("Draw {word} cards."),
-            None => format!("Draw {n} cards."),
-        },
-        c => format!("Draw {} cards.", fragment::count(c)),
-    }
+    format!("Draw {}.", counted_cards(c))
 }
 
 /// The THIRD-PERSON verb phrase of a player action — the declarative-subject
-/// tail ("mills two cards", "loses 2 life") a non-`You` `By` agent or an
+/// tail ("loses 2 life", "discards a card") a non-`You` `By` agent or an
 /// `Each` player loop prefixes with its subject. A remembered verb-macro
-/// expansion (`Mills(2)`) renders through its own template; the core verbs
+/// expansion (`LosesLife(2)`) renders through its own template; the core verbs
 /// carry structural fallbacks. `None` = no third-person phrase (the caller
 /// falls back to the imperative render).
 fn third_person_verb_phrase(pa: &PlayerAction) -> Option<String> {

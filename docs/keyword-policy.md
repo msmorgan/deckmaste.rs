@@ -198,9 +198,10 @@ as "move it to its owner's graveyard" `[CR#701.8a]`, so destroy is
 regeneration) target the **named composite**, not a bespoke `Destroy` opcode.
 
 **The `Composite` name-tag.** A decomposed action is wrapped in
-`Action::Composite { name, body }` (carrying its name and emitting
-`KeywordActionPerformed`) iff a trigger or interceptor must **name** the event
-("whenever you scry…", "can't be destroyed"). Otherwise it desugars straight to
+`Action::Composite(KeywordAction, Box<OneShotEffect>)` (pairing the keyword-action
+atom with its body and emitting the present-tense `Act` event) iff a trigger or
+interceptor must **name** the event ("whenever you scry…", "can't be
+destroyed"). Otherwise it desugars straight to
 the atoms with no wrapper — `investigate` and `amass` have no name-tag because
 nothing names them. The emit is gated on the body actually acting (scry 0 does
 nothing, `[CR#701.22b]`).
@@ -296,14 +297,14 @@ used only in composition.
 
 ## 14. Idris + soundness (actions)
 
-`Action::Composite { name, body }` is the action-side twin of
-`KeywordAbility::Composite`; Idris `Composite : KeywordActionSpec ->
-OneShotEffect -> Action`. The committed by-name vocabulary
-`KeywordActionSpec = Scry | Surveil | Mill | Fight` is minimal and **grows with
-card pressure**; an `Action::Composite` whose name is outside it (Fateseal
-today) is a re-emit **gap** (coverage, not failure —
-`crates/deckmaste_cards/src/idris_emit.rs`). Action soundness is post-expansion,
-by name, exactly as for abilities.
+`Action::Composite(KeywordAction, Box<OneShotEffect>)` is the action-side twin
+of `KeywordAbility::Composite`; Idris `Composite : KeywordActionSpec ->
+OneShotEffect -> Action`. The committed atom vocabulary (the seven parameterized
+`KeywordAction` verbs — Scry, Surveil, Fateseal, Mill, Draw, Destroy, Fight) is
+minimal and **grows with card pressure**; an `Action::Composite` whose atom has
+no Idris `KeywordActionSpec` constructor (Fateseal today) is a re-emit **gap**
+(coverage, not failure — `crates/deckmaste_cards/src/idris_emit.rs`). Action
+soundness is post-expansion, by name, exactly as for abilities.
 
 ---
 

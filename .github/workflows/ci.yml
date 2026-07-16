@@ -38,10 +38,11 @@ jobs:
       # cfg on — otherwise the catalog/corpus tests below report as `ignored`
       # (they carry `#[cfg_attr(not(<cfg>), ignore)]`).
       #
-      # `data/catalogs` -> `scryfall_catalogs` cfg -> the deckmaste_migrations
-      # `Subtype`/keyword parser tests run for real. `data/rules` is staged for
-      # the generate step below, which needs `data/rules/keywords.json` at
-      # resolve time regardless of that cfg. The
+      # `data/catalogs` + `data/rules` -> `scryfall_catalogs` cfg (the gated
+      # keyword-parser tests read `data/rules/keywords.json`, so the cfg
+      # requires BOTH dirs) -> the deckmaste_migrations `Subtype`/keyword
+      # parser tests run for real. The generate step below also needs
+      # `data/rules/keywords.json` at resolve time regardless of that cfg. The
       # mirror is public, so no token/secret — the checkout is tokenless and the
       # steps run for every push and PR (forks included).
       - name: fetch CI data mirror
@@ -68,6 +69,14 @@ jobs:
       # is green against it).
       - name: generate wizards corpus
         run: cargo xtask generate --minimal plugins/wizards
+      # Un-freeze the fixture cfgs: `cargo xtask generate` already BUILT
+      # deckmaste_cards (an xtask dependency) before plugins/wizards existed,
+      # and the build scripts deliberately emit no `rerun-if-changed` — so
+      # without this touch the OFF `wizards_corpus` cfg stays
+      # fingerprint-frozen and the deckmaste_cards corpus gates silently
+      # report `ignored` below while the run looks green.
+      - name: re-run build scripts against the staged fixtures
+        run: touch crates/*/build.rs
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
