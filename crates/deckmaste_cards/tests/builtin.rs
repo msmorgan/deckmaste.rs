@@ -398,15 +398,16 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         );
     };
     assert_eq!(draw_exp.name.as_str(), "Draw");
+    // `Draw(1)` is a slice-family `Batch(1, Act(Composite(name: Draw, …)))`.
+    let OneShotEffect::Batch(_, draw_inner) = draw_exp.value.as_ref() else {
+        panic!("Draw expands to a Batch, got {:?}", draw_exp.value);
+    };
     assert!(
         matches!(
-            draw_exp.value.as_ref(),
-            OneShotEffect::Act(Action::Composite(
-                deckmaste_core::KeywordAction::Draw(_, _),
-                _
-            ))
+            draw_inner.as_ref(),
+            OneShotEffect::Act(Action::Composite { name, .. }) if name.as_str() == "Draw"
         ),
-        "or_else carries the unpaid branch"
+        "or_else carries the unpaid Draw batch, got {draw_inner:?}"
     );
 
     // Exile — the render name over the pure zone move ([CR#701.13]).
@@ -432,13 +433,19 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     let OneShotEffect::Sequentially(parts) = exp.value.as_ref() else {
         panic!("DestroyNoRegen is a Sequentially, got {:?}", exp.value);
     };
-    assert!(matches!(
-        parts[0],
-        OneShotEffect::Act(Action::Composite(
-            deckmaste_core::KeywordAction::Destroy(Reference::This),
-            _
-        ))
-    ));
+    assert!(
+        matches!(
+            &parts[0],
+            OneShotEffect::Act(Action::Composite { name, body })
+                if name.as_str() == "Destroy"
+                    && matches!(
+                        body.as_ref(),
+                        OneShotEffect::Act(Action::Move(Reference::This, _, _, _))
+                    )
+        ),
+        "DestroyNoRegen's first part destroys This, got {:?}",
+        parts[0]
+    );
     assert!(
         matches!(&parts[1], OneShotEffect::Until(Duration::ForThisEvent, statics) if statics.len() == 1),
         "the rider is a ForThisEvent-scoped static, got {:?}",

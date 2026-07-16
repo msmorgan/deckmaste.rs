@@ -2626,16 +2626,19 @@ mod tests {
             );
         };
         assert_eq!(exp.name.as_str(), "Mills");
+        // `Mills(It, 2)` is the slice-family `Batch(2, Act(Composite(name:
+        // Mill, …)))`; the performer (`It`) rides the body's `TopOfLibrary`
+        // selection, not a typed atom.
+        let deckmaste_core::OneShotEffect::Batch(_, inner) = exp.value.as_ref() else {
+            panic!("Mills(It, 2) expands to a Batch, got {:?}", exp.value);
+        };
         assert!(
             matches!(
-                exp.value.as_ref(),
-                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::Composite(
-                    deckmaste_core::KeywordAction::Mill(deckmaste_core::Reference::It, _),
-                    _,
-                ))
+                inner.as_ref(),
+                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::Composite { name, .. })
+                    if name.as_str() == "Mill"
             ),
-            "Mills(It, 2) expands to Composite(Mill(It, 2), …), got {:?}",
-            exp.value
+            "Mills(It, 2) is a Batch over Composite(name: Mill, …), got {inner:?}"
         );
     }
 

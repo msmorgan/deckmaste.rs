@@ -5,11 +5,11 @@
 (
     name: "Surveil",
     template: "surveil ${0}",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Count],
     body: Composite(
-        Surveil(You, Param(0)),
-        Each(
+        name: Surveil,
+        body: Each(
             binder: Existing(TopOfLibrary(count: Param(0))),
             effect: Modal(
                 choose: (count: Range(Literal(1), Literal(1))),

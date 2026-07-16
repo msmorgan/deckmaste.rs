@@ -478,16 +478,23 @@ pub(crate) fn unless_cost_action(
     match component {
         // A verb cost is paid by `who` performing it ([CR#601.2h]) — re-agent
         // the implicit-you action onto `who`: a player verb swaps its `By`
-        // agent; the discard composite ([CR#701.9]) is rebuilt around `who`
-        // (its `who` rides both the atom and the body's `FromHand` selection).
+        // agent; the chosen discard composite ([CR#701.9]) is rebuilt around
+        // `who` (who rides the body's `FromHand` selection), while the bound
+        // "discard this card" form ([CR#702.29a]) is paid by its patient's own
+        // controller, so it needs only the named card.
         CostComponent::Do(action) => match &**action {
             Action::By(_, pa) => Action::By(who.clone(), pa.clone()),
-            Action::Composite(deckmaste_core::KeywordAction::Discard(_, count), body) => {
+            Action::Composite { name, body } if name.as_str() == "Discard" => {
                 match deckmaste_core::discard_body_what(body) {
-                    Some(what) => Action::discard_what(who.clone(), what.clone()),
+                    // The bound form's performer is its patient's controller
+                    // (`who` discards their own named card), so the re-agented
+                    // rebuild needs only the card ([CR#702.29a]).
+                    Some(what) => Action::discard_what(what.clone()),
                     None => Action::discard(
                         who.clone(),
-                        count.clone(),
+                        deckmaste_core::discard_body_count(body)
+                            .cloned()
+                            .unwrap_or(deckmaste_core::Count::Literal(0)),
                         deckmaste_core::discard_body_random(body),
                     ),
                 }

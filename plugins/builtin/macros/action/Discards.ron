@@ -14,11 +14,11 @@
 (
     name: "Discards",
     template: "${0} discards ${1:card|cards}",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Reference, Count],
     body: Composite(
-        Discard(Param(0), Param(1)),
-        Each(
+        name: Discard,
+        body: Each(
             binder: Existing(FromHand(count: Param(1), whose: Param(0))),
             effect: Move(It, Graveyard),
         ),

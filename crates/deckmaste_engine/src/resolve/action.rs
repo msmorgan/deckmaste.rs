@@ -33,15 +33,15 @@ impl GameState {
     pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
         match action {
             // [CR#701,616.1]: a named keyword action is lowered to the
-            // uniform ONE-window lane by `composite_items` — resolve the atom's
-            // coordinates (fizzling any that don't resolve, [CR#701.8a]), open
-            // the single future `Act` window (where every cant/replacement of
-            // every description competes), and plant the `FinalizeAct` watcher
-            // that records the committed PAST name-fact iff the verb's
-            // characteristic change actually landed. The apply half owns the
-            // per-verb unwrap (`step.rs`); no content event opens a second
-            // window.
-            Action::Composite(atom, body) => self.composite_items(atom, body, frame),
+            // uniform ONE-window lane by `composite_items` — resolve the verb's
+            // coordinates off its `name`/`body` (fizzling any that don't
+            // resolve, [CR#701.8a]), open the single future `Act` window (where
+            // every cant/replacement of every description competes), and plant
+            // the `FinalizeAct` watcher that records the committed PAST
+            // name-fact iff the verb's characteristic change actually landed.
+            // The apply half owns the per-verb unwrap (`step.rs`); no content
+            // event opens a second window.
+            Action::Composite { name, body } => self.composite_items(name, body, frame),
             // The dealer is the resolved `source` — `This` (the default) is the
             // ability's source object / resolving spell, so the common case is
             // unchanged; an explicit source carries non-self-source damage and
@@ -512,12 +512,10 @@ impl GameState {
     /// action records nothing.
     pub(crate) fn composite_items(
         &self,
-        atom: &deckmaste_core::KeywordAction,
+        name: &deckmaste_core::VerbName,
         body: &deckmaste_core::OneShotEffect,
         frame: &Frame,
     ) -> Vec<WorkItem> {
-        use deckmaste_core::KeywordAction as Ka;
-
         // The future window event. `contents` rides only when the apply must
         // unwrap a body it cannot rebuild from these flat coordinates (mill's
         // top-slice group, the reorder/fight arrange RunEffect).
@@ -556,9 +554,17 @@ impl GameState {
         // The move verbs' agent: the resolving source and its controller.
         let agent = Some((frame.source, frame.controller));
 
-        match atom {
+        // Dispatch on the verb NAME ([CR#701]); each verb reads its own
+        // performer/patient references off the stored `body` (the same body
+        // facets the renderer and Idris emitter read), so no typed atom is
+        // needed. An unknown/mistyped verb name fizzles to no window — never a
+        // panic (the engine-never-crashes-on-authoring-mistakes ruling).
+        match name.as_str() {
             // ── Destroy: single Battlefield → Graveyard move ([CR#701.8a]) ──
-            Ka::Destroy(what) => {
+            "Destroy" => {
+                let Some(what) = composite_move_src(body) else {
+                    return vec![];
+                };
                 let on = self.eval_reference(what, frame);
                 let Some((to, guard)) = composite_body_move(body) else {
                     return vec![];
@@ -581,13 +587,16 @@ impl GameState {
                 self.act_window(act, FinalizeWatch::Patients(vec![on]))
             }
             // ── Discard: bound single move, or the chosen-from-hand decision ──
-            Ka::Discard(who, n) => {
-                let Some(player) = self.eval_player_ref(who, frame) else {
-                    return vec![]; // unresolvable performer — fizzle
-                };
+            "Discard" => {
                 if let Some(what) = deckmaste_core::discard_body_what(body) {
                     // "Discard this/that card" ([CR#702.29a]): a single move.
+                    // The performer is the patient's controller (the affected
+                    // player discards their own card, [CR#701.9b]).
                     let on = self.eval_reference(what, frame);
+                    let player = self
+                        .objects
+                        .get(on)
+                        .map_or(frame.controller, |o| o.controller);
                     let Some((to, guard)) = composite_body_move(body) else {
                         return vec![];
                     };
@@ -611,8 +620,16 @@ impl GameState {
                     // The chosen-from-hand discard batches ONE choice, then
                     // mints per-card `Act(Discard)` windows in its handler
                     // (`submit_discards` / `discard_random`) — Task 8 folds it
-                    // into the macro-driven lane ([CR#701.9b]).
-                    let count = self.eval_count(n, frame);
+                    // into the macro-driven lane ([CR#701.9b]). Its performer
+                    // and count ride the body's `FromHand` selection.
+                    let Some(who) = composite_body_whose(body) else {
+                        return vec![];
+                    };
+                    let Some(player) = self.eval_player_ref(who, frame) else {
+                        return vec![]; // unresolvable performer — fizzle
+                    };
+                    let count = deckmaste_core::discard_body_count(body)
+                        .map_or(0, |c| self.eval_count(c, frame));
                     let item = if deckmaste_core::discard_body_random(body) {
                         WorkItem::DiscardRandom { player, count }
                     } else {
@@ -621,14 +638,19 @@ impl GameState {
                     vec![item]
                 }
             }
-            // ── Mill: simultaneous Library → Graveyard batch ([CR#701.17a]) ──
-            Ka::Mill(who, _) => {
+            // ── Mill: simultaneous Library → Graveyard batch ([CR#701.17a]).
+            // The slice-family shape (`Batch(n, Act(Composite(name: Mill, …)))`)
+            // resolves through the aggregate lane (`batch_act_head` + the batch
+            // apply's simultaneous slice); this arm covers a bare per-unit Mill
+            // composite reaching the ordinary lane, milling its `MoveGroup`
+            // slice as one batch. ──
+            "Mill" => {
+                let Some(who) = composite_body_whose(body) else {
+                    return vec![];
+                };
                 let Some(player) = self.eval_player_ref(who, frame) else {
                     return vec![];
                 };
-                // The top-slice group (bridge until Task 7's per-card atoms):
-                // resolved here for the finalize watch; the apply re-derives and
-                // commits it off `contents`.
                 let patients: Vec<ObjectId> = composite_body_group(body)
                     .map(|(group, _)| self.eval_selection_set(&group, frame))
                     .unwrap_or_default()
@@ -638,9 +660,6 @@ impl GameState {
                 if patients.is_empty() {
                     return vec![]; // empty library / count 0 — fizzle [CR#701.17b]
                 }
-                // The Library → Graveyard body facet, so a result-side cant /
-                // replacement (Rest in Peace, a "can't move from library" cant)
-                // bites the ONE window.
                 let act = future(
                     "Mill",
                     Some(player),
@@ -652,43 +671,40 @@ impl GameState {
                 );
                 self.act_window(act, FinalizeWatch::Patients(patients))
             }
-            // ── Draw: N independent single-card windows ([CR#121.2]) ──
-            Ka::Draw(who, n) => {
+            // ── Draw: one single-card window ([CR#121.2]); the count-many
+            // sequence is the aggregate `Batch` lane's, which replicates this
+            // per-unit window. ──
+            "Draw" => {
+                let Some(who) = composite_body_whose(body) else {
+                    return vec![];
+                };
                 let Some(player) = self.eval_player_ref(who, frame) else {
                     return vec![];
                 };
-                let count = self.eval_count(n, frame);
-                let cause = Some(Cause::draw(Agency::EffectInstruction, agent));
-                // Each draw's `FinalizeAct` is scheduled by its OWN apply (the
-                // late-bound card and its per-draw `mark` are known only there),
-                // so only the window is planted here.
-                (0..count)
-                    .map(|_| {
-                        WorkItem::Emit(Occurrence::single(future(
-                            "Draw",
-                            Some(player),
-                            None,
-                            None,
-                            None,
-                            cause.clone(),
-                            false,
-                        )))
-                    })
-                    .collect()
+                // The draw's `FinalizeAct` is scheduled by its OWN apply (the
+                // late-bound card and its `mark` are known only there), so only
+                // the window is planted here.
+                vec![WorkItem::Emit(Occurrence::single(future(
+                    "Draw",
+                    Some(player),
+                    None,
+                    None,
+                    None,
+                    Some(Cause::draw(Agency::EffectInstruction, agent)),
+                    false,
+                )))]
             }
             // ── Reorder verbs: scry / surveil / fateseal ([CR#701.22a]) ──
-            Ka::Scry(who, _) | Ka::Surveil(who, _) | Ka::Fateseal(who, _) => {
+            verb @ ("Scry" | "Surveil" | "Fateseal") => {
+                let Some(who) = composite_body_whose(body) else {
+                    return vec![];
+                };
                 let Some(player) = self.eval_player_ref(who, frame) else {
                     return vec![];
                 };
                 if !self.composite_body_would_act(body, frame) {
                     return vec![]; // scry 0 / empty peek — fizzle [CR#701.22b]
                 }
-                let verb = match atom {
-                    Ka::Scry(..) => "Scry",
-                    Ka::Surveil(..) => "Surveil",
-                    _ => "Fateseal",
-                };
                 // The arrange runs from the apply (a decision can't complete
                 // inside an apply), which then schedules `FinalizeAct` — so a
                 // replaced/canted reorder records nothing, and the surviving
@@ -697,7 +713,10 @@ impl GameState {
                 vec![WorkItem::Emit(Occurrence::single(act))]
             }
             // ── Fight: If-guarded reciprocal damage ([CR#701.14a]) ──
-            Ka::Fight(a, _) => {
+            "Fight" => {
+                let Some(a) = fight_first_fighter(body) else {
+                    return vec![];
+                };
                 let on = self.eval_reference(a, frame);
                 if self.objects.get(on).is_none() || !self.composite_body_would_act(body, frame) {
                     return vec![]; // gone fighter / guard fails — fizzle [CR#701.14b]
@@ -705,6 +724,9 @@ impl GameState {
                 let act = future("Fight", None, Some(on), None, None, None, true);
                 vec![WorkItem::Emit(Occurrence::single(act))]
             }
+            // An unknown verb name performs no keyword action — fizzle, never
+            // panic ([CR#701]).
+            _ => vec![],
         }
     }
 
@@ -773,6 +795,66 @@ pub(crate) fn composite_body_group(
             to: Destination::Zone(z),
             ..
         }) => Some((group.clone(), *z)),
+        _ => None,
+    }
+}
+
+/// The single-move patient a `Destroy` / bound-`Discard` body names — its
+/// stored `Move`'s source reference ([CR#701.8a,702.29a]). Shares
+/// [`discard_body_what`](deckmaste_core::discard_body_what)'s descent, so the
+/// resolve lane reads the patient off the body exactly as the renderer and
+/// Idris emitter do.
+pub(crate) fn composite_move_src(
+    body: &deckmaste_core::OneShotEffect,
+) -> Option<&deckmaste_core::Reference> {
+    deckmaste_core::discard_body_what(body)
+}
+
+/// The performer a slice / reorder / chosen-discard body names — the `whose`
+/// of the top-of-library slice its body reads
+/// (draw/mill/scry/surveil/fateseal) or the `whose` of a chosen discard's
+/// [`FromHand`](deckmaste_core::Selection::FromHand). `whose` defaults to `You`
+/// (filled on read), so this is `Some` for every well-formed such body. Read
+/// off the stored body rather than a per-verb atom.
+pub(crate) fn composite_body_whose(
+    body: &deckmaste_core::OneShotEffect,
+) -> Option<&deckmaste_core::Reference> {
+    use deckmaste_core::Action as A;
+    use deckmaste_core::Binder;
+    use deckmaste_core::OneShotEffect as E;
+    use deckmaste_core::Selection as S;
+    match body {
+        E::Expanded(e) => composite_body_whose(&e.value),
+        E::Each(each) => match &each.binder {
+            Binder::Existing(S::TopOfLibrary { whose, .. } | S::FromHand { whose, .. }) => {
+                Some(whose)
+            }
+            _ => None,
+        },
+        E::Act(A::MoveGroup {
+            group: S::TopOfLibrary { whose, .. },
+            ..
+        }) => Some(whose),
+        _ => None,
+    }
+}
+
+/// The first fighter a `Fight` body names — the source of the first of its two
+/// mirrored `DealDamage` halves ([CR#701.14a]). The resolve lane binds only
+/// this one as the window's patient (the reciprocal damage runs from the
+/// body); read off the stored body rather than a per-verb atom.
+pub(crate) fn fight_first_fighter(
+    body: &deckmaste_core::OneShotEffect,
+) -> Option<&deckmaste_core::Reference> {
+    use deckmaste_core::Action as A;
+    use deckmaste_core::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => fight_first_fighter(&e.value),
+        E::If(iff) => fight_first_fighter(&iff.then),
+        E::Simultaneously(parts) => parts.iter().find_map(|p| match p {
+            E::Act(A::DealDamage(source, _, _)) => Some(source),
+            _ => None,
+        }),
         _ => None,
     }
 }
@@ -1349,7 +1431,7 @@ mod tests {
 
         let frame = frame_for(&state, PlayerId(0));
         state.run_effect(
-            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            OneShotEffect::mill(Reference::You, Count::Literal(2)),
             &frame,
         );
         let events = drain_events(&mut state, 30);
@@ -1389,7 +1471,7 @@ mod tests {
         // `frame_src` binds no `It`, so `Draw(It, 1)` has no performer.
         let frame = frame_src(src);
         state.run_effect(
-            OneShotEffect::Act(Action::draw(Reference::It, Count::Literal(1))),
+            OneShotEffect::draw(Reference::It, Count::Literal(1)),
             &frame,
         );
         let events = drain_events(&mut state, 30);
@@ -1440,7 +1522,7 @@ mod tests {
 
         let frame = frame_for(&state, PlayerId(0));
         state.run_effect(
-            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            OneShotEffect::mill(Reference::You, Count::Literal(2)),
             &frame,
         );
         drain_events(&mut state, 30);
@@ -1501,7 +1583,7 @@ mod tests {
             crate::lki::LkiSnapshot::capture(&state, card),
         ));
         state.run_effect(
-            OneShotEffect::Act(Action::discard_what(Reference::You, Reference::It)),
+            OneShotEffect::Act(Action::discard_what(Reference::It)),
             &frame,
         );
         drain_events(&mut state, 30);
@@ -1589,11 +1671,11 @@ mod tests {
             }))]
         );
 
-        // draw(You, 2) -> two sequential single-card Act(Draw) for the
-        // controller ([CR#121.2] per-card, `on: None` — the drawn card binds
-        // at apply).
-        let items = state.action_items(&Action::draw(Reference::You, Count::Literal(2)), &frame);
-        assert_eq!(items.len(), 2);
+        // draw_one(You) -> one single-card Act(Draw) for the controller
+        // ([CR#121.2] per-card, `on: None` — the drawn card binds at apply;
+        // the count-many sequence is the aggregate `Batch` lane's).
+        let items = state.action_items(&Action::draw_one(Reference::You), &frame);
+        assert_eq!(items.len(), 1);
         assert!(items.iter().all(|item| matches!(
             item,
             WorkItem::Emit(Occurrence::Single(GameEvent::Act {
@@ -1650,15 +1732,16 @@ mod tests {
         );
     }
 
-    /// An explicit agent: `draw(It, 2)` draws for the announced/bound player
-    /// (`It`), not the controller. Targets player 1's proxy.
+    /// An explicit agent: `draw_one(It)` draws for the announced/bound player
+    /// (`It`, read off the body's `TopOfLibrary` selection), not the
+    /// controller. Targets player 1's proxy.
     #[test]
     fn action_items_explicit_agent_draws_for_target() {
         let (state, src) = bear_on_field();
         let p1_proxy = state.players[1].object;
         let frame = frame_src_targets(src, vec![p1_proxy]);
-        let items = state.action_items(&Action::draw(Reference::It, Count::Literal(2)), &frame);
-        assert_eq!(items.len(), 2);
+        let items = state.action_items(&Action::draw_one(Reference::It), &frame);
+        assert_eq!(items.len(), 1);
         assert!(items.iter().all(|item| matches!(
             item,
             WorkItem::Emit(Occurrence::Single(GameEvent::Act {
@@ -1757,10 +1840,7 @@ mod tests {
         let effect = OneShotEffect::Sequentially(vec![
             OneShotEffect::Noting(deckmaste_core::Noting {
                 key: "milled".into(),
-                effect: Box::new(OneShotEffect::Act(Action::mill(
-                    Reference::You,
-                    Count::Literal(3),
-                ))),
+                effect: Box::new(OneShotEffect::mill(Reference::You, Count::Literal(3))),
             }),
             OneShotEffect::Each(deckmaste_core::Each {
                 binder: deckmaste_core::Binder::Existing(Selection::AmongNoted(
@@ -1809,10 +1889,11 @@ mod tests {
         );
     }
 
-    /// [CR#701.17b,603.3b]: `Action::mill(You, n)` moves the top `n` of the
-    /// library to the graveyard as ONE simultaneous batch, clamped to library
-    /// size — milling 100 from a bounded library mills the whole library (never
-    /// an out-of-range panic), and the moves share one batch id ([CR#603.3b]).
+    /// [CR#701.17b,603.3b]: `OneShotEffect::mill(You, n)` moves the top `n` of
+    /// the library to the graveyard as ONE simultaneous batch, clamped to
+    /// library size — milling 100 from a bounded library mills the whole
+    /// library (never an out-of-range panic), and the moves share one batch
+    /// id ([CR#603.3b]).
     #[test]
     fn mill_clamps_to_library_size_as_one_batch() {
         let (mut state, a) = bear_on_field();
@@ -1823,7 +1904,7 @@ mod tests {
         );
         let frame = frame_src(a);
         state.run_effect(
-            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(100))),
+            OneShotEffect::mill(Reference::You, Count::Literal(100)),
             &frame,
         );
         run_injected(&mut state);
@@ -1868,7 +1949,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         let frame = frame_src(a);
         state.run_effect(
-            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            OneShotEffect::mill(Reference::You, Count::Literal(2)),
             &frame,
         );
         run_injected(&mut state);
@@ -1900,7 +1981,7 @@ mod tests {
         state.zones.libraries[0].clear();
         let before = state.history.entries().count();
         state.run_effect(
-            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            OneShotEffect::mill(Reference::You, Count::Literal(2)),
             &frame,
         );
         run_injected(&mut state);
@@ -1915,34 +1996,13 @@ mod tests {
     }
 
     /// [CR#616.1]: a Rest-in-Peace-style `→Graveyard` replacement redirects
-    /// EACH milled card to exile.
-    ///
-    /// DISABLED BY THE ACT-FACET REWRITE — this test PRE-DATES this task and
-    /// passed under the old lane (mill emitted per-card future-form
-    /// `ZoneChange`s that Rest in Peace bit individually). The rewrite makes
-    /// mill commit as ONE aggregate `Act(Mill)` (`on: None`) whose apply
-    /// derives its destination from `contents.body`'s `MoveGroup` and moves the
-    /// batch via `apply_zone_will_change`, with NO per-card window. TWO
-    /// distinct gaps make this a Task-7 obligation, both to be closed when
-    /// per-card `Act(Mill)` atoms land (each milled card its own bindable
-    /// window):
-    ///   1. A per-card result-replacement that reads `EventObject` (Rest in
-    ///      Peace) can't bind a patient — aggregate `Act(Mill)` has `on: None`
-    ///      — so it can't redirect per card.
-    ///   2. Even a WHOLE-mill `Instead` that rewrites the aggregate `Act`'s
-    ///      `to` is silently dropped at commit: the mill apply reads `to` from
-    ///      `contents.body`, not the (possibly-redirected) event `to`.
-    /// A whole-mill replacement that ignores the patient AND doesn't rely on
-    /// the `to` (item 1's `Act(Mill) → GainLife`,
-    /// `mill_replaced_before_cards_move`) DOES bite today. Un-ignore this
-    /// test when Task 7 lands.
+    /// EACH milled card to exile. The aggregate `Batch(n, Act(Mill))` window
+    /// takes the ONE [CR#616.1g] count-multiplier hit, then its PASSED apply
+    /// commits the top-`n` slice as ONE `Occurrence::Batch` of per-card
+    /// Library → Graveyard futures — each individually replaceable (Rest in
+    /// Peace binds `EventObject` and rewrites the honored event `to` per card),
+    /// so the whole slice lands in exile as one simultaneous batch.
     #[test]
-    #[ignore = "PRE-EXISTING test disabled by this task: per-card mill \
-                result-replacement (Rest in Peace) awaits Task 7's per-card \
-                Act(Mill) atoms. Two gaps: (1) aggregate Act(Mill) has on:None so \
-                a per-card EventObject can't bind; (2) an aggregate-level redirect \
-                of Act(Mill)'s `to` is dropped at commit (mill apply reads the \
-                destination from contents.body, not the event `to`)"]
     fn rest_in_peace_replaces_milled_cards_with_exile() {
         let (mut state, a) = bear_on_field();
         // "If a card would be put into a graveyard, exile it instead."
@@ -1971,7 +2031,7 @@ mod tests {
 
         let frame = frame_src(a);
         state.run_effect(
-            OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(2))),
+            OneShotEffect::mill(Reference::You, Count::Literal(2)),
             &frame,
         );
         run_injected(&mut state);
@@ -2137,7 +2197,7 @@ mod tests {
         // Cycling's frame: the ability's source IS the hand card (`This`).
         let frame = frame_src(card);
         state.run_effect(
-            OneShotEffect::Act(Action::discard_what(Reference::You, Reference::This)),
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
             &frame,
         );
         run_injected(&mut state);
@@ -3383,9 +3443,9 @@ mod tests {
             )),
             cost: None,
         };
-        OneShotEffect::Act(Action::Composite(
-            deckmaste_core::KeywordAction::Scry(Reference::You, Count::Literal(n)),
-            Box::new(OneShotEffect::Each(deckmaste_core::Each {
+        OneShotEffect::Act(Action::Composite {
+            name: deckmaste_core::VerbName::from("Scry"),
+            body: Box::new(OneShotEffect::Each(deckmaste_core::Each {
                 binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(n),
                     whose: Reference::You,
@@ -3407,7 +3467,7 @@ mod tests {
                     ],
                 })),
             })),
-        ))
+        })
     }
 
     /// Step until a decision surfaces (or `n` steps elapse), returning the

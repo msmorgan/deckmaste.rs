@@ -457,7 +457,11 @@ fn renders_synthesized_lose_life_and_destroy() {
         vec!["You lose 3 life.".to_string()]
     );
 
-    // "Destroy target creature." spell
+    // "Destroy target creature." spell — the `Destroy(It)` verb renders via
+    // its macro template (the provenance the migrations parser and corpus both
+    // carry), so build it through the real plugin rather than a raw composite.
+    let plugin = Plugin::load(builtin_path()).unwrap();
+    let destroy_verb: OneShotEffect = plugin.macros.read_str("Destroy(It)").unwrap();
     let destroy = CardFace {
         name: "Test Smite".into(),
         types: vec![Type::Sorcery.def()],
@@ -465,7 +469,7 @@ fn renders_synthesized_lose_life_and_destroy() {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
-                OneShotEffect::Act(Action::destroy(Reference::It)),
+                destroy_verb,
             )),
         })],
         ..CardFace::default()
@@ -1093,7 +1097,6 @@ fn renders_graveyard_static_from_zone() {
 #[test]
 fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::Ability;
-    use deckmaste_core::Action;
     use deckmaste_core::CardFace;
     use deckmaste_core::Condition;
     use deckmaste_core::EventFilter;
@@ -1103,6 +1106,12 @@ fn renders_trigger_with_turnof_intervening_if() {
     use deckmaste_core::RelationPredicate;
     use deckmaste_core::TriggeredAbility;
     use deckmaste_core::Zone;
+    // `Draw(1)` is a slice-family verb macro (`Batch(1, Act(Composite(name:
+    // Draw, …)))`) that renders via its template — build it through the real
+    // plugin so it carries that `Expanded` provenance rather than an
+    // unrendered raw `Batch`.
+    let plugin = Plugin::load(builtin_path()).unwrap();
+    let draw: OneShotEffect = plugin.macros.read_str("Draw(1)").unwrap();
     let face = CardFace {
         name: "Vigil Keeper".into(),
         types: vec![Type::Creature.def()],
@@ -1120,10 +1129,7 @@ fn renders_trigger_with_turnof_intervening_if() {
                 RelationPredicate::OpponentOf(Box::new(Predicate::Ref(Reference::You))),
             ))),
             limits: vec![],
-            effect: OneShotEffect::Act(Action::draw(
-                Reference::You,
-                deckmaste_core::Count::Literal(1),
-            )),
+            effect: draw,
         })],
         ..CardFace::default()
     };

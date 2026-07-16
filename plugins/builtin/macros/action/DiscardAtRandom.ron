@@ -10,11 +10,11 @@
 (
     name: "DiscardAtRandom",
     template: "discard ${0:card|cards} at random",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Count],
     body: Composite(
-        Discard(You, Param(0)),
-        Each(
+        name: Discard,
+        body: Each(
             binder: Existing(FromHand(count: Param(0), random: true)),
             effect: Move(It, Graveyard),
         ),

@@ -17,10 +17,10 @@
 (
     name: "Destroy",
     template: "destroy ${0}",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Reference],
     body: Composite(
-        Destroy(Param(0)),
-        Move(Param(0), Graveyard),
+        name: Destroy,
+        body: Move(Param(0), Graveyard),
     ),
 )

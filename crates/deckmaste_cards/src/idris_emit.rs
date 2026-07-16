@@ -1516,6 +1516,130 @@ fn emit_counter_spec(c: &CounterSpec) -> R {
 // Action / PlayerAction
 // ===========================================================================
 
+/// Peel a remembered macro invocation to its expanded value — the coordinate
+/// extractors below read the canonical body, not the provenance wrapper.
+fn peel_os(e: &OneShotEffect) -> &OneShotEffect {
+    match e {
+        OneShotEffect::Expanded(x) => peel_os(&x.value),
+        other => other,
+    }
+}
+
+/// The single-move patient of a keyword-action body — `Destroy`'s / bound
+/// `Discard`'s `Move(r, …)` head names `r`.
+fn composite_move_src(body: &OneShotEffect) -> Option<&Reference> {
+    match peel_os(body) {
+        OneShotEffect::Act(Action::Move(r, _, _, _)) => Some(r),
+        _ => None,
+    }
+}
+
+/// The `(whose, count)` of a slice-verb body ([CR#121,701.17a,701.22a]): the
+/// `TopOfLibrary` selection in a draw/scry `Each` binder or a mill `MoveGroup`.
+fn top_of_library(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
+    match peel_os(body) {
+        OneShotEffect::Each(each) => match &each.binder {
+            deckmaste_core::Binder::Existing(Selection::TopOfLibrary { count, whose }) => {
+                Some((whose, count))
+            }
+            _ => None,
+        },
+        OneShotEffect::Act(Action::MoveGroup {
+            group: Selection::TopOfLibrary { count, whose },
+            ..
+        }) => Some((whose, count)),
+        _ => None,
+    }
+}
+
+/// The `(whose, count)` of a chosen-discard body ([CR#701.9b]): its
+/// `Each`-over-`FromHand` selection. `None` for a bound single-move discard.
+fn from_hand(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
+    match peel_os(body) {
+        OneShotEffect::Each(each) => match &each.binder {
+            deckmaste_core::Binder::Existing(Selection::FromHand { count, whose, .. }) => {
+                Some((whose, count))
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The two fighters of a `Fight` body ([CR#701.14a]): the reciprocal
+/// `DealDamage` sources under the `If`-guard's `then` batch.
+fn fight_fighters(body: &OneShotEffect) -> Option<(&Reference, &Reference)> {
+    let then = match peel_os(body) {
+        OneShotEffect::If(i) => peel_os(&i.then),
+        _ => return None,
+    };
+    match then {
+        OneShotEffect::Simultaneously(parts) => match parts.as_slice() {
+            [
+                OneShotEffect::Act(Action::DealDamage(a, _, _)),
+                OneShotEffect::Act(Action::DealDamage(b, _, _)),
+                ..,
+            ] => Some((a, b)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Reconstruct the parameterized `KeywordActionSpec` constructor from a verb
+/// NAME plus the coordinates carried in its expanded body ([CR#701]) — the
+/// `KeywordAction` atom enum retired, so name + body-shape is the source of
+/// truth (shared by the engine's resolve dispatch and the renderer). `Fateseal`
+/// and any unrecognized verb are gaps against the current Idris mirror.
+fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
+    match name {
+        "Destroy" => {
+            let r = composite_move_src(body)
+                .ok_or_else(|| gap("Destroy composite body is not a Move"))?;
+            Ok(app("Destroy", vec![emit_reference(r)?]))
+        }
+        "Scry" | "Surveil" | "Mill" | "Draw" => {
+            let (whose, count) = top_of_library(body)
+                .ok_or_else(|| gap(format!("{name} composite body has no TopOfLibrary slice")))?;
+            Ok(app(name, vec![emit_reference(whose)?, emit_count(count)?]))
+        }
+        "Discard" => {
+            // Chosen form: `FromHand` carries whose + count. Bound single-move
+            // form ("discard this card"): the discarding player rides the
+            // patient; emit the implicit `You` performer over one card.
+            if let Some((whose, count)) = from_hand(body) {
+                Ok(app(
+                    "Discard",
+                    vec![emit_reference(whose)?, emit_count(count)?],
+                ))
+            } else if composite_move_src(body).is_some() {
+                Ok(app(
+                    "Discard",
+                    vec![
+                        emit_reference(&Reference::You)?,
+                        emit_count(&Count::Literal(1))?,
+                    ],
+                ))
+            } else {
+                Err(gap(
+                    "Discard composite body is neither a FromHand choice nor a Move",
+                ))
+            }
+        }
+        "Fight" => {
+            let (a, b) =
+                fight_fighters(body).ok_or_else(|| gap("Fight composite body has no fighters"))?;
+            Ok(app("Fight", vec![emit_reference(a)?, emit_reference(b)?]))
+        }
+        "Fateseal" => Err(gap(
+            "Composite keyword action Fateseal has no Idris KeywordActionSpec",
+        )),
+        other => Err(gap(format!(
+            "Composite keyword action {other} has no Idris KeywordActionSpec"
+        ))),
+    }
+}
+
 fn emit_action(a: &Action) -> R {
     Ok(match a {
         // `dealDamageFrom` exposes the required `source` positionally.
@@ -1597,26 +1721,15 @@ fn emit_action(a: &Action) -> R {
         Action::CreateReplacement { .. } => {
             return Err(gap("Action::CreateReplacement has no Idris counterpart"));
         }
-        // `Composite <atom> body` ([CR#701]): the named keyword action —
-        // `Composite (Scry You 2) (Each …)` etc. The atom is a parameterized
-        // `KeywordActionSpec` constructor (`Scry who n | … | Destroy r |
-        // Fight a b`); `Fateseal` has no Idris spec yet, so it is a gap.
-        Action::Composite(atom, body) => {
-            use deckmaste_core::KeywordAction as Ka;
-            let spec = match atom {
-                Ka::Scry(who, n) => app("Scry", vec![emit_reference(who)?, emit_count(n)?]),
-                Ka::Surveil(who, n) => app("Surveil", vec![emit_reference(who)?, emit_count(n)?]),
-                Ka::Mill(who, n) => app("Mill", vec![emit_reference(who)?, emit_count(n)?]),
-                Ka::Draw(who, n) => app("Draw", vec![emit_reference(who)?, emit_count(n)?]),
-                Ka::Discard(who, n) => app("Discard", vec![emit_reference(who)?, emit_count(n)?]),
-                Ka::Destroy(r) => app("Destroy", vec![emit_reference(r)?]),
-                Ka::Fight(a, b) => app("Fight", vec![emit_reference(a)?, emit_reference(b)?]),
-                Ka::Fateseal(..) => {
-                    return Err(gap(
-                        "Composite keyword action Fateseal has no Idris KeywordActionSpec",
-                    ));
-                }
-            };
+        // `Composite <spec> body` ([CR#701]): the named keyword action —
+        // `Composite (Scry You 2) (Each …)` etc. The `KeywordAction` atom enum
+        // retired, so the parameterized `KeywordActionSpec` constructor is
+        // RECONSTRUCTED from the verb NAME plus the coordinates carried in its
+        // expanded body (`emit_keyword_spec`). Mill/Draw are `Batch`-wrapped, so
+        // their per-unit `Composite` carries a single-card slice, emitted via
+        // this arm inside the `Batch`. `Fateseal` has no Idris spec yet — a gap.
+        Action::Composite { name, body } => {
+            let spec = emit_keyword_spec(name.as_str(), body)?;
             app("Composite", vec![spec, emit_effect(body)?])
         }
         Action::By(actor, pa) => emit_player_action(pa, actor)?,

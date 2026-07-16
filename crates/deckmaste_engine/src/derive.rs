@@ -310,10 +310,7 @@ mod tests {
             },
             condition: None,
             limits: vec![],
-            effect: OneShotEffect::Act(deckmaste_core::Action::draw(
-                Reference::You,
-                deckmaste_core::Count::Literal(1),
-            )),
+            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)),
         };
         let card = Card::Normal(CardFace {
             name: "Innate Triggerer".into(),

@@ -211,6 +211,27 @@ impl OneShotEffect {
     pub fn act_by_you(action: PlayerAction) -> OneShotEffect {
         OneShotEffect::Act(Action::by_you(action))
     }
+
+    /// "`who` mills `count`" ([CR#701.17a]) — a slice-family keyword action:
+    /// [`Batch`](OneShotEffect::Batch) over the per-unit [`Action::mill_one`],
+    /// so a count-doubling replacement (Bruvac, [CR#121.2a,616.1g]) bites the
+    /// ONE aggregate window and the whole top slice commits as ONE simultaneous
+    /// batch of per-card, individually-redirectable moves. The
+    /// [`Mill`](../plugins)/`Mills` macros expand to this.
+    #[must_use]
+    pub fn mill(who: crate::Reference, count: Count) -> OneShotEffect {
+        OneShotEffect::Batch(count, Box::new(OneShotEffect::Act(Action::mill_one(who))))
+    }
+
+    /// "`who` draws `count`" ([CR#121.1]) — a slice-family keyword action:
+    /// [`Batch`](OneShotEffect::Batch) over the per-unit [`Action::draw_one`],
+    /// `count` SEQUENTIAL single-card draws ([CR#121.2], each seeing prior
+    /// state and empty-checking BEFORE its move). The `Draw`/`Draws` macros
+    /// expand to this.
+    #[must_use]
+    pub fn draw(who: crate::Reference, count: Count) -> OneShotEffect {
+        OneShotEffect::Batch(count, Box::new(OneShotEffect::Act(Action::draw_one(who))))
+    }
 }
 
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
@@ -499,11 +520,12 @@ mod tests {
             read("Tap(This)"),
             act_by_you(PlayerAction::Tap(Reference::This)),
         );
-        // Discard is now the `Composite` the `Action::discard` ctor builds
-        // ([CR#701.9]), like Destroy — the structural spelling reads flat.
+        // Discard is now the `Composite { name, body }` the `Action::discard`
+        // ctor builds ([CR#701.9]), like Destroy — the struct-variant spelling
+        // reads all-named.
         assert_eq!(
             read(
-                "Composite(Discard(You, Literal(1)), Each(binder: Existing(FromHand(count: \
+                "Composite(name: Discard, body: Each(binder: Existing(FromHand(count: \
                  Literal(1))), effect: Move(It, Graveyard)))"
             ),
             OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(1), false)),
@@ -580,9 +602,9 @@ mod tests {
             "By(It,GainLife(Literal(3)))",
             "DealDamage(This,Literal(3),It)",
             "AddMana(Literal(1),AnyColor)",
-            // Destroy is the `Composite` the `Action::destroy` ctor builds;
-            // the raw dual-facet spelling round-trips through plain RON.
-            "Composite(Destroy(This),Move(This,Graveyard))",
+            // Destroy is the `Composite { name, body }` the `Action::destroy`
+            // ctor builds; the struct-variant spelling round-trips through RON.
+            "Composite(name:Destroy,body:Move(This,Graveyard))",
             "Sequentially([GainLife(Literal(1)),GainLife(Literal(1))])",
             "May(effect:GainLife(Literal(1)))",
             // `Each.binder` is a many-`Binder` (the set of all creatures wrapped

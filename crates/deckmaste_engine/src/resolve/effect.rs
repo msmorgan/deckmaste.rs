@@ -18,6 +18,9 @@ use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
 use super::action::composite_body_group;
+use super::action::composite_body_whose;
+use super::action::composite_move_src;
+use super::action::fight_first_fighter;
 use super::deref_quantity;
 use super::occurrence_of;
 use super::peel_binder;
@@ -1059,16 +1062,23 @@ impl GameState {
                 let n = self.eval_count(&count, frame);
                 if n == 0 {
                     // Clean no-op — mirrors `Repeat`.
-                } else if let OneShotEffect::Act(Action::Composite(atom, composite_body)) =
-                    peel_effect(&body)
+                } else if let OneShotEffect::Act(Action::Composite {
+                    name,
+                    body: composite_body,
+                }) = peel_effect(&body)
                 {
-                    if let Some(head) = self.batch_act_head(atom, composite_body, frame) {
+                    if let Some(head) = self.batch_act_head(name, composite_body, frame) {
                         let verb = deckmaste_core::VerbName::from(head.verb);
                         let act = GameEvent::Act {
                             verb,
                             who: head.who,
                             on: head.on,
-                            from: None,
+                            // [CR#603.6]: expose the source facet (Mill's
+                            // `Library`) so a source-scoped cant bites the
+                            // aggregate; the destination stays `None` so a
+                            // `→Graveyard` replacement bites each contained
+                            // per-card move, never the aggregate ([CR#616.1]).
+                            from: head.from,
                             to: None,
                             cause: head.cause,
                             committed: false,
@@ -1233,16 +1243,18 @@ impl GameState {
     /// never a panic.
     fn batch_act_head(
         &self,
-        atom: &deckmaste_core::KeywordAction,
+        name: &deckmaste_core::VerbName,
         body: &OneShotEffect,
         frame: &Frame,
     ) -> Option<BatchActHead> {
         use deckmaste_core::Agency;
-        use deckmaste_core::KeywordAction as Ka;
         let agent = Some((frame.source, frame.controller));
-        Some(match atom {
-            Ka::Destroy(what) => {
-                let on = self.eval_reference(what, frame);
+        // The performer a slice/reorder body names, resolved to a player.
+        let performer =
+            || composite_body_whose(body).and_then(|who| self.eval_player_ref(who, frame));
+        Some(match name.as_str() {
+            "Destroy" => {
+                let on = self.eval_reference(composite_move_src(body)?, frame);
                 // gone / zoneless patient — fizzle [CR#701.8a]
                 self.objects.get(on).and_then(|o| o.zone)?;
                 BatchActHead {
@@ -1250,16 +1262,18 @@ impl GameState {
                     who: None,
                     on: Some(on),
                     cause: Some(Cause::destroy(Agency::EffectInstruction, agent)),
+                    from: None,
                 }
             }
-            Ka::Discard(who, _) => BatchActHead {
+            "Discard" => BatchActHead {
                 verb: "Discard",
-                who: Some(self.eval_player_ref(who, frame)?),
+                who: Some(performer()?),
                 on: None,
                 cause: Some(Cause::discard(Agency::EffectInstruction, agent)),
+                from: None,
             },
-            Ka::Mill(who, _) => {
-                let who = Some(self.eval_player_ref(who, frame)?);
+            "Mill" => {
+                let who = Some(performer()?);
                 // The top-slice group, exactly as `composite_items` resolves
                 // it — an empty result (empty library / count 0) fizzles the
                 // whole aggregate before any window opens [CR#701.17b].
@@ -1277,52 +1291,33 @@ impl GameState {
                     who,
                     on: None,
                     cause: Some(Cause::mill(Agency::EffectInstruction, agent)),
+                    // Mill reads the library — a "can't leave the library" cant
+                    // suppresses the whole aggregate ([CR#614.17,701.17a]).
+                    from: Some(Zone::Library),
                 }
             }
-            Ka::Draw(who, _) => BatchActHead {
+            "Draw" => BatchActHead {
                 verb: "Draw",
-                who: Some(self.eval_player_ref(who, frame)?),
+                who: Some(performer()?),
                 on: None,
                 cause: Some(Cause::draw(Agency::EffectInstruction, agent)),
+                from: None,
             },
-            Ka::Scry(who, _) => {
-                let who = Some(self.eval_player_ref(who, frame)?);
+            verb @ ("Scry" | "Surveil" | "Fateseal") => {
+                let who = Some(performer()?);
                 if !self.composite_body_would_act(body, frame) {
                     return None; // scry 0 / empty peek — fizzle [CR#701.22b]
                 }
                 BatchActHead {
-                    verb: "Scry",
+                    verb,
                     who,
                     on: None,
                     cause: None,
+                    from: None,
                 }
             }
-            Ka::Surveil(who, _) => {
-                let who = Some(self.eval_player_ref(who, frame)?);
-                if !self.composite_body_would_act(body, frame) {
-                    return None; // empty peek — fizzle [CR#701.22b]
-                }
-                BatchActHead {
-                    verb: "Surveil",
-                    who,
-                    on: None,
-                    cause: None,
-                }
-            }
-            Ka::Fateseal(who, _) => {
-                let who = Some(self.eval_player_ref(who, frame)?);
-                if !self.composite_body_would_act(body, frame) {
-                    return None; // empty peek — fizzle [CR#701.22b]
-                }
-                BatchActHead {
-                    verb: "Fateseal",
-                    who,
-                    on: None,
-                    cause: None,
-                }
-            }
-            Ka::Fight(a, _) => {
-                let on = self.eval_reference(a, frame);
+            "Fight" => {
+                let on = self.eval_reference(fight_first_fighter(body)?, frame);
                 if self.objects.get(on).is_none() || !self.composite_body_would_act(body, frame) {
                     return None; // gone fighter / guard fails — fizzle [CR#701.14b]
                 }
@@ -1331,8 +1326,11 @@ impl GameState {
                     who: None,
                     on: Some(on),
                     cause: None,
+                    from: None,
                 }
             }
+            // An unknown verb name aggregates nothing — fizzle the whole batch.
+            _ => return None,
         })
     }
 
@@ -1386,7 +1384,7 @@ impl GameState {
                 Action::By(_, PlayerAction::Sacrifice(r) | PlayerAction::Move(r, _, _)) => Some(r),
                 // The bound discard form ("discard this card") names its
                 // moved card in the body's single-move head.
-                Action::Composite(deckmaste_core::KeywordAction::Discard(..), body) => {
+                Action::Composite { name, body } if name.as_str() == "Discard" => {
                     deckmaste_core::discard_body_what(body)
                 }
                 _ => None,
@@ -1515,7 +1513,7 @@ impl GameState {
         match a {
             Action::Move(_, Destination::Library(_), _, _)
             | Action::By(_, PlayerAction::Move(_, Destination::Library(_), _)) => true,
-            Action::Composite(_, body) => Self::body_repositions_ordered(body),
+            Action::Composite { body, .. } => Self::body_repositions_ordered(body),
             _ => false,
         }
     }
@@ -1614,6 +1612,14 @@ struct BatchActHead {
     who: Option<crate::player::PlayerId>,
     on: Option<ObjectId>,
     cause: Option<Cause>,
+    // The SOURCE facet ([CR#603.6]): a slice-verb aggregate exposes the zone
+    // its cards leave (`Mill`'s `Library`) so a source-scoped `CantHappen`
+    // ("cards can't leave your library") suppresses the WHOLE aggregate before
+    // any card moves ([CR#614.17]), exactly as it bit the per-move facet. The
+    // DESTINATION stays `None`: a destination-scoped replacement (Rest in
+    // Peace's `→Graveyard`) must bite each contained per-card move
+    // INDIVIDUALLY, never the aggregate ([CR#616.1]).
+    from: Option<Zone>,
 }
 
 /// The mutable structural [`DeonticAction`] of a `Deontic`
@@ -2219,9 +2225,8 @@ mod tests {
             )),
             instead: OneShotEffect::Batch(
                 Count::Times(Box::new(Count::Literal(2)), Box::new(Count::ThatMany)),
-                Box::new(OneShotEffect::Act(Action::mill(
+                Box::new(OneShotEffect::Act(deckmaste_core::Action::mill_one(
                     Reference::You,
-                    Count::Literal(1),
                 ))),
             ),
         };
@@ -2238,7 +2243,7 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(1)));
+        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::You));
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(3), Box::new(mill_one)),
             &frame,
@@ -2307,9 +2312,8 @@ mod tests {
             )),
             instead: OneShotEffect::Batch(
                 Count::Literal(2),
-                Box::new(OneShotEffect::Act(Action::draw(
+                Box::new(OneShotEffect::Act(deckmaste_core::Action::draw_one(
                     Reference::You,
-                    Count::Literal(1),
                 ))),
             ),
         };
@@ -2327,7 +2331,7 @@ mod tests {
 
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
+            OneShotEffect::draw(Reference::You, Count::Literal(1)),
             &frame,
         );
         let _ = drain_progress(&mut state, 60);
@@ -2378,7 +2382,7 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(1)));
+        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::You));
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(3), Box::new(mill_one)),
             &frame,
@@ -2419,7 +2423,7 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(1)));
+        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::You));
         let agenda_before = state.agenda.len();
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(2), Box::new(mill_one)),
@@ -2504,10 +2508,7 @@ mod tests {
                 key,
                 deckmaste_core::NotedKind::Number,
             )),
-            OneShotEffect::Act(deckmaste_core::Action::mill(
-                deckmaste_core::Reference::You,
-                Count::Noted(key),
-            )),
+            OneShotEffect::mill(deckmaste_core::Reference::You, Count::Noted(key)),
         ]);
         let frame = frame_src(a);
         state.run_effect(effect, &frame);
@@ -2899,14 +2900,14 @@ mod tests {
                 tgt.clone(),
             ))
         };
-        OneShotEffect::Act(Action::Composite(
-            deckmaste_core::KeywordAction::Fight(x.clone(), y.clone()),
-            Box::new(OneShotEffect::If(deckmaste_core::If {
+        OneShotEffect::Act(Action::Composite {
+            name: deckmaste_core::VerbName::from("Fight"),
+            body: Box::new(OneShotEffect::If(deckmaste_core::If {
                 condition: Condition::And(vec![is_creature(x), is_creature(y)]),
                 then: Box::new(OneShotEffect::Simultaneously(vec![half(y, x), half(x, y)])),
                 otherwise: None,
             })),
-        ))
+        })
     }
 
     /// [CR#701.14a]: a fight — each creature deals damage equal to its power to
@@ -4231,14 +4232,11 @@ mod tests {
                     Reference::You,
                     Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                 ),
-                then: Box::new(OneShotEffect::Act(Action::draw(
-                    Reference::You,
-                    Count::Literal(3),
-                ))),
-                otherwise: Some(Box::new(OneShotEffect::Act(Action::draw(
+                then: Box::new(OneShotEffect::draw(Reference::You, Count::Literal(3))),
+                otherwise: Some(Box::new(OneShotEffect::draw(
                     Reference::You,
                     Count::Literal(2),
-                )))),
+                ))),
             }),
         ])
     }
@@ -4369,7 +4367,7 @@ mod tests {
         let (mut sd, p0, lib_before) = secrets_on_stack(10);
         let dframe = frame_for(&sd, p0);
         sd.run_effect(
-            OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(3))),
+            OneShotEffect::draw(Reference::You, Count::Literal(3)),
             &dframe,
         );
         let _ = drain_progress(&mut sd, 40);

@@ -968,31 +968,77 @@ impl GameState {
                         "an aggregate Batch window always carries its per-unit \
                          body in contents",
                     );
-                    let mut repeat_frame = contents.frame;
-                    repeat_frame.anaphora.inherited_replacements = inherited;
-                    repeat_frame.anaphora.contained_in_batch = true;
-                    // `mark` is captured NOW, at apply — after cant/replace
-                    // already decided the aggregate PASSES — so it only
-                    // covers what THESE `n` contained futures do ([CR#614.1]:
-                    // a REPLACED aggregate never reaches this arm at all, so
-                    // it never plants a `FinalizeAct` to spuriously fire off
-                    // an unrelated later same-verb resolution).
-                    let mark = self.resolution_events.len();
-                    self.schedule_front(vec![
-                        WorkItem::RunEffect {
-                            effect: Box::new(deckmaste_core::OneShotEffect::Repeat(
-                                deckmaste_core::Count::Literal(n),
-                                Box::new(contents.body),
-                            )),
-                            frame: repeat_frame,
-                        },
-                        WorkItem::FinalizeAct {
-                            act: rebuilt(),
-                            watch: crate::agenda::FinalizeWatch::AnyContained(verb),
-                            mark,
-                        },
-                    ]);
-                    rebuilt()
+                    if verb.0.as_str() == "Mill" {
+                        // [CR#701.17a,603.3b,616.1]: the aggregate Mill window
+                        // PASSED — commit its top-`n` library slice as ONE
+                        // simultaneous batch of per-card Library → Graveyard
+                        // FUTURES. `Occurrence::Batch` replaces each member on
+                        // its OWN ([CR#616.1]: Rest in Peace redirects each
+                        // milled card to exile), and the destination rides the
+                        // EVENT (an Instead rewrites it), NOT a body re-read.
+                        // `n` is the aggregate count a count-multiplier already
+                        // bit at the ONE window ([CR#121.2a]); the slice clamps
+                        // to library size ([CR#701.17b]). The one trigger-visible
+                        // `Act(Mill)` fact lands AFTER the cards move, via
+                        // `FinalizeAct{AnyContained}` ([CR#701.22d]).
+                        let player = who.expect("a Mill aggregate names its performer");
+                        let to_zone = crate::resolve::composite_body_group(&contents.body)
+                            .map_or(Zone::Graveyard, |(_, z)| z);
+                        let slice: Vec<ObjectId> = self.zones.libraries[player.index()]
+                            .iter()
+                            .take(n as usize)
+                            .copied()
+                            .collect();
+                        let mill_events: Vec<GameEvent> = slice
+                            .into_iter()
+                            .map(|object| GameEvent::ZoneChange {
+                                snapshot: None,
+                                object,
+                                from: Some(Zone::Library),
+                                to: to_zone,
+                                enters: None,
+                                position: None,
+                                face: None,
+                                cause: cause.clone(),
+                            })
+                            .collect();
+                        let mark = self.resolution_events.len();
+                        self.schedule_front(vec![
+                            WorkItem::Emit(Occurrence::Batch(mill_events)),
+                            WorkItem::FinalizeAct {
+                                act: rebuilt(),
+                                watch: crate::agenda::FinalizeWatch::AnyContained(verb),
+                                mark,
+                            },
+                        ]);
+                        rebuilt()
+                    } else {
+                        let mut repeat_frame = contents.frame;
+                        repeat_frame.anaphora.inherited_replacements = inherited;
+                        repeat_frame.anaphora.contained_in_batch = true;
+                        // `mark` is captured NOW, at apply — after cant/replace
+                        // already decided the aggregate PASSES — so it only
+                        // covers what THESE `n` contained futures do ([CR#614.1]:
+                        // a REPLACED aggregate never reaches this arm at all, so
+                        // it never plants a `FinalizeAct` to spuriously fire off
+                        // an unrelated later same-verb resolution).
+                        let mark = self.resolution_events.len();
+                        self.schedule_front(vec![
+                            WorkItem::RunEffect {
+                                effect: Box::new(deckmaste_core::OneShotEffect::Repeat(
+                                    deckmaste_core::Count::Literal(n),
+                                    Box::new(contents.body),
+                                )),
+                                frame: repeat_frame,
+                            },
+                            WorkItem::FinalizeAct {
+                                act: rebuilt(),
+                                watch: crate::agenda::FinalizeWatch::AnyContained(verb),
+                                mark,
+                            },
+                        ]);
+                        rebuilt()
+                    }
                 } else if verb.0.as_str() == "Draw"
                     && on.is_none()
                     && let Some(player) = who

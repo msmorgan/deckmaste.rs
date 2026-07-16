@@ -1,74 +1,11 @@
-use serde::Deserialize;
-use serde::Serialize;
-
 use crate::Count;
 use crate::CounterRef;
-use crate::Expand;
 use crate::Expansion;
 use crate::Reference;
 use crate::Selection;
 use crate::SupportsMacros;
 use crate::TokenSpec;
 use crate::mana::ManaProduction;
-
-/// The closed, parameterized keyword-action atom family ([CR#701]) — the
-/// recognizable payload an [`Action::Composite`] performs and the present-tense
-/// `Act` event carries. Mirrors the Idris `KeywordActionSpec` (`Core.idr`),
-/// which grows this vocabulary; the atom is authored BAREWORD-POSITIONAL
-/// (`Destroy(Target(0))`, `Scry(You, 2)`) — the variant tag is the printed
-/// keyword and its args are the verb's operands, no `name:`/`on:` binders.
-///
-/// Heterogeneous by design (matching the Idris arms): the player-report verbs
-/// (Scry/Surveil/Fateseal/Mill/Draw) carry the PERFORMING player `who`
-/// (player-first, always explicit — `Scry(You, 2)`, never elided) then the
-/// count; `Destroy` carries its patient object; `Fight` its two fighters. This
-/// is the value/authoring side (arguments are [`Reference`]s); the
-/// trigger/guard PATTERN twin is [`crate::KeywordActionPattern`] (arguments are
-/// [`crate::Predicate`]s), exactly the [`Action`]-vs-`EventFilter` split.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum KeywordAction {
-    /// "scry N" ([CR#701.22a]) — `who` looks at the top N of their library.
-    Scry(Reference, Count),
-    /// "surveil N" ([CR#701.25a]).
-    Surveil(Reference, Count),
-    /// "fateseal N" ([CR#701.20a]) — `who` scries an opponent's library.
-    Fateseal(Reference, Count),
-    /// "mill N" ([CR#701.17a]) — `who` puts the top N of their library into
-    /// their graveyard as one group — a single instruction, not per-card like
-    /// draw ([CR#701.17a] vs [CR#121.2]). Built by
-    /// [`Action::mill`]; there is no bespoke `Mill` `PlayerAction`.
-    Mill(Reference, Count),
-    /// "`who` draws N" ([CR#121.1]) — mirrors [`Mill`](Self::Mill) (the idris
-    /// `KeywordActionSpec.Draw : Reference -> Count`). The count rides the atom
-    /// like mill's, but draw REALIZES per-card ([CR#121.2] — the engine emits N
-    /// independent single-card `Act(Draw)` attempts, each empty-checked and
-    /// replaceable, NOT one simultaneous batch like mill). Built by
-    /// [`Action::draw`]; there is no bespoke `Draw` `PlayerAction`.
-    Draw(Reference, Count),
-    /// "`who` discards N" ([CR#701.9a]) — mirrors [`Draw`](Self::Draw)
-    /// (player-first, then the count). The count rides the atom, but WHICH
-    /// cards is the body's business: the common form's body is an
-    /// [`Each`](crate::Each) over a
-    /// [`FromHand`](crate::Selection::FromHand) selection (the affected
-    /// player's batch choice, [CR#701.9b] — one choice of `count` cards,
-    /// front-loaded), realized as `count` per-card `Act(Discard)` events —
-    /// each individually replaceable/cantable (madness exiles ITS card and
-    /// no other, [CR#702.35a]; "whenever a player discards a card" fires
-    /// once per card). The "at random" variant rides the selection's
-    /// `random` flag, not the atom. "Discard this card" (cycling's cost,
-    /// [CR#702.29a]) is the degenerate no-choice form: the body is the
-    /// single Hand → Graveyard [`Move`](Action::Move) of the named card
-    /// (built by [`Action::discard_what`]), committed on ONE dual-facet
-    /// `Act(Discard)` like destroy's. Built by [`Action::discard`]; there
-    /// is no bespoke `Discard` `PlayerAction`.
-    Discard(Reference, Count),
-    /// "destroy [object]" ([CR#701.8a]) — the patient permanent. Destroy has no
-    /// bespoke verb: it is [`Action::destroy`], a `Composite` whose body is the
-    /// Battlefield → Graveyard [`Move`](Action::Move).
-    Destroy(Reference),
-    /// "[a] fights [b]" ([CR#701.14a]) — the two fighter objects.
-    Fight(Reference, Reference),
-}
 
 /// A position within a library ([CR#401.7]): an offset counted from the top or
 /// from the bottom. `FromTop(0)` is the very top, `FromBottom(0)` the very
@@ -292,17 +229,24 @@ pub enum Action {
         duration: crate::continuous::Duration,
         one_shot: bool,
     },
-    /// A named keyword action ([CR#701]) — the [`KeywordAction`] atom (the
-    /// printed keyword verb + its operands, e.g. `Scry(You, 2)`) whose meaning
-    /// IS its `body` effect, run when this resolves. Mirrors the Idris
-    /// `Composite : KeywordActionSpec b -> OneShotEffect b -> Action b`: the
-    /// keyword-action macros desugar to a `Composite` so there are no bespoke
-    /// `Scry`/`Surveil` verbs. Resolving it runs `body`, then (when the body
-    /// actually acts — scry 0 does nothing, [CR#701.22b]) emits the present-
-    /// tense `Act(<atom>)` event a "whenever you scry/surveil" trigger reads,
-    /// exactly like `KeywordAbility::Composite` on the ability side. `body` is
-    /// boxed to break the `Action` → `OneShotEffect` → `Action` size cycle.
-    Composite(KeywordAction, Box<crate::OneShotEffect>),
+    /// A named keyword action ([CR#701]) — a verb `name` ([`crate::VerbName`])
+    /// whose meaning IS its `body` effect, run when this resolves (the discard
+    /// IS the Hand → Graveyard move, named "Discard"). The keyword-action
+    /// macros (`Destroy`, `Scry`, `Discard`, …) desugar to a `Composite` so
+    /// there are no bespoke `Scry`/`Surveil` verbs; the engine dispatches
+    /// on the NAME plus the body's shape, not a typed atom. Mirrors the
+    /// Idris `Composite : KeywordActionSpec b -> OneShotEffect b -> Action
+    /// b` and the [`KeywordAbility::Composite`](crate::KeywordAbility) `{
+    /// name, abilities }` precedent (a struct variant, read all-named).
+    /// Resolving runs `body`, then (when the body actually acts — scry 0
+    /// does nothing, [CR#701.22b]) commits the present-tense `Act`
+    /// name-fact a "whenever you scry/surveil/discard" trigger reads.
+    /// `body` is boxed to break the `Action` → `OneShotEffect` →
+    /// `Action` size cycle.
+    Composite {
+        name: crate::VerbName,
+        body: Box<crate::OneShotEffect>,
+    },
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
     #[macro_ron(embed)]
@@ -505,84 +449,86 @@ impl Action {
     }
 
     /// "Destroy [permanent]" ([CR#701.8a]) — the keyword action as data: a
-    /// [`Composite`](Action::Composite) whose tag is `Destroy(what)` and whose
-    /// body IS the Battlefield → owner's-graveyard [`Move`](Action::Move).
-    /// There is no bespoke `Destroy` verb; the engine reads the body facet
-    /// ("→Graveyard") off this stored move and commits it atomically on the one
-    /// `Act(Destroy)` event ([CR#616.1]). Authored via the `Destroy` macro so
-    /// the card still writes "Destroy target creature".
+    /// [`Composite`](Action::Composite) named `"Destroy"` whose body IS the
+    /// Battlefield → owner's-graveyard [`Move`](Action::Move). There is no
+    /// bespoke `Destroy` verb; the engine reads the body facet ("→Graveyard")
+    /// off this stored move and commits it atomically on the one `Act(Destroy)`
+    /// event ([CR#616.1]). Authored via the `Destroy` macro so the card still
+    /// writes "Destroy target creature".
     #[must_use]
     pub fn destroy(what: Reference) -> Action {
-        Action::Composite(
-            KeywordAction::Destroy(what.clone()),
-            Box::new(crate::OneShotEffect::Act(Action::move_to(
+        Action::Composite {
+            name: crate::VerbName::from("Destroy"),
+            body: Box::new(crate::OneShotEffect::Act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
-        )
+        }
     }
 
-    /// "`who` mills `count`" ([CR#701.17a]) — the keyword action as data: a
-    /// [`Composite`](Action::Composite) whose tag is `Mill(who, count)` and
-    /// whose body is the BATCH relocation of the top `count` cards of `who`'s
-    /// library to their graveyard, moved as ONE group — a single instruction
-    /// ([CR#701.17a]), not the per-card sequence a draw is ([CR#121.2]),
-    /// clamped to the library size ([CR#701.17b]). A group move
-    /// ([`MoveGroup`](Action::MoveGroup)
-    /// over a [`TopOfLibrary`](crate::Selection::TopOfLibrary) selection), NOT
-    /// a per-card `Repeat`: mill is simultaneous. The graveyard is not an
-    /// ordered landing here (the arrangement rides for the group shape but
-    /// the batch lands unarranged), so `arrangement` is the neutral
-    /// [`AnyOrder`](crate::Arrangement::AnyOrder). Authored via the
-    /// `Mill`/`Mills` macros so the card still writes "Mill three cards." /
-    /// "Target player mills five cards."
+    /// One card of a mill ([CR#701.17a]) — the PER-UNIT keyword action a mill's
+    /// `Batch` contains: a [`Composite`](Action::Composite) named `"Mill"`
+    /// whose body describes the top slice of `who`'s library moving to
+    /// their graveyard (a [`MoveGroup`](Action::MoveGroup) over
+    /// [`TopOfLibrary`](crate::Selection::TopOfLibrary), the late-bound slice).
+    /// `whose` rides the body's selection so the engine reads the performer off
+    /// it. A whole mill is
+    /// [`OneShotEffect::mill`](crate::OneShotEffect::mill) — `Batch(count,
+    /// Act(Mill))` — and the engine commits the whole slice as ONE simultaneous
+    /// batch of per-card, individually-redirectable moves ([CR#701.17a,616.1]),
+    /// NOT the per-card sequence a draw is ([CR#121.2]).
     #[must_use]
-    pub fn mill(who: Reference, count: Count) -> Action {
-        Action::Composite(
-            KeywordAction::Mill(who.clone(), count.clone()),
-            Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
-                group: Selection::TopOfLibrary { count, whose: who },
+    pub fn mill_one(who: Reference) -> Action {
+        Action::Composite {
+            name: crate::VerbName::from("Mill"),
+            body: Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
+                group: Selection::TopOfLibrary {
+                    count: Count::Literal(1),
+                    whose: who,
+                },
                 arrangement: crate::Arrangement::AnyOrder,
                 to: Destination::Zone(crate::Zone::Graveyard),
                 riders: Vec::new(),
             })),
-        )
+        }
     }
 
-    /// "`who` draws `count`" ([CR#121.1]) — the keyword action as data, the
-    /// twin of [`Action::mill`]: a [`Composite`](Action::Composite) whose tag
-    /// is `Draw(who, count)` and whose body DESCRIBES the top-`count` Library →
-    /// Hand relocation (an [`Each`](crate::Each) per-card move, [CR#121.2]).
-    /// UNLIKE mill (one simultaneous batch, [CR#701.17a]) draw REALIZES
-    /// per-card: the engine emits `count` independent single-card `Act(Draw)`
-    /// attempts, each empty-checked and replaceable ([CR#121.2]). And UNLIKE
-    /// destroy/mill the body is NOT the executor — the `Act(Draw)` apply binds
-    /// the library top LATE and does the move, because an executing body would
-    /// silently no-op on an empty library and MISS the draw-from-empty loss
-    /// ([CR#120.3,104.3c]); the apply checks emptiness explicitly BEFORE each
-    /// move. The stored body is the faithful render/re-emit facet only.
-    /// Authored via the `Draw`/`Draws` macros so the card still writes "Draw a
-    /// card." / "Target player draws two cards."
+    /// One card of a draw ([CR#121.1,121.2]) — the PER-UNIT keyword action a
+    /// draw's `Batch` contains: a [`Composite`](Action::Composite) named
+    /// `"Draw"` whose body DESCRIBES the top-of-library → Hand relocation (an
+    /// [`Each`](crate::Each) over
+    /// [`TopOfLibrary`](crate::Selection::TopOfLibrary)); `whose` rides the
+    /// body's selection so the engine reads the performer off it. A whole draw
+    /// is [`OneShotEffect::draw`](crate::OneShotEffect::draw) — `Batch(count,
+    /// Act(Draw))`, `count` SEQUENTIAL single-card draws ([CR#121.2], each
+    /// seeing prior state), UNLIKE mill's one simultaneous batch. The body is
+    /// NOT the executor — the `Act(Draw)` apply binds the library top LATE and
+    /// empty-checks BEFORE its move (an empty library loses the game,
+    /// [CR#120.3,104.3c] — an executing body would silently no-op and MISS that
+    /// loss); the stored body is the faithful render/re-emit facet only.
     #[must_use]
-    pub fn draw(who: Reference, count: Count) -> Action {
-        Action::Composite(
-            KeywordAction::Draw(who.clone(), count.clone()),
-            Box::new(crate::OneShotEffect::Each(crate::Each {
-                binder: crate::Binder::Existing(Selection::TopOfLibrary { count, whose: who }),
+    pub fn draw_one(who: Reference) -> Action {
+        Action::Composite {
+            name: crate::VerbName::from("Draw"),
+            body: Box::new(crate::OneShotEffect::Each(crate::Each {
+                binder: crate::Binder::Existing(Selection::TopOfLibrary {
+                    count: Count::Literal(1),
+                    whose: who,
+                }),
                 effect: Box::new(crate::OneShotEffect::Act(Action::move_to(
                     Reference::It,
                     crate::Zone::Hand,
                 ))),
             })),
-        )
+        }
     }
 
     /// "`who` discards `count`" ([CR#701.9a]) — the keyword action as data:
-    /// a [`Composite`](Action::Composite) whose tag is `Discard(who, count)`
-    /// and whose body DESCRIBES the chosen-from-hand Hand → Graveyard
-    /// relocation: an [`Each`](crate::Each) over a
-    /// [`FromHand`](crate::Selection::FromHand) selection carrying the
-    /// count, the hand's owner, and the `random` flag ([CR#701.9b] — the
+    /// a [`Composite`](Action::Composite) named `"Discard"` whose body
+    /// DESCRIBES the chosen-from-hand Hand → Graveyard relocation: an
+    /// [`Each`](crate::Each) over a [`FromHand`](crate::Selection::FromHand)
+    /// selection carrying the count, the hand's owner (`whose` — the engine
+    /// reads the performer off it), and the `random` flag ([CR#701.9b] — the
     /// affected player chooses by default; `random: true` is "at random").
     /// Like draw, the body is NOT the executor — the choice is a real
     /// decision (a hidden-zone selection, not a deterministic top-N read),
@@ -596,9 +542,9 @@ impl Action {
     /// cards." / "Each opponent discards a card."
     #[must_use]
     pub fn discard(who: Reference, count: Count, random: bool) -> Action {
-        Action::Composite(
-            KeywordAction::Discard(who.clone(), count.clone()),
-            Box::new(crate::OneShotEffect::Each(crate::Each {
+        Action::Composite {
+            name: crate::VerbName::from("Discard"),
+            body: Box::new(crate::OneShotEffect::Each(crate::Each {
                 binder: crate::Binder::Existing(Selection::FromHand {
                     count,
                     whose: who,
@@ -609,27 +555,28 @@ impl Action {
                     crate::Zone::Graveyard,
                 ))),
             })),
-        )
+        }
     }
 
     /// "Discard [this card / that card]" ([CR#701.9a]) — the degenerate
     /// NO-CHOICE discard of a named card: cycling's "Discard this card" cost
     /// ([CR#702.29a]) and the bound "that player discards that card" form.
-    /// A [`Composite`](Action::Composite) whose tag is `Discard(who, 1)` and
-    /// whose body IS the single Hand → owner's-graveyard
-    /// [`Move`](Action::Move) — the destroy shape: the engine reads the body
-    /// facet off the stored move and commits it atomically on the ONE
-    /// dual-facet `Act(Discard)` event ([CR#616.1]), where madness's
-    /// replacement bites ([CR#702.35a]).
+    /// A [`Composite`](Action::Composite) named `"Discard"` whose body IS the
+    /// single Hand → owner's-graveyard [`Move`](Action::Move) — the destroy
+    /// shape: the engine reads the body facet off the stored move and commits
+    /// it atomically on the ONE dual-facet `Act(Discard)` event
+    /// ([CR#616.1]), where madness's replacement bites ([CR#702.35a]). The
+    /// discarding player is the card's own controller (the card is in that
+    /// player's hand), so it rides the patient, not a separate `who` slot.
     #[must_use]
-    pub fn discard_what(who: Reference, what: Reference) -> Action {
-        Action::Composite(
-            KeywordAction::Discard(who, Count::Literal(1)),
-            Box::new(crate::OneShotEffect::Act(Action::move_to(
+    pub fn discard_what(what: Reference) -> Action {
+        Action::Composite {
+            name: crate::VerbName::from("Discard"),
+            body: Box::new(crate::OneShotEffect::Act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
-        )
+        }
     }
 }
 
@@ -665,6 +612,25 @@ pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
             crate::Binder::Existing(Selection::FromHand { random: true, .. })
         ),
         _ => false,
+    }
+}
+
+/// The `count` of a CHOSEN discard composite's stored body ([CR#701.9b]) — the
+/// number of cards the `Each`'s [`FromHand`](Selection::FromHand) selection
+/// picks. `None` for a bound single-move body (`discard this card`, always one
+/// card). Read off the stored body, sharing the descent with
+/// [`discard_body_what`]/[`discard_body_random`] so re-agenting a discard cost
+/// ([CR#601.2h]) reads its count without a typed atom.
+#[must_use]
+pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
+    use crate::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => discard_body_count(&e.value),
+        E::Each(each) => match &each.binder {
+            crate::Binder::Existing(Selection::FromHand { count, .. }) => Some(count),
+            _ => None,
+        },
+        _ => None,
     }
 }
 
@@ -720,7 +686,8 @@ impl Action {
             // direct variant — in `Action` position it shadows the
             // `By(You, …)` embed — and is the same payer-performed
             // relocation ([CR#701.13]).
-            Action::Composite(KeywordAction::Discard(..), _) | Action::Move(..) => true,
+            Action::Composite { name, .. } if name.as_str() == "Discard" => true,
+            Action::Move(..) => true,
             _ => false,
         }
     }
@@ -758,8 +725,9 @@ mod tests {
         // the ONE cost-eligible composite is the discard keyword action
         // ("Discard a card:", cycling's bound form — [CR#701.9,702.29a]).
         assert!(Action::discard(Reference::You, Count::Literal(1), false).is_cost_eligible());
-        assert!(Action::discard_what(Reference::You, Reference::This).is_cost_eligible());
-        assert!(!Action::draw(Reference::You, Count::Literal(1)).is_cost_eligible());
+        assert!(Action::discard_what(Reference::This).is_cost_eligible());
+        // A non-discard composite (destroy) is not cost-eligible.
+        assert!(!Action::destroy(Reference::This).is_cost_eligible());
         // Counter costs ride these two verbs (loyalty `+N`/`−N`, "remove a
         // counter:", "pay {E}") — no dedicated counter-cost verb
         // ([CR#606.4]).
@@ -788,20 +756,20 @@ mod tests {
     }
 
     /// The discard keyword action as data ([CR#701.9]): [`Action::discard`]
-    /// builds `Composite(Discard(who, n), Each(FromHand …))` — the CHOSEN
+    /// builds `Composite(name: "Discard", body: Each(FromHand …))` — the CHOSEN
     /// form, the affected player picking `n` from hand ([CR#701.9b]) — and
     /// [`Action::discard_what`] the BOUND single-move form ("discard this
     /// card", cycling's cost [CR#702.29a]), the destroy shape. Both
-    /// round-trip structurally, and the body facets read back through the
-    /// shared descent helpers.
+    /// round-trip structurally, and the body facets (who/count/random/patient)
+    /// read back through the shared descent helpers.
     #[test]
     fn discard_composite_forms_round_trip() {
         let chosen = Action::discard(Reference::You, Count::Literal(2), false);
-        let Action::Composite(KeywordAction::Discard(who, n), body) = &chosen else {
+        let Action::Composite { name, body } = &chosen else {
             panic!("expected a discard Composite, got {chosen:?}");
         };
-        assert_eq!(*who, Reference::You);
-        assert_eq!(*n, Count::Literal(2));
+        assert_eq!(name.as_str(), "Discard");
+        assert_eq!(discard_body_count(body), Some(&Count::Literal(2)));
         assert!(
             discard_body_what(body).is_none(),
             "chosen form binds no card"
@@ -809,11 +777,16 @@ mod tests {
         assert!(!discard_body_random(body));
         assert_eq!(read(&write(&chosen)), chosen);
 
-        let bound = Action::discard_what(Reference::You, Reference::This);
-        let Action::Composite(KeywordAction::Discard(_, n), body) = &bound else {
+        let bound = Action::discard_what(Reference::This);
+        let Action::Composite { name, body } = &bound else {
             panic!("expected a discard Composite, got {bound:?}");
         };
-        assert_eq!(*n, Count::Literal(1), "a bound discard is one card");
+        assert_eq!(name.as_str(), "Discard");
+        assert_eq!(
+            discard_body_count(body),
+            None,
+            "a bound discard is one card — no chosen count"
+        );
         assert_eq!(discard_body_what(body), Some(&Reference::This));
         assert_eq!(read(&write(&bound)), bound);
     }
@@ -856,9 +829,10 @@ mod tests {
         );
         // Destroy is no longer a bespoke verb — it is the `Composite` the
         // `Action::destroy` ctor builds (body = the Battlefield → Graveyard
-        // `Move`); the raw Composite spelling round-trips through plain RON.
+        // `Move`), now a struct variant named by its verb; the raw Composite
+        // spelling round-trips through plain RON.
         assert_eq!(
-            read("Composite(Destroy(This),Move(This,Graveyard))"),
+            read("Composite(name: Destroy, body: Move(This,Graveyard))"),
             Action::destroy(Reference::This),
         );
     }
@@ -1216,7 +1190,7 @@ mod tests {
         assert!(!write(&chosen).contains("random"), "false random omitted");
 
         let random = Action::discard(Reference::You, Count::Literal(1), true);
-        let Action::Composite(_, body) = &random else {
+        let Action::Composite { body, .. } = &random else {
             panic!("expected a discard Composite, got {random:?}");
         };
         assert!(discard_body_random(body));
@@ -1272,14 +1246,16 @@ mod tests {
         assert_eq!(read(&write(&explicit)), explicit);
     }
 
-    /// `Composite(<atom>, body)` ([CR#701]) reads bareword-positional and
-    /// round-trips — the keyword-action atom the scry/surveil/fateseal macros
-    /// desugar to. The atom spells its performer player-first (`Scry(You, 2)`).
+    /// `Composite { name, body }` ([CR#701]) reads all-named (the
+    /// struct-variant spelling, like `KeywordAbility::Composite`) and
+    /// round-trips — the keyword-action the scry/surveil/fateseal macros
+    /// desugar to. The `name` is a bareword [`crate::VerbName`]; the
+    /// performer rides the body's selection (`whose`).
     #[test]
     fn composite_round_trips() {
-        let scry = Action::Composite(
-            KeywordAction::Scry(Reference::You, Count::Literal(2)),
-            Box::new(crate::OneShotEffect::Each(crate::Each {
+        let scry = Action::Composite {
+            name: crate::VerbName::from("Scry"),
+            body: Box::new(crate::OneShotEffect::Each(crate::Each {
                 binder: crate::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
                     whose: Reference::You,
@@ -1291,50 +1267,60 @@ mod tests {
                     None,
                 ))),
             })),
-        );
+        };
         assert_eq!(read(&write(&scry)), scry);
-        // The atom renders BAREWORD-POSITIONAL, performer player-first.
+        // The verb name renders BAREWORD, all-named struct-variant fields.
         assert!(
-            write(&scry).starts_with("Composite(Scry(You,2),"),
-            "atom must render bareword-positional, got {}",
+            write(&scry).starts_with("Composite(name:Scry,body:"),
+            "verb must render bareword-named, got {}",
             write(&scry)
         );
         assert_eq!(
             read(
-                "Composite(Scry(You,2),Each(binder:Existing(TopOfLibrary(count:2,whose:You)),effect:Move(It,Library(FromTop(0)))))"
+                "Composite(name:Scry,body:Each(binder:Existing(TopOfLibrary(count:2,whose:You)),effect:Move(It,Library(FromTop(0)))))"
             ),
             scry
         );
     }
 
-    /// `Action::mill` ([CR#701.17a]) is the `Composite(Mill(who, n), <group
-    /// move>)` keyword-action atom — a `MoveGroup` of the top `n` of `who`'s
-    /// library to their graveyard ([CR#701.17a], one instruction), NOT a
-    /// `PlayerAction`. The `who` rides both the atom and the group selection's
-    /// `whose`; it round-trips bareword-positional.
+    /// [`Action::mill_one`] ([CR#701.17a]) is the PER-UNIT `Composite { name:
+    /// "Mill", body: <group move> }` — a `MoveGroup` of the top slice of
+    /// `who`'s library to their graveyard, the late-bound slice. `who` rides
+    /// the group selection's `whose`. It round-trips all-named, and the whole
+    /// mill wraps it in a `Batch` ([`OneShotEffect::mill`]).
     #[test]
     fn mill_composite_round_trips() {
-        let mill = Action::mill(Reference::It, Count::Literal(5));
+        let mill = Action::mill_one(Reference::It);
         assert_eq!(
             mill,
-            Action::Composite(
-                KeywordAction::Mill(Reference::It, Count::Literal(5)),
-                Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
+            Action::Composite {
+                name: crate::VerbName::from("Mill"),
+                body: Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
                     group: Selection::TopOfLibrary {
-                        count: Count::Literal(5),
+                        count: Count::Literal(1),
                         whose: Reference::It,
                     },
                     arrangement: Arrangement::AnyOrder,
                     to: Destination::Zone(crate::Zone::Graveyard),
                     riders: Vec::new(),
                 })),
-            )
+            }
         );
         assert_eq!(read(&write(&mill)), mill);
         assert!(
-            write(&mill).starts_with("Composite(Mill(It,5),"),
-            "atom renders bareword-positional, got {}",
+            write(&mill).starts_with("Composite(name:Mill,body:"),
+            "verb renders bareword-named, got {}",
             write(&mill)
+        );
+
+        // The whole mill is `Batch(count, Act(Mill))` — the aggregate window.
+        let whole = crate::OneShotEffect::mill(Reference::It, Count::Literal(5));
+        assert_eq!(
+            whole,
+            crate::OneShotEffect::Batch(
+                Count::Literal(5),
+                Box::new(crate::OneShotEffect::Act(Action::mill_one(Reference::It)))
+            )
         );
     }
 }

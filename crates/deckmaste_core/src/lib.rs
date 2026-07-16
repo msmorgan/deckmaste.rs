@@ -16,8 +16,8 @@ pub use action::Anchor;
 pub use action::Arrangement;
 pub use action::Destination;
 pub use action::EnterRider;
-pub use action::KeywordAction;
 pub use action::PlayerAction;
+pub use action::discard_body_count;
 pub use action::discard_body_random;
 pub use action::discard_body_what;
 

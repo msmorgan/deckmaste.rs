@@ -200,6 +200,9 @@ mod tests {
             name_of::<Counter>(),
             name_of::<deckmaste_core::DesignationDecl>(),
             "Macro", // hand-registered: MacroDef's serde rename, loader-only
+            // hand-registered: the keyword-action verb grouping kind (name-
+            // erasing like `TypeDef`), collected into the plugin's verb table.
+            "KeywordAction",
         ];
         let kinds = kinds();
         for name in names {

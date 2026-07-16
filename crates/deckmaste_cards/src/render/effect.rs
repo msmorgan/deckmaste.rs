@@ -255,10 +255,15 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // `core-many-binder-group-move` seam.
         OneShotEffect::Each(fe) => {
             // Peel a remembered macro invocation (`Draws(It, 1)` →
-            // `Expanded`) to its core `Act` so the collective renderer sees the
-            // keyword-action tag ("Each player draws a card."), not "For each
-            // player, …".
-            if let OneShotEffect::Act(act) = peel_expanded(&fe.effect)
+            // `Expanded`) to its core effect so the collective renderer sees the
+            // keyword action ("Each player draws a card."), not "For each
+            // player, …". Draw/mill are `Batch(n, Act(Mill/Draw))` over the loop
+            // element; destroy/discard stay a single `Act(Composite)`.
+            let peeled = peel_expanded(&fe.effect);
+            if let Some(collective) = each_collective_batch(peeled, &fe.binder, ctx) {
+                return collective;
+            }
+            if let OneShotEffect::Act(act) = peeled
                 && let Some(collective) = each_collective(act, &fe.binder, ctx)
             {
                 return collective;
@@ -764,24 +769,28 @@ fn choose_pile(cp: &deckmaste_core::ChoosePile, ctx: &Ctx) -> String {
 /// the shapes the corpus needs are recognized; `None` declines to the
 /// caller's structural fallback.
 fn pile_collective(body: &OneShotEffect, group_phrase: &str) -> Option<String> {
-    use deckmaste_core::KeywordAction;
+    // Destroy-of-`It` is `Composite{name:"Destroy", body: Move(It, Graveyard)}`.
+    let is_destroy_it = |b: &OneShotEffect| {
+        matches!(b, OneShotEffect::Act(Action::Composite { name, body })
+            if name.as_str() == "Destroy"
+                && matches!(composite_move_patient(body), Some(Reference::It)))
+    };
     match body {
-        OneShotEffect::Act(Action::Composite(KeywordAction::Destroy(Reference::It), _)) => {
-            Some(format!("Destroy all creatures in {group_phrase}."))
-        }
-        // `DestroyNoRegen`'s expansion: `Sequentially([Composite(Destroy(It),
-        // Move(It, Graveyard)), Until(ForThisEvent, [Cant(Regenerate(on:
+        b if is_destroy_it(b) => Some(format!("Destroy all creatures in {group_phrase}.")),
+        // `DestroyNoRegen`'s expansion: `Sequentially([Composite(name: Destroy,
+        // body: Move(It, Graveyard)), Until(ForThisEvent, [Cant(Regenerate(on:
         // It))])])` ([CR#701.19c]).
         OneShotEffect::Sequentially(parts) => match parts.as_slice() {
-            [
-                OneShotEffect::Act(Action::Composite(KeywordAction::Destroy(Reference::It), _)),
-                OneShotEffect::Until(Duration::ForThisEvent, statics),
-            ] => match statics.as_slice() {
-                [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Regenerate { .. }))] => Some(
-                    format!("Destroy all creatures in {group_phrase}. They can't be regenerated."),
-                ),
-                _ => None,
-            },
+            [b, OneShotEffect::Until(Duration::ForThisEvent, statics)] if is_destroy_it(b) => {
+                match statics.as_slice() {
+                    [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Regenerate { .. }))] => {
+                        Some(format!(
+                            "Destroy all creatures in {group_phrase}. They can't be regenerated."
+                        ))
+                    }
+                    _ => None,
+                }
+            }
             _ => None,
         },
         _ => None,
@@ -887,6 +896,88 @@ pub(super) fn a_an(noun: &str) -> String {
     format!("a {noun}")
 }
 
+/// The single-move patient of a keyword-action `Composite` body — `Destroy`'s
+/// `Move(r, Graveyard)` head names `r`, else `None`. Reads the patient off the
+/// stored body, the name-keyed engine dispatch's renderer twin ([CR#701.8a]).
+fn composite_move_patient(body: &OneShotEffect) -> Option<&Reference> {
+    match peel_expanded(body) {
+        OneShotEffect::Act(Action::Move(r, _, _, _)) => Some(r),
+        _ => None,
+    }
+}
+
+/// The milling/drawing player of a slice-verb body ([CR#121,701.17a]): the
+/// `whose` of the body's `TopOfLibrary` selection (draw's `Each` binder, mill's
+/// `MoveGroup` group). `None` for any other shape.
+fn slice_whose(body: &OneShotEffect) -> Option<&Reference> {
+    use deckmaste_core::Selection;
+    match peel_expanded(body) {
+        OneShotEffect::Each(each) => match &each.binder {
+            deckmaste_core::Binder::Existing(Selection::TopOfLibrary { whose, .. }) => Some(whose),
+            _ => None,
+        },
+        OneShotEffect::Act(Action::MoveGroup {
+            group: Selection::TopOfLibrary { whose, .. },
+            ..
+        }) => Some(whose),
+        _ => None,
+    }
+}
+
+/// The discarding player of a chosen-discard body ([CR#701.9b]): the `whose` of
+/// the body's `Each`-over-`FromHand` selection. `None` for a bound single-move
+/// discard (its player rides the patient) or any other shape.
+fn discard_body_whose(body: &OneShotEffect) -> Option<&Reference> {
+    use deckmaste_core::Selection;
+    match peel_expanded(body) {
+        OneShotEffect::Each(each) => match &each.binder {
+            deckmaste_core::Binder::Existing(Selection::FromHand { whose, .. }) => Some(whose),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The collective rendering of an [`OneShotEffect::Each`] over a
+/// `Batch`-wrapped slice keyword action ([CR#121.1,701.17a]) with the loop
+/// element as performer — "Each player draws/mills N cards." (Jace Beleren's
+/// "[+2]: Each player draws a card."). Draw/mill expand to `Batch(count,
+/// Act(Composite{name}))` whose per-unit body's `whose` is the loop element
+/// `It`; the batch count is the card count. `None` for any other shape.
+fn each_collective_batch(
+    effect: &OneShotEffect,
+    binder: &deckmaste_core::Binder,
+    ctx: &Ctx,
+) -> Option<String> {
+    let OneShotEffect::Batch(count, body) = effect else {
+        return None;
+    };
+    let OneShotEffect::Act(Action::Composite {
+        name,
+        body: verb_body,
+    }) = peel_expanded(body)
+    else {
+        return None;
+    };
+    if !matches!(slice_whose(verb_body), Some(Reference::It)) {
+        return None;
+    }
+    let each_group = format!("each {}", binder_group_noun(binder, ctx));
+    match name.as_str() {
+        "Draw" => Some(format!(
+            "{} draws {}.",
+            capitalize_first(&each_group),
+            counted_cards(count),
+        )),
+        "Mill" => Some(format!(
+            "{} mills {}.",
+            capitalize_first(&each_group),
+            counted_cards(count),
+        )),
+        _ => None,
+    }
+}
+
 /// The collective rendering of an [`OneShotEffect::Each`] whose body is a
 /// single group verb acting on the per-element [`Reference::It`] — the natural
 /// "<verb> each <group>" / "put <group> on <dest>" surface ([CR#608]), the
@@ -912,38 +1003,30 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
             ))
         }
         // "Destroy each <group>." ([CR#701.8a]) — destroy is the
-        // `Composite(Destroy(It), Move(It, Graveyard))` the `Destroy` macro
-        // builds; the tag carries the printed keyword.
-        Action::Composite(deckmaste_core::KeywordAction::Destroy(Reference::It), _) => {
+        // `Composite{name:"Destroy", body: Move(It, Graveyard)}` the `Destroy`
+        // macro builds over the loop element; the name carries the printed
+        // keyword and the patient rides the body's `Move` source.
+        Action::Composite { name, body }
+            if name.as_str() == "Destroy"
+                && matches!(composite_move_patient(body), Some(Reference::It)) =>
+        {
             Some(format!("Destroy {}.", each_group()))
         }
-        // [CR#121.1,121.2]: "Each player draws N cards." — draw is
-        // `Composite(Draw(It, n), <body>)` over the loop element as performer
-        // (Jace Beleren's "[+2]: Each player draws a card."); the twin mill form
-        // reads "Each player mills N cards." Both render the tag.
-        Action::Composite(deckmaste_core::KeywordAction::Draw(Reference::It, n), _) => {
-            Some(format!(
-                "{} draws {}.",
-                capitalize_first(&each_group()),
-                counted_cards(n),
-            ))
-        }
-        Action::Composite(deckmaste_core::KeywordAction::Mill(Reference::It, n), _) => {
-            Some(format!(
-                "{} mills {}.",
-                capitalize_first(&each_group()),
-                counted_cards(n),
-            ))
-        }
         // [CR#701.9a,701.9b]: "Each player discards N cards[ at random]." —
-        // discard is `Composite(Discard(It, n), <body>)` over the loop
-        // element as performer, the mill/draw twin; the at-random qualifier
-        // rides the body's `FromHand` selection.
-        Action::Composite(deckmaste_core::KeywordAction::Discard(Reference::It, n), body) => {
+        // discard is `Composite{name:"Discard", body: Each(FromHand(whose:It))}`
+        // over the loop element as performer (draw/mill's per-card twin, but
+        // Batch-wrapped and handled by `each_collective_batch`); the at-random
+        // qualifier rides the body's `FromHand` selection.
+        Action::Composite { name, body }
+            if name.as_str() == "Discard"
+                && matches!(discard_body_whose(body), Some(Reference::It)) =>
+        {
             Some(format!(
                 "{} discards {}{}.",
                 capitalize_first(&each_group()),
-                counted_cards(n),
+                counted_cards(
+                    deckmaste_core::discard_body_count(body).unwrap_or(&Count::Literal(1))
+                ),
                 if deckmaste_core::discard_body_random(body) { " at random" } else { "" },
             ))
         }
@@ -1279,67 +1362,6 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 where_x.map_or_else(String::new, |w| format!(", {w}")),
             )
         }
-        // [CR#701.8a]: destroy is `Composite(Destroy(r), Move(r, Graveyard))` —
-        // render the tag as "Destroy <patient>." context-aware (the `Move` body
-        // is engine realization, not printed). This specific arm precedes the
-        // generic `Composite(_, body)` below.
-        Action::Composite(deckmaste_core::KeywordAction::Destroy(r), _) => {
-            format!("Destroy {}.", fragment::reference(r, ctx))
-        }
-        // [CR#701.17a]: mill is `Composite(Mill(who, n), <group move>)` — render
-        // the tag. `You` keeps the imperative "Mill N cards."; a non-`You`
-        // performer renders subject-declarative ("Target player mills five
-        // cards.", [CR#701.17a]). The `MoveGroup` body is engine realization, not
-        // printed. Precedes the generic `Composite(_, body)` arm below.
-        Action::Composite(deckmaste_core::KeywordAction::Mill(who, n), _) => match who {
-            Reference::You => mill_imperative(n),
-            other => format!(
-                "{} mills {}.",
-                capitalize_first(&fragment::reference(other, ctx)),
-                counted_cards(n),
-            ),
-        },
-        // [CR#121.1,121.2]: draw is `Composite(Draw(who, n), <body>)` — render
-        // the tag, twin of the mill arm above. `You` keeps the imperative "Draw
-        // N cards."; a non-`You` performer renders subject-declarative ("Target
-        // player draws N cards."). The `Each` body is engine realization (the
-        // per-card late library-top bind), not printed.
-        Action::Composite(deckmaste_core::KeywordAction::Draw(who, n), _) => match who {
-            Reference::You => draw_imperative(n),
-            other => format!(
-                "{} draws {}.",
-                capitalize_first(&fragment::reference(other, ctx)),
-                counted_cards(n),
-            ),
-        },
-        // [CR#701.9a]: discard is `Composite(Discard(who, n), <body>)` —
-        // render the tag, twin of the mill/draw arms above. `You` keeps the
-        // imperative ("Discard a card.", with the body's `random` flag as
-        // the " at random" qualifier, [CR#701.9b]); a non-`You` performer
-        // renders subject-declarative ("Target player discards two cards.").
-        // The BOUND form ("discard this card", [CR#702.29a]) names its card
-        // in the body's single-move head. The body is engine realization
-        // (the batched hand choice → per-card events), not printed.
-        Action::Composite(deckmaste_core::KeywordAction::Discard(who, n), body) => {
-            let random = deckmaste_core::discard_body_random(body);
-            match (who, deckmaste_core::discard_body_what(body)) {
-                (Reference::You, Some(what)) => {
-                    format!("Discard {}.", fragment::reference(what, ctx))
-                }
-                (Reference::You, None) => discard_imperative(n, random),
-                (other, Some(what)) => format!(
-                    "{} discards {}.",
-                    capitalize_first(&fragment::reference(other, ctx)),
-                    fragment::reference(what, ctx),
-                ),
-                (other, None) => format!(
-                    "{} discards {}{}.",
-                    capitalize_first(&fragment::reference(other, ctx)),
-                    counted_cards(n),
-                    if random { " at random" } else { "" },
-                ),
-            }
-        }
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
         // target spell" (Mana Leak's punisher branch).
         Action::Counter(r) => format!("Counter {}.", fragment::reference(r, ctx)),
@@ -1396,8 +1418,9 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         ),
         // [CR#701]: a named keyword action is transparent to structural
         // rendering — its meaning IS its body (the printed keyword name rides
-        // the macro template when authored via a macro).
-        Action::Composite(_, body) => effect(body, ctx),
+        // the macro template when authored via a macro, the common corpus
+        // path; a raw composite renders its body).
+        Action::Composite { body, .. } => effect(body, ctx),
         // [CR#701.13a]/[CR#400.7]: exiling a graveyard-hate target — "Exile
         // target [<type>] card from a graveyard." — any player's graveyard,
         // per `any_graveyard_card_filter` (migrations effect.rs), so "from a
@@ -1830,32 +1853,6 @@ fn counted_cards(c: &Count) -> String {
     }
 }
 
-/// The imperative you-form of mill ([CR#701.17a]) — "Mill a card." / "Mill
-/// three cards." / "Mill X cards." The `You`-performer render of a
-/// `Composite(Mill(You, n), …)`.
-fn mill_imperative(c: &Count) -> String {
-    format!("Mill {}.", counted_cards(c))
-}
-
-/// The imperative you-form of discard ([CR#701.9a]) — "Discard a card." /
-/// "Discard 2 cards." / "Discard a card at random." The `You`-performer
-/// render of a `Composite(Discard(You, n), …)` whose body is the chosen
-/// (unbound) form; `random` is the body selection's flag ([CR#701.9b]).
-fn discard_imperative(c: &Count, random: bool) -> String {
-    let suffix = if random { " at random" } else { "" };
-    match c {
-        Count::Literal(1) => format!("Discard a card{suffix}."),
-        c => format!("Discard {} cards{suffix}.", fragment::count(c)),
-    }
-}
-
-/// The imperative you-form of draw ([CR#121.1]) — "Draw a card." / "Draw three
-/// cards." / "Draw X cards." The `You`-performer render of a
-/// `Composite(Draw(You, n), …)`.
-fn draw_imperative(c: &Count) -> String {
-    format!("Draw {}.", counted_cards(c))
-}
-
 /// The THIRD-PERSON verb phrase of a player action — the declarative-subject
 /// tail ("loses 2 life", "discards a card") a non-`You` `By` agent or an
 /// `Each` player loop prefixes with its subject. A remembered verb-macro
@@ -2219,6 +2216,23 @@ mod tests {
     use super::action;
     use super::effect;
 
+    /// The builtin plugin, loaded once — verb keyword actions now render via
+    /// their macro TEMPLATE (the `Expanded` provenance the corpus carries),
+    /// not a per-enum render arm, so tests build them through the real macro
+    /// layer rather than raw ctors.
+    fn kw(src: &str) -> OneShotEffect {
+        use std::sync::LazyLock;
+        static BUILTIN: LazyLock<crate::plugin::Plugin> = LazyLock::new(|| {
+            let root =
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin");
+            crate::plugin::Plugin::load(root).expect("load builtin plugin")
+        });
+        BUILTIN
+            .macros
+            .read_str(src)
+            .unwrap_or_else(|e| panic!("expanding keyword action {src:?}: {e}"))
+    }
+
     /// `MayPay`/`MustPay` agree the payer's verb with its grammatical person
     /// ([CR#603,608,118.12a]): the default `you` actor takes second-person
     /// "do / don't / pay", a third-person actor ("that player") takes "does /
@@ -2238,12 +2252,7 @@ mod tests {
             that: None,
         };
         let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
-        let draw = || {
-            Box::new(OneShotEffect::Act(Action::draw(
-                Reference::You,
-                Count::Literal(1),
-            )))
-        };
+        let draw = || Box::new(kw("Draw(1)"));
         let lose = || {
             Box::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
                 Count::Literal(1),
@@ -2796,9 +2805,7 @@ mod tests {
                         )),
                     ))]),
                 }]),
-                body: Box::new(deckmaste_core::OneShotEffect::Act(
-                    deckmaste_core::Action::draw(deckmaste_core::Reference::You, Count::Literal(1)),
-                )),
+                body: Box::new(kw("Draw(1)")),
             }),
             &ctx,
         );
@@ -2832,29 +2839,20 @@ mod tests {
         assert_eq!(effect(&with, &ctx), "Sacrifice a creature.");
     }
 
-    /// A `Choose` many-binder contributes its "N <object>" phrase to the body's
-    /// anaphor: `With(Choose(2, cards), Discard(That))` renders "Discard 2
-    /// cards." ([CR#601.2b]).
+    /// The imperative `Discard(N)` verb renders "Discard two cards." via its
+    /// macro template ([CR#701.9a,601.2b]). (The choose-then-discard
+    /// `With(Choose(N), Discard(That))` surface — where the binder contributes
+    /// the "N cards" phrase to the body's anaphor — is a later reshape of
+    /// discard's choice path; the `With`→`That` binding mechanism itself is
+    /// covered by `with_choose_one_renders_sacrifice_a_creature`.)
     #[test]
-    fn with_choose_many_renders_discard_two_cards() {
-        use deckmaste_core::ObjectKind;
+    fn discard_many_renders_discard_two_cards() {
         let ctx = Ctx {
             subject: "Wheel",
             targets: &[],
             that: None,
         };
-        let with = OneShotEffect::With(With {
-            binder: Binder::Choose {
-                quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
-                filter: Predicate::Kind(ObjectKind::Card),
-                by: Reference::You,
-            },
-            body: Box::new(OneShotEffect::Act(Action::discard_what(
-                Reference::You,
-                Reference::That(deckmaste_core::Sort::Card),
-            ))),
-        });
-        assert_eq!(effect(&with, &ctx), "Discard two cards.");
+        assert_eq!(effect(&kw("Discard(2)"), &ctx), "Discard two cards.");
     }
 
     /// The library-search / tutor family's bespoke render ([CR#701.23a]) —
@@ -3021,9 +3019,8 @@ mod tests {
             targets: &[],
             that: None,
         };
-        let draw = || OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1)));
-        let discard =
-            || OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(1), false));
+        let draw = || kw("Draw(1)");
+        let discard = || kw("Discard(1)");
         let loot = OneShotEffect::Sequentially(vec![draw(), discard()]);
         assert_eq!(effect(&loot, &ctx), "Draw a card, then discard a card.");
         let rummage = OneShotEffect::Sequentially(vec![discard(), draw()]);

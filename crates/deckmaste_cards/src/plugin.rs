@@ -63,6 +63,15 @@ pub struct Plugin {
     /// signature fits no shape fails the load: keyword one-liners take typed
     /// args from the closed shape vocabulary.
     pub keywords: HashMap<Ident, KeywordDecl>,
+    /// The keyword-action verb registry ([CR#701]): one row per
+    /// `KeywordAction`-kind macro (`Destroy`, `Mill`, `Draw`, `Scry`, …),
+    /// recording its name and typed parameter signature. The macro file IS the
+    /// registry data (name + param shape + — held by reference in
+    /// [`macros`](Self::macros) — its canonical expansion body), the
+    /// coherence-by-construction source a later would-lane matcher indexes. A
+    /// side-table cloned from the `keyword`-registry flow; no card position
+    /// reads it yet.
+    pub verbs: HashMap<Ident, VerbDecl>,
     /// Rules-defined state-based actions loaded from `rules/sba/`. Evaluated
     /// globally by the engine's SBA sweep ([CR#704.3]). See
     /// `deckmaste_core::SbaRule`.
@@ -103,6 +112,7 @@ impl Plugin {
                 counters: prelude.counters.clone(),
                 designations: prelude.designations.clone(),
                 keywords: prelude.keywords.clone(),
+                verbs: prelude.verbs.clone(),
             },
             root.into(),
         )
@@ -145,6 +155,7 @@ impl Plugin {
             mut counters,
             mut designations,
             mut keywords,
+            mut verbs,
         } = inherited;
         // What this plugin itself defines, per kind. A name inherited from
         // the prelude may be overridden — last plugin wins — but two
@@ -233,6 +244,24 @@ impl Plugin {
                                 },
                             );
                         }
+                        // Every KeywordAction-kind macro is a verb registry
+                        // row ([CR#701]): its name plus typed parameter
+                        // signature. Cloning the keyword flow above; the
+                        // canonical body stays in `macros` (recoverable by
+                        // expanding the invocation).
+                        if def
+                            .kinds
+                            .iter()
+                            .any(|kind| kind.as_str() == "KeywordAction")
+                        {
+                            verbs.insert(
+                                def.name,
+                                VerbDecl {
+                                    name: def.name,
+                                    params: verb_params(&def.params),
+                                },
+                            );
+                        }
                         macros
                             .replace(&def)
                             .with_context(|| format!(r#"loading "{}""#, path.display()))?;
@@ -301,6 +330,7 @@ impl Plugin {
             counters,
             designations,
             keywords,
+            verbs,
             sba_rules,
             conferral_rules,
             damage_result_rules,
@@ -351,6 +381,35 @@ struct Inherited {
     counters: HashMap<Ident, Counter>,
     designations: HashMap<Ident, DesignationDecl>,
     keywords: HashMap<Ident, KeywordDecl>,
+    verbs: HashMap<Ident, VerbDecl>,
+}
+
+/// A keyword-action verb registry row ([CR#701]): the verb's name plus its
+/// typed parameter signature (the param-type names, e.g. `[Reference]` for
+/// `Destroy`, `[Reference, Count]` for `Mills`). Derived at plugin load from
+/// each `KeywordAction`-kind macro, so the macro file IS the registry data;
+/// the canonical expansion body stays in the [`Plugin::macros`] set. The
+/// verb-side twin of [`KeywordDecl`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerbDecl {
+    pub name: Ident,
+    pub params: Vec<Ident>,
+}
+
+/// The typed parameter signature of a verb macro — the param-type names in
+/// positional order (`[Count]`, `[Reference, Count]`, `[]`). Named signatures
+/// (rare for verbs) canonicalize by sorted value type, mirroring
+/// [`keyword_shape`].
+fn verb_params(params: &crate::macros::Params) -> Vec<Ident> {
+    use crate::macros::Params;
+    match params {
+        Params::Positional(list) => list.iter().map(|p| p.name).collect(),
+        Params::Named(map) => {
+            let mut names: Vec<Ident> = map.values().map(|p| p.name).collect();
+            names.sort_unstable_by(|a, b| a.as_str().cmp(b.as_str()));
+            names
+        }
+    }
 }
 
 /// The [`ParamShape`] a keyword macro's typed parameter signature spells

@@ -64,6 +64,12 @@ pub fn kinds() -> KindSet {
     // "Macro"). No card position ever reads it; registering it keeps one kind
     // registry. Name-erasing like the other struct kinds.
     kinds.add(Kind::new("Macro"));
+    // Keyword-action verb macros (`Destroy`, `Mill`, `Draw`, `Scry`, …) also
+    // carry this grouping kind so the plugin loader collects them into a verb
+    // side-table (name + param shape + canonical body). They are invoked at
+    // `OneShotEffect` positions like any effect macro — this kind opens no card
+    // position of its own, it is a name-erasing loader tag like `TypeDef`.
+    kinds.add(Kind::new("KeywordAction"));
     kinds
 }
 

@@ -1,12 +1,14 @@
 // "Draw N" ([CR#121.1]): the imperative YOU-form draw — you draw N cards, ONE
-// AT A TIME ([CR#121.2] — a per-card sequence, NOT a simultaneous batch like
-// mill). Scry's sibling on the draw lane, the twin of `Mill`: the keyword
-// action as DATA — a `Composite` whose tag is `Draw(You, n)` and whose body
-// DESCRIBES the top-N Library → Hand relocation (an `Each` per-card move). The
-// engine does NOT run the body: it emits N independent single-card `Act(Draw)`
-// attempts, each of which binds the library top LATE and empty-checks BEFORE
-// its move (an empty library loses the game, [CR#120.3,104.3c] — an executing
-// `Each` body would silently no-op and MISS that loss). The declarative-subject
+// AT A TIME ([CR#121.2] — a per-card SEQUENCE, NOT a simultaneous batch like
+// mill). A SLICE-family keyword action: a `Batch(N, ...)` over the per-unit
+// `Composite` named "Draw" whose body DESCRIBES the top-of-library → Hand
+// relocation (an `Each` over `TopOfLibrary`, `whose` defaulting You). The
+// `Batch` gives a count-doubling replacement (Alhammarret's Archive,
+// [CR#121.2a,616.1g]) ONE aggregate window; the engine then runs the N
+// contained draws SEQUENTIALLY — each binds the library top LATE and
+// empty-checks BEFORE its move (an empty library loses the game,
+// [CR#120.3,104.3c] — an executing body would silently no-op and MISS that
+// loss; the stored body is the render/re-emit facet). The declarative-subject
 // form ("Target player draws N cards.") is the `Draws(who, n)` macro; this is
 // the bare you-imperative.
 //
@@ -14,10 +16,10 @@
 (
     name: "Draw",
     template: "draw ${0:card|cards}",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Count],
-    body: Composite(
-        Draw(You, Param(0)),
-        Each(binder: Existing(TopOfLibrary(count: Param(0))), effect: Move(It, Hand)),
-    ),
+    body: Batch(Param(0), Composite(
+        name: Draw,
+        body: Each(binder: Existing(TopOfLibrary(count: 1)), effect: Move(It, Hand)),
+    )),
 )

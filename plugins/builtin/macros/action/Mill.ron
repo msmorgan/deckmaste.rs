@@ -1,24 +1,28 @@
 // "Mill N" ([CR#701.17a]): the imperative YOU-form self-mill — you put the top
-// N cards of your library into your graveyard, as one group — a single
-// instruction, not per-card like draw ([CR#121.2]); clamped to library size
-// ([CR#701.17b]). Scry's sibling on the
-// mill lane: the keyword action as DATA — a `Composite` whose tag is
-// `Mill(You, n)` and whose body is the batch `MoveGroup` of the top N of your
-// library to your graveyard. The declarative-subject form ("Target player mills
-// N cards.") is the `Mills(who, n)` macro; this is the bare you-imperative.
+// N cards of your library into your graveyard as one group; a single
+// instruction, clamped to library size ([CR#701.17b]). A SLICE-family keyword
+// action (like draw): a `Batch(N, ...)` over the per-unit `Composite` named
+// "Mill" whose body describes the top slice of your library moving to your
+// graveyard (a `MoveGroup` over `TopOfLibrary`, `whose` defaulting You). The
+// `Batch` gives a count-doubling replacement (Bruvac, [CR#121.2a,616.1g]) ONE
+// aggregate window to bite, and the engine commits the whole top slice as ONE
+// simultaneous batch of per-card, individually-redirectable moves (Rest in
+// Peace bites each, [CR#616.1]) — NOT the per-card SEQUENCE a draw is
+// ([CR#121.2]). The declarative-subject form ("Target player mills N cards.")
+// is the `Mills(who, n)` macro; this is the bare you-imperative.
 //
 // Usage: Mill(3) -> "Mill three cards."
 (
     name: "Mill",
     template: "mill ${0:card|cards}",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Count],
-    body: Composite(
-        Mill(You, Param(0)),
-        MoveGroup(
-            group: TopOfLibrary(count: Param(0)),
+    body: Batch(Param(0), Composite(
+        name: Mill,
+        body: MoveGroup(
+            group: TopOfLibrary(count: 1),
             arrangement: AnyOrder,
             to: Graveyard,
         ),
-    ),
+    )),
 )

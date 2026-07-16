@@ -1464,7 +1464,7 @@ mod tests {
                 event,
                 condition: None,
                 limits: Vec::new(),
-                effect: OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
+                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
             })],
             ..CardFace::default()
         });

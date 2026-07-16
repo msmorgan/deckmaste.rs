@@ -3374,7 +3374,6 @@ mod tests {
     /// fires on `event` — the shape both the delayed and reflexive tests
     /// register.
     fn draw_on(event: EventFilter) -> deckmaste_core::TriggeredAbility {
-        use deckmaste_core::Action;
         use deckmaste_core::Count;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::Reference;
@@ -3386,7 +3385,7 @@ mod tests {
             event,
             condition: None,
             limits: Vec::new(),
-            effect: OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
+            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
         }
     }
 
@@ -3542,7 +3541,6 @@ mod tests {
     /// (`from`).
     fn upkeep_trigger_from(from: Option<Zone>) -> deckmaste_core::Card {
         use deckmaste_core::Ability;
-        use deckmaste_core::Action;
         use deckmaste_core::BeginningStep;
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
@@ -3567,7 +3565,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new(),
-                effect: OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
+                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
             })],
             ..CardFace::default()
         })

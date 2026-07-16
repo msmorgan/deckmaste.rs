@@ -359,14 +359,13 @@ mod tests {
         let lumpy: Cost = crate::ron::options()
             .from_str(
                 "[Cost([Mana([Generic(2)])]), \
-                 Do(Composite(Discard(You, Literal(1)), Move(This, Graveyard)))]",
+                 Do(Composite(name: Discard, body: Move(This, Graveyard)))]",
             )
             .unwrap();
         let mana_two = CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
             SimpleManaSymbol::Generic(2),
         )]));
-        let discard_self =
-            CostComponent::do_action(crate::Action::discard_what(Reference::You, Reference::This));
+        let discard_self = CostComponent::do_action(crate::Action::discard_what(Reference::This));
         assert_eq!(
             lumpy,
             Cost(vec![

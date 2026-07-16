@@ -649,14 +649,17 @@ impl GameState {
             // Scavenge) — a single `Reference` always names its one object,
             // so it is payable, like the `By`-wrapped verbs.
             Action::Move(..) => true,
-            Action::Composite(deckmaste_core::KeywordAction::Discard(_, count), body) => {
+            Action::Composite { name, body } if name.as_str() == "Discard" => {
                 if deckmaste_core::discard_body_what(body).is_some() {
                     // The bound form names its one card ([CR#702.29a]) —
                     // payable; choose-feasibility isn't its concern.
                     true
                 } else {
-                    // [CR#601.2h]: the chosen form needs the full count.
-                    let need = self.eval_count(count, frame) as usize;
+                    // [CR#601.2h]: the chosen form needs the full count (read
+                    // off the body's `FromHand` selection).
+                    let need = deckmaste_core::discard_body_count(body)
+                        .map_or(0, |count| self.eval_count(count, frame))
+                        as usize;
                     self.zones.hands[player.index()].len() >= need
                 }
             }
@@ -947,7 +950,7 @@ mod tests {
         let lumpy: Cost = deckmaste_core::ron::options()
             .from_str(
                 "[Cost([Mana([Generic(2)])]), \
-                 Do(Composite(Discard(You, Literal(1)), Move(This, Graveyard)))]",
+                 Do(Composite(name: Discard, body: Move(This, Graveyard)))]",
             )
             .unwrap();
         // Pre-condition: read really is lumpy (a nested Cost survives).
@@ -964,8 +967,8 @@ mod tests {
         assert_eq!(summary.verbs.len(), 1, "the discard-self verb is collected");
         assert!(
             matches!(
-                summary.verbs[0],
-                Action::Composite(deckmaste_core::KeywordAction::Discard(..), _)
+                &summary.verbs[0],
+                Action::Composite { name, .. } if name.as_str() == "Discard"
             ),
             "the verb is the discard-self composite, got {:?}",
             summary.verbs[0],

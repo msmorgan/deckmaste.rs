@@ -10,5 +10,5 @@
     name: "DiscardThis",
     template: "Discard this card",
     kinds: [CostComponent],
-    body: Do(Composite(Discard(You, 1), Move(This, Graveyard))),
+    body: Do(Composite(name: Discard, body: Move(This, Graveyard))),
 )

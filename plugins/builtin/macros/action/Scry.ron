@@ -7,11 +7,11 @@
 (
     name: "Scry",
     template: "scry ${0}",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Count],
     body: Composite(
-        Scry(You, Param(0)),
-        Each(
+        name: Scry,
+        body: Each(
             binder: Existing(TopOfLibrary(count: Param(0))),
             effect: Modal(
                 choose: (count: Range(Literal(1), Literal(1))),

@@ -21,11 +21,11 @@
 (
     name: "Fight",
     template: "${0} fights ${1}",
-    kinds: [OneShotEffect],
+    kinds: [OneShotEffect, KeywordAction],
     params: [Reference, Reference],
     body: Composite(
-        Fight(Param(0), Param(1)),
-        If(
+        name: Fight,
+        body: If(
             condition: And([
                 Matches(Param(0), And([Permanent, Type("Creature")])),
                 Matches(Param(1), And([Permanent, Type("Creature")])),

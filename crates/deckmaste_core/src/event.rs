@@ -247,7 +247,8 @@ pub enum Cause {
     Cause(CausePattern),
 }
 
-/// The trigger/guard PATTERN twin of [`KeywordAction`](crate::KeywordAction) —
+/// The trigger/guard PATTERN twin of the keyword-action
+/// [`Composite`](crate::Action::Composite) verb family —
 /// what [`EventFilter::Act`] matches a performed keyword action by. Same
 /// closed, bareword-positional atom family, but its arguments are
 /// [`Predicate`]s (not [`Reference`]s), exactly the

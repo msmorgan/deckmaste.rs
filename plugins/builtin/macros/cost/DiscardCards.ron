@@ -10,7 +10,7 @@
     kinds: [CostComponent],
     params: [Count],
     body: Do(Composite(
-        Discard(You, Param(0)),
-        Each(binder: Existing(FromHand(count: Param(0))), effect: Move(It, Graveyard)),
+        name: Discard,
+        body: Each(binder: Existing(FromHand(count: Param(0))), effect: Move(It, Graveyard)),
     )),
 )
