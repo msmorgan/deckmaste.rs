@@ -1366,8 +1366,10 @@ fn additional_payment(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> Opti
 /// the `LoyaltyCounter` name and the `This` subject, mirroring the engine's
 /// `is_loyalty_ability` discriminator — any other counter cost (a different
 /// counter, or one on a non-`This` subject) returns `None` and renders through
-/// the generic `player_action` clause. Only a bare literal count brackets; a
-/// dynamic `−X` loyalty cost (out of scope) falls back to the generic render.
+/// the generic `player_action` clause. A bare literal count brackets, and so
+/// does the variable `−X` loyalty cost ([CR#601.2b] — `Count::X`, printed as
+/// `[−X]`, e.g. Ugin, the Spirit Dragon); any other dynamic count falls
+/// back to the generic render.
 fn loyalty_cost_prefix(pa: &PlayerAction) -> Option<String> {
     let is_loyalty = |c: &deckmaste_core::CounterRef| c.as_str() == "LoyaltyCounter";
     match pa {
@@ -1376,6 +1378,9 @@ fn loyalty_cost_prefix(pa: &PlayerAction) -> Option<String> {
                 0 => Some("[0]".to_owned()),
                 n => Some(format!("[+{n}]")),
             }
+        }
+        PlayerAction::RemoveCounters(Reference::This, counter, Count::X) if is_loyalty(counter) => {
+            Some("[\u{2212}X]".to_owned())
         }
         PlayerAction::RemoveCounters(Reference::This, counter, count) if is_loyalty(counter) => {
             Some(format!("[\u{2212}{}]", count.literal_value()?))

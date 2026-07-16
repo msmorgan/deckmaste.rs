@@ -64,6 +64,7 @@ pub const REGISTRY: &[AbilityParser] = &[
     crate::parsers::keyword_ability::resolve_line,
     crate::parsers::spell_ability::resolve_line,
     crate::parsers::triggered_ability::resolve_line,
+    crate::parsers::loyalty_ability::resolve_line,
     crate::parsers::activated_ability::resolve_line,
     crate::parsers::replacement::resolve_line,
     crate::parsers::alternative_cost::resolve_line,

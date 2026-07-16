@@ -260,6 +260,27 @@ fn render_effect(production: &Production, rider: Option<&Rider>) -> anyhow::Resu
     })
 }
 
+/// The rendered resolution effect for a bare `Add …[. <rider>]` clause — the
+/// production grammar lent to sibling frames. A loyalty ability that adds
+/// mana is NOT a mana ability ([CR#605.1a] excludes loyalty abilities — it
+/// uses the stack like any other loyalty ability), but its effect body is the
+/// same `Add` production this module reads, so the loyalty frame parser
+/// borrows it here. Declines (`Ok(None)`) on a non-`Add` clause or an
+/// unreadable production/rider.
+pub(super) fn parse_add_effect(clause: &str) -> anyhow::Result<Option<String>> {
+    let Some(body) = clause
+        .strip_prefix("Add ")
+        .and_then(|s| s.strip_suffix('.'))
+    else {
+        return Ok(None);
+    };
+    let (production_text, rider) = split_rider(body);
+    let Some(production) = parse_production(production_text) else {
+        return Ok(None);
+    };
+    render_effect(&production, rider.as_ref()).map(Some)
+}
+
 /// A registry parser: a `<cost>: Add …` / `~ enters tapped.` line -> the bare
 /// RON of one ability, or `None`.
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {

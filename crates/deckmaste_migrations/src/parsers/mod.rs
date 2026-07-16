@@ -8,6 +8,7 @@ pub(crate) mod count;
 pub(crate) mod effect;
 pub(crate) mod filter;
 pub(crate) mod keyword_ability;
+pub(crate) mod loyalty_ability;
 pub(crate) mod macro_template;
 pub(crate) mod mana_ability;
 pub(crate) mod modal;
