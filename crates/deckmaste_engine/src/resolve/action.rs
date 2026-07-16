@@ -1904,16 +1904,34 @@ mod tests {
     }
 
     /// [CR#616.1]: a Rest-in-Peace-style `→Graveyard` replacement redirects
-    /// EACH milled card to exile. This is the per-card mill lane: mill today
-    /// commits as ONE aggregate `Act(Mill)` (`on: None`) whose single window
-    /// can't bind a per-card `EventObject`, so a result-replacement that reads
-    /// `EventObject` (Rest in Peace) can't redirect per card yet — a whole-mill
-    /// replacement that ignores the patient (item 1's `Act(Mill) → GainLife`)
-    /// does bite. The per-card `Act(Mill)` atoms that make each milled card its
-    /// own bindable window land in Task 7; un-ignore this then.
+    /// EACH milled card to exile.
+    ///
+    /// DISABLED BY THE ACT-FACET REWRITE — this test PRE-DATES this task and
+    /// passed under the old lane (mill emitted per-card future-form
+    /// `ZoneChange`s that Rest in Peace bit individually). The rewrite makes
+    /// mill commit as ONE aggregate `Act(Mill)` (`on: None`) whose apply
+    /// derives its destination from `contents.body`'s `MoveGroup` and moves the
+    /// batch via `apply_zone_will_change`, with NO per-card window. TWO
+    /// distinct gaps make this a Task-7 obligation, both to be closed when
+    /// per-card `Act(Mill)` atoms land (each milled card its own bindable
+    /// window):
+    ///   1. A per-card result-replacement that reads `EventObject` (Rest in
+    ///      Peace) can't bind a patient — aggregate `Act(Mill)` has `on: None`
+    ///      — so it can't redirect per card.
+    ///   2. Even a WHOLE-mill `Instead` that rewrites the aggregate `Act`'s
+    ///      `to` is silently dropped at commit: the mill apply reads `to` from
+    ///      `contents.body`, not the (possibly-redirected) event `to`.
+    /// A whole-mill replacement that ignores the patient AND doesn't rely on
+    /// the `to` (item 1's `Act(Mill) → GainLife`,
+    /// `mill_replaced_before_cards_move`) DOES bite today. Un-ignore this
+    /// test when Task 7 lands.
     #[test]
-    #[ignore = "per-card mill result-replacement (Rest in Peace) awaits Task 7's \
-                per-card Act(Mill) atoms; aggregate mill can't bind per-card EventObject"]
+    #[ignore = "PRE-EXISTING test disabled by this task: per-card mill \
+                result-replacement (Rest in Peace) awaits Task 7's per-card \
+                Act(Mill) atoms. Two gaps: (1) aggregate Act(Mill) has on:None so \
+                a per-card EventObject can't bind; (2) an aggregate-level redirect \
+                of Act(Mill)'s `to` is dropped at commit (mill apply reads the \
+                destination from contents.body, not the event `to`)"]
     fn rest_in_peace_replaces_milled_cards_with_exile() {
         let (mut state, a) = bear_on_field();
         // "If a card would be put into a graveyard, exile it instead."
