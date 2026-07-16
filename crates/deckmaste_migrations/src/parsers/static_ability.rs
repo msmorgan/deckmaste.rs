@@ -246,20 +246,20 @@ fn parse_cost_modifier(body: &str) -> Option<String> {
     ))
 }
 
-/// "As long as <condition>, <static clause>." -> `Static(Conditionally(<condition>,
-/// <inner>))` ([CR#611.3a]) — the COMPOSITION of the `Condition`-macro path
-/// and the existing static-ability productions, nothing new in either
-/// vocabulary. Condition-FIRST only: the renderer
-/// (`crates/deckmaste_cards/src/render/ability.rs`'s `conditionally_qualified`)
-/// only emits the "As long as X, Y." phrasing — `Conditionally` carries no
-/// order marker (the `(Condition, StaticEffect)` pair can't remember which way
-/// the oracle wrote it), and the SAME condition/effect pair appears in BOTH
-/// orders across different real cards (e.g. "As long as you control an
-/// artifact, ~ gets +1/+0 and has deathtouch." vs "~ gets +1/+1 as long as you
-/// control an artifact."), so no per-card heuristic recovers it. A
-/// condition-LAST card ("Y as long as X.") is left `Unparsed` — an order
-/// marker would be new core grammar, outside this composition's hard
-/// constraint.
+/// "As long as <condition>, <static clause>." ->
+/// `Static(Conditionally(<condition>, <inner>))` ([CR#611.3a]) — the
+/// COMPOSITION of the `Condition`-macro path and the existing static-ability
+/// productions, nothing new in either vocabulary. Condition-FIRST only: the
+/// renderer (`crates/deckmaste_cards/src/render/ability.rs`'s
+/// `conditionally_qualified`) only emits the "As long as X, Y." phrasing —
+/// `Conditionally` carries no order marker (the `(Condition, StaticEffect)`
+/// pair can't remember which way the oracle wrote it), and the SAME
+/// condition/effect pair appears in BOTH orders across different real cards
+/// (e.g. "As long as you control an artifact, ~ gets +1/+0 and has deathtouch."
+/// vs "~ gets +1/+1 as long as you control an artifact."), so no per-card
+/// heuristic recovers it. A condition-LAST card ("Y as long as X.") is left
+/// `Unparsed` — an order marker would be new core grammar, outside this
+/// composition's hard constraint.
 ///
 /// The condition phrase routes through the shared `Condition`-macro path
 /// ([`crate::parsers::condition::resolve`], the same routing

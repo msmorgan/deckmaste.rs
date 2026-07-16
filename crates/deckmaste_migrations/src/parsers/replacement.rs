@@ -33,6 +33,19 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     parse(line, ctx)
 }
 
+/// One replacement-clause production: a normalized oracle line -> the bare
+/// `Replacement(...)`/macro-invocation RON, or `None` to decline.
+type ReplacementParser = fn(&str, &ResolveCtx) -> anyhow::Result<Option<String>>;
+
+/// The replacement templates, in priority order — first match wins.
+const REPLACEMENT_PARSERS: &[ReplacementParser] = &[
+    parse_as_enters,
+    parse_enters_with_counters,
+    parse_instead,
+    |l, _| Ok(parse_tapped_unless(l)),
+    |l, _| Ok(parse_tapped_if(l)),
+];
+
 fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     // [CR#614.1]: a replacement is a continuous effect of a permanent's static
     // ability (or a one-shot's during-resolution clause). The permanent-side
@@ -40,20 +53,10 @@ fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     if ctx.kind == CardKind::Spell {
         return Ok(None);
     }
-    if let Some(s) = parse_as_enters(line, ctx)? {
-        return Ok(Some(s));
-    }
-    if let Some(s) = parse_enters_with_counters(line, ctx)? {
-        return Ok(Some(s));
-    }
-    if let Some(s) = parse_instead(line, ctx)? {
-        return Ok(Some(s));
-    }
-    if let Some(s) = parse_tapped_unless(line) {
-        return Ok(Some(s));
-    }
-    if let Some(s) = parse_tapped_if(line) {
-        return Ok(Some(s));
+    for parser in REPLACEMENT_PARSERS {
+        if let Some(s) = parser(line, ctx)? {
+            return Ok(Some(s));
+        }
     }
     Ok(None)
 }

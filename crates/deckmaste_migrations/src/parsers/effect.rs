@@ -20,9 +20,12 @@ pub(super) struct ParsedEffect {
     pub(super) effect: String,
 }
 
-/// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
-/// decline. Productions are tried in order; the first match wins. `parse_if`
-/// leads (it folds a base sentence + conditional override into one
+/// One effect-clause production: a normalized oracle sentence -> a
+/// [`ParsedEffect`], or `None` to decline.
+type ClauseParser = fn(&str, &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>>;
+
+/// The effect-clause productions, in priority order — first match wins.
+/// `parse_if` leads (it folds a base sentence + conditional override into one
 /// `OneShotEffect::If`); the bespoke productions follow (they encode
 /// targeting/scope the bare macro templates can't carry); an
 /// `OneShotEffect`-kind macro template ([`parse_macro_effect`]) is the final
@@ -30,117 +33,59 @@ pub(super) struct ParsedEffect {
 /// to the macro whose template renders them. [`ResolveCtx`] carries the reverse
 /// template index that the fallthrough (and the conditional's condition-phrase
 /// lookup) consults.
+///
+/// Productions that themselves consult the reverse template index (directly
+/// or by re-entering `parse_clause`) propagate `anyhow::Result` directly — an
+/// ambiguous macro match is a hard generation error, not a decline; every
+/// other (Option-returning, ctx-less) production is lifted to the table's
+/// element type by a non-capturing closure. First-match-wins across these
+/// DISTINCT productions is unchanged — only a same-kind macro tie inside the
+/// index is an error.
+const CLAUSE_PARSERS: &[ClauseParser] = &[
+    parse_if,
+    parse_may,
+    parse_player_taps_per_counter,
+    |l, _| Ok(parse_destroy_no_regen(l)),
+    |l, _| Ok(parse_rhystic_damage(l)),
+    |l, _| Ok(parse_becomes_creature(l)),
+    parse_sequence,
+    parse_delayed_next_end_step,
+    |l, _| Ok(parse_exile_target(l)),
+    |l, _| Ok(parse_return_that_card(l)),
+    |l, _| Ok(parse_damage_and_damage(l)),
+    |l, _| Ok(parse_deal_damage(l)),
+    |l, _| Ok(parse_draw_then_discard(l)),
+    |l, _| Ok(parse_draw(l)),
+    |l, _| Ok(parse_lose_life(l)),
+    |l, _| Ok(parse_gain_life(l)),
+    |l, _| Ok(parse_counter(l)),
+    parse_put_counters,
+    |l, _| Ok(parse_return_to_hand(l)),
+    |l, _| Ok(parse_gains_control(l)),
+    |l, _| Ok(parse_search_library(l)),
+    |l, _| Ok(parse_reanimate(l)),
+    |l, _| Ok(parse_bounce_to_library(l)),
+    |l, _| Ok(parse_tap_untap(l)),
+    |l, _| Ok(parse_destroy(l)),
+    parse_destroy_macro_target,
+    |l, _| Ok(parse_sacrifice(l)),
+    |l, _| Ok(parse_attach(l)),
+    parse_pump,
+    |l, _| Ok(parse_combat_restriction(l)),
+    |l, _| Ok(parse_create_predefined_token(l)),
+    |l, _| Ok(parse_create_token(l)),
+    parse_get_emblem,
+    parse_declarative_subject,
+    parse_macro_effect,
+];
+
+/// Parses one normalized effect line into a [`ParsedEffect`], or `None` to
+/// decline, by trying [`CLAUSE_PARSERS`] in order — first match wins.
 pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
-    // Productions that themselves consult the reverse template index (directly
-    // or by re-entering `parse_clause`) propagate `anyhow::Result` — an
-    // ambiguous macro match is a hard generation error, not a decline; every
-    // other (Option-returning) production is lifted with `Ok`. First-match-wins
-    // across these DISTINCT productions is unchanged — only a same-kind macro
-    // tie inside the index is now an error.
-    if let Some(p) = parse_if(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_may(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_player_taps_per_counter(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_destroy_no_regen(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_rhystic_damage(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_becomes_creature(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_sequence(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_delayed_next_end_step(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_exile_target(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_return_that_card(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_damage_and_damage(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_deal_damage(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_draw_then_discard(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_draw(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_lose_life(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_gain_life(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_counter(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_put_counters(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_return_to_hand(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_gains_control(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_search_library(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_reanimate(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_bounce_to_library(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_tap_untap(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_destroy(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_destroy_macro_target(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_sacrifice(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_attach(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_pump(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_combat_restriction(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_create_predefined_token(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_create_token(line) {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_get_emblem(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_declarative_subject(line, ctx)? {
-        return Ok(Some(p));
-    }
-    if let Some(p) = parse_macro_effect(line, ctx)? {
-        return Ok(Some(p));
+    for parser in CLAUSE_PARSERS {
+        if let Some(p) = parser(line, ctx)? {
+            return Ok(Some(p));
+        }
     }
     Ok(None)
 }
