@@ -472,12 +472,24 @@ fn peel_binder(binder: &Binder) -> &Binder {
 /// card", "a Forest card", "an artifact card", "a green creature card", "a
 /// basic Plains, Swamp, or Forest card"), or `None` for a filter shape
 /// outside the grammar `deckmaste_migrations`' `search_card_filter` builds.
-/// The mirror image of that parser: a `Subtype` atom's card-type word is
-/// always implicit (never printed — the subtype alone identifies the
-/// category), a `Supertype(Basic)` with no subtype prints "basic land", and a
-/// `Supertype(Snow)` prints "snow land".
+/// The mirror image of that parser: a bare `Subtype`/`Or([Subtype, …])` atom
+/// carries NO card-type word at all [CR#205.3m] (a Tribal card gives its
+/// printed creature subtype to a noncreature card, so "a Goblin card" must
+/// keep matching a Tribal Instant — Goblin — the parser never injects a
+/// parent `Type`, and this never prints one back); a `Supertype(Basic)` with
+/// no subtype prints "basic land", and a `Supertype(Snow)` prints "snow
+/// land" (those two DO carry an explicit `Type("Land")`, since "land" is the
+/// printed word, not an inferred category).
 fn search_filter_phrase(filter: &Predicate) -> Option<String> {
     if let Predicate::Or(members) = filter {
+        // A bare subtype-only disjunction ("a Swamp or Mountain card") — ONE
+        // shared article, no per-member "card" (distinct from the top-level
+        // full-phrase disjunction below, where each side is its own "a ...
+        // card" phrase — Wayfarer's Bauble's "a basic land card or a Desert
+        // card").
+        if let Some(subtypes) = bare_subtype_list(members) {
+            return Some(a_an(&format!("{} card", join_or_list(&subtypes))));
+        }
         let phrases: Vec<String> = members
             .iter()
             .map(search_filter_phrase)
@@ -486,6 +498,11 @@ fn search_filter_phrase(filter: &Predicate) -> Option<String> {
     }
     if matches!(filter, Predicate::Kind(ObjectKind::Card)) {
         return Some("a card".to_owned());
+    }
+    // A bare subtype atom alone ("a Forest card", "an Equipment card") — no
+    // wrapping `And`/`Type` [CR#205.3m].
+    if let Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) = filter {
+        return Some(a_an(&format!("{} card", s.as_str())));
     }
     let mut ty: Option<&str> = None;
     let mut supertype: Option<Supertype> = None;
@@ -520,9 +537,8 @@ fn search_filter_phrase(filter: &Predicate) -> Option<String> {
             _ => return None,
         }
     }
-    let ty = ty?;
     let descriptor = if subtypes.is_empty() {
-        let type_word = type_word(ty)?;
+        let type_word = type_word(ty?)?;
         match (supertype, color) {
             (Some(Supertype::Basic), None) => format!("basic {type_word}"),
             (Some(Supertype::Snow), None) => format!("snow {type_word}"),
@@ -530,15 +546,35 @@ fn search_filter_phrase(filter: &Predicate) -> Option<String> {
             (None, None) => type_word.to_owned(),
             _ => return None,
         }
-    } else {
+    } else if ty.is_none() {
+        // "basic <Subtype>[, …]" — the type word is implicit, matching the
+        // bare-subtype-alone case above; a plain `Type` atom never rides
+        // alongside a `Subtype` in this grammar (guarded rather than
+        // silently dropped).
         let list = join_or_list(&subtypes);
         match supertype {
             Some(Supertype::Basic) => format!("basic {list}"),
             None => list,
             _ => return None,
         }
+    } else {
+        return None;
     };
     Some(a_an(&format!("{descriptor} card")))
+}
+
+/// Whether every member of an `Or` is a bare `Subtype` atom — the search
+/// filter's subtype-"or"-list register ("a Swamp or Mountain card"). Returns
+/// their names in order, or `None` if any member isn't a bare `Subtype` (the
+/// top-level full-phrase-disjunction case instead).
+fn bare_subtype_list(members: &[Predicate]) -> Option<Vec<&str>> {
+    members
+        .iter()
+        .map(|m| match m {
+            Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) => Some(s.as_str()),
+            _ => None,
+        })
+        .collect()
 }
 
 /// The lowercase card-type word a search filter's `Type` atom names ("Land",
@@ -2833,6 +2869,79 @@ mod tests {
         assert_eq!(
             effect(&battlefield, &ctx),
             "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+        );
+    }
+
+    /// A bare `Subtype` filter (no parent-`Type` wrapper) renders as "a
+    /// <Subtype> card", NOT "a <Subtype> <type> card" [CR#205.3m]: the parser
+    /// never injects a parent type for a bare subtype (a Tribal card gives
+    /// its printed creature subtype to a noncreature card, so "a Goblin
+    /// card" must keep matching a Tribal Instant — Goblin), and the renderer
+    /// mirrors that by never printing one back. Also covers the bare
+    /// subtype-"or"-list register ("a Swamp or Mountain card" — ONE shared
+    /// article, not "a Swamp card or a Mountain card").
+    #[test]
+    fn search_library_renders_bare_subtype_with_no_type_word() {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Sort;
+
+        let ctx = Ctx {
+            subject: "Tutor",
+            targets: &[],
+            that: None,
+        };
+        let subtype = |name: &'static str| {
+            Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                deckmaste_core::Ident::new(name),
+            ))
+        };
+        let goblin = OneShotEffect::With(With {
+            binder: Binder::SearchOne {
+                filter: subtype("Goblin"),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library],
+                if_none: None,
+            },
+            body: Box::new(OneShotEffect::Sequentially(vec![
+                OneShotEffect::act_by_you(PlayerAction::Reveal {
+                    what: Reference::That(Sort::Card),
+                    to: None,
+                }),
+                OneShotEffect::Act(Action::Move(
+                    Reference::That(Sort::Card),
+                    Destination::Zone(Zone::Hand),
+                    vec![],
+                )),
+                OneShotEffect::act_by_you(PlayerAction::Shuffle),
+            ])),
+        });
+        assert_eq!(
+            effect(&goblin, &ctx),
+            "Search your library for a Goblin card, reveal it, put it into your hand, then shuffle."
+        );
+
+        let swamp_or_mountain = OneShotEffect::With(With {
+            binder: Binder::SearchOne {
+                filter: Predicate::Or(vec![subtype("Swamp"), subtype("Mountain")]),
+                by: Reference::You,
+                whose: Reference::You,
+                from: vec![Zone::Library],
+                if_none: None,
+            },
+            body: Box::new(OneShotEffect::Sequentially(vec![
+                OneShotEffect::Act(Action::Move(
+                    Reference::That(Sort::Card),
+                    Destination::Zone(Zone::Battlefield),
+                    vec![],
+                )),
+                OneShotEffect::act_by_you(PlayerAction::Shuffle),
+            ])),
+        });
+        assert_eq!(
+            effect(&swamp_or_mountain, &ctx),
+            "Search your library for a Swamp or Mountain card, put it onto the battlefield, then shuffle."
         );
     }
 

@@ -1468,16 +1468,19 @@ fn search_tail(body: &str) -> Option<(&str, bool, &'static str, bool)> {
 /// - "a basic land card" / "a basic <Subtype>[, <Subtype>, or <Subtype>] card"
 ///   -> `Supertype(Basic)` (plus a `Subtype`/`Or([Subtype, …])` when a specific
 ///   land type is named — the oracle text never redundantly repeats "land"
-///   alongside a named subtype, so the type word is implicit and supplied
-///   here).
+///   alongside a named subtype, so the type word is implicit and supplied here;
+///   "land" itself IS emitted as `Type("Land")` since it's the printed word,
+///   not an inferred category).
 /// - "a snow land card" -> `Supertype(Snow)`.
 /// - a bare subtype (or subtype "or"-list), no "basic": "a Forest card", "an
-///   Equipment card", "a Swamp or Mountain card" -> the subtype's own parent
-///   card type, read off [`filter::subtype_category`], plus the
-///   `Subtype`/`Or([…])` atom. A "<Subtype> permanent card" phrase ("a Dragon
-///   permanent card", "a Rebel permanent card") is NOT modeled — see
-///   [`search_card_descriptor`]'s doc for why the "permanent" qualifier can't
-///   just be dropped.
+///   Equipment card", "a Swamp or Mountain card", "a Goblin card" -> the
+///   `Subtype`/`Or([…])` atom ALONE — no parent-Type wrapper. [CR#205.3m]:
+///   Tribal cards give a printed creature subtype to a NONCREATURE card
+///   (Tarfire is a Tribal Instant — Goblin), so injecting the subtype's typical
+///   parent type (via [`filter::subtype_category`]) would wrongly exclude it —
+///   Goblin Matron's "a Goblin card" must find Tarfire. A "<Subtype> permanent
+///   card" phrase ("a Dragon permanent card") is NOT modeled — see
+///   [`search_card_descriptor`]'s doc.
 /// - "<X> card or a <Y> card" -> `Or([<X>, <Y>])`, each side recursively this
 ///   same grammar (Wayfarer's Bauble's "a basic land card or a Desert card").
 fn search_card_filter(head: &str) -> Option<String> {
@@ -1518,13 +1521,14 @@ fn search_card_descriptor(d: &str) -> Option<String> {
         if rest.eq_ignore_ascii_case("land") {
             return Some("And([Type(\"Land\"), Supertype(Basic)])".to_owned());
         }
+        // `category` VALIDATES the word(s) (a real land subtype, and — for a
+        // list — every member sharing one category); it is NOT emitted — see
+        // the bare-subtype arm below for why a parent-Type atom is wrong.
         let (category, subtype_expr) = subtype_list_predicate(rest)?;
         if category != "Land" {
             return None;
         }
-        return Some(format!(
-            "And([Type(\"Land\"), Supertype(Basic), {subtype_expr}])"
-        ));
+        return Some(format!("And([Supertype(Basic), {subtype_expr}])"));
     }
     if let Some(rest) = strip_prefix_ci(d, "snow ") {
         return rest
@@ -1542,24 +1546,31 @@ fn search_card_descriptor(d: &str) -> Option<String> {
         return Some(ty);
     }
     // A bare subtype (or subtype "or"-list) — "a Forest card", "a Swamp or
-    // Mountain card". NOTE: a trailing "permanent" qualifier ("a Dragon
-    // permanent card", "a Rebel permanent card") is NOT stripped here: unlike
-    // "card"/"cards", "permanent" is a card-type-CLASS constraint (any
-    // permanent type), not redundant with the subtype's own catalog category
-    // — "a Rebel permanent card" must match a Tribal Enchantment — Rebel
-    // (Bound in Silence), which `subtype_category("Rebel")` (Creature) would
-    // wrongly exclude. No existing grammar expresses "any permanent type,
-    // further restricted by subtype", so this declines rather than inject a
-    // wrong `Type`.
-    let (category, subtype_expr) = subtype_list_predicate(d)?;
-    Some(format!("And([Type(\"{category}\"), {subtype_expr}])"))
+    // Mountain card", "a Goblin card". The SUBTYPE ALONE is the CR-correct
+    // filter [CR#205.3m]: a Tribal card gives its printed creature subtype to
+    // a NONCREATURE card (Tarfire is a Tribal Instant — Goblin), so injecting
+    // the subtype's typical parent type would wrongly exclude it — Goblin
+    // Matron's "a Goblin card" must find Tarfire. `subtype_category` still
+    // VALIDATES the word(s) here (a real catalog subtype, and — for a list —
+    // every member sharing one category, a conservative guard against e.g.
+    // "a Swamp or Equipment card"); its result is never emitted.
+    //
+    // NOTE: a trailing "permanent" qualifier ("a Dragon permanent card", "a
+    // Rebel permanent card") is NOT stripped here either: "permanent" is a
+    // card-type-CLASS constraint (any permanent type), which no existing
+    // grammar expresses — this declines rather than silently drop it.
+    let (_category, subtype_expr) = subtype_list_predicate(d)?;
+    Some(subtype_expr)
 }
 
 /// A bare subtype word, or an "or"-list of them ("Plains", "Swamp or
 /// Mountain", "Plains, Swamp, or Forest") -> (parent card-type category,
-/// `Subtype`/`Or([Subtype, …])` RON). Every member must share ONE category
-/// (a "Swamp or Equipment" cross-category list is unmodeled); an unknown
-/// subtype declines the whole clause.
+/// `Subtype`/`Or([Subtype, …])` RON). The category is a VALIDATION signal —
+/// callers use it to gate a same-category list (a "Swamp or Equipment"
+/// cross-category list is unmodeled) or a "basic"-land check; it is never
+/// itself emitted into the predicate (see [`search_card_descriptor`]'s doc —
+/// a subtype alone is the CR-correct filter, [CR#205.3m]). An unknown subtype
+/// declines the whole clause.
 fn subtype_list_predicate(text: &str) -> Option<(&'static str, String)> {
     let members = split_or_list(text);
     let mut category: Option<&'static str> = None;
@@ -4350,9 +4361,11 @@ mod tests {
     }
 
     /// A bare subtype (or subtype list) filter, with no "basic" qualifier —
-    /// the subtype's own parent card type is read off the catalog
-    /// ([`filter::subtype_category`]), which the oracle text never spells
-    /// redundantly ("a Forest card", not "a Forest land card").
+    /// the `Subtype`/`Or([Subtype, …])` atom ALONE, no parent-Type wrapper
+    /// [CR#205.3m]: a Tribal card gives its printed creature subtype to a
+    /// NONCREATURE card, so "a Goblin card" (Goblin Matron) must also match a
+    /// Tribal Instant — Goblin (Tarfire), which an injected `Type("Creature")`
+    /// would wrongly exclude.
     #[test]
     #[cfg_attr(
         not(scryfall_catalogs),
@@ -4365,7 +4378,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Subtype(\"Forest\")])), body: \
+                "With(binder: SearchOne(filter: Subtype(\"Forest\")), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4377,7 +4390,22 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Artifact\"), Subtype(\"Equipment\")])), \
+                "With(binder: SearchOne(filter: Subtype(\"Equipment\")), \
+                 body: Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), \
+                 Shuffle]))"
+                    .to_owned()
+            ))
+        );
+        // A creature subtype — "a Goblin card" (Goblin Matron) — no
+        // `Type("Creature")` wrapper, so a Tribal Instant/Sorcery — Goblin
+        // (Tarfire) still matches.
+        assert_eq!(
+            parsed(
+                "Search your library for a Goblin card, reveal that card, put it into your hand, then shuffle."
+            ),
+            Some((
+                String::new(),
+                "With(binder: SearchOne(filter: Subtype(\"Goblin\")), \
                  body: Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), \
                  Shuffle]))"
                     .to_owned()
@@ -4391,8 +4419,8 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Or([Subtype(\"Swamp\"), \
-                 Subtype(\"Mountain\")])])), body: Sequentially([Move(That(Card), Battlefield, \
+                "With(binder: SearchOne(filter: Or([Subtype(\"Swamp\"), \
+                 Subtype(\"Mountain\")])), body: Sequentially([Move(That(Card), Battlefield, \
                  [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4433,7 +4461,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic), \
+                "With(binder: SearchOne(filter: And([Supertype(Basic), \
                  Subtype(\"Plains\")])), body: Sequentially([Move(That(Card), Battlefield, \
                  [Tapped]), Shuffle]))"
                     .to_owned()
@@ -4447,7 +4475,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic), \
+                "With(binder: SearchOne(filter: And([Supertype(Basic), \
                  Or([Subtype(\"Plains\"), Subtype(\"Swamp\"), Subtype(\"Forest\")])])), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
@@ -4485,7 +4513,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: Or([And([Type(\"Land\"), Supertype(Basic)]), \
-                 And([Type(\"Land\"), Subtype(\"Desert\")])])), body: \
+                 Subtype(\"Desert\")])), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
