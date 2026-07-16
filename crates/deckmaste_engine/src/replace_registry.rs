@@ -15,6 +15,7 @@ use deckmaste_core::EventFilter;
 use deckmaste_core::Prevention;
 use deckmaste_core::Replacement;
 use deckmaste_core::StaticEffect;
+use deckmaste_core::Zone;
 
 use crate::event::GameEvent;
 use crate::lki::LkiSnapshot;
@@ -666,10 +667,32 @@ fn consume_shield(state: &mut GameState, iid: InstanceId) {
 pub(crate) fn affected_player(state: &GameState, e: &GameEvent) -> PlayerId {
     match affected(e) {
         Some(Affected::Player(p)) => p,
-        Some(Affected::Object(o)) => state
-            .objects
-            .get(o)
-            .map_or(state.turn.active_player, |x| x.controller),
+        // [CR#616.1]: the affected OBJECT's controller when it's in a
+        // controller-bearing zone (battlefield/stack — [CR#109.4]: "Only
+        // objects on the stack or on the battlefield have a controller");
+        // elsewhere (hand/library/graveyard/exile) it has no controller at
+        // all, so the request falls back to its OWNER instead
+        // ([CR#108.4,108.4a]) — a discarded card's owner orders madness vs.
+        // Leyline of the Void (Task 10). `GameObject::controller` is not
+        // safe to read blindly off the battlefield/stack: the zone-change
+        // pipeline (`step.rs::apply_zone_will_change`) keeps it equal to
+        // the owner there, but that is a behavioral guarantee of one code
+        // path, not a type-level invariant, so the zone is checked
+        // explicitly instead of trusting the field.
+        Some(Affected::Object(o)) => {
+            state
+                .objects
+                .get(o)
+                .map_or(state.turn.active_player, |x| match x.zone {
+                    Some(Zone::Battlefield | Zone::Stack) => x.controller,
+                    _ => match x.source {
+                        ObjectSource::Card(c) => state.cards.get(c).owner,
+                        // A player proxy has no owner distinct from itself
+                        // ([CR#109]) — `controller` IS the player, set at mint.
+                        ObjectSource::Player(_) => x.controller,
+                    },
+                })
+        }
         None => state.turn.active_player,
     }
 }
@@ -894,6 +917,39 @@ pub(crate) mod tests_support {
         id
     }
 
+    /// Mint a synthetic card straight into `owner`'s hand, with `controller`
+    /// set INDEPENDENTLY of `owner` — the real zone-change pipeline
+    /// (`step.rs::apply_zone_will_change`) always mints a hand/library/
+    /// graveyard/exile object with `controller == owner` ([CR#110.2,108.4]),
+    /// but nothing in the type system enforces that off the one chokepoint,
+    /// so a test needs to be able to construct the mismatched case directly
+    /// to prove [`affected_player`] doesn't blindly trust `controller` there.
+    /// Returns `(state, id)`.
+    pub(crate) fn card_in_hand(owner: PlayerId, controller: PlayerId) -> (GameState, ObjectId) {
+        let mut state = GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 7,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        });
+        let card = Arc::new(Card::Normal(CardFace {
+            name: "Test Card".into(),
+            ..CardFace::default()
+        }));
+        let card_id = state.cards.push(card, owner);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card_id), controller, Some(Zone::Hand));
+        state.zones.hands[owner.index()].push(id);
+        (state, id)
+    }
+
     /// Mint a synthetic creature carrying a single `StaticEffect` on the
     /// battlefield for player 0. Returns `(state, id)`.
     pub(crate) fn creature_with_static(effect: StaticEffect) -> (GameState, ObjectId) {
@@ -936,6 +992,7 @@ mod tests {
     use deckmaste_core::Zone;
 
     use super::*;
+    use crate::decide::PendingDecision;
     use crate::event::Cause;
     use crate::event::GameEvent;
 
@@ -1426,5 +1483,68 @@ mod tests {
             })),
         };
         assert!(replacement_watches(&state, &sacrifice_would, id, &e));
+    }
+
+    /// [CR#616.1]: the replacement chooser for an event affecting a card in
+    /// HAND is that card's OWNER, not whatever `controller` the object
+    /// happens to carry. `controller` is deliberately set to the ACTIVE
+    /// player here (a value that would win if `affected_player` naively read
+    /// `.controller`) while `owner` is the other player — proving the fix
+    /// reads owner off the battlefield/stack rather than trusting
+    /// `controller`. Load-bearing for madness-vs-Leyline ordering (Task 10):
+    /// the discarded card's owner must pick the replacement order.
+    #[test]
+    fn choose_replacement_chooser_falls_back_to_hand_owner() {
+        // Owned by player 1; `controller` deliberately mismatched to player
+        // 0, the active player — the value the OLD `.controller`-trusting
+        // code would have returned.
+        let (mut state, id) = super::tests_support::card_in_hand(PlayerId(1), PlayerId(0));
+        state.turn.active_player = PlayerId(0);
+
+        let two_applicable: Vec<Applicable> = (0..2)
+            .map(|effect| Applicable {
+                key: ReplacementKey::Static {
+                    source: id,
+                    ability: 0,
+                    effect,
+                },
+                effect: ApplicableEffect::Replacement(Replacement::Instead {
+                    would: EventFilter::ZoneChange {
+                        what: Predicate::Any,
+                        from: None,
+                        to: None,
+                        cause: None,
+                    },
+                    instead: deckmaste_core::OneShotEffect::Sequentially(vec![]),
+                }),
+                source: id,
+            })
+            .collect();
+
+        let e = GameEvent::ZoneWillChange {
+            object: id,
+            from: Some(Zone::Hand),
+            to: Zone::Graveyard,
+            enters: None,
+            position: None,
+            face: None,
+            cause: Some(Cause::discard(Agency::EffectInstruction, None)),
+        };
+        surface_choice(
+            &mut state,
+            e,
+            std::collections::HashSet::new(),
+            &two_applicable,
+        );
+
+        let Some(PendingDecision::ChooseReplacement { chooser, .. }) = state.pending else {
+            panic!("expected a surfaced ChooseReplacement decision");
+        };
+        assert_eq!(
+            chooser,
+            PlayerId(1),
+            "the card's OWNER chooses off the battlefield, not the active player \
+             the (mismatched) controller field was set to"
+        );
     }
 }
