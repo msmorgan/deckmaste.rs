@@ -17,6 +17,7 @@ use deckmaste_core::StaticEffect;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
+use super::action::composite_body_group;
 use super::deref_quantity;
 use super::occurrence_of;
 use super::peel_binder;
@@ -1041,9 +1042,12 @@ impl GameState {
             // batch, not once per card. `contents.body` carries the stored
             // PER-UNIT keyword action UNCHANGED — a PASSED aggregate's apply
             // (`step.rs`) replicates it `n` times via `Repeat`. An
-            // unresolvable performer/patient fizzles the WHOLE aggregate —
-            // no window at all — mirroring `composite_items`'s own per-verb
-            // fizzle discipline ([CR#701.8a,701.9a,701.17a]).
+            // unresolvable performer/patient, an empty Mill patient group
+            // ([CR#701.17b]), a would-not-act Scry/Surveil/Fateseal/Fight
+            // guard ([CR#701.22b,701.14b]), or a gone Destroy/Fight patient
+            // all fizzle the WHOLE aggregate — no window at all — matching
+            // `composite_items`'s own per-verb fizzle discipline
+            // ([CR#701.8a,701.9a,701.17a]) exactly (`batch_act_head`).
             //
             // A non-Act body keeps the ORIGINAL shell's sequential behavior
             // below (Task 2): no aggregate window for a plain effect (YAGNI)
@@ -1055,8 +1059,10 @@ impl GameState {
                 let n = self.eval_count(&count, frame);
                 if n == 0 {
                     // Clean no-op — mirrors `Repeat`.
-                } else if let OneShotEffect::Act(Action::Composite(atom, _)) = peel_effect(&body) {
-                    if let Some(head) = self.batch_act_head(atom, frame) {
+                } else if let OneShotEffect::Act(Action::Composite(atom, composite_body)) =
+                    peel_effect(&body)
+                {
+                    if let Some(head) = self.batch_act_head(atom, composite_body, frame) {
                         let verb = deckmaste_core::VerbName::from(head.verb);
                         let act = GameEvent::Act {
                             verb,
@@ -1094,7 +1100,9 @@ impl GameState {
                         // futures do, nothing upstream or unrelated.
                         self.schedule_front(vec![WorkItem::Emit(Occurrence::single(act))]);
                     }
-                    // else: unresolvable performer/patient — fizzle, no window.
+                    // else: `batch_act_head` fizzled (unresolvable performer/
+                    // patient, empty Mill group, would-not-act guard, gone
+                    // patient) — no window at all.
                 } else {
                     let items = vec![
                         WorkItem::RunEffect {
@@ -1211,68 +1219,120 @@ impl GameState {
     /// replacement/trigger's `would`/pattern reads off the aggregate (verb +
     /// performer/patient), NOT the body-move resolution itself (that's each
     /// contained per-entity future's own job, once the aggregate passes).
-    /// Mirrors the per-verb coordinate resolution
-    /// [`Self::composite_items`](crate::resolve::action) performs for the
-    /// ordinary (non-aggregate) lane. `None` on an unresolvable performer —
-    /// the whole aggregate fizzles, consistent with `composite_items`'s own
-    /// per-verb fizzle discipline ([CR#701.8a,701.9a,701.17a]) — never a panic.
+    /// `body` is the composite's own per-unit body (`Action::Composite`'s
+    /// second field — the same value [`Self::composite_items`] reads), so
+    /// the two functions can share the exact same body-shape queries.
+    /// Mirrors BOTH the per-verb coordinate resolution AND the fizzle
+    /// discipline [`Self::composite_items`](crate::resolve::action) performs
+    /// for the ordinary (non-aggregate) lane: an unresolvable performer
+    /// (every verb), an empty Mill patient group ([CR#701.17b]), a
+    /// would-not-act Scry/Surveil/Fateseal/Fight guard
+    /// ([CR#701.22b,701.14b]), or a gone Destroy/Fight patient all fizzle the
+    /// WHOLE aggregate here too — no window at all, matching
+    /// `composite_items`'s discipline exactly ([CR#701.8a,701.9a,701.17a]) —
+    /// never a panic.
     fn batch_act_head(
         &self,
         atom: &deckmaste_core::KeywordAction,
+        body: &OneShotEffect,
         frame: &Frame,
     ) -> Option<BatchActHead> {
         use deckmaste_core::Agency;
         use deckmaste_core::KeywordAction as Ka;
         let agent = Some((frame.source, frame.controller));
         Some(match atom {
-            Ka::Destroy(what) => BatchActHead {
-                verb: "Destroy",
-                who: None,
-                on: Some(self.eval_reference(what, frame)),
-                cause: Some(Cause::destroy(Agency::EffectInstruction, agent)),
-            },
+            Ka::Destroy(what) => {
+                let on = self.eval_reference(what, frame);
+                // gone / zoneless patient — fizzle [CR#701.8a]
+                self.objects.get(on).and_then(|o| o.zone)?;
+                BatchActHead {
+                    verb: "Destroy",
+                    who: None,
+                    on: Some(on),
+                    cause: Some(Cause::destroy(Agency::EffectInstruction, agent)),
+                }
+            }
             Ka::Discard(who, _) => BatchActHead {
                 verb: "Discard",
                 who: Some(self.eval_player_ref(who, frame)?),
                 on: None,
                 cause: Some(Cause::discard(Agency::EffectInstruction, agent)),
             },
-            Ka::Mill(who, _) => BatchActHead {
-                verb: "Mill",
-                who: Some(self.eval_player_ref(who, frame)?),
-                on: None,
-                cause: Some(Cause::mill(Agency::EffectInstruction, agent)),
-            },
+            Ka::Mill(who, _) => {
+                let who = Some(self.eval_player_ref(who, frame)?);
+                // The top-slice group, exactly as `composite_items` resolves
+                // it — an empty result (empty library / count 0) fizzles the
+                // whole aggregate before any window opens [CR#701.17b].
+                let patients: Vec<ObjectId> = composite_body_group(body)
+                    .map(|(group, _)| self.eval_selection_set(&group, frame))
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|&o| self.objects.get(o).and_then(|x| x.zone) == Some(Zone::Library))
+                    .collect();
+                if patients.is_empty() {
+                    return None;
+                }
+                BatchActHead {
+                    verb: "Mill",
+                    who,
+                    on: None,
+                    cause: Some(Cause::mill(Agency::EffectInstruction, agent)),
+                }
+            }
             Ka::Draw(who, _) => BatchActHead {
                 verb: "Draw",
                 who: Some(self.eval_player_ref(who, frame)?),
                 on: None,
                 cause: Some(Cause::draw(Agency::EffectInstruction, agent)),
             },
-            Ka::Scry(who, _) => BatchActHead {
-                verb: "Scry",
-                who: Some(self.eval_player_ref(who, frame)?),
-                on: None,
-                cause: None,
-            },
-            Ka::Surveil(who, _) => BatchActHead {
-                verb: "Surveil",
-                who: Some(self.eval_player_ref(who, frame)?),
-                on: None,
-                cause: None,
-            },
-            Ka::Fateseal(who, _) => BatchActHead {
-                verb: "Fateseal",
-                who: Some(self.eval_player_ref(who, frame)?),
-                on: None,
-                cause: None,
-            },
-            Ka::Fight(a, _) => BatchActHead {
-                verb: "Fight",
-                who: None,
-                on: Some(self.eval_reference(a, frame)),
-                cause: None,
-            },
+            Ka::Scry(who, _) => {
+                let who = Some(self.eval_player_ref(who, frame)?);
+                if !self.composite_body_would_act(body, frame) {
+                    return None; // scry 0 / empty peek — fizzle [CR#701.22b]
+                }
+                BatchActHead {
+                    verb: "Scry",
+                    who,
+                    on: None,
+                    cause: None,
+                }
+            }
+            Ka::Surveil(who, _) => {
+                let who = Some(self.eval_player_ref(who, frame)?);
+                if !self.composite_body_would_act(body, frame) {
+                    return None; // empty peek — fizzle [CR#701.22b]
+                }
+                BatchActHead {
+                    verb: "Surveil",
+                    who,
+                    on: None,
+                    cause: None,
+                }
+            }
+            Ka::Fateseal(who, _) => {
+                let who = Some(self.eval_player_ref(who, frame)?);
+                if !self.composite_body_would_act(body, frame) {
+                    return None; // empty peek — fizzle [CR#701.22b]
+                }
+                BatchActHead {
+                    verb: "Fateseal",
+                    who,
+                    on: None,
+                    cause: None,
+                }
+            }
+            Ka::Fight(a, _) => {
+                let on = self.eval_reference(a, frame);
+                if self.objects.get(on).is_none() || !self.composite_body_would_act(body, frame) {
+                    return None; // gone fighter / guard fails — fizzle [CR#701.14b]
+                }
+                BatchActHead {
+                    verb: "Fight",
+                    who: None,
+                    on: Some(on),
+                    cause: None,
+                }
+            }
         })
     }
 
@@ -2334,6 +2394,62 @@ mod tests {
             state.zones.graveyards[p0.index()].len(),
             3,
             "all three cards still milled individually"
+        );
+    }
+
+    /// [CR#616.1g,701.17b]: `Batch(2, Act(Mill(You,1)))` over an EMPTY
+    /// library fizzles the WHOLE aggregate — `batch_act_head` must resolve
+    /// the Mill patient group (mirroring `composite_items`'s own
+    /// `[CR#701.17b]` empty-library fizzle) BEFORE opening the aggregate
+    /// window, not after. Asserted directly at the strongest point: no
+    /// ADDITIONAL agenda item exists immediately after `run_effect` returns
+    /// — no window is ever scheduled, so no replacement/trigger could ever
+    /// observe one — plus (after a drain) no card moved and no committed
+    /// `Act(Mill)` fact exists.
+    #[test]
+    fn batch_mill_over_empty_library_fizzles_the_whole_aggregate() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        // `game()`'s players start with an empty deck — no `mint_in_library`
+        // calls here, unlike the other `Batch`/Mill tests — the degenerate
+        // case under test.
+        assert!(
+            state.zones.libraries[p0.index()].is_empty(),
+            "empty-library precondition"
+        );
+
+        let frame = frame_for(&state, p0);
+        let mill_one = OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(1)));
+        let agenda_before = state.agenda.len();
+        state.run_effect(
+            OneShotEffect::Batch(Count::Literal(2), Box::new(mill_one)),
+            &frame,
+        );
+
+        assert_eq!(
+            state.agenda.len(),
+            agenda_before,
+            "an empty-library Batch(Mill) schedules no ADDITIONAL work — the whole \
+             aggregate fizzles before any window opens, matching composite_items's own \
+             [CR#701.17b] empty-library Mill fizzle"
+        );
+
+        let _ = drain_progress(&mut state, 10);
+
+        assert!(
+            state.zones.graveyards[p0.index()].is_empty(),
+            "nothing milled — the library was empty"
+        );
+        let mill_commits = state
+            .history
+            .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
+            .filter(|e| {
+                matches!(e, GameEvent::Act { verb, committed: true, .. } if verb.as_str() == "Mill")
+            })
+            .count();
+        assert_eq!(
+            mill_commits, 0,
+            "no committed Act(Mill) fact — the aggregate never opened a window at all"
         );
     }
 
