@@ -55,7 +55,8 @@ struct Riders {
 /// sentence off `effect_clause`, lowering each recognized clause onto a
 /// [`Riders`] frame — the window ("as a sorcery", "as an instant", "during
 /// your turn", "during your upkeep"), a use-limit ("once each turn"/"once
-/// each game"/"once"), or a state condition ("if <phrase>", routed through
+/// each game" — bare "once" declines, see [`apply_rider_clause`]), or a
+/// state condition ("if <phrase>", routed through
 /// the `Condition`-kind macro index, [`apply_rider_clause`]). Multiple
 /// clauses join " and only " ("Activate only as a sorcery and only once each
 /// turn."). Returns `(body, Some(riders))` when a trailing rider sentence was
@@ -107,7 +108,14 @@ fn apply_rider_clause(part: &str, riders: &mut Riders, ctx: &ResolveCtx) -> anyh
         "during your turn" => riders.window = Some("DuringTurn(Your)"),
         "during your upkeep" => riders.window = Some("DuringStep(Beginning(Upkeep), Your)"),
         "once each turn" => riders.limit = Some("OncePerTurn"),
-        "once each game" | "once" => riders.limit = Some("OncePerGame"),
+        // Bare "once" (no "each game") is NOT modeled as `OncePerGame`: the
+        // renderer has only one printed form for that limit ("once each
+        // game"), so accepting the bare form here would parse fine but
+        // render back to the WRONG oracle string ("once each game." for a
+        // card that printed "once.") — a lossy round-trip. Decline rather
+        // than model it lossily; the whole rider then stays attached and the
+        // line stays `Unparsed`.
+        "once each game" => riders.limit = Some("OncePerGame"),
         _ => {
             let Some(phrase) = part.strip_prefix("if ") else {
                 return Ok(false);
@@ -394,6 +402,17 @@ mod tests {
         let bare = act("{R}: ~ gets +1/+0 until end of turn.").unwrap();
         let spliced = bare.replacen("], effect:", "], limits: [OncePerGame], effect:", 1);
         assert_eq!(with_rider, spliced);
+    }
+
+    /// Bare "Activate only once." (no "each game") declines: the renderer
+    /// has only one printed form for `OncePerGame` ("once each game"), so
+    /// modeling the bare form here would round-trip lossily (parse "once."
+    /// but render "once each game."). "Activate only once each game." still
+    /// parses — only the bare form is affected.
+    #[test]
+    fn declines_bare_once_but_parses_once_each_game() {
+        assert!(act("{1}: Draw a card. Activate only once.").is_none());
+        assert!(act("{1}: Draw a card. Activate only once each game.").is_some());
     }
 
     /// A `... and only if ...` extension whose condition phrase has no
