@@ -164,8 +164,10 @@ fn set_top_of_library(state: &mut GameState, player: PlayerId, name: &str) -> Ob
 fn schedule_entry(state: &mut GameState, obj: ObjectId) {
     let from = state.objects.obj(obj).zone;
     state.agenda.push_front(WorkItem::CheckSbas);
-    state.agenda.push_front(WorkItem::Emit(Occurrence::single(
-        GameEvent::ZoneWillChange {
+    state
+        .agenda
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
+            snapshot: None,
             object: obj,
             from,
             to: Zone::Battlefield,
@@ -173,8 +175,7 @@ fn schedule_entry(state: &mut GameState, obj: ObjectId) {
             position: None,
             face: None,
             cause: None,
-        },
-    )));
+        })));
 }
 
 fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {

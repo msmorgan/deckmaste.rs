@@ -551,14 +551,16 @@ impl GameState {
             | GameEvent::DamageDealt { amount, .. }
             | GameEvent::CounterPlaced { amount, .. }
             | GameEvent::CounterRemoved { amount, .. } => *amount,
-            GameEvent::ZoneChanged { .. } => 1,
+            GameEvent::ZoneChange {
+                snapshot: Some(_), ..
+            } => 1,
             other => unreachable!("EventSum reached a fact kind with no amount channel: {other:?}"),
         }
     }
 
     /// Lands `player` has played this turn ([CR#305.2,608.2i]) — backing the
-    /// one-land-per-turn rule. A play is a `ZoneChanged` to the battlefield
-    /// whose cause verb is `Play`, by `player`.
+    /// one-land-per-turn rule. A play is a past-form `ZoneChange` to the
+    /// battlefield whose cause verb is `Play`, by `player`.
     ///
     /// # Panics
     ///
@@ -574,8 +576,12 @@ impl GameState {
             .scan(deckmaste_core::Lookback::ThisTurn, self.turn.turn_number)
             .filter(|f| {
                 matches!(f,
-                    GameEvent::ZoneChanged { to: Zone::Battlefield, cause: Some(c), snapshot, .. }
-                        if c.verb == play && snapshot.controller == player)
+                    GameEvent::ZoneChange {
+                        snapshot: Some(snapshot),
+                        to: Zone::Battlefield,
+                        cause: Some(c),
+                        ..
+                    } if c.verb == play && snapshot.controller == player)
             })
             .count();
         Uint::try_from(n).expect("land count fits Uint")
@@ -736,10 +742,13 @@ mod tests {
             state.record_history_fact(
                 1,
                 None,
-                GameEvent::ZoneChanged {
-                    snapshot: LkiSnapshot::capture(&state, drawn),
+                GameEvent::ZoneChange {
+                    object: drawn,
+                    snapshot: Some(Box::new(LkiSnapshot::capture(&state, drawn))),
                     from: Some(Zone::Library),
                     to: Zone::Hand,
+                    enters: None,
+                    position: None,
                     face: None,
                     cause: Some(Cause {
                         verb: "Draw".into(),
@@ -771,10 +780,13 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::ZoneChanged {
-                snapshot: LkiSnapshot::capture(&state, land),
+            GameEvent::ZoneChange {
+                object: land,
+                snapshot: Some(Box::new(LkiSnapshot::capture(&state, land))),
                 from: Some(Zone::Hand),
                 to: Zone::Battlefield,
+                enters: None,
+                position: None,
                 face: None,
                 cause: Some(Cause {
                     verb: "Play".into(),
@@ -1803,10 +1815,13 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(first_bear);
-        let death1 = GameEvent::ZoneChanged {
-            snapshot: LkiSnapshot::capture(&state, first_bear),
+        let death1 = GameEvent::ZoneChange {
+            object: first_bear,
+            snapshot: Some(Box::new(LkiSnapshot::capture(&state, first_bear))),
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
+            enters: None,
+            position: None,
             face: None,
             cause: None,
         };
@@ -1818,10 +1833,13 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(second_bear);
-        let death2 = GameEvent::ZoneChanged {
-            snapshot: LkiSnapshot::capture(&state, second_bear),
+        let death2 = GameEvent::ZoneChange {
+            object: second_bear,
+            snapshot: Some(Box::new(LkiSnapshot::capture(&state, second_bear))),
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
+            enters: None,
+            position: None,
             face: None,
             cause: None,
         };

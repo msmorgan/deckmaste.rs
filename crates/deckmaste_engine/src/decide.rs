@@ -621,7 +621,7 @@ use crate::state::GameState;
 /// to exile and no other's ([CR#702.35a]), and "whenever a player discards a
 /// card" fires once per card. Each surviving `Act` is dual-facet (performer +
 /// patient + the Hand→Graveyard body facet) and COMMITS its move atomically
-/// at apply — the destroy shape, no second replaceable `ZoneWillChange`
+/// at apply — the destroy shape, no second replaceable future-form `ZoneChange`
 /// below it. Shared by the chosen path (`submit_discards`), the random path
 /// (`discard_random`), and cleanup's discard-to-hand-size ([CR#514.1] — a
 /// discard like any other: madness and discard triggers see it).
@@ -1557,7 +1557,8 @@ impl GameState {
                     .iter()
                     .copied()
                     .filter(|id| *id != kept_one)
-                    .map(|id| GameEvent::ZoneWillChange {
+                    .map(|id| GameEvent::ZoneChange {
+                        snapshot: None,
                         object: id,
                         from: Some(Zone::Battlefield),
                         to: Zone::Graveyard,
@@ -1918,17 +1919,16 @@ impl GameState {
                 // effect putting a land onto the battlefield is NOT a play,
                 // [CR#701.18a]). `LandsPlayedThisTurn` counts those Play-caused
                 // battlefield entries in the history log.
-                let mut items = vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::ZoneWillChange {
-                        object: *object,
-                        from: Some(Zone::Hand),
-                        to: Zone::Battlefield,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: Some(Cause::play(Agency::SpecialAction, None)),
-                    },
-                ))];
+                let mut items = vec![WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
+                    snapshot: None,
+                    object: *object,
+                    from: Some(Zone::Hand),
+                    to: Zone::Battlefield,
+                    enters: None,
+                    position: None,
+                    face: None,
+                    cause: Some(Cause::play(Agency::SpecialAction, None)),
+                }))];
                 items.extend(Self::priority_tail());
                 self.schedule_front(items);
             }

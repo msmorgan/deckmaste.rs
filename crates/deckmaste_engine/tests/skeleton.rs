@@ -350,7 +350,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let (trace, stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::ZoneWillChange { object, cause: Some(c), .. })
+        Some(GameEvent::ZoneChange { snapshot: None, object, cause: Some(c), .. })
             if *object == land && c.verb.as_str() == "Play"
     )));
     assert_eq!(state.zones.battlefield.len(), 1);
@@ -537,15 +537,15 @@ fn state_is_assertable_between_two_untap_events() {
     };
 
     // Drive turns 1–4 with the script; collect P0's land CardIds. The
-    // remint means the will-change's ObjectId is dead once applied — the
-    // ZoneChanged FACT's LKI snapshot is the sanctioned read (CardId spine
-    // + controller), and the "Play" cause marks the land drops.
+    // remint means the future form's ObjectId is dead once applied — the
+    // past-form `ZoneChange` FACT's LKI snapshot is the sanctioned read
+    // (CardId spine + controller), and the "Play" cause marks the land drops.
     let mut p0_land_cards = Vec::new();
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::ZoneChanged {
-                    ref snapshot,
+                GameEvent::ZoneChange {
+                    snapshot: Some(ref snapshot),
                     face: None,
                     cause: Some(ref c),
                     ..
@@ -822,7 +822,8 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
     // and a fresh object sits in the owner's graveyard.
     apply_one(
         &mut state,
-        GameEvent::ZoneWillChange {
+        GameEvent::ZoneChange {
+            snapshot: None,
             object: spell,
             from: Some(Zone::Stack),
             to: Zone::Graveyard,
@@ -846,12 +847,14 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
 #[test]
 fn destroy_will_change_remints_creature_to_owners_graveyard() {
     // [CR#400.7]: the old ObjectId is gone; a fresh one exists in the graveyard.
-    // The battlefield→graveyard ZoneWillChange captures LKI and moves+remints.
+    // The battlefield→graveyard future-form ZoneChange captures LKI and
+    // moves+remints.
     let (mut state, bear) = bear_on_field();
     state.objects.obj_mut(bear).set_marked_damage(5);
     apply_one(
         &mut state,
-        GameEvent::ZoneWillChange {
+        GameEvent::ZoneChange {
+            snapshot: None,
             object: bear,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
@@ -878,14 +881,16 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
 
 #[test]
 fn destroy_will_change_emits_zone_changed_carrying_lki() {
-    // The will-change apply schedules a ZoneChanged fact carrying the leaving
-    // creature's snapshot (captured before removal, while it was still live).
+    // The will-change apply schedules a past-form ZoneChange fact carrying the
+    // leaving creature's snapshot (captured before removal, while it was still
+    // live).
     let (mut state, bear) = bear_on_field();
     state.objects.obj_mut(bear).set_marked_damage(5);
     state
         .agenda
         .push_front(deckmaste_engine::WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object: bear,
                 from: Some(Zone::Battlefield),
                 to: Zone::Graveyard,
@@ -897,14 +902,14 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
         )));
     // First step applies the will-change; the next applies the queued fact.
     let _ = state.step();
-    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::ZoneChanged {
-        snapshot,
+    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::ZoneChange {
+        snapshot: Some(snapshot),
         from,
         to,
         ..
     }))) = state.step()
     else {
-        panic!("expected an Applied(ZoneChanged) fact after the will-change");
+        panic!("expected an Applied past-form ZoneChange fact after the will-change");
     };
     assert_eq!(
         snapshot.object, bear,
@@ -1044,7 +1049,7 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
         .agenda
         .push_front(deckmaste_engine::WorkItem::Resolve(bolt));
     // Resolve → RunEffect(DealDamage) → Emit(DamageDealt) →
-    // Emit(ZoneWillChange Stack→Graveyard) → Emit(ZoneChanged).
+    // Emit(future-form ZoneChange Stack→Graveyard) → Emit(past-form ZoneChange).
     let trace = drain_progress(&mut state, 10);
     assert!(
         trace.iter().any(|p| matches!(
@@ -1054,18 +1059,18 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
         "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
     );
     // [CR#608.2m]/[CR#400.7]: the instant leaves the stack via a
-    // stack→graveyard ZoneWillChange and remints — the old id is gone.
+    // stack→graveyard future-form ZoneChange and remints — the old id is gone.
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::ZoneWillChange {
+            Some(GameEvent::ZoneChange { snapshot: None,
                 object,
                 from: Some(Zone::Stack),
                 to: Zone::Graveyard,
                 ..
             }) if *object == bolt
         )),
-        "expected a stack→graveyard ZoneWillChange for bolt, trace: {trace:?}"
+        "expected a stack→graveyard future-form ZoneChange for bolt, trace: {trace:?}"
     );
     assert_eq!(state.objects.obj(bear).total_damage(), 3);
     assert!(

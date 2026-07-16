@@ -114,7 +114,8 @@ impl GameState {
                         None
                     };
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::ZoneWillChange {
+                        GameEvent::ZoneChange {
+                            snapshot: None,
                             object: spell,
                             from: Some(Zone::Stack),
                             to: Zone::Battlefield,
@@ -146,7 +147,8 @@ impl GameState {
                         // ability vanishing ([CR#608.2n]).
                         GameEvent::AbilityResolved(spell)
                     } else {
-                        GameEvent::ZoneWillChange {
+                        GameEvent::ZoneChange {
+                            snapshot: None,
                             object: spell,
                             from: Some(Zone::Stack),
                             to: Zone::Graveyard,
@@ -176,7 +178,8 @@ impl GameState {
                 } else {
                     // [CR#608.2b]: all targets illegal — the spell fizzles.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::ZoneWillChange {
+                        GameEvent::ZoneChange {
+                            snapshot: None,
                             object: spell,
                             from: Some(Zone::Stack),
                             to: Zone::Graveyard,

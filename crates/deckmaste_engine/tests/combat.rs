@@ -1046,10 +1046,10 @@ fn attacks_trigger_fires_and_resolves() {
 /// fact — its `Continuously(Modify(of: Of(ThatObject)))` ([CR#611.2a]) pumps
 /// "that creature" (the lone attacker), which the engine must bind as
 /// `ThatObject` off the `Attacking` fact. Before the provenance fix this
-/// panicked at resolution (`ThatObject` was unbound for every non-`ZoneChanged`
-/// event). A 2/2 Exalted creature that attacks ALONE resolves its trigger and
-/// becomes 3/3 for the turn (the intervening-if `CountOf(Attacking) == 1`
-/// holds, [CR#702.83b]).
+/// panicked at resolution (`ThatObject` was unbound for every non-past-form
+/// `ZoneChange` event). A 2/2 Exalted creature that attacks ALONE resolves its
+/// trigger and becomes 3/3 for the turn (the intervening-if `CountOf(Attacking)
+/// == 1` holds, [CR#702.83b]).
 #[test]
 fn exalted_lone_attacker_pumps_via_that_object() {
     let mut state = two_player_decks("Exalted Creature", "Grizzly Bears", 7, 20);
@@ -1443,7 +1443,7 @@ fn trample_no_live_blockers_assigns_all_to_player() {
 
     // Remove the blocker from combat BEFORE the Combat Damage step, through the
     // engine's own machinery: destroy it (a battlefield→graveyard
-    // `ZoneWillChange`), which prunes it from combat as it leaves the
+    // future-form `ZoneChange`), which prunes it from combat as it leaves the
     // battlefield ([CR#506.4]). We clear the open priority, front-schedule the
     // destroy + an SBA pass + a fresh `OpenPriority` (re-surfacing the same
     // round), and step it through. This mirrors a removal spell resolving in the
@@ -1451,8 +1451,10 @@ fn trample_no_live_blockers_assigns_all_to_player() {
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
     state.agenda.push_front(WorkItem::CheckSbas);
-    state.agenda.push_front(WorkItem::Emit(Occurrence::single(
-        GameEvent::ZoneWillChange {
+    state
+        .agenda
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
+            snapshot: None,
             object: blocker,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
@@ -1460,8 +1462,7 @@ fn trample_no_live_blockers_assigns_all_to_player() {
             position: None,
             face: None,
             cause: None,
-        },
-    )));
+        })));
     // Drive on: the destroy applies and prunes combat, then play passes through
     // to the Combat Damage step where the trampler sees no live blockers.
     let (_t, _stop) = pass_to_stop(&mut state);
@@ -1759,15 +1760,16 @@ fn unblocked_attacker_whose_planeswalker_left_deals_no_damage() {
 }
 
 /// [CR#506.4c]: when the ATTACKED planeswalker leaves the battlefield during
-/// combat (here, destroyed via the engine's own `ZoneWillChange` machinery —
-/// mirroring a removal spell resolving in the post-declare-attackers priority
-/// window), the attacker targeting it is NOT removed from combat. Quoting the
-/// rule: it "continues to be an attacking creature, although it is not
-/// attacking any player, planeswalker, or battle" — so `is_attacking` stays
-/// true and only `target_of` clears. Regression-checks the downstream effect
-/// too: driven on to the combat damage step, the now-targetless attacker
-/// deals no damage and the defending player's life is untouched (Task 9's
-/// "target gone → no damage" damage-routing safety net), and it survives.
+/// combat (here, destroyed via the engine's own future-form `ZoneChange`
+/// machinery — mirroring a removal spell resolving in the
+/// post-declare-attackers priority window), the attacker targeting it is NOT
+/// removed from combat. Quoting the rule: it "continues to be an attacking
+/// creature, although it is not attacking any player, planeswalker, or battle"
+/// — so `is_attacking` stays true and only `target_of` clears.
+/// Regression-checks the downstream effect too: driven on to the combat damage
+/// step, the now-targetless attacker deals no damage and the defending player's
+/// life is untouched (Task 9's "target gone → no damage" damage-routing safety
+/// net), and it survives.
 #[test]
 fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attacking_status() {
     let mut state = two_player_decks(
@@ -1809,13 +1811,15 @@ fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attackin
     );
 
     // Destroy the planeswalker through the engine's own machinery (a
-    // battlefield -> graveyard `ZoneWillChange`), just as
+    // battlefield -> graveyard future-form `ZoneChange`), just as
     // `trample_no_live_blockers_assigns_all_to_player` does for a blocker.
     state.pending = None;
     state.agenda.push_front(WorkItem::OpenPriority);
     state.agenda.push_front(WorkItem::CheckSbas);
-    state.agenda.push_front(WorkItem::Emit(Occurrence::single(
-        GameEvent::ZoneWillChange {
+    state
+        .agenda
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
+            snapshot: None,
             object: pw,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
@@ -1823,8 +1827,7 @@ fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attackin
             position: None,
             face: None,
             cause: None,
-        },
-    )));
+        })));
     let (_t, stop) = pass_to_stop(&mut state);
 
     assert!(

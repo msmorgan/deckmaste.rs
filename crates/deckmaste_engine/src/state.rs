@@ -432,22 +432,23 @@ pub struct GameState {
     pub next_batch: Uint,
     /// The batch-evolution collector: `Some` only while `apply_occurrence`
     /// is applying a `Batch`'s members. Intent evolutions (`Act(Destroy)` →
-    /// `ZoneWillChange` → `ZoneChanged`, a draw's move, a created token's
-    /// entry fact) push here instead of front-scheduling a `Single`, and the
-    /// batch apply flushes the collection as ONE follow-on `Occurrence` — a
-    /// simultaneous batch stays a batch through every evolution stage
-    /// ([CR#603.3b,603.2c]; a destroy-all's dies-facts are one occurrence).
+    /// future-form `ZoneChange` → past-form `ZoneChange`, a draw's move, a
+    /// created token's entry fact) push here instead of front-scheduling a
+    /// `Single`, and the batch apply flushes the collection as ONE
+    /// follow-on `Occurrence` — a simultaneous batch stays a batch through
+    /// every evolution stage ([CR#603.3b,603.2c]; a destroy-all's
+    /// dies-facts are one occurrence).
     pub(crate) evolving_batch: Option<Vec<GameEvent>>,
     /// Fact-backed product groups ([CR#607.2a] linkage; the "this way"
     /// anaphora mechanism): `OneShotEffect::Noting { key, .. }` records the
-    /// object set its inner effect ACTUALLY moved — each enacted
-    /// `ZoneChanged` fact's snapshot plus the moved object's post-move
+    /// object set its inner effect ACTUALLY moved — each enacted past-form
+    /// `ZoneChange` fact's snapshot plus the moved object's post-move
     /// identity — never the gathered input set. Read by
     /// `Selection::AmongNoted`.
     pub noted: std::collections::HashMap<deckmaste_core::Ident, Vec<crate::state::NotedMember>>,
     /// The keys currently COLLECTING ([CR#607.2a]) — a stack: `BeginNote`
-    /// pushes, `EndNote` pops; while non-empty, every enacted `ZoneChanged`
-    /// fact appends to each open key's group.
+    /// pushes, `EndNote` pops; while non-empty, every enacted past-form
+    /// `ZoneChange` fact appends to each open key's group.
     pub(crate) noting: Vec<deckmaste_core::Ident>,
     /// [CR#608.2c] resolution-scoped scalar note slots: a mid-resolution
     /// choice ("choose a number") stored under a note key and read back
@@ -488,8 +489,8 @@ pub enum NotedValue {
     CardName(String),
 }
 
-/// One member of a noted product group ([CR#607.2a]): the enacted
-/// `ZoneChanged` fact's snapshot (the group survives its members' departure
+/// One member of a noted product group ([CR#607.2a]): the enacted past-form
+/// `ZoneChange` fact's snapshot (the group survives its members' departure
 /// — a destroyed member is read through LKI), plus the moved object's
 /// POST-move identity when it still exists (a milled card is live in the
 /// graveyard; "exile them" acts through this id).

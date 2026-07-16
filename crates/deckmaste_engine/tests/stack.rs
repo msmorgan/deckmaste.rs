@@ -989,8 +989,8 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     let _ = step_to_stop(&mut state);
 
     // [CR#608.3]/[CR#400.7]: the permanent spell enters the battlefield via a
-    // stack→battlefield ZoneWillChange that remints — the old stack id is gone
-    // and a fresh object is on the battlefield under P0's control.
+    // stack→battlefield future-form ZoneChange that remints — the old stack id is
+    // gone and a fresh object is on the battlefield under P0's control.
     assert!(
         state.objects.get(bears).is_none(),
         "old stack id must be gone after the permanent enters and remints"
@@ -1719,9 +1719,10 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
 /// End-to-end ETB trigger + `DrawCards` ([CR#603.3,121.1]):
 ///
 /// P0 casts Elvish Visionary ({1}{G}). It resolves and enters
-/// the battlefield. Its `Enters(Ref(This))` trigger fires on the `ZoneChanged`
-/// (→Battlefield), `PlaceTriggers` places it (no targets → directly), it
-/// resolves and calls `DrawCards(1)` — P0 draws a card. Assert hand grew by 1.
+/// the battlefield. Its `Enters(Ref(This))` trigger fires on the past-form
+/// `ZoneChange` (→Battlefield), `PlaceTriggers` places it (no targets →
+/// directly), it resolves and calls `DrawCards(1)` — P0 draws a card. Assert
+/// hand grew by 1.
 #[test]
 fn etb_trigger_draws_a_card() {
     let etb = card("Elvish Visionary");
@@ -1811,7 +1812,8 @@ fn etb_trigger_draws_a_card() {
                 trigger_fired = true;
             }
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::ZoneChanged {
+                GameEvent::ZoneChange {
+                    snapshot: Some(_),
                     from: Some(Zone::Library),
                     to: Zone::Hand,
                     ..

@@ -362,10 +362,13 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(bear);
-        let death = GameEvent::ZoneChanged {
-            snapshot: LkiSnapshot::capture(&state, bear),
+        let death = GameEvent::ZoneChange {
+            object: bear,
+            snapshot: Some(Box::new(LkiSnapshot::capture(&state, bear))),
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
+            enters: None,
+            position: None,
             face: None,
             cause: None,
         };

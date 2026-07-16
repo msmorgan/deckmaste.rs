@@ -11,7 +11,7 @@
 //!   enter with 3 loyalty → activate `[+2]` to 5 → attack it → it dies.
 //!
 //! The permanent enters through the engine's own zone-change machinery (a
-//! front-scheduled `ZoneWillChange` to the battlefield, the same public
+//! front-scheduled future-form `ZoneChange` to the battlefield, the same public
 //! `agenda`/`Emit` path `combat.rs` uses to drive a mid-game zone change), so
 //! the conferral replacement is what puts the loyalty counters on — never a
 //! hand-set counter map.
@@ -162,14 +162,16 @@ fn force_onto_battlefield(state: &mut GameState, player: PlayerId, name: &str) -
 }
 
 /// Front-schedule the object's entry through the engine's zone-change
-/// machinery (`ZoneWillChange` to the battlefield, then an SBA sweep), so the
-/// enters-with-loyalty conferral replacement is what puts the loyalty counters
-/// on. Does not itself step — the caller drives to the next stop.
+/// machinery (future-form `ZoneChange` to the battlefield, then an SBA sweep),
+/// so the enters-with-loyalty conferral replacement is what puts the loyalty
+/// counters on. Does not itself step — the caller drives to the next stop.
 fn schedule_entry(state: &mut GameState, obj: ObjectId) {
     let from = state.objects.obj(obj).zone;
     state.agenda.push_front(WorkItem::CheckSbas);
-    state.agenda.push_front(WorkItem::Emit(Occurrence::single(
-        GameEvent::ZoneWillChange {
+    state
+        .agenda
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
+            snapshot: None,
             object: obj,
             from,
             to: Zone::Battlefield,
@@ -177,8 +179,7 @@ fn schedule_entry(state: &mut GameState, obj: ObjectId) {
             position: None,
             face: None,
             cause: None,
-        },
-    )));
+        })));
 }
 
 // --- stepping helpers (mirrors activate.rs / combat.rs)

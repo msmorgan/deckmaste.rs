@@ -165,8 +165,8 @@ pub enum GameEvent {
     // ([CR#702.35a]) replaces it (the role the retired `WillDiscard`
     // placeholder reserved). Destroy is `Act(Destroy(x))`, a dual-facet event
     // whose apply COMMITS the Battlefield → Graveyard move directly (carrying
-    // its `cause`, [CR#701.8a,701.8b]) — no separate replaceable `ZoneWillChange`
-    // below it; indestructible ([CR#702.12b]) cants it and regeneration
+    // its `cause`, [CR#701.8a,701.8b]) — no separate replaceable future-form
+    // `ZoneChange` below it; indestructible ([CR#702.12b]) cants it and regeneration
     // ([CR#701.19a]) replaces it, both keyed on `Act(Destroy(…))`. Draw is the
     // atomic single-card `Act(Draw)` ([CR#121.1,121.2]): its apply binds the
     // library top LATE and either commits the Library → Hand move (tagged
@@ -192,12 +192,12 @@ pub enum GameEvent {
     /// action so its body never runs ([CR#701.22b]), while a surviving `Act` in
     /// the log is the "whenever you scry/surveil/…" trigger fact
     /// ([CR#701.22d]) — no separate post-fact. RESULT-side
-    /// "destroyed"/"milled"/"drawn" triggers still key on the body's
-    /// `ZoneChanged`/`Drawn` fact ([CR#700.4]). A move-verb (`Act(Destroy)`)
+    /// "destroyed"/"milled"/"drawn" triggers still key on the body's past-form
+    /// `ZoneChange`/`Drawn` fact ([CR#700.4]). A move-verb (`Act(Destroy)`)
     /// carries its body facet in `from`/`to` and COMMITS that move directly on
     /// apply — ONE dual-facet event through cant→replace→apply, never a second
-    /// replaceable `ZoneWillChange` below it ([CR#616.1]); the reorder verbs
-    /// (scry/surveil/fateseal) run their body ahead of a `None`-shape
+    /// replaceable future-form `ZoneChange` below it ([CR#616.1]); the reorder
+    /// verbs (scry/surveil/fateseal) run their body ahead of a `None`-shape
     /// post-fact.
     Act {
         verb: deckmaste_core::VerbName,
@@ -207,11 +207,11 @@ pub enum GameEvent {
         /// zone-change, derived from the stored `Move` body BEFORE it runs
         /// (`Destroy(x)` → `from: Battlefield, to: Graveyard`). A move-verb
         /// carries `Some`; the apply COMMITS this move directly (atomic — no
-        /// separate replaceable `ZoneWillChange` below it). A reorder verb
-        /// (scry/surveil/fateseal) reorders WITHIN a zone and carries `None`,
-        /// so a `ZoneChange(→Graveyard)` query never matches it. Paired with
-        /// the tag facet (`verb`/`on`/`who`) so ONE event is matchable on both
-        /// ([CR#616.1]).
+        /// separate replaceable future-form `ZoneChange` below it). A reorder
+        /// verb (scry/surveil/fateseal) reorders WITHIN a zone and
+        /// carries `None`, so a `ZoneChange(→Graveyard)` query never
+        /// matches it. Paired with the tag facet (`verb`/`on`/`who`) so
+        /// ONE event is matchable on both ([CR#616.1]).
         from: Option<Zone>,
         to: Option<Zone>,
         /// The causal context this keyword action rides ([CR#701.8b]) — its
@@ -243,9 +243,10 @@ pub enum GameEvent {
     /// `token` specifies. Its apply synthesizes a token entry in the card
     /// table (owner = creator), mints the object straight onto the battlefield
     /// (controller = creator), folds `AsEnters` self-replacements, and emits
-    /// the `ZoneChanged { from: None, to: Battlefield }` fact so enter-triggers
-    /// fire. Creating N tokens is a `Batch` of N of these (one instruction,
-    /// simultaneous). "Whenever you create a token" triggers match here.
+    /// the past-form `ZoneChange { from: None, to: Battlefield, .. }` fact so
+    /// enter-triggers fire. Creating N tokens is a `Batch` of N of these (one
+    /// instruction, simultaneous). "Whenever you create a token" triggers
+    /// match here.
     TokenCreated {
         player: PlayerId,
         token: Token,
@@ -254,7 +255,7 @@ pub enum GameEvent {
     /// abilities-only def ([CR#114.3]) into the card table and mints the object
     /// straight into the command zone, both owned and controlled by that player
     /// ([CR#114.2]). Getting an emblem is not itself a zone-change — no
-    /// `ZoneChanged` fact — but "whenever you get an emblem"-style triggers
+    /// `ZoneChange` fact — but "whenever you get an emblem"-style triggers
     /// would match here.
     EmblemCreated {
         player: PlayerId,
@@ -262,7 +263,7 @@ pub enum GameEvent {
     },
     /// [CR#704.5d,111.7]: a token found in a zone other than the battlefield
     /// ceases to exist. Its apply removes the object from its zone and the
-    /// store outright — no remint, no `ZoneChanged` fact (the token doesn't
+    /// store outright — no remint, no `ZoneChange` fact (the token doesn't
     /// move, it stops existing). Zone-leave triggers already fired at the
     /// move that stranded it ([CR#111.7]'s note); anything still pointing at
     /// it reads the LKI that rode that fact.
@@ -308,15 +309,31 @@ pub enum GameEvent {
         /// reads it.
         combat: bool,
     },
-    /// The INTENT of a zone change ([CR#400.7]). Replacements act here. Its
-    /// apply captures LKI, moves+remints the object, folds the object's own
-    /// `AsEnters` self-replacements into the entering status, and emits
-    /// `ZoneChanged`. `enters` is present only when `to == Battlefield`.
-    /// `position` is present only when `to == Library`: the insertion index
-    /// counted from the top (`0` = top), clamped to the bottom when the
-    /// library is shorter ([CR#401.7]); `None` means the top.
-    ZoneWillChange {
+    /// A zone change ([CR#400.7,603.6]) — ONE phase-explicit event covering
+    /// both the INTENT (replaceable, not yet recorded) and the FACT
+    /// (unreplaceable, recorded, trigger-visible). `snapshot.is_none()` is
+    /// the FUTURE form: a live object is still about to move, replacements
+    /// act here ([CR#614]), and it is neither recorded to history nor
+    /// trigger-scanned. `apply` captures the object's LKI the instant before
+    /// the move, fills `snapshot` (`Some`), and the SAME variant becomes the
+    /// PAST form — the fact triggers (later tasks) fire on. The LKI-snapshot
+    /// / immediate-move semantics are unchanged from the old
+    /// `ZoneWillChange`/`ZoneChanged` pair ([CR#603.10a]): the move+remint
+    /// still happens atomically inside `apply`, not at some later "commit"
+    /// step. `enters` is present only when `to == Battlefield`. `position`
+    /// is present only when `to == Library`: the insertion index counted
+    /// from the top (`0` = top), clamped to the bottom when the library is
+    /// shorter ([CR#401.7]); `None` means the top.
+    ZoneChange {
+        /// The moved object's id. On the future form this is the still-live
+        /// id about to move; on the past form it is the same (now-stale)
+        /// id — `snapshot.object` mirrors it once `snapshot` is filled.
         object: ObjectId,
+        /// `None` before apply (future/replaceable, unrecorded); `Some`
+        /// after (past/recorded) — the moved object's LKI, captured the
+        /// instant before the move ([CR#603.10a]). Boxed to keep the common
+        /// non-zone-change arms of `GameEvent` cheap.
+        snapshot: Option<Box<crate::lki::LkiSnapshot>>,
         from: Option<Zone>,
         to: Zone,
         enters: Option<EnterStatus>,
@@ -328,17 +345,6 @@ pub enum GameEvent {
         face: Option<deckmaste_core::Face>,
         /// `None` = an unattributed move; named views (sacrificed,
         /// discarded, played) ride here as cause triples.
-        cause: Option<Cause>,
-    },
-    /// The FACT ([CR#603.6]) — unreplaceable; carries the moved object's LKI.
-    /// Triggers (later tasks) fire on it.
-    ZoneChanged {
-        snapshot: crate::lki::LkiSnapshot,
-        from: Option<Zone>,
-        to: Zone,
-        /// Copied through from the `ZoneWillChange` intent.
-        face: Option<deckmaste_core::Face>,
-        /// Copied through from the `ZoneWillChange` intent.
         cause: Option<Cause>,
     },
     /// [CR#119.3]: a player loses life directly (not via damage).
@@ -518,7 +524,7 @@ pub enum GameEvent {
 }
 
 /// How a permanent enters the battlefield ([CR#110.5] status; face-down is
-/// later). Present on a `ZoneWillChange` only when `to == Battlefield`. (Not
+/// later). Present on a `ZoneChange` only when `to == Battlefield`. (Not
 /// `Copy`: it carries the enters-with-counters list.)
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnterStatus {
@@ -533,8 +539,8 @@ pub struct EnterStatus {
     /// Counters the permanent enters with ([CR#122.6a,614.1c]) — `(kind,
     /// count)` pairs folded in from its own `AsEnters(PutCounters(This,
     /// kind, n))` self-replacement, placed atomically at mint before the
-    /// `ZoneChanged` fact (so no observable counterless window, and the
-    /// entering P/T already reflects them).
+    /// past-form `ZoneChange` fact (so no observable counterless window, and
+    /// the entering P/T already reflects them).
     pub counters: Vec<(deckmaste_core::Ident, deckmaste_core::Uint)>,
 }
 
@@ -566,16 +572,17 @@ impl GameEvent {
     #[must_use]
     pub fn audience(&self, state: &crate::state::GameState) -> Audience {
         match self {
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
                 object,
+                snapshot: None,
                 from: Some(from),
                 to,
                 ..
             } if from.is_hidden() && to.is_hidden() => {
                 Audience::Restricted(vec![state.owner_of(*object)])
             }
-            GameEvent::ZoneChanged {
-                snapshot,
+            GameEvent::ZoneChange {
+                snapshot: Some(snapshot),
                 from: Some(from),
                 to,
                 ..

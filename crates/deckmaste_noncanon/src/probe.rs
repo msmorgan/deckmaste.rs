@@ -45,8 +45,11 @@ impl Probes {
             match ev {
                 // A direct hand -> battlefield move is exactly a land play:
                 // permanent SPELLS route via the stack (the LandPlayed event
-                // was retired in favor of the zone-change pipeline).
-                GameEvent::ZoneChanged {
+                // was retired in favor of the zone-change pipeline). Guard on
+                // the past-form (`snapshot: Some`) so the pre-commit
+                // future-form intent isn't double-counted alongside its fact.
+                GameEvent::ZoneChange {
+                    snapshot: Some(_),
                     from: Some(Zone::Hand),
                     to: Zone::Battlefield,
                     ..
@@ -75,7 +78,8 @@ impl Probes {
                         (true, false) => {} // creature-on-creature combat
                     }
                 }
-                GameEvent::ZoneChanged {
+                GameEvent::ZoneChange {
+                    snapshot: Some(_),
                     from: Some(Zone::Battlefield),
                     to: Zone::Graveyard,
                     ..

@@ -101,7 +101,8 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::ZoneWillChange {
+                    .map(|object| GameEvent::ZoneChange {
+                        snapshot: None,
                         object,
                         from: Some(Zone::Battlefield),
                         to: Zone::Graveyard,
@@ -874,8 +875,8 @@ mod tests {
     /// [CR#701.7a,111.2]: `Create(2, token)` puts two token permanents onto
     /// the battlefield under the creator — owned by them, summoning-sick,
     /// kind `Token` (not `Card`, [CR#111.6]) — as ONE simultaneous batch of
-    /// `TokenCreated` facts, each followed by its `ZoneChanged { from: None,
-    /// to: Battlefield }` fact.
+    /// `TokenCreated` facts, each followed by its past-form `ZoneChange
+    /// { from: None, to: Battlefield, .. }` fact.
     #[test]
     fn create_tokens_enter_battlefield() {
         use deckmaste_core::Token;
@@ -943,14 +944,15 @@ mod tests {
                 assert_eq!(facts.len(), 2, "both entry facts in one batch");
                 assert!(facts.iter().all(|e| matches!(
                     e,
-                    GameEvent::ZoneChanged {
+                    GameEvent::ZoneChange {
+                        snapshot: Some(_),
                         from: None,
                         to: Zone::Battlefield,
                         ..
                     }
                 )));
             }
-            other => panic!("expected the tokens' ZoneChanged batch, got {other:?}"),
+            other => panic!("expected the tokens' past-form ZoneChange batch, got {other:?}"),
         }
     }
 
@@ -1683,11 +1685,11 @@ mod tests {
     /// does, since nothing but the rng draws differs between them, but the
     /// position comparison needs no such assumption).
     ///
-    /// The zone-move fact actually compared is `GameEvent::ZoneChanged`
-    /// (`from: Hand, to: Graveyard`) — the committed FACT a discard emits;
-    /// `ZoneWillChange` is the pre-evolution INTENT and is never recorded to
-    /// history (`record_history` skips it on purpose, folded into its
-    /// downstream `ZoneChanged`).
+    /// The zone-move fact actually compared is the past-form `GameEvent::
+    /// ZoneChange` (`from: Hand, to: Graveyard`) — the committed FACT a
+    /// discard emits; the future-form `ZoneChange` is the pre-evolution
+    /// INTENT and is never recorded to history (`record_history` skips it
+    /// on purpose, folded into its downstream past form).
     #[test]
     fn full_random_surface_is_replayable() {
         use deckmaste_core::Uint;
@@ -1747,12 +1749,13 @@ mod tests {
 
             // Random discard of 2 from the 5-card hand. THREE steps, not
             // two: dispatch `WorkItem::DiscardRandom` (samples + schedules
-            // the `ZoneWillChange` batch), apply that intent batch (which
-            // captures LKI/remints and collects the evolved `ZoneChanged`
-            // batch into `evolving_batch` rather than applying it inline —
-            // `schedule_evolution`'s batch path front-schedules it as its
-            // own follow-on `WorkItem::Emit`), then apply THAT batch (which
-            // actually records the `ZoneChanged` facts to history).
+            // the future-form `ZoneChange` batch), apply that intent batch
+            // (which captures LKI/remints and collects the evolved past-form
+            // `ZoneChange` batch into `evolving_batch` rather than applying
+            // it inline — `schedule_evolution`'s batch path front-schedules
+            // it as its own follow-on `WorkItem::Emit`), then apply THAT
+            // batch (which actually records the past-form `ZoneChange`
+            // facts to history).
             state.run_effect(
                 OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), true)),
                 &frame,
@@ -1781,8 +1784,8 @@ mod tests {
                 .history
                 .entries()
                 .filter_map(|e| match &e.fact {
-                    GameEvent::ZoneChanged {
-                        snapshot,
+                    GameEvent::ZoneChange {
+                        snapshot: Some(snapshot),
                         from: Some(Zone::Hand),
                         to: Zone::Graveyard,
                         ..

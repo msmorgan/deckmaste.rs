@@ -126,8 +126,8 @@ impl GameState {
                 // top-N to the graveyard). Realized as ONE simultaneous
                 // cause-tagged batch, then the aggregate `Act` fact — reorder-
                 // style (the trigger fires post-commit, [CR#701.22d]), NOT the
-                // atomic-commit branch: the per-card graveyard `ZoneWillChange`s
-                // are where a graveyard replacement (Rest-in-Peace) bites, so the
+                // atomic-commit branch: the per-card graveyard future-form
+                // `ZoneChange`s are where a graveyard replacement (Rest-in-Peace) bites, so the
                 // `Act` needs no per-object guard facet.
                 let group_move = composite_body_group_move(body);
                 let mut items = Vec::new();
@@ -164,7 +164,8 @@ impl GameState {
                             .into_iter()
                             .filter_map(|object| {
                                 let from = self.objects.obj(object).zone?;
-                                Some(GameEvent::ZoneWillChange {
+                                Some(GameEvent::ZoneChange {
+                                    snapshot: None,
                                     object,
                                     from: Some(from),
                                     to: to_zone,
@@ -317,7 +318,8 @@ impl GameState {
                         .map(|e| (e.copy, &e.object))
                     {
                         Some((false, StackObject::Spell(spell))) => {
-                            events.push(GameEvent::ZoneWillChange {
+                            events.push(GameEvent::ZoneChange {
+                                snapshot: None,
                                 object: *spell,
                                 from: Some(Zone::Stack),
                                 to: Zone::Graveyard,
@@ -523,7 +525,8 @@ impl GameState {
                 };
                 let events: Vec<GameEvent> = objects
                     .iter()
-                    .map(|&object| GameEvent::ZoneWillChange {
+                    .map(|&object| GameEvent::ZoneChange {
+                        snapshot: None,
                         object,
                         from: Some(self.objects.obj(object).zone.expect("move a zoned object")),
                         to: to_zone,
@@ -600,8 +603,8 @@ impl GameState {
     /// [`Destination::Library`] anchor that it ALREADY occupies is a same-zone
     /// REPOSITION ([CR#401.7]) — a `RepositionLibrary` work item that keeps the
     /// `ObjectId` and fires no zone change (scry never removes a card from the
-    /// library, [CR#701.22a]). Every other move is a genuine `ZoneWillChange`
-    /// (remint); the zone-change intents batch as one occurrence.
+    /// library, [CR#701.22a]). Every other move is a genuine future-form
+    /// `ZoneChange` (remint); the zone-change intents batch as one occurrence.
     ///
     /// `guard` is [`Action::Move`]'s optional `from` fizzle-guard
     /// ([CR#701.8a,701.9a,701.17a]): when `Some(z)`, an object whose CURRENT
@@ -653,7 +656,8 @@ impl GameState {
                             Some(self.library_index(object, anchor, frame))
                         }
                     };
-                    zone_events.push(GameEvent::ZoneWillChange {
+                    zone_events.push(GameEvent::ZoneChange {
+                        snapshot: None,
                         object,
                         from: Some(from),
                         to,
@@ -1215,14 +1219,14 @@ mod tests {
     }
 
     /// A destructible creature still dies: `Destroy` → `Act(Destroy)` (nothing
-    /// replaces it) → `ZoneWillChange(Battlefield → Graveyard)` →
-    /// `ZoneChanged`, reminting it into its owner's graveyard.
+    /// replaces it) → future-form `ZoneChange(Battlefield → Graveyard)` →
+    /// its past form, reminting it into its owner's graveyard.
     #[test]
     fn destroy_action_sends_a_normal_creature_to_its_graveyard() {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src(bear);
         state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
-        // Act(Destroy) → ZoneWillChange → ZoneChanged.
+        // Act(Destroy) → future-form ZoneChange → past-form ZoneChange.
         for _ in 0..3 {
             let _ = state.step();
         }
@@ -1232,10 +1236,10 @@ mod tests {
     }
 
     /// [CR#400.7]: `Move(This, Graveyard)` is a PLAIN relocation — no
-    /// `Act(Destroy)` event, so it's a direct `ZoneWillChange(Battlefield →
-    /// Graveyard)` → `ZoneChanged`, reminting the object into its OWNER's
-    /// graveyard. (Indestructible would not save it — but a plain Grizzly Bears
-    /// exercises the move path.)
+    /// `Act(Destroy)` event, so it's a direct future-form `ZoneChange
+    /// (Battlefield → Graveyard)` → its past form, reminting the object into
+    /// its OWNER's graveyard. (Indestructible would not save it — but a plain
+    /// Grizzly Bears exercises the move path.)
     #[test]
     fn move_sends_this_to_owner_graveyard() {
         let (mut state, bear) = bear_on_field();
@@ -1244,8 +1248,8 @@ mod tests {
             OneShotEffect::Act(Action::move_to(Reference::This, Zone::Graveyard)),
             &frame,
         );
-        // ZoneWillChange → ZoneChanged (one fewer step than Destroy — no
-        // Act(Destroy) replace stage).
+        // future-form ZoneChange → past-form ZoneChange (one fewer step than
+        // Destroy — no Act(Destroy) replace stage).
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -1361,7 +1365,7 @@ mod tests {
     /// The Blood-Money shape ([CR#607.2a] fact-backed product groups): a
     /// `Noting`-wrapped destroy-all over three creatures, one of which
     /// can't be destroyed — "destroyed this way" is exactly the clause's
-    /// enacted destroy-caused `ZoneChanged` facts, so the survivor is
+    /// enacted destroy-caused past-form `ZoneChange` facts, so the survivor is
     /// excluded BY CONSTRUCTION (its `Act(Destroy)` was canted; no move
     /// fact exists), and the two dies-facts share one history batch id
     /// ([CR#603.3b]).
@@ -1417,7 +1421,15 @@ mod tests {
         let ids: Vec<Option<deckmaste_core::Uint>> = state
             .history
             .entries()
-            .filter(|e| matches!(e.fact, GameEvent::ZoneChanged { .. }))
+            .filter(|e| {
+                matches!(
+                    e.fact,
+                    GameEvent::ZoneChange {
+                        snapshot: Some(_),
+                        ..
+                    }
+                )
+            })
             .map(|e| e.batch)
             .collect();
         assert_eq!(ids.len(), 2);
@@ -1465,8 +1477,12 @@ mod tests {
         assert!(
             logged(&state, |e| matches!(
                 e,
-                GameEvent::ZoneChanged { cause: Some(c), to: Zone::Graveyard, .. }
-                    if c.verb.as_str() == "Mill"
+                GameEvent::ZoneChange {
+                    snapshot: Some(_),
+                    cause: Some(c),
+                    to: Zone::Graveyard,
+                    ..
+                } if c.verb.as_str() == "Mill"
             )),
             "the moves carry the Mill cause ([CR#701.17a])"
         );
@@ -1520,7 +1536,8 @@ mod tests {
             .filter(|e| {
                 matches!(
                     e.fact,
-                    GameEvent::ZoneChanged {
+                    GameEvent::ZoneChange {
+                        snapshot: Some(_),
                         to: Zone::Graveyard,
                         ..
                     }
@@ -1559,7 +1576,8 @@ mod tests {
             .rposition(|f| {
                 matches!(
                     f,
-                    GameEvent::ZoneChanged {
+                    GameEvent::ZoneChange {
+                        snapshot: Some(_),
                         to: Zone::Graveyard,
                         ..
                     }
@@ -1590,9 +1608,10 @@ mod tests {
     }
 
     /// [CR#616.1]: a Rest-in-Peace-style `→Graveyard` replacement bites the mill
-    /// batch's per-card `ZoneWillChange`s directly — the milled cards are
-    /// exiled instead of hitting the graveyard (Mill needs no dual-facet
-    /// guard; the batch's own zone changes are the replaceable moment).
+    /// batch's per-card future-form `ZoneChange`s directly — the milled cards
+    /// are exiled instead of hitting the graveyard (Mill needs no
+    /// dual-facet guard; the batch's own zone changes are the replaceable
+    /// moment).
     #[test]
     fn rest_in_peace_replaces_milled_cards_with_exile() {
         let (mut state, a) = bear_on_field();
@@ -1687,8 +1706,11 @@ mod tests {
             .history
             .entries()
             .filter(|e| {
-                matches!(&e.fact, crate::event::GameEvent::ZoneChanged { cause: Some(c), .. }
-                    if c.verb.as_str() == "Discard")
+                matches!(&e.fact, crate::event::GameEvent::ZoneChange {
+                    snapshot: Some(_),
+                    cause: Some(c),
+                    ..
+                } if c.verb.as_str() == "Discard")
             })
             .count();
         assert_eq!(
@@ -2113,7 +2135,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Sacrifice(Reference::This)),
             &frame,
         );
-        // Sacrificed → ZoneWillChange → ZoneChanged.
+        // Sacrificed → future-form ZoneChange → past-form ZoneChange.
         for _ in 0..3 {
             let _ = state.step();
         }
@@ -2191,7 +2213,7 @@ mod tests {
             )),
             &frame,
         );
-        // ZoneWillChange → ZoneChanged.
+        // future-form ZoneChange → past-form ZoneChange.
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -2241,7 +2263,7 @@ mod tests {
             )),
             &frame,
         );
-        // ZoneWillChange → ZoneChanged.
+        // future-form ZoneChange → past-form ZoneChange.
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -2278,8 +2300,8 @@ mod tests {
 
     /// [CR#701.8a,701.9a,701.17a]: `Move`'s `from` fizzle-guard. A card
     /// already in the graveyard is NOT in hand, so `Move(<it>, from: Hand,
-    /// to: Graveyard)` fizzles for it — no `ZoneWillChange`/`ZoneChanged`
-    /// event, the object keeps its id (never reminted), and stepping the
+    /// to: Graveyard)` fizzles for it — no `ZoneChange` event (either form),
+    /// the object keeps its id (never reminted), and stepping the
     /// engine afterward doesn't panic (authoring/state-drift mismatches
     /// never crash it).
     #[test]
@@ -2303,7 +2325,7 @@ mod tests {
             )),
             &frame,
         );
-        // No ZoneWillChange was scheduled; step a couple of times anyway to
+        // No future-form ZoneChange was scheduled; step a couple of times anyway to
         // prove the guard mismatch doesn't half-apply or panic.
         for _ in 0..2 {
             let _ = state.step();
@@ -2321,12 +2343,7 @@ mod tests {
         let moved = state
             .history
             .scan(Lookback::ThisGame, state.turn.turn_number)
-            .any(|e| {
-                matches!(
-                    e,
-                    GameEvent::ZoneWillChange { .. } | GameEvent::ZoneChanged { .. }
-                )
-            });
+            .any(|e| matches!(e, GameEvent::ZoneChange { .. }));
         assert!(
             !moved,
             "a from-guard mismatch fizzles: no zone-change event"
@@ -2357,7 +2374,7 @@ mod tests {
         // The source's effect counters that spell (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![spell]);
         state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
-        // ZoneWillChange → ZoneChanged.
+        // future-form ZoneChange → past-form ZoneChange.
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -2413,7 +2430,7 @@ mod tests {
         let frame = frame_src_targets(bear, vec![spell]);
         state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
         // Process the (empty) emit the refused counter scheduled. The refusal
-        // emits no ZoneWillChange, so — unlike the happy path — there is no
+        // emits no future-form ZoneChange, so — unlike the happy path — there is no
         // follow-up item; step exactly once.
         let _ = state.step();
 
@@ -3079,7 +3096,7 @@ mod tests {
     }
 
     /// [CR#701.22a,401.7]: scry-1 to the BOTTOM repositions the peeked card
-    /// within the SAME library — the `ObjectId` is preserved, no `ZoneChanged`
+    /// within the SAME library — the `ObjectId` is preserved, no `ZoneChange`
     /// fires (a pile of one surfaces no arrange decision), and the
     /// keyword-action event fires once the pick lands ([CR#701.22d]).
     #[test]
@@ -3117,10 +3134,14 @@ mod tests {
             "the repositioned object id is preserved (not reminted)"
         );
         assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, GameEvent::ZoneChanged { .. })),
-            "a same-library reposition fires no ZoneChanged"
+            !events.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneChange {
+                    snapshot: Some(_),
+                    ..
+                }
+            )),
+            "a same-library reposition fires no past-form ZoneChange"
         );
         assert!(
             events.iter().any(|e| matches!(

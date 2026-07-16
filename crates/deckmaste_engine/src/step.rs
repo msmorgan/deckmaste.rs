@@ -672,7 +672,8 @@ impl GameState {
                     combat,
                 }
             }
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object,
                 from,
                 to,
@@ -690,7 +691,8 @@ impl GameState {
                     face,
                     cause.clone(),
                 );
-                GameEvent::ZoneWillChange {
+                GameEvent::ZoneChange {
+                    snapshot: None,
                     object,
                     from,
                     to,
@@ -708,7 +710,9 @@ impl GameState {
                 clippy::match_same_arms,
                 reason = "own arm carries its CR rationale and trigger seam"
             )]
-            GameEvent::ZoneChanged { .. } => event,
+            GameEvent::ZoneChange {
+                snapshot: Some(_), ..
+            } => event,
             // [CR#701.3a,701.3c]: commit the attachment→host relation — a new
             // timestamp is implicit (no remint; the relation edit IS the
             // transition). The verb builder (`Action::Attach`) already filtered
@@ -898,7 +902,7 @@ impl GameState {
             //    Battlefield → Graveyard move, carrying its `cause` (one of "destroyed"'s two
             //    causes, [CR#701.8b]). A canted (indestructible, [CR#702.12b]) or replaced
             //    (regeneration, [CR#701.19a]; Rest in Peace's `→Graveyard`) `Act` never reaches
-            //    this apply — there is NO second replaceable `ZoneWillChange` below it
+            //    this apply — there is NO second replaceable future-form `ZoneChange` below it
             //    ([CR#616.1]).
             //  * a reorder verb (scry/surveil/fateseal) — a pure FACT (no mutation; the body's own
             //    events already reordered the library). The surviving `Act` is the "whenever you
@@ -928,7 +932,8 @@ impl GameState {
             } if verb.0.as_str() == "Draw" => {
                 if let Some(&top) = self.zones.libraries[player.index()].front() {
                     self.that_much = Some(1);
-                    self.schedule_evolution(GameEvent::ZoneWillChange {
+                    self.schedule_evolution(GameEvent::ZoneChange {
+                        snapshot: None,
                         object: top,
                         from: Some(Zone::Library),
                         to: Zone::Hand,
@@ -970,10 +975,10 @@ impl GameState {
                 cause,
             } if self.objects.get(object).is_some() => {
                 // Commit the body move atomically ([CR#603.10a] LKI snapshot,
-                // move+remint, `ZoneChanged`) via the shared helper — the same
-                // commit half a plain `ZoneWillChange` runs, so the destroy
-                // composite offers EXACTLY ONE cant/replace opportunity (on the
-                // `Act`, above) and none downstream.
+                // move+remint, past-form `ZoneChange`) via the shared helper —
+                // the same commit half a plain future-form `ZoneChange` runs,
+                // so the destroy composite offers EXACTLY ONE cant/replace
+                // opportunity (on the `Act`, above) and none downstream.
                 self.apply_zone_will_change(object, from, to, None, None, None, cause.clone());
                 GameEvent::Act {
                     verb,
@@ -1038,17 +1043,18 @@ impl GameState {
         }
     }
 
-    /// Applies a `ZoneWillChange` ([CR#400.7]): the move+remint that every zone
-    /// change goes through. Captures the live object's LKI, removes it from its
-    /// `from` zone, remints a fresh object into `to` (new `ObjectId`, same
-    /// `CardId`), applies the permanent's own `AsEnters` self-replacements into
-    /// the `EnterStatus` (no observable untapped window), and schedules the
-    /// `ZoneChanged` fact at the agenda front. `position` places a card
-    /// entering a library at that index from the top, clamped to the bottom
+    /// Applies the future-form `ZoneChange` ([CR#400.7]): the move+remint that
+    /// every zone change goes through. Captures the live object's LKI, removes
+    /// it from its `from` zone, remints a fresh object into `to` (new
+    /// `ObjectId`, same `CardId`), applies the permanent's own `AsEnters`
+    /// self-replacements into the `EnterStatus` (no observable untapped
+    /// window), and schedules the past-form `ZoneChange` fact (`snapshot:
+    /// Some(..)`) at the agenda front. `position` places a card entering a
+    /// library at that index from the top, clamped to the bottom
     /// ([CR#401.7]).
     #[expect(
         clippy::too_many_arguments,
-        reason = "one parameter per ZoneWillChange coordinate"
+        reason = "one parameter per ZoneChange coordinate"
     )]
     fn apply_zone_will_change(
         &mut self,
@@ -1120,7 +1126,9 @@ impl GameState {
         }
         // [CR#614.12]: how it enters — emitted status (Stage 4 replacements) plus
         // the object's own AsEnters self-replacement (enters tapped / attached).
-        let mut entering = enters.unwrap_or_default();
+        // Cloned (not moved) so the original `enters` is still available below
+        // to ride through unchanged on the scheduled past-form `ZoneChange`.
+        let mut entering = enters.clone().unwrap_or_default();
         if to == Zone::Battlefield {
             let as_enters = self.as_enters_status(snapshot.source, new);
             entering.tapped |= as_enters.tapped;
@@ -1134,14 +1142,14 @@ impl GameState {
             self.objects.obj_mut(new).tapped = true;
         }
         // [CR#122.6a,614.1c]: place enters-with counters atomically at mint,
-        // before the `ZoneChanged` fact — the entering P/T already reflects
-        // them, and no counterless window is observable.
+        // before the past-form `ZoneChange` fact — the entering P/T already
+        // reflects them, and no counterless window is observable.
         for (kind, n) in &entering.counters {
             *self.objects.obj_mut(new).counters.entry(*kind).or_insert(0) += n;
         }
         // [CR#303.4]: enters attached atomically — set the link on the freshly
-        // minted object before the `ZoneChanged` fact, so no unattached window
-        // is observable. The `Attached` fact is scheduled after the entry fact.
+        // minted object before the past-form `ZoneChange` fact, so no unattached
+        // window is observable. The `Attached` fact is scheduled after the entry fact.
         let attached_host = entering.attach_to.filter(|&host| {
             to == Zone::Battlefield && self.objects.get(host).is_some() && host != new
         });
@@ -1166,20 +1174,25 @@ impl GameState {
             ),
         }
 
-        // 4. Schedule the unreplaceable fact(s) at the agenda front — the face
-        // and cause coordinates ride through from the intent. Inside a batch
-        // apply the fact joins the shared evolution collector instead, so a
-        // simultaneous move-batch commits as ONE `ZoneChanged` occurrence
-        // ([CR#603.3b,603.2c]). When the permanent entered attached
-        // ([CR#303.4]), the `Attached` fact follows the entry fact (it
-        // entered, then became attached) so "becomes attached / equipped"
-        // can match it (breadth is a seam, §9); it stays its own occurrence
-        // — the flushed evolution batch is front-scheduled after the member
-        // loop, landing AHEAD of it.
-        self.schedule_evolution(GameEvent::ZoneChanged {
-            snapshot,
+        // 4. Schedule the unreplaceable fact(s) at the agenda front — the face,
+        // cause, enters and position coordinates ride through unchanged from
+        // the intent; only `snapshot` flips from `None` to `Some`, turning the
+        // future form into the past form of the SAME `ZoneChange` variant.
+        // Inside a batch apply the fact joins the shared evolution collector
+        // instead, so a simultaneous move-batch commits as ONE past-form
+        // `ZoneChange` occurrence ([CR#603.3b,603.2c]). When the permanent
+        // entered attached ([CR#303.4]), the `Attached` fact follows the entry
+        // fact (it entered, then became attached) so "becomes attached /
+        // equipped" can match it (breadth is a seam, §9); it stays its own
+        // occurrence — the flushed evolution batch is front-scheduled after
+        // the member loop, landing AHEAD of it.
+        self.schedule_evolution(GameEvent::ZoneChange {
+            object,
+            snapshot: Some(Box::new(snapshot)),
             from,
             to,
+            enters,
+            position,
             face,
             cause,
         });
@@ -1197,11 +1210,11 @@ impl GameState {
     /// definition into the card table ([CR#111.2]: `player` is its owner and
     /// it enters under their control), mints the object straight onto the
     /// battlefield (summoning-sick, [CR#302.6]; its own `AsEnters`
-    /// self-replacements folded, [CR#614.12]), and schedules the `ZoneChanged
-    /// { from: None, to: Battlefield }` fact so enter-triggers fire
-    /// ([CR#603.6]). There is no `ZoneWillChange` stage — the token existed
-    /// nowhere to move *from*; its snapshot is captured from the freshly
-    /// minted object.
+    /// self-replacements folded, [CR#614.12]), and schedules the past-form
+    /// `ZoneChange { from: None, to: Battlefield, .. }` fact so enter-triggers
+    /// fire ([CR#603.6]). There is no future/replaceable form here — the token
+    /// existed nowhere to move *from*; its snapshot is captured from the
+    /// freshly minted object.
     fn apply_token_created(&mut self, player: PlayerId, token: &deckmaste_core::Token) {
         let card = self.cards.push_token(token, player);
         let source = ObjectSource::Card(card);
@@ -1215,10 +1228,13 @@ impl GameState {
         // The entry fact joins the batch collector when N tokens are minted
         // as one simultaneous instruction ([CR#701.7a] — "one instruction,
         // simultaneous"): their enter-triggers see ONE occurrence.
-        self.schedule_evolution(GameEvent::ZoneChanged {
-            snapshot,
+        self.schedule_evolution(GameEvent::ZoneChange {
+            object: new,
+            snapshot: Some(Box::new(snapshot)),
             from: None,
             to: Zone::Battlefield,
+            enters: None,
+            position: None,
             face: None,
             cause: None,
         });
@@ -1229,7 +1245,7 @@ impl GameState {
     /// mints the object straight into the command zone (controller = `player`).
     /// Unlike a token, an emblem does NOT enter the battlefield — it's never a
     /// permanent ([CR#114.5]) and never summoning-sick — so there is no
-    /// `ZoneChanged` fact and no enter-trigger scan. Its abilities function
+    /// `ZoneChange` fact and no enter-trigger scan. Its abilities function
     /// from the command zone ([CR#114.4]); no SBA ever removes it (it isn't
     /// a permanent and a command-zone object can't be destroyed —
     /// [CR#114.5,408.1]).
@@ -1245,7 +1261,7 @@ impl GameState {
     }
 
     /// Applies a `TokenCeased` ([CR#704.5d,111.7]): removes the token object
-    /// from its zone and the store outright. No remint, no `ZoneChanged` —
+    /// from its zone and the store outright. No remint, no `ZoneChange` —
     /// ceasing to exist is not a zone change. The card-table entry stays as
     /// inert history (`Cards` never shrinks).
     fn apply_token_ceased(&mut self, id: ObjectId) {
@@ -1263,12 +1279,12 @@ impl GameState {
     }
 
     /// Routes an intent's evolution product (`Act(Destroy)` →
-    /// `ZoneWillChange` → `ZoneChanged`, a draw's move, a token's entry
-    /// fact): inside a `Batch` apply it joins the shared evolution
-    /// collector — the whole batch's products commit later as ONE follow-on
-    /// occurrence ([CR#603.3b,603.2c] — a simultaneous set stays one
-    /// occurrence through every stage) — and outside one it front-schedules
-    /// the familiar `Single`.
+    /// future-form `ZoneChange` → past-form `ZoneChange`, a draw's move, a
+    /// token's entry fact): inside a `Batch` apply it joins the shared
+    /// evolution collector — the whole batch's products commit later as ONE
+    /// follow-on occurrence ([CR#603.3b,603.2c] — a simultaneous set stays
+    /// one occurrence through every stage) — and outside one it
+    /// front-schedules the familiar `Single`.
     fn schedule_evolution(&mut self, event: GameEvent) {
         match &mut self.evolving_batch {
             Some(collector) => collector.push(event),
@@ -1440,9 +1456,11 @@ impl GameState {
         let moved = events
             .iter()
             .filter(|e| match e {
-                GameEvent::ZoneChanged { cause: Some(c), .. } => {
-                    crate::entail::entailment(c.verb.as_str()).is_some_and(|row| row.amount)
-                }
+                GameEvent::ZoneChange {
+                    snapshot: Some(_),
+                    cause: Some(c),
+                    ..
+                } => crate::entail::entailment(c.verb.as_str()).is_some_and(|row| row.amount),
                 _ => false,
             })
             .count();
@@ -1492,16 +1510,17 @@ impl GameState {
 
     /// Appends the substantive facts of `occurred` to the history log, tagged
     /// with the current turn ([CR#608.2i]). Skips the meta/intent facts:
-    /// a `TriggerFired` is bookkeeping, `ZoneWillChange` is the replaceable
-    /// intent above its committed `ZoneChanged`, and `TurnBegan` is read
-    /// off `TurnState`. `StepBegan` IS recorded (with the active player on
-    /// its view) so history reads see step onsets ([CR#603.2b] — the
-    /// StepBegins-in-history lift; also the future sub-turn window
-    /// markers). A `Batch`'s members share one fresh batch id ([CR#603.3b]
-    /// — they were ONE occurrence); a `Single` records `None`. Every
-    /// recorded `ZoneChanged` also feeds the open `Noting` collections
-    /// ([CR#607.2a] — fact-backed product groups: the group is what the
-    /// clause ACTUALLY moved, never its gathered input set).
+    /// a `TriggerFired` is bookkeeping, the future-form `ZoneChange`
+    /// (`snapshot: None`) is the replaceable intent above its committed
+    /// past-form fact, and `TurnBegan` is read off `TurnState`. `StepBegan`
+    /// IS recorded (with the active player on its view) so history reads see
+    /// step onsets ([CR#603.2b] — the StepBegins-in-history lift; also the
+    /// future sub-turn window markers). A `Batch`'s members share one fresh
+    /// batch id ([CR#603.3b] — they were ONE occurrence); a `Single` records
+    /// `None`. Every recorded past-form `ZoneChange` also feeds the open
+    /// `Noting` collections ([CR#607.2a] — fact-backed product groups: the
+    /// group is what the clause ACTUALLY moved, never its gathered input
+    /// set).
     fn record_history(&mut self, occurred: &Occurrence) {
         let turn = self.turn.turn_number;
         let (events, batch): (&[GameEvent], Option<Uint>) = match occurred {
@@ -1517,7 +1536,7 @@ impl GameState {
                 GameEvent::TriggerFired { .. }
                 | GameEvent::AbilityResolved(_)
                 | GameEvent::TurnBegan { .. }
-                | GameEvent::ZoneWillChange { .. } => {}
+                | GameEvent::ZoneChange { snapshot: None, .. } => {}
                 _ => {
                     self.note_enacted(event);
                     // [CR#603.12]: the resolution-scoped window a reflexive
@@ -1552,9 +1571,9 @@ impl GameState {
     }
 
     /// Feeds one enacted fact to every OPEN `Noting` collection
-    /// ([CR#607.2a]): a `ZoneChanged` fact contributes its moved object —
-    /// the fact's snapshot plus the post-move (reminted, [CR#400.7])
-    /// identity when the object still exists. Suppressed and
+    /// ([CR#607.2a]): a past-form `ZoneChange` fact contributes its moved
+    /// object — the fact's snapshot plus the post-move (reminted,
+    /// [CR#400.7]) identity when the object still exists. Suppressed and
     /// replaced-to-nothing members never get here, so an indestructible
     /// survivor of a destroy-all is excluded from "destroyed this way" BY
     /// CONSTRUCTION.
@@ -1562,7 +1581,11 @@ impl GameState {
         if self.noting.is_empty() {
             return;
         }
-        let GameEvent::ZoneChanged { snapshot, .. } = event else {
+        let GameEvent::ZoneChange {
+            snapshot: Some(snapshot),
+            ..
+        } = event
+        else {
             return;
         };
         // The post-move object: the freshly minted id with the same backing
@@ -1577,7 +1600,7 @@ impl GameState {
                 .entry(*key)
                 .or_default()
                 .push(crate::state::NotedMember {
-                    snapshot: snapshot.clone(),
+                    snapshot: snapshot.as_ref().clone(),
                     now,
                 });
         }
@@ -1867,20 +1890,21 @@ impl GameState {
     /// damage on an indestructible creature) loops forever.
     fn emit_sba_batch(&mut self, events: Vec<GameEvent>) -> Progress {
         // Snapshot the agenda length before applying: `apply_occurrence` may
-        // schedule follow-on work items at the front (e.g. `Emit(ZoneWillChange)`
-        // from an `Act(Destroy).apply`). If we re-check immediately after, the
-        // follow-ons haven't run yet so the board looks unchanged — a destructible
-        // creature with lethal damage hasn't moved yet and the re-check re-emits
-        // an Act(Destroy), looping. By inserting the re-check AFTER the follow-on
-        // slots the re-check runs once the ZoneWillChange and ZoneChanged facts
-        // have settled (and the creature is gone), so the next sweep is clean.
+        // schedule follow-on work items at the front (e.g. `Emit(ZoneChange)`
+        // future-form from an `Act(Destroy).apply`). If we re-check immediately
+        // after, the follow-ons haven't run yet so the board looks unchanged — a
+        // destructible creature with lethal damage hasn't moved yet and the
+        // re-check re-emits an Act(Destroy), looping. By inserting the re-check
+        // AFTER the follow-on slots the re-check runs once the future-form and
+        // past-form `ZoneChange` facts have settled (and the creature is gone),
+        // so the next sweep is clean.
         let n_before = self.agenda.len();
         let applied = self.apply_occurrence(Occurrence::Batch(events));
         let n_after = self.agenda.len();
         let changed = !matches!(&applied, Occurrence::Batch(facts) if facts.is_empty());
         if changed {
             // `n_after - n_before` items were prepended by apply_occurrence (the
-            // follow-on Emit(ZoneWillChange) etc). Insert the re-check right
+            // follow-on Emit(ZoneChange) etc). Insert the re-check right
             // behind them so they settle before the next sweep.
             let added = n_after.saturating_sub(n_before);
             self.agenda.insert(added, WorkItem::CheckSbas);
@@ -1974,7 +1998,7 @@ impl GameState {
     /// [CR#101.3]); an empty hand (count 0) surfaces nothing.
     /// [CR#401.7]: reposition a card ALREADY in its owner's library to `end` of
     /// that library, `offset` cards in — direct `VecDeque` surgery keeping the
-    /// `ObjectId` (no remint, no `ZoneChanged`, no zone-change trigger; scry
+    /// `ObjectId` (no remint, no `ZoneChange`, no zone-change trigger; scry
     /// never removes a card from the library, [CR#701.22a]). The offset is
     /// resolved against the library AFTER the card is pulled out, so a
     /// same-library move lands where the anchor names it. When a post-pick
@@ -2832,12 +2856,12 @@ mod tests {
     }
 
     /// Atomic dual-facet apply ([CR#616.1,603.3b]): a destroy-all's
-    /// `Act(Destroy)` batch commits DIRECTLY into one `ZoneChanged` batch —
-    /// there is NO intermediate `ZoneWillChange` stage (the single-replace
-    /// invariant: exactly one cant/replace opportunity, on the `Act`, none
-    /// downstream). The batch stays ONE occurrence through every stage
-    /// ([CR#603.2c]) — never per-member `Single`s — and the two dies-facts
-    /// share a history batch id.
+    /// `Act(Destroy)` batch commits DIRECTLY into one past-form `ZoneChange`
+    /// batch — there is NO intermediate future-form `ZoneChange` stage (the
+    /// single-replace invariant: exactly one cant/replace opportunity, on the
+    /// `Act`, none downstream). The batch stays ONE occurrence through
+    /// every stage ([CR#603.2c]) — never per-member `Single`s — and the two
+    /// dies-facts share a history batch id.
     #[test]
     fn batch_of_intents_evolves_as_one_batch() {
         let (mut state, _view, a) = crate::replace_registry::tests_support::lone_creature();
@@ -2868,37 +2892,50 @@ mod tests {
         };
         assert_eq!(stage1.len(), 2);
 
-        // Stage 2: ONE committed ZoneChanged batch, applied DIRECTLY from the
-        // Act batch — no intervening ZoneWillChange stage.
+        // Stage 2: ONE committed past-form ZoneChange batch, applied DIRECTLY
+        // from the Act batch — no intervening future-form ZoneChange stage.
         let crate::step::StepOutcome::Progress(crate::step::Progress::Applied(Occurrence::Batch(
             stage2,
         ))) = state.step()
         else {
-            panic!("expected one ZoneChanged batch");
+            panic!("expected one past-form ZoneChange batch");
         };
         assert_eq!(stage2.len(), 2);
         assert!(
-            stage2
-                .iter()
-                .all(|e| matches!(e, GameEvent::ZoneChanged { .. })),
-            "stage 2 is the committed fact batch (no ZoneWillChange), got {stage2:?}"
+            stage2.iter().all(|e| matches!(
+                e,
+                GameEvent::ZoneChange {
+                    snapshot: Some(_),
+                    ..
+                }
+            )),
+            "stage 2 is the committed fact batch (no future-form ZoneChange), got {stage2:?}"
         );
 
-        // Single-replace evidence: no replaceable `ZoneWillChange` ever entered
-        // the history for the destroy — the `Act` committed the move itself.
+        // Single-replace evidence: no replaceable future-form `ZoneChange` ever
+        // entered the history for the destroy — the `Act` committed the move
+        // itself.
         assert!(
             !state
                 .history
                 .entries()
-                .any(|e| matches!(e.fact, GameEvent::ZoneWillChange { .. })),
-            "a composite destroy emits NO separate replaceable ZoneWillChange"
+                .any(|e| matches!(e.fact, GameEvent::ZoneChange { snapshot: None, .. })),
+            "a composite destroy emits NO separate replaceable future-form ZoneChange"
         );
 
         // The two dies-facts share one history batch id.
         let ids: Vec<Option<deckmaste_core::Uint>> = state
             .history
             .entries()
-            .filter(|e| matches!(e.fact, GameEvent::ZoneChanged { .. }))
+            .filter(|e| {
+                matches!(
+                    e.fact,
+                    GameEvent::ZoneChange {
+                        snapshot: Some(_),
+                        ..
+                    }
+                )
+            })
             .map(|e| e.batch)
             .collect();
         assert_eq!(ids.len(), 2);
@@ -2970,7 +3007,8 @@ mod tests {
         }
         let events: Vec<GameEvent> = in_hand
             .into_iter()
-            .map(|object| GameEvent::ZoneWillChange {
+            .map(|object| GameEvent::ZoneChange {
+                snapshot: None,
                 object,
                 from: Some(Zone::Hand),
                 to: Zone::Graveyard,
@@ -2985,7 +3023,7 @@ mod tests {
             .collect();
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
         let _ = state.step(); // the intent batch
-        let _ = state.step(); // the committed ZoneChanged batch
+        let _ = state.step(); // the committed past-form ZoneChange batch
         assert_eq!(
             state.that_much,
             Some(2),

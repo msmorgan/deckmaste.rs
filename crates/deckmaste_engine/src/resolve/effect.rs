@@ -528,8 +528,8 @@ impl GameState {
             // matching how every other engine layer sees through `*::Expanded`.
             OneShotEffect::Expanded(e) => self.run_effect(*e.value, frame),
             // [CR#607.2a]: fact-backed product groups — run the inner
-            // effect between a BeginNote/EndNote pair; every `ZoneChanged`
-            // fact the clause ACTUALLY enacts (its whole apply cascade sits
+            // effect between a BeginNote/EndNote pair; every past-form
+            // `ZoneChange` fact the clause ACTUALLY enacts (its whole apply cascade sits
             // between the markers) joins `noted[key]`, never the gathered
             // input set: a destroy-all's indestructible survivor is
             // excluded by construction (its `Act(Destroy)` was canted and no
@@ -1206,8 +1206,8 @@ impl GameState {
         None
     }
 
-    /// A `ZoneWillChange` intent ([CR#400.7]) moving `object` to `to` from
-    /// WHATEVER zone it currently occupies — the current-zone lookup
+    /// A future-form `ZoneChange` intent ([CR#400.7]) moving `object` to `to`
+    /// from WHATEVER zone it currently occupies — the current-zone lookup
     /// ([CR#406.2] "from wherever it is") bound at schedule time, with the
     /// `enters` / `position` / `face` coordinates left default (the
     /// bare-relocation case; a battlefield entry's `enters`, a library
@@ -1224,7 +1224,8 @@ impl GameState {
         to: Zone,
         cause: Option<Cause>,
     ) -> GameEvent {
-        GameEvent::ZoneWillChange {
+        GameEvent::ZoneChange {
+            snapshot: None,
             object,
             from: Some(
                 self.objects

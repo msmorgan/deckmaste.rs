@@ -115,8 +115,8 @@ pub(crate) enum Part<'a> {
     Obj(ObjectId),
     /// A player, resolved to their live proxy object at evaluation time.
     Player(PlayerId),
-    /// A snapshot view — the moved object of a `ZoneChanged` fact, or any
-    /// card participant of a history-recorded fact (per-fact LKI).
+    /// A snapshot view — the moved object of a past-form `ZoneChange` fact, or
+    /// any card participant of a history-recorded fact (per-fact LKI).
     Gone(Cow<'a, LkiSnapshot>),
 }
 
@@ -266,9 +266,9 @@ impl<'a> FactView<'a> {
     /// The fact record of `event`, with live participants — `None` for
     /// plumbing events no pattern can watch (`TriggerFired`, mana movements,
     /// reveals, …). One total mapping serves every lane: an INTENT
-    /// (`Act(Destroy)`, `Act(Draw)`, `ZoneWillChange`) and its downstream fact
-    /// present the same kinds their patterns watch, each at its own
-    /// pipeline stage.
+    /// (`Act(Destroy)`, `Act(Draw)`, the future-form `ZoneChange`) and its
+    /// downstream fact present the same kinds their patterns watch, each at
+    /// its own pipeline stage.
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per GameEvent kind — the fact table's full surface"
@@ -285,10 +285,10 @@ impl<'a> FactView<'a> {
 
         let mut v: FactView<'a>;
         match event {
-            // [CR#603.6]: the zone-change FACT — the moved object rides as
-            // its captured snapshot ([CR#603.10a]).
-            GameEvent::ZoneChanged {
-                snapshot,
+            // [CR#603.6]: the zone-change FACT (past-form `ZoneChange`) — the
+            // moved object rides as its captured snapshot ([CR#603.10a]).
+            GameEvent::ZoneChange {
+                snapshot: Some(snapshot),
                 from,
                 to,
                 cause,
@@ -310,14 +310,14 @@ impl<'a> FactView<'a> {
                     },
                     state,
                 );
-                v.object = Some(Part::Gone(Cow::Borrowed(snapshot)));
+                v.object = Some(Part::Gone(Cow::Borrowed(snapshot.as_ref())));
                 v.actor = Some(snapshot.controller);
                 v.from = *from;
                 v.to = Some(*to);
                 v.cause = cause.as_ref().map(Cow::Borrowed);
             }
             // [CR#400.7]: the zone-change INTENT — the object is still live.
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange { snapshot: None,
                 object,
                 from,
                 to,
@@ -585,19 +585,20 @@ impl<'a> FactView<'a> {
 }
 
 /// A PRE-EVOLUTION intent whose committed fact lands in the same
-/// [`FactKind`] downstream ([CR#603.6]): `ZoneWillChange` evolves into the
-/// recorded `ZoneChanged`. Triggers fire on the FACT (the scan and the
-/// trigger adapter refuse these — matching the intent would double-fire
-/// every zone-move trigger), and history views are suppressed for them (the
-/// downstream fact is the one counted); the REPLACEMENT lane is exactly where
-/// they are matched ([CR#614]).
+/// [`FactKind`] downstream ([CR#603.6]): the future-form `ZoneChange`
+/// (`snapshot: None`) evolves into the recorded past-form fact (`snapshot:
+/// Some(..)`). Triggers fire on the FACT (the scan and the trigger adapter
+/// refuse these — matching the intent would double-fire every zone-move
+/// trigger), and history views are suppressed for them (the downstream fact
+/// is the one counted); the REPLACEMENT lane is exactly where they are
+/// matched ([CR#614]).
 ///
-/// `Act(Destroy(x))` is NOT listed though it also evolves into a
-/// `ZoneWillChange`: its own fact view is `FactKind::Act` (not `ZoneChange`),
+/// `Act(Destroy(x))` is NOT listed though it also evolves into a future-form
+/// `ZoneChange`: its own fact view is `FactKind::Act` (not `ZoneChange`),
 /// so a "dies"/"destroyed" `ZoneChange` trigger never matches the intent — no
 /// double-fire — while the cant/replacement lane matches it AS an `Act`.
 pub(crate) fn shadowed_by_fact(event: &GameEvent) -> bool {
-    matches!(event, GameEvent::ZoneWillChange { .. })
+    matches!(event, GameEvent::ZoneChange { snapshot: None, .. })
 }
 
 /// Does the recorded/current turn `time` fall inside `within`, seen from
@@ -684,8 +685,8 @@ impl GameState {
                 // a `→Graveyard` replacement (Rest in Peace) bites the destroy
                 // composite's BODY facet, gathered with regeneration (the TAG
                 // facet, matched by the `Act` arm) into ONE applicable-set. The
-                // relaxation is Replacement-only: the committed `ZoneChanged`
-                // fact still carries the dies/enters TRIGGER, so matching the
+                // relaxation is Replacement-only: the committed past-form
+                // `ZoneChange` fact still carries the dies/enters TRIGGER, so matching the
                 // `Act` there too would double-fire. A reorder `Act` (from/to
                 // `None`) never matches — `zone_ok` fails, and a shapeless
                 // `ZoneChange` query is gated out by the facet check.

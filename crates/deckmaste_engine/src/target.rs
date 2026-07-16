@@ -466,7 +466,7 @@ pub fn matches_with(
             ObjectSource::Card(_) => false,
         },
         // The move-provenance twin of `WasCastFrom` ([CR#701.17a,701.9a]).
-        // `ZoneChanged` history facts key on the pre-move (stale) `ObjectId`
+        // Past-form `ZoneChange` history facts key on the pre-move (stale) `ObjectId`
         // — correlating one back to the CURRENT (post-remint) live object
         // needs either a persistent old→new provenance map (the engine only
         // keeps `moved_chain`, cleared at the start of every resolution,

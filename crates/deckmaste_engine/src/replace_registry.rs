@@ -36,9 +36,9 @@ pub(crate) enum Affected {
 
 /// Whether the replacement pipeline intercepts `e` at all ([CR#614]: only
 /// INTENTS are replaceable — an event whose apply is still ahead of it.
-/// Post-hoc facts (`ZoneChanged`, loss records) and directly recorded facts
-/// (`AbilityUsed`) are not). Extending this set is what lifts a master
-/// form's would-lane bridge cap: the kinds outside it keep their
+/// Post-hoc facts (the past-form `ZoneChange`, loss records) and directly
+/// recorded facts (`AbilityUsed`) are not). Extending this set is what lifts a
+/// master form's would-lane bridge cap: the kinds outside it keep their
 /// `would: false` rows — step onsets belong to the Skip elision pass,
 /// attach facts follow the already-performed relation mutation, targeting
 /// is announce-time legality, coin/die facts carry an already-decided
@@ -52,7 +52,7 @@ pub(crate) fn replaceable(e: &GameEvent) -> bool {
         // intent (subsuming the retired `WillDestroy`) and `Act(Draw)` the draw
         // intent (subsuming the retired `WillDraw` — Notion Thief / Lab Maniac).
         GameEvent::Act { .. }
-            | GameEvent::ZoneWillChange { .. }
+            | GameEvent::ZoneChange { snapshot: None, .. }
             | GameEvent::DamageDealt { .. }
             | GameEvent::LifeGained { .. }
             | GameEvent::LifeLost { .. }
@@ -77,7 +77,7 @@ pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
         GameEvent::Act {
             on: Some(object), ..
         }
-        | GameEvent::ZoneWillChange { object, .. }
+        | GameEvent::ZoneChange { object, .. }
         | GameEvent::CounterPlaced { object, .. }
         | GameEvent::CounterRemoved { object, .. }
         | GameEvent::DamageDealt { target: object, .. } => Some(Affected::Object(*object)),
@@ -1016,15 +1016,16 @@ mod tests {
     }
 
     /// A sacrifice is NOT watched by a destruction `Act(Destroy(…))` would — a
-    /// sacrifice is a `ZoneWillChange`, never the Destroy keyword action
-    /// ([CR#701.21a]).
+    /// sacrifice is a future-form `ZoneChange`, never the Destroy keyword
+    /// action ([CR#701.21a]).
     #[test]
     fn destroyed_would_does_not_watch_sacrifice() {
         let (state, _view, id) = super::tests_support::lone_creature();
         let would = EventFilter::Act(deckmaste_core::KeywordActionPattern::Destroy(
             Predicate::Ref(Reference::This),
         ));
-        let e = GameEvent::ZoneWillChange {
+        let e = GameEvent::ZoneChange {
+            snapshot: None,
             object: id,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
@@ -1076,8 +1077,9 @@ mod tests {
         };
         // A cause-bearing ZoneChange-view intent (the `Act(Destroy)` filter
         // narrows by patient, not agent, so the agent lift is exercised on the
-        // still-cause-bearing `ZoneWillChange` — same would-lane mechanism).
-        let intent = |agent| GameEvent::ZoneWillChange {
+        // still-cause-bearing future-form `ZoneChange` — same would-lane mechanism).
+        let intent = |agent| GameEvent::ZoneChange {
+            snapshot: None,
             object: id,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
@@ -1182,8 +1184,8 @@ mod tests {
     /// replacement (the BODY facet, `ZoneChange(→Graveyard)`, a battlefield
     /// static) gather into the SAME applicable-set — the affected player then
     /// orders them. The old two-event split put these on different events
-    /// (regen on the `Act`, Rest in Peace on a downstream `ZoneWillChange`) =
-    /// two replace moments; now there is one.
+    /// (regen on the `Act`, Rest in Peace on a downstream future-form
+    /// `ZoneChange`) = two replace moments; now there is one.
     #[test]
     fn regen_tag_and_graveyard_body_gather_in_one_step() {
         use deckmaste_core::Duration;
@@ -1458,7 +1460,8 @@ mod tests {
             to: Some(Zone::Graveyard),
             cause: None,
         };
-        let e = GameEvent::ZoneWillChange {
+        let e = GameEvent::ZoneChange {
+            snapshot: None,
             object: id,
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
@@ -1521,7 +1524,8 @@ mod tests {
             })
             .collect();
 
-        let e = GameEvent::ZoneWillChange {
+        let e = GameEvent::ZoneChange {
+            snapshot: None,
             object: id,
             from: Some(Zone::Hand),
             to: Zone::Graveyard,

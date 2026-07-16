@@ -157,8 +157,8 @@ impl GameState {
         watcher: ObjectSource,
     ) -> bool {
         // [CR#603.6]: triggers fire on committed FACTS. A pre-evolution
-        // intent (`Act(Destroy)`/`ZoneWillChange`) presents the same
-        // fact-record kind as its downstream `ZoneChanged` — matching it
+        // intent (`Act(Destroy)`/future-form `ZoneChange`) presents the same
+        // fact-record kind as its downstream past-form fact — matching it
         // here would double-fire every zone-move trigger, so the trigger
         // lane refuses intents outright (the replacement lane is where
         // they match, [CR#614]).
@@ -363,8 +363,8 @@ impl GameState {
             // ([`crate::target::ordered_zone_position`]), which no longer
             // contains it; never a panic, just no match.
             Predicate::Adjacent(..) => false,
-            // See `target::matches_with`'s identical arm: `ZoneChanged`
-            // history keys on the pre-move stale id, with no persistent
+            // See `target::matches_with`'s identical arm: the past-form
+            // `ZoneChange` history keys on the pre-move stale id, with no persistent
             // link back to a live object — genuinely unbuilt, not a
             // convenient-wrong default.
             Predicate::State(StatePredicate::WasPutFrom(_)) => false,
@@ -411,10 +411,11 @@ impl GameState {
     /// *notes* the trigger; this only emits.
     ///
     /// Watchers ([CR#603.6]) are every live battlefield permanent, plus — for a
-    /// `ZoneChanged` that LEFT the battlefield — the leaving object itself (via
-    /// its snapshot), so its own dies-trigger is considered even though its
-    /// abilities are gone from the battlefield ([CR#603.6c]). An *entering*
-    /// object is already a live battlefield permanent, so it is not re-added.
+    /// past-form `ZoneChange` that LEFT the battlefield — the leaving object
+    /// itself (via its snapshot), so its own dies-trigger is considered
+    /// even though its abilities are gone from the battlefield
+    /// ([CR#603.6c]). An *entering* object is already a live battlefield
+    /// permanent, so it is not re-added.
     pub(crate) fn scan_triggers(&mut self, facts: &Occurrence) {
         let events: &[GameEvent] = match facts {
             Occurrence::Single(e) => std::slice::from_ref(e),
@@ -442,10 +443,11 @@ impl GameState {
         let mut fired_delayed: Vec<usize> = Vec::new();
         for event in events {
             // Skip facts no trigger pattern watches; never scan a `TriggerFired`
-            // (avoids any chance of recursion). `ZoneWillChange` is skipped because
-            // trigger-matching happens on the downstream `ZoneChanged` fact (already
-            // queued by the will-change apply at the agenda front — [CR#603.6]);
-            // matching on the intent would double-fire every zone-move trigger.
+            // (avoids any chance of recursion). The future-form `ZoneChange`
+            // (`snapshot: None`) is skipped because trigger-matching happens on
+            // the downstream past-form fact (already queued by the will-change
+            // apply at the agenda front — [CR#603.6]); matching on the intent
+            // would double-fire every zone-move trigger.
             // `StepBegan` is NOT skipped — `StepBegins` step/phase triggers
             // ([CR#603.2]) key off it (e.g. "at the beginning of combat on your
             // turn"); `TurnBegan` has no pattern shape that watches it.
@@ -453,7 +455,7 @@ impl GameState {
                 GameEvent::TriggerFired { .. }
                 | GameEvent::AbilityResolved(_)
                 | GameEvent::TurnBegan { .. }
-                | GameEvent::ZoneWillChange { .. } => continue,
+                | GameEvent::ZoneChange { snapshot: None, .. } => continue,
                 GameEvent::Blocked { attacker, .. } if !blocked_attackers.insert(*attacker) => {
                     continue;
                 }
@@ -555,8 +557,11 @@ impl GameState {
     /// stale/missing id yields no role.
     pub(crate) fn event_roles(&self, event: &GameEvent) -> EventRoles {
         let (that_object, that_player, that_patient) = match event {
-            // The zone-change FACT carries the moved object's snapshot.
-            GameEvent::ZoneChanged { snapshot, .. } => (Some(snapshot.clone()), None, None),
+            // The past-form zone-change FACT carries the moved object's snapshot.
+            GameEvent::ZoneChange {
+                snapshot: Some(snapshot),
+                ..
+            } => (Some(snapshot.as_ref().clone()), None, None),
             // [CR#603.2e] becomes-state transitions: the transitioning object
             // is the agent ("it") with its controller the actor — Exalted
             // ([CR#702.83a]) reads the lone attacker via `EventObject`.
@@ -688,15 +693,15 @@ impl GameState {
                 })
                 .map(|&id| Watcher::Live(id)),
         );
-        if let GameEvent::ZoneChanged {
-            snapshot,
+        if let GameEvent::ZoneChange {
+            snapshot: Some(snapshot),
             from: Some(Zone::Battlefield),
             ..
         } = event
         {
             // The leaving object — its abilities are no longer on the
             // battlefield, so add it explicitly ([CR#603.6c]).
-            watchers.push(Watcher::Leaving(snapshot.clone()));
+            watchers.push(Watcher::Leaving(snapshot.as_ref().clone()));
         }
 
         for watcher in watchers {
@@ -1261,16 +1266,18 @@ mod tests {
     }
 
     /// Capture a snapshot of `id` while it's still live, then build a fake
-    /// `ZoneChanged` as if it moved `from → to`.
+    /// past-form `ZoneChange` as if it moved `from → to`.
     fn zone_changed_event(state: &GameState, id: ObjectId, from: Zone, to: Zone) -> GameEvent {
         let snapshot = LkiSnapshot::capture(state, id);
-        GameEvent::ZoneChanged {
+        GameEvent::ZoneChange {
+            object: id,
             face: None,
-
             cause: None,
-            snapshot,
+            snapshot: Some(Box::new(snapshot)),
             from: Some(from),
             to,
+            enters: None,
+            position: None,
         }
     }
 
@@ -1478,7 +1485,7 @@ mod tests {
             bid
         };
 
-        // Build the `ZoneChanged` for the Grizzly Bears dying.
+        // Build the past-form `ZoneChange` for the Grizzly Bears dying.
         let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
 
         // The pattern from Dies(Type(Creature)) — built directly.
@@ -1539,10 +1546,13 @@ mod tests {
             counters: std::collections::HashMap::new(),
             left: Zone::Hand,
         };
-        let enter_event = GameEvent::ZoneChanged {
-            snapshot,
+        let enter_event = GameEvent::ZoneChange {
+            object: bear,
+            snapshot: Some(Box::new(snapshot)),
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
+            enters: None,
+            position: None,
             face: None,
             cause: None,
         };
@@ -1584,10 +1594,13 @@ mod tests {
             counters: std::collections::HashMap::new(),
             left: Zone::Battlefield,
         };
-        let event = GameEvent::ZoneChanged {
-            snapshot,
+        let event = GameEvent::ZoneChange {
+            object: land,
+            snapshot: Some(Box::new(snapshot)),
             from: Some(Zone::Battlefield),
             to: Zone::Graveyard,
+            enters: None,
+            position: None,
             face: None,
             cause: None,
         };
@@ -1733,7 +1746,7 @@ mod tests {
             to: Some(Zone::Battlefield),
         };
 
-        // Build a ZoneChanged snapshot for the ETB creature entering.
+        // Build a past-form ZoneChange snapshot for the ETB creature entering.
         let enters_snapshot = LkiSnapshot {
             object: etb_obj,
             source: etb_source,
@@ -1745,10 +1758,13 @@ mod tests {
             // from — Hand in this case.
             left: Zone::Hand,
         };
-        let enters_event = GameEvent::ZoneChanged {
-            snapshot: enters_snapshot,
+        let enters_event = GameEvent::ZoneChange {
+            object: etb_obj,
+            snapshot: Some(Box::new(enters_snapshot)),
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
+            enters: None,
+            position: None,
             face: None,
             cause: None,
         };
@@ -1766,8 +1782,9 @@ mod tests {
             "Enters(Ref(This)) must NOT match when the entering object is not the watcher"
         );
 
-        // A ZoneWillChange (not ZoneChanged) must not match.
-        let will_change_event = GameEvent::ZoneWillChange {
+        // A future-form ZoneChange (not the past form) must not match.
+        let will_change_event = GameEvent::ZoneChange {
+            snapshot: None,
             object: etb_obj,
             from: Some(Zone::Hand),
             to: Zone::Battlefield,
@@ -1778,7 +1795,7 @@ mod tests {
         };
         assert!(
             !state.event_matches(&self_enters, &will_change_event, etb_source),
-            "Enters triggers must not fire on ZoneWillChange (only on ZoneChanged)"
+            "Enters triggers must not fire on the future-form ZoneChange (only on the past form)"
         );
     }
 
@@ -2038,20 +2055,26 @@ mod tests {
         to: Zone,
         cause: crate::event::Cause,
     ) -> GameEvent {
-        let GameEvent::ZoneChanged {
-            snapshot,
+        let GameEvent::ZoneChange {
+            object,
+            snapshot: Some(snapshot),
             from,
             to,
+            enters,
+            position,
             face,
             ..
         } = zone_changed_event(state, id, from, to)
         else {
-            unreachable!("zone_changed_event builds a ZoneChanged");
+            unreachable!("zone_changed_event builds a past-form ZoneChange");
         };
-        GameEvent::ZoneChanged {
-            snapshot,
+        GameEvent::ZoneChange {
+            object,
+            snapshot: Some(snapshot),
             from,
             to,
+            enters,
+            position,
             face,
             cause: Some(cause),
         }
@@ -3050,10 +3073,10 @@ mod tests {
     }
 
     /// A `Creature dies-trigger DealDamage AnyTarget` on the battlefield with
-    /// lethal damage: stepping past the SBA destroy (`CheckSbas` →
-    /// `ZoneWillChange` → `ZoneChanged` → `TriggerFired` apply) notes exactly
-    /// one trigger, whose `this` binding is the LKI snapshot of the (now-gone)
-    /// battlefield id.
+    /// lethal damage: stepping past the SBA destroy (`CheckSbas` → future-form
+    /// `ZoneChange` → past-form `ZoneChange` → `TriggerFired` apply) notes
+    /// exactly one trigger, whose `this` binding is the LKI snapshot of the
+    /// (now-gone) battlefield id.
     #[test]
     fn dies_trigger_notes_into_pending_triggers() {
         use crate::agenda::WorkItem;
@@ -3095,10 +3118,11 @@ mod tests {
     }
 
     /// [CR#700.4] "when it dies" off a COMPOSITE destroy: an effect
-    /// `Act(Destroy)` — now committed atomically (no separate `ZoneWillChange`)
-    /// — still produces the `ZoneChanged(Battlefield→Graveyard)` fact the
-    /// self-dies trigger fires on. The trigger fires on the committed body
-    /// fact, not the `Act` tag, so it fires exactly once.
+    /// `Act(Destroy)` — now committed atomically (no separate future-form
+    /// `ZoneChange`) — still produces the past-form `ZoneChange
+    /// (Battlefield→Graveyard)` fact the self-dies trigger fires on. The
+    /// trigger fires on the committed body fact, not the `Act` tag, so it
+    /// fires exactly once.
     #[test]
     fn dies_trigger_fires_off_a_composite_destroy() {
         use deckmaste_core::Action;
@@ -4487,9 +4511,9 @@ mod tests {
     }
 
     /// [CR#603.2c]: a single multi-occurrence event (two creatures dying
-    /// simultaneously is one batch of two `ZoneChanged` facts) triggers a
-    /// once-per-turn ability only once. Both `TriggerFired`s are emitted in
-    /// one scan pass; the apply-time gate dedups them.
+    /// simultaneously is one batch of two past-form `ZoneChange` facts)
+    /// triggers a once-per-turn ability only once. Both `TriggerFired`s are
+    /// emitted in one scan pass; the apply-time gate dedups them.
     #[test]
     fn once_per_turn_trigger_fires_once_for_simultaneous_occurrences() {
         use deckmaste_core::UseLimit;
@@ -4563,10 +4587,13 @@ mod tests {
             who: Predicate::Ref(Reference::You),
             amount: None,
         };
-        let draw_fact = |state: &GameState, card| GameEvent::ZoneChanged {
-            snapshot: LkiSnapshot::capture(state, card),
+        let draw_fact = |state: &GameState, card| GameEvent::ZoneChange {
+            object: card,
+            snapshot: Some(Box::new(LkiSnapshot::capture(state, card))),
             from: Some(Zone::Library),
             to: Zone::Hand,
+            enters: None,
+            position: None,
             face: None,
             cause: Some(crate::event::Cause {
                 verb: "Draw".into(),

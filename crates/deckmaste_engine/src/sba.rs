@@ -265,7 +265,12 @@ fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
 /// `StateBasedAction` cause so no rules-SBA event goes unattributed.
 fn stamp_sba_cause(ev: &mut GameEvent) {
     let cause_slot = match ev {
-        GameEvent::Act { cause, .. } | GameEvent::ZoneWillChange { cause, .. } => Some(cause),
+        GameEvent::Act { cause, .. }
+        | GameEvent::ZoneChange {
+            snapshot: None,
+            cause,
+            ..
+        } => Some(cause),
         _ => None,
     };
     let Some(cause_opt) = cause_slot else {
@@ -564,7 +569,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == aura)),
+                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == aura)),
             "a graduated wizards Aura's Innate graveyard SBA fires when unattached \
              ([CR#704.5m]); got {actions:?}"
         );
@@ -773,7 +778,7 @@ mod tests {
 
     /// [CR#704.5d,111.7]: a token put into a graveyard is removed from the
     /// game by the next SBA sweep — the graveyard empties and the object is
-    /// gone from the store, with no `ZoneChanged` fact (ceasing to exist is
+    /// gone from the store, with no `ZoneChange` fact (ceasing to exist is
     /// not a move). A token still on the battlefield never ceases.
     #[test]
     fn dead_token_ceases_to_exist() {
@@ -803,7 +808,7 @@ mod tests {
             &frame,
         );
         let _ = state.step(); // TokenCreated applies
-        let _ = state.step(); // its ZoneChanged fact
+        let _ = state.step(); // its past-form ZoneChange fact
         let &token_obj = state
             .zones
             .battlefield
@@ -821,7 +826,8 @@ mod tests {
 
         // Put it into the graveyard (the generic move: remint + LKI).
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object: token_obj,
                 from: Some(Zone::Battlefield),
                 to: Zone::Graveyard,
@@ -832,7 +838,7 @@ mod tests {
             },
         ))]);
         let _ = state.step(); // the move applies
-        let _ = state.step(); // its ZoneChanged fact
+        let _ = state.step(); // its past-form ZoneChange fact
         let dead = state.zones.graveyards[0][0];
 
         // The sweep emits exactly one TokenCeased for the reminted object.
@@ -861,7 +867,7 @@ mod tests {
         state.objects.obj_mut(bear).set_marked_damage(2);
         let actions = sba::sweep(&state);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
-        // Act(Destroy) applies (nothing replaces it) → ZoneWillChange remints.
+        // Act(Destroy) applies (nothing replaces it) → future-form ZoneChange remints.
         let _ = state.step();
         let _ = state.step();
         assert!(
@@ -957,8 +963,9 @@ mod tests {
     }
 
     /// [CR#704.5m]: an Aura (carrying the Innate graveyard `Sba`) that is
-    /// UNATTACHED fires the SBA → a `ZoneWillChange(Battlefield → Graveyard)`
-    /// for it. Generic — driven by the `Sba` static, not the subtype.
+    /// UNATTACHED fires the SBA → a future-form `ZoneChange(Battlefield →
+    /// Graveyard)` for it. Generic — driven by the `Sba` static, not the
+    /// subtype.
     #[test]
     fn sba_attach_unattached_aura_goes_to_graveyard() {
         let mut state = game();
@@ -972,7 +979,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == aura)),
+                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == aura)),
             "unattached Aura is moved to the graveyard ([CR#704.5m]); got {actions:?}"
         );
     }
@@ -1022,14 +1029,14 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == aura)),
+                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == aura)),
             "Innate graveyard SBA survives LoseAllAbilities ([CR#113.12,704.5m]); got {actions:?}"
         );
 
         // Drive it to completion: the Aura ends up in its owner's graveyard.
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(actions))]);
         let _ = state.step(); // the move applies (remint + LKI)
-        let _ = state.step(); // its ZoneChanged fact
+        let _ = state.step(); // its past-form ZoneChange fact
         assert!(
             state.objects.get(aura).is_none(),
             "old battlefield id is gone after the move"
@@ -1060,7 +1067,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == aura)),
+                .any(|e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == aura)),
             "legally-attached Aura stays put; got {actions:?}"
         );
     }
@@ -1094,7 +1101,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == equip)),
+                .any(|e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == equip)),
             "Equipment stays on the battlefield, not graveyard"
         );
     }
@@ -1356,8 +1363,8 @@ mod tests {
 
     /// [CR#704.5f]: a creature whose toughness drops to 0 (via -1/-1 counters)
     /// is put into its owner's graveyard by the rules-SBA pass — emitted as a
-    /// `ZoneWillChange` to `Graveyard`, NOT an `Act(Destroy)` (so regeneration
-    /// and indestructible cannot save it).
+    /// future-form `ZoneChange` to `Graveyard`, NOT an `Act(Destroy)` (so
+    /// regeneration and indestructible cannot save it).
     #[test]
     fn toughness_zero_creature_is_put_into_graveyard() {
         let (mut state, bear) = bear_on_field();
@@ -1373,7 +1380,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == bear
+                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == bear
             )),
             "toughness-0 creature should be put into its graveyard (a Move, not a destroy); \
              got {actions:?}"
@@ -1388,9 +1395,9 @@ mod tests {
     }
 
     /// [CR#704.5f,702.12b]: indestructible does NOT save a creature whose
-    /// toughness drops to 0. The toughness-0 SBA emits a `ZoneWillChange`
-    /// (a Move), not an `Act(Destroy)`, so the cant-happen guard never fires.
-    /// After the sweep applies the creature is gone.
+    /// toughness drops to 0. The toughness-0 SBA emits a future-form
+    /// `ZoneChange` (a Move), not an `Act(Destroy)`, so the cant-happen
+    /// guard never fires. After the sweep applies the creature is gone.
     #[test]
     fn toughness_zero_kills_even_indestructible() {
         let (mut state, myr) = myr_on_field(); // Darksteel Myr: indestructible, toughness 1
@@ -1417,8 +1424,8 @@ mod tests {
 
     /// [CR#704] rules-SBA events must carry `StateBasedAction` agency and no
     /// agent — the game performs them, not an effect or the object itself.
-    /// The toughness-0 rule emits a `Move` (`ZoneWillChange`) with `cause:
-    /// None` today; after the stamp it must have `agency ==
+    /// The toughness-0 rule emits a `Move` (future-form `ZoneChange`) with
+    /// `cause: None` today; after the stamp it must have `agency ==
     /// StateBasedAction` and `agent.is_none()`.
     #[test]
     fn rules_sba_events_carry_state_based_action_cause() {
@@ -1436,12 +1443,19 @@ mod tests {
             .iter()
             .find(|e| {
                 matches!(e,
-                    GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. }
+                    GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }
                     if *object == bear)
             })
-            .expect("toughness-0 ZoneWillChange must be present");
-        let GameEvent::ZoneWillChange { cause: Some(c), .. } = move_ev else {
-            panic!("rules-SBA ZoneWillChange must carry a cause after the stamp; got {move_ev:?}")
+            .expect("toughness-0 future-form ZoneChange must be present");
+        let GameEvent::ZoneChange {
+            snapshot: None,
+            cause: Some(c),
+            ..
+        } = move_ev
+        else {
+            panic!(
+                "rules-SBA future-form ZoneChange must carry a cause after the stamp; got {move_ev:?}"
+            )
         };
         assert_eq!(
             c.agency,
@@ -1467,7 +1481,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == pw
+                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == pw
             )),
             "a planeswalker with loyalty 0 is put into its graveyard; got {actions:?}"
         );
@@ -1481,7 +1495,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == pw)),
+                .any(|e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == pw)),
             "loyalty 3 planeswalker survives the sweep; got {actions:?}"
         );
     }
@@ -1499,7 +1513,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == battle
+                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == battle
             )),
             "a battle with defense 0 is put into its graveyard; got {actions:?}"
         );
@@ -1512,7 +1526,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             !actions.iter().any(
-                |e| matches!(e, GameEvent::ZoneWillChange { object, .. } if *object == battle)
+                |e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == battle)
             ),
             "defense 4 battle survives the sweep; got {actions:?}"
         );
@@ -1874,7 +1888,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneWillChange { object, to: Zone::Graveyard, .. } if *object == bear
+                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == bear
             )),
             "toughness-0 creature must get the Move; got {actions:?}"
         );

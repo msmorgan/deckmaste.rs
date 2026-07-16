@@ -1,7 +1,7 @@
-//! Replacement effects ([CR#614]) — the `ZoneWillChange` replace stage. Stage 3
-//! wires self-replacement on enter (`Also(would: Enters(This), …)`) into the
-//! entering object's `EnterStatus`; other replacement kinds are Stage-4 seams
-//! (§7.2).
+//! Replacement effects ([CR#614]) — the future-form `ZoneChange` replace stage.
+//! Stage 3 wires self-replacement on enter (`Also(would: Enters(This), …)`)
+//! into the entering object's `EnterStatus`; other replacement kinds are
+//! Stage-4 seams (§7.2).
 
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
@@ -363,7 +363,8 @@ mod tests {
             .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
                 to: Zone::Battlefield,
@@ -433,7 +434,7 @@ mod tests {
     /// [CR#122.6a,614.1c]: a permanent with an `AsEnters(PutCounters(This,
     /// P1P1Counter, 2))` self-replacement enters the battlefield already
     /// carrying two `P1P1Counter` counters — placed atomically at mint, before
-    /// the `ZoneChanged` fact.
+    /// the past-form `ZoneChange` fact.
     #[test]
     fn enters_with_counters() {
         use deckmaste_core::Count;
@@ -470,7 +471,8 @@ mod tests {
                 .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
                 to: Zone::Battlefield,
@@ -582,7 +584,8 @@ mod tests {
             .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
                 to: Zone::Battlefield,
@@ -688,7 +691,8 @@ mod tests {
                 .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
                 to: Zone::Battlefield,
@@ -787,7 +791,8 @@ mod tests {
                 .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneWillChange {
+            GameEvent::ZoneChange {
+                snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
                 to: Zone::Battlefield,
@@ -871,7 +876,8 @@ mod tests {
                     .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
             state.zones.hands[PlayerId(0).index()].push(hand_id);
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                GameEvent::ZoneWillChange {
+                GameEvent::ZoneChange {
+                    snapshot: None,
                     object: hand_id,
                     from: Some(Zone::Hand),
                     to: Zone::Battlefield,
