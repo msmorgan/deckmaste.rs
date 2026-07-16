@@ -1642,8 +1642,10 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
                 toughness: None,
                 abilities,
             };
+            // No period outside the closing quote — the printed convention
+            // ends the sentence with the quoted ability's own period.
             format!(
-                "You get an emblem with \"{}\".",
+                "You get an emblem with \"{}\"",
                 super::rules(&view).join(" ")
             )
         }

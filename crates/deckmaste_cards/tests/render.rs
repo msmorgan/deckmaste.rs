@@ -1030,7 +1030,9 @@ fn renders_get_emblem() {
     };
     assert_eq!(
         render_card_face(&face).rules,
-        vec!["You get an emblem with \"Creatures you control get +1/+1.\".".to_string()]
+        // No period outside the closing quote — the printed convention ends
+        // the sentence with the quoted ability's own period.
+        vec!["You get an emblem with \"Creatures you control get +1/+1.\"".to_string()]
     );
 }
 

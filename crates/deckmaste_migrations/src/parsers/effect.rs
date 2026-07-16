@@ -130,6 +130,9 @@ pub(super) fn parse_clause(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     if let Some(p) = parse_create_token(line) {
         return Ok(Some(p));
     }
+    if let Some(p) = parse_get_emblem(line, ctx)? {
+        return Ok(Some(p));
+    }
     if let Some(p) = parse_declarative_subject(line, ctx)? {
         return Ok(Some(p));
     }
@@ -1870,6 +1873,42 @@ fn parse_create_predefined_token(line: &str) -> Option<ParsedEffect> {
     })
 }
 
+/// `You get an emblem with "<ability>".` -> `GetEmblem([<ability RON>])`.
+/// The player gets an emblem whose only characteristics are the quoted
+/// abilities ([CR#114.1,114.3]); the quoted text is ONE full ability line, so
+/// it re-resolves through the whole frame REGISTRY (an emblem can carry any
+/// frame — static, triggered, activated), mirroring the render direction
+/// (`GetEmblem` renders its abilities through the shared `rules` walk and
+/// re-quotes them). Out of scope, declining: multi-ability emblems (`"…" and
+/// "…"`) and nested-quote conferrals (any interior `"`), and a "this emblem"
+/// self-reference (extraction only normalizes the CARD's name to `~`, so the
+/// inner line keeps the phrase and its frame parse declines on the unknown
+/// subject).
+fn parse_get_emblem(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    // The printed convention ends the sentence with the quoted ability's own
+    // period — no period outside the closing quote.
+    let Some(inner) = line
+        .strip_prefix("You get an emblem with \"")
+        .and_then(|s| s.strip_suffix('"'))
+    else {
+        return Ok(None);
+    };
+    // One plainly-quoted ability only: an interior quote is a multi-ability
+    // join or a nested conferral, both out of scope.
+    if inner.contains('"') {
+        return Ok(None);
+    }
+    for parser in crate::resolve::REGISTRY {
+        if let Some(ability) = parser(inner, ctx)? {
+            return Ok(Some(ParsedEffect {
+                targets: Vec::new(),
+                effect: format!("GetEmblem([{ability}])"),
+            }));
+        }
+    }
+    Ok(None)
+}
+
 /// `Create <count> <P/T> [<colors>] [<subtypes>] creature token[s] [with
 /// <kw…>].` — a creature-token maker. The creating effect defines the token's
 /// characteristics [CR#111.3]; color rides a color indicator [CR#202.2e]
@@ -2146,6 +2185,44 @@ mod tests {
                 "Until(FixedUntil(EndOfTurn), [Modify(This, Several([CardTypes(Add(\"Creature\")), Subtypes(Add(\"Warrior\")), Colors(Set([Red])), Power(Set(2)), Toughness(Set(1)), GainAbility(Keyword(FirstStrike))]))])".to_owned(),
             ))
         );
+    }
+
+    /// `You get an emblem with "<ability>".` re-resolves the quoted ability
+    /// through the whole frame registry and wraps it in `GetEmblem([…])`
+    /// ([CR#114.1,114.3]) — here the anthem static, via the static-ability
+    /// frame parser.
+    #[test]
+    fn get_emblem_wraps_registry_ability() {
+        assert_eq!(
+            parsed(r#"You get an emblem with "Creatures you control get +1/+1.""#),
+            Some((
+                String::new(),
+                "GetEmblem([Static(Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
+                 Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))))])"
+                    .to_owned(),
+            ))
+        );
+    }
+
+    #[test]
+    fn get_emblem_declines_out_of_scope_shapes() {
+        // Two quoted abilities joined by ` and ` — the interior quote gate.
+        assert!(
+            parsed(
+                r#"You get an emblem with "You have no maximum hand size" and "Whenever a card is put into your graveyard from anywhere, you may return it to your hand.""#
+            )
+            .is_none()
+        );
+        // A "this emblem" self-reference is an unknown subject to the inner
+        // frame parse (only the card's own name normalizes to `~`).
+        assert!(
+            parsed(
+                r#"You get an emblem with "Whenever you cast a spell, this emblem deals 5 damage to any target.""#
+            )
+            .is_none()
+        );
+        // An unstructurable inner ability declines the whole line.
+        assert!(parsed(r#"You get an emblem with "Gibberish happens.""#).is_none());
     }
 
     #[test]
