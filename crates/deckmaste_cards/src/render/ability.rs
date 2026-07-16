@@ -3,6 +3,7 @@
 
 use deckmaste_core::Ability;
 use deckmaste_core::CharacteristicPredicate;
+use deckmaste_core::Cmp;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Condition;
@@ -18,6 +19,7 @@ use deckmaste_core::PlayerMod;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
+use deckmaste_core::Stat;
 use deckmaste_core::StateChange;
 use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
@@ -69,6 +71,18 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
     // need first-mention-names / later-mentions-"it" handling here.
     let body_subject = if matches!(t.from, Some(z) if z != Zone::Battlefield) {
         "this card".to_string()
+    } else if matches!(t.event, EventFilter::Cast { .. }) {
+        // A cast trigger's clause introduces the SPELL as its antecedent
+        // (`what:`), never the source — there is no "it" for a
+        // self-referencing body to point back to. Real oracle text instead
+        // repeats the source's own printed NAME (Guttersnipe: "Whenever you
+        // cast an instant or sorcery spell, Guttersnipe deals 2 damage to
+        // each opponent."), which the render pipeline's own-name/short-name
+        // substitution later folds to "~" (the fidelity checker's own-name
+        // fold) — distinct from the object-less events below, which have no
+        // name-bearing antecedent noun at all and so name themselves by TYPE
+        // instead ("this enchantment").
+        view.name.to_string()
     } else if matches!(
         t.event,
         EventFilter::CoinFlipped { .. }
@@ -86,7 +100,21 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         targets: &[],
         that: None,
     };
-    let body = lower_first(&effect::effect(&t.effect, &body_ctx));
+    let raw_body = effect::effect(&t.effect, &body_ctx);
+    // `lower_first` de-capitalizes the effect body's own sentence-start
+    // capitalization for this mid-clause position ("Draw a card." -> "draw a
+    // card."). EXCEPT when the body's own first word IS the just-substituted
+    // `body_subject` (the Cast-event own-name case above): the fidelity
+    // checker's own-name/short-name fold matches the EXACT printed name
+    // (title case), so lowercasing its leading letter here ("aven Wind Mage")
+    // would break that fold. `reference_subject`'s `Reference::This =>
+    // ctx.subject` inserts the subject verbatim with no capitalization step
+    // of its own, so a name-subject body needs no un-capitalizing here.
+    let body = if raw_body.starts_with(body_subject.as_str()) {
+        raw_body
+    } else {
+        lower_first(&raw_body)
+    };
 
     // Death Spark's shape: the intervening-if ALREADY states the ability's
     // own function-zone membership inline ("this card is in your graveyard
@@ -452,15 +480,19 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
         {
             ("Whenever", "an opponent draws a card".to_string())
         }
-        // Cast onset ([CR#601.2i]) — "you cast X", the controller's own
-        // filtered cast (Prowess/Cascade shape). Only the `who: Ref(You)`
-        // narrowing is recognized (an opponent's/any-player's cast has no
-        // real card in this corpus). Self (`Ref(This)`) leads "When" via
-        // `lead_for`, matching the enters/dies self convention.
-        EventFilter::Cast {
-            who: Predicate::Ref(Reference::You),
-            what,
-        } => (lead_for(what), format!("you cast {}", cast_subject(what))),
+        // Cast onset ([CR#601.2i]) — "<subject> cast(s) X". Three `who:`
+        // narrowings are recognized ([`cast_who_phrase`]): the controller's
+        // own cast ("you cast"), any player's ("a player casts"), and
+        // specifically an opponent's ("an opponent casts"). Self
+        // (`Ref(This)`) leads "When" via `lead_for`, matching the enters/dies
+        // self convention.
+        EventFilter::Cast { who, what } => (
+            lead_for(what),
+            match cast_who_phrase(who) {
+                Some(subject) => format!("{subject} {}", cast_subject(what)),
+                None => format!("[unrendered: {who:?}]"),
+            },
+        ),
         other => ("When", format!("[unrendered: {other:?}]")),
     }
 }
@@ -1130,18 +1162,42 @@ fn article_for(word: &str) -> &'static str {
     }
 }
 
+/// A [`EventFilter::Cast`]'s `who:` narrowing as the subject+verb phrase
+/// leading the `what:` noun phrase ([CR#601.2i]): "you cast" (2nd person,
+/// `Ref(You)`), "a player casts" (3rd person, the `Player` macro expanding to
+/// `Kind(Player)`), "an opponent casts" (3rd person, `OpponentOf(Ref(You))` —
+/// mirrors [`recipient_of`]'s "an opponent" reading). `None` for any other
+/// narrowing (no real card in this corpus needs one yet).
+fn cast_who_phrase(who: &Predicate) -> Option<&'static str> {
+    match super::fragment::strip_expanded(who) {
+        Predicate::Ref(Reference::You) => Some("you cast"),
+        Predicate::Kind(ObjectKind::Player) => Some("a player casts"),
+        Predicate::Relation(RelationPredicate::OpponentOf(inner))
+            if matches!(
+                super::fragment::strip_expanded(inner),
+                Predicate::Ref(Reference::You)
+            ) =>
+        {
+            Some("an opponent casts")
+        }
+        _ => None,
+    }
+}
+
 /// A [`EventFilter::Cast`]'s `what:` narrowing as the noun phrase following
-/// "you cast" ([CR#601.2i]). Self (`Ref(This)`) reads as the real oracle
-/// "this spell" convention (Cascade's reminder text) — never the card's own
-/// printed name, unlike an ETB/dies subject: a cast trigger describes the
-/// spell ON THE STACK referring to itself. A bare `Kind(Spell)` is "a
-/// spell"; anything else pairs `Kind(Spell)` with one characteristic atom —
-/// a card-type/disjunction ([`types_noun`]), a card-type negation ("a
-/// noncreature spell"), or a single catalog subtype (the Prowess/"an Elf
-/// spell" shape). Falls back to the structural marker for any other
-/// narrowing this v1 production doesn't model (restriction-laden forms:
-/// first/second spell each turn, "that targets ~", color/mana-value/historic,
-/// …).
+/// the [`cast_who_phrase`] subject+verb ([CR#601.2i]). Self (`Ref(This)`)
+/// reads as the real oracle "this spell" convention (Cascade's reminder
+/// text) — never the card's own printed name, unlike an ETB/dies subject: a
+/// cast trigger describes the spell ON THE STACK referring to itself. A bare
+/// `Kind(Spell)` is "a spell"; anything else pairs `Kind(Spell)` with up to
+/// TWO characteristic/state atoms — at most one HEAD atom (a
+/// card-type/subtype, its negation, or a type/subtype disjunction —
+/// [`cast_head_phrase`]) fixing the noun before "spell", and at most one
+/// POSTFIX atom (a mana-value threshold or a "that targets ~" clause —
+/// [`cast_postfix_phrase`]) trailing after it — e.g. "a creature spell with
+/// mana value 3 or less" pairs both. Falls back to the structural marker for
+/// any other narrowing this v1 production doesn't model (restriction-laden
+/// forms: first/second spell each turn, a color-composite filter, …).
 fn cast_subject(what: &Predicate) -> String {
     let what = super::fragment::strip_expanded(what);
     if matches!(what, Predicate::Ref(Reference::This)) {
@@ -1158,10 +1214,42 @@ fn cast_subject(what: &Predicate) -> String {
         .map(super::fragment::strip_expanded)
         .filter(|p| !matches!(p, Predicate::Kind(ObjectKind::Spell)))
         .collect();
-    if rest.len() != 1 {
+    if rest.is_empty() || rest.len() > 2 {
         return format!("[unrendered: {what:?}]");
     }
-    let only = rest[0];
+    let mut head: Option<&Predicate> = None;
+    let mut postfix: Option<String> = None;
+    for atom in rest {
+        if let Some(phrase) = cast_postfix_phrase(atom) {
+            if postfix.is_some() {
+                return format!("[unrendered: {what:?}]");
+            }
+            postfix = Some(phrase);
+        } else if head.is_none() {
+            head = Some(atom);
+        } else {
+            return format!("[unrendered: {what:?}]");
+        }
+    }
+    let base = head.map_or_else(|| "a spell".to_string(), cast_head_phrase);
+    if base.starts_with("[unrendered") {
+        return base;
+    }
+    match postfix {
+        Some(p) => format!("{base} {p}"),
+        None => base,
+    }
+}
+
+/// The HEAD atom of a [`cast_subject`] narrowing — the noun immediately
+/// before "spell": a card-type negation ("a non&lt;type&gt; spell"), a single
+/// catalog subtype (the Prowess/"an Elf spell" shape), a card-type
+/// disjunction ([`types_noun`], "an artifact or creature spell"), or a
+/// catalog-subtype disjunction ("a Spirit or Arcane spell", tried only once
+/// the type-disjunction reading fails — the two kinds are never mixed, same
+/// as the migration parser's `disjunction_atom`). Falls back to the
+/// structural marker for any other atom shape.
+fn cast_head_phrase(only: &Predicate) -> String {
     if let Predicate::Not(inner) = only {
         return match super::fragment::strip_expanded(inner) {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
@@ -1173,7 +1261,59 @@ fn cast_subject(what: &Predicate) -> String {
     if let Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) = only {
         return format!("{} {name} spell", article_for(name.as_str()));
     }
+    if let Predicate::Or(items) = only {
+        return subtype_disjunction_noun(items).map_or_else(
+            || format!("{} spell", types_noun(only)),
+            |noun| format!("{noun} spell"),
+        );
+    }
     format!("{} spell", types_noun(only))
+}
+
+/// The catalog-subtype reading of a `Predicate::Or` disjunction's members —
+/// "a Spirit or Arcane spell" — or `None` if any member isn't a bare
+/// `Subtype` atom (so [`cast_head_phrase`] falls back to [`types_noun`]'s
+/// card-type reading, which itself degrades to "an object" if that ALSO
+/// misses — the same silent-drop behavior it already had before this
+/// function existed, unchanged here).
+fn subtype_disjunction_noun(items: &[Predicate]) -> Option<String> {
+    let names: Vec<&str> = items
+        .iter()
+        .map(|f| match f {
+            Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
+                Some(name.as_str())
+            }
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    let joined = names.join(" or ");
+    Some(format!("{} {joined}", article_for(&joined)))
+}
+
+/// The POSTFIX atom of a [`cast_subject`] narrowing — a clause trailing
+/// "spell": a mana-value threshold ("with mana value N or greater/less",
+/// [CR#202.3]) or a "that targets ~" clause (heroic's head, [CR#115.9b] —
+/// restricted to the self target, the only shape real oracle text uses
+/// here). `None` for any other atom (a head-position atom — the caller tries
+/// [`cast_head_phrase`] instead).
+fn cast_postfix_phrase(atom: &Predicate) -> Option<String> {
+    match atom {
+        Predicate::Characteristic(CharacteristicPredicate::Stat(Stat::ManaValue, cmp, count)) => {
+            let n = count.literal_value()?;
+            let bound = match cmp {
+                Cmp::AtLeast => "or greater",
+                Cmp::AtMost => "or less",
+                _ => return None,
+            };
+            Some(format!("with mana value {n} {bound}"))
+        }
+        Predicate::State(StatePredicate::Targets(inner))
+            if super::fragment::strip_expanded(inner).is_this() =>
+        {
+            Some("that targets ~".to_string())
+        }
+        _ => None,
+    }
 }
 
 // ── Verb helpers (plural/singular) ──────────────────────────────────────────
@@ -1772,6 +1912,128 @@ mod tests {
                 &ctx
             ),
             ("Whenever", "you cast an Elf spell".to_string())
+        );
+        // A catalog-subtype disjunction ("a Spirit or Arcane spell") — the
+        // subtype-only reading `subtype_disjunction_noun` tries once the
+        // type-disjunction reading misses.
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Or(vec![
+                        Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                            deckmaste_core::Ident::from("Spirit")
+                        )),
+                        Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                            deckmaste_core::Ident::from("Arcane")
+                        )),
+                    ]),
+                ])),
+                &ctx
+            ),
+            ("Whenever", "you cast a Spirit or Arcane spell".to_string())
+        );
+        // A mana-value threshold postfix ([CR#202.3]) — no head atom, so the
+        // base noun defaults to "a spell".
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Characteristic(CharacteristicPredicate::Stat(
+                        Stat::ManaValue,
+                        Cmp::AtLeast,
+                        Count::Literal(4)
+                    )),
+                ])),
+                &ctx
+            ),
+            (
+                "Whenever",
+                "you cast a spell with mana value 4 or greater".to_string()
+            )
+        );
+        // A head atom (card type) combined with a postfix atom (mana-value
+        // threshold) — "a creature spell with mana value 3 or less".
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                    Predicate::Characteristic(CharacteristicPredicate::Stat(
+                        Stat::ManaValue,
+                        Cmp::AtMost,
+                        Count::Literal(3)
+                    )),
+                ])),
+                &ctx
+            ),
+            (
+                "Whenever",
+                "you cast a creature spell with mana value 3 or less".to_string()
+            )
+        );
+        // Heroic's head ([CR#115.9b]): "a spell that targets ~".
+        assert_eq!(
+            event_clause(
+                &event(Predicate::And(vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::State(StatePredicate::Targets(Box::new(Predicate::Ref(
+                        Reference::This
+                    )))),
+                ])),
+                &ctx
+            ),
+            ("Whenever", "you cast a spell that targets ~".to_string())
+        );
+    }
+
+    /// `EventFilter::Cast`'s `who:` narrowing — the three subjects real
+    /// oracle text uses ([`cast_who_phrase`]): "you cast" (`Ref(You)`), "a
+    /// player casts" (`Player`), "an opponent casts" (`OpponentOf(Ref(You))`).
+    #[test]
+    fn cast_who_renders_you_player_and_opponent() {
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+        };
+        let what = || {
+            Predicate::And(vec![
+                Predicate::Kind(ObjectKind::Spell),
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+            ])
+        };
+        assert_eq!(
+            event_clause(
+                &EventFilter::Cast {
+                    who: Predicate::Ref(Reference::You),
+                    what: what(),
+                },
+                &ctx
+            ),
+            ("Whenever", "you cast a creature spell".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &EventFilter::Cast {
+                    who: Predicate::Kind(ObjectKind::Player),
+                    what: what(),
+                },
+                &ctx
+            ),
+            ("Whenever", "a player casts a creature spell".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &EventFilter::Cast {
+                    who: Predicate::Relation(RelationPredicate::OpponentOf(Box::new(
+                        Predicate::Ref(Reference::You)
+                    ))),
+                    what: what(),
+                },
+                &ctx
+            ),
+            ("Whenever", "an opponent casts a creature spell".to_string())
         );
     }
 }

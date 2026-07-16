@@ -317,72 +317,197 @@ pub(super) fn parse_event(clause: &str) -> Option<String> {
     }
 }
 
-/// "you cast X" -> `Cast(who: Ref(You), what: <filter>)` ([CR#601.2i] cast
-/// onset; mirrors the Prowess/Cascade macros' filtered-cast shape). Only the
-/// controller's own cast is modeled here — an opponent's cast declines
-/// (leaves `clause` unconsumed by the `"you cast "` prefix). The recognized
-/// `what:` shapes, in order:
+/// "<subject> cast(s) X" -> `Cast(who: <who>, what: <filter>)` ([CR#601.2i]
+/// cast onset; mirrors the Prowess/Cascade macros' filtered-cast shape). The
+/// recognized `who:` subjects, via [`who_and_rest`]: the controller's own
+/// cast ("you cast"), any player's ("a player casts"), and specifically an
+/// opponent's ("an opponent casts"). The recognized `what:` shapes, in order:
 ///
-/// - self ("you cast ~") -> `Ref(This)` (Cascade's own "you cast this spell"
+/// - self ("… cast ~") -> `Ref(This)` (Cascade's own "you cast this spell"
 ///   reminder-text shape).
-/// - a bare spell ("you cast a spell") -> `Kind(Spell)`.
-/// - "an instant or sorcery spell" -> `And([Kind(Spell), Or([Type(Instant),
-///   Type(Sorcery)])])` (the two-type disjunction; NOT the general
-///   heterogeneous-type-disjunction grammar, since only this one pairing is
-///   modeled here).
-/// - "a noncreature spell" -> `And([Kind(Spell), Not(Type(Creature))])`.
-/// - "a[n] <card-type> spell" (creature/artifact/enchantment/instant/ sorcery)
-///   -> `And([Kind(Spell), Type(<T>)])`.
+/// - a bare spell ("… cast a spell") -> `Kind(Spell)`.
+/// - "a[n] <card-type> spell" (creature/artifact/enchantment/instant/
+///   sorcery/…) -> `And([Kind(Spell), Type(<T>)])`.
 /// - "a[n] <Subtype> spell" (the original v1 shape, e.g. "an Elf spell") ->
 ///   `And([Kind(Spell), Subtype("<X>")])`. A lone non-subtype token still mints
 ///   a `Subtype`, caught downstream by the catalog lint, as in the shared
 ///   filter grammar's bare-token head.
+/// - "noncreature" -> `And([Kind(Spell), Not(Type(Creature))])`.
+/// - a type/subtype disjunction ("an instant or sorcery spell", "a Spirit or
+///   Arcane spell") -> `And([Kind(Spell), Or([...])])`, via
+///   [`disjunction_atom`] — a GENERAL 2-way disjunction (of card types XOR of
+///   catalog subtypes, never mixed), not a hardcoded pairing. An Oxford-comma
+///   3+-way list ("an artifact, instant, or sorcery spell") declines — see
+///   [`disjunction_atom`]'s doc for why.
+/// - "a spell with mana value N or greater/less" -> `And([Kind(Spell),
+///   Stat(ManaValue, AtLeast/AtMost, N)])` ([CR#202.3]).
+/// - "a spell that targets ~" (heroic's head, [CR#115.9b]) ->
+///   `And([Kind(Spell), Targets(Ref(This))])` — restricted to the self target,
+///   the only shape real oracle text uses here.
+/// - any TWO of the above combined ("a creature spell with mana value 3 or
+///   less") -> `And([Kind(Spell), <head atom>, <postfix atom>])`, via
+///   [`split_at_spell`].
 ///
-/// Any other multi-word descriptor (restriction-laden forms: "your first
-/// spell each turn", "a spell that targets ~", color/mana-value/historic
-/// filters, …) declines, left for the debug/unparsed path — these need extra
-/// filter machinery or trigger-condition modeling this v1 production doesn't
-/// carry.
+/// Any other multi-word descriptor or postfix (restriction-laden forms:
+/// "your first spell each turn", "a spell that's one or more colors", "cast
+/// or copy", …) declines, left for the debug/unparsed path — these need
+/// extra filter machinery or trigger-condition modeling this v1 production
+/// doesn't carry, or (for "cast or copy") have no `EventFilter` combinator to
+/// carry a copy-or-cast disjunction at all.
 fn parse_cast_event(clause: &str) -> Option<String> {
-    let rest = clause.strip_prefix("you cast ")?;
+    let (who, rest) = who_and_rest(clause)?;
     if rest == "~" {
-        return Some("Cast(who: Ref(You), what: Ref(This))".to_owned());
+        return Some(format!("Cast(who: {who}, what: Ref(This))"));
     }
     let body = rest
         .strip_prefix("a ")
         .or_else(|| rest.strip_prefix("an "))?;
+    let (descriptor, postfix) = split_at_spell(body)?;
+    let mut atoms = Vec::new();
+    if !descriptor.is_empty() {
+        atoms.extend(descriptor_atoms(descriptor)?);
+    }
+    if let Some(p) = postfix {
+        atoms.push(spell_postfix_atom(p)?);
+    }
+    if atoms.is_empty() {
+        return Some(format!("Cast(who: {who}, what: Kind(Spell))"));
+    }
+    Some(format!(
+        "Cast(who: {who}, what: And([Kind(Spell), {}]))",
+        atoms.join(", ")
+    ))
+}
+
+/// Strips the recognized "<subject> cast(s) " lead off a cast-trigger clause,
+/// returning the `who:` RON atom and the rest of the clause (the `what:`
+/// phrase). Three subjects appear in real oracle text ([CR#601.2i]): the
+/// controller's own cast ("you cast" -> `Ref(You)`), any player's ("a player
+/// casts" -> `Player`, the [`Predicate`](deckmaste_core::Predicate) macro that
+/// expands to `Kind(Player)`), and specifically an opponent's ("an opponent
+/// casts" -> `OpponentOf(Ref(You))`, mirroring
+/// [`filter::recipient_phrase`]'s "an opponent" reading). Any other subject
+/// (an unrecognized phrase, "you cast or copy") declines — none of the three
+/// prefixes match, so `rest` is never produced and the caller's own
+/// descriptor match never runs.
+fn who_and_rest(clause: &str) -> Option<(&'static str, &str)> {
+    if let Some(rest) = clause.strip_prefix("you cast ") {
+        return Some(("Ref(You)", rest));
+    }
+    if let Some(rest) = clause.strip_prefix("a player casts ") {
+        return Some(("Player", rest));
+    }
+    if let Some(rest) = clause.strip_prefix("an opponent casts ") {
+        return Some(("OpponentOf(Ref(You))", rest));
+    }
+    None
+}
+
+/// Splits the "a"/"an"-stripped `what:` body into its descriptor (the run
+/// before "spell", empty for a bare "spell") and an optional postfix
+/// qualifier clause (the run after "spell"): "creature spell" ->
+/// `("creature", None)`; "spell with mana value 4 or greater" -> `("",
+/// Some("with mana value 4 or greater"))`; "creature spell with mana value 3
+/// or less" -> `("creature", Some("with mana value 3 or less"))`. `None` when
+/// the body has no "spell" head noun at all.
+fn split_at_spell(body: &str) -> Option<(&str, Option<&str>)> {
     if body == "spell" {
-        return Some("Cast(who: Ref(You), what: Kind(Spell))".to_owned());
+        return Some(("", None));
     }
-    let descriptor = body.strip_suffix(" spell")?;
-    if descriptor.is_empty() {
-        return None;
+    if let Some(rest) = body.strip_prefix("spell ") {
+        return Some(("", Some(rest)));
     }
-    if descriptor == "instant or sorcery" {
-        return Some(
-            "Cast(who: Ref(You), what: And([Kind(Spell), \
-             Or([Type(\"Instant\"), Type(\"Sorcery\")])]))"
-                .to_owned(),
-        );
+    if let Some(descriptor) = body.strip_suffix(" spell") {
+        return Some((descriptor, None));
     }
+    let idx = body.find(" spell ")?;
+    Some((&body[..idx], Some(&body[idx + " spell ".len()..])))
+}
+
+/// The descriptor's atom(s) beyond `Kind(Spell)`: a card-type/catalog-subtype
+/// disjunction ([`disjunction_atom`]), the "noncreature" negation, or a
+/// single card-type/subtype token (the original v1 shapes — a lone
+/// non-subtype token still mints a `Subtype`, unconditional like the shared
+/// filter grammar's bare-token head). `None` for any other multi-word
+/// descriptor (out of scope — restriction-laden forms this v1 production
+/// doesn't carry).
+fn descriptor_atoms(descriptor: &str) -> Option<Vec<String>> {
     if descriptor == "noncreature" {
-        return Some(
-            "Cast(who: Ref(You), what: And([Kind(Spell), Not(Type(\"Creature\"))]))".to_owned(),
-        );
+        return Some(vec!["Not(Type(\"Creature\"))".to_owned()]);
     }
-    // Any other multi-word descriptor is out of scope for this production
-    // (restriction-laden forms deferred).
+    if descriptor.contains(" or ") {
+        return disjunction_atom(descriptor).map(|atom| vec![atom]);
+    }
     if descriptor.contains(' ') {
         return None;
     }
-    // A single-word descriptor: a card-type noun first (Type(<T>)), else the
-    // original v1 subtype fallback (unconditional, like the shared filter
-    // grammar's bare-token head).
     let atom = filter::type_filter(&filter::singularize(descriptor).to_ascii_lowercase())
         .unwrap_or_else(|| format!("Subtype(\"{}\")", crate::ident::to_rust_ident(descriptor)));
-    Some(format!(
-        "Cast(who: Ref(You), what: And([Kind(Spell), {atom}]))"
-    ))
+    Some(vec![atom])
+}
+
+/// The `Or([...])` atom for an "X or Y" 2-way disjunction descriptor — a
+/// card-type disjunction (`Or([Type("Instant"), Type("Sorcery")])`, the
+/// general form of the former instant-or-sorcery-only special case) or a
+/// catalog-subtype disjunction (`Or([Subtype("Spirit"), Subtype("Arcane")])`,
+/// the "Spirit or Arcane" shape) — never a MIX of the two kinds (a
+/// [`filter::type_filter`] miss on EITHER member falls through to the subtype
+/// check, which requires BOTH members to validate against the subtype
+/// catalog). `None` for anything else (not shaped like a 2-way disjunction, a
+/// multi-word member, or a member neither a type noun nor a real subtype).
+///
+/// Restricted to 2-way: an Oxford-comma 3+-way list ("an artifact, instant,
+/// or sorcery spell") carries an INTERNAL comma that `resolve_line`'s own
+/// "When/Whenever <event>, <effect>" split (a single `split_once(", ")`)
+/// would cut at instead of the real event/effect boundary — unreachable from
+/// real oracle text through this parser without first fixing that shared
+/// split, out of scope here. A 2-way "X or Y" never has an internal comma, so
+/// it's unaffected.
+fn disjunction_atom(descriptor: &str) -> Option<String> {
+    let (a, b) = split_or_pair(descriptor)?;
+    if let (Some(ta), Some(tb)) = (
+        filter::type_filter(&filter::singularize(a).to_ascii_lowercase()),
+        filter::type_filter(&filter::singularize(b).to_ascii_lowercase()),
+    ) {
+        return Some(format!("Or([{ta}, {tb}])"));
+    }
+    (filter::is_subtype(a) && filter::is_subtype(b)).then(|| {
+        format!(
+            "Or([Subtype(\"{}\"), Subtype(\"{}\")])",
+            crate::ident::to_rust_ident(a),
+            crate::ident::to_rust_ident(b)
+        )
+    })
+}
+
+/// Splits an "X or Y" 2-way disjunction descriptor into its two single-word
+/// members, or `None` if the descriptor isn't shaped like one, or either
+/// member is itself multi-word (out of scope — only bare type/subtype names
+/// disjoin here, e.g. "Faerie or Wizard permanent" declines since "Wizard
+/// permanent" isn't a bare member).
+fn split_or_pair(s: &str) -> Option<(&str, &str)> {
+    let (a, b) = s.split_once(" or ")?;
+    (!a.is_empty() && !a.contains(' ') && !b.is_empty() && !b.contains(' ')).then_some((a, b))
+}
+
+/// A postfix qualifier clause trailing "spell" -> its `Predicate` atom: "with
+/// mana value N or greater/less" ([CR#202.3]) or "that targets ~" (heroic's
+/// head, [CR#115.9b] — restricted to the self target, the only shape real
+/// oracle text uses here). `None` for anything else (out of scope — a
+/// color/historic/kicked rider, "that's one or more colors", "with cascade",
+/// …).
+fn spell_postfix_atom(postfix: &str) -> Option<String> {
+    if let Some(rest) = postfix.strip_prefix("with mana value ") {
+        let (n, word) = rest.split_once(" or ")?;
+        let n: u32 = n.parse().ok()?;
+        let cmp = match word {
+            "greater" => "AtLeast",
+            "less" => "AtMost",
+            _ => return None,
+        };
+        return Some(format!("Stat(ManaValue, {cmp}, {n})"));
+    }
+    (postfix == "that targets ~").then(|| "Targets(Ref(This))".to_owned())
 }
 
 /// "At the beginning of <step-phrase>, <effect>" (lead already stripped) ->
@@ -867,13 +992,143 @@ mod tests {
 
     #[test]
     fn cast_trigger_declines_out_of_scope() {
-        // A multi-word descriptor before "spell" that isn't the modeled
-        // "instant or sorcery"/"noncreature" shapes -> declines (this v1
-        // production handles only single-token and those two disjunction/
-        // negation shapes).
-        assert!(trig("Whenever you cast a creature or artifact spell, draw a card.").is_none());
-        // An opponent's cast is not the controller-cast surface modeled here.
-        assert!(trig("Whenever an opponent casts a spell, draw a card.").is_none());
+        // "cast or copy" has no `EventFilter` combinator for a copy-or-cast
+        // disjunction — "or copy …" is never consumed by the "you cast "
+        // prefix, so `who_and_rest` itself never matches.
+        assert!(
+            trig("Whenever you cast or copy an instant or sorcery spell, draw a card.").is_none()
+        );
+        // A multi-word postfix that isn't the modeled mana-value/targets
+        // shapes declines (out of scope — this v1 production doesn't carry
+        // color-composite filters).
+        assert!(
+            trig("Whenever you cast a spell that's one or more colors, draw a card.").is_none()
+        );
+        // "Faerie or Wizard permanent" isn't a bare-member disjunction list
+        // (the second member is two words) -> declines rather than mis-parse.
+        assert!(
+            trig("Whenever you cast a Faerie or Wizard permanent spell, draw a card.").is_none()
+        );
+    }
+
+    #[test]
+    fn cast_type_disjunction_general() {
+        // The general 2-way card-type disjunction (any pairing, not just the
+        // former instant-or-sorcery-only special case).
+        assert_eq!(
+            trig("Whenever you cast a creature or planeswalker spell, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Or([Type(\"Creature\"), Type(\"Planeswalker\")])])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_type_disjunction_with_player_subject() {
+        // A "a player casts" subject paired with the 2-way disjunction.
+        assert_eq!(
+            trig("Whenever a player casts a creature spell, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Player, \
+                 what: And([Kind(Spell), Type(\"Creature\")])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_type_disjunction_three_way_oxford_comma_declines() {
+        // An Oxford-comma 3+-way list ("an artifact, instant, or sorcery
+        // spell") carries an INTERNAL comma that `resolve_line`'s own
+        // "When/Whenever <event>, <effect>" split (a single `split_once(",
+        // ")`) cuts at instead of the real event/effect boundary — this
+        // parser never even sees the intact clause, so it declines (a
+        // pre-existing `resolve_line` limitation, out of scope for this
+        // production to fix).
+        assert!(
+            trig("Whenever a player casts an artifact, instant, or sorcery spell, draw a card.")
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
+    fn cast_subtype_disjunction() {
+        // "a Spirit or Arcane spell" — a catalog-subtype disjunction, distinct
+        // from the card-type disjunction (neither word is a type noun).
+        assert_eq!(
+            trig("Whenever you cast a Spirit or Arcane spell, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Or([Subtype(\"Spirit\"), Subtype(\"Arcane\")])])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_mana_value_threshold() {
+        assert_eq!(
+            trig("Whenever you cast a spell with mana value 4 or greater, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Stat(ManaValue, AtLeast, 4)])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_creature_spell_with_mana_value_threshold() {
+        // A head atom (card type) combined with a postfix atom (mana-value
+        // threshold) — "a creature spell with mana value 3 or less".
+        assert_eq!(
+            trig("Whenever you cast a creature spell with mana value 3 or less, draw a card.")
+                .as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Type(\"Creature\"), Stat(ManaValue, AtMost, 3)])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_spell_that_targets_self() {
+        // Heroic's head ([CR#115.9b]): "a spell that targets ~".
+        assert_eq!(
+            trig("Whenever you cast a spell that targets ~, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Targets(Ref(This))])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_opponent_subject() {
+        assert_eq!(
+            trig("Whenever an opponent casts a creature spell, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: Cast(who: OpponentOf(Ref(You)), \
+                 what: And([Kind(Spell), Type(\"Creature\")])), \
+                 effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn cast_player_subject_bare_spell() {
+        assert_eq!(
+            trig("Whenever a player casts a spell, draw a card.").as_deref(),
+            Some("Triggered(event: Cast(who: Player, what: Kind(Spell)), effect: Draw(1))")
+        );
     }
 
     #[test]
