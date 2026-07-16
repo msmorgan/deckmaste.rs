@@ -634,7 +634,7 @@ fn type_exclusion_prefix(filter: &Predicate) -> Option<String> {
 /// `InZone(Battlefield)` expansion carries no `Type(_)` atom of its own, so the
 /// noun comes off its template ("permanent") instead. `None` for a filter with
 /// no such macro part (or one whose macro carries no nullary template).
-fn find_macro_noun(f: &Predicate) -> Option<String> {
+pub(super) fn find_macro_noun(f: &Predicate) -> Option<String> {
     match f {
         Predicate::Expanded(exp) => super::template::expanded(exp, ""),
         Predicate::And(parts) => parts.iter().find_map(find_macro_noun),
@@ -880,7 +880,7 @@ fn controller_phrase(f: &Predicate) -> String {
     }
 }
 
-fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
+pub(super) fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
     match strip_expanded(f) {
         Predicate::And(v) => v.iter().collect(),
         single => vec![single],

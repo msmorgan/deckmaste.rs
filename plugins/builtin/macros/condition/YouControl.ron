@@ -1,0 +1,24 @@
+// "you control [object]" ([CR#603.4] the common `Exists` intervening-if
+// shape) — the controller-relative existence check a conditional static's
+// "as long as you control an artifact" composes
+// (`StaticEffect::Conditionally`, [CR#611.3a]): `Exists(And([<object>,
+// ControlledBy(Ref(You))]))`. `Param(0)` is the object's own `Predicate`
+// description (a bare card type, a creature-type subtype noun, a color/
+// multicolored/colorless adjective, the "other"/"another" self-exclusion) —
+// the `crate::parsers::condition` routing's Predicate-slot vocabulary.
+//
+// Template: "you control ${0}" renders the object noun with its indefinite
+// article (`crates/deckmaste_cards/src/render/condition.rs`'s `exists_phrase`
+// — the generic slot filler can't supply "a"/"an", so this shape gets a
+// hand-written render arm on the CORE `Exists` variant, not the macro
+// template).
+//
+// Usage: YouControl(Type("Artifact")) / YouControl(And([Permanent,
+// Subtype("Human")])).
+(
+    name: "YouControl",
+    template: "you control ${0}",
+    kinds: [Condition],
+    params: [Predicate],
+    body: Exists(And([Param(0), ControlledBy(Ref(You))])),
+)

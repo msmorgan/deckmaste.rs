@@ -3,6 +3,7 @@
 
 pub(crate) mod activated_ability;
 pub(crate) mod alternative_cost;
+pub(crate) mod condition;
 pub(crate) mod cost;
 pub(crate) mod count;
 pub(crate) mod effect;

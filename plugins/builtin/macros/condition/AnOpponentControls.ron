@@ -1,0 +1,14 @@
+// "an opponent controls [object]" — [`YouControl`]'s opponent-relative twin:
+// `Exists(And([<object>, ControlledBy(OpponentOf(Ref(You)))]))`. See
+// `YouControl` for the shared `Param(0)` object-predicate vocabulary and the
+// render note (a hand-written `Exists` render arm, not the generic template
+// filler, supplies the indefinite article).
+//
+// Usage: AnOpponentControls(And([Permanent, Subtype("Island")])).
+(
+    name: "AnOpponentControls",
+    template: "an opponent controls ${0}",
+    kinds: [Condition],
+    params: [Predicate],
+    body: Exists(And([Param(0), ControlledBy(OpponentOf(Ref(You)))])),
+)

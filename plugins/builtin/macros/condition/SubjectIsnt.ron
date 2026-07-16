@@ -1,0 +1,13 @@
+// "[subject] isn't [predicate]" — [`SubjectIs`]'s negation twin:
+// `Not(Matches(<subject>, <predicate>))`. See `SubjectIs` for the shared
+// `Param(0)`/`Param(1)` vocabulary and the render note (a hand-written
+// `Condition::Not(Matches(..))` arm, not the generic template filler).
+//
+// Usage: SubjectIsnt(AttachHostOf(This), Supertype(Legendary)).
+(
+    name: "SubjectIsnt",
+    template: "${0} isn't ${1}",
+    kinds: [Condition],
+    params: [Reference, Predicate],
+    body: Not(Matches(Param(0), Param(1))),
+)

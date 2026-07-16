@@ -1,0 +1,25 @@
+// "[subject] is [predicate]" ([CR#603.4]) — the SUBJECT-STATE shape a
+// conditional static composes ("As long as enchanted creature is black, …",
+// "As long as ~ is attacking, …"): `Matches(<subject>, <predicate>)`.
+// `Param(0)` is the closed subject-reference vocabulary
+// `crate::parsers::condition::SUBJECT_WORDS` accepts (`~`/"it" -> This,
+// "enchanted creature"/"enchanted permanent" -> AttachHostOf(This)); `Param(1)`
+// is a color, "legendary", a combat/tap-state word
+// (attacking/blocking/tapped/untapped), or a full object-description noun
+// phrase ("a Human", "a creature").
+//
+// Template: "${0} is ${1}" renders via a hand-written `Matches` arm
+// (`crates/deckmaste_cards/src/render/condition.rs`'s `matches_phrase`) — the
+// generic macro-template filler can't tell "is legendary" from "is a Human"
+// apart from "is attacking", so this shape gets its own render arm on the
+// CORE `Matches` variant rather than the template.
+//
+// Usage: SubjectIs(This, Attacking) / SubjectIs(AttachHostOf(This),
+// ColorIs(Black)).
+(
+    name: "SubjectIs",
+    template: "${0} is ${1}",
+    kinds: [Condition],
+    params: [Reference, Predicate],
+    body: Matches(Param(0), Param(1)),
+)

@@ -279,8 +279,52 @@ fn conditionally_qualified(cond: &Condition, ctx: &Ctx, text: String) -> String 
     format!(
         "As long as {}, {}",
         super::condition::condition(cond, ctx),
-        lower_first(&text)
+        conditionally_lead(&text, cond, ctx)
     )
+}
+
+/// The `Reference` a `Matches`/`Not(Matches(..))` condition names, if any —
+/// the subject the inner effect's OWN rendering re-mentions when its body
+/// targets that same object (`SubjectIs`/`SubjectIsnt`'s composition:
+/// "as long as ~ is attacking, it gets +2/+0.", not "..., Adanto Vanguard
+/// gets +2/+0.").
+fn matches_subject(cond: &Condition) -> Option<&Reference> {
+    match cond {
+        Condition::Matches(reference, _) => Some(reference),
+        Condition::Not(inner) => match &**inner {
+            Condition::Matches(reference, _) => Some(reference),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The conditional-composition twin of [`lower_first`] for a `Conditionally`
+/// effect's inner clause ([CR#201.5]):
+///
+/// - `text` leads with the SAME subject phrase the condition just named
+///   (`Matches`/`Not(Matches(..))`'s own reference, e.g. the card's own name
+///   for `This`, "Enchanted creature" for `AttachHostOf(This)`) — this is the
+///   sentence's SECOND self-mention, so it reads as the pronoun "it" rather
+///   than repeating the name/noun.
+/// - `text` leads with the card's own name (`ctx.subject`, `Reference::This`'s
+///   plain rendering) but the condition DIDN'T name that subject ("As long as
+///   you control an artifact, Aerial Engineer gets …") — this IS the
+///   sentence's first (only) self-mention, so it must survive
+///   BYTE-FOR-BYTE: `fidelity::normalize`'s self-reference collapse is an
+///   exact-case substring match, and lowercasing the lead letter (the plain
+///   [`lower_first`] this replaces) would break it.
+/// - Anything else falls back to the plain [`lower_first`], unchanged.
+fn conditionally_lead(text: &str, cond: &Condition, ctx: &Ctx) -> String {
+    if let Some(subject) = matches_subject(cond).map(|r| super::fragment::modify_subject(r, ctx))
+        && text.starts_with(&subject)
+    {
+        return format!("it{}", &text[subject.len()..]);
+    }
+    if text.starts_with(ctx.subject) {
+        return text.to_string();
+    }
+    lower_first(text)
 }
 
 /// Returns (lead word, the event clause).

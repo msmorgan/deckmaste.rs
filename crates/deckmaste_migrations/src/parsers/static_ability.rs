@@ -28,6 +28,9 @@ fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     }
     let body = line.strip_suffix('.').unwrap_or(line);
 
+    if let Some(row) = parse_conditional(body, ctx)? {
+        return Ok(Some(row));
+    }
     if let Some(row) = parse_cost_modifier(body) {
         return Ok(Some(row));
     }
@@ -241,6 +244,84 @@ fn parse_cost_modifier(body: &str) -> Option<String> {
     Some(format!(
         "Static(CostModifier(of: {of}, change: {change_kw}([{component}])))"
     ))
+}
+
+/// "As long as <condition>, <static clause>." -> `Static(Conditionally(<condition>,
+/// <inner>))` ([CR#611.3a]) — the COMPOSITION of the `Condition`-macro path
+/// and the existing static-ability productions, nothing new in either
+/// vocabulary. Condition-FIRST only: the renderer
+/// (`crates/deckmaste_cards/src/render/ability.rs`'s `conditionally_qualified`)
+/// only emits the "As long as X, Y." phrasing — `Conditionally` carries no
+/// order marker (the `(Condition, StaticEffect)` pair can't remember which way
+/// the oracle wrote it), and the SAME condition/effect pair appears in BOTH
+/// orders across different real cards (e.g. "As long as you control an
+/// artifact, ~ gets +1/+0 and has deathtouch." vs "~ gets +1/+1 as long as you
+/// control an artifact."), so no per-card heuristic recovers it. A
+/// condition-LAST card ("Y as long as X.") is left `Unparsed` — an order
+/// marker would be new core grammar, outside this composition's hard
+/// constraint.
+///
+/// The condition phrase routes through the shared `Condition`-macro path
+/// ([`crate::parsers::condition::resolve`], the same routing
+/// [`crate::parsers::effect::parse_if`] uses for one-shot `If`) — new
+/// condition phrasings are added by authoring a macro, never here. The static
+/// clause after the comma re-enters [`parse`] (recursing through every
+/// existing static production), so any already-supported subject/effect shape
+/// composes under a condition at no cost in new static vocabulary. A leading
+/// "it"/"It" pronoun in that clause — the common anaphor referring back to the
+/// condition's own subject ("enchanted creature is black, it gets +1/+1") —
+/// is rewritten to that exact subject phrase first ([`rewrite_it_anaphor`]),
+/// so the recursive [`parse`] sees a subject its own productions already
+/// resolve.
+fn parse_conditional(body: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    let Some(rest) = body.strip_prefix("As long as ") else {
+        return Ok(None);
+    };
+    let Some((cond_phrase, tail)) = rest.split_once(", ") else {
+        return Ok(None);
+    };
+    let cond_phrase = cond_phrase.trim();
+    let Some(condition) = crate::parsers::condition::resolve(cond_phrase, ctx)? else {
+        return Ok(None);
+    };
+    let tail = rewrite_it_anaphor(cond_phrase, tail.trim());
+    let tail_line = format!("{tail}.");
+    let Some(inner) = parse(&tail_line, ctx)? else {
+        return Ok(None);
+    };
+    let Some(inner_effect) = inner
+        .strip_prefix("Static(")
+        .and_then(|s| s.strip_suffix(')'))
+    else {
+        return Ok(None);
+    };
+    Ok(Some(format!(
+        "Static(Conditionally({condition}, {inner_effect}))"
+    )))
+}
+
+/// A leading "it"/"It" in `tail` is the pronoun anaphor referring back to
+/// `cond_phrase`'s own subject ([CR#608.2d]) — substitute the EXACT antecedent
+/// text (never blindly `~`: "enchanted creature is black, it gets +1/+1"
+/// means the enchanted creature gets +1/+1, not the aura/equipment itself), so
+/// the recursive static parse sees a subject its own productions already
+/// resolve. Reuses [`crate::parsers::condition::SUBJECT_WORDS`] — the same
+/// closed subject set the condition-phrase macro slot accepts, so both sides
+/// agree on what counts as a valid antecedent. Declines (returns `tail`
+/// unchanged) when `cond_phrase`'s subject isn't one of that set, or `tail`
+/// has no leading pronoun to rewrite.
+fn rewrite_it_anaphor(cond_phrase: &str, tail: &str) -> String {
+    let Some(pronoun_tail) = modify::strip_prefix_ci(tail, "it ") else {
+        return tail.to_string();
+    };
+    for (antecedent, _) in crate::parsers::condition::SUBJECT_WORDS {
+        if let Some(after) = modify::strip_prefix_ci(cond_phrase, antecedent)
+            && after.starts_with(' ')
+        {
+            return format!("{antecedent} {pronoun_tail}");
+        }
+    }
+    tail.to_string()
 }
 
 #[cfg(test)]
@@ -627,6 +708,84 @@ mod tests {
                 &crate::parsers::test_ctx::ctx(CardKind::Permanent)
             )
             .unwrap()
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn conditional_you_control_pt_folds() {
+        // "As long as you control an artifact, ~ gets +1/+0." ([CR#611.3a]) —
+        // the ticket's own condition-first "you control" composition; the
+        // `+1/+0` change ALSO folds to its `Modification` macro since this
+        // uses the real builtin index.
+        assert_eq!(
+            stat_with_macros("As long as you control an artifact, ~ gets +1/+0.").as_deref(),
+            Some(
+                "Static(Conditionally(YouControl(Type(\"Artifact\")), Modify(This, PowerAndToughnessUp(1, 0))))"
+            )
+        );
+    }
+
+    #[test]
+    fn conditional_self_reference_with_it_anaphor() {
+        // "As long as ~ is attacking, it gets +2/+0." — the ticket's own
+        // condition-first self-reference example: the "it" pronoun rewrites to
+        // "~" (the condition's own subject) before the recursive static parse.
+        assert_eq!(
+            stat_with_macros("As long as ~ is attacking, it gets +2/+0.").as_deref(),
+            Some(
+                "Static(Conditionally(SubjectIs(This, Attacking), Modify(This, PowerAndToughnessUp(2, 0))))"
+            )
+        );
+    }
+
+    #[test]
+    fn conditional_enchanted_creature_it_anaphor_targets_the_host() {
+        // "As long as enchanted creature is black, it gets +1/+1." — the "it"
+        // rewrites to "enchanted creature" (the condition's own subject), NOT
+        // "~" (the aura) — a wrong rewrite here would apply the boost to the
+        // aura instead of the enchanted creature.
+        assert_eq!(
+            stat_with_macros("As long as enchanted creature is black, it gets +1/+1.").as_deref(),
+            Some(
+                "Static(Conditionally(SubjectIs(AttachHostOf(This), ColorIs(Black)), Modify(AttachHostOf(This), PowerAndToughnessUp(1, 1))))"
+            )
+        );
+    }
+
+    #[test]
+    fn conditional_keyword_grant() {
+        // "As long as ~ is untapped, ~ has hexproof." — a keyword-grant static
+        // body under a condition.
+        assert_eq!(
+            stat_with_macros("As long as ~ is untapped, ~ has hexproof.").as_deref(),
+            Some(
+                "Static(Conditionally(SubjectIs(This, Status(Untapped)), Modify(This, GainAbility(Keyword(Hexproof())))))"
+            )
+        );
+    }
+
+    #[test]
+    fn conditional_declines_condition_last_order() {
+        // "~ gets +2/+2 as long as you control an artifact." — condition-LAST:
+        // the renderer only emits the condition-first phrasing, so this order
+        // is left `Unparsed` rather than silently mis-rendering on round trip.
+        assert!(stat_with_macros("~ gets +2/+2 as long as you control an artifact.").is_none());
+    }
+
+    #[test]
+    fn conditional_declines_unrecognized_condition() {
+        assert!(stat("As long as the moon is full, ~ gets +1/+1.").is_none());
+    }
+
+    #[test]
+    fn conditional_declines_when_inner_static_unsupported() {
+        // A recognized condition whose tail isn't itself a supported static
+        // clause declines the whole (no partial/wrong RON).
+        assert!(
+            stat_with_macros(
+                "As long as ~ is attacking, it can attack as though it didn't have defender."
+            )
             .is_none()
         );
     }

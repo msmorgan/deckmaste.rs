@@ -539,10 +539,12 @@ pub(super) fn count_delim_slot_reader(ty: &str, input: &str) -> Option<(String, 
 ///
 /// Both branches re-enter [`parse_clause`], so the whole production declines if
 /// either branch isn't itself parseable, or if the condition phrase isn't a
-/// grounded condition. The condition is read the parse-via-macros way: the
-/// phrase is routed to the `Condition`-kind macro whose `template` renders it
-/// (e.g. `you have the city's blessing` -> `YouHaveTheCitysBlessing`, authored
-/// in `plugins/builtin/macros/condition/`), and the emitted RON carries that
+/// grounded condition. The condition is read the parse-via-macros way, via the
+/// shared [`crate::parsers::condition::resolve`] routing (also used by
+/// [`crate::parsers::static_ability`]'s `Conditionally` composer): the phrase
+/// is routed to the `Condition`-kind macro whose `template` renders it (e.g.
+/// `you have the city's blessing` -> `YouHaveTheCitysBlessing`, authored in
+/// `plugins/builtin/macros/condition/`), and the emitted RON carries that
 /// macro INVOCATION, which the loader expands to its `Condition` body — exactly
 /// as an `OneShotEffect` action macro stands as an effect body. New condition
 /// phrases are added by authoring a `Condition` macro, with no parser change.
@@ -567,13 +569,11 @@ fn parse_if(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>
         return Ok(None);
     };
     // Route the phrase to its `Condition` macro; full-line consumption (and
-    // same-kind ambiguity) is judged inside the matcher. The macro NAME is the
-    // parsed condition.
-    let phrase = phrase.trim();
-    let Some(m) = ctx.index.match_kind("Condition", phrase)? else {
+    // same-kind ambiguity) is judged inside the matcher. The macro invocation
+    // (name, or a filled slot-bearing invocation) is the parsed condition.
+    let Some(condition) = crate::parsers::condition::resolve(phrase, ctx)? else {
         return Ok(None);
     };
-    let condition = m.macro_name.to_string();
 
     // "instead" may lead the override ("instead <override>") or trail it
     // ("<override> instead") — strip whichever side carries it, then re-attach
@@ -3524,9 +3524,13 @@ mod tests {
     #[test]
     fn conditional_declines_unknown_condition() {
         // An ungrounded condition phrase declines the whole production (the line
-        // stays Unparsed rather than emit an unverified condition).
+        // stays Unparsed rather than emit an unverified condition). ("you
+        // control a creature" no longer qualifies as ungrounded — the
+        // `YouControl` condition macro, authored for the `Conditionally`
+        // composition, grounds it too; the shared routing means `parse_if`
+        // benefits from every condition macro, not just its own.)
         assert!(
-            parsed_with_macros("Draw a card. If you control a creature, draw two cards instead.")
+            parsed_with_macros("Draw a card. If the moon is full, draw two cards instead.")
                 .is_none()
         );
     }
