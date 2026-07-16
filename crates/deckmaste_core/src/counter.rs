@@ -121,7 +121,10 @@ pub struct Counter {
 
 /// `skip_serializing_if` for [`Counter::scope`]: the object default is
 /// omitted from RON. serde requires the predicate to take `&T`.
-#[expect(clippy::trivially_copy_pass_by_ref)]
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde requires the skip_serializing_if predicate to take &T"
+)]
 fn is_object_scope(scope: &CounterScope) -> bool {
     *scope == CounterScope::Object
 }

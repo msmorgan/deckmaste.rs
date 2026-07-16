@@ -1741,7 +1741,7 @@ mod tests {
     fn innate_before_activated_does_not_desync_the_index() {
         let mut state = game();
         // Abilities printed in this order: [Innate(Static), Activated(tap mana)].
-        // An artifact so the mana-ability path's `sick_creature` guard is false.
+        // An artifact so the mana-ability path's `tap_forbidden` guard is false.
         let object = obj_on_field(
             &mut state,
             "Manarock",

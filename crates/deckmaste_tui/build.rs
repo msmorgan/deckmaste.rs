@@ -9,6 +9,10 @@
 // re-runs this script whenever a package file changes, so ordinary edits pick
 // up a freshly-generated corpus; a regen with no other change needs `touch
 // build.rs`.
+//
+// KEEP IN SYNC: byte-identical copies of this file live in deckmaste_cards,
+// deckmaste_engine, deckmaste_tui, and deckmaste_noncanon — cfgs don't cross
+// crate boundaries, so each crate needs its own copy.
 use std::path::Path;
 
 fn main() {

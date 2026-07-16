@@ -69,7 +69,7 @@ temporary card-count estimate:
 
 The old selling-point counts (7 crates, ~29k lines of Rust, 434 tests) were
 point-in-time planning figures and are intentionally not current claims. The
-workspace now has eight library/tool crates plus the thin root binary.
+workspace now has ten library/tool crates plus the thin root binary.
 
 ## 4. CI — completed
 

@@ -30,8 +30,8 @@ pub enum LossReason {
 
 /// A concrete occurrence: what `Emit` pushes through the (future) cant →
 /// replace → apply pipe. Scheduled as an intent, returned from apply as the
-/// occurred fact — the draw's library top binds at `WillDraw` apply time, and a
-/// draw from an empty library applies as `DrewFromEmpty` instead.
+/// occurred fact — the draw's library top binds at `Act(Draw)` apply time, and
+/// a draw from an empty library applies as `DrewFromEmpty` instead.
 /// The cause triple riding an event (mtg-rules events.md §3): the named
 /// VERB view performed ("Sacrifice", "Discard", "Play", …), the AGENCY
 /// that demanded it, and the AGENT — the causing object and its

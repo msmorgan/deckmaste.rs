@@ -118,7 +118,10 @@ pub struct TriggeredAbility {
 
 /// A `skip_serializing_if` predicate: a `false` bool is omitted from RON.
 /// serde requires the predicate to take `&T`, hence the by-ref bool.
-#[expect(clippy::trivially_copy_pass_by_ref)]
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde requires the skip_serializing_if predicate to take &T"
+)]
 pub(crate) fn is_false(b: &bool) -> bool {
     !*b
 }

@@ -14,11 +14,13 @@ Fast conflict helper for jj repos using the default diff+snapshot marker format.
       start_line, end_line, diff_header, diff_side, diff_base,
       snap_header, snapshot.
 
-  scripts/conflicts accept FILE snapshot|diff|base
+  scripts/conflicts accept FILE snapshot|diff|base|stack|stack-snap-first
       Resolve every hunk in FILE by picking one side:
         snapshot  the +++ literal side
         diff      the %%% diff-applied side (what the "to:" commit changed to)
         base      the common ancestor extracted from the diff
+        stack     stack both adds: diff-side first, then snapshot
+        stack-snap-first  stack both adds: snapshot first, then diff-side
 """
 
 import json

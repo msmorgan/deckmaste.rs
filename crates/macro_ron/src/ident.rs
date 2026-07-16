@@ -26,7 +26,10 @@ fn intern(s: &str) -> &'static str {
 // `Hash` stays content-based while `PartialEq` is pointer-based; the
 // `a == b ⟹ hash(a) == hash(b)` contract holds because pointer-equal implies
 // content-equal (see the `PartialEq` impl below).
-#[expect(clippy::derived_hash_with_manual_eq)]
+#[expect(
+    clippy::derived_hash_with_manual_eq,
+    reason = "pointer-equal implies content-equal, so Eq ⟹ same hash"
+)]
 #[derive(Debug, Clone, Copy, Eq, Hash, Serialize)]
 #[serde(transparent)]
 pub struct Ident(&'static str);

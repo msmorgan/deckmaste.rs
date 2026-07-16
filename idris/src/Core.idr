@@ -429,7 +429,7 @@ public export
 implementation Promote EndingStep PhaseStep where
   promote = EndingPhase
 
--- A history-lookback / timing scope for an `EventQuery`. Rust: Window.
+-- A history-lookback / timing scope for an `EventQuery`. Rust: Lookback.
 namespace Window
   public export
   data Window = ThisGame | ThisTurn | LastTurn | ThisCombat | ThisStep
@@ -977,8 +977,8 @@ sortFromPins (MkPins k z t) =
 -- the object-role NOUN an event kind supplies its body's "that …" anaphor
 -- ([CR#400.7e] — a moved object's noun follows the zone it moved to; a
 -- sacrificed/destroyed/discarded object went to a graveyard, an exiled one
--- to exile — the entailment rows). DRIVES the emitted `object_sort` column
--- (EmitTables.objectSortTag computes each row's tag from this + the caps).
+-- to exile — the entailment rows). The `object_sort` column this once drove
+-- was deleted from EmitTables; kept as model documentation of each row's noun.
 public export
 eventKindObjectSort : EventKind -> Sort
 eventKindObjectSort Sacrifice = Card                       -- [CR#701.21a] battlefield -> graveyard
@@ -2288,7 +2288,7 @@ mutual
       -- (`Each`/`With`/`Modal`/`Sequentially` over the verbs above). The action-side twin of
       -- `KeywordAbility.Composite` — the mechanics are just the primitives, but the tag lets the engine
       -- RECOGNIZE the action ("scry 2" = `Composite Scry (…)`) so "whenever you scry"/Aang's "whenever
-      -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: OneShotEffect::KeywordAction.
+      -- you waterbend" match. Built by the `scry`/`surveil`/`mill`/`fight` macros. Rust: Action::Composite(KeywordAction, …), reached via Act.
       Composite : KeywordActionSpec b -> OneShotEffect b -> Action b
       -- roll `sides`-sided dice ([CR#706.1]) `count` times; the RESULT rides the pushed
       -- `amountAnte` antecedent (a later `Compare ThatMany …` reads it, [CR#706.2]).
@@ -2382,12 +2382,12 @@ mutual
       -- MANY-binders → `That : Selection b k` (a group, `Each`-iterated):
       Existing : Selection b k -> Bindable b Many k  -- bind existing entities (a plain selection / group)
       -- `by` chooses a `Quantity` of entities matching the filter; the chosen are bound as
-      -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Selection::Choose.
+      -- `That`. Choosing is interactive, so it lives here, not in `Selection`. Rust: Binder::Choose.
       Choose : {default You by : Reference b APlayer} -> Quantity b -> Predicate b k -> Bindable b Many k
       -- `by` searches `whose`'s `from`-zones (one or more — "library and/or graveyard") for
       -- matching cards, bound as `That` — like `Choose`, but from (hidden) zones the engine
       -- reveals/shuffles. Search ANOTHER player's via `whose`; the found card's destination
-      -- is a following owner-routed `Move That …`. Rust: Selection::Search.
+      -- is a following owner-routed `Move That …`. Rust: Binder::Search.
       Search : {default You by : Reference b APlayer} -> {default You whose : Reference b APlayer} -> {default [Library] from : List Zone} -> Quantity b -> Predicate b k -> Bindable b Many k
 
   -- the antecedent a `With`/`Each`/`Distribute` binder introduces for its
@@ -2443,7 +2443,7 @@ mutual
       -- mid-resolution VALUE choice: "choose a [color/type/name/number/mode], then [body]".
       -- The effect-level twin of `AsEnters` (which is enters-only) — `body` runs at `bindChosen d b`, reading the
       -- pick via `OfChosen`/`ChosenIs`/`ChosenNumber`. Three Tree City's "{2},{T}: Choose a color. Add mana of
-      -- that color…" = `WithChosenValue AColor (Act (AddMana … <of the chosen color>))`. Rust: OneShotEffect::WithChosenValue.
+      -- that color…" = `WithChosenValue AColor (Act (AddMana … <of the chosen color>))`. Rust: Noting/ChooseAndNote (no WithChosenValue variant).
       WithChosenValue : (d : ChooseDomain) -> {auto 0 ok : ModeDomainOk d} -> OneShotEffect (bindChosen d b) -> OneShotEffect b
       -- a single intrinsic instruction (the verb compartment). Rust: OneShotEffect::Act.
       Act : Action b -> OneShotEffect b
@@ -2486,16 +2486,16 @@ mutual
       -- a VOTE ([CR#701.38]): starting with `starting` and proceeding in turn order ([CR#701.38a]), each player
       -- votes for one option on the `ballot`; the tally drives the effect. The two CR option kinds ([CR#701.38b])
       -- are the two `Ballot` arms (objects vs labeled outcomes) — Council's Judgment / Tyrant's Choice. The
-      -- per-player vote and tally are engine-resolved; the grammar names the starting player + the ballot. Rust: OneShotEffect::Vote.
+      -- per-player vote and tally are engine-resolved; the grammar names the starting player + the ballot. Rust: none yet — unimplemented.
       Vote : {default You starting : Reference b APlayer} -> Ballot b -> OneShotEffect b
       -- DIVIDE AND CHOOSE (Fact or Fiction): the `divider` splits `group` into two piles; the `chooser` picks
       -- one as the "chosen" pile, the rest is "other". Each pile is a BOUND GROUP — a choice FRAME
       -- ([CR#700.3,608.2d]), so `chosen`/`other` read their pile as the plural anaphor (`They`, iterated with
       -- `Each (Existing They) …`); no bespoke pile slot. The split + pick are engine-resolved; the grammar
-      -- names who does each and the per-pile fate. Rust: OneShotEffect::DivideAndChoose.
+      -- names who does each and the per-pile fate. Rust: SeparatePiles + ChoosePile.
       DivideAndChoose : (group : Selection b AnObject) -> (divider : Reference b APlayer) -> {default You chooser : Reference b APlayer} -> (chosen : OneShotEffect (bindThat PileFrame b)) -> (other : OneShotEffect (bindThat PileFrame b)) -> OneShotEffect b
       -- "for each [domain], [body]" — binds each element as `It`. The distributive
-      -- primitive (subsumes the old `Selection::Each`). Rust: OneShotEffect::ForEach.
+      -- primitive (subsumes the old `Selection::Each`). Rust: OneShotEffect::Each.
       Each : (dom : Bindable b Many k) -> OneShotEffect (bindIt (binderAnte dom) b) -> OneShotEffect b
       -- "[amount] divided as you choose among [a group]" ([CR#601.2d]): bind each element as `It` with its
       -- `Allotment` (the split is engine-resolved, ≥1 each summing to amount), then apply `body`. GENERAL over

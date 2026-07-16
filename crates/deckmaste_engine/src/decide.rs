@@ -1809,7 +1809,7 @@ impl GameState {
         }
         match view.toughness(blocker) {
             Some(t) if t > 0 => {
-                #[expect(clippy::cast_sign_loss)]
+                #[expect(clippy::cast_sign_loss, reason = "t > 0 in this arm")]
                 let toughness = t as Uint;
                 toughness.saturating_sub(self.objects.obj(blocker).total_damage())
             }

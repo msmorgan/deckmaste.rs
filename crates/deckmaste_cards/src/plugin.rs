@@ -47,8 +47,9 @@ pub struct Plugin {
     pub types: HashMap<Ident, TypeDef>,
     /// The counter kinds defined by `macros/`, fully expanded — keyed by the
     /// counter's identity (`P1P1Counter`), which is what a `CounterRef`
-    /// resolves to. The post-load `validate_counter_refs` pass checks every
-    /// authored `CounterRef` against this registry.
+    /// resolves to. No load-time pass validates authored `CounterRef`s against
+    /// this registry yet — only the Idris emitter flags unknown counter refs
+    /// (ticket: `cards-counter-ref-validation`).
     pub counters: HashMap<Ident, Counter>,
     /// The designations declared by `macros/` (`DesignationDecl`-kind,
     /// nullary), keyed by the designation's identity. The designation-scope

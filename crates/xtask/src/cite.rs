@@ -3,7 +3,8 @@
 //! scanning, range expansion, the JSON lockfile with text-hash staleness —
 //! lives there, configured for this repo by the root `cite-config.json`.
 //! The subcommand surface is unchanged: `check [--list-noncompliant]`,
-//! `bless`, `list`, `show <citation> [--plain]`, `diff <rule>`; bare
+//! `bless`, `list`, `show <citation> [--plain]`, `diff <rule>`,
+//! `audit [--diff]`; bare
 //! `cargo xtask cite` runs `check`.
 
 use std::path::PathBuf;

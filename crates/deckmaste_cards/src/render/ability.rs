@@ -1419,7 +1419,7 @@ mod tests {
     /// render) and the bare object-type filtered subject ("Whenever a
     /// creature leaves the battlefield", mirrors `Dies`'s). Structurally
     /// distinct from the "dies" shape (`to: Some(Graveyard)`) — never
-    /// collides with `dies_event_clause`-style renders.
+    /// collides with `event_clause`'s dies-shape renders.
     #[test]
     fn leaves_battlefield_event_clause_renders_self_and_filtered_subject() {
         let ctx = Ctx {

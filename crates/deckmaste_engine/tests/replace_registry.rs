@@ -1066,7 +1066,7 @@ fn creature_with_non_destroy_replacement(replacement: Replacement) -> (GameState
 /// LoseLife(Literal(1)))` watches a `LifeGained` intent for player 0. When the
 /// `LifeGained` intent fires, the Instead fires: the player loses 1 life
 /// instead of gaining 3. This exercises the `Affected::Player` arm of
-/// `event_pattern_matches` and proves the registry is not destroy-only.
+/// `affected` and proves the registry is not destroy-only.
 ///
 /// `who: Predicate::Any` matches any object, which in the `Affected::Player`
 /// case resolves against the player's proxy object (`matches_with` with `Any`

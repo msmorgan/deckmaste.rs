@@ -90,7 +90,7 @@ thousand complete games.
 
 ## Architecture
 
-Eight crates, plus a thin root binary that launches the client:
+Ten crates, plus a thin root binary that launches the client:
 
 - **`deckmaste_core`** — the card-encoding language: the typed vocabulary of
   abilities, effects, costs, zones, durations, and conditions.
@@ -101,8 +101,11 @@ Eight crates, plus a thin root binary that launches the client:
 - **`deckmaste_tui`** — the interactive terminal client, built on ratatui.
 - **`deckmaste_migrations`** — the data pipeline (extract, resolve, graduate)
   that turns oracle text into encodings.
+- **`deckmaste_noncanon`** — a non-canon proving ground: complete WC99 decks
+  and matchup tests that exercise the engine end-to-end.
 - **`macro_ron`** / **`macro_ron_derive`** — the RON macro-expansion layer the
   encoding language is built on.
+- **`ron_lsp`** — a small language server for the repo's RON card files.
 - **`xtask`** — repository tooling: corpus generation, validation, and the
   citation checker.
 

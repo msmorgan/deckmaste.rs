@@ -10,6 +10,6 @@ workspace = true
 [dependencies]
 anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
-deckmaste_cards = { path = "../deckmaste_cards" }
-deckmaste_core = { path = "../deckmaste_core" }
-deckmaste_migrations = { path = "../deckmaste_migrations" }
+deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
+deckmaste_migrations = { version = "0.1.0", path = "../deckmaste_migrations" }

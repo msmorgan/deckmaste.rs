@@ -644,8 +644,7 @@ impl GameState {
                 let amount = self.eval_count(count, frame);
                 // [CR#119.4,119.4b]: compare in Uint space — negative life can
                 // never be ≥ a non-negative amount, so clamp to 0 before
-                // converting. `unwrap_or(Uint::MAX)` mirrors the idiom used in
-                // `selection_cost_payable` to keep this panic-free.
+                // converting. `unwrap_or(Uint::MAX)` keeps this panic-free.
                 let life = deckmaste_core::Uint::try_from(self.player(player).life.max(0))
                     .unwrap_or(deckmaste_core::Uint::MAX);
                 life >= amount

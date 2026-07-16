@@ -154,8 +154,7 @@ pub enum OneShotEffect {
     Delayed(Box<TriggeredAbility>),
     /// A reflexive triggered ability created on resolution ([CR#603.12]).
     Reflexive(Box<TriggeredAbility>),
-    /// A modal effect: choose modes, then apply them ([CR#700.2]). This is the
-    /// realized form of the design's `Resolvable::Modal` — see the report.
+    /// A modal effect: choose modes, then apply them ([CR#700.2]).
     Modal(Modal),
     /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
     /// faithful home for the word "target" — declared on the effect that

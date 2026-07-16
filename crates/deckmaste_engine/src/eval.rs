@@ -266,7 +266,7 @@ impl<'a> FactView<'a> {
     /// The fact record of `event`, with live participants — `None` for
     /// plumbing events no pattern can watch (`TriggerFired`, mana movements,
     /// reveals, …). One total mapping serves every lane: an INTENT
-    /// (`Act(Destroy)`, `WillDraw`, `ZoneWillChange`) and its downstream fact
+    /// (`Act(Destroy)`, `Act(Draw)`, `ZoneWillChange`) and its downstream fact
     /// present the same kinds their patterns watch, each at its own
     /// pipeline stage.
     #[expect(

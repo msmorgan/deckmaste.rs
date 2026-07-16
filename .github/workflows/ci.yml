@@ -38,8 +38,10 @@ jobs:
       # cfg on — otherwise the catalog/corpus tests below report as `ignored`
       # (they carry `#[cfg_attr(not(<cfg>), ignore)]`).
       #
-      # `data/catalogs` + `data/rules` -> `scryfall_catalogs` cfg -> the
-      # deckmaste_migrations `Subtype`/keyword parser tests run for real. The
+      # `data/catalogs` -> `scryfall_catalogs` cfg -> the deckmaste_migrations
+      # `Subtype`/keyword parser tests run for real. `data/rules` is staged for
+      # the generate step below, which needs `data/rules/keywords.json` at
+      # resolve time regardless of that cfg. The
       # mirror is public, so no token/secret — the checkout is tokenless and the
       # steps run for every push and PR (forks included).
       - name: fetch CI data mirror
@@ -75,13 +77,12 @@ jobs:
       # of which a clean runner has. Wiring it in (install the skill + fetch just
       # the rules snapshot) is a follow-up.
       #
-      # The Idris↔Rust lockstep gates DO run here, entirely from committed
-      # artifacts (no idris2 on the runner): `cargo test` includes the
-      # twin-gate test (every checker E-code ↔ its Spec.idr failing block,
-      # both directions, via the emitted manifest's `twin:` column and the
-      # `-- @twin` annotations) and the resolution-agreement test (the
-      # Idris-exported per-card anaphor tables under
-      # crates/deckmaste_cards/tests/resolution/ replayed byte-for-byte by
-      # the elaborator). Regenerating the tables/fixtures themselves
-      # (idris/scripts/emit-tables + a clean `jj st`) needs idris2 and stays
-      # a local gate, like cite check.
+      # The Idris↔Rust lockstep gate does NOT run here. The committed-
+      # artifact gates this comment once described (elaborator twin-gate,
+      # per-card resolution fixtures) were deleted; their replacement is
+      # `cargo xtask idris-check`, which re-emits each Rust card as a raw
+      # Core.idr term and typechecks it — and that shells out to a live
+      # `idris2`, absent on this runner. So `cargo test` carries no Idris
+      # coverage; like cite check, idris-check stays a local gate. Wiring it
+      # (or an entailments.ron regen-diff) into CI is a follow-up:
+      # docs/tickets/planned/ci-idris-gate.md.

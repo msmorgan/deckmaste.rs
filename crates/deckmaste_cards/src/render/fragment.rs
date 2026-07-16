@@ -172,7 +172,7 @@ pub(super) fn count(c: &Count) -> String {
         // Embiggen's "number of card types it has" = `CountDistinct(Types,
         // Singleton(This))`. A real card's own triple-axis phrasing ("for
         // each supertype, card type, and subtype it has") reads through the
-        // dedicated `axis_pump_clause` recognizer instead; this is the
+        // dedicated `axis_sum_pump_clause` recognizer instead; this is the
         // structural single-axis fallback.
         Count::CountDistinct(axis, Countable::Singleton(r)) => format!(
             "the number of {} {} has",

@@ -3,7 +3,7 @@
 ## 4. Card shapes (layouts)
 
 Extraction currently reads `normal` and `modal_dfc` only; each row needs
-grammar (§2 `core-card-shapes`), extraction, and engine behavior. Slug:
+grammar (`core-card-shapes`), extraction, and engine behavior. Slug:
 `shape-<layout>`.
 
 | Layout | Modern cards | Work |
@@ -26,8 +26,9 @@ grammar (§2 `core-card-shapes`), extraction, and engine behavior. Slug:
 
 ## 6. Keyword abilities
 
-Per-keyword work = macro body (stub exists under `plugins/wizards/macros/`),
-any engine machinery (right column names the §3 item it rides on), parser
+Per-keyword work = macro body (stub: `plugins/wizards/keyword_abilities/*.todo.ron`;
+authored macros land in `plugins/builtin/macros/keyword/`),
+any engine machinery (right column names the engine ticket it rides on), parser
 coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 
 | Keyword | Cards | Machinery |

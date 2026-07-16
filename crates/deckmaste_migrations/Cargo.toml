@@ -9,8 +9,8 @@ workspace = true
 
 [dependencies]
 anyhow = { version = "1.0.102" }
-deckmaste_cards = { path = "../deckmaste_cards" }
-deckmaste_core = { path = "../deckmaste_core" }
+deckmaste_cards = { version = "0.1.0", path = "../deckmaste_cards" }
+deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 rayon = "1"
 regex = "1.12.3"
 ron = "0.12.1"

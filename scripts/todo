@@ -14,7 +14,8 @@ Usage: scripts/todo <command> [<slug>] [--slugs-only]
   graph SLUG       Upstream needs (recursive) + downstream blocks for SLUG.
   check            Report dependency cycles and dangling needs. Exit 1 if any.
   needs SLUG       Print SLUG's direct needs, one per line (ticket or census).
-  mint SLUG        Print a wip ticket file for a census SLUG (frontmatter+body)."
+  mint SLUG        Print a wip ticket file for a census SLUG (frontmatter+body).
+  iscensus SLUG    Exit 0 iff SLUG is a census-derived node (no ticket file)."
     exit 2
 end
 

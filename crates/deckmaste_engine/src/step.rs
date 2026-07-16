@@ -704,7 +704,10 @@ impl GameState {
             // will-change apply. A no-op; triggers (a later task) match here.
             // (Same body as the `TurnBegan`/`StepBegan` no-op, but kept its own
             // arm to carry the CR rationale and the future trigger-match seam.)
-            #[expect(clippy::match_same_arms)]
+            #[expect(
+                clippy::match_same_arms,
+                reason = "own arm carries its CR rationale and trigger seam"
+            )]
             GameEvent::ZoneChanged { .. } => event,
             // [CR#701.3a,701.3c]: commit the attachment→host relation — a new
             // timestamp is implicit (no remint; the relation edit IS the
@@ -1668,7 +1671,10 @@ impl GameState {
     /// intervene before they apply); a lazy item arrives with triggers.
     // Two arms produce vec![] for different reasons; keeping them separate
     // preserves the per-step CR references.
-    #[expect(clippy::match_same_arms)]
+    #[expect(
+        clippy::match_same_arms,
+        reason = "separate arms keep per-step CR refs"
+    )]
     fn turn_based_actions(&mut self, s: PhaseStep) -> Vec<WorkItem> {
         match s {
             // [CR#502.3]: the active player determines which of their
@@ -2587,7 +2593,7 @@ impl GameState {
     pub(crate) fn power_of(view: &crate::layer::LayeredView, id: ObjectId) -> Uint {
         match view.power(id) {
             Some(p) if p > 0 => {
-                #[expect(clippy::cast_sign_loss)]
+                #[expect(clippy::cast_sign_loss, reason = "p > 0 in this arm")]
                 let p = p as Uint;
                 p
             }
