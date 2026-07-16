@@ -289,6 +289,19 @@ pub struct Anaphora {
     /// read by `Condition::Crossed` at the trigger gate and the resolution
     /// recheck ([CR#603.4]). `None` outside a counter-event body.
     pub crossed: Option<(deckmaste_core::Uint, deckmaste_core::Uint)>,
+    /// [CR#614.5]: a replacement lineage inherited from whatever
+    /// `Instead`/`Also` application (or passed aggregate `Batch` window's
+    /// apply) scheduled this resolution — threaded so a keyword-action
+    /// window this frame resolves into starts its OWN `replace_event` loop
+    /// with these keys pre-excluded (see `GameEvent::Act::inherited`).
+    /// Empty for the overwhelming majority of resolutions.
+    pub inherited_replacements: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
+    /// [CR#616.1g,121.2a]: `true` on the frame a PASSED aggregate `Batch`
+    /// window's apply builds for its `n` contained per-entity `RunEffect`s
+    /// — read by `composite_items` into the minted future `Act`'s own
+    /// `contained` marker (see `GameEvent::Act::contained`). `false`
+    /// everywhere else.
+    pub contained_in_batch: bool,
 }
 
 impl Anaphora {
@@ -297,7 +310,7 @@ impl Anaphora {
     /// functional-record-update — `Anaphora { targets, ..Anaphora::empty()
     /// }`).
     #[must_use]
-    pub const fn empty() -> Self {
+    pub fn empty() -> Self {
         Anaphora {
             targets: Vec::new(),
             chosen: None,
@@ -310,6 +323,8 @@ impl Anaphora {
             that_player: None,
             that_patient: None,
             crossed: None,
+            inherited_replacements: std::collections::HashSet::new(),
+            contained_in_batch: false,
         }
     }
 }

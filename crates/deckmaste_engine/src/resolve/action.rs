@@ -541,6 +541,17 @@ impl GameState {
                     frame: frame.clone(),
                 })
             }),
+            // An ordinary keyword-action window is never an aggregate.
+            batch: None,
+            // [CR#614.5]: carry forward whatever lineage `frame` itself
+            // inherited (a passed aggregate `Batch` window's apply builds
+            // ITS contained per-entity futures' frames with
+            // `Anaphora::inherited_replacements` populated) — empty for the
+            // overwhelming majority of ordinary keyword actions.
+            inherited: frame.anaphora.inherited_replacements.clone(),
+            // [CR#616.1g,121.2a]: this window is one of an aggregate's
+            // contained per-entity futures iff `frame` says so.
+            contained: frame.anaphora.contained_in_batch,
         };
         // The move verbs' agent: the resolving source and its controller.
         let agent = Some((frame.source, frame.controller));

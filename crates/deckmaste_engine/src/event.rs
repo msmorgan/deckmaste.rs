@@ -237,8 +237,55 @@ pub enum GameEvent {
         /// (destroy/discard commit `on`/`from`/`to` directly) and draw (its
         /// apply late-binds the library top), and always `None` once committed
         /// (the recorded fact carries no resolution context — it never enters
-        /// `FactView`).
+        /// `FactView`). Also carried by the [`OneShotEffect::Batch`]
+        /// aggregate window (`batch: Some(n)` below): `body` there is the
+        /// stored PER-UNIT keyword action, replicated `n` times once the
+        /// window passes.
         contents: Option<Box<ActContents>>,
+        /// [CR#616.1g,121.2a]: `Some(n)` on the ONE aggregate window a
+        /// `Batch(n, keyword-action)` resolve builds
+        /// ([`OneShotEffect::Batch`]), carrying the batch cardinality
+        /// so a count-multiplying replacement (Bruvac-style "mill twice
+        /// as many") can read/ rewrite it via `Count::ThatMany`
+        /// (`intent_magnitude`'s batch arm, [CR#107.3]) BEFORE any of
+        /// the n contained per-entity futures exists ([CR#616.1g]: the
+        /// outer effect is chosen before the inner one). `None` for
+        /// every ordinary (non-aggregate) keyword-action
+        /// window — including each of the n per-entity futures a PASSED
+        /// aggregate's apply schedules, which are ordinary windows in their
+        /// own right.
+        batch: Option<Uint>,
+        /// [CR#614.5]: the replacement lineage this window's OWN
+        /// `replace_event` loop starts pre-applied with — "a replacement
+        /// effect doesn't invoke itself repeatedly; it gets only one
+        /// opportunity to affect an event OR ANY MODIFIED EVENTS THAT MAY
+        /// REPLACE THAT EVENT." Populated by `schedule_body` (an `Instead`/
+        /// `Also` body that re-emits an event of the SAME shape its own
+        /// replacement watches must not be caught by it again) and by a
+        /// PASSED aggregate `Batch` window's apply (the aggregate's own
+        /// inherited-plus-applied set rides into each of the n contained
+        /// per-entity futures it schedules, so THEY aren't re-caught either
+        /// — the Archive Trap shape: "draw 2" instead of an infinite
+        /// "draw 2, which becomes draw 2, which becomes …"). Empty for the
+        /// overwhelming majority of keyword-action windows; always empty
+        /// once `committed` (resolution plumbing, dropped like `contents`).
+        inherited: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
+        /// [CR#616.1g,121.2a]: `true` on each of the `n` per-entity futures a
+        /// PASSED aggregate `Batch` window's apply schedules — never on the
+        /// aggregate itself. A "whenever you Verb" ACT-level trigger
+        /// ([CR#701.22d]'s "fires after the process is complete" timing,
+        /// e.g. "whenever you mill one or more cards") reads the
+        /// count-tier's `Batch` as ONE instruction, so `finalize_act`
+        /// suppresses a `contained` window's own committed-fact emission
+        /// (the aggregate's own `FinalizeAct{AnyContained}` is the ONE
+        /// trigger-visible commit for the whole batch). This does NOT touch
+        /// the underlying `ZoneChange`/`Drawn` fact each contained future's
+        /// apply still commits directly — a RESULT-side "whenever a card is
+        /// milled/drawn" trigger ([CR#700.4]) keys on THAT, unaffected, so
+        /// it still fires once per card exactly as it would outside a
+        /// `Batch` ([CR#121.2] draw is genuinely per-card). `false` for
+        /// every ordinary (non-contained) keyword-action window.
+        contained: bool,
     },
 
     Tapped {

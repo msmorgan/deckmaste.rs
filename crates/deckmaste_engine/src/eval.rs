@@ -344,12 +344,15 @@ impl<'a> FactView<'a> {
                 from,
                 to,
                 cause,
+                batch,
                 // Both phases lower identically ([CR#603.6]) — the future
                 // window and its committed past fact present the same
-                // name/result descriptions their patterns watch; `contents` is
-                // resolution plumbing no pattern reads.
+                // name/result descriptions their patterns watch; `contents`/
+                // `inherited` are resolution plumbing no pattern reads.
                 committed: _,
                 contents: _,
+                inherited: _,
+                contained: _,
             } => {
                 v = FactView::bare(FactKind::Act, state);
                 v.act_name = Some(Cow::Borrowed(&verb.0));
@@ -363,6 +366,11 @@ impl<'a> FactView<'a> {
                 v.to = *to;
                 // "destroyed this way" provenance rides the atom's cause.
                 v.cause = cause.as_ref().map(Cow::Borrowed);
+                // [CR#616.1g,121.2a]: the `Batch` aggregate's own cardinality
+                // — `EventFilter::Act` itself doesn't consult it ("Count is
+                // not carried" above), but exposing it keeps the fact record
+                // honest for any other consumer keyed on `amount`.
+                v.amount = *batch;
             }
             // [CR#120.3]: damage — source object, kind-poly recipient.
             GameEvent::DamageDealt {

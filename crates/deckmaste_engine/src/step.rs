@@ -919,10 +919,16 @@ impl GameState {
                 cause,
                 committed: false,
                 contents,
+                batch,
+                inherited,
+                contained,
             } => {
                 // The future window, stripped of resolution plumbing — reused
                 // as the record the paired `FinalizeAct` commits, and as this
-                // apply's inert (skipped) return value.
+                // apply's inert (skipped) return value. `contained` passes
+                // through UNCHANGED — `finalize_act` reads it off `act` to
+                // decide whether this window's eventual commit is
+                // trigger-visible ([CR#616.1g]).
                 let rebuilt = || GameEvent::Act {
                     verb,
                     who,
@@ -932,8 +938,62 @@ impl GameState {
                     cause: cause.clone(),
                     committed: false,
                     contents: None,
+                    batch,
+                    inherited: std::collections::HashSet::new(),
+                    contained,
                 };
-                if verb.0.as_str() == "Draw"
+                if let Some(n) = batch {
+                    // [CR#616.1g,121.2a]: a PASSED aggregate `Batch` window —
+                    // its own [CR#616.1] window already ran (this arm is only
+                    // reached once cant/replace let the window through), so
+                    // schedule the `n` contained per-entity futures NOW,
+                    // outer-first ([CR#616.1g]: the aggregate was chosen/
+                    // rewritten before any of them existed). Each goes
+                    // through the ORDINARY, unmodified per-verb `Act` lane
+                    // (`composite_items`/`act_window`) via `Repeat`'s
+                    // existing lazy self-rescheduling mechanism — bounded
+                    // memory even for a huge `n` (the same never-crash
+                    // discipline `Repeat`/`Batch` already honor).
+                    // [CR#614.5]: `inherited` — the lineage this aggregate
+                    // window itself was seeded/accumulated with — rides
+                    // forward into each contained future's own frame, so
+                    // whatever replacement produced THIS aggregate (if any)
+                    // can't re-catch the very products its own application
+                    // created (the Archive Trap shape). `contained_in_batch`
+                    // marks each of the n minted futures so `finalize_act`
+                    // suppresses its own ACT-level commit — this aggregate's
+                    // `FinalizeAct{AnyContained}` is the one trigger-visible
+                    // fact for the whole batch.
+                    let contents = contents.expect(
+                        "an aggregate Batch window always carries its per-unit \
+                         body in contents",
+                    );
+                    let mut repeat_frame = contents.frame;
+                    repeat_frame.anaphora.inherited_replacements = inherited;
+                    repeat_frame.anaphora.contained_in_batch = true;
+                    // `mark` is captured NOW, at apply — after cant/replace
+                    // already decided the aggregate PASSES — so it only
+                    // covers what THESE `n` contained futures do ([CR#614.1]:
+                    // a REPLACED aggregate never reaches this arm at all, so
+                    // it never plants a `FinalizeAct` to spuriously fire off
+                    // an unrelated later same-verb resolution).
+                    let mark = self.resolution_events.len();
+                    self.schedule_front(vec![
+                        WorkItem::RunEffect {
+                            effect: Box::new(deckmaste_core::OneShotEffect::Repeat(
+                                deckmaste_core::Count::Literal(n),
+                                Box::new(contents.body),
+                            )),
+                            frame: repeat_frame,
+                        },
+                        WorkItem::FinalizeAct {
+                            act: rebuilt(),
+                            watch: crate::agenda::FinalizeWatch::AnyContained(verb),
+                            mark,
+                        },
+                    ]);
+                    rebuilt()
+                } else if verb.0.as_str() == "Draw"
                     && on.is_none()
                     && let Some(player) = who
                 {
@@ -1519,7 +1579,13 @@ impl GameState {
     /// A miss records nothing — a replaced-away mill, a regenerated destroy, an
     /// empty draw. The committed fact is front-scheduled as an `Emit`: it
     /// records + fires its "whenever you …" triggers, and `replaceable()`
-    /// refuses it so it opens no fresh window.
+    /// refuses it so it opens no fresh window. [CR#616.1g,121.2a]: a
+    /// CONTAINED window (one of an aggregate `Batch`'s `n` per-entity
+    /// futures, `act.contained`) still runs this whole computation — its
+    /// underlying move still needs to happen and `committed` still feeds
+    /// the RETURNED `Progress` — but its fact/trigger emission is
+    /// suppressed; the aggregate's own (non-contained) `FinalizeAct` is the
+    /// one ACT-level commit for the batch.
     fn finalize_act(&mut self, act: GameEvent, watch: &FinalizeWatch, mark: usize) -> Progress {
         let committed = match watch {
             FinalizeWatch::BodyRan => true,
@@ -1546,8 +1612,37 @@ impl GameState {
                         crate::object::ObjectSource::Player(_) => false,
                     }
             }),
+            // [CR#616.1g,121.2a]: the aggregate finalizes iff ≥1 of the `n`
+            // contained per-entity futures its own PASSED apply scheduled
+            // itself committed a move since `mark` — watched at the GROUND
+            // TRUTH `ZoneChange` commit (cause-verb-scoped, mirroring
+            // `Performer`'s own shape) rather than a contained future's own
+            // `Act` fact, because `finalize_act` suppresses THAT emission
+            // below (a "whenever you Verb" trigger must fire once per
+            // batch, not once per contained entity — see
+            // `GameEvent::Act::contained`).
+            FinalizeWatch::AnyContained(verb) => self.resolution_events[mark..].iter().any(|e| {
+                matches!(
+                    e,
+                    GameEvent::ZoneChange { snapshot: Some(_), cause: Some(c), .. }
+                        if c.verb.as_str() == verb.as_str()
+                )
+            }),
         };
-        if committed {
+        // [CR#616.1g,121.2a]: a CONTAINED per-entity future (one of an
+        // aggregate `Batch` window's `n` contents) commits its own
+        // `ZoneChange`/`Drawn` fact normally (RESULT-side "whenever a card
+        // is milled/drawn" triggers still see it, once per card) but never
+        // its OWN `Act` name-fact — the aggregate's `FinalizeAct` is the
+        // ONE ACT-level ("whenever you Verb") commit for the whole batch.
+        let contained = matches!(
+            act,
+            GameEvent::Act {
+                contained: true,
+                ..
+            }
+        );
+        if committed && !contained {
             let done = match act {
                 GameEvent::Act {
                     verb,
@@ -1566,6 +1661,9 @@ impl GameState {
                     cause,
                     committed: true,
                     contents: None,
+                    batch: None,
+                    inherited: std::collections::HashSet::new(),
+                    contained: false,
                 },
                 other => other,
             };
@@ -1916,6 +2014,9 @@ impl GameState {
                     // schedules the draw's `FinalizeAct`.
                     committed: false,
                     contents: None,
+                    batch: None,
+                    inherited: std::collections::HashSet::new(),
+                    contained: false,
                 }))]
             }
             PhaseStep::Beginning(BeginningStep::Draw) => vec![],
@@ -3020,6 +3121,9 @@ mod tests {
             )),
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
             destroy(a),

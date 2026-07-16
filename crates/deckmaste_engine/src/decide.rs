@@ -641,6 +641,9 @@ pub(crate) fn discard_batch(player: PlayerId, objects: Vec<ObjectId>) -> Vec<Gam
             // needs no `contents`.
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         })
         .collect()
 }

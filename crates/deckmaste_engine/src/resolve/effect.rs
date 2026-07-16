@@ -1029,17 +1029,73 @@ impl GameState {
                     self.schedule_front(items);
                 }
             }
-            // SHELL arm ([CR#616.1g] aggregate-count tier is a later pass's
-            // job): `Batch` resolves EXACTLY like `Repeat` above — the same
-            // lazy self-rescheduling continuation (never `n`-many eagerly
-            // materialized `RunEffect` items, per the CRITICAL never-crash
-            // ruling against a saturated/huge count), just recursing into
-            // `Batch` rather than `Repeat` on the tail so the shape survives
-            // intact for the later pass to rebuild into ONE aggregate
-            // containing event. `n == 0` schedules nothing — a clean no-op.
+            // [CR#616.1g,121.2a]: the `Batch` AGGREGATE-count tier. When
+            // `body` is a keyword-action `Composite` ([CR#701]), build ONE
+            // future aggregate `Act` window (`batch: Some(n)` carrying the
+            // cardinality) instead of `n` separate future events — a
+            // count-multiplying replacement (Bruvac-style "mill twice that
+            // many") then bites the ONE window BEFORE any of the `n`
+            // contained per-entity futures exists ([CR#616.1g]: the outer
+            // effect is chosen before the inner one), and an aggregate
+            // trigger ("whenever you mill one or more cards") fires once per
+            // batch, not once per card. `contents.body` carries the stored
+            // PER-UNIT keyword action UNCHANGED — a PASSED aggregate's apply
+            // (`step.rs`) replicates it `n` times via `Repeat`. An
+            // unresolvable performer/patient fizzles the WHOLE aggregate —
+            // no window at all — mirroring `composite_items`'s own per-verb
+            // fizzle discipline ([CR#701.8a,701.9a,701.17a]).
+            //
+            // A non-Act body keeps the ORIGINAL shell's sequential behavior
+            // below (Task 2): no aggregate window for a plain effect (YAGNI)
+            // — the same lazy self-rescheduling continuation `Repeat` uses
+            // (never `n`-many eagerly materialized `RunEffect` items, per
+            // the CRITICAL never-crash ruling against a saturated/huge
+            // count). `n == 0` schedules nothing either way — a clean no-op.
             OneShotEffect::Batch(count, body) => {
                 let n = self.eval_count(&count, frame);
-                if n > 0 {
+                if n == 0 {
+                    // Clean no-op — mirrors `Repeat`.
+                } else if let OneShotEffect::Act(Action::Composite(atom, _)) = peel_effect(&body) {
+                    if let Some(head) = self.batch_act_head(atom, frame) {
+                        let verb = deckmaste_core::VerbName::from(head.verb);
+                        let act = GameEvent::Act {
+                            verb,
+                            who: head.who,
+                            on: head.on,
+                            from: None,
+                            to: None,
+                            cause: head.cause,
+                            committed: false,
+                            contents: Some(Box::new(crate::event::ActContents {
+                                body: (*body).clone(),
+                                frame: frame.clone(),
+                            })),
+                            batch: Some(n),
+                            inherited: frame.anaphora.inherited_replacements.clone(),
+                            // The aggregate itself is never "contained" —
+                            // only the n futures ITS PASSED apply schedules
+                            // are ([CR#616.1g]).
+                            contained: false,
+                        };
+                        // Only the ONE window is opened here — no
+                        // `FinalizeAct` is planted yet. Unlike the move
+                        // verbs (whose id-scoped `Patients` watch is safely
+                        // redirect-tolerant even planted early), the
+                        // aggregate's `AnyContained` watch has no patient
+                        // ids to scope by — planting it here would let it
+                        // see whatever an `Instead`'s OWN unrelated
+                        // same-verb activity does later and spuriously
+                        // finalize a REPLACED-TO-NOTHING aggregate
+                        // ([CR#614.1]: a replaced event never happened).
+                        // So — mirroring draw/the reorder verbs — the
+                        // `FinalizeAct` is planted from the PASSED apply
+                        // instead (`step.rs`), where `mark` is narrow: it
+                        // covers only what THIS aggregate's own contained
+                        // futures do, nothing upstream or unrelated.
+                        self.schedule_front(vec![WorkItem::Emit(Occurrence::single(act))]);
+                    }
+                    // else: unresolvable performer/patient — fizzle, no window.
+                } else {
                     let items = vec![
                         WorkItem::RunEffect {
                             effect: body.clone(),
@@ -1148,6 +1204,76 @@ impl GameState {
             }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
+    }
+
+    /// The TAG-facet coordinates a `Batch` aggregate window carries when its
+    /// per-unit body is a keyword action ([CR#701]) — narrowed to what a
+    /// replacement/trigger's `would`/pattern reads off the aggregate (verb +
+    /// performer/patient), NOT the body-move resolution itself (that's each
+    /// contained per-entity future's own job, once the aggregate passes).
+    /// Mirrors the per-verb coordinate resolution
+    /// [`Self::composite_items`](crate::resolve::action) performs for the
+    /// ordinary (non-aggregate) lane. `None` on an unresolvable performer —
+    /// the whole aggregate fizzles, consistent with `composite_items`'s own
+    /// per-verb fizzle discipline ([CR#701.8a,701.9a,701.17a]) — never a panic.
+    fn batch_act_head(
+        &self,
+        atom: &deckmaste_core::KeywordAction,
+        frame: &Frame,
+    ) -> Option<BatchActHead> {
+        use deckmaste_core::Agency;
+        use deckmaste_core::KeywordAction as Ka;
+        let agent = Some((frame.source, frame.controller));
+        Some(match atom {
+            Ka::Destroy(what) => BatchActHead {
+                verb: "Destroy",
+                who: None,
+                on: Some(self.eval_reference(what, frame)),
+                cause: Some(Cause::destroy(Agency::EffectInstruction, agent)),
+            },
+            Ka::Discard(who, _) => BatchActHead {
+                verb: "Discard",
+                who: Some(self.eval_player_ref(who, frame)?),
+                on: None,
+                cause: Some(Cause::discard(Agency::EffectInstruction, agent)),
+            },
+            Ka::Mill(who, _) => BatchActHead {
+                verb: "Mill",
+                who: Some(self.eval_player_ref(who, frame)?),
+                on: None,
+                cause: Some(Cause::mill(Agency::EffectInstruction, agent)),
+            },
+            Ka::Draw(who, _) => BatchActHead {
+                verb: "Draw",
+                who: Some(self.eval_player_ref(who, frame)?),
+                on: None,
+                cause: Some(Cause::draw(Agency::EffectInstruction, agent)),
+            },
+            Ka::Scry(who, _) => BatchActHead {
+                verb: "Scry",
+                who: Some(self.eval_player_ref(who, frame)?),
+                on: None,
+                cause: None,
+            },
+            Ka::Surveil(who, _) => BatchActHead {
+                verb: "Surveil",
+                who: Some(self.eval_player_ref(who, frame)?),
+                on: None,
+                cause: None,
+            },
+            Ka::Fateseal(who, _) => BatchActHead {
+                verb: "Fateseal",
+                who: Some(self.eval_player_ref(who, frame)?),
+                on: None,
+                cause: None,
+            },
+            Ka::Fight(a, _) => BatchActHead {
+                verb: "Fight",
+                who: None,
+                on: Some(self.eval_reference(a, frame)),
+                cause: None,
+            },
+        })
     }
 
     /// [CR#603.7d,603.7e]: the source and captured `~`/`This` context for a
@@ -1418,6 +1544,16 @@ fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
         OneShotEffect::Until(deckmaste_core::Duration::ForThisEvent, parts) => Some(parts),
         _ => None,
     }
+}
+
+/// The TAG-facet coordinates [`GameState::batch_act_head`] resolves — a
+/// named struct rather than a positional tuple, per [CR#616.1g]'s `Batch`
+/// aggregate window needing all four independently.
+struct BatchActHead {
+    verb: &'static str,
+    who: Option<crate::player::PlayerId>,
+    on: Option<ObjectId>,
+    cause: Option<Cause>,
 }
 
 /// The mutable structural [`DeonticAction`] of a `Deontic`
@@ -1898,11 +2034,12 @@ mod tests {
         }
     }
 
-    /// `Batch` shell: in THIS task purely sequential-equivalent to `Repeat`
-    /// ([CR#616.1g] aggregate-count semantics are a later pass's job) — two
-    /// `Batch(2, GainLife(1))` iterations record as TWO separate
-    /// `LifeGained` facts, exactly like `Repeat`, not one combined
-    /// aggregate fact.
+    /// `Batch` shell: for a non-`Act` body, purely sequential-equivalent to
+    /// `Repeat` (the [CR#616.1g] aggregate-count tier only exists for an
+    /// `Act`-shaped body — see `bruvac_shape_batch_doubles_the_aggregate_...`
+    /// and friends below for that path) — two `Batch(2, GainLife(1))`
+    /// iterations record as TWO separate `LifeGained` facts, exactly like
+    /// `Repeat`, not one combined aggregate fact.
     #[test]
     fn batch_runs_sequentially_recording_one_fact_per_iteration() {
         let mut state = game();
@@ -1930,7 +2067,8 @@ mod tests {
         assert_eq!(
             life_gained_facts, 2,
             "shell Batch resolves sequentially — TWO separate LifeGained facts, not \
-             one combined aggregate fact (the aggregate-count tier is a later pass's job)"
+             one combined aggregate fact (the aggregate-count tier only applies to an \
+             Act-shaped body)"
         );
     }
 
@@ -1958,6 +2096,245 @@ mod tests {
         );
         let _ = drain_progress(&mut state, 5);
         assert_eq!(state.player(p0).life, life0, "no iterations ran");
+    }
+
+    /// Mint a fresh card-backed object into `owner`'s library (bottom —
+    /// identity/order is irrelevant to the mill/draw tests that use this;
+    /// only the COUNT of cards moved matters). Mirrors `fixtures.rs`'s
+    /// `mint_in_hand`, but for the library zone the `Batch` aggregate tests
+    /// need to mill/draw from.
+    fn mint_in_library(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
+        let cid = state.cards.push(
+            Arc::new(Card::Normal(deckmaste_core::CardFace {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                ..deckmaste_core::CardFace::default()
+            })),
+            owner,
+        );
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), owner, Some(Zone::Library));
+        state.zones.libraries[owner.index()].push_back(id);
+        id
+    }
+
+    /// How many `GameEvent::TriggerFired` occurrences got APPLIED while
+    /// draining up to `n` steps — the direct fire-count signal (mirrors
+    /// `trigger.rs`'s own fire-counting helpers, but counts occurrences
+    /// actually applied during a drain rather than snapshotting the agenda
+    /// once). `scan_triggers` always emits `TriggerFired` as an
+    /// `Occurrence::Single`, never batched with other emits.
+    fn count_trigger_fired(state: &mut GameState, n: usize) -> usize {
+        drain_progress(state, n)
+            .into_iter()
+            .filter(|p| {
+                matches!(
+                    p,
+                    Progress::Applied(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                )
+            })
+            .count()
+    }
+
+    /// [CR#616.1g,121.2a] Bruvac shape: `Instead(would: Act(Mill(Any)),
+    /// instead: Batch(2×ThatMany, Act(Mill(You,1))))` layered over an
+    /// ORIGINAL `Batch(3, Act(Mill(You,1)))` — mill 3 becomes mill 6, via
+    /// ONE replacement decision made against ONE aggregate window (never
+    /// three independently-doubled per-card windows), and that decision is
+    /// made BEFORE any card physically moves.
+    #[test]
+    fn bruvac_shape_batch_doubles_the_aggregate_and_no_card_moves_early() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        for i in 0..8 {
+            mint_in_library(&mut state, p0, &format!("Card {i}"));
+        }
+
+        // "If a player would mill one or more cards, that player mills
+        // twice that many cards instead."
+        let bruvac = deckmaste_core::Replacement::Instead {
+            would: deckmaste_core::EventFilter::Act(deckmaste_core::KeywordActionPattern::Mill(
+                Predicate::Any,
+            )),
+            instead: OneShotEffect::Batch(
+                Count::Times(Box::new(Count::Literal(2)), Box::new(Count::ThatMany)),
+                Box::new(OneShotEffect::Act(Action::mill(
+                    Reference::You,
+                    Count::Literal(1),
+                ))),
+            ),
+        };
+        mint_on_field(
+            &mut state,
+            Card::Normal(deckmaste_core::CardFace {
+                name: "Bruvac Stand-In".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![deckmaste_core::Ability::Static(
+                    deckmaste_core::StaticEffect::Replacement(Box::new(bruvac)),
+                )],
+                ..deckmaste_core::CardFace::default()
+            }),
+        );
+
+        let frame = frame_for(&state, p0);
+        let mill_one = OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(1)));
+        state.run_effect(
+            OneShotEffect::Batch(Count::Literal(3), Box::new(mill_one)),
+            &frame,
+        );
+
+        // Pop exactly the aggregate's own `Emit` — `apply_occurrence` makes
+        // the ENTIRE replacement decision synchronously within this one
+        // `step()` (finding Bruvac, doubling 3 → 6, scheduling the
+        // doubled aggregate's `RunEffect`) — but no contained per-card
+        // future has run yet, so NO card has moved.
+        let _ = state.step();
+        assert_eq!(
+            state.zones.libraries[p0.index()].len(),
+            8,
+            "the replacement decision is made before any card physically moves"
+        );
+
+        let _ = drain_progress(&mut state, 60);
+
+        assert_eq!(
+            state.zones.graveyards[p0.index()].len(),
+            6,
+            "mill 3 doubled to mill 6 — one replacement decision on the aggregate"
+        );
+        assert_eq!(
+            state.zones.libraries[p0.index()].len(),
+            2,
+            "the other two cards stay in the library"
+        );
+
+        let mill_commits = state
+            .history
+            .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
+            .filter(|e| {
+                matches!(e, GameEvent::Act { verb, committed: true, .. } if verb.as_str() == "Mill")
+            })
+            .count();
+        assert_eq!(
+            mill_commits, 1,
+            "exactly ONE committed Act(Mill) fact — the doubled aggregate's own; the \
+             replaced-away mill-3 never independently finalizes ([CR#614.1]), and \
+             none of the six contained per-card mills is independently trigger-visible"
+        );
+    }
+
+    /// [CR#614.5] Archive shape: `Instead(would: Act(Draw(You)), instead:
+    /// Batch(2, Act(Draw(You,1))))` — a plain draw-1 becomes draw 2, and the
+    /// SAME replacement does NOT re-apply to its own products. Without the
+    /// [CR#614.5] tree-scoping, the doubled aggregate — and each of its two
+    /// contained per-card draws — would ALSO match `Act(Draw(You))` and get
+    /// replaced again: an unbounded "draw 2, which becomes draw 2, which
+    /// becomes draw 2, …" loop that never commits a single card, so the
+    /// hand size would stay at its STARTING count instead of growing by 2.
+    #[test]
+    fn archive_shape_replacement_does_not_reapply_to_its_own_products() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        for i in 0..6 {
+            mint_in_library(&mut state, p0, &format!("Card {i}"));
+        }
+        let hand0 = state.zones.hands[p0.index()].len();
+
+        let archive = deckmaste_core::Replacement::Instead {
+            would: deckmaste_core::EventFilter::Act(deckmaste_core::KeywordActionPattern::Draw(
+                Predicate::Any,
+            )),
+            instead: OneShotEffect::Batch(
+                Count::Literal(2),
+                Box::new(OneShotEffect::Act(Action::draw(
+                    Reference::You,
+                    Count::Literal(1),
+                ))),
+            ),
+        };
+        mint_on_field(
+            &mut state,
+            Card::Normal(deckmaste_core::CardFace {
+                name: "Archive Stand-In".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![deckmaste_core::Ability::Static(
+                    deckmaste_core::StaticEffect::Replacement(Box::new(archive)),
+                )],
+                ..deckmaste_core::CardFace::default()
+            }),
+        );
+
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Act(Action::draw(Reference::You, Count::Literal(1))),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 60);
+
+        assert_eq!(
+            state.zones.hands[p0.index()].len(),
+            hand0 + 2,
+            "draw 1 became draw 2 — the replacement fired exactly once against the \
+             aggregate, not repeatedly against its own products ([CR#614.5])"
+        );
+    }
+
+    /// [CR#616.1g,121.2a,701.17a]: an Act-level "whenever you mill one or
+    /// more cards" trigger fires ONCE per `Batch` aggregate, not once per
+    /// contained card — `Batch(3, Act(Mill(You,1)))` mills 3 cards as ONE
+    /// instruction, so the watcher fires exactly once (not four times: once
+    /// for the aggregate plus once per of its three contained per-card
+    /// futures).
+    #[test]
+    fn batch_aggregate_trigger_fires_once_per_batch_not_once_per_card() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        for i in 0..5 {
+            mint_in_library(&mut state, p0, &format!("Card {i}"));
+        }
+        mint_on_field(
+            &mut state,
+            Card::Normal(deckmaste_core::CardFace {
+                name: "Mill Watcher".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![deckmaste_core::Ability::Triggered(
+                    deckmaste_core::TriggeredAbility {
+                        ability_word: None,
+                        from: None,
+                        condition: None,
+                        limits: Vec::new(),
+                        where_x: None,
+                        event: deckmaste_core::EventFilter::Act(
+                            deckmaste_core::KeywordActionPattern::Mill(Predicate::Any),
+                        ),
+                        effect: OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(
+                            1,
+                        ))),
+                    },
+                )],
+                ..deckmaste_core::CardFace::default()
+            }),
+        );
+
+        let frame = frame_for(&state, p0);
+        let mill_one = OneShotEffect::Act(Action::mill(Reference::You, Count::Literal(1)));
+        state.run_effect(
+            OneShotEffect::Batch(Count::Literal(3), Box::new(mill_one)),
+            &frame,
+        );
+        let fired = count_trigger_fired(&mut state, 60);
+
+        assert_eq!(
+            fired, 1,
+            "the aggregate trigger fires ONCE for the whole batch, not once per \
+             contained card"
+        );
+        assert_eq!(
+            state.zones.graveyards[p0.index()].len(),
+            3,
+            "all three cards still milled individually"
+        );
     }
 
     /// [CR#702.85,701.57] `RevealUntil` fizzles to a graceful no-op — the

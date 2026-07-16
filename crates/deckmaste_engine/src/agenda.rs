@@ -36,6 +36,22 @@ pub enum FinalizeWatch {
     /// Scheduled only by the passed action's apply (a replaced action never
     /// reaches it), so it records unconditionally — the body definitely ran.
     BodyRan,
+    /// [CR#616.1g,121.2a]: ≥1 of the `n` per-entity contained futures a
+    /// `Batch` aggregate window's PASSED apply scheduled itself committed
+    /// since `mark` — the aggregate finalizes iff ANY of its contents did
+    /// (Bruvac's mill-6 might see some cards redirected elsewhere; the
+    /// aggregate still finalizes off the ones that landed, mirroring
+    /// `Patients`' "any destination" leniency one level up). Planted from
+    /// the aggregate's own PASSED apply, like Draw and the reorder verbs
+    /// (never at resolve time — a replaced-to-nothing aggregate's apply
+    /// never runs, so it never plants a `FinalizeAct` that could later see
+    /// an unrelated same-verb resolution and spuriously finalize;
+    /// [CR#614.1]). So `mark` covers only what THIS aggregate's own `n`
+    /// contained futures do. Scoped by the aggregate's own verb so an
+    /// unrelated committed `Act` from a nested resolution (a triggered
+    /// destroy fired mid-mill) can't be mistaken for one of this
+    /// aggregate's contents.
+    AnyContained(deckmaste_core::VerbName),
 }
 
 /// One unit of engine work. `step()` pops exactly one; handlers schedule

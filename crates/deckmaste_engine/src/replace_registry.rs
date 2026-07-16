@@ -435,6 +435,21 @@ pub(crate) enum ReplaceOutcome {
     Suspend,
 }
 
+/// The [CR#614.5] STARTING lineage a fresh `replace_event` call seeds its
+/// local `applied` set with: an ordinary event starts from empty (the common
+/// case), but a `GameEvent::Act` may carry a non-empty `inherited` set —
+/// planted by `schedule_body` (an `Instead`/`Also` body's re-emitted product)
+/// or by a passed aggregate `Batch` window's apply (its contained per-entity
+/// futures) — which pre-excludes those keys so the very replacement that
+/// produced this event can't be re-caught by it, per [CR#614.5]'s "or any
+/// modified events that may replace that event."
+fn inherited_seed(e: &GameEvent) -> std::collections::HashSet<ReplacementKey> {
+    match e {
+        GameEvent::Act { inherited, .. } => inherited.clone(),
+        _ => std::collections::HashSet::new(),
+    }
+}
+
 /// Run the [CR#616.1] replacement loop for intent `e` with the [CR#614.5]
 /// lineage set. Returns the modified event to apply, nothing (replaced away),
 /// or a suspension waiting for a `ChooseReplacement` decision.
@@ -442,6 +457,13 @@ pub(crate) enum ReplaceOutcome {
 /// The affected object IS threaded into the body frame as the event
 /// `EventObject` (via `schedule_body`), so a body reads it with
 /// `Ref(EventObject)` while `This` stays the source ability.
+///
+/// The [CR#614.5] `applied` lineage does not always start empty: see
+/// [`inherited_seed`] — a `GameEvent::Act` can arrive PRE-SEEDED with keys a
+/// prior application already spent against its upstream event chain, so this
+/// loop (and any further body it schedules, via `apply_one`/`schedule_body`
+/// threading the CURRENT accumulated set forward) never re-triggers the same
+/// replacement a second time, which [CR#614.5] forbids.
 ///
 /// Seam: general [CR#614.15] self-replacement (resolution-time) is a
 /// `todo!`-tagged future concern; APNAP multi-player 616 ordering is also
@@ -456,8 +478,9 @@ pub(crate) fn replace_event(state: &mut GameState, e: GameEvent) -> ReplaceOutco
     }
 
     // [CR#614.5]: the lineage set — a replacement that has already been applied
-    // to the current event chain cannot apply again, terminating loops.
-    let mut applied: HashSet<ReplacementKey> = HashSet::new();
+    // to the current event chain (or an ancestor of it, [`inherited_seed`])
+    // cannot apply again, terminating loops.
+    let mut applied: HashSet<ReplacementKey> = inherited_seed(&e);
     let mut current = e;
 
     loop {
@@ -475,7 +498,7 @@ pub(crate) fn replace_event(state: &mut GameState, e: GameEvent) -> ReplaceOutco
             1 => {
                 let a = applicable.into_iter().next().unwrap();
                 applied.insert(a.key);
-                match apply_one(state, current, &a) {
+                match apply_one(state, current, &a, &applied) {
                     Some(modified) => {
                         // Keep looping — the modified event may be watched by
                         // further replacements ([CR#616.1f]).
@@ -511,14 +534,29 @@ fn intent_magnitude(e: &GameEvent) -> Option<deckmaste_core::Uint> {
         GameEvent::DamageDealt { amount, .. }
         | GameEvent::LifeLost { amount, .. }
         | GameEvent::LifeGained { amount, .. } => Some(*amount),
+        // [CR#616.1g,121.2a]: the `Batch` aggregate window's own cardinality —
+        // a count-multiplying `Instead` (Bruvac-style "mill twice that many")
+        // reads it here, off the replaced AGGREGATE intent, before any
+        // contained per-entity future exists. An ordinary (non-aggregate)
+        // `Act` carries no batch magnitude of its own — `None`, like every
+        // other non-amount-carrying intent.
+        GameEvent::Act { batch, .. } => *batch,
         _ => None,
     }
 }
 
 /// Apply one replacement to `e`. Returns the modified event to continue
 /// looping on, or `None` when the event is replaced to nothing (Instead).
-/// Schedules body effects via `schedule_body`.
-fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<GameEvent> {
+/// Schedules body effects via `schedule_body`, threading `applied` — the
+/// CURRENT [CR#614.5] lineage (already including `a`'s own key) — forward so
+/// the body's frame carries it as the STARTING set for whatever it resolves
+/// into ([`inherited_seed`]).
+fn apply_one(
+    state: &mut GameState,
+    e: GameEvent,
+    a: &Applicable,
+    applied: &std::collections::HashSet<ReplacementKey>,
+) -> Option<GameEvent> {
     // [CR#608.2]: the object the intent affects (the would-be-destroyed
     // permanent, the damaged creature, …) is bound to `That` for the body to
     // read — regeneration heals/taps `That`. `This` stays the source.
@@ -540,7 +578,7 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
                 Replacement::Instead { instead, .. } => {
                     // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
                     // Schedule the `instead` body; consume a one-shot shield if present.
-                    schedule_body(state, instead, a.source, that);
+                    schedule_body(state, instead, a.source, that, applied);
                     // [CR#614.3]: only consume a floating instance when it is one-shot
                     // (e.g. a regeneration shield). Duration-only floating replacements
                     // (one_shot: false) persist until their duration expires and must
@@ -555,7 +593,7 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
                 Replacement::Also { also, .. } => {
                     // [CR#614.1c]: the event still happens AND `also` happens.
                     // Schedule the body; the (unchanged) event continues.
-                    schedule_body(state, also, a.source, that);
+                    schedule_body(state, also, a.source, that, applied);
                     Some(e)
                 }
                 Replacement::Skip { .. } => {
@@ -617,11 +655,19 @@ fn apply_one(state: &mut GameState, e: GameEvent, a: &Applicable) -> Option<Game
 /// counters on it, [CR#702.80a,702.90c]); a PLAYER recipient (the proxy is
 /// zoneless, so it has no LKI snapshot) binds as `EventActor` instead, read as
 /// `Ref(EventActor)` — infect gives that player poison counters ([CR#702.90b]).
+///
+/// `applied` is the [CR#614.5] lineage already spent against the event this
+/// body replaces (including the very key that just fired) — threaded into
+/// the scheduled frame's [`Anaphora::inherited_replacements`] so a
+/// keyword-action window `effect` resolves into starts its OWN
+/// `replace_event` loop pre-excluding it ([`inherited_seed`]), rather than
+/// being caught by the SAME replacement all over again.
 fn schedule_body(
     state: &mut GameState,
     effect: deckmaste_core::OneShotEffect,
     source: ObjectId,
     that: Option<ObjectId>,
+    applied: &std::collections::HashSet<ReplacementKey>,
 ) {
     let controller = state.objects.obj(source).controller;
     // [CR#608.2,608.2k]: bind the affected recipient — the event PATIENT
@@ -648,6 +694,10 @@ fn schedule_body(
             }
         }
     });
+    let anaphora = Anaphora {
+        inherited_replacements: applied.clone(),
+        ..anaphora
+    };
     let frame = crate::stack::Frame {
         anaphora,
         ..crate::stack::Frame::bare(source, controller)
@@ -749,7 +799,7 @@ pub(crate) fn resume_replacements(
 
     // Apply the chosen replacement.
     rs.applied.insert(chosen_key);
-    let next_event = apply_one(state, rs.current, &chosen_applicable);
+    let next_event = apply_one(state, rs.current, &chosen_applicable, &rs.applied);
 
     // Continue the replacement loop on the (possibly modified) event.
     let mut facts: Vec<GameEvent> = Vec::new();
@@ -841,7 +891,7 @@ fn resume_replace_loop(
             1 => {
                 let a = applicable.into_iter().next().unwrap();
                 applied.insert(a.key);
-                match apply_one(state, event, &a) {
+                match apply_one(state, event, &a, &applied) {
                     Some(modified) => {
                         event = modified;
                     }
@@ -1017,6 +1067,9 @@ mod tests {
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         assert!(replacement_watches(&state, &would, id, &e));
     }
@@ -1062,6 +1115,9 @@ mod tests {
             cause: None,
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         assert!(cant_event(&state, &e));
     }
@@ -1183,6 +1239,9 @@ mod tests {
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 2);
@@ -1242,6 +1301,9 @@ mod tests {
             cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         let app = gather_applicable(&state, &e);
         assert_eq!(
@@ -1273,6 +1335,9 @@ mod tests {
             cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         let scry = GameEvent::Act {
             verb: deckmaste_core::VerbName::from("Scry"),
@@ -1283,6 +1348,9 @@ mod tests {
             cause: None,
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         assert!(
             replacement_watches(&state, &would, id, &destroy),
@@ -1325,6 +1393,9 @@ mod tests {
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
             committed: false,
             contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
         };
         // Without the rider: the shield is gathered.
         assert_eq!(gather_applicable(&state, &e).len(), 1);
