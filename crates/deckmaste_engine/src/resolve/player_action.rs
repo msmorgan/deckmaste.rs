@@ -131,7 +131,7 @@ impl GameState {
                 // Exile)`, e.g. a self-exile cost (Scavenge); a tuck rides the
                 // same verb via a library anchor. The player-agent twin of
                 // `Action::Move`.
-                self.move_items(reference, destination, frame)
+                self.move_items(reference, destination, None, frame)
             }
             // [CR#114.1]: the actor gets an emblem carrying `abilities`. The
             // synthesis + command-zone mint happens at apply (the `&mut self`

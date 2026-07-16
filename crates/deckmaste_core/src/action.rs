@@ -216,15 +216,26 @@ pub enum Action {
     /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split,
     /// and (`Move(_, Hand)`) the former dedicated `ReturnToHand` bounce verb —
     /// a hand destination is exactly as unremarkable as any other zone.
-    /// The trailing `riders` list ([`EnterRider`], default `[]`, omitted on
-    /// write when empty) spells arrival state for a BATTLEFIELD destination —
-    /// "onto the battlefield tapped / under its owner's control / with a +1/+1
-    /// counter on it" ([CR#614.12]); riders on any other destination are
-    /// ill-formed (rejected by the Idris re-emit gate).
+    /// The `riders` list ([`EnterRider`], default `[]`, omitted on write when
+    /// empty) spells arrival state for a BATTLEFIELD destination — "onto the
+    /// battlefield tapped / under its owner's control / with a +1/+1 counter
+    /// on it" ([CR#614.12]); riders on any other destination are ill-formed
+    /// (rejected by the Idris re-emit gate).
+    ///
+    /// The trailing `from` slot is an optional FIZZLE-GUARD ([CR#701.8a]):
+    /// when present, the move commits only if the object is CURRENTLY in
+    /// that zone — the zone precondition destroy/discard/mill state
+    /// declaratively (a permanent no longer on the battlefield when destroy
+    /// resolves, a card no longer in hand when the named-card discard
+    /// resolves, [CR#701.8a,701.9a,701.17a]) — and a mismatch fizzles the
+    /// move silently: no event, no fact, no trigger, never a panic
+    /// (authoring/state-drift never crashes the engine). Default `None`
+    /// (unguarded, the common case) is omitted on write.
     Move(
         Reference,
         Destination,
         #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
+        #[macro_ron(default = "None")] Option<crate::Zone>,
     ),
     /// Move a GROUP to a destination as one event, with an [`Arrangement`]
     /// fixing how the simultaneous arrivals are ordered ([CR#401.4]) — the
@@ -476,11 +487,21 @@ impl Action {
     }
 
     /// `Move` to a plain zone — the common relocation (`Move(This,
-    /// Graveyard)`), without spelling the `Destination::Zone` wrapper or the
-    /// (empty) rider list.
+    /// Graveyard)`), without spelling the `Destination::Zone` wrapper, the
+    /// (empty) rider list, or the (absent) `from` fizzle-guard.
     #[must_use]
     pub fn move_to(what: Reference, zone: crate::Zone) -> Action {
-        Action::Move(what, Destination::Zone(zone), Vec::new())
+        Action::Move(what, Destination::Zone(zone), Vec::new(), None)
+    }
+
+    /// `Move` guarded by the object's CURRENT zone ([CR#701.8a]) — moves
+    /// `what` to `to` only if it is presently in `from`, else the whole move
+    /// fizzles silently (no event, no panic). The zone precondition
+    /// destroy/discard/mill state declaratively
+    /// ([CR#701.8a,701.9a,701.17a]).
+    #[must_use]
+    pub fn move_if_in(what: Reference, from: crate::Zone, to: crate::Zone) -> Action {
+        Action::Move(what, Destination::Zone(to), Vec::new(), Some(from))
     }
 
     /// "Destroy [permanent]" ([CR#701.8a]) — the keyword action as data: a
@@ -625,7 +646,7 @@ pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
     use crate::OneShotEffect as E;
     match body {
         E::Expanded(e) => discard_body_what(&e.value),
-        E::Act(Action::Move(what, Destination::Zone(_), _)) => Some(what),
+        E::Act(Action::Move(what, Destination::Zone(_), _, _)) => Some(what),
         _ => None,
     }
 }
@@ -903,6 +924,38 @@ mod tests {
         assert_eq!(read(&write(&mv)), mv);
     }
 
+    /// `Move`'s optional `from` fizzle-guard ([CR#701.8a]). Design note (the
+    /// tuple-vs-struct fork this variant's Step 1 settled): a struct variant
+    /// would let `from`/`to` read as named fields (`Move(what: …, from: …,
+    /// to: …)`), but this crate's struct-variant helpers ALWAYS read
+    /// all-named via `unwrap_variant_newtypes` (`ron`'s
+    /// `handle_struct_after_name` only ever calls `visit_map`, never
+    /// `visit_seq`) — converting would break the bare positional
+    /// `Move(This, Graveyard)` spelling the whole corpus uses. So `Move`
+    /// stays a tuple variant and `from` rides as a fourth, trailing,
+    /// positionally-read slot (after `riders`, both defaulted); the
+    /// `from:`/`to:` NAMED spelling belongs to the verb-macro parameter
+    /// layer (later tasks), not this raw variant's RON syntax.
+    #[test]
+    fn move_from_guard_round_trips() {
+        use crate::Zone;
+
+        // Existing spelling unchanged: no fourth slot, no guard.
+        assert_eq!(
+            read("Move(This, Graveyard)"),
+            Action::move_to(Reference::This, Zone::Graveyard)
+        );
+
+        // Guarded spelling: the trailing fizzle-guard slot (after the rider
+        // list) reads and writes back. `IMPLICIT_SOME` ([`crate::ron::options`])
+        // writes a present `Option` bare (no `Some(...)` wrapper), so the
+        // written guard is just the zone name.
+        let guarded = Action::move_if_in(Reference::This, Zone::Hand, Zone::Graveyard);
+        let written = write(&guarded);
+        assert_eq!(read(&written), guarded);
+        assert_eq!(written, "Move(This,Graveyard,[],Hand)");
+    }
+
     /// `GetDesignation` is a player verb: bare it reads as `By(You, …)`, and it
     /// round-trips. The designation name is a quoted Ident ([CR#702.131c]).
     #[test]
@@ -984,6 +1037,7 @@ mod tests {
             Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
             vec![],
+            None,
         );
         assert_eq!(read("Move(This, Library(FromTop(0)))"), top);
         assert_eq!(read(&write(&top)), top);
@@ -992,6 +1046,7 @@ mod tests {
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             vec![],
+            None,
         );
         assert_eq!(read("Move(This, Library(FromBottom(0)))"), bottom);
         assert_eq!(read(&write(&bottom)), bottom);
@@ -1062,6 +1117,7 @@ mod tests {
             Reference::That(crate::Sort::Card),
             Destination::Zone(Zone::Battlefield),
             vec![EnterRider::Tapped, EnterRider::UnderOwnersControl],
+            None,
         );
         assert_eq!(
             read("Move(That(Card), Battlefield, [Tapped, UnderOwnersControl])"),
@@ -1077,6 +1133,7 @@ mod tests {
                 EnterRider::WithCounters(crate::CounterRef::from("P1P1Counter"), Count::Literal(1)),
                 EnterRider::Attacking(Some(Reference::Opponent)),
             ],
+            None,
         );
         assert_eq!(read(&write(&countered)), countered);
     }
@@ -1231,6 +1288,7 @@ mod tests {
                     Reference::It,
                     Destination::Library(Anchor::FromTop(Count::Literal(0))),
                     vec![],
+                    None,
                 ))),
             })),
         );

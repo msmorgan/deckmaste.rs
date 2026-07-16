@@ -739,6 +739,7 @@ mod tests {
         let items = state.move_items(
             &Reference::That(deckmaste_core::Sort::Card),
             &Destination::Zone(Zone::Exile),
+            None,
             &frame,
         );
         assert!(
@@ -777,6 +778,7 @@ mod tests {
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
                 vec![],
+                None,
             )),
             &frame,
         );
@@ -797,6 +799,7 @@ mod tests {
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Hand),
                 vec![],
+                None,
             )),
             &pframe,
         );
@@ -825,11 +828,13 @@ mod tests {
                     Reference::This,
                     Destination::Zone(Zone::Exile),
                     vec![],
+                    None,
                 ))),
                 body: Box::new(OneShotEffect::Act(Action::Move(
                     Reference::That(deckmaste_core::Sort::Card),
                     Destination::Zone(Zone::Battlefield),
                     vec![],
+                    None,
                 ))),
             }),
             &frame,

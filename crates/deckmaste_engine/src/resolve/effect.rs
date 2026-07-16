@@ -714,7 +714,7 @@ impl GameState {
                 // body's `That` resolves to the product. Only `Move` produces
                 // in this cut — other actions stay a labeled seam.
                 if let deckmaste_core::Binder::Produce(action) = peel_binder(&with.binder) {
-                    let deckmaste_core::Action::Move(subject, _, _) = action.as_ref() else {
+                    let deckmaste_core::Action::Move(subject, _, _, _) = action.as_ref() else {
                         unimplemented!(
                             "Binder::Produce over a non-Move action: only zone-moves \
                              produce-and-capture in this cut ({action:?})"
@@ -1298,7 +1298,7 @@ impl GameState {
     /// body.
     fn action_moves_to_library(a: &Action) -> bool {
         match a {
-            Action::Move(_, Destination::Library(_), _)
+            Action::Move(_, Destination::Library(_), _, _)
             | Action::By(_, PlayerAction::Move(_, Destination::Library(_), _)) => true,
             Action::Composite(_, body) => Self::body_repositions_ordered(body),
             _ => false,

@@ -2893,11 +2893,13 @@ fn inline_blink() -> Card {
                             Reference::It,
                             Destination::Zone(Zone::Exile),
                             vec![],
+                            None,
                         )),
                         OneShotEffect::Act(Action::Move(
                             Reference::That(Sort::Card),
                             Destination::Zone(Zone::Battlefield),
                             vec![],
+                            None,
                         )),
                     ]),
                 )),

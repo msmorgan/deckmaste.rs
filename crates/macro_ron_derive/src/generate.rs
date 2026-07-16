@@ -369,6 +369,31 @@ fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
                         .map(|(__f0, __f1, __f2)| #ty::#v_ident(__f0, __f1, __f2))
                     }
                 }
+                // Two required fields + two trailing-defaulted fields: `V(a,
+                // b)` fills both defaults, `V(a, b, c)` fills only the
+                // fourth, `V(a, b, c, d)` supplies every field
+                // (`PairPlusTwoDefaults`).
+                (true, [a, b, c, d])
+                    if a.default.is_none()
+                        && b.default.is_none()
+                        && c.default.is_some()
+                        && d.default.is_some() =>
+                {
+                    let (ta, tb, tc, td) = (&a.ty, &b.ty, &c.ty, &d.ty);
+                    let default_c = c.default.as_ref().expect("trailing default present");
+                    let default_d = d.default.as_ref().expect("trailing default present");
+                    quote! {
+                        ::serde::de::VariantAccess::tuple_variant(
+                            access,
+                            4usize,
+                            ::macro_ron::PairPlusTwoDefaults::<#ta, #tb, #tc, #td>::new(
+                                #default_c,
+                                #default_d,
+                            ),
+                        )
+                        .map(|(__f0, __f1, __f2, __f3)| #ty::#v_ident(__f0, __f1, __f2, __f3))
+                    }
+                }
                 (_, fields) => {
                     return Err(Error::new(
                         v_ident.span(),

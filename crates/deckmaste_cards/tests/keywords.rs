@@ -885,6 +885,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
                 Reference::Target(0),
                 Destination::Zone(Zone::Hand),
                 _,
+                _,
             ))
         ),
         "soulshift returns target to hand; got {:?}",

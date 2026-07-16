@@ -265,6 +265,57 @@ where
     }
 }
 
+/// Seq visitor for a 4-field tuple variant whose LAST TWO fields are
+/// defaulted: reads two required elements then up to two more, each absent
+/// trailing element falling back to the `default_c`/`default_d` value the
+/// generated code supplies. Backs a non-embed tuple variant with two
+/// trailing `#[macro_ron(default = "…")]` fields (e.g. `Verb(A, B, c, d)`
+/// with `c`/`d` defaulting) — `Verb(a, b)` reads here filling both, `Verb(a,
+/// b, c)` fills only `d`, `Verb(a, b, c, d)` supplies every field. Mirrors
+/// [`PairPlusDefault`] one default field further.
+pub struct PairPlusTwoDefaults<A, B, C, D> {
+    default_c: C,
+    default_d: D,
+    _p: PhantomData<(A, B)>,
+}
+
+impl<A, B, C, D> PairPlusTwoDefaults<A, B, C, D> {
+    #[must_use]
+    pub fn new(default_c: C, default_d: D) -> Self {
+        PairPlusTwoDefaults {
+            default_c,
+            default_d,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'de, A, B, C, D> Visitor<'de> for PairPlusTwoDefaults<A, B, C, D>
+where
+    A: Deserialize<'de>,
+    B: Deserialize<'de>,
+    C: Deserialize<'de>,
+    D: Deserialize<'de>,
+{
+    type Value = (A, B, C, D);
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a 2-, 3-, or 4-element tuple variant")
+    }
+
+    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self::Value, S::Error> {
+        let a = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let b = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let c = seq.next_element()?.unwrap_or(self.default_c);
+        let d = seq.next_element()?.unwrap_or(self.default_d);
+        Ok((a, b, c, d))
+    }
+}
+
 /// Seq visitor for 3-field tuple variants.
 pub struct Triple<A, B, C>(PhantomData<(A, B, C)>);
 

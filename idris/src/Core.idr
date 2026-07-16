@@ -2222,7 +2222,10 @@ mutual
       -- a plain zone change [CR#400.7]; owner-relative, control implicit. `enteringAttacking` ([CR#508.4],
       -- default `Nothing`): on a battlefield destination, put the object on ATTACKING the named player
       -- (Ninjutsu's "tapped and attacking", Encore) — senseless (no-op) for any non-battlefield destination.
-      Move : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
+      -- `from` (default `Nothing`): a FIZZLE-GUARD — commit the move only if the object is CURRENTLY in
+      -- that zone, the zone precondition destroy/discard/mill state declaratively; a mismatch is a silent
+      -- no-op, never an error [CR#701.8a,701.9a,701.17a].
+      Move : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> {default Nothing from : Maybe Zone} -> Action b
       -- (There is no "exile until ~" verb. A duration-bounded zone change is `Relocate` (a
       --  StaticEffect) under a `Continuously`/`While` duration — see `Relocate` and
       --  card_BanishingLight. Permanent exile is just `Move … (ToZone Exile)`.)

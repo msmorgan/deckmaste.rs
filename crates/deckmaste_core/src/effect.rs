@@ -513,6 +513,7 @@ mod tests {
                 Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
                 vec![],
+                None,
             )),
         );
     }

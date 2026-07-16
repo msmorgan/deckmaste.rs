@@ -193,6 +193,7 @@ mod tests {
                 Reference::It,
                 Destination::Zone(Zone::Exile),
                 vec![],
+                None,
             ))),
             // Bare defaults: by = whose = You, from = [Library].
             Binder::SearchOne {

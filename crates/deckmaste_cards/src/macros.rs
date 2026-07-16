@@ -766,7 +766,7 @@ mod tests {
         let action: Action = macros
             .read_str("Move(This, Library(FromTop(DeckSize)))")
             .unwrap();
-        let Action::Move(sel, Destination::Library(Anchor::FromTop(pos)), _) = action else {
+        let Action::Move(sel, Destination::Library(Anchor::FromTop(pos)), _, _) = action else {
             panic!("expected Move(.., Library(FromTop(..))), got {action:?}");
         };
         assert_eq!(sel, Reference::This);

@@ -889,8 +889,9 @@ pub(super) fn flatten_all_of(f: &Predicate) -> Vec<&Predicate> {
 
 /// Whether `filter` carries an `InZone(Graveyard)` atom — shared by
 /// `filter_noun`'s graveyard-card "card" noun and the exile-from-a-graveyard
-/// render arm (effect.rs's `Action::Move(_, Exile, _)`), which needs to know
-/// whether to append "from a graveyard" without re-deriving this zone check.
+/// render arm (effect.rs's `Action::Move(_, Exile, _, None)`), which needs to
+/// know whether to append "from a graveyard" without re-deriving this zone
+/// check.
 /// Owner-agnostic by design: both the your-graveyard recursion family's filter
 /// and the any-graveyard exile family's filter carry this same atom.
 pub(super) fn is_graveyard_scoped(filter: &Predicate) -> bool {

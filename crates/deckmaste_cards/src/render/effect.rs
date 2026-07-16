@@ -337,6 +337,7 @@ fn reveal_until_body(body: &OneShotEffect, whose_poss: &str) -> Option<String> {
             Reference::It,
             Destination::Zone(found_zone),
             found_riders,
+            None,
         )),
         OneShotEffect::Act(Action::MoveGroup {
             group: Selection::They,
@@ -419,6 +420,7 @@ fn search_library(w: &With) -> Option<String> {
         Reference::That(Sort::Card),
         Destination::Zone(zone),
         riders,
+        None,
     )) = move_part
     else {
         return None;
@@ -951,7 +953,9 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         // prints the "in any order" rider the oracle sentence carries.
         // Riders never apply to a library destination, so a rider-carrying
         // move falls through.
-        Action::Move(Reference::It, Destination::Library(anchor), riders) if riders.is_empty() => {
+        Action::Move(Reference::It, Destination::Library(anchor), riders, None)
+            if riders.is_empty() =>
+        {
             Some(format!(
                 "Put {} on {} of your library{}.",
                 binder_phrase(binder, ctx),
@@ -1361,11 +1365,13 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // [CR#401.7]: a library destination — "Put <cards> on top/the bottom of
         // your library." (the former `PutInLibrary`, now a `Move` destination).
         // A rider list never applies to a library destination.
-        Action::Move(r, Destination::Library(anchor), riders) if riders.is_empty() => format!(
-            "Put {} on {} of your library.",
-            fragment::reference(r, ctx),
-            fragment::library_position(anchor),
-        ),
+        Action::Move(r, Destination::Library(anchor), riders, None) if riders.is_empty() => {
+            format!(
+                "Put {} on {} of your library.",
+                fragment::reference(r, ctx),
+                fragment::library_position(anchor),
+            )
+        }
         // [CR#401.4]: a GROUP move to an ordered library position — Brainstorm's
         // "Put <group> on top of your library in any order." The "any order"
         // rider prints for the arranged arrangements ([CR#401.4]); a fixed
@@ -1400,7 +1406,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // (`It`/`This` alone), this `Move(It, Exile)` shape is shared with the
         // general "Exile target <subject>." production below, so the zone
         // must be read off the actual target filter.
-        Action::Move(r, Destination::Zone(Zone::Exile), riders)
+        Action::Move(r, Destination::Zone(Zone::Exile), riders, None)
             if riders.is_empty()
                 && fragment::sole_target_filter(r, ctx)
                     .is_some_and(fragment::is_graveyard_scoped) =>
@@ -1409,7 +1415,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         }
         // Exiling is a pure zone move ([CR#701.13]) — "Exile <r>." (the
         // source-agent twin of `PlayerAction::Move`'s identical exile arm).
-        Action::Move(r, Destination::Zone(Zone::Exile), riders) if riders.is_empty() => {
+        Action::Move(r, Destination::Zone(Zone::Exile), riders, None) if riders.is_empty() => {
             format!("Exile {}.", fragment::reference(r, ctx))
         }
         // [CR#402.1]: a hand destination — "Return <r> to your hand." The
@@ -1422,7 +1428,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // controller) is unbuilt — flagged for the next card that needs it,
         // since the renderer has no signal here to tell an owned-by-you
         // reference from an arbitrary one.
-        Action::Move(r, Destination::Zone(Zone::Hand), riders) if riders.is_empty() => {
+        Action::Move(r, Destination::Zone(Zone::Hand), riders, None) if riders.is_empty() => {
             format!("Return {} to your hand.", fragment::reference(r, ctx))
         }
         // [CR#400.7]: graveyard reanimation — the empty-rider battlefield
@@ -1442,6 +1448,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
             r @ (Reference::It | Reference::This),
             Destination::Zone(Zone::Battlefield),
             riders,
+            None,
         ) if riders.is_empty() => {
             format!(
                 "Return {} from your graveyard to the battlefield.",
@@ -1451,7 +1458,9 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // A battlefield destination WITH arrival riders ([CR#614.12],
         // Otherworldly Journey's delayed return): "Return <r> to the
         // battlefield <rider phrase>."
-        Action::Move(r, Destination::Zone(Zone::Battlefield), riders) if !riders.is_empty() => {
+        Action::Move(r, Destination::Zone(Zone::Battlefield), riders, None)
+            if !riders.is_empty() =>
+        {
             format!(
                 "Return {} to the battlefield{}.",
                 fragment::reference(r, ctx),
@@ -2530,12 +2539,14 @@ mod tests {
             Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
             vec![],
+            None,
         );
         assert_eq!(action(&top, &ctx), "Put it on top of your library.");
         let bottom = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             vec![],
+            None,
         );
         assert_eq!(
             action(&bottom, &ctx),
@@ -2572,6 +2583,7 @@ mod tests {
             Reference::It,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
             vec![],
+            None,
         );
         assert_eq!(
             action(&top, &ctx),
@@ -2581,6 +2593,7 @@ mod tests {
             Reference::It,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             vec![],
+            None,
         );
         assert_eq!(
             action(&bottom, &ctx),
@@ -2614,7 +2627,12 @@ mod tests {
             targets: std::slice::from_ref(&target),
             that: None,
         };
-        let targeted = Action::Move(Reference::It, Destination::Zone(Zone::Battlefield), vec![]);
+        let targeted = Action::Move(
+            Reference::It,
+            Destination::Zone(Zone::Battlefield),
+            vec![],
+            None,
+        );
         assert_eq!(
             action(&targeted, &ctx),
             "Return target creature card from your graveyard to the battlefield."
@@ -2648,6 +2666,7 @@ mod tests {
             Reference::This,
             Destination::Zone(Zone::Battlefield),
             vec![],
+            None,
         );
         assert_eq!(
             action(&self_move, &self_ctx),
@@ -2661,6 +2680,7 @@ mod tests {
             Reference::That(deckmaste_core::Sort::Card),
             Destination::Zone(Zone::Battlefield),
             vec![EnterRider::UnderOwnersControl],
+            None,
         );
         assert_eq!(
             action(&riders, &self_ctx),
@@ -2675,6 +2695,7 @@ mod tests {
             Reference::That(deckmaste_core::Sort::Card),
             Destination::Zone(Zone::Battlefield),
             vec![],
+            None,
         );
         assert!(
             !action(&riderless_that, &self_ctx).contains("from your graveyard"),
@@ -2878,6 +2899,7 @@ mod tests {
                     Reference::That(Sort::Card),
                     Destination::Zone(Zone::Hand),
                     vec![],
+                    None,
                 )),
                 OneShotEffect::act_by_you(PlayerAction::Shuffle),
             ])),
@@ -2900,6 +2922,7 @@ mod tests {
                     Reference::That(Sort::Card),
                     Destination::Zone(Zone::Battlefield),
                     vec![EnterRider::Tapped],
+                    None,
                 )),
                 OneShotEffect::act_by_you(PlayerAction::Shuffle),
             ])),
@@ -2951,6 +2974,7 @@ mod tests {
                     Reference::That(Sort::Card),
                     Destination::Zone(Zone::Hand),
                     vec![],
+                    None,
                 )),
                 OneShotEffect::act_by_you(PlayerAction::Shuffle),
             ])),
@@ -2973,6 +2997,7 @@ mod tests {
                     Reference::That(Sort::Card),
                     Destination::Zone(Zone::Battlefield),
                     vec![],
+                    None,
                 )),
                 OneShotEffect::act_by_you(PlayerAction::Shuffle),
             ])),
@@ -3168,7 +3193,7 @@ mod tests {
             targets: std::slice::from_ref(&target),
             that: None,
         };
-        let exiled = Action::Move(Reference::It, Destination::Zone(Zone::Exile), vec![]);
+        let exiled = Action::Move(Reference::It, Destination::Zone(Zone::Exile), vec![], None);
         assert_eq!(
             action(&exiled, &ctx),
             "Exile target creature card from a graveyard."

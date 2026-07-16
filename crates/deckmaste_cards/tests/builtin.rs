@@ -417,7 +417,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     assert!(
         matches!(
             exp.value.as_ref(),
-            OneShotEffect::Act(Action::Move(Reference::This, _, _))
+            OneShotEffect::Act(Action::Move(Reference::This, _, _, _))
         ),
         "Exile(This) is Move(This, Exile), got {:?}",
         exp.value

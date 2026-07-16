@@ -1535,15 +1535,27 @@ fn emit_action(a: &Action) -> R {
         }
         Action::Unattach(r) => app("Unattach", vec![emit_reference(r)?]),
         // `moveAttacking` exposes the (default-`Nothing`) `enteringAttacking`
-        // positionally as a plain `Maybe`.
-        Action::Move(r, dest, riders) => app(
-            "moveAttacking",
-            vec![
-                emit_reference(r)?,
-                emit_destination(dest)?,
-                attacking_maybe(riders)?,
-            ],
-        ),
+        // positionally as a plain `Maybe`; it does NOT forward `from` (no
+        // Idris counterpart in its own signature). The unguarded default
+        // (`from = None`) keeps this terse wrapper call untouched — `Move`'s
+        // own `{default Nothing from}` applies unspoken; a guard bypasses the
+        // wrapper for the raw `Move` constructor with BOTH named fields
+        // spelled explicitly, following `ChooseNewTargets`'s `{by = ...}`
+        // default-arg-elision precedent below (`emit_player_action`):
+        // terse/positional for the default, named-field on the raw
+        // constructor otherwise ([CR#701.8a,701.9a,701.17a]).
+        Action::Move(r, dest, riders, from) => {
+            let r_ = emit_reference(r)?;
+            let dest_ = emit_destination(dest)?;
+            let ea = attacking_maybe(riders)?;
+            match from {
+                None => app("moveAttacking", vec![r_, dest_, ea]),
+                Some(z) => format!(
+                    "(Move {r_} {dest_} {{enteringAttacking = {ea}}} {{from = (Just {})}})",
+                    emit_zone(*z)
+                ),
+            }
+        }
         Action::MoveGroup {
             group,
             arrangement,
@@ -1661,7 +1673,8 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             if !matches!(actor, Reference::You) {
                 return Err(gap("Move has no Idris actor slot"));
             }
-            emit_action(&Action::Move(r.clone(), dest.clone(), riders.clone()))
+            // `PlayerAction::Move` has no `from` fizzle-guard slot of its own.
+            emit_action(&Action::Move(r.clone(), dest.clone(), riders.clone(), None))
         }
         PlayerAction::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?])),
         PlayerAction::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?])),
@@ -3426,6 +3439,36 @@ mod tests {
         assert!(
             out.contains("moveAttacking") && out.contains("Graveyard"),
             "expected the body to be the →Graveyard move, got: {out}"
+        );
+    }
+
+    /// The common, unguarded `Move` (`from: None`) keeps the terse
+    /// `moveAttacking` wrapper untouched — must not regress once `Move` grows
+    /// the `from` fizzle-guard slot.
+    #[test]
+    fn move_without_guard_still_uses_moveattacking() {
+        let action =
+            deckmaste_core::Action::move_to(Reference::This, deckmaste_core::Zone::Graveyard);
+        let out = emit_action(&action).expect("an unguarded Move should emit");
+        assert_eq!(out, "(moveAttacking This (ToZone Graveyard) Nothing)");
+    }
+
+    /// [CR#701.8a,701.9a,701.17a]: a guarded `Move` (`from: Some(_)`) can't
+    /// route through `moveAttacking` — that wrapper's own Idris signature has
+    /// no `from` slot to name — so it bypasses the wrapper for the raw `Move`
+    /// constructor with BOTH named fields spelled explicitly, mirroring
+    /// `ChooseNewTargets`'s `{by = ...}` precedent for a non-default value.
+    #[test]
+    fn move_from_guard_emits_named_field_on_the_raw_constructor() {
+        let action = deckmaste_core::Action::move_if_in(
+            Reference::This,
+            deckmaste_core::Zone::Hand,
+            deckmaste_core::Zone::Graveyard,
+        );
+        let out = emit_action(&action).expect("a guarded Move should emit");
+        assert_eq!(
+            out,
+            "(Move This (ToZone Graveyard) {enteringAttacking = Nothing} {from = (Just Hand)})"
         );
     }
 

@@ -409,7 +409,10 @@ impl GameState {
             // is converted to one against the owner's current library size
             // (`len - n`), clamped at apply ("an index past the bottom places it
             // on the bottom"). This arm subsumes the former `PutInLibrary`.
-            Action::Move(sel, destination, riders) => {
+            // `from` is the optional fizzle-guard ([CR#701.8a,701.9a,701.17a]):
+            // `move_items` skips any object not currently in that zone —
+            // never a panic, per-object like the existing gone-object skip.
+            Action::Move(sel, destination, riders, from) => {
                 // Enter riders ([CR#614.12]) await the enters-the-battlefield
                 // machinery — a loud seam, like the other unbuilt verbs.
                 if !riders.is_empty() {
@@ -418,7 +421,7 @@ impl GameState {
                          with-counters) execute with the ETB machinery"
                     );
                 }
-                self.move_items(sel, destination, frame)
+                self.move_items(sel, destination, *from, frame)
             }
             // [CR#122]: move counters object→object — a remove from `from` plus
             // a place on `to`, emitted as one simultaneous batch (the apply
@@ -592,16 +595,25 @@ impl GameState {
 
     /// The work item(s) a plain relocation ([CR#400.7]) produces — shared by
     /// the source-agent [`Action::Move`] and the player-agent
-    /// [`PlayerAction::Move`] (both cause-free). A card moving to a
+    /// [`PlayerAction::Move`] (both cause-free; the latter has no fizzle-guard
+    /// slot, so it always calls here with `guard: None`). A card moving to a
     /// [`Destination::Library`] anchor that it ALREADY occupies is a same-zone
     /// REPOSITION ([CR#401.7]) — a `RepositionLibrary` work item that keeps the
     /// `ObjectId` and fires no zone change (scry never removes a card from the
     /// library, [CR#701.22a]). Every other move is a genuine `ZoneWillChange`
     /// (remint); the zone-change intents batch as one occurrence.
+    ///
+    /// `guard` is [`Action::Move`]'s optional `from` fizzle-guard
+    /// ([CR#701.8a,701.9a,701.17a]): when `Some(z)`, an object whose CURRENT
+    /// zone isn't `z` is skipped — same never-crash treatment as the
+    /// gone-object skip below, just a zone mismatch instead of a vanished
+    /// object. Per-object, like the gone-object skip: other objects in a
+    /// multi-object reference set still move normally.
     pub(super) fn move_items(
         &self,
         sel: &Reference,
         destination: &Destination,
+        guard: Option<Zone>,
         frame: &Frame,
     ) -> Vec<WorkItem> {
         let mut items: Vec<WorkItem> = Vec::new();
@@ -614,6 +626,13 @@ impl GameState {
                 continue;
             }
             let from = self.objects.obj(object).zone.expect("move a zoned object");
+            // [CR#701.8a,701.9a,701.17a]: the `from` fizzle-guard — a zone
+            // mismatch is a silent no-op for this object, never a panic.
+            if let Some(z) = guard
+                && from != z
+            {
+                continue;
+            }
             match destination {
                 Destination::Library(anchor) if from == Zone::Library => {
                     let (end, offset) = self.anchor_end_offset(anchor, frame);
@@ -699,7 +718,7 @@ fn composite_body_head_move_to(body: &deckmaste_core::OneShotEffect) -> Option<Z
     use deckmaste_core::OneShotEffect as E;
     match body {
         E::Expanded(e) => composite_body_head_move_to(&e.value),
-        E::Act(A::Move(_, Destination::Zone(z), _)) => Some(*z),
+        E::Act(A::Move(_, Destination::Zone(z), _, _)) => Some(*z),
         _ => None,
     }
 }
@@ -1433,6 +1452,7 @@ mod tests {
                     Reference::It,
                     deckmaste_core::Destination::Zone(Zone::Exile),
                     vec![],
+                    None,
                 ))),
             }),
         ]);
@@ -2217,6 +2237,7 @@ mod tests {
                 Reference::This,
                 Destination::Zone(Zone::Hand),
                 vec![],
+                None,
             )),
             &frame,
         );
@@ -2243,6 +2264,7 @@ mod tests {
                 Reference::This,
                 Destination::Zone(Zone::Hand),
                 vec![],
+                None,
             )),
             &frame,
         );
@@ -2252,6 +2274,63 @@ mod tests {
         assert!(state.objects.get(card).is_none(), "old graveyard id gone");
         assert!(state.zones.graveyards[0].is_empty());
         assert_eq!(state.zones.hands[0].len(), gy_hand_before + 1);
+    }
+
+    /// [CR#701.8a,701.9a,701.17a]: `Move`'s `from` fizzle-guard. A card
+    /// already in the graveyard is NOT in hand, so `Move(<it>, from: Hand,
+    /// to: Graveyard)` fizzles for it — no `ZoneWillChange`/`ZoneChanged`
+    /// event, the object keeps its id (never reminted), and stepping the
+    /// engine afterward doesn't panic (authoring/state-drift mismatches
+    /// never crash it).
+    #[test]
+    fn move_from_guard_fizzles_on_zone_mismatch() {
+        let (mut state, _bear) = bear_on_field();
+        // Force a hand card straight into the graveyard (bypassing `Move`) so
+        // its CURRENT zone is Graveyard, not the guard's named Hand.
+        let card = *state.zones.hands[0].first().expect("a card in hand");
+        state.zones.hands[0].retain(|&o| o != card);
+        state.objects.obj_mut(card).zone = Some(Zone::Graveyard);
+        state.zones.graveyards[0].push(card);
+        let gy_before = state.zones.graveyards[0].len();
+
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::This,
+                Destination::Zone(Zone::Graveyard),
+                vec![],
+                Some(Zone::Hand),
+            )),
+            &frame,
+        );
+        // No ZoneWillChange was scheduled; step a couple of times anyway to
+        // prove the guard mismatch doesn't half-apply or panic.
+        for _ in 0..2 {
+            let _ = state.step();
+        }
+
+        assert!(
+            state.objects.get(card).is_some(),
+            "the object keeps its id — the guard mismatch fizzled the move"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            gy_before,
+            "no card left or entered the graveyard"
+        );
+        let moved = state
+            .history
+            .scan(Lookback::ThisGame, state.turn.turn_number)
+            .any(|e| {
+                matches!(
+                    e,
+                    GameEvent::ZoneWillChange { .. } | GameEvent::ZoneChanged { .. }
+                )
+            });
+        assert!(
+            !moved,
+            "a from-guard mismatch fizzles: no zone-change event"
+        );
     }
 
     /// [CR#701.6a]: countering a spell removes it from the stack and puts it
@@ -2415,6 +2494,7 @@ mod tests {
                 Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
                 vec![],
+                None,
             )),
             &frame,
         );
@@ -2434,6 +2514,7 @@ mod tests {
                 Reference::This,
                 Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                 vec![],
+                None,
             )),
             &frame,
         );
@@ -2951,6 +3032,7 @@ mod tests {
                 Reference::It,
                 Destination::Library(anchor),
                 vec![],
+                None,
             )),
             cost: None,
         };
