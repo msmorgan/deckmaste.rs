@@ -2959,6 +2959,10 @@ fn emit_effect(e: &OneShotEffect) -> R {
         OneShotEffect::Modal(m) => emit_modal(m)?,
         OneShotEffect::Targeted(t) => emit_targeted(t)?,
         OneShotEffect::Repeat(n, body) => app("Repeat", vec![emit_count(n)?, emit_effect(body)?]),
+        // SHELL: `Batch` emits exactly like `Repeat` at this stage (see the
+        // Idris `Batch` doc comment) — the aggregate-count tier is a later
+        // pass's job, not this one's.
+        OneShotEffect::Batch(n, body) => app("Batch", vec![emit_count(n)?, emit_effect(body)?]),
         OneShotEffect::RevealUntil(r) => app(
             "RevealUntil",
             vec![

@@ -176,6 +176,16 @@ pub enum OneShotEffect {
     /// the Idris `Repeat : (count : Count b) -> OneShotEffect
     /// b -> OneShotEffect b`.
     Repeat(Count, Box<OneShotEffect>),
+    /// `Repeat`'s BATCHING twin ([CR#616.1g]): performs `body` `count` times
+    /// as ONE aggregate containing event — the count tier where "twice that
+    /// many" replacements bite ([CR#121.2a,616.1g]) and aggregate triggers
+    /// read. THIS shape is the shell only: it currently resolves purely
+    /// sequentially, identically to [`Repeat`](OneShotEffect::Repeat) — a
+    /// later pass rebuilds it into the true aggregate-count tier. Boxed for
+    /// the same `OneShotEffect` → `Batch` → `OneShotEffect` size-cycle
+    /// reason as `Repeat`. Mirrors the Idris `Batch : (count : Count b) ->
+    /// OneShotEffect b -> OneShotEffect b`.
+    Batch(Count, Box<OneShotEffect>),
     /// The variable-length DIG-UNTIL ([CR#702.85] cascade, [CR#701.57]
     /// discover): `whose` reveals cards off the top of their library one at a
     /// time until one matches `matches`; `body` then runs with the found card
@@ -586,6 +596,10 @@ mod tests {
             "With(binder:Choose(quantity:Range(Literal(2),Literal(2)),filter:InZone(Hand)),\
              body:Each(binder:Existing(They),\
              effect:Move(It,Library(FromTop(Literal(0))))))",
+            // `Batch` is `Repeat`'s BATCHING twin ([CR#616.1g]) — in THIS
+            // task shell-equivalent to `Repeat`, so it round-trips the same
+            // `(Count, Box<OneShotEffect>)` shape.
+            "Batch(Literal(2),GainLife(Literal(1)))",
         ];
         for source in cases {
             let parsed = read(source);

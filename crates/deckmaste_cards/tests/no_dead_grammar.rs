@@ -217,6 +217,15 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             batch; render support for Reflexive is also unbuilt (same family as Delayed).",
         ),
         (
+            n("OneShotEffect", "Batch"),
+            "SHELL: `Batch` (engine-act-facet-contract Task 2) is a deliberate \
+            scaffold, semantically identical to `Repeat` for now — no card needs it yet \
+            because there is no observable difference from `Repeat` to author toward. A \
+            later task in the same plan upgrades it to the true aggregate-count tier \
+            ([CR#616.1g] 'twice that many' replacements, aggregate triggers) and wires the \
+            first real card that needs the distinction.",
+        ),
+        (
             n("PileSource", "Noted"),
             "DEFERRED: the per-player noted-piles shape (Whims of the \
             Fates: SeparatePiles.note + ChoosePile(from: Noted(..))) is designed (see the ticket's \

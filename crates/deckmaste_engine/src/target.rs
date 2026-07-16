@@ -903,6 +903,27 @@ mod tests {
         assert!(candidates(&state, &wrapped).contains(&bear));
     }
 
+    /// `InHand(who)` ([CR#701.9a] discard's domain) composes `InZone(Hand)`
+    /// + an `Owner` match on the parameterized reference — a card in the
+    /// named player's hand, not hardcoded to `You`'s controller as a bare
+    /// `FromHand` would be (user ruling: `FromHand` was composite, not
+    /// intrinsic). `Ref(You)` needs a carrier, so this reads through
+    /// `matches_with` with an explicit watcher, not the frameless `matches`.
+    #[test]
+    fn in_hand_matches_a_card_in_the_named_players_hand() {
+        let (state, bear, _ghoul) = game_with_bear_and_ghoul();
+        let filter: Predicate = builtin().macros.read_str("InHand(You)").unwrap();
+        // Watched by the battlefield bear — still P0-controlled, so `You`
+        // resolves to P0.
+        let carrier = Some(state.objects.obj(bear).source);
+        let p0_hand_card = state.zones.hands[0][0];
+        let p1_hand_card = state.zones.hands[1][0];
+        assert!(matches_with(&state, p0_hand_card, &filter, carrier));
+        assert!(!matches_with(&state, p1_hand_card, &filter, carrier));
+        // The battlefield bear itself is not in ANY hand.
+        assert!(!matches_with(&state, bear, &filter, carrier));
+    }
+
     // -------------------------------------------------------------------------
     // Characteristic arms: Named / ColorIs / Multicolored / Colorless /
     // Supertype / Stat

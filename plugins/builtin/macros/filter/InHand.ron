@@ -1,0 +1,12 @@
+// InHand(who) — a card in `who`'s hand ([CR#701.9a] discard's domain).
+// Composable helper (user ruling: FromHand was composite, not intrinsic).
+// `Owner` takes a PREDICATE (`filter.rs:146`), so `who` (a bare Reference
+// param) wraps as `Ref(Param(0))` — the same `Owner(Ref(You))` idiom
+// Delve/Soulshift/ShuffleYourGraveyardIntoLibrary already use, just with
+// the reference parameterized instead of hardcoded to `You`.
+(
+    name: "InHand",
+    kinds: [Predicate],
+    params: [Reference],
+    body: And([InZone(Hand), Owner(Ref(Param(0)))]),
+)

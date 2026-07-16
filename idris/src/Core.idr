@@ -2529,6 +2529,11 @@ mutual
       -- (Storm rides `engine-copy-spells`). `Repeat (^2) (Act (Composite Proliferate …))` =
       -- proliferate twice.
       Repeat : (count : Count b) -> OneShotEffect b -> OneShotEffect b
+      -- `Repeat`'s BATCHING twin ([CR#616.1g]): SHELL constructor — this stage resolves
+      -- `body` `count` times identically to `Repeat` (purely sequential); a later pass
+      -- rebuilds it into the true aggregate-count tier where "twice that many" replacements
+      -- bite ([CR#121.2a,616.1g]) and aggregate triggers read. Rust: OneShotEffect::Batch.
+      Batch : (count : Count b) -> OneShotEffect b -> OneShotEffect b
       -- "when you do [the preceding], [effect]" — a reflexive trigger. It NESTS, so
       -- `That`/targets stay in scope; no event-scanning sibling. Rust: OneShotEffect::Reflexive.
       Reflexive : OneShotEffect b -> OneShotEffect b

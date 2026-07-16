@@ -1017,6 +1017,30 @@ impl GameState {
                     self.schedule_front(items);
                 }
             }
+            // SHELL arm ([CR#616.1g] aggregate-count tier is a later pass's
+            // job): `Batch` resolves EXACTLY like `Repeat` above — the same
+            // lazy self-rescheduling continuation (never `n`-many eagerly
+            // materialized `RunEffect` items, per the CRITICAL never-crash
+            // ruling against a saturated/huge count), just recursing into
+            // `Batch` rather than `Repeat` on the tail so the shape survives
+            // intact for the later pass to rebuild into ONE aggregate
+            // containing event. `n == 0` schedules nothing — a clean no-op.
+            OneShotEffect::Batch(count, body) => {
+                let n = self.eval_count(&count, frame);
+                if n > 0 {
+                    let items = vec![
+                        WorkItem::RunEffect {
+                            effect: body.clone(),
+                            frame: frame.clone(),
+                        },
+                        WorkItem::RunEffect {
+                            effect: Box::new(OneShotEffect::Batch(Count::Literal(n - 1), body)),
+                            frame: frame.clone(),
+                        },
+                    ];
+                    self.schedule_front(items);
+                }
+            }
             // [CR#702.85,701.57] dig-until (cascade/discover's shape): reveal
             // cards off the top of `whose`'s library one at a time until one
             // matches, binding the found card as `It` and the passed-over
@@ -1867,6 +1891,68 @@ mod tests {
             }
             other => panic!("expected two RunEffect work items at the agenda front, got {other:?}"),
         }
+    }
+
+    /// `Batch` shell: in THIS task purely sequential-equivalent to `Repeat`
+    /// ([CR#616.1g] aggregate-count semantics are a later pass's job) — two
+    /// `Batch(2, GainLife(1))` iterations record as TWO separate
+    /// `LifeGained` facts, exactly like `Repeat`, not one combined
+    /// aggregate fact.
+    #[test]
+    fn batch_runs_sequentially_recording_one_fact_per_iteration() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+
+        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(1)));
+        state.run_effect(
+            OneShotEffect::Batch(Count::Literal(2), Box::new(body)),
+            &frame,
+        );
+        let _ = drain_progress(&mut state, 40);
+
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 2,
+            "two iterations of +1 life = +2 total"
+        );
+        let life_gained_facts = state
+            .history
+            .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
+            .filter(|e| matches!(e, GameEvent::LifeGained { .. }))
+            .count();
+        assert_eq!(
+            life_gained_facts, 2,
+            "shell Batch resolves sequentially — TWO separate LifeGained facts, not \
+             one combined aggregate fact (the aggregate-count tier is a later pass's job)"
+        );
+    }
+
+    /// A count of zero schedules nothing for `Batch` either — the CRITICAL
+    /// never-crash ruling applies to a degenerate `Batch` exactly as it does
+    /// to `Repeat`.
+    #[test]
+    fn batch_zero_is_a_no_op() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        let agenda_before = state.agenda.len();
+
+        let body = OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(2)));
+        state.run_effect(
+            OneShotEffect::Batch(Count::Literal(0), Box::new(body)),
+            &frame,
+        );
+
+        assert_eq!(
+            state.agenda.len(),
+            agenda_before,
+            "count=0 schedules no ADDITIONAL work"
+        );
+        let _ = drain_progress(&mut state, 5);
+        assert_eq!(state.player(p0).life, life0, "no iterations ran");
     }
 
     /// [CR#702.85,701.57] `RevealUntil` fizzles to a graceful no-op — the
