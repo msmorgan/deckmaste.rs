@@ -223,23 +223,28 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         panic!("a macro invocation is remembered as Expanded, got {effect:?}");
     };
     assert_eq!(ex.name.as_str(), "Regenerate");
-    let OneShotEffect::Act(Action::CreateReplacement {
-        replacement,
-        subject,
-        duration,
-        one_shot,
-    }) = (*ex.value).clone()
-    else {
+    // The subject is bound by an enclosing `With(TheRef(Param(0)))` as the
+    // singular `That` (the shield freezes it at creation); `CreateReplacement`
+    // no longer carries an authored `subject:` field.
+    let OneShotEffect::With(deckmaste_core::With { binder, body }) = (*ex.value).clone() else {
         panic!(
-            "Regenerate(This) must expand to CreateReplacement, got {:?}",
+            "Regenerate(This) must expand to With(TheRef, CreateReplacement), got {:?}",
             ex.value
         );
     };
     assert_eq!(
-        subject,
-        Reference::This,
-        "subject lands as a bare reference"
+        binder,
+        deckmaste_core::Binder::TheRef(Reference::This),
+        "the regenerated permanent is bound by With(TheRef(This))"
     );
+    let OneShotEffect::Act(Action::CreateReplacement {
+        replacement,
+        duration,
+        one_shot,
+    }) = *body
+    else {
+        panic!("the With body is a CreateReplacement, got {body:?}");
+    };
     assert!(one_shot, "a regeneration shield is one-shot [CR#614.3]");
     assert_eq!(
         duration,
@@ -256,7 +261,8 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     assert_eq!(body.len(), 2, "remove all damage, then tap [CR#701.19a]");
 
     // Regenerate(It): the announced-target anaphor parses too — the param is
-    // a Reference, so `It` fits exactly where `This` did.
+    // a Reference, so `It` fits exactly where `This` did (as the `TheRef`
+    // subject the `With` binds).
     let tgt: OneShotEffect = plugin.macros.read_str("Regenerate(It)").unwrap();
     let OneShotEffect::Expanded(tex) = tgt else {
         panic!("Regenerate(It) is remembered as Expanded");
@@ -264,12 +270,12 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     assert!(
         matches!(
             *tex.value,
-            OneShotEffect::Act(Action::CreateReplacement {
-                subject: Reference::It,
+            OneShotEffect::With(deckmaste_core::With {
+                binder: deckmaste_core::Binder::TheRef(Reference::It),
                 ..
             })
         ),
-        "Regenerate(It) expands with the anaphor subject, got {:?}",
+        "Regenerate(It) expands with the anaphor subject bound by With, got {:?}",
         tex.value
     );
 }

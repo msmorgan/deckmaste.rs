@@ -1496,11 +1496,14 @@ fn action(a: &Action, ctx: &Ctx) -> String {
                 },
             ),
         },
-        // [CR#701.19a]: a regeneration shield — rendered as "Regenerate <target>."
-        // when the replacement body has the standard structure. The top-level
-        // `Regenerate` keyword macro emits this via its template.
-        Action::CreateReplacement { subject, .. } => {
-            format!("Regenerate {}.", fragment::reference(subject, ctx))
+        // [CR#701.19a]: a regeneration shield. The protected permanent is the
+        // `That` the enclosing `With` bound (no authored `subject`), so the
+        // bare fallback names it as "that"; the top-level `Regenerate` keyword
+        // macro's `regenerate ${0}` template is the primary render (the
+        // remembered invocation carries the real reference).
+        Action::CreateReplacement { .. } => {
+            let that = deckmaste_core::Reference::That(deckmaste_core::Sort::Card);
+            format!("Regenerate {}.", fragment::reference(&that, ctx))
         }
         other => format!("[unrendered: {other:?}]."),
     }
@@ -1949,7 +1952,15 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         // enclosing `May` supplies the "You may "/"If you don't, …" framing
         // (Chandra's "You may cast that card."); this renders the bare
         // instruction, its patient the surrounding effect's anaphor.
-        PlayerAction::Cast(r) => format!("Cast {}.", fragment::reference(r, ctx)),
+        // [CR#118.9,702.35a]: an alternative-cost cast ("by paying its madness
+        // cost") appends the cost; the bare form ([CR#608.2g]) omits it.
+        PlayerAction::Cast(what, for_cost) => match for_cost
+            .as_ref()
+            .and_then(|c| super::template::render_cost(c))
+        {
+            Some(cost) => format!("Cast {} by paying {cost}.", fragment::reference(what, ctx)),
+            None => format!("Cast {}.", fragment::reference(what, ctx)),
+        },
         // [CR#104.2b]: "You win the game." — immediate on resolution; the
         // `CantWin` suppression is engine-side, not part of the sentence.
         PlayerAction::WinGame => "You win the game.".to_string(),

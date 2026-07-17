@@ -7,11 +7,13 @@
 // Template: "regenerate ${0}" (matches CR wording, [CR#701.19])
 //
 // The param is a `Reference` (the permanent to regenerate — `This` or a bound
-// `Target`). It appears in exactly ONE slot: `subject`, which the shield
-// resolves to a concrete object and remembers as its `That`. The watch and the
-// heal/tap body refer to that captured permanent as `EventObject` — so `This`
-// is free to keep meaning the source ability (it never moves), and the shield
-// works for "regenerate target creature" (source ≠ subject), not just self.
+// `Target`). It is bound by an enclosing `With(TheRef(…))` as the singular
+// `That`; the shield freezes THAT resolved binding at creation (an LKI
+// snapshot of the protected permanent's identity — `CreateReplacement` no
+// longer carries an authored `subject:` field). The watch and the heal/tap
+// body refer to that captured permanent as `EventObject` — so `This` is free
+// to keep meaning the source ability (it never moves), and the shield works
+// for "regenerate target creature" (source ≠ subject), not just self.
 //
 // The `would` watches the bare-verb `Destroy(…)` pattern twin — the
 // present-tense, replaceable destruction keyword-action INTENT ([CR#701.8b]:
@@ -25,16 +27,18 @@
     template: "regenerate ${0}",
     kinds: [OneShotEffect],
     params: [Reference],
-    body: CreateReplacement(
-        replacement: Instead(
-            would: Destroy(Ref(EventObject)),
-            instead: Sequentially([
-                RemoveDamage(EventObject),
-                Tap(EventObject),
-            ]),
+    body: With(
+        binder: TheRef(Param(0)),
+        body: CreateReplacement(
+            replacement: Instead(
+                would: Destroy(Ref(EventObject)),
+                instead: Sequentially([
+                    RemoveDamage(EventObject),
+                    Tap(EventObject),
+                ]),
+            ),
+            duration: FixedUntil(EndOfTurn),
+            one_shot: true,
         ),
-        subject: Param(0),
-        duration: FixedUntil(EndOfTurn),
-        one_shot: true,
     ),
 )

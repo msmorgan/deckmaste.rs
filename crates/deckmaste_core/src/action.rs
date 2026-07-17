@@ -220,12 +220,15 @@ pub enum Action {
     /// the source and destination objects.
     MoveCounters(crate::CounterSpec, Reference, Reference),
     /// Register a floating replacement effect ([CR#614.3]) — "the next time …"
-    /// shields (regeneration, one-shot prevention). `subject` resolves to the
-    /// protected permanent; `one_shot` consumes the shield on first use
-    /// ([CR#614.3]). [CR#701.19a,614.8]
+    /// shields (regeneration, one-shot prevention). The protected permanent is
+    /// the object bound as `That` by the enclosing `With` — the shield freezes
+    /// that resolved binding at creation (an LKI snapshot of identity), so a
+    /// shield is authored `With(binder: TheRef(<subject>), body:
+    /// CreateReplacement(…))`; there is no authored `subject:` field.
+    /// `one_shot` consumes the shield on first use ([CR#614.3]).
+    /// [CR#701.19a,614.8]
     CreateReplacement {
         replacement: Box<crate::replacement::Replacement>,
-        subject: Reference,
         duration: crate::continuous::Duration,
         one_shot: bool,
     },
@@ -338,7 +341,23 @@ pub enum PlayerAction {
     /// exists ([CR#608.2g] — the offer is empty otherwise, so the `if_not`
     /// branch runs). A reference that resolves to no castable object
     /// fizzles (authoring mistakes never crash the engine).
-    Cast(Reference),
+    ///
+    /// The trailing slot is an optional ALTERNATIVE COST ([CR#118.9,702.35a]):
+    /// when present, the cast pays this cost RATHER THAN the card's mana cost —
+    /// madness's "cast it by paying its madness cost" is `Cast(That(Card),
+    /// [Mana(…)])`. A TRAILING-DEFAULT TUPLE slot (like the
+    /// [`Move`](Action::Move) `from`-guard) so the bare `Cast(That(Card))`
+    /// (mana-cost) spelling — the one Chandra and the doc above prescribe —
+    /// reads unchanged with the slot defaulted to `None`, omitted on write.
+    /// (Ruled 2026-07-16 during implementation, per Task 1's tuple/struct
+    /// process: a struct variant would force `Cast(what: …)`, breaking the bare
+    /// spelling a canon card already uses; the tuple keeps it, and the derive's
+    /// `SinglePlusDefault` runtime visitor backs the 1-required + 1-default
+    /// arity-2 read the newtype/tuple spellings would otherwise collide on.)
+    Cast(
+        Reference,
+        #[macro_ron(default = "None")] Option<crate::Cost>,
+    ),
     /// `by` picks new targets for the stack object `of`, bound by its
     /// original targetspec ([CR#115.7d,707.10c] — Bolt Bend, Redirect,
     /// copy-with-new-targets). Each target slot may be LEFT UNCHANGED even
@@ -1293,28 +1312,57 @@ mod tests {
         assert_eq!(read(&write(&all)), all);
     }
 
-    /// [CR#608.2g]: `Cast(Reference)` is a player verb — bare it reads as
-    /// `By(You, …)` (the implicit-you caster) and round-trips. "That card" is
-    /// the surrounding effect's anaphor.
+    /// [CR#608.2g]: `Cast` is a player verb — bare it reads as `By(You, …)`
+    /// (the implicit-you caster) and round-trips. "That card" is the
+    /// surrounding effect's anaphor. The optional alternative-cost slot
+    /// ([CR#118.9,702.35a]) is a trailing tuple default: omitting it keeps the
+    /// bare `Cast(That(Card))` spelling reading (Chandra), an explicit cost
+    /// reads positionally `Cast(That(Card), [Mana(…)])` (madness) — the
+    /// tuple/struct decision, whose deciding criterion is that bare read.
     #[test]
     fn cast_round_trips_bare() {
-        let v = Action::by_you(PlayerAction::Cast(Reference::That(crate::Sort::Card)));
+        let v = Action::by_you(PlayerAction::Cast(Reference::That(crate::Sort::Card), None));
         let written = write(&v);
         assert!(
             !written.contains("By("),
             "By(You, …) should write bare, got {written}"
         );
+        assert!(
+            !written.contains("None"),
+            "the absent alternative cost is omitted on write, got {written}"
+        );
         assert_eq!(
             read("Cast(That(Card))"),
             v,
-            "a bare player verb reads as By(You, …)"
+            "the bare mana-cost cast reads with the alternative-cost slot defaulted to None"
         );
         assert_eq!(read(&written), v, "text → Cast → text round-trips");
 
         // An explicit caster reads native (e.g. `By(It, Cast(It))`).
-        let explicit = Action::By(Reference::It, PlayerAction::Cast(Reference::It));
+        let explicit = Action::By(Reference::It, PlayerAction::Cast(Reference::It, None));
         assert_eq!(read("By(It, Cast(It))"), explicit);
         assert_eq!(read(&write(&explicit)), explicit);
+
+        // [CR#118.9,702.35a]: the alternative-cost form (madness's madness
+        // cost) reads the trailing slot positionally and round-trips.
+        let for_cost = Action::by_you(PlayerAction::Cast(
+            Reference::That(crate::Sort::Card),
+            Some(crate::Cost(vec![crate::CostComponent::Mana(
+                crate::ManaCost::from(vec![crate::ManaSymbol::Simple(
+                    crate::SimpleManaSymbol::Generic(1),
+                )]),
+            )])),
+        ));
+        assert_eq!(
+            read("Cast(That(Card), [Mana([Generic(1)])])"),
+            for_cost,
+            "an explicit alternative cost reads positionally"
+        );
+        assert_eq!(
+            read(&write(&for_cost)),
+            for_cost,
+            "the for-cost form round-trips"
+        );
     }
 
     /// `Composite { name, body }` ([CR#701]) reads all-named (the

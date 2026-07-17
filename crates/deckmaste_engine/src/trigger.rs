@@ -3536,6 +3536,66 @@ mod tests {
         );
     }
 
+    /// [CR#603.7,603.12]: a DELAYED trigger created during a resolution is
+    /// reflexive-UNIFIED. When its event has NOT yet occurred it registers for
+    /// the next future occurrence (the ordinary delayed rule, [CR#603.7b]);
+    /// when its event ALREADY occurred earlier in the SAME resolution — the
+    /// exile a `With(Produce(...))` performed before installing the delayed
+    /// trigger (madness's "when a card is exiled this way") — it fires
+    /// immediately on that event and is NOT left in the registry. This is the
+    /// behavior the produced-exile Madness delayed trigger relies on.
+    #[test]
+    fn delayed_trigger_installed_after_its_event_fires_reflexively() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Predicate;
+
+        use crate::stack::Frame;
+
+        let ability = draw_on(EventFilter::LifeGained {
+            who: Predicate::any(),
+            amount: None,
+        });
+
+        // No matching earlier event in this resolution → the delayed trigger
+        // registers for a FUTURE occurrence and fires nothing now.
+        let mut state = empty_game();
+        let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
+        let frame = Frame::bare(src, PlayerId(0));
+        state.run_effect(OneShotEffect::Delayed(Box::new(ability.clone())), &frame);
+        assert_eq!(
+            total_fired(&state),
+            0,
+            "no earlier matching event: the delayed trigger fires nothing now"
+        );
+        assert_eq!(
+            state.delayed_triggers.len(),
+            1,
+            "[CR#603.7b]: with no earlier event it registers for the future"
+        );
+
+        // The event already occurred earlier in this resolution, THEN the
+        // delayed trigger is created: it fires ON THE SPOT (reflexive
+        // unification) and is NOT registered.
+        let mut state = empty_game();
+        let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
+        let frame = Frame::bare(src, PlayerId(0));
+        state.resolution_events.push(GameEvent::LifeGained {
+            player: PlayerId(0),
+            amount: 3,
+        });
+        state.run_effect(OneShotEffect::Delayed(Box::new(ability)), &frame);
+        assert_eq!(
+            total_fired(&state),
+            1,
+            "[CR#603.12]: the event already occurred this resolution — the delayed trigger fires now"
+        );
+        assert!(
+            state.delayed_triggers.is_empty(),
+            "[CR#603.7b,603.12]: a reflexively-fired delayed trigger is not left in the registry"
+        );
+    }
+
     /// A synthetic creature whose sole ability is an "at the beginning of your
     /// upkeep, draw a card" trigger that FUNCTIONS from the given zone
     /// (`from`).

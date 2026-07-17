@@ -1,0 +1,75 @@
+// Madness = two abilities on one keyword ([CR#702.35a]): a self-replacement
+// that EXILES the card instead of discarding it to the graveyard, and a
+// (reflexive-unified delayed) triggered ability that lets its owner cast it for
+// the madness cost when it is exiled this way — else it goes to the graveyard.
+//
+// Usage: on a card, `Keyword(Madness([Mana([Generic(1),Red])]))` = "Madness
+// {1}{R}". Template: "madness ${0}".
+//
+// The param is a `Cost` (the madness cost list). It appears in ONE slot: the
+// delayed trigger's `Cast(EventObject, <cost>)` alternative-cost facet, so the
+// exiled card is cast paying the madness cost RATHER THAN its mana cost
+// ([CR#118.9,702.35a]).
+//
+// Shape, and why each piece is where it is:
+//
+//   Static(Replacement(Instead(would: Discard(Any, Ref(This)), instead: …)))
+//     — the self-replacement. It functions from the HAND (madness's card is in
+//     hand when discarded); the engine gathers it as a self-replacement on the
+//     affected object even off the battlefield. The `would` is the bare-verb
+//     `Discard(who, what)` twin narrowed to THIS card. An `Instead` replaces the
+//     discard intent away entirely, so a SECOND madness (Falkenrath Gorger's
+//     granted "choose one") can never also fire on the same discard — exactly
+//     one Instead applies per intent ([CR#616.1]), the stacked-madness "applies
+//     once" outcome with ZERO authored guard clause.
+//
+//     The discard NAME-fact still stands: the keyword-action discard window's
+//     `FinalizeAct` watches THIS card and commits its `Act(Discard)` name-fact
+//     on ANY zone change of the card since the window opened, destination-
+//     agnostic — so the exile below still finalizes a discard and Megrim /
+//     "whenever you discard" fires ([CR#701.9c,702.35a] "that player discards
+//     it, but…"), even though the content committed to Exile, not the graveyard.
+//
+//   With(binder: Produce(Move(This, Exile, [], Hand)), body: Delayed(…))
+//     — `Produce` performs the Hand → Exile move and binds the exiled card as
+//     `That` (chased through the remint, [CR#400.7j]) — the lexical "…this way"
+//     linkage. The move's `from: Hand` guard fizzles the whole thing if the
+//     card already left the hand ([CR#701.9a]).
+//
+//   Delayed(event: ZoneChange(what: Ref(This), from: Hand, to: Exile), effect: May(…))
+//     — a REAL triggered ability ([CR#702.35a] — it uses the stack, priority,
+//     is stiflable). Installed AFTER the exile it watches, it is reflexive-
+//     unified ([CR#603.7,603.12]): it fires on that just-produced exile rather
+//     than waiting for a future one. `This` in its event/anchor is the produced
+//     card (the source moved itself away, so the created-trigger context falls
+//     back to the `That` product). The fired body reads the exiled card as
+//     `EventObject`.
+//
+//   May(effect: Cast(EventObject, Param(0)), if_not: Move(EventObject, Graveyard, [], Exile))
+//     — the owner may cast the exiled card for the madness cost (`Cast`'s
+//     alternative-cost slot, [CR#118.9]); the "yes" offer is gated on a legal,
+//     payable cast ([CR#608.2g]). If they don't, it moves Exile → graveyard —
+//     an ORDINARY future move, so Rest in Peace / Leyline of the Void bite it
+//     normally (the madness+RiP ruling falls out for free).
+(
+    name: "Madness",
+    template: "madness ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Madness",
+        abilities: [Static(Replacement(Instead(
+            would: Discard(Any, Ref(This)),
+            instead: With(
+                binder: Produce(Move(This, Exile, [], Hand)),
+                body: Delayed(
+                    event: ZoneChange(what: Ref(This), from: Hand, to: Exile),
+                    effect: May(
+                        effect: Cast(EventObject, Param(0)),
+                        if_not: Move(EventObject, Graveyard, [], Exile),
+                    ),
+                ),
+            ),
+        )))],
+    ),
+)

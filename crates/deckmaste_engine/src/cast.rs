@@ -528,6 +528,35 @@ fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<CoreAction> {
         .collect()
 }
 
+/// [CR#118.9,702.35a]: split an ALTERNATIVE base cost (madness's madness cost,
+/// threaded from `Cast(what, [cost])`) into its MANA part (the merged `Mana`
+/// components — what `ChooseCostOptions`/`PayCost` demand as the base mana) and
+/// its remaining PAYMENT components (`Do(...)` etc., paid alongside via the
+/// same verb window `PayCost` already uses). A macro-spliced nested `Cost(...)`
+/// flattens by recursion. Madness's `[Mana([1,R])]` yields just the mana.
+fn partition_alternative_cost(cost: &deckmaste_core::Cost) -> (ManaCost, Vec<CostComponent>) {
+    let mut symbols: Vec<ManaSymbol> = Vec::new();
+    let mut verbs: Vec<CostComponent> = Vec::new();
+    for component in cost.iter() {
+        match component {
+            CostComponent::Mana(m) => symbols.extend(m.iter().copied()),
+            CostComponent::Cost(nested) => {
+                let (m, v) = partition_alternative_cost(nested);
+                symbols.extend(<Vec<ManaSymbol>>::from(m));
+                verbs.extend(v);
+            }
+            other => verbs.push(other.clone()),
+        }
+    }
+    (ManaCost::from(symbols), verbs)
+}
+
+/// [CR#118.9]: just the MANA portion of an alternative base cost — the
+/// affordability-gate view ([`GameState::can_cast_as_effect`]).
+fn alternative_cost_mana(cost: &deckmaste_core::Cost) -> ManaCost {
+    partition_alternative_cost(cost).0
+}
+
 impl GameState {
     /// [CR#601.2b,601.2g,107.4e,107.4f]: is SOME legal reading of `cost`'s
     /// hybrid/Phyrexian symbols fully payable by `player` for `subject`? The
@@ -956,7 +985,7 @@ impl GameState {
     /// Panics if `object` is not in its controller's hand — engine invariant.
     pub(crate) fn begin_cast(&mut self, object: ObjectId) {
         let controller = self.objects.obj(object).controller;
-        self.begin_cast_from(object, Zone::Hand, controller);
+        self.begin_cast_from(object, Zone::Hand, controller, None);
     }
 
     /// [CR#601.2a,601.2b]: the general open-announce, from any `origin` zone
@@ -971,8 +1000,18 @@ impl GameState {
     /// Panics if `object` is not in `origin` — the caller validated the zone
     /// (engine invariant, not caller input).
     ///
+    /// `alternative_cost` ([CR#118.9,702.35a]) is the base cost this cast pays
+    /// RATHER THAN the card's mana cost (madness's madness cost, threaded from
+    /// the resolution-time `Cast(what, [cost])`); `None` for a normal cast.
+    ///
     /// [`begin_cast`]: GameState::begin_cast
-    pub(crate) fn begin_cast_from(&mut self, object: ObjectId, origin: Zone, controller: PlayerId) {
+    pub(crate) fn begin_cast_from(
+        &mut self,
+        object: ObjectId,
+        origin: Zone,
+        controller: PlayerId,
+        alternative_cost: Option<deckmaste_core::Cost>,
+    ) {
         match origin {
             Zone::Hand => self.remove_from_hand(self.objects.obj(object).controller, object),
             Zone::Exile => self.remove_from_exile(object),
@@ -998,6 +1037,8 @@ impl GameState {
             x: None,
             // [CR#601.2b]: filled by the `ChooseCostOptions` step before `PayCost`.
             concretized: None,
+            // [CR#118.9,702.35a]: the resolution-time alternative base cost, if any.
+            alternative_cost,
         });
     }
 
@@ -1011,7 +1052,12 @@ impl GameState {
     /// for `Cast(<ref>)`: offered only when it holds, else the `if_not` branch
     /// runs ([CR#608.2g] — the empty offer defaults to "you don't").
     #[must_use]
-    pub(crate) fn can_cast_as_effect(&self, caster: PlayerId, object: ObjectId) -> bool {
+    pub(crate) fn can_cast_as_effect(
+        &self,
+        caster: PlayerId,
+        object: ObjectId,
+        alternative_cost: Option<&deckmaste_core::Cost>,
+    ) -> bool {
         // Never-crash: a stale/absent referent (the object left its zone, or
         // the anaphor resolved to nothing) is simply not castable — guard
         // before `layers()`/`confers_may_play`, both of which panic on a dead
@@ -1029,13 +1075,24 @@ impl GameState {
         if crate::legal::confers_may_play(self, &view, object) {
             return false;
         }
-        // [CR#118.6]: an empty mana cost is "no mana cost" — an unpayable base.
-        let face = crate::derive::face(self.def(object));
-        if face.mana_cost.is_empty() {
-            return false;
-        }
-        let Some(cost) = self.mana_cost(object) else {
-            return false;
+        // [CR#118.9,702.35a]: with an alternative base cost (madness), the
+        // caster pays THAT rather than the printed mana cost — the "empty
+        // printed cost is unpayable" gate ([CR#118.6]) is bypassed (the
+        // permission supplies a payable cost) and affordability is checked
+        // against the alternative's mana. Otherwise the printed mana cost is
+        // the base.
+        let cost = if let Some(alt) = alternative_cost {
+            alternative_cost_mana(alt)
+        } else {
+            // [CR#118.6]: an empty mana cost is "no mana cost" — an unpayable base.
+            let face = crate::derive::face(self.def(object));
+            if face.mana_cost.is_empty() {
+                return false;
+            }
+            let Some(cost) = self.mana_cost(object) else {
+                return false;
+            };
+            cost
         };
         // [CR#601.2c]: every target spec must have a legal candidate.
         let carrier = Some(self.objects.obj(object).source);
@@ -1063,7 +1120,12 @@ impl GameState {
     /// zone as the cast origin and re-controls it) rather than the
     /// hand-only `BeginCast`.
     #[must_use]
-    pub(crate) fn cast_as_effect_items(&self, object: ObjectId, caster: PlayerId) -> Vec<WorkItem> {
+    pub(crate) fn cast_as_effect_items(
+        &self,
+        object: ObjectId,
+        caster: PlayerId,
+        alternative_cost: Option<deckmaste_core::Cost>,
+    ) -> Vec<WorkItem> {
         let origin = self
             .objects
             .obj(object)
@@ -1074,6 +1136,7 @@ impl GameState {
                 object,
                 origin,
                 caster,
+                alternative_cost,
             },
             crate::event::GameEvent::SpellCast(object),
         )
@@ -1282,10 +1345,20 @@ impl GameState {
     pub(crate) fn choose_cost_options(&mut self) -> bool {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
-        let cost = match &pending.object {
-            StackObject::Spell(o) => self
-                .mana_cost(*o)
-                .expect("a castable spell has a printed cost"),
+        // The base mana cost, plus any extra PAYMENT components an alternative
+        // base cost carries ([CR#118.9,702.35a] — madness's non-mana toll, if
+        // any; empty for a mana-only madness cost).
+        let (cost, alt_verbs) = match &pending.object {
+            StackObject::Spell(o) => match &pending.alternative_cost {
+                // [CR#118.9,702.35a]: this cast pays the alternative cost RATHER
+                // THAN the printed mana cost (madness's madness cost).
+                Some(alt) => partition_alternative_cost(alt),
+                None => (
+                    self.mana_cost(*o)
+                        .expect("a castable spell has a printed cost"),
+                    vec![],
+                ),
+            },
             StackObject::Activated {
                 source, ability, ..
             } => {
@@ -1295,7 +1368,10 @@ impl GameState {
                 // referenced object's mana cost ("equal to its mana cost").
                 let summary = crate::activate::cost_summary(&ability.cost)
                     .expect("can_activate vetted the cost");
-                self.resolve_cost_mana(&summary, *source, controller)
+                (
+                    self.resolve_cost_mana(&summary, *source, controller),
+                    vec![],
+                )
             }
             StackObject::Triggered { .. } => {
                 unreachable!("a triggered ability has no cost and never occupies the announce slot")
@@ -1304,19 +1380,27 @@ impl GameState {
         let options = crate::cost_options::choosable(&cost);
         if options.options.is_empty() {
             // [CR#601.2b]: no multi-way symbol — the cost is already concrete.
-            // Stash it (with no Phyrexian-life verbs) so `PayCost` reads the
-            // stash uniformly; surface nothing.
-            let concrete = crate::cost_options::concretize(
+            // Stash it (plus any alternative-cost verb toll) so `PayCost` reads
+            // the stash uniformly; surface nothing.
+            let (mana, mut verbs) = crate::cost_options::concretize(
                 &cost,
                 &crate::cost_options::CostOptionChoices { picks: vec![] },
             )
             .expect("a cost with no choosable symbols needs no picks");
+            verbs.extend(alt_verbs);
             self.announcing
                 .as_mut()
                 .expect("an announce in flight")
-                .concretized = Some(concrete);
+                .concretized = Some((mana, verbs));
             return false;
         }
+        // A choosable-symbol alternative cost carrying its own non-mana toll is
+        // not wired (no such alternative cost exists — madness's is mana-only);
+        // its toll would be dropped by the `ChooseCostOptions` submission path.
+        debug_assert!(
+            alt_verbs.is_empty(),
+            "an alternative cost with choosable symbols AND a non-mana toll is unwired"
+        );
         // [CR#601.2b]: the player announces each reading; the submission handler
         // concretizes and stashes.
         self.pending = Some(PendingDecision::ChooseCostOptions {

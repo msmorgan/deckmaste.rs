@@ -140,6 +140,12 @@ pub struct PendingStackEntry {
     /// `{2}` joins the mana decision; a `Do(...)` kicker joins the verb
     /// window).
     pub optional_components: Vec<CostComponent>,
+    /// [CR#118.9,702.35a]: an ALTERNATIVE base cost this cast pays RATHER THAN
+    /// the card's mana cost — a resolution-time `Cast(what, [cost])` (madness's
+    /// madness cost). `None` (the common case) leaves the printed mana cost as
+    /// the base. `ChooseCostOptions` reads it in place of the printed cost;
+    /// `can_cast_as_effect` gates affordability against it.
+    pub alternative_cost: Option<deckmaste_core::Cost>,
 }
 
 /// Cardinality of a binder/anaphor slot ([CR#608.2]) — mirrors the Idris

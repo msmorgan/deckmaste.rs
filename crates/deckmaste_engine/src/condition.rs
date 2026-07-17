@@ -819,6 +819,7 @@ mod tests {
             targets: vec![],
             x: None,
             concretized: None,
+            alternative_cost: None,
         });
         assert!(
             !state.condition_holds(&cond, &frame_for(&state, PlayerId(0))),

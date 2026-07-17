@@ -285,12 +285,15 @@ impl GameState {
             // effect grants the permission, [CR#608.2g]), so a live castable
             // referent is expected; a reference that no longer resolves to a
             // castable object fizzles (authoring mistakes never crash).
-            PlayerAction::Cast(what) => {
+            PlayerAction::Cast(what, for_cost) => {
                 let object = self.eval_reference(what, frame);
                 // `can_cast_as_effect` guards a null/stale/wrong-zone referent
                 // (never-crash) and returns false, so a bad reference fizzles.
-                if self.can_cast_as_effect(actor, object) {
-                    self.cast_as_effect_items(object, actor)
+                // [CR#118.9,702.35a]: the alternative base cost (madness) rides
+                // through to the announce so `PayCost` demands it, not the
+                // printed mana cost.
+                if self.can_cast_as_effect(actor, object, for_cost.as_ref()) {
+                    self.cast_as_effect_items(object, actor, for_cost.clone())
                 } else {
                     vec![]
                 }

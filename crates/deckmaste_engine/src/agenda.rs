@@ -111,6 +111,10 @@ pub enum WorkItem {
         object: crate::object::ObjectId,
         origin: deckmaste_core::Zone,
         caster: crate::player::PlayerId,
+        /// [CR#118.9,702.35a]: an alternative base cost the granting effect
+        /// supplied ("cast it by paying its madness cost"), paid RATHER THAN
+        /// the card's mana cost; `None` for a plain `Cast(<ref>)`.
+        alternative_cost: Option<deckmaste_core::Cost>,
     },
     /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
     /// ability text + source LKI into the announce slot. The shared

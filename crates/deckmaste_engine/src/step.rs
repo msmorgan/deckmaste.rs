@@ -186,9 +186,10 @@ impl GameState {
                 object,
                 origin,
                 caster,
+                alternative_cost,
             } => {
                 // [CR#608.2g]: cast the referenced card from the zone it's in.
-                self.begin_cast_from(object, origin, caster);
+                self.begin_cast_from(object, origin, caster, alternative_cost);
                 Progress::Announcing(object)
             }
             WorkItem::BeginActivate { object, ability } => {
@@ -3375,6 +3376,7 @@ mod tests {
             targets: vec![],
             x: Some(3),
             concretized: None,
+            alternative_cost: None,
         });
 
         let pending = state.promote_announce();

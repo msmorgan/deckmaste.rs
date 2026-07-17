@@ -45,7 +45,6 @@ impl GameState {
     fn create_shield(
         &mut self,
         replacement: deckmaste_core::Replacement,
-        subject: &deckmaste_core::Reference,
         duration: deckmaste_core::Duration,
         one_shot: bool,
         frame: &Frame,
@@ -59,7 +58,15 @@ impl GameState {
             "create_shield: non-sweepable duration {duration:?} — a ForThisEvent \
              shield would last forever (rider durations never mint instances)"
         );
-        let id = self.eval_reference(subject, frame);
+        // [CR#614.3]: the protected permanent is the `That` the enclosing `With`
+        // bound — the shield freezes THAT resolved identity at creation
+        // (`floating_watches` then matches on this frozen subject). An unbound /
+        // vanished `That` (no `With`, degenerate reference) fizzles the mint —
+        // never a shield with a null subject, never a panic ([CR#701.8a]).
+        let id = self.eval_reference(&Reference::That(deckmaste_core::Sort::Card), frame);
+        if self.objects.get(id).is_none() {
+            return;
+        }
         let iid = crate::replace_registry::InstanceId(self.next_shield_id);
         self.next_shield_id += 1;
         self.shields
@@ -319,11 +326,16 @@ impl GameState {
         &self,
         may: &deckmaste_core::May,
         frame: &Frame,
-    ) -> Option<(crate::player::PlayerId, crate::object::ObjectId)> {
+    ) -> Option<(
+        crate::player::PlayerId,
+        crate::object::ObjectId,
+        Option<deckmaste_core::Cost>,
+    )> {
         match peel_effect(&may.effect) {
-            OneShotEffect::Act(Action::By(actor, PlayerAction::Cast(what))) => Some((
+            OneShotEffect::Act(Action::By(actor, PlayerAction::Cast(what, for_cost))) => Some((
                 self.acting_player(actor, frame),
                 self.eval_reference(what, frame),
+                for_cost.clone(),
             )),
             _ => None,
         }
@@ -344,12 +356,11 @@ impl GameState {
                 // it here, mirroring how `OneShotEffect::Continuously` works.
                 if let Action::CreateReplacement {
                     replacement,
-                    subject,
                     duration,
                     one_shot,
                 } = action
                 {
-                    self.create_shield(*replacement, &subject, duration, one_shot, frame);
+                    self.create_shield(*replacement, duration, one_shot, frame);
                 } else {
                     let items = self.action_items(&action, frame);
                     self.schedule_front(items);
@@ -889,8 +900,8 @@ impl GameState {
                 // uncastable — a land, an unaffordable cost, no legal target).
                 // Detected structurally: a `May` whose body is a bare `Cast`
                 // verb, gated by `can_cast_as_effect` before surfacing YesNo.
-                if let Some((caster, object)) = self.may_cast_referent(&may, frame)
-                    && !self.can_cast_as_effect(caster, object)
+                if let Some((caster, object, for_cost)) = self.may_cast_referent(&may, frame)
+                    && !self.can_cast_as_effect(caster, object, for_cost.as_ref())
                 {
                     let items = may
                         .if_not
@@ -1219,50 +1230,33 @@ impl GameState {
                 });
                 self.schedule_front(items);
             }
-            // [CR#603.7]: create a delayed triggered ability. It is printed on
-            // no permanent, so it goes into the `delayed_triggers` registry
-            // (the trigger scan consults it alongside live permanents) and
-            // fires ONCE, the next time its event occurs ([CR#603.7b]). Source
-            // and controller follow [CR#603.7d,603.7e] — the creating spell/ability
-            // and the player who controlled it as it resolved (`frame`); `~`/
-            // `This` is the creating object's snapshot, carried so the delayed
-            // body reads it at the later resolution ([CR#603.7c]).
+            // [CR#603.7,603.12]: create a delayed triggered ability, unified
+            // with the reflexive rule. It is printed on no permanent, so it
+            // fires ONCE the next time its event occurs ([CR#603.7b]) — BUT if
+            // that event ALREADY occurred earlier in THIS resolution (the exile
+            // a `With(Produce(...))` just performed — madness's "when a card is
+            // exiled this way"), it is reflexive-checked on the spot
+            // ([CR#603.12]) and fires now rather than waiting for a future
+            // occurrence. Only when no earlier event matches does it register in
+            // the `delayed_triggers` registry for the future. Source/controller
+            // follow [CR#603.7d,603.7e]; `~`/`This` is the creating object's
+            // snapshot (the produced object when the source moved itself away).
             OneShotEffect::Delayed(ability) => {
-                let (source, bindings) = self.created_trigger_context(frame);
-                self.delayed_triggers.push(crate::trigger::CreatedTrigger {
-                    source,
-                    controller: frame.controller,
-                    ability,
-                    bindings,
-                });
+                if !self.scan_created_reflexive(&ability, frame) {
+                    let (source, bindings) = self.created_trigger_context(frame);
+                    self.delayed_triggers.push(crate::trigger::CreatedTrigger {
+                        source,
+                        controller: frame.controller,
+                        ability,
+                        bindings,
+                    });
+                }
             }
-            // [CR#603.12]: create a reflexive triggered ability ("when you
-            // do"). It follows the delayed rules EXCEPT it is checked
-            // immediately against events that occurred EARLIER in THIS
-            // resolution — never persisted, never firing on a future event. So
-            // it is not registered: scan the resolution-scoped window now and
-            // emit a `TriggerFired` (carrying the body by value) per match
-            // ([CR#603.12a] — once per occurrence of the trigger event).
+            // [CR#603.12]: a reflexive triggered ability ("when you do") — the
+            // same immediate resolution-window scan, but NEVER registered for a
+            // future event.
             OneShotEffect::Reflexive(ability) => {
-                let (source, base) = self.created_trigger_context(frame);
-                let mut emits = Vec::new();
-                for event in self.resolution_events.clone() {
-                    if self.event_matches_delayed(&ability.event, &event, source) {
-                        let roles = self.event_roles(&event);
-                        emits.push(WorkItem::Emit(Occurrence::single(
-                            GameEvent::TriggerFired {
-                                source,
-                                ability: 0,
-                                controller: frame.controller,
-                                created: Some(ability.clone()),
-                                bindings: roles.bindings_over(base.clone()),
-                            },
-                        )));
-                    }
-                }
-                if !emits.is_empty() {
-                    self.schedule_front(emits);
-                }
+                self.scan_created_reflexive(&ability, frame);
             }
             other => todo!("stage 3 does not interpret effect {other:?} (the choice seam)"),
         }
@@ -1384,15 +1378,26 @@ impl GameState {
     /// source snapshot when `frame` has one — [CR#603.7e]; otherwise the
     /// resolving spell — [CR#603.7d]). `~`/`This` is that same object's
     /// snapshot, so the created body reads it at its later resolution.
+    ///
+    /// [CR#400.7j]: when the creating source itself MOVED during the same
+    /// resolution (madness exiles the very card whose ability is discarding
+    /// it — `frame.source` is reminted and gone), `~`/`This` falls back to the
+    /// `With(Produce(...))` product bound as `That`, so the delayed body's
+    /// filter still anchors `Ref(This)` on the just-produced object and its
+    /// watcher-source is that live card rather than a bare player proxy.
     fn created_trigger_context(
         &self,
         frame: &Frame,
     ) -> (ObjectSource, crate::trigger::TriggerBindings) {
-        let this = frame.this.clone().or_else(|| {
-            self.objects
-                .get(frame.source)
-                .map(|_| crate::lki::LkiSnapshot::capture(self, frame.source))
-        });
+        let this = frame
+            .this
+            .clone()
+            .or_else(|| {
+                self.objects
+                    .get(frame.source)
+                    .map(|_| crate::lki::LkiSnapshot::capture(self, frame.source))
+            })
+            .or_else(|| self.produced_that_snapshot(frame));
         let source = this
             .as_ref()
             .map_or_else(|| ObjectSource::Player(frame.controller), |s| s.source);
@@ -1402,6 +1407,74 @@ impl GameState {
             ..crate::trigger::TriggerBindings::default()
         };
         (source, bindings)
+    }
+
+    /// [CR#400.7j]: the live snapshot of the `With(Produce(...))` product bound
+    /// as a One `That` in `frame` — chased through the same-resolution move
+    /// record to its current incarnation. `None` when there is no such binding
+    /// or the product has left play. Anchors a created trigger whose own source
+    /// moved itself away (madness).
+    fn produced_that_snapshot(&self, frame: &Frame) -> Option<crate::lki::LkiSnapshot> {
+        let that = frame.anaphora.that.as_ref()?;
+        if that.cardinality != crate::stack::Cardinality::One {
+            return None;
+        }
+        let &id = that.group.first()?;
+        let product = self.chase_moved(id);
+        self.objects
+            .get(product)
+            .map(|_| crate::lki::LkiSnapshot::capture(self, product))
+    }
+
+    /// [CR#603.12]: scan the resolution-scoped window ([`Self::resolution_events`])
+    /// for events that already occurred and match `ability`'s trigger event,
+    /// emitting a `TriggerFired` (carrying the body by value, [CR#603.7c]) per
+    /// match — the shared immediate-fire spine of a reflexive trigger and of a
+    /// delayed trigger unified with it. Returns whether it fired (so the
+    /// delayed arm knows to skip registering for the future). The firing
+    /// event's roles bind `EventObject`/`ThatMuch`/… for the fired body
+    /// ([CR#603.2e]).
+    fn scan_created_reflexive(
+        &mut self,
+        ability: &deckmaste_core::TriggeredAbility,
+        frame: &Frame,
+    ) -> bool {
+        let (source, base) = self.created_trigger_context(frame);
+        let mut emits = Vec::new();
+        for event in self.resolution_events.clone() {
+            if self.event_matches_delayed(&ability.event, &event, source) {
+                let roles = self.event_roles(&event);
+                let mut bindings = roles.bindings_over(base.clone());
+                // [CR#400.7j,603.2e]: a trigger firing reflexively WITHIN the
+                // resolution that produced its event reads the moved object at
+                // its CURRENT identity. The event fact's `that_object` snapshot
+                // holds the object's PRE-move id; the object was reminted on the
+                // move (madness's Hand → Exile remint), so chase the live
+                // same-resolution move record to the product and re-snapshot it
+                // — the "…exiled this way" linkage. Left as-is when the object
+                // did not move again or the chase leaves the store (LKI stands).
+                if let Some(snap) = &bindings.that_object {
+                    let chased = self.chase_moved(snap.object);
+                    if chased != snap.object && self.objects.get(chased).is_some() {
+                        bindings.that_object = Some(crate::lki::LkiSnapshot::capture(self, chased));
+                    }
+                }
+                emits.push(WorkItem::Emit(Occurrence::single(
+                    GameEvent::TriggerFired {
+                        source,
+                        ability: 0,
+                        controller: frame.controller,
+                        created: Some(Box::new(ability.clone())),
+                        bindings,
+                    },
+                )));
+            }
+        }
+        let fired = !emits.is_empty();
+        if fired {
+            self.schedule_front(emits);
+        }
+        fired
     }
 
     /// The last-known snapshot of the object an
@@ -3458,16 +3531,15 @@ mod tests {
         use deckmaste_core::BeginningStep;
         use deckmaste_core::Duration;
         use deckmaste_core::PhaseStep;
-        use deckmaste_core::Reference;
         use deckmaste_core::Replacement;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
+        // The sweepable-duration guard is LOUD before the `That` subject read.
         state.create_shield(
             Replacement::Skip {
                 what: PhaseStep::Beginning(BeginningStep::Untap),
             },
-            &Reference::This,
             Duration::ForThisEvent,
             false,
             &frame,

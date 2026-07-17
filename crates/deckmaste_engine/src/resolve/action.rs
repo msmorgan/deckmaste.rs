@@ -2237,6 +2237,487 @@ mod tests {
         );
     }
 
+    // ===== Madness matrix (Task 10): the real `Madness` keyword end-to-end =====
+
+    /// A creature card FACE carrying Madness {1}{R} and a printed {3}{R} cost —
+    /// a castable creature spell (so a madness cast is affordable when the pool
+    /// covers {1}{R}).
+    fn madness_creature(name: &str) -> CardFace {
+        use deckmaste_core::Color;
+        use deckmaste_core::ColorOrColorless;
+        use deckmaste_core::ManaCost;
+        use deckmaste_core::ManaSymbol;
+        use deckmaste_core::SimpleManaSymbol;
+        use deckmaste_core::StatValue;
+        CardFace {
+            name: name.into(),
+            mana_cost: ManaCost::from(vec![
+                ManaSymbol::Simple(SimpleManaSymbol::Generic(3)),
+                ManaSymbol::Simple(SimpleManaSymbol::Specific(ColorOrColorless::Color(
+                    Color::Red,
+                ))),
+            ]),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            abilities: vec![keyword("Madness([Mana([Generic(1), Red])])")],
+            ..CardFace::default()
+        }
+    }
+
+    /// Grant `player` `n` red mana (enough to cover a `{1}{R}` madness cost
+    /// with one Red + one Red-as-generic, or top up as a test needs).
+    fn grant_red(state: &mut GameState, player: PlayerId, n: deckmaste_core::Uint) {
+        state
+            .player_mut(player)
+            .mana_pool
+            .add(deckmaste_core::Color::Red.into(), n);
+    }
+
+    /// Whether a COMMITTED discard name-fact of `card` is in the history — what
+    /// a "whenever you discard" trigger (Megrim) keys on ([CR#701.9c]).
+    fn discarded_fact(state: &GameState, card: ObjectId) -> bool {
+        state.history.entries().any(|e| {
+            matches!(&e.fact, GameEvent::Act { verb, on, committed, .. }
+                if verb.as_str() == "Discard" && *on == Some(card) && *committed)
+        })
+    }
+
+    /// A "whenever you discard a card, lose 2 life" fixture (Megrim's shape,
+    /// [CR#701.9c] — the trigger keys on the finalized `Act(Discard)`
+    /// name-fact).
+    fn megrim_fixture(state: &mut GameState) {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::VerbName;
+        mint_on_field(
+            state,
+            Card::Normal(CardFace {
+                name: "Megrim Fixture".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![Ability::Triggered(TriggeredAbility {
+                    ability_word: None,
+                    where_x: None,
+                    from: None,
+                    event: EventFilter::Act {
+                        verb: VerbName::from("Discard"),
+                        who: Predicate::Ref(Reference::You),
+                        on: Predicate::Any,
+                        cause: None,
+                    },
+                    condition: None,
+                    limits: Vec::new(),
+                    effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
+                        Count::Literal(2),
+                    ))),
+                })],
+                ..CardFace::default()
+            }),
+        );
+    }
+
+    /// Whether a replacement key is sourced from an OFF-battlefield object —
+    /// the shape of a madness self-replacement (its card is in hand/exile),
+    /// distinct from a battlefield graveyard-hoser (Rest in Peace / Leyline).
+    fn madness_source_off_field(
+        state: &GameState,
+        key: crate::replace_registry::ReplacementKey,
+    ) -> bool {
+        match key {
+            crate::replace_registry::ReplacementKey::Static { source, .. } => state
+                .objects
+                .get(source)
+                .is_some_and(|o| o.zone != Some(Zone::Battlefield)),
+            crate::replace_registry::ReplacementKey::Floating(_) => false,
+        }
+    }
+
+    /// Drive the stack to empty (all just-fired triggers resolved), answering
+    /// the madness delayed trigger's "you may cast it" with `cast` (false =
+    /// decline). Stops the moment priority is offered over an EMPTY stack — so
+    /// the turn structure never advances past the triggers under test.
+    fn drive_declining_or_casting(state: &mut GameState, cast: bool) {
+        use crate::decide::Action as Act;
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+        for _ in 0..200 {
+            // Mana empties at every step boundary ([CR#500.4]); the delayed
+            // trigger resolves a step or two after the discard, so top the pool
+            // back up to the madness cost while we wait for its cast offer.
+            if cast && state.player(PlayerId(0)).mana_pool.is_empty() {
+                grant_red(state, PlayerId(0), 2);
+            }
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                    if state.stack.is_empty() {
+                        return; // triggers all resolved; don't advance the turn
+                    }
+                    state.submit_decision(Decision::Act(Act::Pass)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::YesNo { .. }) => {
+                    state.submit_decision(Decision::Answer(cast)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) => {
+                    // The pool only ever holds the {1}{R} madness cost (topped up
+                    // above), never the four mana the printed {3}{R} would need —
+                    // a successful pay here IS the alternative cost ([CR#118.9]).
+                    assert_eq!(
+                        cost,
+                        deckmaste_core::ManaCost::from(vec![
+                            deckmaste_core::ManaSymbol::Simple(
+                                deckmaste_core::SimpleManaSymbol::Generic(1)
+                            ),
+                            deckmaste_core::ManaSymbol::Simple(
+                                deckmaste_core::SimpleManaSymbol::Specific(
+                                    deckmaste_core::ColorOrColorless::Color(
+                                        deckmaste_core::Color::Red
+                                    )
+                                )
+                            ),
+                        ]),
+                        "the madness cast pays {{1}}{{R}}, not the printed {{3}}{{R}}"
+                    );
+                    let pay = state.auto_pay_pending();
+                    state.submit_decision(Decision::Pay(pay)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers { triggers, .. }) => {
+                    let order: Vec<usize> = (0..triggers.len()).collect();
+                    state.submit_decision(Decision::Order(order)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::ChooseReplacement {
+                    applicable,
+                    ..
+                }) => {
+                    // Apply madness first — its self-replacement is sourced from
+                    // the discarded card, which is OFF the battlefield (the
+                    // graveyard-hoser sibling is a battlefield permanent).
+                    let key = applicable
+                        .iter()
+                        .copied()
+                        .find(|k| madness_source_off_field(state, *k))
+                        .unwrap_or(applicable[0]);
+                    state
+                        .submit_decision(Decision::ReplacementChoice(key))
+                        .unwrap();
+                }
+                StepOutcome::NeedsDecision(other) => {
+                    panic!("unexpected decision while madness resolves: {other:?}")
+                }
+                StepOutcome::GameOver(_) => break,
+            }
+        }
+    }
+
+    /// [CR#702.35a,701.9c]: discarding a card with madness EXILES it instead of
+    /// putting it in the graveyard, YET the discard name-fact still stands — so
+    /// Megrim / "whenever you discard a card" fires (loses its controller 2
+    /// life) even though the content committed to exile. The card's own hand-
+    /// functioning self-replacement is what redirects it (the static-ability-
+    /// zone gather closes the seam the older `madness_style_*` fixture noted).
+    #[test]
+    fn madness_discard_exiles_yet_fires_megrim() {
+        let (mut state, _a) = bear_on_field();
+        megrim_fixture(&mut state);
+        let life_before = state.player(PlayerId(0)).life;
+        let card = mint_in_hand_with(&mut state, PlayerId(0), madness_creature("Madcap Skills"));
+
+        // "Discard this card" (the cycling-cost / bound shape): the frame's
+        // source IS the hand card, so `This` = the discarded card.
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Madcap Skills"),
+            "madness exiles the discarded card instead of the graveyard ([CR#702.35a])"
+        );
+        assert!(
+            !zone_has_named(&state, &state.zones.graveyards[0], "Madcap Skills"),
+            "the replaced discard never reaches the graveyard"
+        );
+        assert!(
+            discarded_fact(&state, card),
+            "the discard name-fact survives the destination redirect ([CR#701.9c])"
+        );
+
+        // Drive the fired Megrim + madness triggers to resolution, declining
+        // the cast so only Megrim's life loss lands.
+        drive_declining_or_casting(&mut state, false);
+        assert_eq!(
+            state.player(PlayerId(0)).life,
+            life_before - 2,
+            "Megrim fired exactly once off the redirected discard ([CR#701.9c])"
+        );
+    }
+
+    /// A Rest-in-Peace-shape static: "if a card would be put into a graveyard,
+    /// exile it instead" ([CR#614.6]) — a `ZoneChange → Graveyard` replacement.
+    fn rest_in_peace_fixture(state: &mut GameState) {
+        let ability = builtin()
+            .macros
+            .read_str::<Ability>(
+                "Static(Replacement(Instead(would: ZoneChange(what: Any, to: Graveyard), \
+                 instead: Move(EventObject, Exile))))",
+            )
+            .unwrap();
+        mint_on_field(
+            state,
+            Card::Normal(CardFace {
+                name: "Rest in Peace Fixture".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![ability],
+                ..CardFace::default()
+            }),
+        );
+    }
+
+    /// [CR#702.35a,614.6]: declining the madness cast moves the exiled card
+    /// Exile → graveyard — an ORDINARY future move, so a Rest-in-Peace-shape
+    /// "would be put into a graveyard, exile it instead" static bites it and
+    /// re-exiles it (the madness + graveyard-hoser ruling falls out for free).
+    #[test]
+    fn declined_madness_cast_graveyard_move_is_bitten_by_rest_in_peace() {
+        let (mut state, _a) = bear_on_field();
+        rest_in_peace_fixture(&mut state);
+        let card = mint_in_hand_with(&mut state, PlayerId(0), madness_creature("Madcap Skills"));
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        // The discard is contested by TWO replacements — madness and Rest in
+        // Peace both send the card off its Hand → graveyard shape — so a
+        // [CR#616.1] ChooseReplacement surfaces to the discarding player; the
+        // driver applies madness first, then declines the cast. The declined
+        // Exile → graveyard move is itself caught by Rest in Peace and
+        // re-exiled — the card never reaches the graveyard.
+        assert!(
+            matches!(
+                state.pending,
+                Some(crate::decide::PendingDecision::ChooseReplacement { chooser, .. })
+                    if chooser == PlayerId(0)
+            ),
+            "the discarding player chooses the replacement order ([CR#616.1])"
+        );
+        drive_declining_or_casting(&mut state, false);
+        assert!(
+            !zone_has_named(&state, &state.zones.graveyards[0], "Madcap Skills"),
+            "Rest in Peace exiled the declined card's graveyard move ([CR#614.6])"
+        );
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Madcap Skills"),
+            "the card stays exiled — the graveyard move was replaced"
+        );
+    }
+
+    /// [CR#616.1]: a madness discard while a graveyard-hoser (Leyline of the
+    /// Void / Rest in Peace shape) is out — two replacements would both send
+    /// the card off its Hand → graveyard shape, so the discarding player
+    /// chooses which applies. EITHER order exiles the card (madness first: to
+    /// its own trigger; the hoser first: straight out) — the choice never lets
+    /// it slip to the graveyard.
+    #[test]
+    fn madness_and_graveyard_hoser_are_an_owner_ordered_choice() {
+        for madness_first in [true, false] {
+            let (mut state, _a) = bear_on_field();
+            rest_in_peace_fixture(&mut state);
+            let card =
+                mint_in_hand_with(&mut state, PlayerId(0), madness_creature("Madcap Skills"));
+            let frame = frame_src(card);
+            state.run_effect(
+                OneShotEffect::Act(Action::discard_what(Reference::This)),
+                &frame,
+            );
+            run_injected(&mut state);
+
+            let Some(crate::decide::PendingDecision::ChooseReplacement {
+                chooser,
+                applicable,
+            }) = state.pending.clone()
+            else {
+                panic!("two applicable replacements surface an order choice ([CR#616.1])");
+            };
+            assert_eq!(chooser, PlayerId(0), "the discarding player chooses");
+            assert_eq!(applicable.len(), 2, "madness and the hoser both apply");
+            let key = applicable
+                .iter()
+                .copied()
+                .find(|k| madness_source_off_field(&state, *k) == madness_first)
+                .unwrap();
+            state
+                .submit_decision(Decision::ReplacementChoice(key))
+                .unwrap();
+            run_injected(&mut state);
+
+            assert!(
+                zone_has_named(&state, &state.zones.exile, "Madcap Skills"),
+                "either order exiles the card (madness_first={madness_first})"
+            );
+            assert!(
+                !zone_has_named(&state, &state.zones.graveyards[0], "Madcap Skills"),
+                "neither order lets the card reach the graveyard (madness_first={madness_first})"
+            );
+        }
+    }
+
+    /// A creature FACE carrying TWO madness keywords ({1}{R} and {2}{B}) — the
+    /// Falkenrath-Gorger-plus-own-madness "choose one" shape ([CR#702.35a]).
+    fn double_madness_creature(name: &str) -> CardFace {
+        let mut face = madness_creature(name);
+        face.abilities
+            .push(keyword("Madness([Mana([Generic(2), Black])])"));
+        face
+    }
+
+    /// [CR#702.35a,616.1]: a card with TWO madness abilities discarded — both
+    /// self-replacements apply, the owner chooses one, and it applies EXACTLY
+    /// once (an `Instead` replaces the discard away, so the other never also
+    /// fires): one exile, one delayed trigger.
+    #[test]
+    fn stacked_madness_applies_exactly_once() {
+        let (mut state, _a) = bear_on_field();
+        let card = mint_in_hand_with(
+            &mut state,
+            PlayerId(0),
+            double_madness_creature("Madcap Skills"),
+        );
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        let Some(crate::decide::PendingDecision::ChooseReplacement { applicable, .. }) =
+            state.pending.clone()
+        else {
+            panic!("two madness self-replacements surface an order choice ([CR#616.1])");
+        };
+        assert_eq!(applicable.len(), 2, "both madness abilities apply");
+        state
+            .submit_decision(Decision::ReplacementChoice(applicable[0]))
+            .unwrap();
+        run_injected(&mut state);
+
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Madcap Skills"),
+            "the card exiled once"
+        );
+        // EXACTLY ONE exile move for the card ([CR#616.1] — one Instead replaces
+        // the discard away; the other madness never also fires).
+        let exiles = state
+            .history
+            .entries()
+            .filter(|e| matches!(&e.fact, GameEvent::ZoneChange { to, .. } if *to == Zone::Exile))
+            .count();
+        assert_eq!(
+            exiles, 1,
+            "one madness applied — a single Hand → Exile move"
+        );
+
+        // Exactly ONE madness cast trigger — driving the stack offers the "you
+        // may cast it" decision once, not twice ([CR#702.35a]).
+        let offers = count_cast_offers(&mut state);
+        assert_eq!(
+            offers, 1,
+            "one madness cast trigger, not two ([CR#702.35a])"
+        );
+    }
+
+    /// Drive the stack to empty, DECLINING every "you may cast it" offer and
+    /// counting how many surfaced.
+    fn count_cast_offers(state: &mut GameState) -> usize {
+        use crate::decide::Action as Act;
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+        let mut offers = 0;
+        for _ in 0..200 {
+            // Keep enough mana floating to afford either madness cost ({1}{R} or
+            // {2}{B}) — else an unpayable cast auto-declines with no offer to
+            // count ([CR#608.2g]). Mana empties at each step boundary.
+            if state.player(PlayerId(0)).mana_pool.is_empty() {
+                grant_red(state, PlayerId(0), 2);
+                state
+                    .player_mut(PlayerId(0))
+                    .mana_pool
+                    .add(deckmaste_core::Color::Black.into(), 1);
+            }
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                    if state.stack.is_empty() {
+                        break;
+                    }
+                    state.submit_decision(Decision::Act(Act::Pass)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::YesNo { .. }) => {
+                    offers += 1;
+                    state.submit_decision(Decision::Answer(false)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers { triggers, .. }) => {
+                    let order: Vec<usize> = (0..triggers.len()).collect();
+                    state.submit_decision(Decision::Order(order)).unwrap();
+                }
+                StepOutcome::NeedsDecision(other) => {
+                    panic!("unexpected decision counting cast offers: {other:?}")
+                }
+                StepOutcome::GameOver(_) => break,
+            }
+        }
+        offers
+    }
+
+    /// [CR#702.35a,118.9]: casting a madness card. The exiled card's delayed
+    /// trigger offers "you may cast it for the madness cost {1}{R}"; accepting
+    /// pays that alternative cost (NOT the printed {3}{R}) out of the pool and
+    /// puts the creature on the stack, whence it resolves onto the battlefield
+    /// — the exile is emptied.
+    #[test]
+    fn madness_cast_pays_the_alternative_cost_and_exile_empties() {
+        let (mut state, _a) = bear_on_field();
+        // Two red covers {1}{R} (one Red pip + one Red spent as generic); the
+        // printed {3}{R} would need four — proving the alternative cost is used.
+        grant_red(&mut state, PlayerId(0), 2);
+        let card = mint_in_hand_with(&mut state, PlayerId(0), madness_creature("Madcap Skills"));
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Madcap Skills"),
+            "the discarded madness card is exiled first ([CR#702.35a])"
+        );
+
+        // Accept the cast; drive the stack (the spell resolves onto the field).
+        // The pool is topped to exactly {1}{R} while we wait — never the four
+        // mana the printed {3}{R} needs — so a resolving spell proves the
+        // alternative cost was the one paid (the driver also asserts the cost).
+        drive_declining_or_casting(&mut state, true);
+
+        assert!(
+            !zone_has_named(&state, &state.zones.exile, "Madcap Skills"),
+            "casting empties the exile — the card left for the stack ([CR#608.2g])"
+        );
+        assert!(
+            zone_has_named(&state, &state.zones.battlefield, "Madcap Skills"),
+            "the 2/2 resolved onto the battlefield ([CR#608.2g])"
+        );
+        assert!(
+            !zone_has_named(&state, &state.zones.graveyards[0], "Madcap Skills"),
+            "a cast card never fell to the graveyard"
+        );
+    }
+
     /// [CR#702.29a]: the BOUND discard ("discard this card") — no choice
     /// surfaces; the one dual-facet `Act(Discard)` commits the named card's
     /// Hand → Graveyard move atomically, exactly the destroy shape.

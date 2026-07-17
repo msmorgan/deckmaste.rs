@@ -797,6 +797,8 @@ impl GameState {
             x: None,
             // [CR#601.2b]: filled by the `ChooseCostOptions` step before `PayCost`.
             concretized: None,
+            // An activated ability has no alternative cast cost ([CR#118.9]).
+            alternative_cost: None,
         });
     }
 }

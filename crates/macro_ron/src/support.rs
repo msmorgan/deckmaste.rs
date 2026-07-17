@@ -220,6 +220,49 @@ impl<'de, A: Deserialize<'de>, B: Deserialize<'de>> Visitor<'de> for Pair<A, B> 
     }
 }
 
+/// Seq visitor for a 2-field tuple variant whose LAST field is defaulted:
+/// reads one required element then an optional second, falling back to the
+/// `default_b` value the generated code supplies when the second is absent.
+/// Backs a non-embed tuple variant with one required + one trailing
+/// `#[macro_ron(default = "…")]` field (e.g. `Cast(A, b)` with `b` defaulting)
+/// — the short form `Cast(a)` reads here (indistinguishable in RON from a
+/// newtype spelling, so it needs this runtime visitor rather than the static
+/// [`Pair`] layout), the long form `Cast(a, b)` supplies the second.
+pub struct SinglePlusDefault<A, B> {
+    default_b: B,
+    _p: PhantomData<A>,
+}
+
+impl<A, B> SinglePlusDefault<A, B> {
+    #[must_use]
+    pub fn new(default_b: B) -> Self {
+        SinglePlusDefault {
+            default_b,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<'de, A, B> Visitor<'de> for SinglePlusDefault<A, B>
+where
+    A: Deserialize<'de>,
+    B: Deserialize<'de>,
+{
+    type Value = (A, B);
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a 1- or 2-element tuple variant")
+    }
+
+    fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self::Value, S::Error> {
+        let a = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let b = seq.next_element()?.unwrap_or(self.default_b);
+        Ok((a, b))
+    }
+}
+
 /// Seq visitor for a 3-field tuple variant whose LAST field is defaulted:
 /// reads two required elements then an optional third, falling back to the
 /// `default_c` value the generated code supplies when the third is absent.

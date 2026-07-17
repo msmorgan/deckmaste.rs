@@ -581,11 +581,16 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
             PlayerAction::Tap(Reference::EventObject),
         )),
     ]);
-    OneShotEffect::Act(Action::CreateReplacement {
-        replacement: Box::new(Replacement::Instead { would, instead }),
-        subject: subject_ref,
-        duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
-        one_shot: true,
+    // [CR#614.3]: the shield's subject is bound by an enclosing `With` as the
+    // singular `That`; `create_shield` freezes that resolved identity (no
+    // authored `subject:` field).
+    OneShotEffect::With(deckmaste_core::With {
+        binder: deckmaste_core::Binder::TheRef(subject_ref),
+        body: Box::new(OneShotEffect::Act(Action::CreateReplacement {
+            replacement: Box::new(Replacement::Instead { would, instead }),
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            one_shot: true,
+        })),
     })
 }
 
@@ -778,11 +783,16 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
         .card_id()
         .expect("backed by a card");
 
-    // A shield protecting the SUBJECT, created by a distinct SOURCE.
-    let OneShotEffect::Act(Action::CreateReplacement { replacement, .. }) =
-        regenerate_effect(Reference::This)
+    // A shield protecting the SUBJECT, created by a distinct SOURCE. The
+    // effect now wraps the `CreateReplacement` in a `With(TheRef(...))`; this
+    // test builds the shield instance directly, so it peels the `With` to reach
+    // the replacement (the shield's subject is set explicitly below).
+    let OneShotEffect::With(deckmaste_core::With { body, .. }) = regenerate_effect(Reference::This)
     else {
-        unreachable!("regenerate_effect builds a CreateReplacement")
+        unreachable!("regenerate_effect builds a With(TheRef, CreateReplacement)")
+    };
+    let OneShotEffect::Act(Action::CreateReplacement { replacement, .. }) = *body else {
+        unreachable!("the With body is a CreateReplacement")
     };
     state.shields.push(ReplacementInstance {
         id: InstanceId(7),

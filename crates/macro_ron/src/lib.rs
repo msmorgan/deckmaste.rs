@@ -52,6 +52,7 @@ pub use set::Params;
 pub use support::Pair;
 pub use support::PairPlusDefault;
 pub use support::PairPlusTwoDefaults;
+pub use support::SinglePlusDefault;
 pub use support::SupportsMacros;
 pub use support::Triple;
 pub use support::concat_variants;

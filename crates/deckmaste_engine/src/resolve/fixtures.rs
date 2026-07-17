@@ -228,6 +228,21 @@ pub(super) fn mint_in_hand(state: &mut GameState, owner: PlayerId, name: &str) -
     id
 }
 
+/// Mint a fully-specified card into `owner`'s hand — abilities and a printed
+/// mana cost (so a madness card is a castable creature spell). Returns its id.
+pub(super) fn mint_in_hand_with(
+    state: &mut GameState,
+    owner: PlayerId,
+    face: CardFace,
+) -> ObjectId {
+    let cid = state.cards.push(Arc::new(Card::Normal(face)), owner);
+    let id = state
+        .objects
+        .mint(ObjectSource::Card(cid), owner, Some(Zone::Hand));
+    state.zones.hands[owner.index()].push(id);
+    id
+}
+
 /// Build a one-player game whose deck holds `names` (padded with Bears so
 /// the opening draw never empties the library), force each named card onto
 /// P0's battlefield, and return their ids.

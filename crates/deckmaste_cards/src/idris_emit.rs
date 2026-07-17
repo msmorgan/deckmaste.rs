@@ -1848,7 +1848,7 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         // (casting there rides the 601 deontic-permission pipeline, `Enact
         // Cast`), so the probe records this as an unmapped gap rather than
         // data-fying an intrinsic it doesn't model.
-        PlayerAction::Cast(_) => Err(gap(
+        PlayerAction::Cast(..) => Err(gap(
             "PlayerAction::Cast (resolution-time cast-as-effect, [CR#608.2g]) has no Idris \
              OneShotEffect counterpart — Idris casts via the 601 permission pipeline",
         )),

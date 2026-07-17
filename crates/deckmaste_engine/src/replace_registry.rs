@@ -272,6 +272,53 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         }
     }
 
+    // [CR#614.5c,702.35a]: SELF-replacements on the affected object even when
+    // it is OFF the battlefield. A static replacement whose source IS the
+    // object the event affects functions from whatever zone that object is in —
+    // madness's "if a player would discard THIS card" applies from the hand,
+    // where the battlefield sweep above never looks. Restricted to an
+    // off-battlefield affected object (a battlefield one was already covered)
+    // and, structurally, to replacements the object watches on ITSELF (their
+    // `would` matches an event whose patient is this same object), so an
+    // other-watching ability idle in hand contributes nothing.
+    //
+    // The AS-ENTERS self-replacements ([CR#614.12] — "enters tapped / with
+    // counters / attached to X") are the ONE exception: a permanent's own
+    // `enters the battlefield` replacement is applied atomically at MINT
+    // (`as_enters_status`, `step.rs`) reading the reminted battlefield id, NOT
+    // through this loop (which would fire it against the pre-mint id and
+    // double-apply). Excluded here by its `to: Battlefield` destination.
+    if let Some(Affected::Object(obj)) = affected(e)
+        && !matches!(
+            e,
+            GameEvent::ZoneChange {
+                to: Zone::Battlefield,
+                ..
+            }
+        )
+        && state
+            .objects
+            .get(obj)
+            .is_some_and(|o| o.zone != Some(Zone::Battlefield))
+    {
+        let abilities = crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
+        for (ai, ability) in abilities.iter().enumerate() {
+            if let Ability::Static(StaticEffect::Replacement(r)) = ability
+                && replacement_would(state, r, obj, e)
+            {
+                out.push(Applicable {
+                    key: ReplacementKey::Static {
+                        source: obj,
+                        ability: ai,
+                        effect: 0,
+                    },
+                    effect: ApplicableEffect::Replacement((**r).clone()),
+                    source: obj,
+                });
+            }
+        }
+    }
+
     // Floating instances (regeneration shields, etc.). A shield's `subject`
     // was resolved to a concrete object when the shield was created (its
     // captured `That`), so it matches by SUBJECT IDENTITY — independent of how
