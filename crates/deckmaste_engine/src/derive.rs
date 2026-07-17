@@ -181,30 +181,48 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
 }
 
 /// The engine-internal ability enumeration of `source`, EXTENDED with the
-/// abilities conferred onto the live object `id` by predicate-scoped
-/// `ConferralRule`s ([`conferred_rule_abilities`]) — the DERIVED counterpart
-/// of [`abilities_of_source`] that the replacement gather and trigger scan
-/// read so a CONDITIONALLY-conferred replacement/triggered ability
-/// participates even off the battlefield ([CR#603.2,616.1]).
+/// abilities conferred onto the live object `id` — the DERIVED counterpart of
+/// [`abilities_of_source`] that the replacement gather and trigger scan read so
+/// a CONDITIONALLY-conferred replacement/triggered ability participates even
+/// off the battlefield ([CR#603.2,616.1]). The result is three concatenated
+/// sections:
 ///
-/// The returned `usize` is the length of the PRINTED prefix — which is
-/// byte-for-byte `abilities_of_source(source)`, so a printed ability keeps its
-/// enumeration index (the fired-trigger `(source, index)` re-read at
-/// resolution stays valid). The conferred abilities follow, `Innate`-peeled
-/// and composite-spliced the same way; they have no index-stable identity
-/// (a fired conferred trigger carries its body by value instead).
+/// 1. the PRINTED prefix — byte-for-byte `abilities_of_source(source)`, so a
+///    printed ability keeps its enumeration index (the fired-trigger `(source,
+///    index)` re-read at resolution stays valid);
+/// 2. the predicate-scoped `ConferralRule` tail ([`conferred_rule_abilities`]);
+/// 3. the LAYER-DERIVED tail — abilities the [CR#613] layer pipeline GRANTED
+///    onto `id` beyond its printed base (`state.layers().get(id).abilities`
+///    minus the printed prefix the view seeds from `instance.printed`).
+///
+/// Sections 2 and 3 both follow the index-stable prefix; they carry no
+/// index-stable identity (a fired conferred trigger carries its body by value)
+/// and are `Innate`-peeled + composite-spliced the same way. The returned
+/// `usize` is the length of section 1 only.
+///
+/// The layer-derived tail is what makes Falkenrath Gorger's printed static
+/// ("Each Vampire creature card you own that isn't on the battlefield has
+/// madness") FUNCTION: the layer view scopes it exactly — the static is active
+/// only while the Gorger is on the battlefield ([CR#611.3b]; `layer::gather`
+/// sources statics from battlefield permanents only), and its `Owner(Ref(You))`
+/// gate reaches precisely the Gorger controller's OWN off-battlefield Vampires
+/// (the `Floating` scope spans objects in every zone). So the granted `Madness`
+/// keyword lands on those cards' derived ability lists, and its spliced
+/// self-replacement opens the [CR#616.1] discard window here — no companion
+/// global `ConferralRule` (which has no source object and so cannot express the
+/// owner/Gorger gate) is needed.
 ///
 /// `id` is the live object carrying `source`; `None` (a gone/leaving object,
-/// which has no live conferrals) yields the printed list unchanged. Reaches
-/// OFF-battlefield objects: `conferred_rule_abilities` matches an id in ANY
-/// zone (the layer base map derives every card-backed object, not only
-/// battlefield ones), so an in-hand card's conferred replacement/trigger is
-/// enumerated here where `abilities_of_source` alone would miss it.
+/// which has no live conferrals or grants) yields the printed list unchanged.
+/// Reaches OFF-battlefield objects: both tails derive every card-backed object
+/// in ANY zone (the layer base map is not battlefield-only), so an in-hand
+/// card's conferred/granted replacement/trigger is enumerated here where
+/// `abilities_of_source` alone would miss it.
 ///
-/// PERF: recomputes the conferral-scope match (which may build
-/// `state.layers()`) on every call. The gather/scan are hot paths, so this
-/// is a real per-event cost — accepted under the project's perf-last
-/// priority; no caching added here.
+/// PERF: builds `state.layers()` (and, for a game with `ConferralRule`s, the
+/// conferral-scope match builds it again) on every call. The gather/scan are
+/// hot paths, so this is a real per-event cost — accepted under the project's
+/// perf-last priority; no caching added here.
 #[must_use]
 pub(crate) fn derived_abilities_of(
     state: &GameState,
@@ -214,11 +232,43 @@ pub(crate) fn derived_abilities_of(
     let mut out = abilities_of_source(state, source);
     let printed_len = out.len();
     if let Some(id) = id {
+        // Section 2: predicate-scoped `ConferralRule` grants — a global-rule
+        // mechanism SEPARATE from the layer system (never folded into
+        // `layers()`), so it does not overlap section 3.
         for conferred in conferred_rule_abilities(state, id) {
             flatten_composites(&conferred, &mut out);
         }
+        // Section 3: the layer-derived tail. Skip the printed prefix the layer
+        // view seeds from `instance.printed` (it is already section 1 in `out`,
+        // via `abilities_of_source`) and fold only the appended layer additions
+        // — Gorger-style `GainAbility` grants (and any layer-4 type/subtype
+        // conferrals). The skip count is the UNFLATTENED printed length, matching
+        // the view's unflattened prefix; a shorter derived list (an ability-
+        // stripping layer op) simply yields no tail (never-crash). Calling
+        // `layers()` here is not a cycle: `derived_abilities_of` is invoked only
+        // by the replacement gather and trigger scan, never from inside the
+        // layer pipeline, and the pipeline's own matcher (`matches_derived`)
+        // never re-enters `layers()`.
+        if let Some(chars) = state.layers().try_get(id) {
+            for granted in chars.abilities.iter().skip(printed_base_len(state, id)) {
+                flatten_composites(granted, &mut out);
+            }
+        }
     }
     (out, printed_len)
+}
+
+/// The count of a live object's UNFLATTENED printed abilities — the length of
+/// the prefix `layer::base_values` seeds the derived ability list from
+/// (`instance.printed`) before any layer op appends. [`derived_abilities_of`]
+/// skips exactly this many entries of the layer view to isolate the
+/// layer-granted tail. A non-card-backed / absent id contributes 0.
+fn printed_base_len(state: &GameState, id: ObjectId) -> usize {
+    state
+        .objects
+        .get(id)
+        .and_then(crate::object::GameObject::card_id)
+        .map_or(0, |card| state.cards.get(card).printed.len())
 }
 
 /// Splice a composite keyword's members into `out` (recursively — a

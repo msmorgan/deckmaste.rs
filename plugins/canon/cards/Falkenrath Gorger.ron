@@ -1,23 +1,22 @@
-// waiver: the conferral's two-sentence oracle phrasing ("Each Vampire creature
-// card you own that isn't on the battlefield has madness. The madness cost is
-// equal to its mana cost.") is beyond the renderer. The `Each(SelectAll(..),
-// GainAbility(Keyword(Madness(ManaCostOf(..)))))` grant renders as the bare
-// anthem "All creatures have madness." — the renderer drops the complex
+// waiver: the two-sentence oracle phrasing ("Each Vampire creature card you own
+// that isn't on the battlefield has madness. The madness cost is equal to its
+// mana cost.") is beyond the renderer. The `Each(SelectAll(..),
+// GainAbility(Keyword(Madness(ManaCostOf(..)))))` static below renders as the
+// bare anthem "All creatures have madness." — the renderer drops the complex
 // SelectAll scope (Vampire ∧ owned-by-you ∧ off-battlefield) to "All", omits
 // the `ManaCostOf` madness cost, and has no second cost sentence.
 //
-// The card static below is the FAITHFUL model of the printed ability and is
-// what renders on the card. Its FUNCTIONAL half — the madness self-replacement
-// actually firing when an owned off-battlefield Vampire is discarded — rides a
-// companion `rules/grant/` ConferralRule (`falkenrath-gorger-madness.ron`): the
-// engine gathers conditionally-conferred replacement/triggered abilities from
-// predicate-scoped ConferralRules (`derive::derived_abilities_of`), not from a
-// layer-view `GainAbility` grant, so the grant alone would render but never
-// open the [CR#616.1] discard window. The ConferralRule scope is unconditional
-// (no "you own" / "a Gorger is on the battlefield" gate — a ConferralRule has
-// no source object to anchor "you", and a `Where(..)` scope has no carrier so
-// it can't reference Gorger); this is the conferral machinery's documented
-// global-rule limitation, acceptable for canon madness coverage.
+// The card static is BOTH the faithful printed-text model AND the sole
+// functional source. The engine's derived-ability enumeration
+// (`derive::derived_abilities_of`, read by the replacement gather and trigger
+// scan) folds in the [CR#613] layer view's granted abilities, so the madness
+// this static grants — scoped exactly right by the layer system: active only
+// while the Gorger is on the battlefield ([CR#611.3b]), reaching only its
+// controller's OWN off-battlefield Vampires via `Owner(Ref(You))` — opens the
+// [CR#616.1] discard window on those cards. No companion global `ConferralRule`
+// is used: a `ConferralRule` has no source object, so it could express neither
+// the "you own" nor the "while a Gorger is on the battlefield" gate and would
+// leak madness to every off-battlefield Vampire in the game.
 Normal(
   name: "Falkenrath Gorger",
   mana_cost: [
@@ -31,8 +30,13 @@ Normal(
     Berserker,
   ],
   abilities: [
+    // "Vampire creature CARD you own that isn't on the battlefield" — a creature
+    // card in any non-battlefield zone, NOT a creature permanent, so the scope
+    // uses the zone-agnostic `Type("Creature")` atom rather than the `Creature`
+    // filter macro (which expands to `Permanent ∧ Type Creature`, i.e. requires
+    // the battlefield and would contradict the `Not(InZone(Battlefield))` gate).
     Static(Each(
-      SelectAll(And([Creature, Subtype("Vampire"), Owner(Ref(You)), Not(InZone(Battlefield))])),
+      SelectAll(And([Type("Creature"), Subtype("Vampire"), Owner(Ref(You)), Not(InZone(Battlefield))])),
       Modify(It, GainAbility(Keyword(Madness([ManaCostOf(It)])))),
     )),
   ],

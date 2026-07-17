@@ -62,12 +62,22 @@ Beyond the six items, this feature also shipped, as one contract:
   unified `Delayed`/`Reflexive`, `Madness.ron`, and the full [CR#702.35a]
   matrix (Megrim under redirect, owner-chosen Leyline/madness order, stacked
   madness once, declined-cast graveyard move, alt-cost `{1}{R}` payment).
-- **Conferred-ability gathering (Task 10b)** — `derive::derived_abilities_of`
-  folds predicate-scoped `ConferralRule` abilities into the printed list for
-  the replacement gather (all three sweeps) and the trigger scan, so an
-  off-battlefield conferred replacement (Falkenrath Gorger's madness on an
-  in-hand Vampire) is now GATHERED, not just conferred. This shipped as part of
-  this feature.
+- **Conferred-ability gathering (Task 10b + follow-up)** —
+  `derive::derived_abilities_of` folds two tails into the printed spine for the
+  replacement gather (all three sweeps) and the trigger scan: predicate-scoped
+  `ConferralRule` abilities, and (follow-up) the [CR#613] LAYER view's granted
+  abilities beyond the printed base. The layer-tail fold is what makes
+  Falkenrath Gorger's PRINTED static ("Each Vampire creature card you own that
+  isn't on the battlefield has madness") actually function: the layer view
+  scopes it correctly (active only while Gorger is on the battlefield; reaching
+  only its controller's own off-battlefield Vampires via `Owner(Ref(You))`), so
+  the granted madness self-replacement opens the [CR#616.1] discard window on
+  exactly those cards. The card's own static is now the SOLE source (the earlier
+  scope-less companion `ConferralRule`, which would have leaked madness to every
+  off-battlefield Vampire in the game, was removed); its `SelectAll` scope was
+  also corrected from the permanent-implying `Creature` filter macro to the
+  zone-agnostic `Type("Creature")` atom (the macro's `∧ Permanent` gate
+  contradicted `Not(InZone(Battlefield))`, so the grant had matched nothing).
 - **Canon pair + idris parity** — Falkenrath Gorger and Anje's Ravager
   authored with render fidelity; `KeywordActionSpec` re-typed entity-keyed and
   `EventFilter::Act` given its `EventKind` lowering (see `idris-act-parity`).

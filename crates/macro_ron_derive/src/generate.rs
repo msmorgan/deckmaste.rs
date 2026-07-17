@@ -314,11 +314,8 @@ fn gen_kind(input: &Input, ty_name: &str) -> TokenStream {
 }
 
 /// One `from_variant` match arm for an own tagged variant.
-// The tuple-arity match arms bind field slots positionally as `a, b, c, d`,
-// mirroring the variant's own field order; renaming them would obscure that
-// correspondence. The 4-field arm plus `v` trips `many_single_char_names` on
-// current clippy (the workspace pins no toolchain), so scope the allow here.
-#[allow(clippy::many_single_char_names)]
+// The tuple-arity match arms bind field slots positionally as
+// `first`/`second`/`third`/`fourth`, mirroring the variant's own field order.
 fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
     let v_ident = &v.ident;
     let name = v_ident.to_string();
@@ -337,8 +334,8 @@ fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
             let trailing_default =
                 v.marker != Some(Marker::Embed) && fields.iter().any(|f| f.default.is_some());
             match (trailing_default, fields.as_slice()) {
-                (false, [a, b]) => {
-                    let (ta, tb) = (&a.ty, &b.ty);
+                (false, [first, second]) => {
+                    let (ta, tb) = (&first.ty, &second.ty);
                     quote! {
                         ::serde::de::VariantAccess::tuple_variant(
                             access,
@@ -348,8 +345,8 @@ fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
                         .map(|(__f0, __f1)| #ty::#v_ident(__f0, __f1))
                     }
                 }
-                (false, [a, b, c]) => {
-                    let (ta, tb, tc) = (&a.ty, &b.ty, &c.ty);
+                (false, [first, second, third]) => {
+                    let (ta, tb, tc) = (&first.ty, &second.ty, &third.ty);
                     quote! {
                         ::serde::de::VariantAccess::tuple_variant(
                             access,
@@ -362,14 +359,16 @@ fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
                 // Two required fields + one trailing-defaulted field: the short
                 // form `V(a, b)` fills the third with its default, the long
                 // form `V(a, b, c)` supplies it (`PairPlusDefault`).
-                (true, [a, b, c]) if a.default.is_none() && b.default.is_none() => {
-                    let (ta, tb, tc) = (&a.ty, &b.ty, &c.ty);
-                    let default_c = c.default.as_ref().expect("trailing default present");
+                (true, [first, second, third])
+                    if first.default.is_none() && second.default.is_none() =>
+                {
+                    let (ta, tb, tc) = (&first.ty, &second.ty, &third.ty);
+                    let default_third = third.default.as_ref().expect("trailing default present");
                     quote! {
                         ::serde::de::VariantAccess::tuple_variant(
                             access,
                             3usize,
-                            ::macro_ron::PairPlusDefault::<#ta, #tb, #tc>::new(#default_c),
+                            ::macro_ron::PairPlusDefault::<#ta, #tb, #tc>::new(#default_third),
                         )
                         .map(|(__f0, __f1, __f2)| #ty::#v_ident(__f0, __f1, __f2))
                     }
@@ -378,22 +377,22 @@ fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
                 // b)` fills both defaults, `V(a, b, c)` fills only the
                 // fourth, `V(a, b, c, d)` supplies every field
                 // (`PairPlusTwoDefaults`).
-                (true, [a, b, c, d])
-                    if a.default.is_none()
-                        && b.default.is_none()
-                        && c.default.is_some()
-                        && d.default.is_some() =>
+                (true, [first, second, third, fourth])
+                    if first.default.is_none()
+                        && second.default.is_none()
+                        && third.default.is_some()
+                        && fourth.default.is_some() =>
                 {
-                    let (ta, tb, tc, td) = (&a.ty, &b.ty, &c.ty, &d.ty);
-                    let default_c = c.default.as_ref().expect("trailing default present");
-                    let default_d = d.default.as_ref().expect("trailing default present");
+                    let (ta, tb, tc, td) = (&first.ty, &second.ty, &third.ty, &fourth.ty);
+                    let default_third = third.default.as_ref().expect("trailing default present");
+                    let default_fourth = fourth.default.as_ref().expect("trailing default present");
                     quote! {
                         ::serde::de::VariantAccess::tuple_variant(
                             access,
                             4usize,
                             ::macro_ron::PairPlusTwoDefaults::<#ta, #tb, #tc, #td>::new(
-                                #default_c,
-                                #default_d,
+                                #default_third,
+                                #default_fourth,
                             ),
                         )
                         .map(|(__f0, __f1, __f2, __f3)| #ty::#v_ident(__f0, __f1, __f2, __f3))
@@ -404,14 +403,14 @@ fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
                 // newtype in RON, so it needs the `SinglePlusDefault` runtime
                 // visitor, not the static `Pair` layout), the long form `V(a,
                 // b)` supplies it. `Cast(<ref>, [cost])`'s madness slot.
-                (true, [a, b]) if a.default.is_none() && b.default.is_some() => {
-                    let (ta, tb) = (&a.ty, &b.ty);
-                    let default_b = b.default.as_ref().expect("trailing default present");
+                (true, [first, second]) if first.default.is_none() && second.default.is_some() => {
+                    let (ta, tb) = (&first.ty, &second.ty);
+                    let default_second = second.default.as_ref().expect("trailing default present");
                     quote! {
                         ::serde::de::VariantAccess::tuple_variant(
                             access,
                             2usize,
-                            ::macro_ron::SinglePlusDefault::<#ta, #tb>::new(#default_b),
+                            ::macro_ron::SinglePlusDefault::<#ta, #tb>::new(#default_second),
                         )
                         .map(|(__f0, __f1)| #ty::#v_ident(__f0, __f1))
                     }

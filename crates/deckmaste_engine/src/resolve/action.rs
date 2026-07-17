@@ -2930,21 +2930,19 @@ mod tests {
 
     // ===== Canon madness pair (Task 11) =====
     // Behavior of the two shipped canon cards, driven against the REAL card
-    // data loaded from the canon plugin (plus its `rules/grant` conferral).
+    // data loaded from the canon plugin.
 
     /// [CR#616.1,702.35a]: STACKED madness applies once — the Falkenrath Gorger
     /// choose-one ruling with zero authored guard. A Vampire discarded from
-    /// hand that BOTH prints madness AND is granted madness by Gorger's
-    /// conferral has two applicable `Instead` self-replacements; only ONE
-    /// applies (an `Instead` replaces the discard intent entirely, so the
-    /// sibling has nothing left to match, [CR#616.1f]) — a single exile, a
-    /// single madness window.
+    /// hand that BOTH prints madness AND is granted madness by Gorger's static
+    /// (via the [CR#613] layer view, folded into the derived-ability scan) has
+    /// two applicable `Instead` self-replacements; only ONE applies (an
+    /// `Instead` replaces the discard intent entirely, so the sibling has
+    /// nothing left to match, [CR#616.1f]) — a single exile, a single madness
+    /// window.
     #[test]
     fn gorger_stacked_madness_applies_once() {
         let (mut state, _a) = bear_on_field();
-        // The real game wires the plugin's conferral rules; the bare fixture
-        // leaves them empty — install Gorger's grant explicitly.
-        state.conferral_rules = canon().conferral_rules;
         // Empty P0's opening hand (retire the cards to the library) so the
         // discard target is the only card in hand.
         for o in state.zones.hands[0].clone() {
@@ -2952,9 +2950,10 @@ mod tests {
             state.zones.libraries[0].push_back(o);
         }
         state.zones.hands[0].clear();
-        // Falkenrath Gorger on the battlefield. (Its card static also grants an
-        // INERT layer-view madness; only the companion ConferralRule is gathered
-        // by the replacement scan.)
+        // Falkenrath Gorger on the battlefield (P0's) — its card static grants
+        // madness to P0's off-battlefield Vampires through the layer view, which
+        // `derived_abilities_of` folds into the replacement scan. No conferral
+        // rules are installed: the grant is the layer path, not a global rule.
         let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap());
         // A Vampire in hand that ALSO prints its own madness — the two-source
         // stack.
@@ -2974,6 +2973,35 @@ mod tests {
             OneShotEffect::Act(Action::discard_what(Reference::This)),
             &frame,
         );
+        run_injected(&mut state);
+
+        // Two applicable madness self-replacements now surface a [CR#616.1]
+        // replacement-selection: the card's PRINTED madness and the one Gorger's
+        // static GRANTS it through the layer view. (Before the grant functioned,
+        // only the printed one applied and no choice surfaced — the stack was
+        // never actually exercised.) Both are sourced from the same
+        // off-battlefield card, so whichever applies first exiles it and the
+        // sibling then has nothing left to replace ([CR#616.1f]).
+        let Some(crate::decide::PendingDecision::ChooseReplacement {
+            chooser,
+            applicable,
+        }) = state.pending.clone()
+        else {
+            panic!("the printed + Gorger-granted madness both apply — a [CR#616.1] order choice")
+        };
+        assert_eq!(
+            chooser,
+            PlayerId(0),
+            "the discarding player chooses ([CR#616.1])"
+        );
+        assert_eq!(
+            applicable.len(),
+            2,
+            "both the printed and the Gorger-granted madness self-replacement apply"
+        );
+        state
+            .submit_decision(Decision::ReplacementChoice(applicable[0]))
+            .unwrap();
         run_injected(&mut state);
 
         let in_exile = state
@@ -2997,6 +3025,106 @@ mod tests {
         assert!(
             discarded_fact(&state, vampire),
             "the discard name-fact stands under the redirect ([CR#701.9c])"
+        );
+    }
+
+    /// A vanilla (no printed madness) Vampire creature card — its only possible
+    /// madness source is Falkenrath Gorger's conferral.
+    fn vanilla_vampire(name: &str) -> CardFace {
+        CardFace {
+            name: name.into(),
+            types: vec![Type::Creature.def()],
+            subtypes: vec![subtype("Vampire")],
+            ..CardFace::default()
+        }
+    }
+
+    /// Whether the layer view grants `id` a madness-shaped self-replacement —
+    /// flatten the derived ability list (splicing the granted `Madness`
+    /// composite keyword) and look for its `Static(Replacement)` member.
+    fn grants_madness_replacement(
+        view: &crate::layer::LayeredView,
+        id: crate::object::ObjectId,
+    ) -> bool {
+        let mut flat = Vec::new();
+        for a in view.get(id).abilities.iter() {
+            crate::derive::flatten_composites(a, &mut flat);
+        }
+        flat.iter()
+            .any(|a| matches!(a, Ability::Static(StaticEffect::Replacement(_))))
+    }
+
+    /// [CR#613,616.1,702.35a]: Falkenrath Gorger's printed static grants madness
+    /// through the [CR#613] LAYER view, scoped exactly — active only while the
+    /// Gorger is on the battlefield ([CR#611.3b]) and reaching only its
+    /// CONTROLLER'S OWN off-battlefield Vampires (`Owner(Ref(You))`). Two
+    /// players each hold a vanilla off-battlefield Vampire; only P0
+    /// controls a Gorger. The layer view's derived ability list gains the
+    /// madness self-replacement for P0's Vampire ONLY — proving the grant
+    /// does not leak to every off-battlefield Vampire in the game (the bug
+    /// a scope-less global `ConferralRule` would cause).
+    #[test]
+    fn gorger_madness_grant_is_owner_scoped_in_the_layer_view() {
+        let (mut state, _a) = bear_on_field();
+        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap());
+        let mine = mint_in_hand_with(&mut state, PlayerId(0), vanilla_vampire("P0 Vampire"));
+        let theirs = mint_in_hand_with(&mut state, PlayerId(1), vanilla_vampire("P1 Vampire"));
+
+        let view = state.layers();
+        assert!(
+            grants_madness_replacement(&view, mine),
+            "P0's off-battlefield Vampire gains Gorger's madness self-replacement \
+             via the layer view (its owner controls the Gorger)"
+        );
+        assert!(
+            !grants_madness_replacement(&view, theirs),
+            "P1's off-battlefield Vampire does NOT gain madness — the grant is \
+             owner-scoped ([CR#613], `Owner(Ref(You))`), not a global leak"
+        );
+    }
+
+    /// [CR#616.1,702.35a]: the behavioral proof of owner-scoping, through the
+    /// wired derived-ability replacement scan (`derived_abilities_of` folding
+    /// the layer-granted madness). Only P0 controls a Gorger; both players
+    /// discard their off-battlefield Vampire. P0's opens the [CR#616.1]
+    /// madness window and exiles; P1's has no window and falls to the
+    /// graveyard — the grant reaches exactly the Gorger controller's own
+    /// cards.
+    #[test]
+    fn gorger_madness_window_opens_only_for_its_controllers_vampire() {
+        let (mut state, _a) = bear_on_field();
+        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap());
+        let mine = mint_in_hand_with(&mut state, PlayerId(0), vanilla_vampire("P0 Vampire"));
+        let theirs = mint_in_hand_with(&mut state, PlayerId(1), vanilla_vampire("P1 Vampire"));
+
+        // Discard P0's Vampire: the conferred madness self-replacement redirects
+        // its Hand → Graveyard to Exile ([CR#702.35a]).
+        let frame = frame_src(mine);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+        // Discard P1's Vampire: P1 controls no Gorger, so no window opens.
+        let frame = frame_src(theirs);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "P0 Vampire"),
+            "P0's Vampire (owner controls the Gorger) opened the madness window \
+             and exiled ([CR#702.35a])"
+        );
+        assert!(
+            zone_has_named(&state, &state.zones.graveyards[1], "P1 Vampire"),
+            "P1's Vampire fell to the graveyard — no Gorger of P1's, no window"
+        );
+        assert!(
+            !zone_has_named(&state, &state.zones.exile, "P1 Vampire"),
+            "P1's Vampire did NOT exile — the grant did not leak across owners"
         );
     }
 

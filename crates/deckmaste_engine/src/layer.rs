@@ -162,6 +162,17 @@ impl LayeredView {
         self.entry(id).controller
     }
 
+    /// Like [`get`](Self::get) but returns `None` for an id ABSENT from the
+    /// view (a gone/leaving object) instead of panicking. The derived-ability
+    /// fold ([`crate::derive::derived_abilities_of`]) consults this
+    /// defensively: its callers pass live, card-backed ids (every one is in
+    /// `base_map`), but a never-crash read is cheaper to reason about than
+    /// a liveness precondition.
+    #[must_use]
+    pub(crate) fn try_get(&self, id: ObjectId) -> Option<&Characteristics> {
+        self.0.get(&id).map(|d| &d.characteristics)
+    }
+
     fn entry(&self, id: ObjectId) -> &DerivedObject {
         self.0.get(&id).expect("live ObjectId in LayeredView")
     }
