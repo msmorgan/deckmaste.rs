@@ -26,15 +26,40 @@ impl Location {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SymbolKind {
+    Card,
+    Macro,
+    Keyword,
+    AbilityWord,
+    RustType,
+}
+
+#[derive(Debug)]
+pub struct Symbol {
+    pub name: String,
+    pub container: String,
+    pub kind: SymbolKind,
+    pub location: Location,
+    pub detail: Option<String>,
+}
+
 #[derive(Default)]
 pub struct WorkspaceIndex {
     definitions: HashMap<String, Vec<Location>>,
+    symbols: Vec<Symbol>,
+    symbol_index: HashMap<String, usize>,
 }
 
 impl WorkspaceIndex {
     pub fn build(root: &Path) -> Self {
         let mut index = Self::default();
-        index.scan_macros(&root.join("plugins"));
+        let plugins = root.join("plugins");
+        index.scan_cards(&plugins);
+        index.scan_macros(&plugins);
+        index.scan_named(&plugins, "keyword_abilities", SymbolKind::Keyword);
+        index.scan_named(&plugins, "keyword_actions", SymbolKind::Keyword);
+        index.scan_named(&plugins, "ability_words", SymbolKind::AbilityWord);
         index.scan_rust(&root.join("crates/deckmaste_core/src"));
         index
     }
@@ -43,16 +68,77 @@ impl WorkspaceIndex {
         self.definitions.get(name).map_or(&[], Vec::as_slice)
     }
 
-    fn scan_macros(&mut self, root: &Path) {
-        for path in files_recursive(root, "ron") {
+    pub fn symbol(&self, name: &str) -> Option<&Symbol> {
+        self.symbol_index.get(name).map(|&i| &self.symbols[i])
+    }
+
+    /// Case-insensitive substring match against symbol name OR container, so a
+    /// container query (e.g. `wizards/cards`) lists a plugin's contents.
+    pub fn search(&self, query: &str) -> Vec<&Symbol> {
+        let needle = query.to_lowercase();
+        self.symbols
+            .iter()
+            .filter(|symbol| {
+                symbol.name.to_lowercase().contains(&needle)
+                    || symbol.container.to_lowercase().contains(&needle)
+            })
+            .collect()
+    }
+
+    /// Cards are indexed by filename stem only — no file reads — so this stays
+    /// cheap across a plugin's tens of thousands of card files.
+    fn scan_cards(&mut self, plugins: &Path) {
+        for plugin in subdirs(plugins) {
+            let Ok(entries) = fs::read_dir(plugin.join("cards")) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let Some(name) = card_stem(&path) else {
+                    continue;
+                };
+                let container = container_for(plugins, &path, "cards");
+                self.push_symbol(name, container, SymbolKind::Card, top_location(&path), None);
+            }
+        }
+    }
+
+    fn scan_macros(&mut self, plugins: &Path) {
+        for path in files_recursive(plugins, "ron") {
             if !path.components().any(|part| part.as_os_str() == "macros") {
                 continue;
             }
             let Ok(text) = fs::read_to_string(&path) else {
                 continue;
             };
-            if let Some((offset, name)) = macro_name(&text) {
-                self.insert(name, &path, &text, offset);
+            let Some((offset, name)) = macro_name(&text) else {
+                continue;
+            };
+            let location = span_location(&path, &text, offset, name.len());
+            let container = container_for(plugins, &path, "macros");
+            let detail = macro_details(&text);
+            self.push_symbol(
+                name.to_owned(),
+                container,
+                SymbolKind::Macro,
+                location,
+                detail,
+            );
+        }
+    }
+
+    fn scan_named(&mut self, plugins: &Path, category: &str, kind: SymbolKind) {
+        for plugin in subdirs(plugins) {
+            for path in files_recursive(&plugin.join(category), "ron") {
+                let Ok(text) = fs::read_to_string(&path) else {
+                    continue;
+                };
+                let Some((offset, name)) = macro_name(&text) else {
+                    continue;
+                };
+                let location = span_location(&path, &text, offset, name.len());
+                let container = container_for(plugins, &path, category);
+                self.push_symbol(name.to_owned(), container, kind, location, None);
             }
         }
     }
@@ -63,23 +149,146 @@ impl WorkspaceIndex {
                 continue;
             };
             for (offset, name) in rust_declarations(&text) {
-                self.insert(name, &path, &text, offset);
+                let location = span_location(&path, &text, offset, name.len());
+                self.push_symbol(
+                    name.to_owned(),
+                    "deckmaste_core".to_owned(),
+                    SymbolKind::RustType,
+                    location,
+                    None,
+                );
             }
         }
     }
 
-    fn insert(&mut self, name: &str, path: &Path, text: &str, offset: usize) {
-        let start = position_at(text, offset);
-        let end = position_at(text, offset + name.len());
+    fn push_symbol(
+        &mut self,
+        name: String,
+        container: String,
+        kind: SymbolKind,
+        location: Location,
+        detail: Option<String>,
+    ) {
         self.definitions
-            .entry(name.to_owned())
+            .entry(name.clone())
             .or_default()
-            .push(Location {
-                path: path.to_owned(),
-                start,
-                end,
-            });
+            .push(location.clone());
+        self.symbol_index.insert(name.clone(), self.symbols.len());
+        self.symbols.push(Symbol {
+            name,
+            container,
+            kind,
+            location,
+            detail,
+        });
     }
+}
+
+fn span_location(path: &Path, text: &str, offset: usize, len: usize) -> Location {
+    Location {
+        path: path.to_owned(),
+        start: position_at(text, offset),
+        end: position_at(text, offset + len),
+    }
+}
+
+fn top_location(path: &Path) -> Location {
+    let top = Position {
+        line: 0,
+        character: 0,
+    };
+    Location {
+        path: path.to_owned(),
+        start: top,
+        end: top,
+    }
+}
+
+fn subdirs(root: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut dirs: Vec<PathBuf> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
+    dirs.sort();
+    dirs
+}
+
+/// Card name for `Foo.ron` / `Foo.ron.todo`; `None` for anything else.
+fn card_stem(path: &Path) -> Option<String> {
+    let name = path.file_name()?.to_str()?;
+    let base = name
+        .strip_suffix(".ron.todo")
+        .or_else(|| name.strip_suffix(".ron"))?;
+    Some(base.to_owned())
+}
+
+/// `"<plugin>/<category>"`, plugin taken from the first path component under
+/// `plugins`.
+fn container_for(plugins: &Path, path: &Path, category: &str) -> String {
+    let plugin = path
+        .strip_prefix(plugins)
+        .ok()
+        .and_then(|rel| rel.components().next())
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .unwrap_or_default();
+    format!("{plugin}/{category}")
+}
+
+/// Preformatted hover detail for a macro: its `template` and `kinds` fields.
+fn macro_details(text: &str) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some(template) = string_field(text, "template") {
+        parts.push(format!("template: {template}"));
+    }
+    if let Some(kinds) = bracket_field(text, "kinds") {
+        parts.push(format!("kinds: {kinds}"));
+    }
+    (!parts.is_empty()).then(|| parts.join("\n"))
+}
+
+/// First `field: "…"` string value, ignoring strings and comments.
+fn string_field<'a>(text: &'a str, field: &str) -> Option<&'a str> {
+    for (offset, token) in identifiers(text) {
+        if token != field {
+            continue;
+        }
+        let tail = text.get(offset + token.len()..)?;
+        let quote = tail.find('"')?;
+        let rest = &tail[quote + 1..];
+        let end = rest.find('"')?;
+        return Some(&rest[..end]);
+    }
+    None
+}
+
+/// First `field: [ … ]` bracketed value (inclusive of the brackets).
+fn bracket_field<'a>(text: &'a str, field: &str) -> Option<&'a str> {
+    for (offset, token) in identifiers(text) {
+        if token != field {
+            continue;
+        }
+        let tail = text.get(offset + token.len()..)?;
+        let open = tail.find('[')?;
+        let mut depth = 0_usize;
+        for (i, ch) in tail[open..].char_indices() {
+            match ch {
+                '[' => depth += 1,
+                ']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(&tail[open..=open + i]);
+                    }
+                }
+                _ => {}
+            }
+        }
+        return None;
+    }
+    None
 }
 
 fn macro_name(text: &str) -> Option<(usize, &str)> {
@@ -162,8 +371,102 @@ fn files_recursive(root: &Path, extension: &str) -> Vec<PathBuf> {
 }
 
 #[cfg(test)]
+struct TempTree {
+    path: PathBuf,
+}
+
+#[cfg(test)]
+impl TempTree {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+#[cfg(test)]
+impl Drop for TempTree {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+/// Materialize `(relative_path, contents)` pairs under a unique temp dir.
+/// Uniqueness comes from pid + a process-local counter — no clock, no RNG
+/// (both are unavailable in this crate's test environment constraints).
+#[cfg(test)]
+fn tempdir_with(files: &[(&str, &str)]) -> TempTree {
+    use std::sync::atomic::AtomicU32;
+    use std::sync::atomic::Ordering;
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let root = std::env::temp_dir().join(format!("ron_lsp_test_{}_{n}", std::process::id()));
+    for (relative, contents) in files {
+        let path = root.join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, contents).unwrap();
+    }
+    TempTree { path: root }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn indexes_cards_by_filename_with_container() {
+        let dir = tempdir_with(&[
+            (
+                "plugins/wizards/cards/Quillspike.ron.todo",
+                "Normal(name: \"Quillspike\")",
+            ),
+            (
+                "plugins/builtin/macros/cost/SacrificeThis.ron",
+                "(name: \"SacrificeThis\", template: \"Sacrifice this permanent\", kinds: [CostComponent])",
+            ),
+        ]);
+        let index = WorkspaceIndex::build(dir.path());
+
+        let card = index.symbol("Quillspike").expect("card symbol");
+        assert_eq!(card.name, "Quillspike");
+        assert_eq!(card.kind, SymbolKind::Card);
+        assert_eq!(card.container, "wizards/cards");
+        assert!(card.location.to_lsp().is_some());
+
+        let mac = index.symbol("SacrificeThis").expect("macro symbol");
+        assert_eq!(mac.kind, SymbolKind::Macro);
+        assert_eq!(mac.container, "builtin/macros");
+        assert!(
+            mac.detail
+                .as_deref()
+                .unwrap()
+                .contains("Sacrifice this permanent")
+        );
+    }
+
+    #[test]
+    fn workspace_search_matches_name_and_container() {
+        let dir = tempdir_with(&[
+            (
+                "plugins/wizards/cards/Quillspike.ron.todo",
+                "Normal(name: \"Quillspike\")",
+            ),
+            (
+                "plugins/wizards/cards/Crawlspace.ron.todo",
+                "Normal(name: \"Crawlspace\")",
+            ),
+        ]);
+        let index = WorkspaceIndex::build(dir.path());
+
+        let by_name: Vec<_> = index
+            .search("quill")
+            .iter()
+            .map(|symbol| symbol.name.as_str())
+            .collect();
+        assert_eq!(by_name, ["Quillspike"]);
+
+        // A container query lists every card in the plugin.
+        assert_eq!(index.search("wizards/cards").len(), 2);
+    }
 
     #[test]
     fn locates_macro_name() {

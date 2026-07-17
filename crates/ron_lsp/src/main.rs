@@ -19,20 +19,33 @@ use lsp_types::DocumentHighlight;
 use lsp_types::DocumentHighlightParams;
 use lsp_types::GotoDefinitionParams;
 use lsp_types::GotoDefinitionResponse;
+use lsp_types::Hover;
+use lsp_types::HoverContents;
+use lsp_types::HoverParams;
+use lsp_types::HoverProviderCapability;
 use lsp_types::InitializeParams;
+use lsp_types::MarkupContent;
+use lsp_types::MarkupKind;
 use lsp_types::OneOf;
 use lsp_types::ServerCapabilities;
+use lsp_types::SymbolInformation;
+use lsp_types::SymbolKind as LspSymbolKind;
 use lsp_types::TextDocumentSyncCapability;
 use lsp_types::TextDocumentSyncKind;
 use lsp_types::Uri;
+use lsp_types::WorkspaceSymbolParams;
+use lsp_types::WorkspaceSymbolResponse;
 use lsp_types::notification::DidChangeTextDocument;
 use lsp_types::notification::DidOpenTextDocument;
 use lsp_types::notification::Notification as _;
 use lsp_types::request::DocumentHighlightRequest;
 use lsp_types::request::GotoDefinition;
+use lsp_types::request::HoverRequest;
 use lsp_types::request::Request as _;
+use lsp_types::request::WorkspaceSymbolRequest;
 
 use crate::binding::document_highlights;
+use crate::workspace::SymbolKind;
 use crate::workspace::WorkspaceIndex;
 
 /// JSON-RPC "method not found" error code.
@@ -58,6 +71,8 @@ fn server_capabilities() -> ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
         definition_provider: Some(OneOf::Left(true)),
         document_highlight_provider: Some(OneOf::Left(true)),
+        workspace_symbol_provider: Some(OneOf::Left(true)),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
     }
 }
@@ -122,6 +137,14 @@ impl Server {
                 let (id, params) = cast::<DocumentHighlightRequest>(request)?;
                 Some(ok(id, self.highlights(&params)))
             }
+            WorkspaceSymbolRequest::METHOD => {
+                let (id, params) = cast::<WorkspaceSymbolRequest>(request)?;
+                Some(ok(id, self.workspace_symbols(&params)))
+            }
+            HoverRequest::METHOD => {
+                let (id, params) = cast::<HoverRequest>(request)?;
+                Some(ok(id, self.hover(&params)))
+            }
             _ => Some(Response::new_err(
                 id,
                 METHOD_NOT_FOUND,
@@ -174,6 +197,60 @@ impl Server {
             convert::src_position(pos.position),
         ))
     }
+
+    #[expect(
+        deprecated,
+        reason = "SymbolInformation::deprecated is a required field with no non-deprecated form"
+    )]
+    fn workspace_symbols(&self, params: &WorkspaceSymbolParams) -> Option<WorkspaceSymbolResponse> {
+        let index = self.index.as_ref()?;
+        let infos: Vec<SymbolInformation> = index
+            .search(&params.query)
+            .into_iter()
+            .filter_map(|symbol| {
+                Some(SymbolInformation {
+                    name: symbol.name.clone(),
+                    kind: lsp_symbol_kind(symbol.kind),
+                    tags: None,
+                    deprecated: None,
+                    location: symbol.location.to_lsp()?,
+                    container_name: Some(symbol.container.clone()),
+                })
+            })
+            .collect();
+        Some(WorkspaceSymbolResponse::Flat(infos))
+    }
+
+    fn hover(&self, params: &HoverParams) -> Option<Hover> {
+        let pos = &params.text_document_position_params;
+        let text = self.documents.get(&pos.text_document.uri)?;
+        let name = source::word_at(text, convert::src_position(pos.position))?;
+        let symbol = self.index.as_ref()?.symbol(name)?;
+        Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: hover_markdown(&symbol.name, &symbol.container, symbol.detail.as_deref()),
+            }),
+            range: None,
+        })
+    }
+}
+
+fn hover_markdown(name: &str, container: &str, detail: Option<&str>) -> String {
+    let body = detail
+        .map(|detail| format!("\n\n```\n{detail}\n```"))
+        .unwrap_or_default();
+    format!("**{name}**  \n`{container}`{body}")
+}
+
+fn lsp_symbol_kind(kind: SymbolKind) -> LspSymbolKind {
+    match kind {
+        SymbolKind::Card => LspSymbolKind::STRUCT,
+        SymbolKind::Macro => LspSymbolKind::FUNCTION,
+        SymbolKind::Keyword => LspSymbolKind::KEY,
+        SymbolKind::AbilityWord => LspSymbolKind::CONSTANT,
+        SymbolKind::RustType => LspSymbolKind::CLASS,
+    }
 }
 
 fn cast<R>(request: Request) -> Option<(RequestId, R::Params)>
@@ -216,5 +293,17 @@ mod tests {
             uri_to_path(&"file:///tmp/a%20b".parse::<Uri>().unwrap()),
             Some(PathBuf::from("/tmp/a b"))
         );
+    }
+
+    #[test]
+    fn hover_markdown_for_macro() {
+        let md = hover_markdown(
+            "SacrificeThis",
+            "builtin/macros",
+            Some("template: Sacrifice this permanent\nkinds: [CostComponent]"),
+        );
+        assert!(md.contains("SacrificeThis"));
+        assert!(md.contains("Sacrifice this permanent"));
+        assert!(md.contains("builtin/macros"));
     }
 }
