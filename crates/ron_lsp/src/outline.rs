@@ -76,8 +76,21 @@ fn abilities_span(text: &str) -> Option<(usize, usize)> {
         let after = offset + token.len();
         let open = after + text[after..].find('[')?;
         let mut depth = 0_usize;
+        let mut in_string = false;
+        let mut escaped = false;
         for (i, ch) in text[open..].char_indices() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
             match ch {
+                '"' => in_string = true,
                 '[' => depth += 1,
                 ']' => {
                     depth -= 1;
@@ -139,6 +152,17 @@ mod tests {
         let symbols = document_symbols(text);
         assert_eq!(symbols.len(), 1);
         assert_eq!(symbols[0].name, "Quillspike");
+        let children = symbols[0].children.as_ref().unwrap();
+        let names: Vec<_> = children.iter().map(|child| child.name.as_str()).collect();
+        assert_eq!(names, ["Unparsed", "Static"]);
+    }
+
+    #[test]
+    fn unbalanced_bracket_in_ability_string_is_ignored() {
+        // A lone `]` inside an ability's reminder text must not be mistaken for
+        // the close of the abilities list.
+        let text = "Normal(\n  name: \"C\",\n  abilities: [\n    Unparsed(\"a ] b\"),\n    Static(Flying),\n  ],\n)\n";
+        let symbols = document_symbols(text);
         let children = symbols[0].children.as_ref().unwrap();
         let names: Vec<_> = children.iter().map(|child| child.name.as_str()).collect();
         assert_eq!(names, ["Unparsed", "Static"]);

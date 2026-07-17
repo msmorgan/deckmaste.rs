@@ -51,6 +51,47 @@ pub fn word_at(text: &str, position: Position) -> Option<&str> {
     (start < end).then_some(&text[start..end])
 }
 
+/// The contents of the string literal the position sits inside (excluding the
+/// surrounding quotes), if any. Lets cursor-driven lookups resolve multi-word
+/// card names like `"Faramir, Steward of Gondor"`, which `word_at` can't — it
+/// stops at the first space/comma.
+pub fn quoted_string_at(text: &str, position: Position) -> Option<&str> {
+    let target = offset_at(text, position)?;
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    let mut in_line_comment = false;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if in_line_comment {
+            if byte == b'\n' {
+                in_line_comment = false;
+            }
+            i += 1;
+        } else if byte == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            in_line_comment = true;
+            i += 2;
+        } else if byte == b'"' {
+            let content_start = i + 1;
+            let mut j = content_start;
+            while j < bytes.len() {
+                match bytes[j] {
+                    b'\\' => j += 2,
+                    b'"' => break,
+                    _ => j += 1,
+                }
+            }
+            let content_end = j.min(bytes.len());
+            if target >= content_start && target < content_end {
+                return text.get(content_start..content_end);
+            }
+            i = content_end + 1;
+        } else {
+            i += 1;
+        }
+    }
+    None
+}
+
 pub fn identifiers(text: &str) -> impl Iterator<Item = (usize, &str)> {
     let mut found = Vec::new();
     let mut chars = text.char_indices().peekable();
@@ -153,6 +194,22 @@ mod tests {
             ),
             Some("AnyTarget")
         );
+    }
+
+    #[test]
+    fn quoted_string_spans_a_multi_word_name() {
+        // Cursor on the space inside the quoted card name resolves the whole
+        // literal, where word_at would only see "Faramir" or "Steward".
+        let text = "Normal(name: \"Faramir, Steward of Gondor\")";
+        let cursor = text.find("Steward").unwrap();
+        let position = position_at(text, cursor);
+        assert_eq!(
+            quoted_string_at(text, position),
+            Some("Faramir, Steward of Gondor")
+        );
+        // Outside any string → None.
+        let outside = position_at(text, text.find("Normal").unwrap());
+        assert_eq!(quoted_string_at(text, outside), None);
     }
 
     #[test]

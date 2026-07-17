@@ -51,7 +51,10 @@ pub struct Symbol {
 pub struct WorkspaceIndex {
     definitions: HashMap<String, Vec<Location>>,
     symbols: Vec<Symbol>,
-    symbol_index: HashMap<String, usize>,
+    /// Name → every symbol scanned under it (a name can be defined more than
+    /// once, e.g. a kind-scoped macro that is both a `Predicate` and a
+    /// `TargetSpec`). Last-wins would silently hide the siblings.
+    symbol_index: HashMap<String, Vec<usize>>,
     root: PathBuf,
     /// Reverse index (name → use sites), built lazily on the first `references`
     /// request so startup never reads the full card corpus.
@@ -78,8 +81,24 @@ impl WorkspaceIndex {
         self.definitions.get(name).map_or(&[], Vec::as_slice)
     }
 
-    pub fn symbol(&self, name: &str) -> Option<&Symbol> {
-        self.symbol_index.get(name).map(|&i| &self.symbols[i])
+    /// Every symbol registered under `name` (see [`Self::symbol_index`]).
+    pub fn symbols_named(&self, name: &str) -> Vec<&Symbol> {
+        self.symbol_index
+            .get(name)
+            .map_or_else(Vec::new, |indices| {
+                indices.iter().map(|&i| &self.symbols[i]).collect()
+            })
+    }
+
+    /// Whether `name` is a known symbol or definition — used to pick between a
+    /// bare-identifier and a quoted-string reading of the cursor.
+    pub fn knows(&self, name: &str) -> bool {
+        self.symbol_index.contains_key(name) || self.definitions.contains_key(name)
+    }
+
+    /// Drop the cached reverse index so the next `references` call rebuilds it.
+    pub fn invalidate_uses(&mut self) {
+        self.uses = None;
     }
 
     /// Case-insensitive substring match against symbol name OR container, so a
@@ -219,7 +238,10 @@ impl WorkspaceIndex {
             .entry(name.clone())
             .or_default()
             .push(location.clone());
-        self.symbol_index.insert(name.clone(), self.symbols.len());
+        self.symbol_index
+            .entry(name.clone())
+            .or_default()
+            .push(self.symbols.len());
         self.symbols.push(Symbol {
             name,
             container,
@@ -460,13 +482,15 @@ mod tests {
         ]);
         let index = WorkspaceIndex::build(dir.path());
 
-        let card = index.symbol("Quillspike").expect("card symbol");
+        let cards = index.symbols_named("Quillspike");
+        let card = cards.first().expect("card symbol");
         assert_eq!(card.name, "Quillspike");
         assert_eq!(card.kind, SymbolKind::Card);
         assert_eq!(card.container, "wizards/cards");
         assert!(card.location.to_lsp().is_some());
 
-        let mac = index.symbol("SacrificeThis").expect("macro symbol");
+        let macros = index.symbols_named("SacrificeThis");
+        let mac = macros.first().expect("macro symbol");
         assert_eq!(mac.kind, SymbolKind::Macro);
         assert_eq!(mac.container, "builtin/macros");
         assert!(
@@ -500,6 +524,24 @@ mod tests {
 
         // A container query lists every card in the plugin.
         assert_eq!(index.search("wizards/cards").len(), 2);
+    }
+
+    #[test]
+    fn symbols_named_keeps_all_definitions() {
+        let dir = tempdir_with(&[
+            (
+                "plugins/builtin/macros/target/AnyTarget.ron",
+                "(name: \"AnyTarget\", kinds: [TargetSpec])",
+            ),
+            (
+                "plugins/builtin/macros/filter/AnyTarget.ron",
+                "(name: \"AnyTarget\", kinds: [Predicate])",
+            ),
+        ]);
+        let index = WorkspaceIndex::build(dir.path());
+        assert_eq!(index.symbols_named("AnyTarget").len(), 2);
+        assert!(index.knows("AnyTarget"));
+        assert!(!index.knows("Nonexistent"));
     }
 
     #[test]

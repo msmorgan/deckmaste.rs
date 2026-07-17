@@ -15,9 +15,17 @@ Code's built-in `LSP` tool.
 | `workspace/symbol` | Fuzzy search over every indexed symbol by **name or container**. Because each symbol carries a `containerName` of `"<plugin>/<category>"`, a query like `wizards/cards` (or just `wizards`) **lists that plugin's contents**. |
 | `textDocument/documentHighlight` | The lexical `It` scopes introduced by `Each`, `Distribute`, `RevealUntil`, and `Where`. Selecting the binder or a bound `It` highlights the source and all uses in that scope; nested binders shadow outer ones. |
 
+Cursor-driven lookups (definition, references, hover) read the bare identifier
+under the cursor, falling back to the enclosing string literal when that isn't a
+known symbol — so a cursor anywhere inside `name: "Faramir, Steward of Gondor"`
+resolves the whole card name, not just `Steward`. Where a name has several
+definitions (kind-scoped macros like `AnyTarget`), all of them are returned.
+
 Indexing is cheap at startup: cards are indexed by **filename** only (no file
 reads), while the few hundred macro / keyword / ability-word / Rust files are
-content-scanned. `goToImplementation` and call hierarchy are intentionally not
+content-scanned. The `references` reverse index is dropped whenever a document
+opens or changes, so it rebuilds against current files rather than serving a
+stale answer. `goToImplementation` and call hierarchy are intentionally not
 advertised — the card DSL has no matching notion.
 
 ## Running standalone
