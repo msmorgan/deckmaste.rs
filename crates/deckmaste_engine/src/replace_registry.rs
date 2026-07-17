@@ -272,11 +272,12 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         }
     }
 
-    // [CR#614.5c,702.35a]: SELF-replacements on the affected object even when
-    // it is OFF the battlefield. A static replacement whose source IS the
-    // object the event affects functions from whatever zone that object is in —
-    // madness's "if a player would discard THIS card" applies from the hand,
-    // where the battlefield sweep above never looks. Restricted to an
+    // [CR#702.35a]: SELF-replacements on the affected object even when it is
+    // OFF the battlefield. A static replacement whose source IS the object
+    // the event affects functions from whatever zone that object is in —
+    // madness's static ability ("if a player would discard THIS card")
+    // functions while the card is in a player's hand, which the battlefield
+    // sweep above never looks at. Restricted to an
     // off-battlefield affected object (a battlefield one was already covered)
     // and, structurally, to replacements the object watches on ITSELF (their
     // `would` matches an event whose patient is this same object), so an
