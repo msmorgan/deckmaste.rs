@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -51,11 +52,18 @@ pub struct WorkspaceIndex {
     definitions: HashMap<String, Vec<Location>>,
     symbols: Vec<Symbol>,
     symbol_index: HashMap<String, usize>,
+    root: PathBuf,
+    /// Reverse index (name → use sites), built lazily on the first `references`
+    /// request so startup never reads the full card corpus.
+    uses: Option<HashMap<String, Vec<Location>>>,
 }
 
 impl WorkspaceIndex {
     pub fn build(root: &Path) -> Self {
-        let mut index = Self::default();
+        let mut index = Self {
+            root: root.to_owned(),
+            ..Self::default()
+        };
         let plugins = root.join("plugins");
         index.scan_cards(&plugins);
         index.scan_macros(&plugins);
@@ -85,6 +93,42 @@ impl WorkspaceIndex {
                     || symbol.container.to_lowercase().contains(&needle)
             })
             .collect()
+    }
+
+    /// Use sites of `name` across card and macro files. The reverse index is
+    /// built on the first call and cached, and only tracks identifiers that are
+    /// known symbols — bounding memory across the full card corpus.
+    pub fn references(&mut self, name: &str) -> &[Location] {
+        if self.uses.is_none() {
+            let built = self.build_uses();
+            self.uses = Some(built);
+        }
+        match &self.uses {
+            Some(uses) => uses.get(name).map_or(&[], Vec::as_slice),
+            None => &[],
+        }
+    }
+
+    fn build_uses(&self) -> HashMap<String, Vec<Location>> {
+        let known: HashSet<&str> = self
+            .symbols
+            .iter()
+            .map(|symbol| symbol.name.as_str())
+            .collect();
+        let mut uses: HashMap<String, Vec<Location>> = HashMap::new();
+        for path in card_and_macro_files(&self.root) {
+            let Ok(text) = fs::read_to_string(&path) else {
+                continue;
+            };
+            for (offset, token) in identifiers(&text) {
+                if known.contains(token) {
+                    uses.entry(token.to_owned())
+                        .or_default()
+                        .push(span_location(&path, &text, offset, token.len()));
+                }
+            }
+        }
+        uses
     }
 
     /// Cards are indexed by filename stem only — no file reads — so this stays
@@ -331,6 +375,35 @@ fn files_recursive(root: &Path, extension: &str) -> Vec<PathBuf> {
     files
 }
 
+/// Card files (`.ron` / `.ron.todo` under a `cards` dir) and macro files
+/// (`.ron` under a `macros` dir) beneath `plugins/`. Directory entries only —
+/// contents are read by the caller.
+fn card_and_macro_files(root: &Path) -> Vec<PathBuf> {
+    let mut pending = vec![root.join("plugins")];
+    let mut files = Vec::new();
+    while let Some(dir) = pending.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            let in_cards = path.components().any(|part| part.as_os_str() == "cards");
+            let in_macros = path.components().any(|part| part.as_os_str() == "macros");
+            let is_card = in_cards && card_stem(&path).is_some();
+            let is_macro = in_macros && path.extension().is_some_and(|ext| ext == "ron");
+            if is_card || is_macro {
+                files.push(path);
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
 #[cfg(test)]
 struct TempTree {
     path: PathBuf,
@@ -427,6 +500,28 @@ mod tests {
 
         // A container query lists every card in the plugin.
         assert_eq!(index.search("wizards/cards").len(), 2);
+    }
+
+    #[test]
+    fn references_finds_macro_uses_lazily() {
+        let dir = tempdir_with(&[
+            (
+                "plugins/builtin/macros/cost/SacrificeThis.ron",
+                "(name: \"SacrificeThis\", template: \"x\", kinds: [C])",
+            ),
+            (
+                "plugins/builtin/cards/A.ron",
+                "Normal(name: \"A\", body: Do(SacrificeThis))",
+            ),
+            (
+                "plugins/builtin/cards/B.ron",
+                "Normal(name: \"B\", body: Do(SacrificeThis))",
+            ),
+        ]);
+        let mut index = WorkspaceIndex::build(dir.path());
+        assert_eq!(index.references("SacrificeThis").len(), 2);
+        // Cached: a second call returns the same result.
+        assert_eq!(index.references("SacrificeThis").len(), 2);
     }
 
     #[test]

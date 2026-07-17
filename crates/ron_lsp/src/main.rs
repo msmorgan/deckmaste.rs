@@ -27,9 +27,11 @@ use lsp_types::HoverContents;
 use lsp_types::HoverParams;
 use lsp_types::HoverProviderCapability;
 use lsp_types::InitializeParams;
+use lsp_types::Location as LspLocation;
 use lsp_types::MarkupContent;
 use lsp_types::MarkupKind;
 use lsp_types::OneOf;
+use lsp_types::ReferenceParams;
 use lsp_types::ServerCapabilities;
 use lsp_types::SymbolInformation;
 use lsp_types::SymbolKind as LspSymbolKind;
@@ -45,6 +47,7 @@ use lsp_types::request::DocumentHighlightRequest;
 use lsp_types::request::DocumentSymbolRequest;
 use lsp_types::request::GotoDefinition;
 use lsp_types::request::HoverRequest;
+use lsp_types::request::References;
 use lsp_types::request::Request as _;
 use lsp_types::request::WorkspaceSymbolRequest;
 
@@ -78,6 +81,7 @@ fn server_capabilities() -> ServerCapabilities {
         workspace_symbol_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
+        references_provider: Some(OneOf::Left(true)),
         ..ServerCapabilities::default()
     }
 }
@@ -154,6 +158,10 @@ impl Server {
                 let (id, params) = cast::<DocumentSymbolRequest>(request)?;
                 Some(ok(id, self.document_symbol(&params)))
             }
+            References::METHOD => {
+                let (id, params) = cast::<References>(request)?;
+                Some(ok(id, self.references(&params)))
+            }
             _ => Some(Response::new_err(
                 id,
                 METHOD_NOT_FOUND,
@@ -228,6 +236,28 @@ impl Server {
             })
             .collect();
         Some(WorkspaceSymbolResponse::Flat(infos))
+    }
+
+    fn references(&mut self, params: &ReferenceParams) -> Option<Vec<LspLocation>> {
+        let pos = &params.text_document_position;
+        let name = {
+            let text = self.documents.get(&pos.text_document.uri)?;
+            source::word_at(text, convert::src_position(pos.position))?.to_owned()
+        };
+        let index = self.index.as_mut()?;
+        let mut locations: Vec<LspLocation> = index
+            .references(&name)
+            .iter()
+            .filter_map(workspace::Location::to_lsp)
+            .collect();
+        if params.context.include_declaration
+            && let Some(declaration) = index
+                .symbol(&name)
+                .and_then(|symbol| symbol.location.to_lsp())
+        {
+            locations.push(declaration);
+        }
+        Some(locations)
     }
 
     fn document_symbol(&self, params: &DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
