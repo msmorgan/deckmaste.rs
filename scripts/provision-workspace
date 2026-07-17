@@ -1,0 +1,50 @@
+#!/usr/bin/env fish
+# jj-workflow provision hook: populate a new workspace's gitignored shared dirs.
+# Run by `workflow claim/start` after `jj workspace add`, with the new workspace
+# dir as $argv[1]. See CLAUDE.md "New jj workspaces" for the manual equivalent.
+
+set ws_dir $argv[1]
+if test -z "$ws_dir"; or not test -d "$ws_dir"
+    echo >&2 "$(status filename): usage: provision-workspace WS_DIR"
+    exit 2
+end
+
+# The coordinator's dir name is not fixed — resolve it via jj, never ../default.
+set default_dir (jj -R "$ws_dir" workspace root --name default)
+or begin
+    echo >&2 "$(status filename): could not resolve the default workspace root."
+    exit 1
+end
+# cwd-independent from here: cargo xtask needs the workspace root.
+cd "$default_dir"
+or exit 1
+
+# data and docs/superpowers are shared with the coordinator checkout; the symlink
+# form is excluded once via default's .git/info/exclude, which every secondary
+# workspace shares. plugins/wizards is generated code — a real dir, never a
+# symlink (the deckmaste_cards suite loads it; a symlink would make generate
+# write into the coordinator checkout).
+ln -sfn "$default_dir/data" "$ws_dir/data"
+and ln -sfn "$default_dir/docs/superpowers" "$ws_dir/docs/superpowers"
+and cargo xtask generate "$ws_dir/plugins/wizards"
+or begin
+    echo >&2 "$(status filename): $ws_dir's jj structure is set, but shared-dir provisioning failed — fix the data / docs/superpowers symlinks and run 'cargo xtask generate $ws_dir/plugins/wizards' by hand."
+    exit 1
+end
+
+# Pre-warm the build cache (best-effort): CoW-reflink default's target/ into the
+# new workspace so registry/git deps — the bulk of a clean build — are reused on
+# the first compile. Those are keyed on source-in-~/.cargo + rustc + features +
+# profile, NOT the workspace path, so they're reused as-is with no path rewriting.
+# Workspace-local crates carry a path-dependent metadata hash and recompile
+# regardless, so there's nothing to "fix". Skip incremental/: per-build scratch
+# that won't apply to a fresh path and bloats the copy. --reflink=auto is instant
+# and ~zero-space on btrfs (falls back to a plain copy elsewhere); /target/ is
+# gitignored so jj won't snapshot it. A miss here just means a cold first build.
+if test -d "$default_dir/target"
+    if cp --reflink=auto -a "$default_dir/target" "$ws_dir/target"
+        rm -rf "$ws_dir/target/debug/incremental" "$ws_dir/target/release/incremental"
+    else
+        echo >&2 "$(status filename): target/ pre-warm into $ws_dir failed — first build there starts cold (harmless)."
+    end
+end

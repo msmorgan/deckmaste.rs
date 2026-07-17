@@ -1,0 +1,7 @@
+# jj-workflow per-repo config (github: msmorgan/jj-workflow).
+# provision_hook and workspace_dir use the defaults:
+# scripts/provision-workspace, ".." (sibling feature workspaces).
+
+# Ticket/census tool `workflow claim` consults for census-only mechanics
+# (`iscensus SLUG` / `mint SLUG`).
+todo_cmd = "scripts/todo"

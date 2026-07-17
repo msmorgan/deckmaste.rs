@@ -1,4 +1,7 @@
 {
+  "env": {
+    "JJ_EDITOR": "false"
+  },
   "extraKnownMarketplaces": {
     "mtg-rules": {
       "source": {

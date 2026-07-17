@@ -35,8 +35,8 @@ Tickets move between folders as work progresses:
 critical/planned/maybe  →  wip  →  done
 ```
 
-`scripts/workflow claim <slug>` moves the ticket from its current folder into
-`wip/` and provisions the feature workspace `../<slug>`. `scripts/workflow
+`workflow claim <slug>` moves the ticket from its current folder into
+`wip/` and provisions the feature workspace `../<slug>`. `workflow
 integrate <slug>` folds the finished work into the default line and moves the
 ticket to `done/`.
 
@@ -101,12 +101,12 @@ says otherwise.
 
 When starting work on a ticket:
 
-1. **Claim the ticket:** from `default`, run `scripts/workflow claim <slug>`.
+1. **Claim the ticket:** from `default`, run `workflow claim <slug>`.
    This moves `<slug>.md` from its current folder into `wip/` and provisions
    a feature workspace at `../<slug>`.
 2. **Work in the feature workspace:** `cd ../<slug>` and do the actual
    implementation there.
-3. **Integrate when done:** from `default`, run `scripts/workflow integrate
+3. **Integrate when done:** from `default`, run `workflow integrate
    <slug>`. This folds the feature into the default line and moves the ticket
    to `done/`.
 
@@ -127,7 +127,7 @@ another todo ("oh, I guess we're fixing this too now"). Rather than spin up a
 separate workspace, fold the extra todo into the one already going:
 
 ```
-scripts/workflow claim <other-slug> --into <name>
+workflow claim <other-slug> --into <name>
 ```
 
 This moves `<other-slug>.md` into `wip/` and **amends `<name>`'s claim commit** to
@@ -137,7 +137,7 @@ several at once with `claim <slug-a> <slug-b> --into <name>`. Notes:
 - Run it from `default`, like every other claim. `<name>` may be any live
   workspace — a `claim`ed feature or an ad-hoc `start`ed one.
 - Amending the claim commit leaves `../<name>`'s working copy **stale** (its parent
-  was rewritten). That is routine: in `../<name>`, run `scripts/jj workspace
+  was rewritten). That is routine: in `../<name>`, run `jj workspace
   update-stale` (commit your work first) before your next commit.
 - `integrate <name>` then finishes **every** todo the claim owns — each moves
   `wip/ → done/`, all in one completion commit — and `abandon <name>` reverts them
