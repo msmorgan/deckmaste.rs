@@ -656,7 +656,7 @@ impl GameState {
                     true
                 } else {
                     // [CR#601.2h]: the chosen form needs the full count (read
-                    // off the body's `FromHand` selection).
+                    // off the body's `With` binder's `Quantity`).
                     let need = deckmaste_core::discard_body_count(body)
                         .map_or(0, |count| self.eval_count(count, frame))
                         as usize;

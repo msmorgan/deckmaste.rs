@@ -524,36 +524,45 @@ impl Action {
     }
 
     /// "`who` discards `count`" ([CR#701.9a]) — the keyword action as data:
-    /// a [`Composite`](Action::Composite) named `"Discard"` whose body
-    /// DESCRIBES the chosen-from-hand Hand → Graveyard relocation: an
-    /// [`Each`](crate::Each) over a [`FromHand`](crate::Selection::FromHand)
-    /// selection carrying the count, the hand's owner (`whose` — the engine
-    /// reads the performer off it), and the `random` flag ([CR#701.9b] — the
-    /// affected player chooses by default; `random: true` is "at random").
-    /// Like draw, the body is NOT the executor — the choice is a real
-    /// decision (a hidden-zone selection, not a deterministic top-N read),
-    /// so the engine surfaces it (or samples, for random) and then emits one
-    /// `Act(Discard)` per chosen card: the choice is BATCHED up front
-    /// ([CR#701.9b], one choice of `count` cards) but the events are
-    /// PER-CARD — "whenever a player discards a card" fires once per card,
-    /// and a replacement (madness, [CR#702.35a]) reroutes ITS card only.
-    /// The stored body is the faithful render/re-emit facet. Authored via
-    /// the `Discard`/`Discards` macros so the card still writes "Discard two
+    /// a [`Composite`](Action::Composite) named `"Discard"` whose body IS
+    /// the executor (unlike draw/mill's flat-coordinate bodies): a
+    /// [`With`](crate::With) choose-then-act step over `who`'s hand
+    /// ([CR#701.9b] — the affected player chooses by default), reusing the
+    /// GENERAL-purpose binder machinery every other card effect's choice
+    /// rides. `random: true` swaps the `Choose` binder for
+    /// [`Selection::Random`] over the same hand filter — no choice exists,
+    /// so the engine samples the seeded rng instead of surfacing a
+    /// decision. Either way the body's `Each` realizes the bound group as
+    /// PER-CARD `Move`s, each recursively dispatched through THIS SAME
+    /// `"Discard"` composite name (the bound single-move form,
+    /// [`discard_what`](Action::discard_what)) — so "whenever a player
+    /// discards a card" fires once per card, and a replacement (madness,
+    /// [CR#702.35a]) reroutes ITS card only. Authored via the
+    /// `Discard`/`Discards` macros so the card still writes "Discard two
     /// cards." / "Each opponent discards a card."
     #[must_use]
     pub fn discard(who: Reference, count: Count, random: bool) -> Action {
+        let filter = discard_hand_filter(who.clone());
+        let quantity = crate::Quantity::Range(Some(count.clone()), Some(count));
+        let binder = if random {
+            crate::Binder::Existing(Selection::Random(quantity, filter))
+        } else {
+            crate::Binder::Choose {
+                quantity,
+                filter,
+                by: who,
+            }
+        };
         Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Box::new(crate::OneShotEffect::Each(crate::Each {
-                binder: crate::Binder::Existing(Selection::FromHand {
-                    count,
-                    whose: who,
-                    random,
-                }),
-                effect: Box::new(crate::OneShotEffect::Act(Action::move_to(
-                    Reference::It,
-                    crate::Zone::Graveyard,
-                ))),
+            body: Box::new(crate::OneShotEffect::With(crate::With {
+                binder,
+                body: Box::new(crate::OneShotEffect::Each(crate::Each {
+                    binder: crate::Binder::Existing(Selection::They),
+                    effect: Box::new(crate::OneShotEffect::Act(Action::discard_what(
+                        Reference::It,
+                    ))),
+                })),
             })),
         }
     }
@@ -580,14 +589,50 @@ impl Action {
     }
 }
 
+/// `who`'s hand ([CR#701.9a] discard's domain) as a
+/// [`Predicate`](crate::Predicate) — the expanded shape of the `InHand(who)`
+/// macro (`plugins/builtin/macros/filter/InHand.ron`): `And([InZone(Hand),
+/// Owner(Ref(who))])`. Builds the filter [`Action::discard`]'s `Choose`/
+/// `Random` binder carries; [`discard_body_whose`] reads `who` back off it
+/// for the at-random form, which (unlike `Choose`) carries no separate `by`.
+fn discard_hand_filter(who: Reference) -> crate::Predicate {
+    crate::Predicate::And(vec![
+        crate::Predicate::State(crate::StatePredicate::InZone(crate::Zone::Hand)),
+        crate::Predicate::Relation(crate::RelationPredicate::Owner(Box::new(
+            crate::Predicate::Ref(who),
+        ))),
+    ])
+}
+
+/// The `who` an `InHand(who)`-shaped filter names — the hand-owning
+/// `Reference` under a discard binder's `Owner(Ref(who))` sub-predicate.
+/// Shared by [`discard_body_whose`]'s at-random arm, which has no separate
+/// `by` field to read (unlike [`Binder::Choose`](crate::Binder::Choose)).
+fn hand_owner_ref(filter: &crate::Predicate) -> Option<&Reference> {
+    use crate::Predicate as P;
+    match filter {
+        P::Expanded(e) => hand_owner_ref(&e.value),
+        P::And(parts) => parts.iter().find_map(hand_owner_ref),
+        P::Relation(crate::RelationPredicate::Owner(inner)) => match inner.as_ref() {
+            P::Ref(r) => Some(r),
+            P::Expanded(e) => match e.value.as_ref() {
+                P::Ref(r) => Some(r),
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// The BOUND-form patient of a discard composite's stored body
 /// ([CR#702.29a] "discard this card"): the reference its body's HEAD moves,
 /// when that head is a single relocation (`Move(This, Graveyard)` →
-/// `Some(This)`). The chosen form (an `Each` over
-/// [`FromHand`](Selection::FromHand)) → `None`. Read off the stored body
-/// ("matches the expanded body") — shared by the engine's resolve lane, the
-/// renderer, and the Idris emitter, so the three can never disagree on
-/// which form a discard is.
+/// `Some(This)`). The chosen/random form (a `With` choose-then-act step,
+/// [`Action::discard`]) → `None`. Read off the stored body ("matches the
+/// expanded body") — shared by the engine's resolve lane, the renderer, and
+/// the Idris emitter, so the three can never disagree on which form a
+/// discard is.
 #[must_use]
 pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
     use crate::OneShotEffect as E;
@@ -599,35 +644,59 @@ pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
 }
 
 /// Whether a discard composite's stored body selects AT RANDOM
-/// ([CR#701.9b]): its `Each` binder is a [`FromHand`](Selection::FromHand)
-/// selection carrying `random: true`. The at-random detail is the
-/// selection's, not the tag's — shared like [`discard_body_what`].
+/// ([CR#701.9b]): its `With` binder is [`Selection::Random`] over the hand
+/// filter, rather than a [`Binder::Choose`](crate::Binder::Choose). The
+/// at-random detail is the binder's, not the tag's — shared like
+/// [`discard_body_what`].
 #[must_use]
 pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
     use crate::OneShotEffect as E;
     match body {
         E::Expanded(e) => discard_body_random(&e.value),
-        E::Each(each) => matches!(
-            &each.binder,
-            crate::Binder::Existing(Selection::FromHand { random: true, .. })
-        ),
+        E::With(with) => {
+            matches!(&with.binder, crate::Binder::Existing(Selection::Random(..)))
+        }
         _ => false,
     }
 }
 
-/// The `count` of a CHOSEN discard composite's stored body ([CR#701.9b]) — the
-/// number of cards the `Each`'s [`FromHand`](Selection::FromHand) selection
-/// picks. `None` for a bound single-move body (`discard this card`, always one
-/// card). Read off the stored body, sharing the descent with
-/// [`discard_body_what`]/[`discard_body_random`] so re-agenting a discard cost
-/// ([CR#601.2h]) reads its count without a typed atom.
+/// The `count` of a CHOSEN/RANDOM discard composite's stored body
+/// ([CR#701.9b]) — the upper bound of the `With` binder's `Quantity`
+/// (`Choose`'s or `Selection::Random`'s). `None` for a bound single-move body
+/// (`discard this card`, always one card). Read off the stored body, sharing
+/// the descent with [`discard_body_what`]/[`discard_body_random`] so
+/// re-agenting a discard cost ([CR#601.2h]) reads its count without a typed
+/// atom.
 #[must_use]
 pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
     use crate::OneShotEffect as E;
     match body {
         E::Expanded(e) => discard_body_count(&e.value),
-        E::Each(each) => match &each.binder {
-            crate::Binder::Existing(Selection::FromHand { count, .. }) => Some(count),
+        E::With(with) => match &with.binder {
+            crate::Binder::Choose { quantity, .. }
+            | crate::Binder::Existing(Selection::Random(quantity, _)) => quantity.bounds().1,
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The discarding performer of a CHOSEN/RANDOM discard composite's stored
+/// body ([CR#701.9b]) — [`Binder::Choose`](crate::Binder::Choose)'s `by`
+/// (the chooser IS the discarding player by default), or, for the at-random
+/// form (which carries no `by`), the hand-owning `who` its
+/// [`Selection::Random`] filter names ([`hand_owner_ref`]). `None` for a
+/// bound single-move body (its performer rides the patient, not a separate
+/// slot) or any other shape. Read off the stored body — shared by the
+/// engine's resolve lane, the renderer, and the Idris emitter.
+#[must_use]
+pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
+    use crate::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => discard_body_whose(&e.value),
+        E::With(with) => match &with.binder {
+            crate::Binder::Choose { by, .. } => Some(by),
+            crate::Binder::Existing(Selection::Random(_, filter)) => hand_owner_ref(filter),
             _ => None,
         },
         _ => None,
@@ -756,8 +825,9 @@ mod tests {
     }
 
     /// The discard keyword action as data ([CR#701.9]): [`Action::discard`]
-    /// builds `Composite(name: "Discard", body: Each(FromHand …))` — the CHOSEN
-    /// form, the affected player picking `n` from hand ([CR#701.9b]) — and
+    /// builds `Composite(name: "Discard", body: With(Choose/Random, Each …))`
+    /// — the CHOSEN form, the affected player picking `n` from hand
+    /// ([CR#701.9b]) — and
     /// [`Action::discard_what`] the BOUND single-move form ("discard this
     /// card", cycling's cost [CR#702.29a]), the destroy shape. Both
     /// round-trip structurally, and the body facets (who/count/random/patient)
@@ -1181,9 +1251,10 @@ mod tests {
         assert_eq!(read(&write(&venture)), venture);
     }
 
-    /// The at-random flag ([CR#701.9b]) rides the body's `FromHand`
-    /// selection, not the atom: it defaults false (omitted on write) and
-    /// the random form round-trips — "discard a card at random".
+    /// The at-random distinction ([CR#701.9b]) rides the body's `With`
+    /// binder shape, not the atom: `Choose` (chosen) vs. `Selection::Random`
+    /// (at random) — both round-trip; the chosen form's write never mentions
+    /// "random" — "discard a card at random".
     #[test]
     fn discard_random_rides_the_selection_and_round_trips() {
         let chosen = Action::discard(Reference::You, Count::Literal(1), false);

@@ -506,9 +506,9 @@ fn verb_mentions_cost_x(verb: &CoreAction) -> bool {
     match verb {
         CoreAction::By(_, pa) => player_verb_mentions_x(pa),
         // An X-discard ("discard X cards") — the count rides the body's
-        // `FromHand` selection.
+        // `With` binder's `Quantity`.
         CoreAction::Composite { name, body } if name.as_str() == "Discard" => {
-            deckmaste_core::discard_body_count(body).is_some_and(|count| count.mentions_x())
+            deckmaste_core::discard_body_count(body).is_some_and(deckmaste_core::Count::mentions_x)
         }
         _ => false,
     }

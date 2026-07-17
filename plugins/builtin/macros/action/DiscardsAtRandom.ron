@@ -2,8 +2,8 @@
 // declarative-subject at-random discard (Hymn to Tourach's "Target player
 // discards two cards at random."). `DiscardAtRandom`'s subject-carrying
 // twin, exactly as `Discards` is `Discard`'s: `who` (Param(0)) rides both
-// the atom and the `FromHand` selection's `whose`; `random: true` rides the
-// selection.
+// the atom and the `Random` selection's `InHand` filter — no `by` chooser
+// (there is no choice; the engine samples uniformly).
 //
 // Usage: DiscardsAtRandom(It, 2) (the announced player target).
 (
@@ -13,9 +13,12 @@
     params: [Reference, Count],
     body: Composite(
         name: Discard,
-        body: Each(
-            binder: Existing(FromHand(count: Param(1), whose: Param(0), random: true)),
-            effect: Move(It, Graveyard),
+        body: With(
+            binder: Existing(Random(Exactly(Param(1)), InHand(Param(0)))),
+            body: Each(
+                binder: Existing(They),
+                effect: Composite(name: Discard, body: Move(It, Graveyard)),
+            ),
         ),
     ),
 )

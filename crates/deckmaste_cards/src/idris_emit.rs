@@ -1242,20 +1242,6 @@ fn emit_selection(s: &Selection) -> R {
             "TopOfGraveyard",
             vec![emit_count(count)?, emit_reference(of)?],
         ),
-        // [CR#701.9b]: the chosen-from-hand selection — explicit args like
-        // `TopOfGraveyard` (count, hand owner, at-random flag).
-        Selection::FromHand {
-            count,
-            whose,
-            random,
-        } => app(
-            "FromHand",
-            vec![
-                emit_count(count)?,
-                emit_reference(whose)?,
-                if *random { "True" } else { "False" }.to_string(),
-            ],
-        ),
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
         Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),
@@ -1552,18 +1538,15 @@ fn top_of_library(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
     }
 }
 
-/// The `(whose, count)` of a chosen-discard body ([CR#701.9b]): its
-/// `Each`-over-`FromHand` selection. `None` for a bound single-move discard.
-fn from_hand(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
-    match peel_os(body) {
-        OneShotEffect::Each(each) => match &each.binder {
-            deckmaste_core::Binder::Existing(Selection::FromHand { count, whose, .. }) => {
-                Some((whose, count))
-            }
-            _ => None,
-        },
-        _ => None,
-    }
+/// The `(whose, count)` of a chosen/random discard body ([CR#701.9b]): its
+/// `With` binder's [`deckmaste_core::discard_body_whose`]/
+/// [`deckmaste_core::discard_body_count`]. `None` for a bound single-move
+/// discard.
+fn discard_choice(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
+    Some((
+        deckmaste_core::discard_body_whose(body)?,
+        deckmaste_core::discard_body_count(body)?,
+    ))
 }
 
 /// The two fighters of a `Fight` body ([CR#701.14a]): the reciprocal
@@ -1604,10 +1587,12 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
             Ok(app(name, vec![emit_reference(whose)?, emit_count(count)?]))
         }
         "Discard" => {
-            // Chosen form: `FromHand` carries whose + count. Bound single-move
-            // form ("discard this card"): the discarding player rides the
-            // patient; emit the implicit `You` performer over one card.
-            if let Some((whose, count)) = from_hand(body) {
+            // Chosen/random form: the `With` binder carries whose + count
+            // (Task 8: `Choose`/`Selection::Random` over the hand filter, not
+            // a bespoke selection). Bound single-move form ("discard this
+            // card"): the discarding player rides the patient; emit the
+            // implicit `You` performer over one card.
+            if let Some((whose, count)) = discard_choice(body) {
                 Ok(app(
                     "Discard",
                     vec![emit_reference(whose)?, emit_count(count)?],
@@ -1622,7 +1607,7 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
                 ))
             } else {
                 Err(gap(
-                    "Discard composite body is neither a FromHand choice nor a Move",
+                    "Discard composite body is neither a chosen/random choice nor a Move",
                 ))
             }
         }

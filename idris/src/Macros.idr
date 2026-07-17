@@ -50,6 +50,14 @@ public export
 inHand : Predicate b AnObject
 inHand = InZone Hand
 
+-- `who`'s hand ([CR#701.9a] discard's domain): `inHand`'s parameterized twin.
+-- Hand cards have no distinct controller ([CR#108.4] -- owner and controller
+-- coincide off the battlefield/stack), so `ControlledBy` is the equality
+-- test.
+public export
+inHandOf : Reference b APlayer -> Predicate b AnObject
+inHandOf who = And [InZone Hand, ControlledBy (SameAs who)]
+
 -- player-predicates: `you` is the controller; `opponent`/`teammate` are TEAM-relative ([CR#102.3]) — an
 -- opponent is a player NOT on your team (NOT merely "not you": a teammate in Two-Headed Giant is neither),
 -- a teammate another player ON your team. Lowercase sugar for the `OpponentOf`/`TeammateOf` engine primitives.
@@ -214,29 +222,30 @@ mill : Count b -> OneShotEffect b
 mill n = Act (Composite (Mill You n) (Each (Existing (TopOfLibrary n)) (Act (Move It (ToZone Graveyard)))))
 
 -- discard n ([CR#701.9a]): choose n cards from your hand and put them into your graveyard. The choice
--- is the affected player's, batched up front ([CR#701.9b] -- one pick of n cards); the engine realizes
+-- is the affected player's, an ordinary `Choose` binder over `inHand` ([CR#701.9b]); the engine realizes
 -- per-card `Act (Discard ...)` events, so madness ([CR#702.35a]) and "whenever ... discards a card" bite
 -- card-by-card. The `discards`/`discardsAtRandom` forms carry an explicit subject; `discardThis` is the
--- bound no-choice cost form ([CR#702.29a]).
+-- bound no-choice cost form ([CR#702.29a]). Mirrors `tTheyInWith`'s shape (`Spec.idr`).
 public export
 discard : Count b -> OneShotEffect b
-discard n = Act (Composite (Discard You n) (Each (Existing (FromHand n You False)) (Act (Move It (ToZone Graveyard)))))
+discard n = Act (Composite (Discard You n) (With (Choose (Range (Just n) (Just n)) inHand) (Each (Existing They) (Act (Move It (ToZone Graveyard))))))
 
--- discard n at random ([CR#701.9b] -- no choice; a uniform sample): `FromHand`'s flag flipped.
+-- discard n at random ([CR#701.9b] -- no choice; a uniform sample): the `Choose` binder swapped for
+-- `Existing (Random ..)` -- no decision surfaces, the engine samples uniformly.
 public export
 discardAtRandom : Count b -> OneShotEffect b
-discardAtRandom n = Act (Composite (Discard You n) (Each (Existing (FromHand n You True)) (Act (Move It (ToZone Graveyard)))))
+discardAtRandom n = Act (Composite (Discard You n) (With (Existing (Random (Range (Just n) (Just n)) inHand)) (Each (Existing They) (Act (Move It (ToZone Graveyard))))))
 
--- who discards n ([CR#701.9a]): the declarative-subject discard -- `who` rides both the atom and the
--- hand selection.
+-- who discards n ([CR#701.9a]): the declarative-subject discard -- `who` rides the atom, the `Choose`
+-- binder's chooser, and `inHandOf who`'s filter ([CR#701.9b]'s affected-player-chooses default).
 public export
 discards : Reference b APlayer -> Count b -> OneShotEffect b
-discards who n = Act (Composite (Discard who n) (Each (Existing (FromHand n who False)) (Act (Move It (ToZone Graveyard)))))
+discards who n = Act (Composite (Discard who n) (With (Choose {by=who} (Range (Just n) (Just n)) (inHandOf who)) (Each (Existing They) (Act (Move It (ToZone Graveyard))))))
 
--- who discards n at random (Hymn to Tourach).
+-- who discards n at random (Hymn to Tourach) -- no `by` chooser; there is no choice.
 public export
 discardsAtRandom : Reference b APlayer -> Count b -> OneShotEffect b
-discardsAtRandom who n = Act (Composite (Discard who n) (Each (Existing (FromHand n who True)) (Act (Move It (ToZone Graveyard)))))
+discardsAtRandom who n = Act (Composite (Discard who n) (With (Existing (Random (Range (Just n) (Just n)) (inHandOf who))) (Each (Existing They) (Act (Move It (ToZone Graveyard))))))
 
 -- discard THIS card ([CR#702.29a] -- cycling/reinforce's cost): the degenerate no-choice discard of a
 -- named card, destroy's shape -- a `Composite` over the single Hand -> Graveyard `Move`, committed on

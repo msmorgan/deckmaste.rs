@@ -803,20 +803,28 @@ mod tests {
             OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), false)),
             &frame,
         );
-        let _ = state.step(); // DiscardOpened
-        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { player, count }) =
-            state.step()
+        // The carry future `Act` opens (and passes) its own [CR#616.1] window
+        // before the `With`+`Choose` machinery surfaces the actual choice.
+        let pending = (0..5)
+            .find_map(|_| match state.step() {
+                StepOutcome::NeedsDecision(p) => Some(p),
+                _ => None,
+            })
+            .expect("a ChooseObjects decision surfaces within a few steps");
+        let PendingDecision::ChooseObjects {
+            player, min, max, ..
+        } = pending
         else {
-            panic!("expected DiscardCards, got {:?}", state.pending);
+            panic!("expected ChooseObjects, got {pending:?}");
         };
-        assert_eq!((player, count), (PlayerId(0), 2));
+        assert_eq!((player, min, max), (PlayerId(0), 2, 2));
         let one = vec![state.zones.hands[0][0]];
         assert!(
-            state.submit_decision(Decision::Discard(one)).is_err(),
+            state.submit_decision(Decision::Chosen(one)).is_err(),
             "exactly `count` cards must be chosen"
         );
         let two = state.zones.hands[0][..2].to_vec();
-        state.submit_decision(Decision::Discard(two)).unwrap();
+        state.submit_decision(Decision::Chosen(two)).unwrap();
         for _ in 0..30 {
             if state.zones.graveyards[0].len() == 2 {
                 break;
@@ -832,14 +840,18 @@ mod tests {
             OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(99), false)),
             &frame,
         );
-        let _ = state.step();
-        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { count, .. }) = state.step()
-        else {
-            panic!("expected DiscardCards, got {:?}", state.pending);
+        let pending = (0..5)
+            .find_map(|_| match state.step() {
+                StepOutcome::NeedsDecision(p) => Some(p),
+                _ => None,
+            })
+            .expect("a ChooseObjects decision surfaces within a few steps");
+        let PendingDecision::ChooseObjects { max, .. } = pending else {
+            panic!("expected ChooseObjects, got {pending:?}");
         };
-        assert_eq!(count as usize, hand_before - 2, "clamped to the hand size");
+        assert_eq!(max as usize, hand_before - 2, "clamped to the hand size");
         let rest = state.zones.hands[0].clone();
-        state.submit_decision(Decision::Discard(rest)).unwrap();
+        state.submit_decision(Decision::Chosen(rest)).unwrap();
         for _ in 0..30 {
             if state.zones.hands[0].is_empty() {
                 break;
@@ -1204,7 +1216,8 @@ mod tests {
     }
 
     /// [CR#701.9b]: `Discard { random: true, .. }` samples straight from the
-    /// seeded rng — no `DiscardCards` decision surfaces (no choice exists for
+    /// seeded rng via the general `Selection::Random` binder machinery
+    /// (Task 8) — no `ChooseObjects` decision surfaces (no choice exists for
     /// a random discard), and the sampled cards move Hand→Graveyard.
     #[test]
     fn random_discard_samples_without_decision() {
@@ -1219,10 +1232,10 @@ mod tests {
             &frame,
         );
         // Drain until the discard resolves (graveyard gains 2) or SOME
-        // decision surfaces first — a `DiscardCards` decision here would mean
-        // the "random" path wrongly asked the player to choose. The normal
-        // game's own `Priority` window (reached once resolution completes) is
-        // not that decision, so it is not itself a failure.
+        // decision surfaces first — a `ChooseObjects` decision here would
+        // mean the "random" path wrongly asked the player to choose. The
+        // normal game's own `Priority` window (reached once resolution
+        // completes) is not that decision, so it is not itself a failure.
         for _ in 0..20 {
             if state.zones.graveyards[p0.index()].len() == 2 {
                 break;
@@ -1232,8 +1245,8 @@ mod tests {
             }
         }
         assert!(
-            !matches!(state.pending, Some(PendingDecision::DiscardCards { .. })),
-            "a random discard surfaces no DiscardCards decision (no choice exists): {:?}",
+            !matches!(state.pending, Some(PendingDecision::ChooseObjects { .. })),
+            "a random discard surfaces no ChooseObjects decision (no choice exists): {:?}",
             state.pending
         );
         assert_eq!(
@@ -1747,20 +1760,25 @@ mod tests {
             );
             step_n(&mut state, 2);
 
-            // Random discard of 2 from the 5-card hand. THREE steps, not
-            // two: dispatch `WorkItem::DiscardRandom` (samples + schedules
-            // the future-form `ZoneChange` batch), apply that intent batch
-            // (which captures LKI/remints and collects the evolved past-form
-            // `ZoneChange` batch into `evolving_batch` rather than applying
-            // it inline — `schedule_evolution`'s batch path front-schedules
-            // it as its own follow-on `WorkItem::Emit`), then apply THAT
-            // batch (which actually records the past-form `ZoneChange`
-            // facts to history).
+            // Random discard of 2 from the 5-card hand ([CR#701.9b]): the
+            // discard composite's `With(Existing(Random(..)), Each(..))` body
+            // (Task 8) opens its own performer-only carry `Act` window first
+            // ([CR#616.1] — apply #1), then the `RunEffect{With}` samples the
+            // seeded rng and binds the picks with no decision (apply #2),
+            // then `RunEffect{Each}` recurses each pick into its own bound
+            // single-move `Act(Discard)` and batches their windows into ONE
+            // simultaneous intent `Emit` (apply #3), then applying THAT
+            // intent batch captures LKI/remints and collects the evolved
+            // past-form `ZoneChange` batch into `evolving_batch` rather than
+            // applying it inline (apply #4 — `schedule_evolution`'s batch
+            // path front-schedules it as its own follow-on `WorkItem::Emit`),
+            // then applying THAT batch actually records the past-form
+            // `ZoneChange` facts to history (apply #5).
             state.run_effect(
                 OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), true)),
                 &frame,
             );
-            step_n(&mut state, 3);
+            step_n(&mut state, 5);
 
             let flips: Vec<(bool, Option<bool>)> = state
                 .history

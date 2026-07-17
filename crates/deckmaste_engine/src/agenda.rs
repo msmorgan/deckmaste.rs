@@ -144,13 +144,6 @@ pub enum WorkItem {
     /// Surfaces `PayMana` when there is a choice; schedules tap/untap events
     /// for activations alongside it.
     PayCost,
-    /// [CR#701.9b]: a resolving discard — surface a `DiscardCards` decision
-    /// for `player` to choose which `count` cards to discard (clamped to the
-    /// hand size when the item applies; an empty hand surfaces nothing).
-    DiscardCards {
-        player: crate::player::PlayerId,
-        count: deckmaste_core::Uint,
-    },
     /// [CR#705.1]: a resolving `FlipCoins` — draw `count` coins for `player`
     /// from the seeded rng and emit the `CoinFlipped` batch. `called`
     /// ([CR#705.2]) routes each coin through a `CallFlip` decision first
@@ -169,14 +162,6 @@ pub enum WorkItem {
         player: crate::player::PlayerId,
         count: deckmaste_core::Uint,
         sides: deckmaste_core::Uint,
-    },
-    /// [CR#701.9b]: a resolving RANDOM discard — no decision (no choice
-    /// exists); uniformly sample `count` distinct cards from `player`'s hand
-    /// (clamped when the item applies — the hand may change before then) and
-    /// emit the same Hand→Graveyard batch a chosen discard emits.
-    DiscardRandom {
-        player: crate::player::PlayerId,
-        count: deckmaste_core::Uint,
     },
     /// [CR#106.1b]: a resolving `AddMana` whose production is a choice ("any
     /// color", "{W} or {U}") — surface a `ChooseManaColor` decision for

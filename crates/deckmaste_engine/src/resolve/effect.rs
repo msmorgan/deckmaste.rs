@@ -207,10 +207,18 @@ impl GameState {
         if frame.anaphora.chosen.is_some() {
             return None;
         }
+        // The carrier watcher anchors a `Ref(This)`/`Ref(You)` inside the
+        // binder's filter (e.g. `InHand(who)`'s `Owner(Ref(who))`,
+        // [CR#701.9b]) — the frameless `candidates()` shorthand panics on
+        // one ([`crate::target::matches_with`]'s frameless `Ref` arms), so a
+        // chooser's filter reads through the same framed
+        // `candidates_with`/`frame_watcher` pair `Selection::SelectAll`
+        // already uses.
+        let watcher = Some(self.frame_watcher(frame));
         match peel_binder(binder) {
             Binder::ChooseOne { filter, by } => Some((
                 self.acting_player(by, frame),
-                crate::target::candidates(self, filter),
+                crate::target::candidates_with(self, filter, watcher),
                 1,
                 1,
             )),
@@ -219,7 +227,7 @@ impl GameState {
                 filter,
                 by,
             } => {
-                let candidates = crate::target::candidates(self, filter);
+                let candidates = crate::target::candidates_with(self, filter, watcher);
                 let (min, max) = self.choice_bounds(quantity, candidates.len(), frame);
                 Some((self.acting_player(by, frame), candidates, min, max))
             }
@@ -239,6 +247,36 @@ impl GameState {
             }
             _ => None,
         }
+    }
+
+    /// [CR#701.9b] "at random": when `binder` (after macro-peeling) is
+    /// `Existing(Selection::Random(quantity, filter))` and no pick is bound
+    /// yet, sample uniformly via the seeded rng right here — no decision is
+    /// surfaced (there is no choice, unlike `Choose`/`ChooseOne`) — and bind
+    /// the picks into `frame.anaphora.chosen`, exactly where a
+    /// `ChooseObjects` answer would leave them, so the shared
+    /// `Existing`→`eval_selection_set` read finds a bound group either way
+    /// (the retired `DiscardRandom` work item's `rand::seq::index::sample`
+    /// logic, relocated onto the general binder spine so any `Random`
+    /// selection — not just discard's — now actually samples). Any other
+    /// binder shape, or an already-bound `chosen`, returns `frame` cloned
+    /// as-is. Called by `Each`/`With`/`Distribute` before `resolve_binder`.
+    fn sample_random_binder(&mut self, binder: &deckmaste_core::Binder, frame: &Frame) -> Frame {
+        use deckmaste_core::Binder;
+        use deckmaste_core::Selection;
+        let mut next = frame.clone();
+        if next.anaphora.chosen.is_some() {
+            return next;
+        }
+        if let Binder::Existing(Selection::Random(quantity, filter)) = peel_binder(binder) {
+            let watcher = Some(self.frame_watcher(frame));
+            let candidates = crate::target::candidates_with(self, filter, watcher);
+            let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
+            let n = usize::try_from(max).expect("sample count fits usize");
+            let idx = rand::seq::index::sample(&mut self.rng, candidates.len(), n);
+            next.anaphora.chosen = Some(idx.into_iter().map(|i| candidates[i]).collect());
+        }
+        next
     }
 
     /// The LIVE members of the fact-backed `noted` product group under `label`
@@ -589,6 +627,8 @@ impl GameState {
             // per-element scheduling, where each element runs and pauses
             // independently.
             OneShotEffect::Each(each) => {
+                let sampled = self.sample_random_binder(&each.binder, frame);
+                let frame = &sampled;
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&each.binder, frame)
                 {
@@ -752,6 +792,8 @@ impl GameState {
                     self.schedule_front(items);
                     return;
                 }
+                let sampled = self.sample_random_binder(&with.binder, frame);
+                let frame = &sampled;
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&with.binder, frame)
                 {
@@ -796,6 +838,8 @@ impl GameState {
             // the amount as evenly as possible; surfacing the "as you choose"
             // division as a player decision is a seam.
             OneShotEffect::Distribute(divide) => {
+                let sampled = self.sample_random_binder(&divide.binder, frame);
+                let frame = &sampled;
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&divide.binder, frame)
                 {
@@ -1878,13 +1922,17 @@ mod tests {
 
     #[test]
     fn each_over_choice_bearing_body_schedules_its_work_items() {
-        // Regression: the `Each` single-`Act` batch path must NOT batch a
-        // choice-bearing body. `By(You, Discard)` yields a `DiscardCards` work
-        // item (not an `Emit`); the old code kept only `Emit`s, so the discards
-        // were silently dropped ("each player discards a card" would no-op). Here
-        // the body must instead be scheduled, one item per element. (Synthetic
-        // "for each creature, you discard a card" shape — chosen to exercise the
-        // non-`Emit` seam without standing up a player-matching `over`.)
+        // Regression: the `Each` single-`Act` batch path must not silently
+        // drop a choice-bearing body. Discard's `With(Choose(..), ..)` body's
+        // carry future `Act` IS an ordinary `Emit` now (Task 8 — unlike the
+        // retired `WorkItem::DiscardCards`), so both creatures' carry-Acts DO
+        // collapse into one simultaneous `Emit(Batch)` — but each still
+        // recurses into its OWN choose-then-discard `RunEffect` once that
+        // batch passes, so TWO separate `ChooseObjects` decisions surface
+        // (one per creature-triggered discard) and neither is dropped.
+        // (Synthetic "for each creature, you discard a card" shape — chosen
+        // to exercise the choice-bearing-body seam without standing up a
+        // player-matching `over`.)
         let (mut state, a) = bear_on_field();
         let b = *state.zones.hands[0]
             .iter()
@@ -1901,6 +1949,7 @@ mod tests {
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(b);
+        let hand_before = state.zones.hands[0].len();
 
         let frame = frame_src(a);
         let effect = OneShotEffect::Each(deckmaste_core::Each {
@@ -1916,20 +1965,35 @@ mod tests {
         });
         state.run_effect(effect, &frame);
 
-        // Each element's choice-bearing item is scheduled — not folded into (and
-        // lost by) a simultaneous `Emit` batch.
-        let discards = state
-            .agenda
-            .iter()
-            .filter(|item| matches!(item, WorkItem::DiscardCards { .. }))
-            .count();
+        let mut decisions = 0;
+        for _ in 0..60 {
+            if state.zones.hands[0].len() + 2 <= hand_before {
+                break;
+            }
+            if let crate::step::StepOutcome::NeedsDecision(
+                crate::decide::PendingDecision::ChooseObjects {
+                    candidates,
+                    min,
+                    max,
+                    ..
+                },
+            ) = state.step()
+            {
+                decisions += 1;
+                assert_eq!((min, max), (1, 1), "one choice of one card each time");
+                state
+                    .submit_decision(crate::decide::Decision::Chosen(vec![candidates[0]]))
+                    .unwrap();
+            }
+        }
         assert_eq!(
-            discards, 2,
-            "each element's discard work item is scheduled, not dropped"
+            decisions, 2,
+            "each creature's discard surfaces its own choice — neither is dropped"
         );
-        assert!(
-            !matches!(state.agenda.front(), Some(WorkItem::Emit(_))),
-            "a choice-bearing Each body must not collapse to a simultaneous Emit batch"
+        assert_eq!(
+            state.zones.hands[0].len(),
+            hand_before - 2,
+            "both discards actually happened"
         );
     }
 

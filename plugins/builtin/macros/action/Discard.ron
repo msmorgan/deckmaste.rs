@@ -1,16 +1,18 @@
 // "Discard N" ([CR#701.9a]): the imperative YOU-form discard — you choose N
 // cards from your hand and discard them ([CR#701.9b] — the affected player
 // chooses by default). Mill/Draw's sibling on the discard lane: the keyword
-// action as DATA — a `Composite` whose tag is `Discard(You, n)` and whose
-// body DESCRIBES the chosen-from-hand Hand → Graveyard relocation (an `Each`
-// over a `FromHand` selection). The engine does NOT run the body: the choice
-// is BATCHED up front (one `DiscardCards` decision picks the cards) and then
-// realized as N per-card `Act(Discard)` events — each individually
-// replaceable/cantable (madness exiles ITS card only, [CR#702.35a]) and each
-// its own "whenever a player discards a card" fact. The at-random variant
-// (`FromHand(random: true)`) is `DiscardAtRandom`; the declarative-subject
-// form ("Target player discards N cards.") is the `Discards(who, n)` macro;
-// this is the bare you-imperative.
+// action as DATA — a `Composite` whose tag is `Discard` and whose body is an
+// ordinary `With(Choose(..InHand(You)..), ..)` decision over a general-purpose
+// binder — no bespoke discard machinery. The chooser picks up front (a
+// `ChooseObjects` decision, same surface as any other `Choose`) and each
+// picked card recurses through the SAME bound-single-move `Composite(Discard,
+// Move(It, Graveyard))` arm this macro's body nests — realized as N per-card
+// `Act(Discard)` events, each individually replaceable/cantable (madness
+// exiles ITS card only, [CR#702.35a]) and each its own "whenever a player
+// discards a card" fact. The at-random variant (`Selection::Random` instead
+// of `Choose`) is `DiscardAtRandom`; the declarative-subject form ("Target
+// player discards N cards.") is the `Discards(who, n)` macro; this is the
+// bare you-imperative.
 //
 // Usage: Discard(1) -> "Discard a card." / Discard(2) -> "Discard 2 cards."
 (
@@ -20,6 +22,12 @@
     params: [Count],
     body: Composite(
         name: Discard,
-        body: Each(binder: Existing(FromHand(count: Param(0))), effect: Move(It, Graveyard)),
+        body: With(
+            binder: Choose(quantity: Exactly(Param(0)), filter: InHand(You)),
+            body: Each(
+                binder: Existing(They),
+                effect: Composite(name: Discard, body: Move(It, Graveyard)),
+            ),
+        ),
     ),
 )

@@ -70,10 +70,6 @@ pub enum Progress {
     TriggersPlaced { placed: Uint },
     /// Cleanup's hand-size check ran ([CR#514.1]).
     HandSizeChecked { discarding: Uint },
-    /// [CR#701.9b]: a resolving discard surfaced its card choice; `count` is
-    /// how many cards the player must choose (clamped to the hand size; 0 =
-    /// an empty hand, nothing surfaced).
-    DiscardOpened { count: Uint },
     /// [CR#705.1,705.2]: a resolving `FlipCoins` ran; `count` is the total
     /// requested — an uncalled flip drew all `count` coins immediately and
     /// front-scheduled their batch, while a called flip surfaced the first of
@@ -82,10 +78,6 @@ pub enum Progress {
     /// [CR#706.1]: a resolving `RollDice` drew `count` naturals and
     /// front-scheduled their `DieRolled` batch (0 = nothing scheduled).
     DiceRolled { count: Uint },
-    /// [CR#701.9b]: a resolving RANDOM discard ran with no decision; `count`
-    /// is how many distinct cards were sampled from the hand (clamped to
-    /// hand size) and front-scheduled as the Hand→Graveyard batch.
-    RandomDiscarded { count: Uint },
     /// [CR#106.1b]: a resolving `AddMana` surfaced its color choice.
     ManaColorOpened,
     /// [CR#106.1b]: a resolving `AddMana` surfaced its multi-symbol-run choice
@@ -222,7 +214,6 @@ impl GameState {
                 self.pay_cost();
                 Progress::CostPaid
             }
-            WorkItem::DiscardCards { player, count } => self.open_discard_cards(player, count),
             WorkItem::FlipCoins {
                 player,
                 count,
@@ -233,7 +224,6 @@ impl GameState {
                 count,
                 sides,
             } => self.roll_dice(player, count, sides),
-            WorkItem::DiscardRandom { player, count } => self.discard_random(player, count),
             WorkItem::ChooseManaColor {
                 player,
                 options,
@@ -1116,6 +1106,29 @@ impl GameState {
                             }
                         }
                         self.flush_evolving_batch();
+                        rebuilt()
+                    } else if verb.0.as_str() == "Discard" {
+                        // [CR#701.9a,616.1]: the chosen/random discard's OUTER
+                        // window is a pure cant/replace GATE for the whole
+                        // instruction ([CR#614.17]: a blanket "can't discard"
+                        // must suppress the choice itself, before any card is
+                        // picked) — it names no patient of its own (the choice
+                        // hasn't happened yet at schedule time), so it commits
+                        // no `Act` fact of its own. Unlike Mill/Scry's
+                        // one-fact-per-instruction grain, "whenever you
+                        // discard a card" fires once PER CARD, off the
+                        // per-card bound-move `Discard` window each picked
+                        // card recurses into (the `Each`'s
+                        // `Composite(Discard, Move(It, Graveyard))` effect,
+                        // dispatched below through the bound-single-move arm)
+                        // — so just run the body (the `With`/`Choose`/
+                        // `Random` decision + its `Each`); no `FinalizeAct`
+                        // here, nothing at this level is itself
+                        // trigger-visible.
+                        self.schedule_front(vec![WorkItem::RunEffect {
+                            effect: Box::new(contents.body),
+                            frame: contents.frame,
+                        }]);
                         rebuilt()
                     } else {
                         // [CR#701.22a,701.14a]: a reorder / fight — schedule the
@@ -2547,16 +2560,6 @@ impl GameState {
         Progress::NoteChoiceOpened
     }
 
-    fn open_discard_cards(&mut self, player: PlayerId, count: Uint) -> Progress {
-        let hand =
-            Uint::try_from(self.zones.hands[player.index()].len()).expect("hand size fits in Uint");
-        let count = count.min(hand);
-        if count > 0 {
-            self.pending = Some(PendingDecision::DiscardCards { player, count });
-        }
-        Progress::DiscardOpened { count }
-    }
-
     /// [CR#705.1]: draw `count` coins and front-schedule ONE simultaneous
     /// batch ([CR#603.3b] — the multi-discard precedent). A CALLED flip
     /// ([CR#705.2]) instead surfaces a `CallFlip` decision per coin; the
@@ -2603,20 +2606,6 @@ impl GameState {
             self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
         }
         Progress::DiceRolled { count }
-    }
-
-    /// [CR#701.9b]: random discard — uniform distinct sample, no decision.
-    fn discard_random(&mut self, player: PlayerId, count: Uint) -> Progress {
-        let len = self.zones.hands[player.index()].len();
-        let n = usize::try_from(count).expect("count fits usize").min(len);
-        let idx = rand::seq::index::sample(&mut self.rng, len, n);
-        let hand = &self.zones.hands[player.index()];
-        let picks: Vec<ObjectId> = idx.into_iter().map(|i| hand[i]).collect();
-        let events = crate::decide::discard_batch(player, picks);
-        self.schedule_discard_acts(events);
-        Progress::RandomDiscarded {
-            count: Uint::try_from(n).expect("sampled count fits Uint"),
-        }
     }
 
     /// [CR#106.1b]: surfaces the color choice for a resolving `AddMana` whose

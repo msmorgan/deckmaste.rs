@@ -924,20 +924,6 @@ fn slice_whose(body: &OneShotEffect) -> Option<&Reference> {
     }
 }
 
-/// The discarding player of a chosen-discard body ([CR#701.9b]): the `whose` of
-/// the body's `Each`-over-`FromHand` selection. `None` for a bound single-move
-/// discard (its player rides the patient) or any other shape.
-fn discard_body_whose(body: &OneShotEffect) -> Option<&Reference> {
-    use deckmaste_core::Selection;
-    match peel_expanded(body) {
-        OneShotEffect::Each(each) => match &each.binder {
-            deckmaste_core::Binder::Existing(Selection::FromHand { whose, .. }) => Some(whose),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
 /// The collective rendering of an [`OneShotEffect::Each`] over a
 /// `Batch`-wrapped slice keyword action ([CR#121.1,701.17a]) with the loop
 /// element as performer — "Each player draws/mills N cards." (Jace Beleren's
@@ -1013,13 +999,16 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
             Some(format!("Destroy {}.", each_group()))
         }
         // [CR#701.9a,701.9b]: "Each player discards N cards[ at random]." —
-        // discard is `Composite{name:"Discard", body: Each(FromHand(whose:It))}`
+        // discard is `Composite{name:"Discard", body: With(Choose/Random, ..)}`
         // over the loop element as performer (draw/mill's per-card twin, but
         // Batch-wrapped and handled by `each_collective_batch`); the at-random
-        // qualifier rides the body's `FromHand` selection.
+        // qualifier rides the body's `With` binder shape.
         Action::Composite { name, body }
             if name.as_str() == "Discard"
-                && matches!(discard_body_whose(body), Some(Reference::It)) =>
+                && matches!(
+                    deckmaste_core::discard_body_whose(body),
+                    Some(Reference::It)
+                ) =>
         {
             Some(format!(
                 "{} discards {}{}.",

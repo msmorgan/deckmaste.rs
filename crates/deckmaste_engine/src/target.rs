@@ -904,10 +904,11 @@ mod tests {
     }
 
     /// `InHand(who)` ([CR#701.9a] discard's domain) composes `InZone(Hand)`
-    /// + an `Owner` match on the parameterized reference — a card in the
-    /// named player's hand, not hardcoded to `You`'s controller as a bare
-    /// `FromHand` would be (user ruling: `FromHand` was composite, not
-    /// intrinsic). `Ref(You)` needs a carrier, so this reads through
+    /// and an `Owner` match on the parameterized reference — a card in the
+    /// named player's hand, not hardcoded to `You`'s controller (user
+    /// ruling: the old `Selection::FromHand` was composite, not intrinsic,
+    /// so discard now rides this filter through an ordinary `Choose`/
+    /// `Random` binder). `Ref(You)` needs a carrier, so this reads through
     /// `matches_with` with an explicit watcher, not the frameless `matches`.
     #[test]
     fn in_hand_matches_a_card_in_the_named_players_hand() {

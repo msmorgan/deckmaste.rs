@@ -1954,10 +1954,11 @@ fn parse_draw(line: &str) -> Option<ParsedEffect> {
 /// ("discard" or "Discard"). The common form ([CR#701.9b]): no `what`, so
 /// the discarding player (`You`, implicit) chooses `count` cards from hand
 /// — the `Discard(N)` composite macro. The "at random" rider routes to the
-/// `DiscardAtRandom(N)` twin (the flag rides the body's `FromHand`
-/// selection). The imperative effect-body sibling of [`parse_draw`]; the
-/// cost-side "Discard a card" (`DiscardCards(N)`) is
-/// [`crate::parsers::cost::discard`] — same composite, different frame.
+/// `DiscardAtRandom(N)` twin (an `Existing(Random(..))` binder in place of
+/// `Choose` — no decision surfaces, the engine samples uniformly). The
+/// imperative effect-body sibling of [`parse_draw`]; the cost-side
+/// "Discard a card" (`DiscardCards(N)`) is [`crate::parsers::cost::discard`]
+/// — same composite, different frame.
 fn parse_discard(line: &str) -> Option<ParsedEffect> {
     let rest = strip_prefix_ci(line, "discard ")?.strip_suffix('.')?;
     let (rest, random) = match rest.strip_suffix(" at random") {

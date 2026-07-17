@@ -522,11 +522,15 @@ mod tests {
         );
         // Discard is now the `Composite { name, body }` the `Action::discard`
         // ctor builds ([CR#701.9]), like Destroy — the struct-variant spelling
-        // reads all-named.
+        // reads all-named. The chosen form's body is a `With(Choose(..InHand..),
+        // Each(They, ..))` choose-then-act step (Task 8: the discard choice
+        // rides the ordinary `Choose` binder, not a bespoke selection).
         assert_eq!(
             read(
-                "Composite(name: Discard, body: Each(binder: Existing(FromHand(count: \
-                 Literal(1))), effect: Move(It, Graveyard)))"
+                "Composite(name: Discard, body: With(binder: Choose(quantity: Range(1, 1), \
+                 filter: And([InZone(Hand), Owner(Ref(You))])), body: Each(binder: \
+                 Existing(They), effect: Composite(name: Discard, body: Move(It, \
+                 Graveyard)))))"
             ),
             OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(1), false)),
         );

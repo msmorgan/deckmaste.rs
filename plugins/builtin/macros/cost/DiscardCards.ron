@@ -2,8 +2,10 @@
 // the chosen-from-hand discard paid by the ability's activator (Blood
 // token's "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.",
 // [CR#111.10g]). Same `Composite` the effect-position `Discard` macro
-// builds; needs at least N cards in hand to be payable ([CR#601.2h] —
-// partial payment forbidden).
+// builds — a `With(Choose(..InHand(You)..), ..)` decision — wrapped in
+// `Do(..)` so the cost-payment lane runs it through the ordinary
+// `WorkItem::RunEffect{Act(..)}` path ([CR#601.2h] — needs at least N
+// cards in hand to be payable; partial payment forbidden).
 (
     name: "DiscardCards",
     template: "Discard ${0:card|cards}",
@@ -11,6 +13,12 @@
     params: [Count],
     body: Do(Composite(
         name: Discard,
-        body: Each(binder: Existing(FromHand(count: Param(0))), effect: Move(It, Graveyard)),
+        body: With(
+            binder: Choose(quantity: Exactly(Param(0)), filter: InHand(You)),
+            body: Each(
+                binder: Existing(They),
+                effect: Composite(name: Discard, body: Move(It, Graveyard)),
+            ),
+        ),
     )),
 )

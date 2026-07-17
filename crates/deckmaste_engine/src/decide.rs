@@ -479,7 +479,7 @@ pub(crate) fn unless_cost_action(
         // A verb cost is paid by `who` performing it ([CR#601.2h]) — re-agent
         // the implicit-you action onto `who`: a player verb swaps its `By`
         // agent; the chosen discard composite ([CR#701.9]) is rebuilt around
-        // `who` (who rides the body's `FromHand` selection), while the bound
+        // `who` (who rides the body's `With` binder's `filter`/`by`), while the bound
         // "discard this card" form ([CR#702.29a]) is paid by its patient's own
         // controller, so it needs only the named card.
         CostComponent::Do(action) => match &**action {
@@ -621,39 +621,6 @@ use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::state::GameState;
-
-/// [CR#701.9a]: the batch of PER-CARD `Act(Discard)` events a discard emits —
-/// scheduled as ONE simultaneous batch (the choice was batched, [CR#603.3b])
-/// but minted per-card, because each card's discard is its own replaceable/
-/// cantable moment ([CR#616.1]): madness reroutes ITS card's Hand→Graveyard
-/// to exile and no other's ([CR#702.35a]), and "whenever a player discards a
-/// card" fires once per card. Each surviving `Act` is dual-facet (performer +
-/// patient + the Hand→Graveyard body facet) and COMMITS its move atomically
-/// at apply — the destroy shape, no second replaceable future-form `ZoneChange`
-/// below it. Shared by the chosen path (`submit_discards`), the random path
-/// (`discard_random`), and cleanup's discard-to-hand-size ([CR#514.1] — a
-/// discard like any other: madness and discard triggers see it).
-pub(crate) fn discard_batch(player: PlayerId, objects: Vec<ObjectId>) -> Vec<GameEvent> {
-    objects
-        .into_iter()
-        .map(|object| GameEvent::Act {
-            verb: deckmaste_core::VerbName::from("Discard"),
-            who: Some(player),
-            on: Some(object),
-            from: Some(Zone::Hand),
-            to: Some(Zone::Graveyard),
-            cause: Some(Cause::discard(Agency::EffectInstruction, None)),
-            // Each per-card discard is a FUTURE window ([CR#616.1]) whose apply
-            // commits the single Hand → Graveyard move; a bound single move
-            // needs no `contents`.
-            committed: false,
-            contents: None,
-            batch: None,
-            inherited: std::collections::HashSet::new(),
-            contained: false,
-        })
-        .collect()
-}
 
 impl GameState {
     /// Answers the pending decision: validates, does the decision's
@@ -1630,9 +1597,11 @@ impl GameState {
         }
     }
 
-    /// Shared by `DiscardToHandSize` ([CR#514.1]) and `DiscardCards`
-    /// ([CR#701.9b]): validate that exactly `count` distinct in-hand cards were
-    /// chosen, then emit one `Discarded` per card.
+    /// [CR#514.1]: cleanup's hand-size discard — validate that exactly
+    /// `count` distinct in-hand cards were chosen, then emit one `Discarded`
+    /// per card. (The keyword-action discard's own chosen-form choice rides
+    /// the general `With`+`Choose` binder machinery instead, Task 8 —
+    /// `DiscardCards` is this decision's now-unreachable sibling.)
     ///
     /// # Errors
     ///
@@ -1663,23 +1632,48 @@ impl GameState {
         // ([CR#603.3b]), and the clause's amount — its card count, the
         // entailment row's `amount` — fixes "that many" for a following
         // draw ([CR#107.3]; the `apply_occurrence` funnel counts the batch).
-        let events = discard_batch(player, objects);
-        self.schedule_discard_acts(events);
+        self.schedule_discard_acts(player, objects);
         Ok(())
     }
 
-    /// Schedule a discard's per-card `Act(Discard)` windows as ONE simultaneous
-    /// batch ([CR#603.3b] — the choice was batched) plus each card's own
-    /// `FinalizeAct` watcher ([CR#616.1]): every card commits its Hand →
-    /// Graveyard move in the batch apply, and each finalizes independently on
-    /// its own patient — so a redirected discard (madness → Exile) still
-    /// records its name-fact ([CR#701.9c]) and a suppressed one records
-    /// none. Shared by the chosen (`submit_discards`) and random
-    /// (`discard_random`) paths.
-    pub(crate) fn schedule_discard_acts(&mut self, acts: Vec<GameEvent>) {
-        if acts.is_empty() {
+    /// [CR#701.9a]: schedule cleanup's hand-size discard as PER-CARD
+    /// `Act(Discard)` windows — ONE simultaneous batch (the choice was
+    /// batched, [CR#603.3b]) but minted per-card, because each card's
+    /// discard is its own replaceable/cantable moment ([CR#616.1]): madness
+    /// reroutes ITS card's Hand→Graveyard to exile and no other's
+    /// ([CR#702.35a]), and "whenever a player discards a card" fires once
+    /// per card. Each surviving `Act` is dual-facet (performer + patient +
+    /// the Hand→Graveyard body facet) and COMMITS its move atomically at
+    /// apply — the destroy shape, no second replaceable future-form
+    /// `ZoneChange` below it — plus its own `FinalizeAct` watcher, so a
+    /// redirected discard still records its name-fact and a suppressed one
+    /// records none. (The keyword-action discard's per-card events now come
+    /// from the SAME bound single-move construction the macro-driven
+    /// `With`+`Choose`/`Random` lane recurses into — this helper is
+    /// cleanup's own, [CR#514.1], not authored card data.)
+    pub(crate) fn schedule_discard_acts(&mut self, player: PlayerId, objects: Vec<ObjectId>) {
+        if objects.is_empty() {
             return;
         }
+        let acts: Vec<GameEvent> = objects
+            .into_iter()
+            .map(|object| GameEvent::Act {
+                verb: deckmaste_core::VerbName::from("Discard"),
+                who: Some(player),
+                on: Some(object),
+                from: Some(Zone::Hand),
+                to: Some(Zone::Graveyard),
+                cause: Some(Cause::discard(Agency::EffectInstruction, None)),
+                // Each per-card discard is a FUTURE window ([CR#616.1]) whose
+                // apply commits the single Hand → Graveyard move; a bound
+                // single move needs no `contents`.
+                committed: false,
+                contents: None,
+                batch: None,
+                inherited: std::collections::HashSet::new(),
+                contained: false,
+            })
+            .collect();
         let mark = self.resolution_events.len();
         let mut items = Vec::with_capacity(acts.len() + 1);
         items.push(WorkItem::Emit(Occurrence::Batch(acts.clone())));

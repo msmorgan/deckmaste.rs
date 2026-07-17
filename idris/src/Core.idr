@@ -1574,12 +1574,6 @@ mutual
       -- graveyard-topped effects (Volrath's Shapeshifter) name the player they inspect, unlike library
       -- manipulation's usual "your" default. No `BottomOfGraveyard` (no consumer).
       TopOfGraveyard : (count : Count b) -> (whose : Reference b APlayer) -> Selection b AnObject
-      -- `count` card(s) of `whose` HAND, CHOSEN by that player ([CR#701.9b] — the default chooser
-      -- is the hand's owner; a hidden-zone CHOICE, not a deterministic read like `TopOfLibrary`).
-      -- `random` = the "at random" variant ([CR#701.9b] — a uniform sample replaces the choice).
-      -- Feeds the discard composite's body; "another player chooses" is authored as a
-      -- choose-then-bind (Coercion), never a flag here. `whose` EXPLICIT like `TopOfGraveyard`'s.
-      FromHand : (count : Count b) -> (whose : Reference b APlayer) -> (random : Bool) -> Selection b AnObject
       -- the extremal ELEMENT(s) of a `Projection` ("the creature with the greatest power" = `Pick MaxOf (eachOf
       -- yourCreatures (StatOf It Power))`). The element-twin of `Aggregate` (which folds the same `Projection` to
       -- a value); the op is gated to the extremal ones by `IsExtremal` (no `Pick SumOf`); ties yield the whole
@@ -2027,7 +2021,6 @@ mutual
   selectionSort (TopOfLibrary c) = Card
   selectionSort (BottomOfLibrary c) = Card
   selectionSort (TopOfGraveyard _ _) = Card
-  selectionSort (FromHand _ _ _) = Card
   selectionSort (Pick op prj) = projSort prj
   selectionSort (Union gs) = unionSort gs
   selectionSort They = Permanent
@@ -2200,9 +2193,10 @@ mutual
       Mill    : Reference b APlayer -> Count b -> KeywordActionSpec b
       Draw    : Reference b APlayer -> Count b -> KeywordActionSpec b
       -- discard ([CR#701.9a]) — player-report like Mill/Draw: `who` then the count. WHICH cards
-      -- is the body's business (an `Each` over `FromHand`, the [CR#701.9b] batch choice — or the
-      -- bound single `Move` for "discard this card", [CR#702.29a]); the engine realizes per-card
-      -- `Act (Discard …)` events so madness ([CR#702.35a]) and discard triggers bite card-by-card.
+      -- is the body's business (a `With (Choose ..) ..`/`With (Existing (Random ..)) ..` decision,
+      -- the [CR#701.9b] batch choice — or the bound single `Move` for "discard this card",
+      -- [CR#702.29a]); the engine realizes per-card `Act (Discard …)` events so madness
+      -- ([CR#702.35a]) and discard triggers bite card-by-card.
       Discard : Reference b APlayer -> Count b -> KeywordActionSpec b
       Destroy : Reference b AnObject -> KeywordActionSpec b
       Fight   : Reference b AnObject -> Reference b AnObject -> KeywordActionSpec b

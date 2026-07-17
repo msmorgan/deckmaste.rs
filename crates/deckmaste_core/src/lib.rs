@@ -20,6 +20,7 @@ pub use action::PlayerAction;
 pub use action::discard_body_count;
 pub use action::discard_body_random;
 pub use action::discard_body_what;
+pub use action::discard_body_whose;
 
 mod binder;
 pub use binder::Binder;

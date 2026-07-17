@@ -56,24 +56,6 @@ pub enum Selection {
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         whose: Reference,
     },
-    /// `count` cards of `whose`'s hand, CHOSEN by that player ([CR#701.9b] —
-    /// the default chooser is the hand's owner; a hidden-zone choice, so
-    /// unlike [`TopOfLibrary`](Self::TopOfLibrary) this selection is a real
-    /// DECISION, surfaced at resolution, never a deterministic read).
-    /// `random: true` replaces the choice with a uniform sample ([CR#701.9b]
-    /// "at random"). `whose` defaults to `You` and writes bare, like
-    /// `TopOfLibrary`'s. Feeds the discard composite's body
-    /// ([`Action::discard`](crate::Action::discard)); "another player
-    /// chooses" is NOT a flag here — it is authored as a choose-then-bind
-    /// (the Coercion shape: look + choose, then discard the bound card via
-    /// [`Action::discard_what`](crate::Action::discard_what)).
-    FromHand {
-        count: Count,
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-        whose: Reference,
-        #[serde(default, skip_serializing_if = "crate::ability::is_false")]
-        random: bool,
-    },
     /// The top `count` cards of a graveyard, top → down (an ORDERED set —
     /// [CR#404.2] a graveyard is a single face-up pile in a fixed order).
     /// `of` names the graveyard's player; the default `You` writes bare, like

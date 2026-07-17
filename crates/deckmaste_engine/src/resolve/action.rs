@@ -510,6 +510,10 @@ impl GameState {
     /// verbs schedule their `FinalizeAct` from the APPLY (a per-card `mark`
     /// / an arrange-after-the-body ordering), so a replaced or canted
     /// action records nothing.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one arm per keyword-action verb; splitting would scatter the dispatch"
+    )]
     pub(crate) fn composite_items(
         &self,
         name: &deckmaste_core::VerbName,
@@ -617,25 +621,39 @@ impl GameState {
                     );
                     self.act_window(act, FinalizeWatch::Patients(vec![on]))
                 } else {
-                    // The chosen-from-hand discard batches ONE choice, then
-                    // mints per-card `Act(Discard)` windows in its handler
-                    // (`submit_discards` / `discard_random`) — Task 8 folds it
-                    // into the macro-driven lane ([CR#701.9b]). Its performer
-                    // and count ride the body's `FromHand` selection.
+                    // The chosen/random discard's card choice is a real
+                    // decision ([CR#701.9b]) that must be gated behind the
+                    // SAME [CR#616.1] cant→replace window every keyword
+                    // action gets ([CR#614.17] — "can't discard" suppresses
+                    // the whole action before any choice is asked, exactly
+                    // like Scry/Fight): carry the body as `contents` on a
+                    // performer-only future Act. If the window passes, the
+                    // apply's generic reorder/fight unwrap (`step.rs`)
+                    // schedules the body as an ordinary `RunEffect` — the
+                    // `With`+`Choose`/`Random` machinery (`resolve/effect.rs`)
+                    // then either surfaces the `ChooseObjects` decision or
+                    // samples the seeded rng, and each per-card `Each`
+                    // iteration recurses back into THIS dispatch's bound
+                    // single-move arm above (reusing its `Act(Discard)`
+                    // construction), so "whenever a player discards a card"
+                    // still fires once per card ([CR#701.9c]) and a canted
+                    // window never asks the choice at all.
                     let Some(who) = composite_body_whose(body) else {
                         return vec![];
                     };
                     let Some(player) = self.eval_player_ref(who, frame) else {
                         return vec![]; // unresolvable performer — fizzle
                     };
-                    let count = deckmaste_core::discard_body_count(body)
-                        .map_or(0, |c| self.eval_count(c, frame));
-                    let item = if deckmaste_core::discard_body_random(body) {
-                        WorkItem::DiscardRandom { player, count }
-                    } else {
-                        WorkItem::DiscardCards { player, count }
-                    };
-                    vec![item]
+                    let act = future(
+                        "Discard",
+                        Some(player),
+                        None,
+                        None,
+                        None,
+                        Some(Cause::discard(Agency::EffectInstruction, agent)),
+                        true,
+                    );
+                    vec![WorkItem::Emit(Occurrence::single(act))]
                 }
             }
             // ── Mill: simultaneous Library → Graveyard batch ([CR#701.17a]).
@@ -812,8 +830,9 @@ pub(crate) fn composite_move_src(
 
 /// The performer a slice / reorder / chosen-discard body names — the `whose`
 /// of the top-of-library slice its body reads
-/// (draw/mill/scry/surveil/fateseal) or the `whose` of a chosen discard's
-/// [`FromHand`](deckmaste_core::Selection::FromHand). `whose` defaults to `You`
+/// (draw/mill/scry/surveil/fateseal), or a discard's
+/// [`discard_body_whose`](deckmaste_core::discard_body_whose) (its `With`
+/// binder's `Choose.by` / at-random hand-owner). `whose` defaults to `You`
 /// (filled on read), so this is `Some` for every well-formed such body. Read
 /// off the stored body rather than a per-verb atom.
 pub(crate) fn composite_body_whose(
@@ -826,16 +845,14 @@ pub(crate) fn composite_body_whose(
     match body {
         E::Expanded(e) => composite_body_whose(&e.value),
         E::Each(each) => match &each.binder {
-            Binder::Existing(S::TopOfLibrary { whose, .. } | S::FromHand { whose, .. }) => {
-                Some(whose)
-            }
+            Binder::Existing(S::TopOfLibrary { whose, .. }) => Some(whose),
             _ => None,
         },
         E::Act(A::MoveGroup {
             group: S::TopOfLibrary { whose, .. },
             ..
         }) => Some(whose),
-        _ => None,
+        _ => deckmaste_core::discard_body_whose(body),
     }
 }
 
@@ -2064,16 +2081,28 @@ mod tests {
             OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), false)),
             &frame,
         );
-        let _ = state.step(); // DiscardOpened
-        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { player, count }) =
-            state.step()
+        // The carry future `Act` opens (and passes) its own [CR#616.1] window
+        // before the `With`+`Choose` machinery surfaces the actual choice.
+        let pending = (0..5)
+            .find_map(|_| match state.step() {
+                StepOutcome::NeedsDecision(p) => Some(p),
+                _ => None,
+            })
+            .expect("a ChooseObjects decision surfaces within a few steps");
+        let PendingDecision::ChooseObjects {
+            player,
+            candidates,
+            min,
+            max,
+        } = pending
         else {
-            panic!("expected the batched card choice, got {:?}", state.pending);
+            panic!("expected the batched card choice, got {pending:?}");
         };
-        assert_eq!((player, count), (PlayerId(0), 2), "one choice of 2 cards");
-        let picks = state.zones.hands[0][..2].to_vec();
+        assert_eq!(player, PlayerId(0));
+        assert_eq!((min, max), (2, 2), "one choice of 2 cards");
+        let picks = candidates[..2].to_vec();
         state
-            .submit_decision(Decision::Discard(picks.clone()))
+            .submit_decision(Decision::Chosen(picks.clone()))
             .unwrap();
         run_injected(&mut state);
 
@@ -2163,12 +2192,19 @@ mod tests {
             OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), false)),
             &frame,
         );
-        let _ = state.step();
-        let StepOutcome::NeedsDecision(PendingDecision::DiscardCards { .. }) = state.step() else {
-            panic!("expected the batched card choice, got {:?}", state.pending);
+        // The carry future `Act` opens (and passes) its own [CR#616.1] window
+        // before the `With`+`Choose` machinery surfaces the actual choice.
+        let pending = (0..5)
+            .find_map(|_| match state.step() {
+                StepOutcome::NeedsDecision(p) => Some(p),
+                _ => None,
+            })
+            .expect("a ChooseObjects decision surfaces within a few steps");
+        let PendingDecision::ChooseObjects { .. } = pending else {
+            panic!("expected the batched card choice, got {pending:?}");
         };
         state
-            .submit_decision(Decision::Discard(vec![mad, plain]))
+            .submit_decision(Decision::Chosen(vec![mad, plain]))
             .unwrap();
         run_injected(&mut state);
 
@@ -2265,6 +2301,104 @@ mod tests {
                     if verb.as_str() == "Discard")
             }),
             "a canted discard performs no keyword action — no fact, no trigger"
+        );
+    }
+
+    /// Cost-position discard ("Discard a card:", e.g. Blood token's
+    /// activation cost, [CR#111.10g,701.9,601.2b]) rides the SAME
+    /// `OneShotEffect::Act(Action::discard(..))` shape `verb_payment_items`
+    /// (`cast.rs`) builds for a `CostComponent::Do(..)` verb — so the
+    /// `ChooseObjects` decision surfaces and pays exactly as it does in
+    /// effect position, and the committed `Act(Discard)` fact still fires a
+    /// Megrim-shape "whenever you discard a card" trigger
+    /// (`Act(Discard(Ref(You), Any))`) exactly once.
+    #[test]
+    fn discard_via_cost_shape_pays_and_fires_the_discard_trigger_once() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::KeywordActionPattern;
+        use deckmaste_core::TriggeredAbility;
+
+        use crate::step::StepOutcome;
+
+        let (mut state, a) = bear_on_field();
+        mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Megrim Fixture".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![Ability::Triggered(TriggeredAbility {
+                    ability_word: None,
+                    where_x: None,
+                    from: None,
+                    event: EventFilter::Act(KeywordActionPattern::Discard(
+                        Predicate::Ref(Reference::You),
+                        Predicate::Any,
+                    )),
+                    condition: None,
+                    limits: Vec::new(),
+                    effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
+                        Count::Literal(2),
+                    ))),
+                })],
+                ..CardFace::default()
+            }),
+        );
+        let hand_before = state.zones.hands[0].len();
+        let life_before = state.player(PlayerId(0)).life;
+        let frame = frame_src(a);
+        // The shape `verb_payment_items` builds for a cost-position
+        // `Do(Action::discard(..))`: `WorkItem::RunEffect{Act(discard), frame}`.
+        state.run_effect(
+            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(1), false)),
+            &frame,
+        );
+        let pending = (0..5)
+            .find_map(|_| match state.step() {
+                StepOutcome::NeedsDecision(p) => Some(p),
+                _ => None,
+            })
+            .expect("a ChooseObjects decision surfaces within a few steps");
+        let PendingDecision::ChooseObjects {
+            candidates, min, ..
+        } = pending
+        else {
+            panic!("expected the batched card choice, got {pending:?}");
+        };
+        assert_eq!(min, 1, "one card to discard");
+        state
+            .submit_decision(Decision::Chosen(candidates[..1].to_vec()))
+            .unwrap();
+        run_injected(&mut state);
+
+        assert_eq!(
+            state.zones.hands[0].len(),
+            hand_before - 1,
+            "the cost-shape discard paid — one card left the hand"
+        );
+
+        // The discard is paid; drive priority so the Megrim-shape trigger it
+        // fired can resolve.
+        for _ in 0..30 {
+            if state.player(PlayerId(0)).life != life_before {
+                break;
+            }
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                    state
+                        .submit_decision(Decision::Act(crate::decide::Action::Pass))
+                        .unwrap();
+                }
+                StepOutcome::NeedsDecision(other) => {
+                    panic!("unexpected decision while the trigger resolves: {other:?}")
+                }
+                StepOutcome::GameOver(o) => panic!("unexpected game over: {o:?}"),
+            }
+        }
+        assert_eq!(
+            state.player(PlayerId(0)).life,
+            life_before - 2,
+            "the Megrim-shape trigger fired exactly once"
         );
     }
 
