@@ -2284,9 +2284,12 @@ mod tests {
         // "If a player would mill one or more cards, that player mills
         // twice that many cards instead."
         let bruvac = deckmaste_core::Replacement::Instead {
-            would: deckmaste_core::EventFilter::Act(deckmaste_core::KeywordActionPattern::Mill(
-                Predicate::Any,
-            )),
+            would: deckmaste_core::EventFilter::Act {
+                verb: deckmaste_core::VerbName::from("Mill"),
+                who: Predicate::Any,
+                on: Predicate::Any,
+                cause: None,
+            },
             instead: OneShotEffect::Batch(
                 Count::Times(Box::new(Count::Literal(2)), Box::new(Count::ThatMany)),
                 Box::new(OneShotEffect::Act(deckmaste_core::Action::mill_one(
@@ -2371,9 +2374,12 @@ mod tests {
         let hand0 = state.zones.hands[p0.index()].len();
 
         let archive = deckmaste_core::Replacement::Instead {
-            would: deckmaste_core::EventFilter::Act(deckmaste_core::KeywordActionPattern::Draw(
-                Predicate::Any,
-            )),
+            would: deckmaste_core::EventFilter::Act {
+                verb: deckmaste_core::VerbName::from("Draw"),
+                who: Predicate::Any,
+                on: Predicate::Any,
+                cause: None,
+            },
             instead: OneShotEffect::Batch(
                 Count::Literal(2),
                 Box::new(OneShotEffect::Act(deckmaste_core::Action::draw_one(
@@ -2433,9 +2439,12 @@ mod tests {
                         condition: None,
                         limits: Vec::new(),
                         where_x: None,
-                        event: deckmaste_core::EventFilter::Act(
-                            deckmaste_core::KeywordActionPattern::Mill(Predicate::Any),
-                        ),
+                        event: deckmaste_core::EventFilter::Act {
+                            verb: deckmaste_core::VerbName::from("Mill"),
+                            who: Predicate::Any,
+                            on: Predicate::Any,
+                            cause: None,
+                        },
                         effect: OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(
                             1,
                         ))),

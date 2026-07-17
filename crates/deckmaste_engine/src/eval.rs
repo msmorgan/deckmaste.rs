@@ -754,55 +754,55 @@ impl GameState {
                     && self.actor_matches(who, fact.actor, bindings)
             }
 
-            // [CR#701]: the named keyword-action pre-intent — matched by the
-            // `KeywordActionPattern` atom, decomposed per-verb. The verb TAG
-            // fixes the name; the atom's `Predicate` arg narrows the fact's
-            // performer (`actor`, for the player-report verbs) or patient
-            // (`object`, for the object verbs). Count is not carried — a
-            // keyword-action trigger matches any amount. Indestructible /
-            // regeneration and `Cant(Act(…))` bite here.
-            EventFilter::Act(pattern) => {
-                use deckmaste_core::KeywordActionPattern as Kap;
-                let named = |n: &str| fact.act_name.as_deref().map(Ident::as_str) == Some(n);
-                fact.kind == FactKind::Act
-                    && match pattern {
-                        Kap::Scry(who) => {
-                            named("Scry") && self.actor_matches(who, fact.actor, bindings)
-                        }
-                        Kap::Surveil(who) => {
-                            named("Surveil") && self.actor_matches(who, fact.actor, bindings)
-                        }
-                        Kap::Fateseal(who) => {
-                            named("Fateseal") && self.actor_matches(who, fact.actor, bindings)
-                        }
-                        Kap::Mill(who) => {
-                            named("Mill") && self.actor_matches(who, fact.actor, bindings)
-                        }
-                        Kap::Draw(who) => {
-                            named("Draw") && self.actor_matches(who, fact.actor, bindings)
-                        }
-                        // Discard narrows by BOTH coordinates ([CR#701.9a]):
-                        // the performer AND the discarded card — madness's
-                        // "if a player would discard THIS card"
-                        // ([CR#702.35a]) reads the patient; "whenever you
-                        // discard" reads the performer. The chosen form's
-                        // pre-choice tag event carries no patient yet — an
-                        // `Any` object slot matches it.
-                        Kap::Discard(who, what) => {
-                            named("Discard")
-                                && self.actor_matches(who, fact.actor, bindings)
-                                && self.part_matches(what, fact.object.as_ref(), bindings)
-                        }
-                        Kap::Destroy(patient) => {
-                            named("Destroy")
-                                && self.part_matches(patient, fact.object.as_ref(), bindings)
-                        }
-                        Kap::Fight(a, b) => {
-                            named("Fight")
-                                && self.part_matches(a, fact.object.as_ref(), bindings)
-                                && self.part_matches(b, fact.patient.as_ref(), bindings)
-                        }
-                    }
+            // [CR#701]: the named keyword action, ONE master form. The verb
+            // TAG fixes the name (`fact.act_name`); `who`/`on` narrow the
+            // fact's performer/patient, decomposed per-verb — Fight carries
+            // its two combatants on `object`/`patient` ([CR#701.14a]), every
+            // other verb rides `actor` (performer) and `object` (its single
+            // patient), an `Any` default matching the coordinate a verb leaves
+            // empty. `cause` narrows the cause triple.
+            //
+            // LANE-SPLIT ([CR#616.1,616.1f]): the trigger/history lanes match
+            // the finalized NAME-fact only (verb + who/on/cause) — a redirected
+            // madness discard still fires "whenever you discard" ([CR#701.9c]).
+            // The Replacement (would) lane ADDITIONALLY requires the event's
+            // realized zone facets to still match the verb's canonical shape
+            // (the emitted entailment row — the same `from`/`to` facets the
+            // `ZoneChange` relaxation above reads off an `Act`). The check is
+            // DIVERGENCE-only: it fails only when the event EXPOSES a content
+            // coordinate that the verb fixes and it has moved OFF canonical
+            // (stacked madness / Leyline-first: a discard's `to` is now Exile,
+            // not Graveyard) — the auto-guard, with zero authored clause. A
+            // coordinate the event doesn't expose (an aggregate `Batch`
+            // window, a pre-choice cant-check — from/to `None`) is NOT a
+            // divergence, so the would-lane matches on name there; likewise a
+            // reorder verb (scry/surveil/fateseal/fight) fixes no zone shape.
+            EventFilter::Act {
+                verb,
+                who,
+                on,
+                cause,
+            } => {
+                let name_ok = fact.kind == FactKind::Act
+                    && fact.act_name.as_deref().map(Ident::as_str) == Some(verb.as_str());
+                let coords_ok = if verb.as_str() == "Fight" {
+                    self.part_matches(who, fact.object.as_ref(), bindings)
+                        && self.part_matches(on, fact.patient.as_ref(), bindings)
+                } else {
+                    self.actor_matches(who, fact.actor, bindings)
+                        && self.part_matches(on, fact.object.as_ref(), bindings)
+                };
+                let cause_ok = cause
+                    .as_ref()
+                    .is_none_or(|c| self.cause_matches(c, fact.cause.as_deref(), bindings));
+                let shape_ok = lane != Lane::Replacement
+                    || crate::entail::entailment(verb.as_str()).is_none_or(|row| {
+                        row.from
+                            .zip(fact.from)
+                            .is_none_or(|(canon, got)| canon == got)
+                            && row.to.zip(fact.to).is_none_or(|(canon, got)| canon == got)
+                    });
+                name_ok && coords_ok && cause_ok && shape_ok
             }
 
             // [CR#122.1]: an omitted pattern `kind` watches any counter kind.

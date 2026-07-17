@@ -1,0 +1,16 @@
+// "Discard(who, what)" ([CR#701.9a]) — the bare-verb pattern TWIN, matching the
+// Discard keyword-action event by its performer AND the discarded card: the
+// discard carries both coordinates and replacements narrow by either. Madness
+// reads `Discard(Any, Ref(This))` ("if a player would discard THIS card",
+// [CR#702.35a]); "whenever you discard a card" is `Discard(Ref(You), Any)`.
+// Expands to the `Act` master form — `who` narrows the performer (the fact's
+// `actor`), `on` the discarded card (its `object`). The Replacement (would)
+// lane also requires the event's Hand → Graveyard shape to still hold
+// ([CR#616.1f] — the stacked-madness auto-guard).
+(
+    name: "Discard",
+    template: "${0} discards ${1}",
+    kinds: [EventFilter],
+    params: [Predicate, Predicate],
+    body: Act(verb: Discard, who: Param(0), on: Param(1)),
+)

@@ -218,9 +218,22 @@ fn vibranium_token_parses() {
         template: Some("indestructible".into()),
         value: Box::new(KeywordAbility::Composite {
             name: "Indestructible".into(),
-            abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
-                deckmaste_core::KeywordActionPattern::Destroy(Predicate::Ref(Reference::This)),
-            )))],
+            // The filter is the bare-verb `Destroy(Ref(This))` pattern twin —
+            // remembered under its own macro-provenance `Expanded` wrapper,
+            // expanding to the `Act` master form.
+            abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                EventFilter::Expanded(Expansion {
+                    name: "Destroy".into(),
+                    args: ExpansionArgs::Positional(vec!["Ref(This)".into()]),
+                    template: Some("${0} is destroyed".into()),
+                    value: Box::new(EventFilter::Act {
+                        verb: deckmaste_core::VerbName::from("Destroy"),
+                        who: Predicate::Any,
+                        on: Predicate::Ref(Reference::This),
+                        cause: None,
+                    }),
+                }),
+            ))],
         }),
     }));
     // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The

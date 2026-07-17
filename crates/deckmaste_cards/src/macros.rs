@@ -428,6 +428,90 @@ mod tests {
         .unwrap()
     }
 
+    /// The bare-verb keyword-action pattern TWINS (`Destroy(Ref(This))`,
+    /// `Scry(Ref(You))`, `Discard(Ref(You), Any)`) expand, at the `EventFilter`
+    /// position, to the `Act` master form ([CR#701]) — the ruled spelling that
+    /// replaces the retired nested `Act(Verb(..))`. Each twin shares its NAME
+    /// with the same-named `KeywordAction` verb macro; the `(kind, name)`
+    /// namespace keeps them distinct. The `CantHappen(Destroy(Ref(This)))`
+    /// static (indestructible's migrated spelling) expands the same twin at a
+    /// `StaticEffect`'s filter slot.
+    #[test]
+    fn keyword_action_pattern_twins_expand_to_the_act_master_form() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticEffect;
+        use deckmaste_core::VerbName;
+
+        let macros = builtin().macros;
+
+        // Single-slot object twin: `Destroy(Ref(This))` → the master form's
+        // `on` slot; `who`/`cause` default.
+        let destroy: EventFilter = macros.read_str("Destroy(Ref(This))").unwrap();
+        let EventFilter::Expanded(exp) = &destroy else {
+            panic!("expected a remembered twin, got {destroy:?}");
+        };
+        assert_eq!(exp.name, "Destroy");
+        assert_eq!(
+            *exp.value,
+            EventFilter::Act {
+                verb: VerbName::from("Destroy"),
+                who: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
+                cause: None,
+            },
+        );
+
+        // Single-slot player-report twin: `Scry(Ref(You))` → the `who` slot.
+        let scry: EventFilter = macros.read_str("Scry(Ref(You))").unwrap();
+        let EventFilter::Expanded(exp) = &scry else {
+            panic!("expected a remembered twin, got {scry:?}");
+        };
+        assert_eq!(
+            *exp.value,
+            EventFilter::Act {
+                verb: VerbName::from("Scry"),
+                who: Predicate::Ref(Reference::You),
+                on: Predicate::Any,
+                cause: None,
+            },
+        );
+
+        // Two-slot twin: `Discard(Ref(You), Any)` → both performer and card.
+        let discard: EventFilter = macros.read_str("Discard(Ref(You), Any)").unwrap();
+        let EventFilter::Expanded(exp) = &discard else {
+            panic!("expected a remembered twin, got {discard:?}");
+        };
+        assert_eq!(
+            *exp.value,
+            EventFilter::Act {
+                verb: VerbName::from("Discard"),
+                who: Predicate::Ref(Reference::You),
+                on: Predicate::Any,
+                cause: None,
+            },
+        );
+
+        // Indestructible's migrated spelling: the twin at a StaticEffect slot.
+        let cant: StaticEffect = macros.read_str("CantHappen(Destroy(Ref(This)))").unwrap();
+        let StaticEffect::CantHappen(inner) = &cant else {
+            panic!("expected CantHappen, got {cant:?}");
+        };
+        let EventFilter::Expanded(exp) = inner else {
+            panic!("expected a remembered twin inside CantHappen, got {inner:?}");
+        };
+        assert_eq!(
+            *exp.value,
+            EventFilter::Act {
+                verb: VerbName::from("Destroy"),
+                who: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
+                cause: None,
+            },
+        );
+    }
+
     /// `OtherCreaturesYouControl` (Selection) nullary-nests the reusable
     /// `OtherCreatureYouControl` (Predicate) atom rather than repeating the
     /// `And([...])` filter inline — the layered-predicate refactor. The

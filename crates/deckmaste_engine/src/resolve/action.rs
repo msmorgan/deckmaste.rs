@@ -1512,8 +1512,8 @@ mod tests {
     #[test]
     fn mill_replaced_before_cards_move() {
         use deckmaste_core::EventFilter;
-        use deckmaste_core::KeywordActionPattern as Kap;
         use deckmaste_core::Replacement;
+        use deckmaste_core::VerbName;
 
         let mut state = game();
         // A battlefield permanent (player 0's) carrying the replacement.
@@ -1524,7 +1524,12 @@ mod tests {
                 types: vec![Type::Creature.def()],
                 abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
                     Replacement::Instead {
-                        would: EventFilter::Act(Kap::Mill(Predicate::Any)),
+                        would: EventFilter::Act {
+                            verb: VerbName::from("Mill"),
+                            who: Predicate::Any,
+                            on: Predicate::Any,
+                            cause: None,
+                        },
                         instead: OneShotEffect::Act(Action::by_you(PlayerAction::GainLife(
                             Count::Literal(3),
                         ))),
@@ -1571,8 +1576,8 @@ mod tests {
     #[test]
     fn redirected_discard_still_records_the_name_fact() {
         use deckmaste_core::EventFilter;
-        use deckmaste_core::KeywordActionPattern as Kap;
         use deckmaste_core::Replacement;
+        use deckmaste_core::VerbName;
 
         let mut state = game();
         mint_on_field(
@@ -1582,7 +1587,12 @@ mod tests {
                 types: vec![Type::Creature.def()],
                 abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
                     Replacement::Instead {
-                        would: EventFilter::Act(Kap::Discard(Predicate::Any, Predicate::Any)),
+                        would: EventFilter::Act {
+                            verb: VerbName::from("Discard"),
+                            who: Predicate::Any,
+                            on: Predicate::Any,
+                            cause: None,
+                        },
                         instead: OneShotEffect::Act(Action::move_to(
                             Reference::EventObject,
                             Zone::Exile,
@@ -2157,7 +2167,7 @@ mod tests {
     fn madness_style_replacement_exiles_its_card_only() {
         use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::EventFilter;
-        use deckmaste_core::KeywordActionPattern;
+        use deckmaste_core::VerbName;
 
         use crate::Decision;
         use crate::PendingDecision;
@@ -2166,10 +2176,14 @@ mod tests {
         let (mut state, a) = bear_on_field();
         // "If a player would discard [Madness Card], exile it instead."
         let madness = deckmaste_core::Replacement::Instead {
-            would: EventFilter::Act(KeywordActionPattern::Discard(
-                Predicate::Any,
-                Predicate::Characteristic(CharacteristicPredicate::Named("Madness Card".into())),
-            )),
+            would: EventFilter::Act {
+                verb: VerbName::from("Discard"),
+                who: Predicate::Any,
+                on: Predicate::Characteristic(CharacteristicPredicate::Named(
+                    "Madness Card".into(),
+                )),
+                cause: None,
+            },
             instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
         };
         mint_on_field(
@@ -2267,7 +2281,7 @@ mod tests {
     #[test]
     fn cant_discard_suppresses_the_whole_action() {
         use deckmaste_core::EventFilter;
-        use deckmaste_core::KeywordActionPattern;
+        use deckmaste_core::VerbName;
 
         let (mut state, a) = bear_on_field();
         mint_on_field(
@@ -2275,9 +2289,14 @@ mod tests {
             Card::Normal(CardFace {
                 name: "No Discards".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
-                    KeywordActionPattern::Discard(Predicate::Any, Predicate::Any),
-                )))],
+                abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                    EventFilter::Act {
+                        verb: VerbName::from("Discard"),
+                        who: Predicate::Any,
+                        on: Predicate::Any,
+                        cause: None,
+                    },
+                ))],
                 ..CardFace::default()
             }),
         );
@@ -2315,8 +2334,8 @@ mod tests {
     #[test]
     fn discard_via_cost_shape_pays_and_fires_the_discard_trigger_once() {
         use deckmaste_core::EventFilter;
-        use deckmaste_core::KeywordActionPattern;
         use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::VerbName;
 
         use crate::step::StepOutcome;
 
@@ -2330,10 +2349,12 @@ mod tests {
                     ability_word: None,
                     where_x: None,
                     from: None,
-                    event: EventFilter::Act(KeywordActionPattern::Discard(
-                        Predicate::Ref(Reference::You),
-                        Predicate::Any,
-                    )),
+                    event: EventFilter::Act {
+                        verb: VerbName::from("Discard"),
+                        who: Predicate::Ref(Reference::You),
+                        on: Predicate::Any,
+                        cause: None,
+                    },
                     condition: None,
                     limits: Vec::new(),
                     effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
@@ -3811,9 +3832,14 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Scry Warden".into(),
                 types: vec![Type::Creature.def()],
-                abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
-                    deckmaste_core::KeywordActionPattern::Scry(Predicate::Any),
-                )))],
+                abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                    EventFilter::Act {
+                        verb: deckmaste_core::VerbName::from("Scry"),
+                        who: Predicate::Any,
+                        on: Predicate::Any,
+                        cause: None,
+                    },
+                ))],
                 ..CardFace::default()
             }),
         );

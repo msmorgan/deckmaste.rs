@@ -1,0 +1,10 @@
+// "Surveil(who)" ([CR#701.25a]) — the bare-verb pattern TWIN: "whenever `who`
+// surveils". Expands to the `Act` master form, the performer riding `who` (the
+// fact's `actor`).
+(
+    name: "Surveil",
+    template: "${0} surveils",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: Act(verb: Surveil, who: Param(0)),
+)

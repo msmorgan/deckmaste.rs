@@ -1,0 +1,10 @@
+// "Fateseal(who)" ([CR#701.20a]) — the bare-verb pattern TWIN: "whenever `who`
+// fateseals". Expands to the `Act` master form, the performer riding `who` (the
+// fact's `actor`).
+(
+    name: "Fateseal",
+    template: "${0} fateseals",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: Act(verb: Fateseal, who: Param(0)),
+)

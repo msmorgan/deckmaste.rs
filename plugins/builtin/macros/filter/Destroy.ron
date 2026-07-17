@@ -1,0 +1,14 @@
+// "Destroy(patient)" ([CR#701.8a,702.12b]) — the bare-verb pattern TWIN at the
+// EventFilter position, matching the Destroy keyword-action event on `patient`
+// (indestructible's `Destroy(Ref(This))`, regeneration's would-watch). Expands
+// to the `Act` master form; the `Dies`/`Destroyed` precedent. The single
+// patient rides the master form's `on` slot (the fact's `object`); no
+// performer/count is carried. The Replacement (would) lane also requires the
+// event's realized Battlefield → Graveyard shape to still hold ([CR#616.1f]).
+(
+    name: "Destroy",
+    template: "${0} is destroyed",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: Act(verb: Destroy, on: Param(0)),
+)

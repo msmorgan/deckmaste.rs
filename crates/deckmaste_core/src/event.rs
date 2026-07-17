@@ -247,44 +247,6 @@ pub enum Cause {
     Cause(CausePattern),
 }
 
-/// The trigger/guard PATTERN twin of the keyword-action
-/// [`Composite`](crate::Action::Composite) verb family —
-/// what [`EventFilter::Act`] matches a performed keyword action by. Same
-/// closed, bareword-positional atom family, but its arguments are
-/// [`Predicate`]s (not [`Reference`]s), exactly the
-/// [`Action`](crate::Action)-vs-`EventFilter` split: `Act(Destroy(Ref(This)))`
-/// (this permanent only), `Act(Destroy(Any))` (any destroy), `Act(Scry(You))`
-/// ("whenever you scry"), `Act(Draw( OpponentOf(Ref(You))))` ("whenever an
-/// opponent draws"). The performer predicate rides the same player-first slot
-/// as the value atom's `who`; the COUNT is not carried — a keyword-action
-/// trigger never narrows by amount, so the pattern matches any count. The
-/// engine decomposes this per-verb against the fact view (verb tag ⇒ kind,
-/// object/performer `Predicate` ⇒ `object`/`actor`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum KeywordActionPattern {
-    /// "whenever `who` scries" ([CR#701.22a]).
-    Scry(Predicate),
-    /// "whenever `who` surveils" ([CR#701.25a]).
-    Surveil(Predicate),
-    /// "whenever `who` fateseals" ([CR#701.20a]).
-    Fateseal(Predicate),
-    /// "whenever `who` mills" ([CR#701.17a]).
-    Mill(Predicate),
-    /// "whenever `who` draws" ([CR#121.1]).
-    Draw(Predicate),
-    /// "whenever `who` discards [what]" ([CR#701.9a]) — TWO slots, like
-    /// [`Fight`](Self::Fight): the performer AND the discarded card, because
-    /// the discard event carries both coordinates and replacements narrow by
-    /// either. Madness reads `Act(Discard(Any, Ref(This)))` — "if a player
-    /// would discard THIS card" ([CR#702.35a]); "whenever you discard a
-    /// card" is `Act(Discard(Ref(You), Any))`.
-    Discard(Predicate, Predicate),
-    /// "[patient] is destroyed / can't be destroyed" ([CR#701.8a,702.12b]).
-    Destroy(Predicate),
-    /// "whenever [a] fights [b]" ([CR#701.14a]).
-    Fight(Predicate, Predicate),
-}
-
 /// The unified event-query language ([CR#603.2] and kin): master-form
 /// records over the one engine fact record, plus a lane-gated algebra.
 ///
@@ -370,14 +332,39 @@ pub enum EventFilter {
     },
     /// A NAMED keyword action ([CR#701]) — the ONE present-tense event
     /// (`GameEvent::Act`) that is both the guardable/replaceable moment and the
-    /// "whenever you scry/surveil/…" trigger fact. Matched by the
-    /// [`KeywordActionPattern`] atom (bareword-positional, args are
-    /// [`Predicate`]s): indestructible reads `Act(Destroy(Ref(This)))`
-    /// ([CR#702.12b]); a `Cant(Act(…))` static suppresses the whole action so
-    /// its body never runs ([CR#701.22b]); "whenever you scry" is `Act(Scry(
-    /// You))`. Distinct from the RESULT-side `ZoneChange`/`Drawn` filters
-    /// "destroyed"/"drawn" triggers key on ([CR#700.4]).
-    Act(KeywordActionPattern),
+    /// "whenever you scry/surveil/…" trigger fact. The MASTER FORM over the
+    /// verb family: `verb` names the keyword action (a [`VerbName`] — `Scry`,
+    /// `Destroy`, …); `who` narrows its performer (the player-report verbs'
+    /// actor — "whenever an opponent draws"); `on` narrows its patient (the
+    /// object verbs' affected card — indestructible's `Destroy(Ref(This))`,
+    /// [CR#702.12b]); `cause` narrows the cause triple (a discard narrowed to
+    /// cycling-cost agency fires once per cycle). Omitted `who`/`on` default to
+    /// match-anything; the COUNT is never carried — a keyword-action pattern
+    /// matches any amount.
+    ///
+    /// Authored through the bare-verb pattern TWINS at the `EventFilter`
+    /// position — `Destroy(Ref(This))`, `Discard(Ref(You), Any)`, `Scry(You)`,
+    /// `Cant(Destroy(..))` — one hand-authored macro per verb expanding to this
+    /// form, the `Dies`/`Destroyed` precedent.
+    ///
+    /// LANE-SPLIT matching ([CR#616.1,616.1f]): the trigger/history lanes read
+    /// the finalized NAME-fact only (`verb`/`who`/`on`/`cause`) — a redirected
+    /// madness discard still fires "whenever you discard" ([CR#701.9c]); the
+    /// replacement (would) lane ADDITIONALLY requires the event's realized
+    /// content facets to still match the verb's canonical zone shape, so a
+    /// content already modified away from canonical stops matching
+    /// automatically (stacked madness / Leyline-first — the auto-guard, no
+    /// authored conjunction). Distinct from the RESULT-side `ZoneChange`/
+    /// `Drawn` filters "destroyed"/"drawn" triggers key on ([CR#700.4]).
+    Act {
+        verb: VerbName,
+        #[serde(default = "Predicate::any")]
+        who: Predicate,
+        #[serde(default = "Predicate::any")]
+        on: Predicate,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<Cause>,
+    },
     /// Counters were placed on an object or player ([CR#122.1]). An omitted
     /// `kind` watches any counter kind.
     CounterPlaced {
@@ -697,6 +684,61 @@ mod tests {
                 cause: None,
             },
         );
+    }
+
+    /// The `Act` master form reads flat (verb + who/on/cause): a two-slot
+    /// discard narrows both performer and card; omitted `who`/`on` default to
+    /// match-anything and `cause` to `None`; and every form round-trips.
+    #[test]
+    fn act_master_form_reads_and_round_trips() {
+        use crate::Reference;
+
+        // Both slots present ("if you would discard THIS card"): the master
+        // form the bare-verb `Discard(Ref(You), Ref(This))` twin expands to.
+        assert_eq!(
+            read("Act(verb: Discard, who: Ref(You), on: Ref(This))"),
+            EventFilter::Act {
+                verb: VerbName::from("Discard"),
+                who: Predicate::Ref(Reference::You),
+                on: Predicate::Ref(Reference::This),
+                cause: None,
+            },
+        );
+        // Omitted predicate slots default to match-anything; `cause` to `None`
+        // — the single-slot `Scry(You)` twin's shape.
+        assert_eq!(
+            read("Act(verb: Scry, who: Ref(You))"),
+            EventFilter::Act {
+                verb: VerbName::from("Scry"),
+                who: Predicate::Ref(Reference::You),
+                on: Predicate::Any,
+                cause: None,
+            },
+        );
+        // `cause` narrows the cause triple — a discard narrowed to cycling-cost
+        // agency ("whenever a player cycles").
+        assert_eq!(
+            read("Act(verb: Discard, cause: Cause(agency: CostPayment))"),
+            EventFilter::Act {
+                verb: VerbName::from("Discard"),
+                who: Predicate::Any,
+                on: Predicate::Any,
+                cause: Some(Cause::Cause(CausePattern {
+                    verb: None,
+                    agency: Some(Agency::CostPayment),
+                    agent: None,
+                })),
+            },
+        );
+        for source in [
+            "Act(verb: Destroy, on: Ref(This))",
+            "Act(verb: Fight, who: Ref(This), on: Any)",
+            "Act(verb: Mill, who: Ref(You))",
+        ] {
+            let parsed = read(source);
+            let written = crate::ron::options().to_string(&parsed).unwrap();
+            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
+        }
     }
 
     /// `StepBegins` carries ONLY the step and whose-turn coordinates — a

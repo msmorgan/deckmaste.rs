@@ -186,9 +186,9 @@ pub enum GameEvent {
     /// (scry/surveil/fateseal/mill/draw) — the actor "whenever an opponent
     /// draws" reads; `on` is the RESOLVED patient object for the object verbs
     /// (destroy/fight). At most one of `who`/`on` is set for today's atoms.
-    /// Matched by [`EventFilter::Act`](deckmaste_core::EventFilter::Act)'s
-    /// [`KeywordActionPattern`](deckmaste_core::KeywordActionPattern) on BOTH
-    /// lanes: a `Cant(Act(…))` static ([CR#702.12b]) suppresses the whole
+    /// Matched by the [`EventFilter::Act`](deckmaste_core::EventFilter::Act)
+    /// master form (verb + who/on/cause) on BOTH
+    /// lanes: a `Cant(Destroy(…))` static ([CR#702.12b]) suppresses the whole
     /// action so its body never runs ([CR#701.22b]), while a surviving `Act` in
     /// the log is the "whenever you scry/surveil/…" trigger fact
     /// ([CR#701.22d]) — no separate post-fact. RESULT-side

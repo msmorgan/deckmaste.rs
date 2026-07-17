@@ -1209,14 +1209,25 @@ fn cause_verbs_are_entailment_rows() {
         "entailments table should carry the closed cause-verb vocab; got {known:?}"
     );
 
-    // Every corpus cause-struct `verb:` field must be a known row. RON is
-    // lenient about the spellings this must survive: the struct name is
-    // optional (`(verb: Destroy)` parses as a `Cause`/`CausePattern` too),
-    // named fields are ORDER-FREE (`Cause(agency: CostPayment, verb: X)`),
-    // and a quoted `verb: "X"` deserializes into the open `VerbName` newtype
-    // just as silently as a bareword — so anchor on the field inside any
-    // paren group (simple ident-valued fields may precede), not on a
-    // first-position `Cause(verb:` spelling.
+    // The `Act` master form's `verb:` slot ([CR#701]) shares this field name
+    // but carries a keyword-action NAME, a vocabulary that supersets the cause
+    // verbs: the reorder actions (scry/surveil/fateseal) and draw entail no
+    // cause-narrowed fact view, so they carry NO entailments.ron row (the
+    // would-lane shape guard is simply vacuous for a rowless verb) — yet remain
+    // valid `verb:` spellings. Admit them alongside the cause-verb rows; the
+    // typo/dead-verb check still bites every genuinely-unknown spelling.
+    let keyword_action_only: BTreeSet<&str> =
+        BTreeSet::from(["Draw", "Fateseal", "Scry", "Surveil"]);
+
+    // Every corpus cause/act-struct `verb:` field must be a known row or a
+    // keyword-action name. RON is lenient about the spellings this must
+    // survive: the struct name is optional (`(verb: Destroy)` parses as a
+    // `Cause`/`CausePattern` too), named fields are ORDER-FREE
+    // (`Cause(agency: CostPayment, verb: X)`), and a quoted `verb: "X"`
+    // deserializes into the open `VerbName` newtype just as silently as a
+    // bareword — so anchor on the field inside any paren group (simple
+    // ident-valued fields may precede), not on a first-position `Cause(verb:`
+    // spelling.
     let use_verb =
         Regex::new(r#"\(\s*(?:[A-Za-z_]+\s*:\s*[A-Za-z_]+\s*,\s*)*verb\s*:\s*"?([A-Za-z]+)"?"#)
             .unwrap();
@@ -1224,7 +1235,7 @@ fn cause_verbs_are_entailment_rows() {
     for text in accept_corpus() {
         for c in use_verb.captures_iter(&text) {
             let verb = c[1].to_string();
-            if !known.contains(&verb) {
+            if !known.contains(&verb) && !keyword_action_only.contains(verb.as_str()) {
                 bad.insert(verb);
             }
         }

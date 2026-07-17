@@ -1,0 +1,11 @@
+// "Draw(who)" ([CR#121.1]) — the bare-verb pattern TWIN: "whenever `who` draws"
+// (the keyword-action intent — distinct from the RESULT-side `Drawn` filter a
+// "drawn" trigger keys on, [CR#700.4]). Expands to the `Act` master form, the
+// performer riding `who` (the fact's `actor`).
+(
+    name: "Draw",
+    template: "${0} draws",
+    kinds: [EventFilter],
+    params: [Predicate],
+    body: Act(verb: Draw, who: Param(0)),
+)

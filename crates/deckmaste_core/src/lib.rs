@@ -138,7 +138,6 @@ pub use event::CausePattern;
 pub use event::CombatStep;
 pub use event::EndingStep;
 pub use event::EventFilter;
-pub use event::KeywordActionPattern;
 pub use event::PhaseKind;
 pub use event::PhaseStep;
 pub use event::StateChange;

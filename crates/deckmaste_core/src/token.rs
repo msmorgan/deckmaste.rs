@@ -217,9 +217,14 @@ impl PredefinedToken {
         let indestructible = || {
             Ability::Keyword(KeywordAbility::Composite {
                 name: "Indestructible".into(),
-                abilities: vec![Ability::Static(StaticEffect::CantHappen(EventFilter::Act(
-                    crate::KeywordActionPattern::Destroy(Predicate::Ref(Reference::This)),
-                )))],
+                abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                    EventFilter::Act {
+                        verb: crate::VerbName::from("Destroy"),
+                        who: Predicate::Any,
+                        on: Predicate::Ref(Reference::This),
+                        cause: None,
+                    },
+                ))],
             })
         };
 

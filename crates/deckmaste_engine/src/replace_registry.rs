@@ -1055,9 +1055,12 @@ mod tests {
     #[test]
     fn destroyed_would_watches_will_destroy_of_self() {
         let (state, _view, id) = super::tests_support::lone_creature();
-        let would = EventFilter::Act(deckmaste_core::KeywordActionPattern::Destroy(
-            Predicate::Ref(Reference::This),
-        ));
+        let would = EventFilter::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: Predicate::Any,
+            on: Predicate::Ref(Reference::This),
+            cause: None,
+        };
         let e = GameEvent::Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
@@ -1080,9 +1083,12 @@ mod tests {
     #[test]
     fn destroyed_would_does_not_watch_sacrifice() {
         let (state, _view, id) = super::tests_support::lone_creature();
-        let would = EventFilter::Act(deckmaste_core::KeywordActionPattern::Destroy(
-            Predicate::Ref(Reference::This),
-        ));
+        let would = EventFilter::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: Predicate::Any,
+            on: Predicate::Ref(Reference::This),
+            cause: None,
+        };
         let e = GameEvent::ZoneChange {
             snapshot: None,
             object: id,
@@ -1102,9 +1108,12 @@ mod tests {
     #[test]
     fn cant_happen_suppresses_own_destruction() {
         let (state, id) = super::tests_support::creature_with_static(
-            deckmaste_core::StaticEffect::CantHappen(EventFilter::Act(
-                deckmaste_core::KeywordActionPattern::Destroy(Predicate::Ref(Reference::This)),
-            )),
+            deckmaste_core::StaticEffect::CantHappen(EventFilter::Act {
+                verb: deckmaste_core::VerbName::from("Destroy"),
+                who: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
+                cause: None,
+            }),
         );
         let e = GameEvent::Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
@@ -1120,6 +1129,63 @@ mod tests {
             contained: false,
         };
         assert!(cant_event(&state, &e));
+    }
+
+    /// Lane-split matching ([CR#616.1,616.1f]) — the stacked-madness auto-guard
+    /// and the Megrim-under-madness name-fact, in ONE fixture. A `Discard`
+    /// would matches a PRISTINE discard (Hand → Graveyard) in the Replacement
+    /// lane; once a first replacement has REDIRECTED the content (→ Exile) the
+    /// same would no longer matches in the Replacement lane (the master form's
+    /// canonical shape no longer holds — a second same-shaped replacement is
+    /// inapplicable, [CR#616.1f], with zero authored guard); yet the redirected
+    /// event STILL matches in the Trigger lane, which reads the finalized
+    /// name-fact only ([CR#701.9c], "whenever you discard" fires on a discard
+    /// gone to exile).
+    #[test]
+    fn act_would_lane_content_guards_while_trigger_lane_matches_by_name() {
+        let (state, _view, id) = super::tests_support::lone_creature();
+        let would = EventFilter::Act {
+            verb: deckmaste_core::VerbName::from("Discard"),
+            who: Predicate::Any,
+            on: Predicate::Any,
+            cause: None,
+        };
+        let discard_to = |to: Zone| GameEvent::Act {
+            verb: deckmaste_core::VerbName::from("Discard"),
+            who: None,
+            on: Some(id),
+            from: Some(Zone::Hand),
+            to: Some(to),
+            cause: None,
+            committed: false,
+            contents: None,
+            batch: None,
+            inherited: std::collections::HashSet::new(),
+            contained: false,
+        };
+        let pristine = discard_to(Zone::Graveyard);
+        let redirected = discard_to(Zone::Exile);
+
+        // Would-lane: pristine matches, redirected auto-guards out.
+        assert!(
+            replacement_watches(&state, &would, id, &pristine),
+            "a pristine Hand → Graveyard discard matches its would"
+        );
+        assert!(
+            !replacement_watches(&state, &would, id, &redirected),
+            "a discard whose content went → Exile no longer matches — the \
+             stacked-madness auto-guard"
+        );
+
+        // Trigger-lane: the redirected event still matches by NAME.
+        let watcher = object_source_of(&state, id);
+        let bindings = crate::eval::Bindings::watcher(watcher);
+        let fact = crate::eval::FactView::of(&state, &redirected).expect("discard fact");
+        assert!(
+            state.eval(&would, &fact, crate::eval::Lane::Trigger, &bindings),
+            "the trigger lane reads the name-fact only — a redirected discard \
+             still fires \"whenever you discard\""
+        );
     }
 
     /// The `Cause:agent` lift in would lanes ([CR#603.2]): would-facts keep
@@ -1464,10 +1530,13 @@ mod tests {
     /// destroyed" (BF→GY with verb "Destroy"), as used in replacement `would`
     /// fields.
     fn destroyed_self() -> EventFilter {
-        // Regeneration's watch: the `Act(Destroy(this))` keyword-action intent.
-        EventFilter::Act(deckmaste_core::KeywordActionPattern::Destroy(
-            Predicate::Ref(Reference::This),
-        ))
+        // Regeneration's watch: the `Destroy(this)` keyword-action intent.
+        EventFilter::Act {
+            verb: deckmaste_core::VerbName::from("Destroy"),
+            who: Predicate::Any,
+            on: Predicate::Ref(Reference::This),
+            cause: None,
+        }
     }
 
     /// A damage-prevention static effect prevents damage dealt to the creature.

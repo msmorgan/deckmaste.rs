@@ -1,0 +1,12 @@
+// "Fight(a, b)" ([CR#701.14a]) — the bare-verb pattern TWIN: "whenever `a`
+// fights `b`". Both combatants are patients: `a` rides the master form's `who`
+// slot and `b` its `on` slot, and the engine binds them to the fact's two
+// patient coordinates (`object`/`patient`) — Fight has no performer. Expands to
+// the `Act` master form.
+(
+    name: "Fight",
+    template: "${0} fights ${1}",
+    kinds: [EventFilter],
+    params: [Predicate, Predicate],
+    body: Act(verb: Fight, who: Param(0), on: Param(1)),
+)
