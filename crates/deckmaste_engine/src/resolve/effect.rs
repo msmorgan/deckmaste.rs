@@ -1465,7 +1465,7 @@ impl GameState {
                         ability: 0,
                         controller: frame.controller,
                         created: Some(Box::new(ability.clone())),
-                        bindings,
+                        bindings: Box::new(bindings),
                     },
                 )));
             }
@@ -2375,7 +2375,7 @@ mod tests {
             Card::Normal(deckmaste_core::CardFace {
                 name: "Bruvac Stand-In".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![deckmaste_core::Ability::Static(
+                abilities: vec![deckmaste_core::Ability::r#static(
                     deckmaste_core::StaticEffect::Replacement(Box::new(bruvac)),
                 )],
                 ..deckmaste_core::CardFace::default()
@@ -2465,7 +2465,7 @@ mod tests {
             Card::Normal(deckmaste_core::CardFace {
                 name: "Archive Stand-In".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![deckmaste_core::Ability::Static(
+                abilities: vec![deckmaste_core::Ability::r#static(
                     deckmaste_core::StaticEffect::Replacement(Box::new(archive)),
                 )],
                 ..deckmaste_core::CardFace::default()
@@ -2505,7 +2505,7 @@ mod tests {
             Card::Normal(deckmaste_core::CardFace {
                 name: "Mill Watcher".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![deckmaste_core::Ability::Triggered(
+                abilities: vec![deckmaste_core::Ability::triggered(
                     deckmaste_core::TriggeredAbility {
                         ability_word: None,
                         from: None,
@@ -4439,7 +4439,7 @@ mod tests {
         let spell_card = Card::Normal(CardFace {
             name: "Secrets of the Golden City".into(),
             types: vec![Type::Sorcery.def()],
-            abilities: vec![Ability::Spell(SpellAbility {
+            abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
                 effect: secrets_effect(),
             })],

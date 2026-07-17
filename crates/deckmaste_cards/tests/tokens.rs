@@ -66,7 +66,7 @@ fn treasure_token_parses() {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Treasure")],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -95,7 +95,7 @@ fn clue_token_parses() {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Clue")],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -121,7 +121,7 @@ fn food_token_parses() {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Food")],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -147,7 +147,7 @@ fn gold_token_parses() {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Gold")],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -182,7 +182,7 @@ fn blood_token_parses() {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![artifact_subtype("Blood")],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -221,7 +221,7 @@ fn vibranium_token_parses() {
             // The filter is the bare-verb `Destroy(Ref(This))` pattern twin —
             // remembered under its own macro-provenance `Expanded` wrapper,
             // expanding to the `Act` master form.
-            abilities: vec![Ability::Static(StaticEffect::CantHappen(
+            abilities: vec![Ability::r#static(StaticEffect::CantHappen(
                 EventFilter::Expanded(Expansion {
                     name: "Destroy".into(),
                     args: ExpansionArgs::Positional(vec!["Ref(This)".into()]),
@@ -260,7 +260,7 @@ fn vibranium_token_parses() {
             subtypes: vec![artifact_subtype("Vibranium")],
             abilities: vec![
                 indestructible,
-                Ability::Activated(ActivatedAbility {
+                Ability::activated(ActivatedAbility {
                     ability_word: None,
                     from: None,
                     window: None,

@@ -407,7 +407,7 @@ mod tests {
         };
         let card = Card::Normal(CardFace {
             name: "Innate Triggerer".into(),
-            abilities: vec![Ability::Innate(Box::new(Ability::Triggered(
+            abilities: vec![Ability::Innate(Box::new(Ability::triggered(
                 trigger.clone(),
             )))],
             ..CardFace::default()
@@ -417,7 +417,7 @@ mod tests {
         let derived = super::abilities_of_source(&state, ObjectSource::Card(card_id));
         assert_eq!(
             derived,
-            vec![Ability::Triggered(trigger)],
+            vec![Ability::triggered(trigger)],
             "abilities_of_source must peel Innate so the trigger scan sees the \
              Triggered ability (not the opaque Innate wrapper)"
         );

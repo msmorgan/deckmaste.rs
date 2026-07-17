@@ -33,7 +33,7 @@ impl GameState {
         let mut status = EnterStatus::default();
         for ability in self.enters_fold_abilities(source, entering) {
             if let Ability::Static(s) = ability.peel_innate()
-                && let StaticEffect::Replacement(replacement) = s
+                && let StaticEffect::Replacement(replacement) = s.as_ref()
                 && let Replacement::Also { would, also } = look_through_replacement(replacement)
                 && would_is_self_enter(would)
             {
@@ -79,7 +79,7 @@ impl GameState {
             .iter()
             .any(|ability| {
                 let Ability::Static(s) = ability else { return false };
-                matches!(s, StaticEffect::Replacement(r)
+                matches!(s.as_ref(), StaticEffect::Replacement(r)
                     if matches!(look_through_replacement(r), Replacement::Also { would, also }
                         if would_is_self_enter(would) && also_is_self_attach(also)))
             })
@@ -307,11 +307,11 @@ mod tests {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![
-                Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                     what: Predicate::Ref(Reference::This),
                     to: Predicate::creature(),
                 }))),
-                Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Also {
+                Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
                         from: None,
@@ -442,7 +442,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Counterer".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+            abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
@@ -534,7 +534,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Test Tapland".into(),
             types: vec![Type::Land.def()],
-            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+            abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
@@ -659,7 +659,7 @@ mod tests {
             scope: Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Planeswalker.name(),
             )),
-            confer: Property::Ability(Box::new(Ability::Static(StaticEffect::Replacement(
+            confer: Property::Ability(Box::new(Ability::r#static(StaticEffect::Replacement(
                 Box::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),

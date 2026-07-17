@@ -990,7 +990,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Equipment".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::Innate(Box::new(Ability::Static(
+            abilities: vec![Ability::Innate(Box::new(Ability::r#static(
                 StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                     what: Predicate::Ref(Reference::This),
                     to: Predicate::creature(),
@@ -1537,7 +1537,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Mill Warden".into(),
                 types: vec![Type::Creature.def()],
-                abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+                abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
                     Replacement::Instead {
                         would: EventFilter::Act {
                             verb: VerbName::from("Mill"),
@@ -1600,7 +1600,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Leyline".into(),
                 types: vec![Type::Creature.def()],
-                abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+                abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
                     Replacement::Instead {
                         would: EventFilter::Act {
                             verb: VerbName::from("Discard"),
@@ -2060,7 +2060,7 @@ mod tests {
         let card = Arc::new(Card::Normal(CardFace {
             name: "Rest in Peace".into(),
             types: vec![Type::Enchantment.def()],
-            abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(rip)))],
+            abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(rip)))],
             ..CardFace::default()
         }));
         let card_id = state.cards.push(card, PlayerId(0));
@@ -2206,7 +2206,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Madness Watcher".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+                abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
                     madness,
                 )))],
                 ..CardFace::default()
@@ -2310,7 +2310,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Megrim Fixture".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![Ability::Triggered(TriggeredAbility {
+                abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
                     where_x: None,
                     from: None,
@@ -2759,7 +2759,7 @@ mod tests {
         let (mut state, _a) = bear_on_field();
         // "If a player would discard THIS card, exile it instead." — conferred,
         // not printed, onto a matching card that isn't on the battlefield.
-        let madness = Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+        let madness = Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
             would: EventFilter::Act {
                 verb: VerbName::from("Discard"),
                 who: Predicate::Any,
@@ -2826,7 +2826,7 @@ mod tests {
         use deckmaste_core::VerbName;
 
         let (mut state, _a) = bear_on_field();
-        let shield = Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+        let shield = Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
             would: EventFilter::Act {
                 verb: VerbName::from("Destroy"),
                 who: Predicate::Any,
@@ -2880,7 +2880,7 @@ mod tests {
         use deckmaste_core::VerbName;
 
         let (mut state, _a) = bear_on_field();
-        let trigger = Ability::Triggered(TriggeredAbility {
+        let trigger = Ability::triggered(TriggeredAbility {
             ability_word: None,
             where_x: None,
             from: None,
@@ -3050,8 +3050,9 @@ mod tests {
         for a in view.get(id).abilities.iter() {
             crate::derive::flatten_composites(a, &mut flat);
         }
-        flat.iter()
-            .any(|a| matches!(a, Ability::Static(StaticEffect::Replacement(_))))
+        flat.iter().any(|a| {
+            matches!(a, Ability::Static(s) if matches!(s.as_ref(), StaticEffect::Replacement(_)))
+        })
     }
 
     /// [CR#613,616.1,702.35a]: Falkenrath Gorger's printed static grants madness
@@ -3251,7 +3252,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "No Discards".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                abilities: vec![Ability::r#static(StaticEffect::CantHappen(
                     EventFilter::Act {
                         verb: VerbName::from("Discard"),
                         who: Predicate::Any,
@@ -3307,7 +3308,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Megrim Fixture".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![Ability::Triggered(TriggeredAbility {
+                abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
                     where_x: None,
                     from: None,
@@ -3944,7 +3945,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Uncounterable".into(),
             types: vec![Type::Instant.def()],
-            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Counter {
                     by: Predicate::Any,
                     on: Predicate::Ref(Reference::This),
@@ -4144,7 +4145,7 @@ mod tests {
     /// A "host gets +n/+n" static targeting this attachment's host
     /// (`Of(AttachHostOf(This))`) — the equipped/enchanted-creature bonus.
     fn host_pump(n: u32) -> Ability {
-        Ability::Static(StaticEffect::Modify(
+        Ability::r#static(StaticEffect::Modify(
             Reference::AttachHostOf(Box::new(Reference::This)),
             Modification::Several(vec![
                 Modification::Power(NumericOp::Up(Count::Literal(n))),
@@ -4342,7 +4343,7 @@ mod tests {
                 types: vec![Type::Creature.def()],
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
-                abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+                abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attach {
                         what: Predicate::Characteristic(CharacteristicPredicate::ColorIs(
                             Color::Red,
@@ -4537,7 +4538,7 @@ mod tests {
         let state = game();
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
-        let abilities = vec![deckmaste_core::Ability::Static(
+        let abilities = vec![deckmaste_core::Ability::r#static(
             deckmaste_core::StaticEffect::Modify(
                 deckmaste_core::Reference::It,
                 deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Up(
@@ -4828,7 +4829,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Scry Warden".into(),
                 types: vec![Type::Creature.def()],
-                abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                abilities: vec![Ability::r#static(StaticEffect::CantHappen(
                     EventFilter::Act {
                         verb: deckmaste_core::VerbName::from("Scry"),
                         who: Predicate::Any,

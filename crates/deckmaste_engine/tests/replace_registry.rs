@@ -122,7 +122,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             ))),
         ])
     };
-    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::Static(s)));
+    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
         permanent: true,
@@ -178,7 +178,7 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
-        abilities: vec![Ability::Static(StaticEffect::Replacement(Box::new(
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -339,7 +339,7 @@ fn indestructible_still_survives_via_cant_pass() {
         "Indestructible Test",
         1,
         1,
-        vec![Ability::Static(StaticEffect::CantHappen(
+        vec![Ability::r#static(StaticEffect::CantHappen(
             EventFilter::ZoneChange {
                 what: Predicate::Ref(Reference::This),
                 from: Some(Zone::Battlefield),
@@ -385,8 +385,8 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         toughness: Some(StatValue::Number(2)),
         // Two SEPARATE static abilities so gather yields two different keys.
         abilities: vec![
-            Ability::Static(StaticEffect::Replacement(Box::new(instead.clone()))),
-            Ability::Static(StaticEffect::Replacement(Box::new(instead))),
+            Ability::r#static(StaticEffect::Replacement(Box::new(instead.clone()))),
+            Ability::r#static(StaticEffect::Replacement(Box::new(instead))),
         ],
         ..CardFace::default()
     }));
@@ -918,11 +918,11 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         name: "Umbra Armor".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![
-            Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+            Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
                 to: Predicate::creature(),
             }))),
-            Ability::Static(StaticEffect::Replacement(Box::new(umbra_armor))),
+            Ability::r#static(StaticEffect::Replacement(Box::new(umbra_armor))),
         ],
         ..CardFace::default()
     }));
@@ -1272,7 +1272,7 @@ fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) ->
         Reference::You,
         PlayerAction::PutCounters(recipient, kind.into(), Count::ThatMuch),
     ));
-    Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+    Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
         would,
         instead,
     })))

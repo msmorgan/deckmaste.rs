@@ -874,7 +874,7 @@ mod tests {
     #[test]
     fn as_activated_returns_inner_for_plain() {
         let act = activated(vec![], noop_effect());
-        let ability = Ability::Activated(act);
+        let ability = Ability::activated(act);
         assert!(as_activated(&ability).is_some());
     }
 
@@ -888,7 +888,7 @@ mod tests {
             name: Ident::new("Foo"),
             args: ExpansionArgs::none(),
             template: None,
-            value: Box::new(Ability::Activated(act)),
+            value: Box::new(Ability::activated(act)),
         });
         assert!(
             as_activated(&expanded).is_some(),
@@ -902,7 +902,7 @@ mod tests {
             // The effect's content is immaterial here — only the
             // `Ability::Static` shell (vs. `Activated`) matters, so a
             // no-op `Several([])` stands in for "any static ability".
-            as_activated(&Ability::Static(deckmaste_core::StaticEffect::Modify(
+            as_activated(&Ability::r#static(deckmaste_core::StaticEffect::Modify(
                 deckmaste_core::Reference::This,
                 deckmaste_core::Modification::Several(vec![]),
             )))
@@ -1709,7 +1709,7 @@ mod tests {
             supertypes: vec![],
             types: vec![deckmaste_core::Type::Artifact.def()],
             subtypes: vec![],
-            abilities: vec![Ability::Activated(act)],
+            abilities: vec![Ability::activated(act)],
             power: None,
             toughness: None,
             loyalty: None,
@@ -1730,7 +1730,7 @@ mod tests {
             supertypes: vec![],
             types: vec![deckmaste_core::Type::Artifact.def()],
             subtypes: vec![],
-            abilities: vec![Ability::Activated(act)],
+            abilities: vec![Ability::activated(act)],
             power: None,
             toughness: None,
             loyalty: None,

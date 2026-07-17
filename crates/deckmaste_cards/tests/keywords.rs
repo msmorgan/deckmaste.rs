@@ -106,7 +106,7 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
 
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         match a {
-            Ability::Static(s) => out.push(s.clone()),
+            Ability::Static(s) => out.push(s.as_ref().clone()),
             Ability::Expanded(e) => statics(&e.value, out),
             _ => {}
         }
@@ -207,7 +207,7 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
 
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         match a {
-            Ability::Static(s) => out.push(s.clone()),
+            Ability::Static(s) => out.push(s.as_ref().clone()),
             Ability::Expanded(e) => statics(&e.value, out),
             _ => {}
         }
@@ -447,7 +447,7 @@ fn ascend_macro_expands_to_static_sba() {
     // Walk every Static effect (peel Expanded) and look for an Sba row.
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         match a {
-            Ability::Static(s) => out.push(s.clone()),
+            Ability::Static(s) => out.push(s.as_ref().clone()),
             Ability::Expanded(e) => statics(&e.value, out),
             _ => {}
         }

@@ -603,7 +603,7 @@ fn losing_creature_type_removes_the_attack_grant() {
     let mut state = two_player_with("Grizzly Bears", 1, 10);
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
-    let may_attack = Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+    let may_attack = Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
         Deontic::May(DeonticAction::Attack {
             by: Predicate::Ref(Reference::This),
             on: Predicate::Any,
@@ -681,7 +681,7 @@ fn printed_creature_grant_is_not_doubled_by_the_fold() {
     let mut state = two_player_with("Grizzly Bears", 1, 10);
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
-    let may_attack = Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+    let may_attack = Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
         Deontic::May(DeonticAction::Attack {
             by: Predicate::Ref(Reference::This),
             on: Predicate::Any,

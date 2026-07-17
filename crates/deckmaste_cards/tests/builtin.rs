@@ -42,7 +42,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
     Subtype {
         name: name.into(),
         types: vec![Type::Land],
-        confers: vec![Property::Ability(Box::new(Ability::Activated(
+        confers: vec![Property::Ability(Box::new(Ability::activated(
             ActivatedAbility {
                 ability_word: None,
                 from: None,
@@ -81,7 +81,7 @@ fn land_type() -> deckmaste_core::TypeDef {
     deckmaste_core::TypeDef {
         name: "Land".into(),
         permanent: true,
-        confers: vec![Property::Ability(Box::new(Ability::Static(
+        confers: vec![Property::Ability(Box::new(Ability::r#static(
             deckmaste_core::StaticEffect::Deontic(deckmaste_core::Deontic::May(
                 deckmaste_core::DeonticAction::Play {
                     what: deckmaste_core::Predicate::Ref(Reference::This),
@@ -493,7 +493,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     let Ability::Static(s) = &abilities[0] else {
         panic!("Multikicker's row is a Static");
     };
-    let deckmaste_core::StaticEffect::CostOption(oc) = s else {
+    let deckmaste_core::StaticEffect::CostOption(oc) = s.as_ref() else {
         panic!("Multikicker declares a CostOption");
     };
     assert!(oc.repeatable, "multikicker is the repeatable row");

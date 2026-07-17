@@ -1473,7 +1473,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Randomness Watcher".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::Triggered(TriggeredAbility {
+            abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
                 from: None,

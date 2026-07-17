@@ -76,7 +76,7 @@ impl GameState {
                 // distributed via `Each` (its `Reference` already names the
                 // affected player directly), so only the top-level shape is
                 // matched.
-                if let StaticEffect::ModifyPlayer(reference, pmod) = effect
+                if let StaticEffect::ModifyPlayer(reference, pmod) = effect.as_ref()
                     && let Some(p) = resolve_player_ref(reference, obj.controller)
                 {
                     visit(p, pmod);
@@ -198,7 +198,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Player Static".into(),
             types: vec![Type::Enchantment.def()],
-            abilities: vec![Ability::Static(StaticEffect::ModifyPlayer(
+            abilities: vec![Ability::r#static(StaticEffect::ModifyPlayer(
                 Reference::You,
                 pmod,
             ))],

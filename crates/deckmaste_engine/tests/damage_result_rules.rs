@@ -75,7 +75,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             ))),
         ])
     };
-    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::Static(s)));
+    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
         permanent: true,

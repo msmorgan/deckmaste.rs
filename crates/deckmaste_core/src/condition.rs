@@ -66,8 +66,14 @@ pub enum Condition {
     /// same one the [CR#701.3b] attach no-op uses), never by subtype.
     LegallyAttached(Reference),
     /// An event happened within a window (morbid/raid, [CR#608.2i]).
+    ///
+    /// `event` is boxed: unboxed it made `Happened` a ~359 B outlier that set
+    /// `Condition`'s whole size; the box drops the variant to ~16 B. serde
+    /// treats `Box<T>` transparently, so the RON reads flat (`Happened(event:
+    /// …, within: …)`) unchanged — build one via [`Condition::happened`]
+    /// rather than the struct literal. See `engine-event-size-boxing`.
     Happened {
-        event: EventFilter,
+        event: Box<EventFilter>,
         within: Lookback,
     },
     /// The watched `value` was below `threshold` before the triggering
@@ -120,6 +126,20 @@ pub enum Condition {
     /// `Delirium`, `Morbid`). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
     Expanded(Expansion<Condition>),
+}
+
+impl Condition {
+    /// Construct [`Condition::Happened`], boxing the fat `event` field, so call
+    /// sites build `Condition::happened(event, within)` rather than boxing by
+    /// hand — the counterpart of [`Ability`](crate::Ability)'s boxing
+    /// constructors.
+    #[must_use]
+    pub fn happened(event: EventFilter, within: Lookback) -> Self {
+        Condition::Happened {
+            event: Box::new(event),
+            within,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -217,8 +237,8 @@ mod tests {
             read(
                 "Happened(event: ZoneChange(cause: Cause(verb: Sacrifice), from: Battlefield, to: Graveyard), within: ThisTurn)"
             ),
-            Condition::Happened {
-                event: EventFilter::ZoneChange {
+            Condition::happened(
+                EventFilter::ZoneChange {
                     what: Predicate::Any,
                     from: Some(Zone::Battlefield),
                     to: Some(Zone::Graveyard),
@@ -228,8 +248,8 @@ mod tests {
                         agent: None,
                     })),
                 },
-                within: Lookback::ThisTurn,
-            },
+                Lookback::ThisTurn,
+            ),
         );
     }
 

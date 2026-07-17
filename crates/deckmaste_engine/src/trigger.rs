@@ -517,7 +517,7 @@ impl GameState {
                     ability: 0,
                     controller: ct.controller,
                     created: Some(ct.ability.clone()),
-                    bindings,
+                    bindings: Box::new(bindings),
                 },
             )));
             fired.push(idx);
@@ -807,13 +807,13 @@ impl GameState {
                 // resolution, so it carries its body BY VALUE — the same channel
                 // delayed/reflexive triggers use ([CR#603.7,603.12]). A printed
                 // trigger keeps `created: None` and resolves by index, unchanged.
-                let created = (idx >= printed_len).then(|| Box::new(t.clone()));
+                let created = (idx >= printed_len).then(|| t.clone());
                 let fired = GameEvent::TriggerFired {
                     source,
                     ability: Uint::try_from(idx).expect("ability index fits in Uint"),
                     controller,
                     created,
-                    bindings,
+                    bindings: Box::new(bindings),
                 };
                 for _ in 0..=extra {
                     emits.push(WorkItem::Emit(Occurrence::single(fired.clone())));
@@ -848,7 +848,7 @@ impl GameState {
                     cause,
                     extra: count,
                     affected,
-                } = effect
+                } = effect.as_ref()
                 {
                     // The fact that fired the trigger must match the cause, and
                     // the trigger's source permanent must match `affected` (with
@@ -3249,7 +3249,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Rabblemaster".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::Triggered(TriggeredAbility {
+            abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
                 from: None,
@@ -3631,7 +3631,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Graveyard Echo".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::Triggered(TriggeredAbility {
+            abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
                 from,
@@ -4364,7 +4364,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Death Watcher".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::Triggered(TriggeredAbility {
+            abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
                 from: None,
@@ -4453,7 +4453,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Pain Gainer".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::Triggered(TriggeredAbility {
+            abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 where_x: None,
                 from: None,
@@ -5197,12 +5197,12 @@ mod tests {
     fn happened_used_self_scoped_reads_history() {
         let (mut state, bear) = bear_on_field();
         let controller = state.objects.obj(bear).controller;
-        let gate = Condition::Happened {
-            event: EventFilter::Used {
+        let gate = Condition::happened(
+            EventFilter::Used {
                 of: Reference::This,
             },
-            within: deckmaste_core::Lookback::ThisGame,
-        };
+            deckmaste_core::Lookback::ThisGame,
+        );
         let frame = Frame::bare(bear, controller);
         assert!(!state.condition_holds(&gate, &frame), "no use recorded yet");
         state.record_history_fact(

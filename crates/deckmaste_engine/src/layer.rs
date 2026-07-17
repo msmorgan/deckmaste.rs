@@ -1953,7 +1953,7 @@ mod tests {
     /// creature itself (a floating `SelectAll` set, no Stage-3 source-relative
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
-        let s = Ability::Static(StaticEffect::Each(
+        let s = Ability::r#static(StaticEffect::Each(
             Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Creature.name(),
             ))),
@@ -2091,7 +2091,7 @@ mod tests {
         let island = Subtype {
             name: "Island".into(),
             types: vec![Type::Land],
-            confers: vec![Property::Ability(Box::new(Ability::Activated(
+            confers: vec![Property::Ability(Box::new(Ability::activated(
                 deckmaste_core::ActivatedAbility {
                     ability_word: None,
                     cost: vec![CostComponent::Tap].into(),
@@ -2276,7 +2276,7 @@ mod tests {
     /// resolves.
     fn host_pump_static(n: u32) -> Ability {
         use deckmaste_core::Reference;
-        Ability::Static(StaticEffect::Modify(
+        Ability::r#static(StaticEffect::Modify(
             Reference::AttachHostOf(Box::new(Reference::This)),
             Modification::Several(vec![
                 Modification::Power(NumericOp::Up(Count::Literal(n))),
@@ -2378,7 +2378,7 @@ mod tests {
     fn single_modify_applies_its_change_once() {
         use deckmaste_core::Reference;
 
-        let pump = Ability::Static(StaticEffect::Modify(
+        let pump = Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Power(NumericOp::Up(Count::Literal(1))),
         ));
@@ -2528,7 +2528,7 @@ mod tests {
     fn goblin_lord_static() -> Ability {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationPredicate;
-        Ability::Static(StaticEffect::Each(
+        Ability::r#static(StaticEffect::Each(
             Selection::SelectAll(Predicate::And(vec![
                 Predicate::creature(),
                 Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
@@ -2648,7 +2648,7 @@ mod tests {
     fn creature_count_cda() -> Ability {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Countable::Objects(Box::new(Predicate::creature())));
-        Ability::Static(StaticEffect::Modify(
+        Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
                 Modification::Power(NumericOp::Set(count.clone())),
@@ -2690,7 +2690,7 @@ mod tests {
     fn creature_count_pump() -> Ability {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Countable::Objects(Box::new(Predicate::creature())));
-        Ability::Static(StaticEffect::Modify(
+        Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
                 Modification::Power(NumericOp::Up(count.clone())),
@@ -2922,7 +2922,7 @@ mod tests {
     /// unambiguous regardless of how many creatures hold it.
     fn self_pump_static() -> Ability {
         use deckmaste_core::Reference;
-        Ability::Static(StaticEffect::Modify(
+        Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
                 Modification::Power(NumericOp::Up(Count::Literal(1))),
@@ -2939,7 +2939,7 @@ mod tests {
     /// functions once the fixpoint re-gathers it from the derived list.
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
-        Ability::Static(StaticEffect::Each(
+        Ability::r#static(StaticEffect::Each(
             Selection::SelectAll(Predicate::And(vec![
                 Predicate::creature(),
                 Predicate::Not(Box::new(Predicate::Ref(Reference::This))),

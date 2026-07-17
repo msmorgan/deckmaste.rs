@@ -34,10 +34,6 @@ use crate::turn::successor;
 
 /// What one `step()` call produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "per-step return value, produced and matched immediately; boxing `Progress` would add allocation churn to the hot step() loop for no gain"
-)]
 pub enum StepOutcome {
     /// One unit of work happened.
     Progress(Progress),
@@ -48,10 +44,6 @@ pub enum StepOutcome {
 
 /// One unit of engine work, observed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the `Applied(Occurrence)` payload dominates but is the common case; boxing it would allocate on every progressing step"
-)]
 pub enum Progress {
     /// One or more events mutated the state (apply-time bindings filled in).
     Applied(Occurrence),
@@ -805,7 +797,7 @@ impl GameState {
                         ability: 0,
                         created: Some(created.clone()),
                         controller,
-                        bindings: bindings.clone(),
+                        bindings: bindings.as_ref().clone(),
                     });
                     return event;
                 }
@@ -859,7 +851,7 @@ impl GameState {
                     ability: ability as usize,
                     created: None,
                     controller,
-                    bindings: bindings.clone(),
+                    bindings: bindings.as_ref().clone(),
                 });
                 // Record the substantive "this ability was used" fact directly
                 // so history reads (use-limit counts, EventCount) can find it.
@@ -3764,7 +3756,7 @@ mod tests {
         let restricted = tapped_perm(
             &mut state,
             PlayerId(0),
-            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Untap {
                     what: Predicate::Ref(Reference::This),
                 },

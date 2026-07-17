@@ -219,13 +219,13 @@ pub enum ReplacementKey {
 }
 
 #[derive(Debug, Clone)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "short-lived per-event applicability scratch value, not stored in bulk; boxing would only churn allocations"
-)]
 pub(crate) enum ApplicableEffect {
-    Replacement(Replacement),
-    Prevention(Prevention),
+    // Boxed: `Replacement` (~928 B) / `Prevention` (~656 B) are large ASTs.
+    // `gather_applicable` builds a `Vec<Applicable>` per event, so an unboxed
+    // payload made every element ~960 B; the clone already allocates internally,
+    // so the box is noise. See `engine-event-size-boxing`.
+    Replacement(Box<Replacement>),
+    Prevention(Box<Prevention>),
 }
 
 /// One replacement or prevention effect that is applicable to the current event
@@ -264,7 +264,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             // the effect index is always 0 — kept in `ReplacementKey::Static`
             // for shape stability (multi-effect abilities used to
             // disambiguate by index).
-            if let StaticEffect::Replacement(r) = s
+            if let StaticEffect::Replacement(r) = s.as_ref()
                 && replacement_would(state, r, obj, e)
             {
                 out.push(Applicable {
@@ -273,7 +273,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                         ability: ai,
                         effect: 0,
                     },
-                    effect: ApplicableEffect::Replacement((**r).clone()),
+                    effect: ApplicableEffect::Replacement(r.clone()),
                     source: obj,
                 });
             }
@@ -317,7 +317,8 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         let (abilities, _printed_len) =
             crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
-            if let Ability::Static(StaticEffect::Replacement(r)) = ability
+            if let Ability::Static(s) = ability
+                && let StaticEffect::Replacement(r) = s.as_ref()
                 && replacement_would(state, r, obj, e)
             {
                 out.push(Applicable {
@@ -326,7 +327,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                         ability: ai,
                         effect: 0,
                     },
-                    effect: ApplicableEffect::Replacement((**r).clone()),
+                    effect: ApplicableEffect::Replacement(r.clone()),
                     source: obj,
                 });
             }
@@ -352,7 +353,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         if floating_watches(state, &inst.replacement, inst.subject, e) {
             out.push(Applicable {
                 key: ReplacementKey::Floating(inst.id),
-                effect: ApplicableEffect::Replacement(inst.replacement.clone()),
+                effect: ApplicableEffect::Replacement(Box::new(inst.replacement.clone())),
                 source: inst.source,
             });
         }
@@ -377,7 +378,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                 let Ability::Static(s) = ability else {
                     continue;
                 };
-                if let StaticEffect::Prevention(p) = s
+                if let StaticEffect::Prevention(p) = s.as_ref()
                     && prevention_watches(state, p, obj, event_source, event_target)
                 {
                     out.push(Applicable {
@@ -386,7 +387,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                             ability: ai,
                             effect: 0,
                         },
-                        effect: ApplicableEffect::Prevention((**p).clone()),
+                        effect: ApplicableEffect::Prevention(p.clone()),
                         source: obj,
                     });
                 }
@@ -485,10 +486,6 @@ fn floating_watches(
 
 /// The outcome of running the [CR#616.1] replacement loop for one event.
 #[derive(Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "one-shot return value carrying the (unboxed) event through the replacement loop; boxing would allocate on the common Pass path"
-)]
 pub(crate) enum ReplaceOutcome {
     /// No applicable replacement rewrote the event — apply `e` as-is.
     Pass(GameEvent),
@@ -679,7 +676,7 @@ fn apply_one(
                 combat,
             } = e
             {
-                match prevention {
+                match prevention.as_ref() {
                     Prevention::PreventAll { .. } => {
                         // [CR#615.6]: prevented damage never happens.
                         None
@@ -926,10 +923,6 @@ pub(crate) fn resume_replacements(
 
 /// Outcome of re-entering the replacement loop on an already-partially-applied
 /// event during a `resume_replacements` call.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "one-shot resume-loop return carrying the unboxed event; boxing would allocate on the common Fact path"
-)]
 enum ResumeOutcome {
     /// The event survived the loop — apply it.
     Fact(GameEvent),
@@ -1088,7 +1081,7 @@ pub(crate) mod tests_support {
         let card = Arc::new(Card::Normal(CardFace {
             name: "Test Creature".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::Static(effect)],
+            abilities: vec![Ability::r#static(effect)],
             ..CardFace::default()
         }));
         let card_id = state.cards.push(card, PlayerId(0));
@@ -1735,7 +1728,7 @@ mod tests {
                     ability: 0,
                     effect,
                 },
-                effect: ApplicableEffect::Replacement(Replacement::Instead {
+                effect: ApplicableEffect::Replacement(Box::new(Replacement::Instead {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Any,
                         from: None,
@@ -1743,7 +1736,7 @@ mod tests {
                         cause: None,
                     },
                     instead: deckmaste_core::OneShotEffect::Sequentially(vec![]),
-                }),
+                })),
                 source: id,
             })
             .collect();

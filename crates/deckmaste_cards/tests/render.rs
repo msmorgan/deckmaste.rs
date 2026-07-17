@@ -443,7 +443,7 @@ fn renders_synthesized_lose_life_and_destroy() {
     let lose = CardFace {
         name: "Test Drain".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -465,7 +465,7 @@ fn renders_synthesized_lose_life_and_destroy() {
     let destroy = CardFace {
         name: "Test Smite".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
@@ -495,7 +495,7 @@ fn renders_named_predefined_token() {
     let treasure = CardFace {
         name: "Test Hoard".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
+        abilities: vec![Ability::spell(deckmaste_core::SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -516,7 +516,7 @@ fn renders_named_predefined_token() {
     let two_food = CardFace {
         name: "Test Feast".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(deckmaste_core::SpellAbility {
+        abilities: vec![Ability::spell(deckmaste_core::SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -624,7 +624,7 @@ fn renders_scope_of_singular() {
     let face = CardFace {
         name: "Test Aura".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::Static(StaticEffect::Modify(
+        abilities: vec![Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
                 Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
@@ -652,7 +652,7 @@ fn renders_aura_host_pump() {
     let face = CardFace {
         name: "Test Buff Aura".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::Static(StaticEffect::Modify(
+        abilities: vec![Ability::r#static(StaticEffect::Modify(
             Reference::AttachHostOf(Box::new(Reference::This)),
             Modification::Several(vec![
                 Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(2))),
@@ -693,7 +693,7 @@ fn renders_continuously_pump_until_eot() {
     let face = CardFace {
         name: "Test Pump".into(),
         types: vec![Type::Instant.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
@@ -744,7 +744,7 @@ fn renders_continuously_cant_block_eot() {
     let face = CardFace {
         name: "Test Block Restriction".into(),
         types: vec![Type::Instant.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
@@ -789,7 +789,7 @@ fn renders_continuously_cant_be_blocked_eot() {
     let face = CardFace {
         name: "Test Unblockable".into(),
         types: vec![Type::Instant.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
@@ -835,7 +835,7 @@ fn renders_that_creature_cant_block_eot() {
     let face = CardFace {
         name: "Test That Restriction".into(),
         types: vec![Type::Instant.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Continuously(Continuously {
                 effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
@@ -882,7 +882,7 @@ fn renders_create_one_token() {
     let face = CardFace {
         name: "Test Maker".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -925,7 +925,7 @@ fn renders_create_two_tokens() {
     let face = CardFace {
         name: "Test Muster".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -983,7 +983,7 @@ fn renders_get_designation() {
     let face = CardFace {
         name: "Test Ascend".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -1023,7 +1023,7 @@ fn renders_get_emblem() {
     let face = CardFace {
         name: "Test Emblem Granter".into(),
         types: vec![Type::Sorcery.def()],
-        abilities: vec![Ability::Spell(SpellAbility {
+        abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -1060,7 +1060,7 @@ fn renders_graveyard_static_from_zone() {
     let face = CardFace {
         name: "Test Incarnation".into(),
         types: vec![Type::Creature.def()],
-        abilities: vec![Ability::Static(StaticEffect::Conditionally(
+        abilities: vec![Ability::r#static(StaticEffect::Conditionally(
             Condition::Matches(
                 Reference::This,
                 Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
@@ -1115,7 +1115,7 @@ fn renders_trigger_with_turnof_intervening_if() {
     let face = CardFace {
         name: "Vigil Keeper".into(),
         types: vec![Type::Creature.def()],
-        abilities: vec![Ability::Triggered(TriggeredAbility {
+        abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
             where_x: None,
             event: EventFilter::ZoneChange {

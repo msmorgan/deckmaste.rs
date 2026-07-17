@@ -939,7 +939,7 @@ mod tests {
     /// The Aura-subtype shape (scaffolded in-Rust): `Innate(Static([Sba(Not(
     /// LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))]))`.
     fn aura_graveyard_sba() -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticEffect::Sba {
+        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Sba {
             when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
                 Reference::This,
             )))),
@@ -954,7 +954,7 @@ mod tests {
     /// what: Ref(This), to: Creature))]))` — an attachment that may legally
     /// attach to a creature host (and to nothing else without a further grant).
     fn may_attach_creature() -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
                 to: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
@@ -1129,7 +1129,7 @@ mod tests {
             &mut state,
             "Protected",
             vec![Type::Creature],
-            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
                     what: Predicate::Any,
                     to: Predicate::Ref(Reference::This),
@@ -1184,7 +1184,7 @@ mod tests {
                 Predicate::State(StatePredicate::Designated(name)),
             ))),
         ]);
-        let ascend = Ability::Static(StaticEffect::Sba {
+        let ascend = Ability::r#static(StaticEffect::Sba {
             when: Box::new(gate),
             then: Box::new(OneShotEffect::Act(Action::By(
                 Reference::You,
@@ -1259,7 +1259,7 @@ mod tests {
         // object's controller via the Sba frame, so each ascender counts ITS
         // controller's permanents and grants to that controller.
         let ascend = || {
-            Ability::Static(StaticEffect::Sba {
+            Ability::r#static(StaticEffect::Sba {
                 when: Box::new(Condition::And(vec![
                     Condition::Compare(
                         Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
@@ -1909,7 +1909,7 @@ mod tests {
         let gates = crate::derive::face(&angel)
             .abilities
             .iter()
-            .filter(|a| matches!(a, Ability::Static(StaticEffect::OutcomeGate { .. })))
+            .filter(|a| matches!(a, Ability::Static(s) if matches!(s.as_ref(), StaticEffect::OutcomeGate { .. })))
             .count();
         assert_eq!(gates, 2, "Platinum Angel has two OutcomeGate statics");
     }

@@ -217,7 +217,7 @@ impl PredefinedToken {
         let indestructible = || {
             Ability::Keyword(KeywordAbility::Composite {
                 name: "Indestructible".into(),
-                abilities: vec![Ability::Static(StaticEffect::CantHappen(
+                abilities: vec![Ability::r#static(StaticEffect::CantHappen(
                     EventFilter::Act {
                         verb: crate::VerbName::from("Destroy"),
                         who: Predicate::Any,
@@ -276,7 +276,7 @@ impl PredefinedToken {
         };
 
         let mut abilities = keywords;
-        abilities.push(Ability::Activated(ActivatedAbility {
+        abilities.push(Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
             window: None,
@@ -366,7 +366,7 @@ mod tests {
         assert!(token.color_indicator.is_empty(), "[CR#111.10a]: colorless");
         assert_eq!(
             token.abilities,
-            vec![Ability::Activated(ActivatedAbility {
+            vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -504,7 +504,7 @@ mod tests {
         assert!(token.subtypes.is_empty());
         assert_eq!(
             token.abilities,
-            vec![Ability::Activated(ActivatedAbility {
+            vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,

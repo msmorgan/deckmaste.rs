@@ -491,7 +491,11 @@ pub enum GameEvent {
         /// at resolution — its by-value body, printed on no permanent. `None`
         /// for a printed trigger (`ability` indexes `abilities_of_source`).
         created: Option<Box<deckmaste_core::TriggeredAbility>>,
-        bindings: crate::trigger::TriggerBindings,
+        /// Boxed: `TriggerBindings` carries three LKI snapshots (~280 B) and
+        /// dominated `GameEvent`'s size, cascading through every by-value event
+        /// move in `step()`; a trigger fires far less often than events move, so
+        /// the box allocates off the hot path. See `engine-event-size-boxing`.
+        bindings: Box<crate::trigger::TriggerBindings>,
     },
     /// A triggered ability fired ([CR#603.2]) or an activated ability became
     /// activated ([CR#602.2a]); the substantive "use" fact backing use-limit
@@ -682,10 +686,6 @@ impl GameEvent {
 /// A scheduled occurrence: one event, or a set of simultaneous events applied
 /// and matched together ([CR#603.3b], [CR#700.1]).
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the common `Single` case would pay an allocation on every event if boxed; `Batch` already indirects through its Vec"
-)]
 pub enum Occurrence {
     Single(GameEvent),
     Batch(Vec<GameEvent>),

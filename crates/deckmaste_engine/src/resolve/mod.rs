@@ -206,9 +206,9 @@ impl GameState {
                 // ([CR#603.7,603.12]); a printed one is read by index — its
                 // text may have changed under layers, so re-derive it fresh.
                 let t = match created {
-                    Some(t) => (**t).clone(),
+                    Some(t) => t.as_ref().clone(),
                     None => match &crate::derive::abilities_of_source(self, *source)[*ability] {
-                        Ability::Triggered(t) => t.clone(),
+                        Ability::Triggered(t) => t.as_ref().clone(),
                         other => unreachable!(
                             "a Triggered stack object indexes a Triggered ability, got {other:?}"
                         ),

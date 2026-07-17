@@ -30,15 +30,14 @@ use crate::reference::Reference;
 /// layer as control flow. The struct-carrying forms delegate to inner derived
 /// structs (`May`, …), which read flat via `unwrap_variant_newtypes` and carry
 /// the field defaults and shapes.
-// `Act(Action)` is the largest variant: `Action` is a big *balanced* leaf enum
-// (no single fat field to box), and `OneShotEffect` is the hot, recursively-matched
-// node of the effect grammar. Boxing `Act` would inject indirection + a deref
-// into every `OneShotEffect::Act` match (incl. the `resolve` hot path) and still leave
-// `OneShotEffect` over the bar via the next-largest variant — so it buys nothing for
-// the lint without a sweeping multi-box of `Action`/`Condition` embeddings.
-// The recursive sub-effect fields are already boxed (`May.effect`, …);
-// this `allow` is the "balanced AST leaf" exception, same call as `Ability`.
-#[allow(clippy::large_enum_variant)]
+// No `large_enum_variant` suppression: the top variants cluster within clippy's
+// threshold (`Distribute` ~568 B, `Act`/`Each`/`With` ~488 B, `SeparatePiles`
+// ~416 B — a spread under 200 B), so the lint does not fire. `Act(Action)` is
+// kept inline deliberately: `Action` is a big *balanced* leaf enum (no single fat
+// field to box), and `OneShotEffect` is the hot, recursively-matched node of the
+// effect grammar — boxing `Act` would inject a deref into every match on the
+// `resolve` hot path for no lint gain. The recursive sub-effect fields are
+// already boxed (`May.effect`, …).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum OneShotEffect {
     /// A single intrinsic instruction (the `Act` compartment, transparent in

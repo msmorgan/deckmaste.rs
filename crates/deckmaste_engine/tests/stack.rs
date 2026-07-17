@@ -2885,7 +2885,7 @@ fn inline_blink() -> Card {
         name: "Blink".into(),
         mana_cost: "{W}".parse().unwrap(),
         types: vec![deckmaste_core::Type::Instant.def()],
-        abilities: vec![deckmaste_core::Ability::Spell(
+        abilities: vec![deckmaste_core::Ability::spell(
             deckmaste_core::SpellAbility {
                 ability_word: None,
                 effect: OneShotEffect::Targeted(Targeted::new(

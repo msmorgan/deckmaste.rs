@@ -379,14 +379,8 @@ mod tests {
             to: Some(Zone::Graveyard),
             cause: None,
         };
-        let morbid = Condition::Happened {
-            event: morbid_pattern.clone(),
-            within: Lookback::ThisTurn,
-        };
-        let morbid_game = Condition::Happened {
-            event: morbid_pattern,
-            within: Lookback::ThisGame,
-        };
+        let morbid = Condition::happened(morbid_pattern.clone(), Lookback::ThisTurn);
+        let morbid_game = Condition::happened(morbid_pattern, Lookback::ThisGame);
 
         // No death yet → false.
         assert!(
@@ -535,7 +529,7 @@ mod tests {
             let card = Card::Normal(CardFace {
                 name: "Conditional Trigger Artifact".into(),
                 types: vec![Type::Artifact.def()],
-                abilities: vec![Ability::Triggered(TriggeredAbility {
+                abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
                     where_x: None,
                     from: None,
@@ -1019,8 +1013,8 @@ mod tests {
         state.turn.turn_number = 1;
 
         // The Bloodthirst gate, evaluated from player 0's seat (You = P0).
-        let gate = Condition::Happened {
-            event: EventFilter::Damage {
+        let gate = Condition::happened(
+            EventFilter::Damage {
                 source: Predicate::any(),
                 to: Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Ref(
                     Reference::You,
@@ -1028,8 +1022,8 @@ mod tests {
                 combat: None,
                 amount: None,
             },
-            within: Lookback::ThisTurn,
-        };
+            Lookback::ThisTurn,
+        );
 
         // Player proxies are objects; damage to a player targets its proxy.
         let p0 = state.player(PlayerId(0)).object;
@@ -1126,15 +1120,15 @@ mod tests {
         state.objects.remove(id);
         assert!(state.objects.get(id).is_none(), "the recipient is gone");
 
-        let damaged = |filter: Predicate| Condition::Happened {
-            event: EventFilter::Damage {
+        let damaged = |filter: Predicate| Condition::happened(
+            EventFilter::Damage {
                 source: Predicate::any(),
                 to: filter,
                 combat: None,
                 amount: None,
             },
-            within: Lookback::ThisTurn,
-        };
+            Lookback::ThisTurn,
+        );
         assert!(
             state.condition_holds(
                 &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
@@ -1174,13 +1168,13 @@ mod tests {
             GameEvent::StepBegan(PhaseStep::Beginning(BeginningStep::Upkeep)),
         );
 
-        let began = |whose: WhoseTurn| Condition::Happened {
-            event: EventFilter::StepBegins {
+        let began = |whose: WhoseTurn| Condition::happened(
+            EventFilter::StepBegins {
                 at: PhaseStep::Beginning(BeginningStep::Upkeep),
                 whose,
             },
-            within: Lookback::ThisTurn,
-        };
+            Lookback::ThisTurn,
+        );
         assert!(
             state.condition_holds(
                 &began(WhoseTurn::EachPlayers),
@@ -1233,13 +1227,13 @@ mod tests {
         state.turn.current = upkeep;
         state.record_history_fact(3, None, GameEvent::StepBegan(upkeep));
 
-        let cast_since = Condition::Happened {
-            event: EventFilter::Cast {
+        let cast_since = Condition::happened(
+            EventFilter::Cast {
                 who: Predicate::any(),
                 what: Predicate::any(),
             },
-            within: Lookback::SinceYour(upkeep),
-        };
+            Lookback::SinceYour(upkeep),
+        );
         assert!(
             state.condition_holds(&cast_since, &frame_for(&state, PlayerId(0))),
             "the spell after the prior upkeep is inside echo's firing window"
@@ -1271,16 +1265,16 @@ mod tests {
             },
         );
 
-        let gained_this_turn = Condition::Happened {
-            event: EventFilter::Within(
+        let gained_this_turn = Condition::happened(
+            EventFilter::Within(
                 Box::new(EventFilter::LifeGained {
                     who: deckmaste_core::Predicate::any(),
                     amount: None,
                 }),
                 Lookback::ThisTurn,
             ),
-            within: Lookback::ThisGame,
-        };
+            Lookback::ThisGame,
+        );
         assert!(
             !state.condition_holds(&gained_this_turn, &frame_for(&state, PlayerId(0))),
             "last turn's gain is outside the inner ThisTurn window"

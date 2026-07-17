@@ -1448,7 +1448,7 @@ impl GameState {
         crate::derive::abilities_of_source(self, self.objects.obj(object).source)
             .iter()
             .filter_map(|a| match a {
-                deckmaste_core::Ability::Static(s) => Some(s),
+                deckmaste_core::Ability::Static(s) => Some(s.as_ref()),
                 _ => None,
             })
             .filter_map(|e| match e {
@@ -2455,7 +2455,7 @@ mod tests {
             name: "Fromite".into(),
             mana_cost: printed.parse().unwrap(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::Static(StaticEffect::CostModifier {
+            abilities: vec![Ability::r#static(StaticEffect::CostModifier {
                 of: Predicate::Ref(Reference::This),
                 change: CostChange::Scaled {
                     change: Box::new(CostChange::Reduce(vec![CostComponent::Mana(
@@ -2536,7 +2536,7 @@ mod tests {
         let taxer = Card::Normal(CardFace {
             name: "Thorn Totem".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::Static(StaticEffect::CostModifier {
+            abilities: vec![Ability::r#static(StaticEffect::CostModifier {
                 of: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
                 change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
             })],
@@ -2587,7 +2587,7 @@ mod tests {
             name: name.into(),
             mana_cost: ManaCost::default(),
             types: vec![Type::Land.def()],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 cost: Cost(vec![CostComponent::Tap]),
                 from: None,
@@ -2614,7 +2614,7 @@ mod tests {
             name: "Instant".into(),
             permanent: false,
             confers: vec![deckmaste_core::Property::Ability(Box::new(
-                Ability::Static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
+                Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Cast {
                         what: Predicate::Ref(Reference::This),
                         by: Predicate::Any,
@@ -2700,7 +2700,7 @@ mod tests {
             name: "Land".into(),
             permanent: true,
             confers: vec![deckmaste_core::Property::Ability(Box::new(
-                Ability::Static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
+                Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Play {
                         what: Predicate::Ref(Reference::This),
                         by: Predicate::Any,

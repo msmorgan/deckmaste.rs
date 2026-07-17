@@ -1094,7 +1094,7 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
         supertypes: vec![],
         types: vec![Type::Artifact.def()],
         subtypes: vec![],
-        abilities: vec![Ability::Activated(ActivatedAbility {
+        abilities: vec![Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
             window: None,

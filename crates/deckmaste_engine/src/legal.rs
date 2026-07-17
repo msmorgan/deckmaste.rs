@@ -1313,7 +1313,7 @@ mod tests {
     }
 
     fn static_ability(effect: StaticEffect) -> Ability {
-        Ability::Static(effect)
+        Ability::r#static(effect)
     }
 
     /// A tree exercising every look-through path the one walker must descend:
@@ -1451,7 +1451,7 @@ mod tests {
     /// conferred attachable-to-host shape (Equipment/Fortification subtype
     /// rule) under default-deny attachment.
     fn innate_may_attach(what: Predicate, to: Predicate) -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::May(DeonticAction::Attach { what, to }),
         ))))
     }
@@ -1562,7 +1562,7 @@ mod tests {
             &mut state,
             "Protected Bear",
             vec![Type::Creature],
-            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
                     what: Predicate::Any,
                     to: Predicate::Ref(Reference::This),
@@ -1599,7 +1599,7 @@ mod tests {
         // The pathological attachment: its ONLY `May(Attach)` grant is gated
         // behind `LegallyAttached(This)` — the self-referential shape that
         // recurses through the collector.
-        let pathological = Ability::Static(StaticEffect::Conditionally(
+        let pathological = Ability::r#static(StaticEffect::Conditionally(
             Condition::LegallyAttached(Reference::This),
             Box::new(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
@@ -1701,7 +1701,7 @@ mod tests {
         use deckmaste_core::ManaSpec;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::PlayerAction;
-        Ability::Activated(ActivatedAbility {
+        Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
             cost: vec![CostComponent::Tap].into(),
@@ -1721,7 +1721,7 @@ mod tests {
     /// An `Innate` static (any conferred rule): PEELED in place — never
     /// dropped — by the usable list, so it occupies an index slot.
     fn innate_static() -> Ability {
-        Ability::Innate(Box::new(Ability::Static(StaticEffect::Deontic(
+        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::Cant(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
                 to: Predicate::Not(Box::new(creature())),
@@ -1805,7 +1805,7 @@ mod tests {
         // keyword (the Enchant macro shape: a `Keyword(Composite{[Static(..)]})`).
         let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Enchant".into(),
-            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::May(
+            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::May(
                 DeonticAction::Attach {
                     what: Predicate::Ref(Reference::This),
                     to: creature(),
@@ -1847,7 +1847,7 @@ mod tests {
             &mut state,
             "Uncounterable",
             vec![Type::Instant],
-            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Counter {
                     by: Predicate::Any,
                     on: Predicate::Ref(Reference::This),
@@ -1880,7 +1880,7 @@ mod tests {
             name: "Land".into(),
             permanent: true,
             confers: vec![deckmaste_core::Property::Ability(Box::new(
-                Ability::Static(StaticEffect::Deontic(Deontic::May(DeonticAction::Play {
+                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Play {
                     what: Predicate::Ref(Reference::This),
                     by: Predicate::Any,
                     from: None,
@@ -1976,7 +1976,7 @@ mod tests {
             &mut off,
             "Off",
             vec![Type::Creature],
-            vec![Ability::Static(StaticEffect::Conditionally(
+            vec![Ability::r#static(StaticEffect::Conditionally(
                 Condition::Compare(Count::Literal(0), Cmp::Greater, Count::Literal(1)),
                 Box::new(cant()),
             ))],
@@ -1993,7 +1993,7 @@ mod tests {
             &mut on,
             "On",
             vec![Type::Creature],
-            vec![Ability::Static(StaticEffect::Conditionally(
+            vec![Ability::r#static(StaticEffect::Conditionally(
                 Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(1)),
                 Box::new(cant()),
             ))],
@@ -2033,7 +2033,7 @@ mod tests {
                 ))),
             ])
         };
-        let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::Static(s)));
+        let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::r#static(s)));
         deckmaste_core::TypeDef {
             name: "Creature".into(),
             permanent: true,
@@ -2188,7 +2188,7 @@ mod tests {
             &mut state,
             "Barred Bear",
             false,
-            vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attack {
                     by: Predicate::Ref(Reference::This),
                     on: Predicate::Any,

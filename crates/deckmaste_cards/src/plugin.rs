@@ -673,7 +673,7 @@ mod tests {
                 name: "Land".into(),
                 permanent: true,
                 confers: vec![deckmaste_core::Property::Ability(Box::new(
-                    deckmaste_core::Ability::Static(deckmaste_core::StaticEffect::Deontic(
+                    deckmaste_core::Ability::r#static(deckmaste_core::StaticEffect::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Play {
                             what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This),
                             by: deckmaste_core::Predicate::Any,
@@ -692,7 +692,7 @@ mod tests {
                 name: "Instant".into(),
                 permanent: false,
                 confers: vec![deckmaste_core::Property::Ability(Box::new(
-                    deckmaste_core::Ability::Static(deckmaste_core::StaticEffect::Deontic(
+                    deckmaste_core::Ability::r#static(deckmaste_core::StaticEffect::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Cast {
                             what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This),
                             by: deckmaste_core::Predicate::Any,

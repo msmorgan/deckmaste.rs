@@ -93,7 +93,7 @@ fn lightning_bolt_expands_target_macros() {
     let any_target: TargetSpec = plugin.macros.read_str("AnyTarget").unwrap();
     assert_eq!(
         face.abilities,
-        vec![Ability::Spell(SpellAbility {
+        vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![any_target],

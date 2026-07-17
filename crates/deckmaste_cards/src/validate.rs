@@ -423,7 +423,7 @@ mod tests {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -456,7 +456,7 @@ mod tests {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -487,7 +487,7 @@ mod tests {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![],
-            abilities: vec![Ability::Activated(ActivatedAbility {
+            abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
@@ -525,7 +525,7 @@ mod tests {
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
             subtypes: vec![],
-            abilities: vec![Ability::Static(StaticEffect::Deontic(Deontic::Cant(
+            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attack {
                     by: Predicate::Ref(Reference::This),
                     on: Predicate::Any,
