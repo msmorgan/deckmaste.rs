@@ -246,8 +246,16 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     let mut out = Vec::new();
 
     // Static replacements on every battlefield object (self- and other-watching).
+    // Reads the DERIVED ability list ([`derive::derived_abilities_of`]) rather
+    // than the printed-only spine, so a CONDITIONALLY-conferred replacement (a
+    // lord granting "if this would be destroyed, exile it instead") participates
+    // in the [CR#616.1] window. The `ai` index is a lineage discriminator only
+    // (`ReplacementKey::Static` never re-fetches the ability by index), so the
+    // conferred tail's non-index-stable positions are harmless here. Hot path:
+    // the derived read recomputes conferrals per candidate per event (perf-last).
     for &obj in &state.zones.battlefield {
-        let abilities = crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
+        let (abilities, _printed_len) =
+            crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
             let Ability::Static(s) = ability else {
                 continue;
@@ -302,7 +310,12 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             .get(obj)
             .is_some_and(|o| o.zone != Some(Zone::Battlefield))
     {
-        let abilities = crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
+        // DERIVED read (see the battlefield sweep above): a Falkenrath-Gorger-
+        // shape static confers madness on an owned off-battlefield card, so the
+        // self-replacement that redirects its discard is a CONFERRED ability the
+        // printed-only spine would never surface here.
+        let (abilities, _printed_len) =
+            crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
             if let Ability::Static(StaticEffect::Replacement(r)) = ability
                 && replacement_would(state, r, obj, e)
@@ -353,8 +366,13 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     } = *e
     {
         for &obj in &state.zones.battlefield {
-            let abilities =
-                crate::derive::abilities_of_source(state, state.objects.obj(obj).source);
+            // DERIVED read (see the replacement sweep above): a conferred damage
+            // prevention participates too — derived ⊇ printed, `ai` is lineage-only.
+            let (abilities, _printed_len) = crate::derive::derived_abilities_of(
+                state,
+                Some(obj),
+                state.objects.obj(obj).source,
+            );
             for (ai, ability) in abilities.iter().enumerate() {
                 let Ability::Static(s) = ability else {
                     continue;

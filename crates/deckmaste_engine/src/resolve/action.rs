@@ -2718,6 +2718,201 @@ mod tests {
         );
     }
 
+    // ===== Conferred-ability gathering (Task 10b) =====
+    // The layer system already DERIVES conferred abilities (including
+    // off-battlefield, via predicate-scoped `ConferralRule`s), but the
+    // replacement gather and trigger scan used to read the PRINTED-only spine,
+    // so a conditionally-conferred replacement/trigger never fired. These three
+    // exercise the derived-ability read in both scans.
+
+    /// [CR#616.1,702.35a]: a Falkenrath-Gorger-shape static confers a madness
+    /// self-replacement onto an OWNED, off-battlefield, otherwise-VANILLA card.
+    /// Discarding it opens the [CR#616.1] window off the CONFERRED ability (the
+    /// card prints no madness), redirecting its Hand → Graveyard move to exile
+    /// while the discard name-fact still stands ([CR#701.9c]). Without the
+    /// derived-ability self-replacement gather, no window opens and the card
+    /// falls straight to the graveyard.
+    #[test]
+    fn conferred_madness_off_battlefield_opens_the_replacement_window() {
+        use deckmaste_core::ConferralRule;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Property;
+        use deckmaste_core::Replacement;
+        use deckmaste_core::StatePredicate;
+        use deckmaste_core::VerbName;
+
+        let (mut state, _a) = bear_on_field();
+        // "If a player would discard THIS card, exile it instead." — conferred,
+        // not printed, onto a matching card that isn't on the battlefield.
+        let madness = Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+            would: EventFilter::Act {
+                verb: VerbName::from("Discard"),
+                who: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
+                cause: None,
+            },
+            instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
+        })));
+        state.conferral_rules = vec![ConferralRule {
+            scope: Predicate::And(vec![
+                Predicate::Characteristic(CharacteristicPredicate::Named(
+                    "Conferred Vampire".into(),
+                )),
+                Predicate::Not(Box::new(Predicate::State(StatePredicate::InZone(
+                    Zone::Battlefield,
+                )))),
+            ]),
+            confer: Property::Ability(Box::new(madness)),
+        }];
+
+        let card = mint_in_hand_with(
+            &mut state,
+            PlayerId(0),
+            CardFace {
+                name: "Conferred Vampire".into(),
+                types: vec![Type::Creature.def()],
+                ..CardFace::default()
+            },
+        );
+        // Bound discard ("discard this card"): the frame's source IS the card.
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Conferred Vampire"),
+            "the CONFERRED madness self-replacement opened the [CR#616.1] window \
+             and exiled the discarded card ([CR#702.35a])"
+        );
+        assert!(
+            !zone_has_named(&state, &state.zones.graveyards[0], "Conferred Vampire"),
+            "the replaced discard never reaches the graveyard"
+        );
+        assert!(
+            discarded_fact(&state, card),
+            "the discard name-fact survives the destination redirect ([CR#701.9c])"
+        );
+    }
+
+    /// [CR#616.1]: a "lord" confers "if this would be destroyed, exile it
+    /// instead" onto a matching BATTLEFIELD creature — a CONFERRED (not
+    /// printed) replacement. Destroying the creature exiles it instead.
+    /// Without the derived-ability battlefield sweep, the conferred shield
+    /// is invisible and the creature is destroyed normally.
+    #[test]
+    fn conferred_destroy_replacement_on_the_battlefield_fires() {
+        use deckmaste_core::ConferralRule;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Property;
+        use deckmaste_core::Replacement;
+        use deckmaste_core::VerbName;
+
+        let (mut state, _a) = bear_on_field();
+        let shield = Ability::Static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+            would: EventFilter::Act {
+                verb: VerbName::from("Destroy"),
+                who: Predicate::Any,
+                on: Predicate::Ref(Reference::This),
+                cause: None,
+            },
+            instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
+        })));
+        state.conferral_rules = vec![ConferralRule {
+            scope: Predicate::Characteristic(CharacteristicPredicate::Named("Destroy Host".into())),
+            confer: Property::Ability(Box::new(shield)),
+        }];
+
+        let host = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Destroy Host".into(),
+                types: vec![Type::Creature.def()],
+                ..CardFace::default()
+            }),
+        );
+        let frame = frame_src(host);
+        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
+        run_injected(&mut state);
+
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Destroy Host"),
+            "the CONFERRED destroy-replacement exiled the creature ([CR#616.1])"
+        );
+        assert!(
+            state.zones.graveyards[0].is_empty(),
+            "the conferred replacement kept the creature out of the graveyard"
+        );
+        assert!(
+            !zone_has_named(&state, &state.zones.battlefield, "Destroy Host"),
+            "the creature left the battlefield — the destroy still committed a move"
+        );
+    }
+
+    /// [CR#603.2]: a Megrim-shape trigger CONFERRED (not printed) onto a
+    /// battlefield creature — "whenever you discard a card, lose 2 life" —
+    /// fires off a discard and resolves its life loss. Without the
+    /// derived-ability trigger scan, the conferred trigger is never
+    /// enumerated and never fires.
+    #[test]
+    fn conferred_trigger_on_the_battlefield_fires() {
+        use deckmaste_core::ConferralRule;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Property;
+        use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::VerbName;
+
+        let (mut state, _a) = bear_on_field();
+        let trigger = Ability::Triggered(TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            from: None,
+            event: EventFilter::Act {
+                verb: VerbName::from("Discard"),
+                who: Predicate::Ref(Reference::You),
+                on: Predicate::Any,
+                cause: None,
+            },
+            condition: None,
+            limits: Vec::new(),
+            effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(Count::Literal(2)))),
+        });
+        state.conferral_rules = vec![ConferralRule {
+            scope: Predicate::Characteristic(CharacteristicPredicate::Named("Trigger Host".into())),
+            confer: Property::Ability(Box::new(trigger)),
+        }];
+
+        let _host = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Trigger Host".into(),
+                types: vec![Type::Creature.def()],
+                ..CardFace::default()
+            }),
+        );
+        let life_before = state.player(PlayerId(0)).life;
+
+        // Discard a plain hand card (bound; the discarding player is player 0).
+        let card = mint_in_hand(&mut state, PlayerId(0), "Fodder");
+        let frame = frame_src(card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+        // Drive the fired conferred trigger through the stack to resolution
+        // (declining any offers — there are none here but the driver is shared).
+        drive_declining_or_casting(&mut state, false);
+
+        assert_eq!(
+            state.player(PlayerId(0)).life,
+            life_before - 2,
+            "the CONFERRED trigger fired off the discard and resolved its life loss"
+        );
+    }
+
     /// [CR#702.29a]: the BOUND discard ("discard this card") — no choice
     /// surfaces; the one dual-facet `Act(Discard)` commits the named card's
     /// Hand → Graveyard move atomically, exactly the destroy shape.

@@ -716,6 +716,13 @@ impl GameState {
                 Watcher::Live(id) => self.objects.obj(*id).zone,
                 Watcher::Leaving(_) => Some(Zone::Battlefield),
             };
+            // The live object carrying this watcher, if any — needed to fold in
+            // its predicate-scoped CONFERRED abilities below (a leaving/gone
+            // object has none). Captured before `watcher` is consumed.
+            let live_id = match &watcher {
+                Watcher::Live(id) => Some(*id),
+                Watcher::Leaving(_) => None,
+            };
             let (source, controller, this) = match watcher {
                 Watcher::Live(id) => {
                     let o = self.objects.obj(id);
@@ -731,10 +738,13 @@ impl GameState {
                 ObjectSource::Card(c) if self.cards.get(c).is_emblem => Zone::Command,
                 _ => Zone::Battlefield,
             };
-            for (idx, ability) in crate::derive::abilities_of_source(self, source)
-                .iter()
-                .enumerate()
-            {
+            // DERIVED enumeration: the printed spine (index-stable, `printed_len`
+            // long) followed by this object's CONFERRED triggered abilities
+            // ([CR#603.2]), so a Falkenrath-Gorger-shape conferral's trigger
+            // participates in the scan where the printed-only spine would miss it.
+            let (abilities, printed_len) =
+                crate::derive::derived_abilities_of(self, live_id, source);
+            for (idx, ability) in abilities.iter().enumerate() {
                 let Ability::Triggered(t) = ability else {
                     continue;
                 };
@@ -792,11 +802,17 @@ impl GameState {
                 // independent `TriggerFired` that places its own stack instance
                 // ([CR#603.3]) and chooses its own modes/targets. Multipliers ADD.
                 let extra = self.trigger_multiplier_extra(event, this.object);
+                // A CONFERRED trigger (idx past the printed spine) has no
+                // index-stable `(source, index)` identity for the re-read at
+                // resolution, so it carries its body BY VALUE — the same channel
+                // delayed/reflexive triggers use ([CR#603.7,603.12]). A printed
+                // trigger keeps `created: None` and resolves by index, unchanged.
+                let created = (idx >= printed_len).then(|| Box::new(t.clone()));
                 let fired = GameEvent::TriggerFired {
                     source,
                     ability: Uint::try_from(idx).expect("ability index fits in Uint"),
                     controller,
-                    created: None,
+                    created,
                     bindings,
                 };
                 for _ in 0..=extra {

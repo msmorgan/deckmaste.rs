@@ -156,8 +156,10 @@ pub fn abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>
 /// The PRINTED abilities of whatever an `ObjectSource` names — the abilities
 /// the trigger scan considers for a watcher. For a card-backed source this is
 /// the face's printed list (the same spine that survives reminting and LKI);
-/// a player proxy has none. Granted/conferred abilities are a later stage
-/// ([CR#603.2] watching abilities; Stage 3 has no continuous effects).
+/// a player proxy has none. Granted/conferred abilities are folded in by the
+/// derived sibling [`derived_abilities_of`] (predicate-scoped conferrals);
+/// this printed-only list is the INDEX-STABLE spine that the trigger/
+/// replacement scans and their resolution reads key on ([CR#603.2]).
 ///
 /// Composite keywords (ward, prowess) are spliced INLINE: the engine
 /// executes the abilities a `KeywordAbility::Composite` carries, so the
@@ -176,6 +178,47 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
         }
         ObjectSource::Player(_) => vec![],
     }
+}
+
+/// The engine-internal ability enumeration of `source`, EXTENDED with the
+/// abilities conferred onto the live object `id` by predicate-scoped
+/// `ConferralRule`s ([`conferred_rule_abilities`]) — the DERIVED counterpart
+/// of [`abilities_of_source`] that the replacement gather and trigger scan
+/// read so a CONDITIONALLY-conferred replacement/triggered ability
+/// participates even off the battlefield ([CR#603.2,616.1]).
+///
+/// The returned `usize` is the length of the PRINTED prefix — which is
+/// byte-for-byte `abilities_of_source(source)`, so a printed ability keeps its
+/// enumeration index (the fired-trigger `(source, index)` re-read at
+/// resolution stays valid). The conferred abilities follow, `Innate`-peeled
+/// and composite-spliced the same way; they have no index-stable identity
+/// (a fired conferred trigger carries its body by value instead).
+///
+/// `id` is the live object carrying `source`; `None` (a gone/leaving object,
+/// which has no live conferrals) yields the printed list unchanged. Reaches
+/// OFF-battlefield objects: `conferred_rule_abilities` matches an id in ANY
+/// zone (the layer base map derives every card-backed object, not only
+/// battlefield ones), so an in-hand card's conferred replacement/trigger is
+/// enumerated here where `abilities_of_source` alone would miss it.
+///
+/// PERF: recomputes the conferral-scope match (which may build
+/// `state.layers()`) on every call. The gather/scan are hot paths, so this
+/// is a real per-event cost — accepted under the project's perf-last
+/// priority; no caching added here.
+#[must_use]
+pub(crate) fn derived_abilities_of(
+    state: &GameState,
+    id: Option<ObjectId>,
+    source: ObjectSource,
+) -> (Vec<Ability>, usize) {
+    let mut out = abilities_of_source(state, source);
+    let printed_len = out.len();
+    if let Some(id) = id {
+        for conferred in conferred_rule_abilities(state, id) {
+            flatten_composites(&conferred, &mut out);
+        }
+    }
+    (out, printed_len)
 }
 
 /// Splice a composite keyword's members into `out` (recursively — a

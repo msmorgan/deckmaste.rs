@@ -793,10 +793,16 @@ fn matches_derived(
         // the carrier `watcher` so a scope's `Ref(This)`/`Ref(You)` (and the
         // `Ref(You)` nested inside a `ControlledBy`) anchors against the host
         // instead of hitting the frameless-targeting `todo!`. None of the
-        // delegated arms re-enter `state.layers()` for a battlefield permanent
-        // (the only `id`s this matcher sees): `Named` reads the printed face;
+        // delegated arms re-enter `state.layers()` — the recursion-safety
+        // invariant this matcher rests on. That holds for EVERY id it sees, and
+        // it sees every live card-backed object, not only battlefield permanents:
+        // `base_map` derives objects in all zones, so a predicate-scoped
+        // conferral / `SelectAll` scope resolves over that whole set — an
+        // off-battlefield (in-hand/graveyard) card is matched here too. Each
+        // delegated arm is zone-agnostic — `Named` reads the printed face;
         // relations resolve over player proxies / object iteration; combat and
-        // state read stored fields. Characteristic leaves are all handled above.
+        // state read stored fields — so the layers()-free guarantee is
+        // independent of the id's zone. Characteristic leaves are handled above.
         _ => crate::target::matches_with(state, id, filter, watcher),
     }
 }
