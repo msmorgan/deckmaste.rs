@@ -1,5 +1,6 @@
 mod binding;
 mod convert;
+mod outline;
 mod source;
 mod workspace;
 
@@ -17,6 +18,8 @@ use lsp_types::DidChangeTextDocumentParams;
 use lsp_types::DidOpenTextDocumentParams;
 use lsp_types::DocumentHighlight;
 use lsp_types::DocumentHighlightParams;
+use lsp_types::DocumentSymbolParams;
+use lsp_types::DocumentSymbolResponse;
 use lsp_types::GotoDefinitionParams;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
@@ -39,6 +42,7 @@ use lsp_types::notification::DidChangeTextDocument;
 use lsp_types::notification::DidOpenTextDocument;
 use lsp_types::notification::Notification as _;
 use lsp_types::request::DocumentHighlightRequest;
+use lsp_types::request::DocumentSymbolRequest;
 use lsp_types::request::GotoDefinition;
 use lsp_types::request::HoverRequest;
 use lsp_types::request::Request as _;
@@ -73,6 +77,7 @@ fn server_capabilities() -> ServerCapabilities {
         document_highlight_provider: Some(OneOf::Left(true)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
+        document_symbol_provider: Some(OneOf::Left(true)),
         ..ServerCapabilities::default()
     }
 }
@@ -144,6 +149,10 @@ impl Server {
             HoverRequest::METHOD => {
                 let (id, params) = cast::<HoverRequest>(request)?;
                 Some(ok(id, self.hover(&params)))
+            }
+            DocumentSymbolRequest::METHOD => {
+                let (id, params) = cast::<DocumentSymbolRequest>(request)?;
+                Some(ok(id, self.document_symbol(&params)))
             }
             _ => Some(Response::new_err(
                 id,
@@ -219,6 +228,13 @@ impl Server {
             })
             .collect();
         Some(WorkspaceSymbolResponse::Flat(infos))
+    }
+
+    fn document_symbol(&self, params: &DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
+        let text = self.documents.get(&params.text_document.uri)?;
+        Some(DocumentSymbolResponse::Nested(outline::document_symbols(
+            text,
+        )))
     }
 
     fn hover(&self, params: &HoverParams) -> Option<Hover> {

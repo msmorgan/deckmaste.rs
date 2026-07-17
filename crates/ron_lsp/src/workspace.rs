@@ -7,8 +7,10 @@ use lsp_types::Location as LspLocation;
 
 use crate::convert;
 use crate::source::Position;
+use crate::source::bracket_field;
 use crate::source::identifiers;
 use crate::source::position_at;
+use crate::source::string_field;
 
 #[derive(Debug, Clone)]
 pub struct Location {
@@ -248,47 +250,6 @@ fn macro_details(text: &str) -> Option<String> {
         parts.push(format!("kinds: {kinds}"));
     }
     (!parts.is_empty()).then(|| parts.join("\n"))
-}
-
-/// First `field: "…"` string value, ignoring strings and comments.
-fn string_field<'a>(text: &'a str, field: &str) -> Option<&'a str> {
-    for (offset, token) in identifiers(text) {
-        if token != field {
-            continue;
-        }
-        let tail = text.get(offset + token.len()..)?;
-        let quote = tail.find('"')?;
-        let rest = &tail[quote + 1..];
-        let end = rest.find('"')?;
-        return Some(&rest[..end]);
-    }
-    None
-}
-
-/// First `field: [ … ]` bracketed value (inclusive of the brackets).
-fn bracket_field<'a>(text: &'a str, field: &str) -> Option<&'a str> {
-    for (offset, token) in identifiers(text) {
-        if token != field {
-            continue;
-        }
-        let tail = text.get(offset + token.len()..)?;
-        let open = tail.find('[')?;
-        let mut depth = 0_usize;
-        for (i, ch) in tail[open..].char_indices() {
-            match ch {
-                '[' => depth += 1,
-                ']' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        return Some(&tail[open..=open + i]);
-                    }
-                }
-                _ => {}
-            }
-        }
-        return None;
-    }
-    None
 }
 
 fn macro_name(text: &str) -> Option<(usize, &str)> {

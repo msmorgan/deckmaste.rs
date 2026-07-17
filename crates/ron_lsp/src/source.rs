@@ -95,6 +95,47 @@ fn is_ident_continue(ch: char) -> bool {
     ch == '_' || ch.is_alphanumeric()
 }
 
+/// First `field: "…"` string value, ignoring strings and comments.
+pub fn string_field<'a>(text: &'a str, field: &str) -> Option<&'a str> {
+    for (offset, token) in identifiers(text) {
+        if token != field {
+            continue;
+        }
+        let tail = text.get(offset + token.len()..)?;
+        let quote = tail.find('"')?;
+        let rest = &tail[quote + 1..];
+        let end = rest.find('"')?;
+        return Some(&rest[..end]);
+    }
+    None
+}
+
+/// First `field: [ … ]` bracketed value (inclusive of the brackets).
+pub fn bracket_field<'a>(text: &'a str, field: &str) -> Option<&'a str> {
+    for (offset, token) in identifiers(text) {
+        if token != field {
+            continue;
+        }
+        let tail = text.get(offset + token.len()..)?;
+        let open = tail.find('[')?;
+        let mut depth = 0_usize;
+        for (i, ch) in tail[open..].char_indices() {
+            match ch {
+                '[' => depth += 1,
+                ']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(&tail[open..=open + i]);
+                    }
+                }
+                _ => {}
+            }
+        }
+        return None;
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
