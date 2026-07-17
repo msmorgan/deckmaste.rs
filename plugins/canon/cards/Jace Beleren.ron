@@ -25,8 +25,8 @@ Normal(
   ],
   abilities: [
     LoyaltyPlus(n: 2, effect: Each(binder: Existing(SelectAll(Player)), effect: Draws(It, 1))),
-    LoyaltyMinus(n: 1, effect: Targeted(targets: [TargetOne(Player)], effect: Draws(It, 1))),
-    LoyaltyMinus(n: 10, effect: Targeted(targets: [TargetOne(Player)], effect: Mills(It, 20))),
+    LoyaltyMinus(n: 1, effect: Targeted(targets: [TargetOne(Player)], effect: Draws(Target(0), 1))),
+    LoyaltyMinus(n: 10, effect: Targeted(targets: [TargetOne(Player)], effect: Mills(Target(0), 20))),
   ],
   loyalty: 3,
 )

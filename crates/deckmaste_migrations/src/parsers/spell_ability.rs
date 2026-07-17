@@ -66,7 +66,7 @@ mod tests {
             .as_deref(),
             Some(
                 "Spell(effect: Targeted(targets: [TargetOne(Creature)], \
-                 effect: Sequentially([Move(It, Exile), \
+                 effect: Sequentially([Move(Target(0), Exile), \
                  Delayed(event: StepBegins(at: Ending(End), whose: EachPlayers), \
                  effect: Move(That(Card), Battlefield, [UnderOwnersControl]))])))"
             )
@@ -77,7 +77,9 @@ mod tests {
     fn frames_targeted_damage_like_lightning_bolt() {
         assert_eq!(
             spell("~ deals 3 damage to any target.").as_deref(),
-            Some("Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 3, It)))")
+            Some(
+                "Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 3, Target(0))))"
+            )
         );
     }
 
@@ -86,7 +88,7 @@ mod tests {
         assert_eq!(
             spell("~ deals 3 damage to target player or planeswalker.").as_deref(),
             Some(
-                "Spell(effect: Targeted(targets: [TargetOne(Or([Player, Planeswalker]))], effect: DealDamage(This, 3, It)))"
+                "Spell(effect: Targeted(targets: [TargetOne(Or([Player, Planeswalker]))], effect: DealDamage(This, 3, Target(0))))"
             )
         );
     }
@@ -145,7 +147,9 @@ mod tests {
     fn frames_destroy_target_like_doom_blade() {
         assert_eq!(
             spell("Destroy target creature.").as_deref(),
-            Some("Spell(effect: Targeted(targets: [TargetOne(Creature)], effect: Destroy(It)))")
+            Some(
+                "Spell(effect: Targeted(targets: [TargetOne(Creature)], effect: Destroy(Target(0))))"
+            )
         );
     }
 

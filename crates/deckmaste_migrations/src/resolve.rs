@@ -285,7 +285,7 @@ mod tests {
         assert!(matches!(
             &face.abilities[0],
             TodoAbility::Parsed(r)
-                if r == "Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 3, It)))"
+                if r == "Spell(effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 3, Target(0))))"
         ));
 
         // The same line on a creature is NOT a spell ability: it stays Unparsed.

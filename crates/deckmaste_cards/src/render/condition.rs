@@ -374,6 +374,7 @@ mod tests {
             subject: "~",
             targets: &[],
             that: None,
+            named: None,
         }
     }
 

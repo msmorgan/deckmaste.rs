@@ -53,7 +53,7 @@ const CLAUSE_PARSERS: &[ClauseParser] = &[
     |l, _| Ok(parse_exile_target(l)),
     |l, _| Ok(parse_return_that_card(l)),
     |l, _| Ok(parse_damage_and_damage(l)),
-    |l, _| Ok(parse_deal_damage(l)),
+    |l, _| Ok(parse_deal_damage(l, 0)),
     |l, _| Ok(parse_draw_then_discard(l)),
     |l, _| Ok(parse_draw(l)),
     |l, _| Ok(parse_lose_life(l)),
@@ -232,13 +232,19 @@ fn parse_gains_control(line: &str) -> Option<ParsedEffect> {
     };
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "GainControl(This, It)".to_owned(),
+        effect: "GainControl(This, Target(0))".to_owned(),
     })
 }
 
 /// Two damage instructions sharing one grammatical subject:
 /// "~ deals N damage to X and M damage to Y." The first and second patients
 /// are parsed by the ordinary damage production, then executed sequentially.
+///
+/// The only production that concatenates two sub-parses' announce lists, so
+/// the only one that threads a non-zero slot index: the second patient's
+/// declaration lands at index `first.targets.len()` and its body reads it back
+/// there ([CR#115.3,601.2c]). Both halves reading the old wildcard `It` was
+/// this shape's latent break — the second slot had no name at all.
 fn parse_damage_and_damage(line: &str) -> Option<ParsedEffect> {
     let body = line.strip_suffix('.')?;
     let (lead, rest) = body.split_once(" damage to ")?;
@@ -247,10 +253,11 @@ fn parse_damage_and_damage(line: &str) -> Option<ParsedEffect> {
     if !second.contains(" damage to ") {
         return None;
     }
-    let first = parse_deal_damage(&format!(
-        "{subject} deals {first_amount} damage to {first_patient}."
-    ))?;
-    let second = parse_deal_damage(&format!("{subject} deals {second}."))?;
+    let first = parse_deal_damage(
+        &format!("{subject} deals {first_amount} damage to {first_patient}."),
+        0,
+    )?;
+    let second = parse_deal_damage(&format!("{subject} deals {second}."), first.targets.len())?;
     let mut targets = first.targets;
     targets.extend(second.targets);
     Some(ParsedEffect {
@@ -704,7 +711,7 @@ fn pump_scope(subj: &str) -> Option<(modify::Target, Vec<String>)> {
     if let Some(rest) = modify::strip_prefix_ci(subj.trim(), "target ") {
         let filter = filter::parse_phrase(rest)?;
         return Some((
-            modify::Target::Ref("It".to_owned()),
+            modify::Target::Ref("Target(0)".to_owned()),
             vec![format!("TargetOne({filter})")],
         ));
     }
@@ -773,14 +780,17 @@ fn combat_restriction_scope(subj: &str) -> Option<(String, Vec<String>)> {
     let subj = subj.trim();
     if let Some(rest) = modify::strip_prefix_ci(subj, "target ") {
         let filter = filter::parse_phrase(rest)?;
-        return Some(("Ref(It)".to_owned(), vec![format!("TargetOne({filter})")]));
+        return Some((
+            "Ref(Target(0))".to_owned(),
+            vec![format!("TargetOne({filter})")],
+        ));
     }
     if let Some(rest) = modify::strip_prefix_ci(subj, "that ") {
         let ty = filter::type_code(&filter::singularize(rest.trim()).to_ascii_lowercase())?;
         return Some((format!("Ref(That({ty}))"), Vec::new()));
     }
     if subj.eq_ignore_ascii_case("it") {
-        return Some(("Ref(It)".to_owned(), Vec::new()));
+        return Some(("Ref(Target(0))".to_owned(), Vec::new()));
     }
     if subj == "~" {
         return Some(("Ref(This)".to_owned(), Vec::new()));
@@ -901,13 +911,13 @@ fn parse_exile_target(line: &str) -> Option<ParsedEffect> {
         let filter = any_graveyard_card_filter(noun)?;
         return Some(ParsedEffect {
             targets: vec![format!("TargetOne({filter})")],
-            effect: "Move(It, Exile)".to_owned(),
+            effect: "Move(Target(0), Exile)".to_owned(),
         });
     }
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "Move(It, Exile)".to_owned(),
+        effect: "Move(Target(0), Exile)".to_owned(),
     })
 }
 
@@ -954,7 +964,7 @@ fn parse_destroy(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "Destroy(It)".to_owned(),
+        effect: "Destroy(Target(0))".to_owned(),
     })
 }
 
@@ -970,7 +980,7 @@ fn parse_destroy_no_regen(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "DestroyNoRegen(It)".to_owned(),
+        effect: "DestroyNoRegen(Target(0))".to_owned(),
     })
 }
 
@@ -988,7 +998,7 @@ fn parse_destroy_macro_target(
     };
     Ok(Some(ParsedEffect {
         targets: vec![format!("TargetOne({})", matched.macro_name)],
-        effect: "Destroy(It)".to_owned(),
+        effect: "Destroy(Target(0))".to_owned(),
     }))
 }
 
@@ -1061,7 +1071,7 @@ fn parse_attach(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "Attach(what: This, to: It)".to_owned(),
+        effect: "Attach(what: This, to: Target(0))".to_owned(),
     })
 }
 
@@ -1080,7 +1090,7 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
     if body.is_empty() {
         return Some(ParsedEffect {
             targets,
-            effect: "Counter(It)".to_owned(),
+            effect: "Counter(Target(0))".to_owned(),
         });
     }
     // "… unless its controller pays <cost>." — the spell's controller may pay
@@ -1097,7 +1107,7 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
     Some(ParsedEffect {
         targets,
         effect: format!(
-            "Unless(effect: Counter(It), who: ControllerOf(It), unless: [{}])",
+            "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), unless: [{}])",
             cost.join(", ")
         ),
     })
@@ -1149,7 +1159,7 @@ fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Par
             let Some(filter) = object_target_filter(subject) else {
                 return Ok(None);
             };
-            ("It".to_owned(), vec![format!("TargetOne({filter})")])
+            ("Target(0)".to_owned(), vec![format!("TargetOne({filter})")])
         }
     };
     Ok(Some(ParsedEffect {
@@ -1266,7 +1276,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
         let card_filter = graveyard_card_filter(subject)?;
         return Some(ParsedEffect {
             targets: vec![format!("TargetOne({card_filter})")],
-            effect: "Move(It, Hand)".to_owned(),
+            effect: "Move(Target(0), Hand)".to_owned(),
         });
     }
     // Battlefield bounce: "target <subject> to its owner's hand."
@@ -1276,7 +1286,7 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: "Move(It, Hand)".to_owned(),
+        effect: "Move(Target(0), Hand)".to_owned(),
     })
 }
 
@@ -1583,7 +1593,7 @@ fn parse_reanimate(line: &str) -> Option<ParsedEffect> {
     let card_filter = graveyard_card_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({card_filter})")],
-        effect: "Move(It, Battlefield)".to_owned(),
+        effect: "Move(Target(0), Battlefield)".to_owned(),
     })
 }
 
@@ -1660,7 +1670,7 @@ fn parse_bounce_to_library(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: format!("Move(It, Library({anchor}))"),
+        effect: format!("Move(Target(0), Library({anchor}))"),
     })
 }
 
@@ -1682,7 +1692,7 @@ fn parse_tap_untap(line: &str) -> Option<ParsedEffect> {
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
         targets: vec![format!("TargetOne({filter})")],
-        effect: format!("{verb}(It)"),
+        effect: format!("{verb}(Target(0))"),
     })
 }
 
@@ -1844,7 +1854,7 @@ fn graveyard_card_type(subject: &str) -> Option<String> {
 /// add a position-aware guard (decline an anaphoric non-leading "it deals")
 /// before extending it, mirroring the `Ref(It)` idiom in
 /// `combat_restriction_scope`.
-fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
+fn parse_deal_damage(line: &str, slot: usize) -> Option<ParsedEffect> {
     let body = line
         .strip_prefix("~ deals ")
         .or_else(|| strip_prefix_ci(line, "it deals "))?
@@ -1864,7 +1874,7 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
         .strip_prefix("damage equal to its power to ")
         .or_else(|| body.strip_prefix("damage equal to ~'s power to "))
     {
-        let (targets, selection) = damage_target(tail)?;
+        let (targets, selection) = damage_target(tail, slot)?;
         return Some(ParsedEffect {
             targets,
             effect: format!("DealDamage(This, StatOf(This, Power), {selection})"),
@@ -1905,7 +1915,7 @@ fn parse_deal_damage(line: &str) -> Option<ParsedEffect> {
             (amount, tail)
         }
     };
-    let (targets, selection) = damage_target(tail)?;
+    let (targets, selection) = damage_target(tail, slot)?;
     // Bare X is currently grounded only for mass-damage selections (the
     // Hurricane family). Other X-damage frames need their surrounding spell
     // cost threaded into this parser before they can safely opt in.
@@ -2289,23 +2299,29 @@ pub(super) fn number_word(word: &str) -> Option<u32> {
 
 /// Maps the "to <X>" tail of a damage clause to its `(target declarations,
 /// body selection)`. Targeted shapes declare a `TargetSpec` and the body reads
-/// `It`; "each" shapes declare nothing and inline a `SelectAll(...)`
-/// selection.
-fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
+/// it back POSITIONALLY as `Target(slot)` ([CR#115.3,601.2c]) — `slot` is the
+/// announce-list index this declaration will occupy, threaded in by the caller
+/// (0 for a lone damage clause; the two-patient shape
+/// [`parse_damage_and_damage`] gives its second patient index 1). "each" shapes
+/// declare nothing and inline a `SelectAll(...)` selection.
+fn damage_target(text: &str, slot: usize) -> Option<(Vec<String>, String)> {
     Some(match text {
-        "any target" => (vec!["AnyTarget".to_owned()], "It".to_owned()),
+        "any target" => (vec!["AnyTarget".to_owned()], format!("Target({slot})")),
         "you" => (Vec::new(), "You".to_owned()),
-        "target player" => (vec!["TargetOne(Player)".to_owned()], "It".to_owned()),
+        "target player" => (
+            vec!["TargetOne(Player)".to_owned()],
+            format!("Target({slot})"),
+        ),
         // "target opponent" — a single opponent of you ([CR#102.2]).
         "target opponent" => (
             vec!["TargetOne(OpponentOf(Ref(You)))".to_owned()],
-            "It".to_owned(),
+            format!("Target({slot})"),
         ),
         // The restricted "any target" minus its object members ([CR#115.4]):
         // a player or planeswalker, never a creature/battle (Lava Spike).
         "target player or planeswalker" => (
             vec!["TargetOne(Or([Player, Planeswalker]))".to_owned()],
-            "It".to_owned(),
+            format!("Target({slot})"),
         ),
         "each creature" => (Vec::new(), "SelectAll(Creature)".to_owned()),
         "each player" => (Vec::new(), "SelectAll(Player)".to_owned()),
@@ -2344,7 +2360,10 @@ fn damage_target(text: &str) -> Option<(Vec<String>, String)> {
         _ => {
             let subject = text.strip_prefix("target ")?;
             let filter = object_target_filter(subject)?;
-            (vec![format!("TargetOne({filter})")], "It".to_owned())
+            (
+                vec![format!("TargetOne({filter})")],
+                format!("Target({slot})"),
+            )
         }
     })
 }
@@ -2537,7 +2556,7 @@ mod tests {
             parsed_with_macros("Target creature gets +3/+3 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(It, PowerAndToughnessUp(3, 3)), \
+                "Continuously(effect: Modify(Target(0), PowerAndToughnessUp(3, 3)), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2547,7 +2566,7 @@ mod tests {
             parsed_with_macros("Target creature gets -2/-2 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(It, PowerAndToughnessDown(2, 2)), \
+                "Continuously(effect: Modify(Target(0), PowerAndToughnessDown(2, 2)), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2647,20 +2666,23 @@ mod tests {
     fn deal_damage_targeted_shapes() {
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(This, 3, It)".to_owned()))
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(This, 3, Target(0))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("~ deals 2 damage to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(This, 2, It)".to_owned()
+                "DealDamage(This, 2, Target(0))".to_owned()
             ))
         );
         assert_eq!(
             parsed("~ deals 4 damage to target player."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(This, 4, It)".to_owned()
+                "DealDamage(This, 4, Target(0))".to_owned()
             ))
         );
         // Lava Spike's restricted target: player-or-planeswalker (can't hit
@@ -2669,7 +2691,7 @@ mod tests {
             parsed("~ deals 3 damage to target player or planeswalker."),
             Some((
                 "TargetOne(Or([Player, Planeswalker]))".to_owned(),
-                "DealDamage(This, 3, It)".to_owned()
+                "DealDamage(This, 3, Target(0))".to_owned()
             ))
         );
     }
@@ -2740,20 +2762,23 @@ mod tests {
         // The target subject parses via filter.rs into a `TargetOne(<filter>)`.
         assert_eq!(
             parsed("Destroy target creature."),
-            Some(("TargetOne(Creature)".to_owned(), "Destroy(It)".to_owned()))
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("Destroy target artifact."),
             Some((
                 "TargetOne(Type(\"Artifact\"))".to_owned(),
-                "Destroy(It)".to_owned()
+                "Destroy(Target(0))".to_owned()
             ))
         );
         assert_eq!(
             parsed("Destroy target nonland permanent."),
             Some((
                 "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
-                "Destroy(It)".to_owned()
+                "Destroy(Target(0))".to_owned()
             ))
         );
         // Lowercase lead (the clause after a trigger comma) parses too. The
@@ -2762,7 +2787,7 @@ mod tests {
             parsed("destroy target Goblin."),
             Some((
                 "TargetOne(And([Permanent, Subtype(\"Goblin\")]))".to_owned(),
-                "Destroy(It)".to_owned()
+                "Destroy(Target(0))".to_owned()
             ))
         );
     }
@@ -2779,7 +2804,7 @@ mod tests {
             parsed("Destroy target creature with flying."),
             Some((
                 "TargetOne(And([Creature, Has(Flying)]))".to_owned(),
-                "Destroy(It)".to_owned()
+                "Destroy(Target(0))".to_owned()
             ))
         );
     }
@@ -2819,12 +2844,12 @@ mod tests {
                     .to_owned()
             ))
         );
-        // Single-target pump ("target creature gets …"): TargetOne + bare `It`.
+        // Single-target pump ("target creature gets …"): TargetOne + bare `Target(0)`.
         assert_eq!(
             parsed("Target creature gets +3/+3 until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(It, Several([Power(Up(3)), Toughness(Up(3))])), \
+                "Continuously(effect: Modify(Target(0), Several([Power(Up(3)), Toughness(Up(3))])), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2834,7 +2859,7 @@ mod tests {
             parsed("Target creature gains flying until end of turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Modify(It, GainAbility(Keyword(Flying))), \
+                "Continuously(effect: Modify(Target(0), GainAbility(Keyword(Flying))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2844,12 +2869,12 @@ mod tests {
     #[test]
     fn durational_combat_restriction_can_block() {
         // Single-target: "Target creature can't block this turn." -> TargetOne +
-        // bare `It` anchored on `by:`.
+        // bare `Target(0)` anchored on `by:`.
         assert_eq!(
             parsed("Target creature can't block this turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Cant(Block(by: Ref(It))), \
+                "Continuously(effect: Cant(Block(by: Ref(Target(0)))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2883,12 +2908,12 @@ mod tests {
     #[test]
     fn durational_combat_restriction_cant_be_blocked() {
         // Single-target: "Target creature can't be blocked this turn." ->
-        // TargetOne + bare `It` anchored on `on:` — the evasion/passive form.
+        // TargetOne + bare `Target(0)` anchored on `on:` — the evasion/passive form.
         assert_eq!(
             parsed("Target creature can't be blocked this turn."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Continuously(effect: Cant(Block(on: Ref(It))), \
+                "Continuously(effect: Cant(Block(on: Ref(Target(0)))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2909,7 +2934,7 @@ mod tests {
             parsed("It can't be blocked this turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Cant(Block(on: Ref(It))), \
+                "Continuously(effect: Cant(Block(on: Ref(Target(0)))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))
@@ -2978,14 +3003,17 @@ mod tests {
         // Trigger surface: "it deals …" (the source), same RON as "~ deals …".
         assert_eq!(
             parsed("it deals 1 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(This, 1, It)".to_owned()))
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(This, 1, Target(0))".to_owned()
+            ))
         );
         // Activated surface: clause-initial "It deals …" after a cost colon.
         assert_eq!(
             parsed("It deals 2 damage to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(This, 2, It)".to_owned()
+                "DealDamage(This, 2, Target(0))".to_owned()
             ))
         );
     }
@@ -2996,7 +3024,27 @@ mod tests {
             parsed("~ deals 1 damage to any target and 1 damage to you."),
             Some((
                 "AnyTarget".to_owned(),
-                "Sequentially([DealDamage(This, 1, It), DealDamage(This, 1, You)])".to_owned(),
+                "Sequentially([DealDamage(This, 1, Target(0)), DealDamage(This, 1, You)])"
+                    .to_owned(),
+            ))
+        );
+    }
+
+    /// TWO announced slots, each read by its own index ([CR#115.3,601.2c]) —
+    /// the shape the wildcard anaphor could not express. Both halves used to
+    /// emit a bare `It`: the first read was a guess between two same-sort
+    /// antecedents and the second slot had no name at all, so the model's
+    /// uniqueness gate refused the card. Positional reads name each slot
+    /// outright, so nothing here is ambiguous and no labelling apparatus is
+    /// needed.
+    #[test]
+    fn two_single_target_damage_instructions_index_their_own_slots() {
+        assert_eq!(
+            parsed("~ deals 2 damage to target creature and 1 damage to target creature."),
+            Some((
+                "TargetOne(Creature), TargetOne(Creature)".to_owned(),
+                "Sequentially([DealDamage(This, 2, Target(0)), DealDamage(This, 1, Target(1))])"
+                    .to_owned(),
             ))
         );
     }
@@ -3023,7 +3071,10 @@ mod tests {
         // Regression: the spell forms must keep working after generalization.
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(This, 3, It)".to_owned()))
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(This, 3, Target(0))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("Draw two cards."),
@@ -3285,7 +3336,7 @@ mod tests {
             parsed("~ deals damage to any target equal to the number of Goblins you control."),
             Some((
                 "AnyTarget".to_owned(),
-                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), It)".to_owned()
+                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), Target(0))".to_owned()
             ))
         );
     }
@@ -3300,7 +3351,7 @@ mod tests {
             parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), It)".to_owned()
+                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), Target(0))".to_owned()
             ))
         );
     }
@@ -3310,7 +3361,10 @@ mod tests {
         // Regression: the literal path keeps emitting a bare numeral.
         assert_eq!(
             parsed("~ deals 3 damage to any target."),
-            Some(("AnyTarget".to_owned(), "DealDamage(This, 3, It)".to_owned()))
+            Some((
+                "AnyTarget".to_owned(),
+                "DealDamage(This, 3, Target(0))".to_owned()
+            ))
         );
     }
 
@@ -3325,7 +3379,7 @@ mod tests {
             parsed("~ deals damage equal to its power to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+                "DealDamage(This, StatOf(This, Power), Target(0))".to_owned()
             ))
         );
     }
@@ -3338,7 +3392,7 @@ mod tests {
             parsed("It deals damage equal to its power to any target."),
             Some((
                 "AnyTarget".to_owned(),
-                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+                "DealDamage(This, StatOf(This, Power), Target(0))".to_owned()
             ))
         );
     }
@@ -3351,7 +3405,7 @@ mod tests {
             parsed("~ deals damage equal to ~'s power to target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+                "DealDamage(This, StatOf(This, Power), Target(0))".to_owned()
             ))
         );
     }
@@ -3366,7 +3420,7 @@ mod tests {
             parsed("~ deals damage equal to its power to target creature or planeswalker."),
             Some((
                 "TargetOne(Or([Creature, Planeswalker]))".to_owned(),
-                "DealDamage(This, StatOf(This, Power), It)".to_owned()
+                "DealDamage(This, StatOf(This, Power), Target(0))".to_owned()
             ))
         );
     }
@@ -3635,7 +3689,7 @@ mod tests {
             parsed("Attach it to target creature you control."),
             Some((
                 "TargetOne(And([Creature, ControlledBy(Ref(You))]))".to_owned(),
-                "Attach(what: This, to: It)".to_owned()
+                "Attach(what: This, to: Target(0))".to_owned()
             ))
         );
     }
@@ -3786,12 +3840,18 @@ mod tests {
         // it ([CR#701.6a]).
         assert_eq!(
             parsed("Counter target spell."),
-            Some(("TargetOne(Spell)".to_owned(), "Counter(It)".to_owned()))
+            Some((
+                "TargetOne(Spell)".to_owned(),
+                "Counter(Target(0))".to_owned()
+            ))
         );
         // Lowercase lead (mid-sentence after a trigger comma).
         assert_eq!(
             parsed("counter target spell."),
-            Some(("TargetOne(Spell)".to_owned(), "Counter(It)".to_owned()))
+            Some((
+                "TargetOne(Spell)".to_owned(),
+                "Counter(Target(0))".to_owned()
+            ))
         );
     }
 
@@ -3803,7 +3863,7 @@ mod tests {
             parsed("Counter target spell unless its controller pays {2}."),
             Some((
                 "TargetOne(Spell)".to_owned(),
-                "Unless(effect: Counter(It), who: ControllerOf(It), \
+                "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), \
                  unless: [Mana([Generic(2)])])"
                     .to_owned()
             ))
@@ -3811,7 +3871,7 @@ mod tests {
         assert_eq!(
             parsed("Counter target spell unless its controller pays {1}.").map(|p| p.1),
             Some(
-                "Unless(effect: Counter(It), who: ControllerOf(It), \
+                "Unless(effect: Counter(Target(0)), who: ControllerOf(Target(0)), \
                  unless: [Mana([Generic(1)])])"
                     .to_owned()
             )
@@ -3829,7 +3889,10 @@ mod tests {
         .unwrap()
         .expect("both sentences are productions");
         assert_eq!(parsed.targets, vec!["TargetOne(Spell)".to_owned()]);
-        assert_eq!(parsed.effect, "Sequentially([Counter(It), GainLife(5)])");
+        assert_eq!(
+            parsed.effect,
+            "Sequentially([Counter(Target(0)), GainLife(5)])"
+        );
     }
 
     /// The loot idiom ([CR#121.1,701.9b]): "Draw a card, then discard a
@@ -3923,14 +3986,14 @@ mod tests {
             parsed("Return target creature to its owner's hand."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Move(It, Hand)".to_owned()
+                "Move(Target(0), Hand)".to_owned()
             ))
         );
         assert_eq!(
             parsed("Return target permanent to its owner's hand."),
             Some((
                 "TargetOne(Permanent)".to_owned(),
-                "Move(It, Hand)".to_owned()
+                "Move(Target(0), Hand)".to_owned()
             ))
         );
         // "nonland permanent" rides the shared filter grammar's negation.
@@ -3938,7 +4001,7 @@ mod tests {
             parsed("Return target nonland permanent to its owner's hand."),
             Some((
                 "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
-                "Move(It, Hand)".to_owned()
+                "Move(Target(0), Hand)".to_owned()
             ))
         );
     }
@@ -3988,7 +4051,7 @@ mod tests {
             Some((
                 "TargetOne(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))"
                     .to_owned(),
-                "Move(It, Hand)".to_owned()
+                "Move(Target(0), Hand)".to_owned()
             ))
         );
         // Bare "card" (no type qualifier) — any card you own there.
@@ -3996,7 +4059,7 @@ mod tests {
             parsed("Return target card from your graveyard to your hand."),
             Some((
                 "TargetOne(And([InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
-                "Move(It, Hand)".to_owned()
+                "Move(Target(0), Hand)".to_owned()
             ))
         );
         // "instant or sorcery card" — a card-type disjunction.
@@ -4006,7 +4069,7 @@ mod tests {
                 "TargetOne(And([Or([Type(\"Instant\"), Type(\"Sorcery\")]), InZone(Graveyard), \
                  Owner(Ref(You))]))"
                     .to_owned(),
-                "Move(It, Hand)".to_owned()
+                "Move(Target(0), Hand)".to_owned()
             ))
         );
     }
@@ -4021,7 +4084,7 @@ mod tests {
             Some((
                 "TargetOne(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))"
                     .to_owned(),
-                "Move(It, Battlefield)".to_owned()
+                "Move(Target(0), Battlefield)".to_owned()
             ))
         );
         // Bare "card" (no type qualifier) — any card you own there.
@@ -4029,7 +4092,7 @@ mod tests {
             parsed("Return target card from your graveyard to the battlefield."),
             Some((
                 "TargetOne(And([InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
-                "Move(It, Battlefield)".to_owned()
+                "Move(Target(0), Battlefield)".to_owned()
             ))
         );
     }
@@ -4124,14 +4187,14 @@ mod tests {
             parsed("Put target creature on top of its owner's library."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Move(It, Library(FromTop(0)))".to_owned()
+                "Move(Target(0), Library(FromTop(0)))".to_owned()
             ))
         );
         assert_eq!(
             parsed("Put target creature on the bottom of its owner's library."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Move(It, Library(FromBottom(0)))".to_owned()
+                "Move(Target(0), Library(FromBottom(0)))".to_owned()
             ))
         );
         // "your library" idiom on a targeted subject too.
@@ -4139,7 +4202,7 @@ mod tests {
             parsed("Put target creature on top of your library."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Move(It, Library(FromTop(0)))".to_owned()
+                "Move(Target(0), Library(FromTop(0)))".to_owned()
             ))
         );
         // "nonland permanent" rides the shared filter grammar's negation.
@@ -4147,7 +4210,7 @@ mod tests {
             parsed("Put target nonland permanent on top of its owner's library."),
             Some((
                 "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
-                "Move(It, Library(FromTop(0)))".to_owned()
+                "Move(Target(0), Library(FromTop(0)))".to_owned()
             ))
         );
     }
@@ -4514,7 +4577,7 @@ mod tests {
             parsed("Exile target creature card from a graveyard."),
             Some((
                 "TargetOne(And([Type(\"Creature\"), InZone(Graveyard)]))".to_owned(),
-                "Move(It, Exile)".to_owned()
+                "Move(Target(0), Exile)".to_owned()
             ))
         );
         // Bare "card" (no type qualifier) — any card in a graveyard, no `And`
@@ -4523,7 +4586,7 @@ mod tests {
             parsed("Exile target card from a graveyard."),
             Some((
                 "TargetOne(InZone(Graveyard))".to_owned(),
-                "Move(It, Exile)".to_owned()
+                "Move(Target(0), Exile)".to_owned()
             ))
         );
         // "instant or sorcery card" — a card-type disjunction, same as the
@@ -4533,7 +4596,7 @@ mod tests {
             Some((
                 "TargetOne(And([Or([Type(\"Instant\"), Type(\"Sorcery\")]), InZone(Graveyard)]))"
                     .to_owned(),
-                "Move(It, Exile)".to_owned()
+                "Move(Target(0), Exile)".to_owned()
             ))
         );
         // The general (non-graveyard) exile production is untouched.
@@ -4541,7 +4604,7 @@ mod tests {
             parsed("Exile target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "Move(It, Exile)".to_owned()
+                "Move(Target(0), Exile)".to_owned()
             ))
         );
     }
@@ -4561,26 +4624,35 @@ mod tests {
     fn tap_and_untap_target() {
         assert_eq!(
             parsed("Tap target creature."),
-            Some(("TargetOne(Creature)".to_owned(), "Tap(It)".to_owned()))
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Tap(Target(0))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("Untap target creature."),
-            Some(("TargetOne(Creature)".to_owned(), "Untap(It)".to_owned()))
+            Some((
+                "TargetOne(Creature)".to_owned(),
+                "Untap(Target(0))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("Untap target permanent."),
-            Some(("TargetOne(Permanent)".to_owned(), "Untap(It)".to_owned()))
+            Some((
+                "TargetOne(Permanent)".to_owned(),
+                "Untap(Target(0))".to_owned()
+            ))
         );
         assert_eq!(
             parsed("Untap target land."),
             Some((
                 "TargetOne(Type(\"Land\"))".to_owned(),
-                "Untap(It)".to_owned()
+                "Untap(Target(0))".to_owned()
             ))
         );
         // A trailing rider sentence leaves text past the period — declines here.
         assert!(declines(
-            "Tap target creature. It doesn't untap during its controller's next untap step."
+            "Tap target creature. Target(0) doesn't untap during its controller's next untap step."
         ));
     }
 
@@ -4591,7 +4663,7 @@ mod tests {
             parsed("Destroy target artifact or enchantment."),
             Some((
                 "TargetOne(Or([Type(\"Artifact\"), Type(\"Enchantment\")]))".to_owned(),
-                "Destroy(It)".to_owned()
+                "Destroy(Target(0))".to_owned()
             ))
         );
         // "creature or planeswalker" -> the battlefield macros disjoined.
@@ -4599,34 +4671,37 @@ mod tests {
             parsed("Destroy target creature or planeswalker."),
             Some((
                 "TargetOne(Or([Creature, Planeswalker]))".to_owned(),
-                "Destroy(It)".to_owned()
+                "Destroy(Target(0))".to_owned()
             ))
         );
         assert_eq!(
             parsed("Destroy target artifact or land. It can't be regenerated."),
             Some((
                 "TargetOne(Or([Type(\"Artifact\"), Type(\"Land\")]))".to_owned(),
-                "DestroyNoRegen(It)".to_owned(),
+                "DestroyNoRegen(Target(0))".to_owned(),
             ))
         );
         assert_eq!(
             parsed_with_macros("Destroy target nonbasic land."),
             Some((
                 "TargetOne(NonbasicLand)".to_owned(),
-                "Destroy(It)".to_owned(),
+                "Destroy(Target(0))".to_owned(),
             ))
         );
         assert_eq!(
             parsed("Destroy target artifact or land."),
             Some((
                 "TargetOne(Or([Type(\"Artifact\"), Type(\"Land\")]))".to_owned(),
-                "Destroy(It)".to_owned()
+                "Destroy(Target(0))".to_owned()
             ))
         );
         // Single-type "permanent" still parses through the shared phrase grammar.
         assert_eq!(
             parsed("Destroy target permanent."),
-            Some(("TargetOne(Permanent)".to_owned(), "Destroy(It)".to_owned()))
+            Some((
+                "TargetOne(Permanent)".to_owned(),
+                "Destroy(Target(0))".to_owned()
+            ))
         );
     }
 
@@ -4641,7 +4716,7 @@ mod tests {
             parsed("~ deals 1 damage to target opponent."),
             Some((
                 "TargetOne(OpponentOf(Ref(You)))".to_owned(),
-                "DealDamage(This, 1, It)".to_owned()
+                "DealDamage(This, 1, Target(0))".to_owned()
             ))
         );
         // "target attacking or blocking creature" — a shared-head status
@@ -4650,7 +4725,7 @@ mod tests {
             parsed("~ deals 4 damage to target attacking or blocking creature."),
             Some((
                 "TargetOne(And([Creature, Or([Attacking, Blocking])]))".to_owned(),
-                "DealDamage(This, 4, It)".to_owned()
+                "DealDamage(This, 4, Target(0))".to_owned()
             ))
         );
         // "target creature or planeswalker" — disjoined object target.
@@ -4658,7 +4733,7 @@ mod tests {
             parsed("~ deals 5 damage to target creature or planeswalker."),
             Some((
                 "TargetOne(Or([Creature, Planeswalker]))".to_owned(),
-                "DealDamage(This, 5, It)".to_owned()
+                "DealDamage(This, 5, Target(0))".to_owned()
             ))
         );
         // "each creature and each player" — the unioned distributive sweep,
@@ -4689,7 +4764,7 @@ mod tests {
             parsed_with_macros("Put a +1/+1 counter on target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "PutCounters(It, P1P1Counter, 1)".to_owned()
+                "PutCounters(Target(0), P1P1Counter, 1)".to_owned()
             ))
         );
         // Lowercase lead (the clause after a trigger comma).
@@ -4697,7 +4772,7 @@ mod tests {
             parsed_with_macros("put a +1/+1 counter on target creature you control."),
             Some((
                 "TargetOne(And([Creature, ControlledBy(Ref(You))]))".to_owned(),
-                "PutCounters(It, P1P1Counter, 1)".to_owned()
+                "PutCounters(Target(0), P1P1Counter, 1)".to_owned()
             ))
         );
         // "two +1/+1 counters" — the plural count.
@@ -4705,7 +4780,7 @@ mod tests {
             parsed_with_macros("Put two +1/+1 counters on target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "PutCounters(It, P1P1Counter, 2)".to_owned()
+                "PutCounters(Target(0), P1P1Counter, 2)".to_owned()
             ))
         );
         // "-1/-1 counter" generalizes to `M1M1Counter` for free.
@@ -4713,7 +4788,7 @@ mod tests {
             parsed_with_macros("Put a -1/-1 counter on target creature."),
             Some((
                 "TargetOne(Creature)".to_owned(),
-                "PutCounters(It, M1M1Counter, 1)".to_owned()
+                "PutCounters(Target(0), M1M1Counter, 1)".to_owned()
             ))
         );
     }

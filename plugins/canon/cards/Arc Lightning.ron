@@ -2,8 +2,9 @@
 // one, two, or three target creatures and/or players." A TARGETED spell
 // ([CR#115.1,601.2c]): the `Targeted` wrapper announces ONE plural target spec
 // (1–3 creature/player targets), and the divided-distribution effect
-// ([CR#601.2d]) reads that announced set back as the plural anaphor `They`
-// (the one Many antecedent in scope). 3 is split across
+// ([CR#601.2d]) reads that announced slot back BY POSITION as `Targets(0)`
+// — an announced target is an indexed entry in the announce list, never an
+// anaphor over the antecedent stack ([CR#115.3]). 3 is split across
 // the targets, each element bound in turn as `It` with its `Allotment`
 // share, which the body (`DealDamage(This, Allotment, It)`) reads. One
 // primitive expresses divided damage; the same shape with a `PutCounters` body
@@ -23,7 +24,7 @@ Normal(
         targets: [Target(Between(1, 3), AnyTarget)],
         effect: Distribute(
           amount: 3,
-          binder: Existing(They),
+          binder: Existing(Targets(0)),
           body: DealDamage(This, Allotment, It),
         ),
       ),

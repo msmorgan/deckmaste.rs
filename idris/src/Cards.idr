@@ -23,7 +23,7 @@ card_LightningBolt = Normal $ ^:
   , abilities :=
       [ Spell $
           Targeted [anyTarget] $
-          (Act (DealDamage (^3) It))       -- the one announced slot, read as "it" (canon: DealDamage(This, 3, It))
+          (Act (DealDamage (^3) (Target 0)))       -- the one announced slot, read as "it" (canon: DealDamage(This, 3, It))
       ]
   }
 
@@ -163,7 +163,7 @@ card_Cloudshift = Normal $ ^:
                                      ])
                    ] $
           Sequentially
-            [ Act (Move It (ToZone Exile))
+            [ Act (Move (Target 0) (ToZone Exile))
             , Act (Move (That Card) (ToZone Battlefield)) ]
       ]
   }
@@ -233,7 +233,7 @@ card_OblivionStone = Normal $ ^:
   , abilities :=
       [ Activated (Costs [Mana [^4], Do (Tap This)])
           (Targeted [Target (^1) permanent]
-            (Act (PutCounters fateCounter (Literal 1) It)))
+            (Act (PutCounters fateCounter (Literal 1) (Target 0))))
       , Activated (Costs [Mana [^5], Do (Tap This), Do (Sacrifice (SameAs This))])
           (Sequentially
             [ Each (Existing (SelectAll (And [permanent, Not (hasType Land), Not (HasCounter fateCounter)]))) (Act (destroy It))
@@ -273,7 +273,7 @@ card_LilianaOfTheVeil = Normal $ ^:
           (Each (Existing eachPlayer) (discards It (^1))) {window = AsSorcery, limits = [OncePerTurn]}
       , Activated (Do (RemoveCounters loyaltyCounter (Literal 2) This))
           (Targeted [Target (^1) Anyone]
-            (Act (Sacrifice creature {actor = It}))) {window = AsSorcery, limits = [OncePerTurn]}
+            (Act (Sacrifice creature {actor = Target 0}))) {window = AsSorcery, limits = [OncePerTurn]}
       ]
   }
 
@@ -294,7 +294,7 @@ card_TideShaper = Normal $ ^:
           (If (PaidCost "Kicker")
               (Targeted [Target (^1) (hasType Land)]
                 (Continuously (ForAsLongAs (Matches This (InZone Battlefield)))
-                              (Modify (That (OfType Land)) (Alter Subtypes (Add (landType "Island")))))))  -- "that land": the SORT skips the ETB event's own (Permanent) antecedent
+                              (Modify (Target 0) (Alter Subtypes (Add (landType "Island")))))))  -- "that land": the SORT skips the ETB event's own (Permanent) antecedent
       , Static (While (exists (And [InZone Battlefield, hasSubtype (landType "Island"), ControlledBy opponent]))
                       (Modify This (ApplyAll (modifyPT (Up (^1))))))
       ]
@@ -399,7 +399,7 @@ card_Donate = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [ Target (^1) Anyone
                         , Target (^1) (And [permanent, ControlledBy you]) ]
-          (Continuously Forever (Modify (That Permanent) (GainControl (That Player)))))  -- mixed-kind slots: the SORTS disambiguate, no labels needed
+          (Continuously Forever (Modify (Target 1) (GainControl (Target 0)))))  -- mixed-kind slots: the SORTS disambiguate, no labels needed
       ]
   }
 
@@ -484,8 +484,8 @@ card_ManaLeak = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) (IsKind Spell)]
-          (MustPay {actor = ControllerOf It} (Mana [^3])
-            (Act (Counter It)))) ]        -- canon: ControllerOf(It) / Counter(It)
+          (MustPay {actor = ControllerOf (Target 0)} (Mana [^3])
+            (Act (Counter (Target 0))))) ]        -- canon: ControllerOf(It) / Counter(It)
   }
 
 -- Invisible Stalker — a DEONTIC-KEYWORD creature: `keyword (Hexproof Nothing)` is a `Composite`
@@ -516,8 +516,8 @@ card_CrypticCommand = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Modal (MkChooseSpec (^2))
-          [ MkMode (Targeted [Target (^1) (IsKind Spell)] (Act (Counter It)))
-          , MkMode (Targeted [Target (^1) permanent] (Act (Move It (ToZone Hand))))
+          [ MkMode (Targeted [Target (^1) (IsKind Spell)] (Act (Counter (Target 0))))
+          , MkMode (Targeted [Target (^1) permanent] (Act (Move (Target 0) (ToZone Hand))))
           , MkMode (Each (Existing (SelectAll (And [creature, ControlledBy opponent]))) (Act (Tap It)))
           , MkMode (Act (Draw (^1)))
           ]) ]
@@ -536,7 +536,7 @@ card_Electrolyze = Normal $ ^:
   , abilities :=
       [ Spell (Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
           (Sequentially
-            [ Distribute (^2) (Existing They) (Act (DealDamage Allotment It))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
+            [ Distribute (^2) (Existing (Targets 0)) (Act (DealDamage Allotment It))   -- the announced group is the plural anaphor (Arc Lightning canon shape)
             , Act (Draw (^1)) ]))
       ]
   }
@@ -659,12 +659,12 @@ card_CitadelSiege = Normal $ ^:
             Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf you)])
               (If (ChosenIs 0)
                   (Targeted [Target (^1) (And [creature, ControlledBy you])]
-                    (Act (PutCounters p1p1 (^2) It))))
+                    (Act (PutCounters p1p1 (^2) (Target 0)))))
           , -- Dragons (1): begin combat on an OPPONENT's turn → tap a creature that opponent controls
             Triggered (MkEventQuery [BeginStep (CombatPhase BeginningOfCombatStep)] [Whenever (TurnOf opponent)])
               (If (ChosenIs 1)
                   (Targeted [Target (^1) (And [creature, ControlledBy opponent])]
-                    (Act (Tap It))))
+                    (Act (Tap (Target 0)))))
           ]
       ]
   }
@@ -725,12 +725,12 @@ card_WearTear = TwoFaced Split
   (^: { name := Just "Wear"
       , manaCost := [^1, ^Red]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (hasType Artifact)] (Act (destroy It))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Artifact)] (Act (destroy (Target 0)))) ]
       })
   (^: { name := Just "Tear"
       , manaCost := [^White]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (hasType Enchantment)] (Act (destroy It))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (hasType Enchantment)] (Act (destroy (Target 0)))) ]
       })
 
 -- Brazen Borrower // Petty Theft — an ADVENTURE card ([CR#715]): a creature whose "adventure" half is
@@ -754,7 +754,7 @@ card_BrazenBorrower = TwoFaced Adventure
   (^: { name := Just "Petty Theft"
       , manaCost := [^1, ^Blue]
       , types := [Instant]
-      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (hasType Land)])] (Act (Move It (ToZone Hand)))) ]
+      , abilities := [ Spell (Targeted [Target (^1) (And [permanent, Not (hasType Land)])] (Act (Move (Target 0) (ToZone Hand)))) ]
       })
 
 -- Delver of Secrets // Insectile Aberration — a TRANSFORMING DFC ([CR#712]). The front's upkeep trigger
@@ -817,7 +817,7 @@ card_TimeWalk = Normal $ ^:
   { name := Just "Time Walk"
   , manaCost := [^1, ^Blue]
   , types := [Sorcery]
-  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {actor = It}))) ]
+  , abilities := [ Spell (Targeted [Target (^1) Anyone] (Act (ExtraTurn {actor = Target 0}))) ]
   }
 
 -- Mindslaver — "{T}, Sacrifice Mindslaver: You control target player during that player's next turn."
@@ -830,7 +830,7 @@ card_Mindslaver = Normal $ ^:
   , types := [Artifact]
   , abilities :=
       [ Activated (Costs [Do (Tap This), Do (Sacrifice (SameAs This))])
-          (Targeted [Target (^1) Anyone] (Act (ControlPlayer It))) ]
+          (Targeted [Target (^1) Anyone] (Act (ControlPlayer (Target 0)))) ]
   }
 
 -- Mind Bend — TEXT-CHANGE ([CR#612]): "change the text of target permanent or spell by replacing one
@@ -844,7 +844,7 @@ card_MindBend = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) (Or [permanent, IsKind Spell])]
-          (Continuously Forever (Modify It (ChangeText [ColorWords, BasicLandTypes])))) ]
+          (Continuously Forever (Modify (Target 0) (ChangeText [ColorWords, BasicLandTypes])))) ]
   }
 
 -- Flooded Strand — a FETCH LAND: {T}, pay 1 life, sacrifice it → search your library for a Plains or
@@ -1052,7 +1052,7 @@ card_MutagenicGrowth = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Continuously UntilEndOfTurn (Modify It (ApplyAll (modifyPT (Up (^2))))))) ]
+          (Continuously UntilEndOfTurn (Modify (Target 0) (ApplyAll (modifyPT (Up (^2))))))) ]
   }
 
 -- Skred — SNOW mana ({S}): deals damage to target creature equal to the snow permanents you control.
@@ -1064,7 +1064,7 @@ card_Skred = Normal $ ^:
   , types := [Sorcery]
   , abilities :=
       [ Spell (Targeted [Target (^1) creature]
-          (Act (DealDamage (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you])) It))) ]
+          (Act (DealDamage (CountMatching (And [permanent, hasSupertype Snow, ControlledBy you])) (Target 0)))) ]
   }
 
 -- History of Benalia — a SAGA. The `Saga` subtype CONFERS the lore-increment (`subtypeConfers (saga)`
@@ -1122,7 +1122,7 @@ card_VodalianIllusionist = Normal $ ^:
   , subtypes := [creatureType "Merfolk", creatureType "Wizard"]
   , abilities :=
       [ Activated (Costs [Mana [^2], Do (Tap This)])
-          (Targeted [Target (^1) creature] (Act (PhaseOut It))) ]
+          (Targeted [Target (^1) creature] (Act (PhaseOut (Target 0)))) ]
   , power := Just 1
   , toughness := Just 1
   }
@@ -1185,7 +1185,7 @@ card_CacklingCounterpart = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) (And [creature, ControlledBy you])]
-          (Act (Copy It))) ]
+          (Act (Copy (Target 0)))) ]
   }
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all
@@ -1275,7 +1275,7 @@ card_SnapcasterMage = Normal $ ^:
       , Triggered thisEnters $
           Targeted [Target (^1) (And [Or [hasType Instant, hasType Sorcery], InZone Graveyard, OwnedBy you])] $
             Continuously UntilEndOfTurn
-              (Modify (That Card) (GrantAbility (flashback [ManaCostOf (That Card)])))  -- "that card": the graveyard slot's noun — the ETB event's own antecedent (a Permanent) is skipped by SORT
+              (Modify (Target 0) (GrantAbility (flashback [ManaCostOf (Target 0)])))  -- "that card": the graveyard slot's noun — the ETB event's own antecedent (a Permanent) is skipped by SORT
       ]
   , power := Just 2
   , toughness := Just 1

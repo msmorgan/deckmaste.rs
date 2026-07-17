@@ -192,7 +192,7 @@ mod tests {
         assert_eq!(
             act("{T}: ~ deals 1 damage to any target.").as_deref(),
             Some(
-                "Activated(cost: [Tap], effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, It)))"
+                "Activated(cost: [Tap], effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, Target(0))))"
             )
         );
     }
@@ -264,7 +264,7 @@ mod tests {
             act("{1}{R}, Sacrifice ~: It deals 1 damage to any target.").as_deref(),
             Some(
                 "Activated(cost: [Mana([Generic(1),Red]), SacrificeThis], effect: \
-                 Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, It)))"
+                 Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, Target(0))))"
             )
         );
     }
@@ -286,7 +286,7 @@ mod tests {
             Some(
                 "Activated(cost: [With(binder: ChooseOne(filter: Creature), \
                  body: [Do(Sacrifice(That(Permanent)))])], \
-                 effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, It)))"
+                 effect: Targeted(targets: [AnyTarget], effect: DealDamage(This, 1, Target(0))))"
             )
         );
     }

@@ -21,7 +21,7 @@ Normal(
       effect: Targeted(
         targets: [TargetOne(Creature)],
         effect: Sequentially([
-          Move(It, Exile),
+          Move(Target(0), Exile),
           Delayed(
             event: NextEndStep,
             effect: Move(That(Card), Battlefield, [

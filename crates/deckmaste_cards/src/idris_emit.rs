@@ -584,17 +584,14 @@ fn emit_reference(r: &Reference) -> R {
 /// recipient — "any target"). Every OTHER `Reference` constructor already
 /// carries its own kind-fixing proof (`It`'s antecedent, `EventPatient`'s
 /// cap, `That`'s sort, …) or gets unified from a concretely-kinded consumer
-/// elsewhere, so only the context-free `Target n` needs its kind pinned to
-/// `Anything` — a bare `Target n` there would leave `k` an unsolved hole, and
-/// forcing `Anything` on every `Reference` would wrongly override a caller
-/// (`Attach`, `Move`, both `Reference b AnObject`) that needs a concrete kind.
-/// `damageTarget` is the curly-free Core helper that bakes `{k = Anything}` at
-/// the type-constructor level (the emitter must never author a brace).
+/// elsewhere — `Target n` included, now that a positional read proves its slot
+/// ([CR#115.3,601.2c]) and so takes that slot's kind. It needed the
+/// `{k = Anything}` `damageTarget` helper only while it was context-free, when
+/// a bare `Target n` in a kind-poly position left `k` an unsolved hole; the
+/// slot answers that now, and answers it more precisely (Skred's recipient is
+/// its creature slot's `AnObject`, not `Anything`).
 fn emit_reference_anykind(r: &Reference) -> R {
-    Ok(match r {
-        Reference::Target(n) => format!("(damageTarget {n})"),
-        _ => emit_reference(r)?,
-    })
+    emit_reference(r)
 }
 
 /// Convert a `Reference` used where Idris wants a `Predicate` (Idris's
@@ -1242,6 +1239,13 @@ fn emit_selection(s: &Selection) -> R {
             "TopOfGraveyard",
             vec![emit_count(count)?, emit_reference(of)?],
         ),
+        // [CR#115.3,601.2c]: the nth announced slot read as its whole group —
+        // the plural twin of `Reference::Target`, and like it a POSITIONAL,
+        // proof-free read of the announce list rather than an anaphor over the
+        // antecedent stack. Idris disambiguates the name from `Predicate.Targets`
+        // by argument type (a `Nat` index, not a `Predicate`) — the same
+        // deliberate clash `Reference.Target` already carries.
+        Selection::Targets(n) => app("Targets", vec![n.to_string()]),
         Selection::They => "They".to_string(),
         Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
         Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),

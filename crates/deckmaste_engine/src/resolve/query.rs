@@ -84,19 +84,18 @@ impl GameState {
         (lo.map_or(0, ev), hi.map_or(cap, ev))
     }
 
-    /// The announced targets flattened across every slot, with departed
-    /// (illegal) targets excluded — the plural read-back for `They`/`Them`
-    /// ([CR#608.2b] partial fizzle; mirrors `StatePredicate::Targets` ignoring
-    /// a gone target).
-    fn live_flat_targets(&self, frame: &Frame) -> Vec<ObjectId> {
-        frame
-            .anaphora
-            .targets
-            .iter()
-            .flatten()
-            .copied()
-            .filter(|&t| self.objects.get(t).is_some())
-            .collect()
+    /// The nth announced target slot's live members, in announce order — the
+    /// group read for `Selection::Targets(n)`. Departed (illegal) targets are
+    /// excluded ([CR#608.2b] partial fizzle; mirrors `StatePredicate::Targets`
+    /// ignoring a gone target), so a wholly-departed slot reads empty and its
+    /// verb no-ops. An out-of-range index reads empty (never-crash).
+    fn live_target_slot(&self, frame: &Frame, n: usize) -> Vec<ObjectId> {
+        frame.anaphora.targets.get(n).map_or_else(Vec::new, |slot| {
+            slot.iter()
+                .copied()
+                .filter(|&t| self.objects.get(t).is_some())
+                .collect()
+        })
     }
 
     /// A selection (a GROUP) resolved to its full set ([CR#608.2d]) — the
@@ -187,33 +186,35 @@ impl GameState {
                 .clone()
                 .expect("a Random selection is bound into the frame before it is read"),
             Selection::Expanded(e) => self.eval_selection_set(&e.value, frame),
+            // The nth announced target slot, read as its whole group
+            // ([CR#115.3,601.2c]) — positional, and the only plural read of the
+            // announce list. Never resolves over the antecedent stack: a target
+            // is an indexed entry, not an anaphor.
+            Selection::Targets(n) => self.live_target_slot(frame, *n),
             // The ordered plural group bound by the enclosing many-binder
             // (`OneShotEffect::With`/`Each`/`Distribute`). Reads the `(Many, k)`
             // `that` slot, order-preserved exactly as bound (top→down for a
             // library window). A `(One, k)` binding has NO group read — the
             // singular `Reference::That` is its only reader — so a single object
-            // can never be silently splayed into a group here. Panics outside a
-            // many-binder `With` — always a bug.
+            // can never be silently splayed into a group here.
             Selection::They | Selection::Them(_) => {
                 // The sort is verified by the Idris re-emit gate; the frame's
-                // bound group is the value. Without a `With` binding, the
-                // plural slot read: the announced target list is the one Many
-                // antecedent (Arc Lightning's 1–3 targets read back as
-                // `They` — the runtime twin of the Idris model's R1, sound
-                // because R2 refused any second Many candidate). A
-                // product-sited plural read (create-two-tokens … They) is
-                // [[engine-bound-references]] work.
+                // bound group is the value. An announced target slot is NOT a
+                // candidate here — a plural target is read positionally as
+                // `Selection::Targets(n)`. A product-sited plural read
+                // (create-two-tokens … They) is [[engine-bound-references]] work.
                 let Some(that) = frame.anaphora.that.as_ref() else {
-                    // The announced targets are the one Many antecedent — the
-                    // FLATTENED live set across every slot, a departed target
-                    // excluded (partial fizzle, [CR#608.2b]).
-                    if !frame.anaphora.targets.is_empty() {
-                        return self.live_flat_targets(frame);
-                    }
-                    todo!(
-                        "engine-bound-references: a product-sited They/Them(Sort) at \
-                         runtime (no enclosing With binding, no announced targets)"
-                    )
+                    // An unbound plural read — a bare `They` in a targeted body
+                    // (the pre-positional spelling of `Targets(n)`), or the
+                    // unbuilt product-sited read. An authoring mistake fizzles
+                    // to the empty group; the Idris gate is what REFUSES the
+                    // shape (`tBadTheyReadsNoTarget`), and nothing here crashes
+                    // on a bad card.
+                    return Self::unbound_group(
+                        sel,
+                        "They/Them with no enclosing With binding (a plural target reads \
+                         Targets(n); a product-sited plural read is unbuilt)",
+                    );
                 };
                 assert_eq!(
                     that.cardinality,
@@ -584,6 +585,17 @@ impl GameState {
         );
         ObjectId::null()
     }
+
+    /// The group twin of [`Self::unbound_ref`]: a selection that names nothing
+    /// resolvable fizzles to the EMPTY group, so its verb no-ops. An authoring
+    /// mistake never crashes the engine — the Idris re-emit gate is what
+    /// refuses the shape.
+    fn unbound_group(selection: &Selection, why: &str) -> Vec<ObjectId> {
+        eprintln!(
+            "deckmaste: selection {selection:?} did not resolve ({why}); treating as unbound — effect fizzles"
+        );
+        Vec::new()
+    }
 }
 
 #[cfg(test)]
@@ -622,8 +634,31 @@ mod tests {
 
         let state = game();
         let frame = frame_for(&state, PlayerId(0));
-        // `It` outside any binder with no lone announced target — was a panic.
+        // `It` outside any binder — including in a targeted body, where it used
+        // to fall back to the lone announced target. A target is read
+        // positionally now, so this is simply an unbound read: null, no panic.
         assert!(state.eval_reference(&Reference::It, &frame).is_null());
+        // ...and its plural twin: a bare `They` (the pre-positional spelling of
+        // `Targets(n)`) with no binder fizzles to the EMPTY group rather than
+        // reaching the product-sited `todo!()` it used to be rescued from by
+        // the announced-targets fallback.
+        assert!(
+            state
+                .eval_selection_set(&deckmaste_core::Selection::They, &frame)
+                .is_empty()
+        );
+        // An out-of-range positional read degrades the same way, on both
+        // channels — never-crash, never a wrong slot.
+        assert!(
+            state
+                .eval_reference(&Reference::Target(0), &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_selection_set(&deckmaste_core::Selection::Targets(0), &frame)
+                .is_empty()
+        );
         // Event roles read outside any trigger — were `.expect()` panics.
         assert!(
             state

@@ -81,6 +81,7 @@ pub(super) fn count(c: &Count) -> String {
                     subject: "that player",
                     targets: &[],
                     that: None,
+                    named: None,
                 },
             );
             match attr {
@@ -101,6 +102,7 @@ pub(super) fn count(c: &Count) -> String {
                         subject: "that player",
                         targets: &[],
                         that: None,
+                        named: None,
                     }
                 )
             ),
@@ -117,6 +119,7 @@ pub(super) fn count(c: &Count) -> String {
                         subject: "that player",
                         targets: &[],
                         that: None,
+                        named: None,
                     }
                 )
             ),
@@ -248,6 +251,7 @@ fn it_ctx() -> Ctx<'static> {
         subject: "it",
         targets: &[],
         that: None,
+        named: None,
     }
 }
 
@@ -285,9 +289,15 @@ pub(super) fn selection(sel: &Selection, ctx: &Ctx) -> String {
             .map(|m| selection(m, ctx))
             .collect::<Vec<_>>()
             .join(" and "),
+        // The nth announced slot read as its whole group ([CR#115.3,601.2c]) —
+        // prints the slot's own target phrase, exactly as the singular
+        // `Reference::Target` does ("Arc Lightning deals 3 damage divided as
+        // you choose among **one, two, or three targets**").
+        Selection::Targets(n) => target_phrase(*n, ctx),
         // The plural anaphors ([CR#608.2d]): `They` reads the bound group's
         // noun phrase when an enclosing binder supplies one, else the bare
-        // pronoun; `Them(sort)` names its sort ("those cards").
+        // pronoun; `Them(sort)` names its sort ("those cards"). Neither ever
+        // reads an announced target — that is `Targets(n)` above.
         Selection::They => ctx.that.unwrap_or("them").to_string(),
         Selection::Them(sort) => format!("those {}s", sort.noun()),
         Selection::PilesOf { of, .. } => {
@@ -345,19 +355,24 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         Reference::That(sort) => ctx
             .that
             .map_or_else(|| format!("that {}", sort.noun()), str::to_string),
-        // The nth announced target ([CR#115.3,601.2c]) prints its slot's
-        // target phrase ("target creature you control").
-        Reference::Target(n) => target_phrase(*n, ctx),
-        // `It`: an `Each`/`Distribute` element reads the binder's noun
-        // phrase from the shared `ctx.that` slot ([CR#601.2b,608]); at a
-        // single-slot announce root it reads the announced target's phrase
-        // ("any target", the R1 nearest antecedent); otherwise it is the
-        // wildcard anaphor — the plain English pronoun.
-        Reference::It => match (ctx.that, ctx.targets.len()) {
-            (Some(that), _) => that.to_string(),
-            (None, 1) => target_phrase(0, ctx),
-            _ => "it".to_string(),
-        },
+        // The nth announced target ([CR#115.3,601.2c]). English announces a
+        // slot once and pronominalizes afterwards, so the FIRST read of slot
+        // `n` in an ability prints the announce phrase ("target creature you
+        // control") and every later read prints "that creature". The model
+        // itself draws no such distinction — every read is the same indexed
+        // slot — so the announce/re-mention register lives here.
+        Reference::Target(n) => {
+            if ctx.announce(*n) {
+                target_phrase(*n, ctx)
+            } else {
+                target_rementioned(*n, ctx)
+            }
+        }
+        // `It`: an `Each`/`Distribute` element reads the binder's noun phrase
+        // from the shared `ctx.that` slot ([CR#601.2b,608]); otherwise it is
+        // the wildcard anaphor — the plain English pronoun. It never reads an
+        // announced target: a target prints through `Target(n)` above.
+        Reference::It => ctx.that.map_or_else(|| "it".to_string(), str::to_string),
         // The triggering event's object/patient ([CR#603.2e,608.2k]): an
         // enclosing binder's descriptive phrase when one is threaded
         // (`AdditionalCost`'s "the sacrificed creature", mirroring `That`'s
@@ -380,12 +395,46 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
     }
 }
 
-/// The i-th announced slot's phrase (an anaphor's slot-bound read).
+/// The i-th announced slot's ANNOUNCE phrase — "target creature", "any
+/// target" ([CR#115.3,601.2c]).
 fn target_phrase(i: usize, ctx: &Ctx) -> String {
     match ctx.targets.get(i) {
         Some(spec) => target_spec(spec),
         None => "[unrendered: missing target]".to_string(),
     }
+}
+
+/// The i-th announced slot as a RE-MENTION — "that player", "that creature".
+///
+/// English announces a target once and pronominalizes every later mention of
+/// it ("Separate all creatures **target player** controls into two piles.
+/// Destroy all creatures in the pile of **that player**'s choice."). The RON
+/// carries no such distinction — both reads are the same `Target(i)`, because a
+/// slot is one indexed entry however often it is named — so the register is the
+/// renderer's to supply, not the model's.
+///
+/// The noun comes from the slot's own filter. A slot with no single head noun
+/// (`AnyTarget`'s player/permanent disjunction, [CR#115.4]) has no "that
+/// <noun>" to print, so it falls back to the bare pronoun.
+fn target_rementioned(i: usize, ctx: &Ctx) -> String {
+    let noun = ctx
+        .targets
+        .get(i)
+        .and_then(target_spec_filter)
+        .and_then(slot_noun);
+    noun.map_or_else(|| "it".to_string(), |n| format!("that {n}"))
+}
+
+/// The head noun of an announced slot's filter, for a re-mention's "that
+/// <noun>": a card type ("creature", "artifact"), or the player kind.
+fn slot_noun(filter: &Predicate) -> Option<String> {
+    if flatten_all_of(filter)
+        .into_iter()
+        .any(|p| matches!(strip_expanded(p), Predicate::Kind(ObjectKind::Player)))
+    {
+        return Some("player".to_string());
+    }
+    find_card_type(filter).map(|t| t.as_str().to_ascii_lowercase())
 }
 
 /// A `TargetSpec` as the phrase naming what it points at.
@@ -692,12 +741,8 @@ pub(super) fn each_subject(sel: &Selection, ctx: &super::Ctx) -> String {
 fn reference_subject(r: &Reference, ctx: &super::Ctx) -> String {
     match r {
         Reference::This => ctx.subject.to_string(),
-        // The slot-bound anaphors as a sentence subject ("Target creature
-        // gets +3/+3 …"): `It` at a single-slot announce root, `Target(n)`
-        // by position.
-        Reference::It if ctx.that.is_none() && ctx.targets.len() == 1 => {
-            capitalize(&target_phrase(0, ctx))
-        }
+        // An announced slot as a sentence subject ("Target creature gets
+        // +3/+3 …") — named by position ([CR#115.3,601.2c]).
         Reference::Target(n) => capitalize(&target_phrase(*n, ctx)),
         // Aura host: "Enchanted creature gets +2/+2." (matches deontic_subject).
         Reference::AttachHostOf(inner) if matches!(**inner, Reference::This) => {
@@ -914,20 +959,16 @@ fn target_spec_filter(spec: &TargetSpec) -> Option<&Predicate> {
     }
 }
 
-/// The filter behind the reference `r` when it resolves the LONE announced
-/// target slot — the same condition [`reference`]'s `Reference::It` arm reads
-/// off (the "it" pronoun-anaphor a resolving instruction reads back to an
-/// earlier-announced target, [CR#608.2c]'s own "Destroy target creature. It
-/// can't be regenerated" example). `None` when `r` isn't `It`, there's no
-/// exactly-one target, or a `that`-bound anaphor shadows the read (mirrors
-/// `reference`'s own precedence). Used by the exile-from-a-graveyard render
-/// arm to decide whether the target's filter is graveyard-scoped without
-/// re-deriving `reference`'s resolution rule.
-pub(super) fn sole_target_filter<'a>(r: &Reference, ctx: &'a Ctx) -> Option<&'a Predicate> {
-    if !matches!(r, Reference::It) || ctx.that.is_some() || ctx.targets.len() != 1 {
+/// The filter behind the reference `r` when it names an announced target slot
+/// ([CR#115.3,601.2c]) — `None` when `r` isn't a `Target(n)`, or names a slot
+/// this ability didn't announce. Used by the exile-from-a-graveyard render arm
+/// to decide whether the target's filter is graveyard-scoped. A positional
+/// read, so no cardinality test and no anaphor-precedence rule to mirror.
+pub(super) fn target_slot_filter<'a>(r: &Reference, ctx: &'a Ctx) -> Option<&'a Predicate> {
+    let &Reference::Target(n) = r else {
         return None;
-    }
-    target_spec_filter(&ctx.targets[0])
+    };
+    target_spec_filter(ctx.targets.get(n)?)
 }
 
 // ── Devotion recognizer ([CR#700.5]) ────────────────────────────────────────
@@ -1118,6 +1159,7 @@ mod tests {
             subject: "Grizzly Bears",
             targets: &[],
             that: None,
+            named: None,
         }
     }
 
@@ -1147,6 +1189,7 @@ mod tests {
             subject: "Grizzly Bears",
             targets: &[],
             that: Some("each creature"),
+            named: None,
         };
         assert_eq!(reference(&Reference::It, &scoped), "each creature");
     }

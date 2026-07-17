@@ -41,6 +41,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         subject: view.name,
         targets: &[],
         that: None,
+        named: None,
     };
     let (lead, clause) = event_clause(&t.event, &ctx);
     // Inside the body the oracle refers to the (already-named) source as
@@ -99,6 +100,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         subject: &body_subject,
         targets: &[],
         that: None,
+        named: None,
     };
     let raw_body = effect::effect(&t.effect, &body_ctx);
     // `lower_first` de-capitalizes the effect body's own sentence-start
@@ -146,6 +148,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
                 subject: &self_type_phrase(view),
                 targets: &[],
                 that: None,
+                named: None,
             };
             format!("if {}, ", super::condition::condition(c, &cond_ctx))
         }
@@ -218,6 +221,7 @@ pub(super) fn activated(a: &deckmaste_core::ActivatedAbility, view: &CardView) -
         subject: &subject,
         targets: &[],
         that: None,
+        named: None,
     };
     let cost = effect::activated_cost(&a.cost.0, &ctx);
     let body = effect::effect(&a.effect, &ctx);
@@ -1526,6 +1530,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let base = ActivatedAbility {
             ability_word: None,
@@ -1595,6 +1600,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let you = || {
             Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
@@ -1637,6 +1643,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let this = || Predicate::Ref(Reference::This);
         let event = |to| EventFilter::Damage {
@@ -1705,6 +1712,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let event = |to| EventFilter::Damage {
             source: Predicate::Any,
@@ -1750,6 +1758,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let event = |what| EventFilter::ZoneChange {
             what,
@@ -1878,6 +1887,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let this = || Predicate::Ref(Reference::This);
         let creature =
@@ -1940,6 +1950,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let opponent = || {
             Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Ref(
@@ -1999,6 +2010,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         assert_eq!(
             event_clause(
@@ -2022,6 +2034,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let event = |what| EventFilter::Cast {
             who: Predicate::Ref(Reference::You),
@@ -2180,6 +2193,7 @@ mod tests {
             subject: "Test",
             targets: &[],
             that: None,
+            named: None,
         };
         let what = || {
             Predicate::And(vec![

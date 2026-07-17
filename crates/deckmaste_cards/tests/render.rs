@@ -461,7 +461,7 @@ fn renders_synthesized_lose_life_and_destroy() {
     // its macro template (the provenance the migrations parser and corpus both
     // carry), so build it through the real plugin rather than a raw composite.
     let plugin = Plugin::load(builtin_path()).unwrap();
-    let destroy_verb: OneShotEffect = plugin.macros.read_str("Destroy(It)").unwrap();
+    let destroy_verb: OneShotEffect = plugin.macros.read_str("Destroy(Target(0))").unwrap();
     let destroy = CardFace {
         name: "Test Smite".into(),
         types: vec![Type::Sorcery.def()],
@@ -699,7 +699,7 @@ fn renders_continuously_pump_until_eot() {
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
                 OneShotEffect::Continuously(Continuously {
                     effect: Box::new(StaticEffect::Modify(
-                        Reference::It,
+                        Reference::Target(0),
                         Modification::Several(vec![
                             Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(3))),
                             Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(
@@ -750,7 +750,7 @@ fn renders_continuously_cant_block_eot() {
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
                 OneShotEffect::Continuously(Continuously {
                     effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
-                        by: Predicate::Ref(Reference::It),
+                        by: Predicate::Ref(Reference::Target(0)),
                         on: Predicate::Any,
                         count: None,
                     }))),
@@ -796,7 +796,7 @@ fn renders_continuously_cant_be_blocked_eot() {
                 OneShotEffect::Continuously(Continuously {
                     effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
                         by: Predicate::Any,
-                        on: Predicate::Ref(Reference::It),
+                        on: Predicate::Ref(Reference::Target(0)),
                         count: None,
                     }))),
                     duration: Duration::FixedUntil(TurnMarker::EndOfTurn),

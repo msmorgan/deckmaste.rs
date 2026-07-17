@@ -17,7 +17,8 @@ import Macros
 %default total
 
 -- concrete announce-slot antecedents for raw-context positives/negatives
--- (what `Targeted [Target (^1) creature]` pushes, spelled as a value).
+-- (what `Targeted [Target (^1) creature]` ANNOUNCES, spelled as a value —
+-- these populate `Ctx.targets`, the announce-list channel, never the stack).
 -- `public export` so the resolve proofs REDUCE through them; Capitalized —
 -- an arg-free lowercase name in a type position would be implicitly bound.
 public export
@@ -116,13 +117,17 @@ tWeaken = weakenResolve {w = Just Card} {cd = One}
                         {s = [MkAnt Card AnObject One Product Nothing Nothing]}
                         (MkAnt Player APlayer One EventRole Nothing Nothing) Refl
 
--- an announced slot's antecedent is read back as an anaphor — the wildcard
--- `It` (Lightning Bolt's `DealDamage(This, 3, It)`) and the sorted `That`.
+-- an announced slot is read back BY POSITION ([CR#115.3,601.2c]) — Lightning
+-- Bolt's `DealDamage(This, 3, Target(0))`. This is the ONLY way to name a
+-- target; `tBadItReadsNoTarget`/`tBadThatReadsNoTarget` below pin that the
+-- anaphors cannot.
 tTargetInScope : OneShotEffect Base
-tTargetInScope = Targeted [Target (^1) creature] (Act (destroy It))
+tTargetInScope = Targeted [Target (^1) creature] (Act (destroy (Target 0)))
 
-tTargetBySort : OneShotEffect Base
-tTargetBySort = Targeted [Target (^1) creature] (Act (destroy (That (OfType Creature))))
+-- the slot's KIND comes from the slot: reading it at the wrong kind is a type
+-- error, not a runtime surprise (`tBadLifeOfCreatureTarget`).
+tTargetKindFromSlot : OneShotEffect Base
+tTargetKindFromSlot = Targeted [Target (^1) creature] (Act (Tap (Target 0)))
 
 -- a Many-binder's group is read back as the plural anaphor `They`,
 -- iterated with `Each` (the group-move shape).
@@ -156,7 +161,7 @@ tThatSurvivesDelay =
 tTelescopeCloudshift : OneShotEffect Base
 tTelescopeCloudshift =
   Targeted [Target (^1) (And [creature, ControlledBy you])]
-    (Sequentially [ Act (Move It (ToZone Exile))
+    (Sequentially [ Act (Move (Target 0) (ToZone Exile))
               , Act (Move (That Card) (ToZone Battlefield)) ])
 
 -- "Create two tokens. THEY gain haste. Sacrifice them at the next end step."
@@ -472,15 +477,15 @@ tFaceDownFilter = And [creature, HasState FaceDown]
 -- copy (minimal): a permanent BECOMES a copy of a reference (layer-1 Modification); a token COPY of a
 -- reference. "a copy, except …" layers on as a separate higher-layer mod, not bundled here.
 tBecomeCopy : Modification CtxCreatureTarget
-tBecomeCopy = BecomeCopyOf It
+tBecomeCopy = BecomeCopyOf (Target 0)
 
 tCopy : OneShotEffect Base
-tCopy = Targeted [Target (^1) (IsKind Spell)] (Act (Copy It))
+tCopy = Targeted [Target (^1) (IsKind Spell)] (Act (Copy (Target 0)))
 
 -- stack-object redirection. `ChangeTarget … This` is Spellskite (named new target);
 -- `ChooseNewTargets` is Bolt Bend / Redirect (a player picks). Both ride the original targetspec.
 tChangeTarget : OneShotEffect Base
-tChangeTarget = Targeted [Target (^1) spellOrAbility] (Act (ChangeTarget It This))
+tChangeTarget = Targeted [Target (^1) spellOrAbility] (Act (ChangeTarget (Target 0) This))
 
 -- Bolt Bend ([CR#115.7d]) end-to-end: TARGET a "spell or ability with a SINGLE target" — the single-target
 -- restriction is just `TargetCount Eq (^1)` (an existing predicate, no new machinery) conjoined with
@@ -488,7 +493,7 @@ tChangeTarget = Targeted [Target (^1) spellOrAbility] (Act (ChangeTarget It This
 tBoltBend : OneShotEffect Base
 tBoltBend =
   Targeted [Target (^1) (And [spellOrAbility, TargetCount Eq (^1)])]
-    (Act (ChooseNewTargets It))
+    (Act (ChooseNewTargets (Target 0)))
 
 -- the structural holes: aggregate-stat cost (Crew), all-counters move (Ozolith), alternative base
 -- cost (the base-SWAP type, distinct from CostChange). Solemnity is subsumed by Replaces+skip (a card).
@@ -497,11 +502,11 @@ tCrewCost = TapTotal Power AtLeast (^3) creature
 
 -- every-kind move (Ozolith / Fate Transfer): `MoveCounters AllKinds`
 tMoveAllCounters : OneShotEffect Base
-tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveCounters AllKinds This It))
+tMoveAllCounters = Targeted [Target (^1) creature] (Act (MoveCounters AllKinds This (Target 0)))
 
 -- single-kind move (Power Conduit / Leech Bonder): the general primitive that was previously inexpressible
 tMoveSomeCounters : OneShotEffect Base
-tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some p1p1 (^1)) This It))
+tMoveSomeCounters = Targeted [Target (^1) creature] (Act (MoveCounters (Some p1p1 (^1)) This (Target 0)))
 
 tMayCastFor : StaticEffect Base
 tMayCastFor = MayCastFor [Do (LoseLife (^1))]
@@ -641,7 +646,7 @@ tNamelessToken = Act (CreateToken (^2)
 -- opponent is a TARGET (player-predicate `opponent`), so `whose` is that announced player (`It`).
 tSearchOther : OneShotEffect Base
 tSearchOther = Targeted [Target (^1) opponent]
-  (With (SearchOne {whose = It} creature) (Act (Move (That Card) (ToZone Battlefield))))
+  (With (SearchOne {whose = Target 0} creature) (Act (Move (That Card) (ToZone Battlefield))))
 
 -- a conditional static, and an activation-limited (loyalty-style) ability
 tConditionalStatic : Ability Base
@@ -679,21 +684,34 @@ tCDA = Normal $ ^:
   , power := Just (CountMatching (hasType Land))
   , toughness := Just (Plus (CountMatching (hasType Land)) (Literal 1)) }
 
--- a target's KIND comes from its slot's filter — a PLAYER target reads as a player
+-- a target's KIND comes from its slot's filter — a PLAYER target reads as a
+-- player, and the positional read carries that kind out of the announce list
+-- (`tBadLifeOfCreatureTarget` pins the other direction).
 tPlayerTarget : Count CtxPlayerTarget
-tPlayerTarget = lifeTotal It
+tPlayerTarget = lifeTotal (Target 0)
 
 -- "each player" is a player-`Selection`; `Each` binds a player `It` (EachPlayer dissolved)
 tEachPlayerForEach : OneShotEffect Base
 tEachPlayerForEach = Each (Existing eachPlayer) (Act (Draw {actor = It} (^1)))
 
--- MIXED-kind multi-target (Donate: "target player gains control of target permanent"):
--- the two slots differ in SORT (`Player` vs `Permanent`), so the sorted anaphors
--- disambiguate with no labels — R2 never fires across sorts.
+-- MIXED-kind multi-target (Donate: "target player gains control of target
+-- permanent"): each slot is named by its INDEX, and each read takes its kind
+-- from the slot it names. Sorts do no disambiguating work here — they cannot,
+-- because an anaphor never sees a target — so the shape needs no labels and no
+-- R2 exemption, and it would read the same if both slots shared a sort
+-- (`tTwoSameSortSlots`).
 tMixedTargets : OneShotEffect Base
 tMixedTargets =
   Targeted [Target (^1) Anyone, Target (^1) (And [permanent, ControlledBy you])]
-    (Continuously Forever (Modify (That Permanent) (GainControl (That Player))))
+    (Continuously Forever (Modify (Target 1) (GainControl (Target 0))))
+
+-- TWO SAME-SORT slots (the fight family) — the shape the old model could not
+-- express at all: a sorted anaphor was ambiguous across them (the R2 gate), so
+-- it needed the labelling apparatus. Indices name them outright.
+tTwoSameSortSlots : OneShotEffect Base
+tTwoSameSortSlots =
+  Targeted [Target (^1) creature, Target (^1) creature]
+    (Sequentially [ Act (destroy (Target 0)), Act (Tap (Target 1)) ])
 
 -- `Or` computes its result kind by JOINING its arms' kinds (`\/`): same-kind stays
 -- precise (`AnObject`), a mix of object + player widens to `Anything` — no `Widen` needed.
@@ -766,13 +784,13 @@ tSingle = Single (SelectAll creature)
 -- the group, each element dealt its `Allotment` (the Arc Lightning canon shape).
 tPluralTarget : OneShotEffect Base
 tPluralTarget = Targeted [Target (between (^1) (^2)) (Or [creature, Anyone])]
-  (Distribute (^2) (Existing They) (Act (DealDamage Allotment It)))
+  (Distribute (^2) (Existing (Targets 0)) (Act (DealDamage Allotment It)))
 
 -- the SAME `Distribute` over a different body: "distribute three +1/+1 counters among any number of target
 -- creatures" (Hunting Triad) — `PutCounters` per element, each getting its `Allotment`. Carrier-typed.
 tDistributeCounters : OneShotEffect Base
 tDistributeCounters = Targeted [Target (between (^1) (^3)) creature]
-  (Distribute (^3) (Existing They) (Act (PutCounters p1p1 Allotment It)))
+  (Distribute (^3) (Existing (Targets 0)) (Act (PutCounters p1p1 Allotment It)))
 
 -- NEGATIVE — each must be rejected, WITH the pinned message ------------------
 
@@ -793,36 +811,66 @@ failing "resolveStack Nothing Many (Base .stack)"
   tBadTheyOutside : Selection Base AnObject
   tBadTheyOutside = They
 
--- THE STALE TARGET ([CR#603.7c]): a `Delayed` body drops the announced target,
--- and the exile clause's product answers to "card" (its new zone), NOT
--- "creature" — `That (OfType Creature)` has no antecedent there.
+-- THE STALE TARGET ([CR#603.7c]): a `Delayed` body is a LATER resolution and
+-- has no announce list of its own (`unbindTargets` empties it), so the slot
+-- index goes out of range and the read will not typecheck. This is the
+-- obligation `Reference.Target` carries: without it a positional read would be
+-- context-free and a stale `Target 0` here would sail through — the old model
+-- caught this only as a side effect of targets sitting on the anaphor stack.
 failing "unbindTargets"
   tBadDelayedTarget : OneShotEffect Base
   tBadDelayedTarget = Targeted [Target (^1) creature]
-    (Sequentially [ Act (Move It (ToZone Exile))
-              , Delayed nextEndStep (Act (Move (That (OfType Creature)) (ToZone Battlefield))) ])
+    (Sequentially [ Act (Move (Target 0) (ToZone Exile))
+              , Delayed nextEndStep (Act (Move (Target 0) (ToZone Battlefield))) ])
 
 -- a `Distinct` constraint naming an announce sibling that doesn't exist
 -- ([CR#115.7e,601.2c]).
 failing "distinctOk"
   tBadDistinctSibling : OneShotEffect Base
-  tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage (^1) It))
+  tBadDistinctSibling = Targeted [Distinct [1] anyTarget] (Act (DealDamage (^1) (Target 0)))
 
--- THE R2 UNIQUENESS GATE: a second same-sort antecedent makes the sorted
--- anaphor a guess — refused; the positional `Target n` read is the
--- disambiguation.
-failing "Target ((^) 1) creature, Target ((^) 1) creature"
-  tBadAmbiguousThat : OneShotEffect Base
-  tBadAmbiguousThat = Targeted [Target (^1) creature, Target (^1) creature]
+-- AN ANAPHOR NEVER READS A TARGET. A slot pushes no antecedent, so in a body
+-- whose only "candidate" is an announced target the sorted anaphor has nothing
+-- to resolve against — it is Unbound, not a guess. `tTwoSameSortSlots` is the
+-- same two-slot shape read positionally, which is fine: with targets off the
+-- stack, two same-sort slots cannot make anything ambiguous, and the labelling
+-- apparatus the old model needed for the fight family is unnecessary.
+failing "resolveStack (Just (OfType Creature)) One"
+  tBadThatReadsNoTarget : OneShotEffect Base
+  tBadThatReadsNoTarget = Targeted [Target (^1) creature, Target (^1) creature]
     (Act (destroy (That (OfType Creature))))
 
--- ...and the wildcard trips it too: inside a trigger body the event's role
--- antecedent is in scope, so an announced slot + `It` is a guess (the Goblin
--- Medics shape without a positional read — tTriggerTargetLabel is the fix).
-failing "queryRoles thisEnters"
-  tBadAmbiguousIt : Ability Base
-  tBadAmbiguousIt = Triggered thisEnters
-    (Targeted [Target (^1) (hasType Land)] (Act (Tap It)))
+-- ...and the wildcard cannot either: a lone announced slot is no antecedent.
+-- This is Lightning Bolt's OLD spelling (`DealDamage(This, 3, It)`) — now a
+-- load error rather than a read that happened to land on the target.
+failing "resolveStack Nothing One"
+  tBadItReadsNoTarget : OneShotEffect Base
+  tBadItReadsNoTarget = Targeted [Target (^1) creature] (Act (destroy It))
+
+-- ...nor the plural one: a plural slot is read as `Targets n`, never `They`.
+failing "resolveStack Nothing Many"
+  tBadTheyReadsNoTarget : OneShotEffect Base
+  tBadTheyReadsNoTarget = Targeted [Target (between (^1) (^3)) creature]
+    (Each (Existing They) (Act (Tap It)))
+
+-- an out-of-range slot index — the announce list has one entry, so `Target 1`
+-- names nothing ([CR#115.3]).
+failing "resolveTarget One 1"
+  tBadTargetOutOfRange : OneShotEffect Base
+  tBadTargetOutOfRange = Targeted [Target (^1) creature] (Act (destroy (Target 1)))
+
+-- a MANY slot read singularly would silently take one of several — the
+-- positional twin of the cardinality split (`Targets n` is the group read).
+failing "resolveTarget One 0"
+  tBadTargetFromMany : OneShotEffect Base
+  tBadTargetFromMany = Targeted [Target (between (^1) (^3)) creature]
+    (Act (destroy (Target 0)))
+
+-- ...and a ONE slot has no group read.
+failing "resolveTarget Many 0"
+  tBadTargetsFromOne : OneShotEffect Base
+  tBadTargetsFromOne = Targeted [Target (^1) creature]
+    (Each (Existing (Targets 0)) (Act (Tap It)))
 
 -- a SINGULAR anaphor cannot read a MANY antecedent (the cardinality split;
 -- read the group as `They`/`Them`).
@@ -831,10 +879,11 @@ failing "resolveStack (Just Token) One"
   tBadOneFromMany = Sequentially [ Act (CreateToken (^2) (^: { types := [Creature] }))
                              , Act (destroy (That Token)) ]
 
--- ...nor a plural anaphor a ONE antecedent (read it as `It`/`That w`).
-failing "resolveStack Nothing Many ((bindTargets"
+-- ...nor a plural anaphor a ONE antecedent (read it as `It`/`That w`) — over a
+-- BINDER's antecedent, the only kind an anaphor can see now.
+failing "innermostFrame ((bindThat (binderAnte (ChooseOne creature)) Base) .stack)"
   tBadTheyFromOne : OneShotEffect Base
-  tBadTheyFromOne = Targeted [Target (^1) creature] (Each (Existing They) (Act (Tap It)))
+  tBadTheyFromOne = With (ChooseOne creature) (Each (Existing They) (Act (Tap It)))
 
 -- tokens aren't cards ([CR#108.2b]): "that card" never reaches a token
 -- antecedent — the compat table's most load-bearing closed pair.

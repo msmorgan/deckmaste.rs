@@ -895,6 +895,21 @@ resolveThey w s = case innermostFrame s of
   Just a => if sameCard Many a.card && reaches w a.sort then Bound a.kind else Unbound
   Nothing => resolveStack w Many s
 
+-- `Target n` / `Targets n` — the POSITIONAL read of the announce list
+-- ([CR#115.3,601.2c]). Not an anaphor resolution: there is no R1 nearest-match
+-- and no R2 uniqueness gate to run, because an index names exactly one slot.
+-- It can still fail two ways, and both must be type errors rather than silent
+-- degrades: the index can be out of range (notably in a `Delayed` body, whose
+-- announce list is empty [CR#603.7c] — the staleness the old model caught only
+-- because a target used to sit on the anaphor stack), and the slot's
+-- cardinality can disagree with the read (a Many slot read singularly would
+-- silently take one of several; a One slot read as a group would splay it).
+public export
+resolveTarget : Cardinality -> Nat -> List Ant -> Bind
+resolveTarget cd _ [] = Unbound
+resolveTarget cd Z (a :: _) = if sameCard cd a.card then Bound a.kind else Unbound
+resolveTarget cd (S n) (_ :: as) = resolveTarget cd n as
+
 -- `ThatMany`/`ThatMuch` — the value anaphor over `Amount` antecedents
 -- ([CR#608.2i]).
 public export
@@ -1045,6 +1060,12 @@ public export
 record Ctx where
   constructor MkCtx
   stack : List Ant
+  -- the ANNOUNCE LIST in scope ([CR#115.3,601.2c]) — its OWN channel, not the
+  -- antecedent stack. A target is not something a clause produced and referred
+  -- back to; it is announced at index n and read at index n (`Target n` /
+  -- `Targets n`), so it never competes with an anaphor and two same-sort slots
+  -- need no labels. `Targeted` binds it, `Delayed` clears it ([CR#603.7c]).
+  targets : List Ant
   eventCaps : EventCaps          -- `NoCaps` outside an event body
   chosenKind : Maybe ChooseDomain    -- an as-enters VALUE choice in scope (`OfChosen`/`ChosenIs`/`ChosenNumber`)
   chosenRefKind : Maybe RefKind      -- an as-enters ENTITY choice in scope (`ChosenObject`/`ChosenPlayer`)
@@ -1052,7 +1073,7 @@ record Ctx where
 -- The context a resolving spell starts in: nothing bound yet.
 public export
 Base : Ctx
-Base = MkCtx [] NoCaps Nothing Nothing
+Base = MkCtx [] [] NoCaps Nothing Nothing
 
 -- Each transition reconstructs `MkCtx` explicitly so a projection of a bind
 -- result reduces definitionally even for abstract `b` (record-update sugar
@@ -1062,7 +1083,7 @@ Base = MkCtx [] NoCaps Nothing Nothing
 -- the stack is nearest-first, so the list is reversed on).
 public export
 pushAntes : List Ant -> Ctx -> Ctx
-pushAntes as b = MkCtx (reverse as ++ stack b) (eventCaps b) (chosenKind b) (chosenRefKind b)
+pushAntes as b = MkCtx (reverse as ++ stack b) (targets b) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 public export
 notTargetSlotA : Ant -> Bool
@@ -1076,17 +1097,22 @@ public export
 notAllotA : Ant -> Bool
 notAllotA a = not (isAllotSite a.site)
 
--- announce the target slots ([CR#115.3,601.2c]): the slot antecedents
--- REPLACE any outer ones (a nested announce list is its own).
+-- announce the target slots ([CR#115.3,601.2c]): they REPLACE any outer
+-- announce list (a nested `Targeted` is its own, and its slot 0 is its own).
+-- The antecedent stack is untouched — a slot pushes NO antecedent, so `It` /
+-- `That` / `They` can never reach a target and no announce can make an
+-- anaphor ambiguous. The list is read positionally, by `Target n` / `Targets n`.
 public export
 bindTargets : List Ant -> Ctx -> Ctx
-bindTargets slots b = MkCtx (reverse slots ++ filter notTargetSlotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
+bindTargets slots b = MkCtx (stack b) slots (eventCaps b) (chosenKind b) (chosenRefKind b)
 
--- a `Delayed` body drops the announced targets ([CR#603.7c]); `Product`
--- antecedents (with their expected zones) survive.
+-- a `Delayed` body drops the announced targets ([CR#603.7c]) — a later
+-- resolution has no announce list of its own, so every positional read goes
+-- out of range and no `Target n` typechecks there. `Product` antecedents (with
+-- their expected zones) live on the stack and survive.
 public export
 unbindTargets : Ctx -> Ctx
-unbindTargets b = MkCtx (filter notTargetSlotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
+unbindTargets b = MkCtx (stack b) [] (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 -- a `With` binder's antecedent ([CR#608.2d]): a choice binds a `Frame`, a
 -- search/produce binder a whiffable `Product` — the ante's own site stands.
@@ -1099,32 +1125,32 @@ bindThat a = pushAntes [a]
 -- must not leak into a nested loop).
 public export
 bindIt : Ant -> Ctx -> Ctx
-bindIt a b = MkCtx (MkAnt a.sort a.kind One Loop a.expectedZone a.label :: filter notAllotA (stack b)) (eventCaps b) (chosenKind b) (chosenRefKind b)
+bindIt a b = MkCtx (MkAnt a.sort a.kind One Loop a.expectedZone a.label :: filter notAllotA (stack b)) (targets b) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 -- a `Distribute` body ([CR#601.2d]): the loop element plus its `Allot`
 -- share (read back only by `Allotment`).
 public export
 bindAllot : Ant -> Ctx -> Ctx
-bindAllot a b = MkCtx (MkAnt Amount Anything One Allot Nothing Nothing :: MkAnt a.sort a.kind One Loop a.expectedZone a.label :: stack b) (eventCaps b) (chosenKind b) (chosenRefKind b)
+bindAllot a b = MkCtx (MkAnt Amount Anything One Allot Nothing Nothing :: MkAnt a.sort a.kind One Loop a.expectedZone a.label :: stack b) (targets b) (eventCaps b) (chosenKind b) (chosenRefKind b)
 
 -- entering a trigger/replacement/delayed/payment body: carry the event's
 -- CAPS and push one role antecedent per guarantee; an inner event's roles
 -- SHADOW an outer's ([CR#603.2e] — one antecedent set per body).
 public export
 bindEvent : EventCaps -> List Ant -> Ctx -> Ctx
-bindEvent caps roles b = MkCtx (reverse roles ++ filter notEventRoleA (stack b)) caps (chosenKind b) (chosenRefKind b)
+bindEvent caps roles b = MkCtx (reverse roles ++ filter notEventRoleA (stack b)) (targets b) caps (chosenKind b) (chosenRefKind b)
 
 -- the as-enters VALUE choice ([CR#614.12]): binds `chosenKind` (a color/
 -- type/name/number/mode) for the abilities that read it.
 public export
 bindChosen : ChooseDomain -> Ctx -> Ctx
-bindChosen d b = MkCtx (stack b) (eventCaps b) (Just d) (chosenRefKind b)
+bindChosen d b = MkCtx (stack b) (targets b) (eventCaps b) (Just d) (chosenRefKind b)
 
 -- the as-enters GAME-ENTITY choice ([CR#614.12]): binds `chosenRefKind` (a
 -- chosen object/player) — the identity twin of `bindChosen`.
 public export
 bindChosenRef : RefKind -> Ctx -> Ctx
-bindChosenRef k b = MkCtx (stack b) (eventCaps b) (chosenKind b) (Just k)
+bindChosenRef k b = MkCtx (stack b) (targets b) (eventCaps b) (chosenKind b) (Just k)
 
 
 -- KeywordSpec / Reference / Count / Predicate / Condition / EventQuery are one mutually
@@ -1241,25 +1267,28 @@ mutual
       -- resolves over the antecedent stack (R1 nearest + the R2 uniqueness
       -- gate). Also the per-subject candidate an anthem's mods read.
       It : {auto 0 prf : resolveIt (stack b) = Bound k} -> Reference b k
-      -- the nth ANNOUNCED target ([CR#115.3]) — a positional read of the
-      -- `Targeted` slot list, replacing the old sorted/labeled anaphors for
-      -- targets. Kind-poly and CONTEXT-FREE: no proof obligation, unlike
-      -- `It`/`That`/`EventObject` — an out-of-range index is a benign
-      -- runtime fizzle on the Rust side (the null-`ObjectId` degrade), so
-      -- there is nothing here for the grammar to gate. `k` is a plain free
-      -- implicit (no default): a kind-specific consumer (`Attach`, `Move`,
-      -- both `Reference b AnObject`) unifies it from the expected type as
-      -- usual; a genuinely kind-poly consumer (`DealDamage`'s recipient)
-      -- needs it named explicitly at the use site (`Target {k = Anything} n`)
-      -- since nothing else pins it. Rust: Reference::Target(n).
-      Target : Nat -> Reference b k
+      -- the nth ANNOUNCED target ([CR#115.3,601.2c]) — a positional read of
+      -- the `Targeted` slot list, and with `Targets` the ONLY way to name a
+      -- target. Not an anaphor: it reads the announce-list channel
+      -- (`targets b`), never the stack, so it is immune to R1/R2 and two
+      -- same-sort slots (the fight family) are simply 0 and 1.
+      -- The obligation is the slot's own: index in range, cardinality One, and
+      -- `k` comes from the SLOT (an "any target" slot is `Anything`, a player
+      -- slot `APlayer`) rather than being free — so a player slot can't be read
+      -- where an object is wanted, and a `Delayed` body (empty announce list,
+      -- [CR#603.7c]) admits no `Target n` at all.
+      -- Rust: Reference::Target(n).
+      Target : (n : Nat) -> {auto 0 prf : resolveTarget One n (targets b) = Bound k} -> Reference b k
       -- the SORTED singular anaphor — "that card" / "that creature" / "that
       -- player" ([CR#608.2d]): the antecedent answering to the noun `w` (R1
       -- per `compat`, R2 strict — a second compatible antecedent is a type
       -- error, not a guess). Inside a `With`/pile choice frame it binds the
-      -- frame deterministically. Antecedents are pushed by announced target
-      -- slots ([CR#115.3]), producing clauses ([CR#400.7]), event bodies
-      -- ([CR#603.2e]), and binders ([CR#608.2d]).
+      -- frame deterministically. Antecedents are pushed by producing clauses
+      -- ([CR#400.7]), event bodies ([CR#603.2e]), and binders ([CR#608.2d]) —
+      -- NOT by announced target slots, which are read positionally as
+      -- `Target n`. This is the read for a move's PRODUCT ("exile target
+      -- creature … return that card": the card is a new object, so `Target 0`
+      -- cannot name it and `That Card` does).
       That : (w : Sort) -> {auto 0 prf : resolveThat w (stack b) = Bound k} -> Reference b k
       -- the triggering event's object ("that card") — valid only if the event SUPPLIES one ([CR#608.2k]).
       EventObject : {auto 0 prf : hasObject (eventCaps b) = True} -> Reference b AnObject
@@ -1572,10 +1601,18 @@ mutual
     data Selection : Ctx -> RefKind -> Type where
       SelectAll : Predicate b k -> Selection b k                  -- every match (a group)
       Union : List (Selection b k) -> Selection b k              -- groups combined ("each X and each Y"); a fixed set = `Union` of `SameAs` singletons
+      -- the nth announced slot read as its whole GROUP ([CR#115.3,601.2c]) —
+      -- the plural twin of `Reference.Target`, reading the same announce-list
+      -- channel by index. Arc Lightning's 1–3 targets are `Targets 0`. The
+      -- obligation is the slot's: in range, cardinality Many (a One slot has no
+      -- group read — that is `Target n`), kind from the slot.
+      -- Rust: Selection::Targets(n).
+      Targets : (n : Nat) -> {auto 0 prf : resolveTarget Many n (targets b) = Bound k} -> Selection b k
       -- the PLURAL anaphors ([CR#608.2d]): `They` (any noun) / `Them w` ("those
-      -- tokens") read the nearest Many antecedent — a plural target slot
-      -- ([CR#115.3]), a group-producing clause ("create two tokens … THEY gain
-      -- haste", [CR#111.2]), a many-binder — under the same R1/R2 rules.
+      -- tokens") read the nearest Many antecedent — a group-producing clause
+      -- ("create two tokens … THEY gain haste", [CR#111.2]) or a many-binder —
+      -- under the R1/R2 rules. NEVER a target: an announced slot is not on the
+      -- stack, and is read positionally as `Targets n` above.
       They : {auto 0 prf : resolveThey Nothing (stack b) = Bound k} -> Selection b k
       Them : (w : Sort) -> {auto 0 prf : resolveThey (Just w) (stack b) = Bound k} -> Selection b k
       Random : Quantity b -> Predicate b k -> Selection b k
@@ -1884,8 +1921,9 @@ mutual
   quantityCard (Range (Just (Literal 1)) (Just (Literal 1))) = One
   quantityCard _ = Many
 
-  -- the antecedent an announced slot pushes ([CR#115.3,601.2c]): noun from its
-  -- filter, kind from its slot, cardinality from its quantity.
+  -- an announced slot's ENTRY in the announce list ([CR#115.3,601.2c]): noun
+  -- from its filter, kind from its slot, cardinality from its quantity. It goes
+  -- to `Ctx.targets` (read by index), never to the antecedent stack.
   public export
   slotAnte : {k : RefKind} -> TargetSpec b k -> Ant
   slotAnte (Target q p) = MkAnt (filterSort p) k (quantityCard q) TargetSlot Nothing Nothing
@@ -2035,6 +2073,11 @@ mutual
   selectionSort (TopOfGraveyard _ _) = Card
   selectionSort (Pick op prj) = projSort prj
   selectionSort (Union gs) = unionSort gs
+  -- `Targets n`'s group noun would be its slot's, but the `Ctx` index is
+  -- erased here, so it takes the same coarse `Permanent` the plural anaphors
+  -- take — the sort a group binder hands its loop elements. Unchanged from
+  -- when Arc Lightning's slot was read as `They`.
+  selectionSort (Targets _) = Permanent
   selectionSort They = Permanent
   selectionSort (Them _) = Permanent
 
@@ -3206,15 +3249,6 @@ chooseBy by q p = Choose {by} q p
 public export
 dealDamageFrom : Reference b AnObject -> Reference b k -> Count b -> Action b
 dealDamageFrom src r c = DealDamage {source = src} c r
-
--- `Target n` at the kind-poly `Anything` — the honest reading of an
--- unconstrained announced slot read into a kind-poly position (`DealDamage`'s
--- recipient, "any target"). A curly-free helper so the `{k = Anything}` named
--- implicit lives at the type-constructor level (the emitter must never author
--- a card with a brace); the emitter writes `(damageTarget n)`.
-public export
-damageTarget : Nat -> Reference b Anything
-damageTarget n = Target {k = Anything} n
 
 public export
 moveAttacking : Reference b AnObject -> (d : Destination b) -> {auto 0 dOk : DestinationOk d}

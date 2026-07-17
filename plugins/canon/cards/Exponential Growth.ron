@@ -3,8 +3,9 @@
 // official ruling (2021-04-16): "If an effect instructs you to 'double' a
 // creature's power, that creature gets +X/+0, where X is its power as that
 // effect begins to apply" — doubling X times multiplies power by 2^X in one
-// shot, spelled `Up(Minus(Times(StatOf(It, Power), Pow(2, X)), StatOf(It,
-// Power)))` (current power times 2^X, minus current power = the "+X/+0"
+// shot, spelled `Up(Minus(Times(StatOf(Target(0), Power), Pow(2, X)),
+// StatOf(Target(0), Power)))` (current power times 2^X, minus current power
+// = the "+X/+0"
 // delta that reaches the doubled value).
 Normal(
   name: "Exponential Growth",
@@ -22,7 +23,7 @@ Normal(
       effect: Targeted(
         targets: [TargetOne(Creature)],
         effect: Until(FixedUntil(EndOfTurn), [
-          Modify(It, Power(Up(Minus(Times(StatOf(It, Power), Pow(2, X)), StatOf(It, Power))))),
+          Modify(Target(0), Power(Up(Minus(Times(StatOf(Target(0), Power), Pow(2, X)), StatOf(Target(0), Power))))),
         ]),
       ),
     ),

@@ -1,5 +1,6 @@
 //! Effects / actions render to imperative sentences (spell mood).
 
+use std::cell::Cell;
 use std::fmt::Write as _;
 
 use deckmaste_core::Ability;
@@ -162,17 +163,15 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
             let leads = parts.len() == 1 && has_dynamic_pt_delta(&parts[0]);
             duration_qualified(duration, &clause, leads)
         }
-        // A target-scoping wrapper ([CR#115.1,601.2c]): render the inner effect
-        // with `ctx.targets` rebound to this node's targets, so the inner
-        // the slot-bound anaphors resolve to "target creature" etc.
-        OneShotEffect::Targeted(t) => effect(
-            &t.effect,
-            &Ctx {
-                subject: ctx.subject,
-                targets: &t.targets,
-                that: ctx.that,
-            },
-        ),
+        // The announce list ([CR#115.1,601.2c]): render the inner effect with
+        // `ctx.targets` rebound to this node's slots, so the body's positional
+        // reads (`Target(n)` / `Targets(n)`) resolve to "target creature" etc.
+        // Fresh mention state — this list's slot 0 is its own, and none of its
+        // slots have been named yet.
+        OneShotEffect::Targeted(t) => {
+            let named = Cell::new(0);
+            effect(&t.effect, &ctx.with_targets(&t.targets, &named))
+        }
         // [CR#118.12a]: "[or_else] unless [actor] pays [cost]" — the resolution-
         // time punisher (Mana Leak). Starts with the rendered punisher effect
         // (already capitalized). Declines structurally if the cost has no symbol
@@ -1420,7 +1419,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // must be read off the actual target filter.
         Action::Move(r, Destination::Zone(Zone::Exile), riders, None)
             if riders.is_empty()
-                && fragment::sole_target_filter(r, ctx)
+                && fragment::target_slot_filter(r, ctx)
                     .is_some_and(fragment::is_graveyard_scoped) =>
         {
             format!("Exile {} from a graveyard.", fragment::reference(r, ctx))
@@ -1443,19 +1442,35 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         Action::Move(r, Destination::Zone(Zone::Hand), riders, None) if riders.is_empty() => {
             format!("Return {} to your hand.", fragment::reference(r, ctx))
         }
-        // [CR#400.7]: graveyard reanimation — the empty-rider battlefield
-        // case (the migrations `parse_reanimate` production's `Move(It|This,
-        // Battlefield)`, no rider since the owner-control default already
-        // applies to a "your graveyard" subject). "from your graveyard" is
-        // static text here, not derived from the reference: a bare `Move`
-        // carries no origin-zone field. The reference SHAPE — `It`/`This`,
-        // the only forms `parse_reanimate` emits — is what reserves this
-        // phrasing for the graveyard-recursion family. It must NOT catch a
-        // bare-reference return from another origin: `parse_return_that_card`
-        // emits a riderless `Move(That(Card), Battlefield)` for an exile
-        // return (Otherworldly Journey), which is not graveyard-sourced and
-        // would be mislabelled here — so the guard excludes `That`/`Target`,
-        // letting those fall through to the zone-agnostic/unrendered path.
+        // [CR#400.7]: graveyard reanimation — the empty-rider battlefield case
+        // (the migrations `parse_reanimate` production's emission, no rider
+        // since the owner-control default already applies to a "your
+        // graveyard" subject). "from your graveyard" is static text here, not
+        // derived from the reference: a bare `Move` carries no origin-zone
+        // field, so the arm must establish the graveyard origin some other way.
+        //
+        // The TARGETED form reads its slot's own filter ([CR#115.3,601.2c]) —
+        // the same discipline as the exile-from-a-graveyard arm above — so a
+        // battlefield-return of a target that isn't graveyard-scoped falls
+        // through rather than being mislabelled.
+        Action::Move(r @ Reference::Target(_), Destination::Zone(Zone::Battlefield), riders, None)
+            if riders.is_empty()
+                && fragment::target_slot_filter(r, ctx)
+                    .is_some_and(fragment::is_graveyard_scoped) =>
+        {
+            format!(
+                "Return {} from your graveyard to the battlefield.",
+                fragment::reference(r, ctx)
+            )
+        }
+        // The untargeted forms have no slot to read a filter off, so the
+        // reference SHAPE reserves the phrasing for the graveyard-recursion
+        // family. It must NOT catch a bare-reference return from another
+        // origin: `parse_return_that_card` emits a riderless `Move(That(Card),
+        // Battlefield)` for an exile return (Otherworldly Journey), which is
+        // not graveyard-sourced and would be mislabelled here — so the guard
+        // excludes `That`, letting it fall through to the
+        // zone-agnostic/unrendered path.
         Action::Move(
             r @ (Reference::It | Reference::This),
             Destination::Zone(Zone::Battlefield),
@@ -1617,15 +1632,15 @@ fn divide_among(d: &deckmaste_core::Distribute, ctx: &Ctx) -> String {
 }
 
 /// The group a divided distribution names: an announced plural target slot
-/// (read back as `They`) prints its announce phrase — "one,
+/// (read by position as `Targets(n)`) prints its announce phrase — "one,
 /// two, or three targets" ([CR#601.2d]); anything else falls back to the
 /// binder's own phrase.
 fn divided_group_phrase(binder: &deckmaste_core::Binder, ctx: &Ctx) -> String {
     use deckmaste_core::Binder;
     use deckmaste_core::Selection;
     let slot = match binder {
-        // The plural anaphor over a single announced slot reads that slot.
-        Binder::Existing(Selection::They) if ctx.targets.len() == 1 => ctx.targets.first(),
+        // The nth announced slot read as its whole group ([CR#115.3,601.2c]).
+        Binder::Existing(Selection::Targets(n)) => ctx.targets.get(*n),
         _ => None,
     };
     slot.and_then(fragment::announced_group_phrase)
@@ -2250,6 +2265,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
         let draw = || Box::new(kw("Draw(1)"));
@@ -2331,6 +2347,7 @@ mod tests {
             subject: "Jace Beleren",
             targets: &[],
             that: None,
+            named: None,
         };
         let cost = |pa: PlayerAction| super::activated_cost(&[CostComponent::do_(pa)], &ctx);
         let loyalty = || CounterRef::from("LoyaltyCounter");
@@ -2401,6 +2418,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         let render = |spec: ManaSpec| {
             effect(
@@ -2437,15 +2455,20 @@ mod tests {
             subject: "Pouncer",
             targets: std::slice::from_ref(&target),
             that: None,
+            named: None,
         };
 
-        let default = Action::deal_damage(Reference::It, Count::Literal(3));
+        let default = Action::deal_damage(Reference::Target(0), Count::Literal(3));
         assert_eq!(
             action(&default, &ctx),
             "Pouncer deals 3 damage to target creature."
         );
 
-        let sourced = Action::DealDamage(Reference::It, Count::Literal(3), Reference::It);
+        let sourced = Action::DealDamage(
+            Reference::Target(0),
+            Count::Literal(3),
+            Reference::Target(0),
+        );
         assert_eq!(
             action(&sourced, &ctx),
             "Target creature deals 3 damage to target creature."
@@ -2471,11 +2494,12 @@ mod tests {
             subject: "it",
             targets: std::slice::from_ref(&target),
             that: None,
+            named: None,
         };
         let bite = Action::DealDamage(
             Reference::This,
             Count::StatOf(Reference::This, Stat::Power),
-            Reference::It,
+            Reference::Target(0),
         );
         assert_eq!(
             action(&bite, &ctx),
@@ -2496,11 +2520,12 @@ mod tests {
             subject: "Cinder Shade",
             targets: std::slice::from_ref(&target),
             that: None,
+            named: None,
         };
         let bite = Action::DealDamage(
             Reference::This,
             Count::StatOf(Reference::This, Stat::Power),
-            Reference::It,
+            Reference::Target(0),
         );
         assert_eq!(
             action(&bite, &ctx),
@@ -2522,6 +2547,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: Some("the sacrificed creature"),
+            named: None,
         };
         let other_ref = Action::DealDamage(
             Reference::This,
@@ -2543,6 +2569,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         let top = Action::Move(
             Reference::This,
@@ -2587,9 +2614,10 @@ mod tests {
             subject: "it",
             targets: std::slice::from_ref(&target),
             that: None,
+            named: None,
         };
         let top = Action::Move(
-            Reference::It,
+            Reference::Target(0),
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
             vec![],
             None,
@@ -2599,7 +2627,7 @@ mod tests {
             "Put target creature on top of your library."
         );
         let bottom = Action::Move(
-            Reference::It,
+            Reference::Target(0),
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             vec![],
             None,
@@ -2635,9 +2663,10 @@ mod tests {
             subject: "it",
             targets: std::slice::from_ref(&target),
             that: None,
+            named: None,
         };
         let targeted = Action::Move(
-            Reference::It,
+            Reference::Target(0),
             Destination::Zone(Zone::Battlefield),
             vec![],
             None,
@@ -2659,6 +2688,7 @@ mod tests {
             subject: "it",
             targets: std::slice::from_ref(&bare_target),
             that: None,
+            named: None,
         };
         assert_eq!(
             action(&targeted, &bare_ctx),
@@ -2670,6 +2700,7 @@ mod tests {
             subject: "Ashputtle",
             targets: &[],
             that: None,
+            named: None,
         };
         let self_move = Action::Move(
             Reference::This,
@@ -2726,6 +2757,7 @@ mod tests {
             subject: "it",
             targets: &targets,
             that: None,
+            named: None,
         };
         let all = Action::MoveCounters(
             CounterSpec::AllKinds,
@@ -2757,6 +2789,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         let divide = super::effect(
             &deckmaste_core::OneShotEffect::Distribute(Distribute {
@@ -2789,6 +2822,7 @@ mod tests {
             subject: "Fling",
             targets: &[],
             that: None,
+            named: None,
         };
         let fling = super::effect(
             &deckmaste_core::OneShotEffect::AdditionalCost(AdditionalCost {
@@ -2826,6 +2860,7 @@ mod tests {
             subject: "Altar",
             targets: &[],
             that: None,
+            named: None,
         };
         let with = OneShotEffect::With(With {
             binder: Binder::ChooseOne {
@@ -2851,6 +2886,7 @@ mod tests {
             subject: "Wheel",
             targets: &[],
             that: None,
+            named: None,
         };
         assert_eq!(effect(&kw("Discard(2)"), &ctx), "Discard two cards.");
     }
@@ -2871,6 +2907,7 @@ mod tests {
             subject: "Tutor",
             targets: &[],
             that: None,
+            named: None,
         };
         let basic_land = || {
             Predicate::And(vec![
@@ -2949,6 +2986,7 @@ mod tests {
             subject: "Tutor",
             targets: &[],
             that: None,
+            named: None,
         };
         let subtype = |name: &'static str| {
             Predicate::Characteristic(CharacteristicPredicate::Subtype(
@@ -3018,6 +3056,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         let draw = || kw("Draw(1)");
         let discard = || kw("Discard(1)");
@@ -3040,6 +3079,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         // A group verb on the per-element `It` → the collective sentence.
         let destroy = OneShotEffect::Each(Each {
@@ -3082,6 +3122,7 @@ mod tests {
             subject: "~",
             targets: &[],
             that: None,
+            named: None,
         };
 
         let creature: OneShotEffect = plugin
@@ -3132,6 +3173,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         let highest_life = Count::Aggregate(
             AggregateOp::MaxOf,
@@ -3162,6 +3204,7 @@ mod tests {
             subject: "Scavenger",
             targets: &[],
             that: None,
+            named: None,
         };
         let exile = Action::by_you(PlayerAction::Move(
             Reference::This,
@@ -3189,8 +3232,9 @@ mod tests {
             subject: "it",
             targets: std::slice::from_ref(&target),
             that: None,
+            named: None,
         };
-        let exiled = Action::Move(Reference::It, Destination::Zone(Zone::Exile), vec![], None);
+        let exiled = Action::Move(Reference::Target(0), Destination::Zone(Zone::Exile), vec![], None);
         assert_eq!(
             action(&exiled, &ctx),
             "Exile target creature card from a graveyard."
@@ -3203,6 +3247,7 @@ mod tests {
             subject: "it",
             targets: std::slice::from_ref(&bare_target),
             that: None,
+            named: None,
         };
         assert_eq!(
             action(&exiled, &bare_ctx),
@@ -3217,6 +3262,7 @@ mod tests {
             subject: "it",
             targets: std::slice::from_ref(&plain_target),
             that: None,
+            named: None,
         };
         assert_eq!(action(&exiled, &plain_ctx), "Exile target creature.");
     }
@@ -3242,6 +3288,7 @@ mod tests {
             subject: "it",
             targets: &[],
             that: None,
+            named: None,
         };
         assert_eq!(
             effect(&parsed, &ctx),

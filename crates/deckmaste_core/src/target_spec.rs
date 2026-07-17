@@ -4,10 +4,19 @@ use crate::Quantity;
 use crate::SupportsMacros;
 
 /// One entry in an ability's announce list ([CR#601.2c,115]). A `TargetSpec`
-/// is the only place "target" lives: it pushes the announced-target
-/// antecedent the effect body reads back (`It`/`That(Sort)`/`They`, or
-/// [`Reference::Target(n)`](crate::Reference::Target) by announce-list
-/// position), and is rechecked at resolution ([CR#608.2b]).
+/// is the only place "target" lives, and the announce list is an INDEXED
+/// channel: the body names this entry BY POSITION — as
+/// [`Reference::Target(n)`](crate::Reference::Target) (singular) or
+/// [`Selection::Targets(n)`](crate::Selection::Targets) (the slot's whole
+/// group), where `n` is this spec's index. Rechecked at resolution
+/// ([CR#608.2b]).
+///
+/// A target pushes NO antecedent: `It`/`That(Sort)`/`They`/`Them` resolve over
+/// the antecedent stack (loop elements, binder choices, move/create products)
+/// and can never name a target. A target is not something a clause produced
+/// and then referred back to — it is announced at index `n` and read at index
+/// `n`, so two same-sort slots (the fight family) need no labelling and admit
+/// no ambiguity.
 ///
 /// Separated from [`crate::Selection`] so that resolution-time choices
 /// (`Each`, `Choose`, …) and announce-time targets never share a position —

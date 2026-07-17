@@ -12,7 +12,7 @@ Normal(
   ],
   abilities: [
     Spell(
-      effect: Targeted(targets: [TargetOne(Player)], effect: Mills(It, 5)),
+      effect: Targeted(targets: [TargetOne(Player)], effect: Mills(Target(0), 5)),
     ),
   ],
 )

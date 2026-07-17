@@ -131,7 +131,7 @@ mod tests {
             loyalty("[\u{2212}2]: ~ deals 3 damage to any target.").as_deref(),
             Some(
                 "LoyaltyMinus(n: 2, effect: Targeted(targets: [AnyTarget], \
-                 effect: DealDamage(This, 3, It)))"
+                 effect: DealDamage(This, 3, Target(0))))"
             )
         );
     }

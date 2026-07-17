@@ -414,8 +414,16 @@ typesInGraveyards = CountDistinct Types (Objects (InZone Graveyard))
 -- `PlayerStatOf _ Life` BEFORE either write, so the pair is wrapped `Simultaneously` rather than
 -- `Sequentially` — writing them in sequence would have the second `SetLifeTo` read the first's
 -- already-updated total.
+-- The two slots are the macro's CONTRACT, stated in its type: a positional read
+-- carries its slot's obligation ([CR#115.3,601.2c]), so a fragment written over
+-- an abstract `b` must require the announce list it reads — two singular player
+-- slots. Under the old context-free `Target` this fragment typechecked against
+-- ANY context, including one with no announce list at all.
 public export
-exchangeLife : OneShotEffect b
+exchangeLife :
+  {auto 0 p0 : resolveTarget One 0 (targets b) = Bound APlayer} ->
+  {auto 0 p1 : resolveTarget One 1 (targets b) = Bound APlayer} ->
+  OneShotEffect b
 exchangeLife = Simultaneously
   [ Act (SetLifeTo {actor = Target 0} (PlayerStatOf (Target 1) Life))
   , Act (SetLifeTo {actor = Target 1} (PlayerStatOf (Target 0) Life)) ]
@@ -425,8 +433,11 @@ exchangeLife = Simultaneously
 -- CONTROL of the other's pre-swap controller ([CR#701.12a,701.12b] — the exchange resolves as one
 -- SIMULTANEOUS batch, so reading `ControllerOf` on the OTHER side inside the same `Simultaneously` still
 -- yields each side's ORIGINAL controller; no snapshot needed the way `exchangeLife` does).
+-- Contract: one singular object slot (see `exchangeLife`).
 public export
-exchangeControl : OneShotEffect b
+exchangeControl :
+  {auto 0 p0 : resolveTarget One 0 (targets b) = Bound AnObject} ->
+  OneShotEffect b
 exchangeControl = Simultaneously
   [ Continuously Forever (Modify This       (GainControl (ControllerOf (Target 0))))
   , Continuously Forever (Modify (Target 0) (GainControl (ControllerOf This))) ]

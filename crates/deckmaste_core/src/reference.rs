@@ -141,11 +141,30 @@ pub enum Reference {
     /// binder it resolves over the antecedent stack — the nearest singular
     /// antecedent of ANY sort (R1), refused when a second compatible
     /// antecedent makes it a guess (the R2 uniqueness gate; both are
-    /// soundness invariants proven by the Idris re-emit gate): Lightning
-    /// Bolt's `DealDamage(This, 3, It)` reads its one announced target.
+    /// soundness invariants proven by the Idris re-emit gate).
+    ///
+    /// NEVER an announced target: a target is not an anaphor but an indexed
+    /// entry in the announce list, read only as
+    /// [`Target(n)`](Reference::Target)
+    /// / [`Selection::Targets`](crate::Selection::Targets). Lightning Bolt is
+    /// `DealDamage(This, 3, Target(0))`. A bare `It` in a targeted body with no
+    /// loop, binder, or product antecedent is an unbound read, not a target.
     It,
-    /// The nth announced target ([CR#115.3,601.2c]); out-of-range degrades
-    /// to the null id (never-crash).
+    /// The nth announced target SLOT read as a single object
+    /// ([CR#115.3,601.2c]) — the announce list is an INDEXED channel, and this
+    /// plus [`Selection::Targets`](crate::Selection::Targets) are its only
+    /// readers. Two same-sort slots (the fight family) are `Target(0)` and
+    /// `Target(1)`; no labelling apparatus and no anaphor resolution are
+    /// involved, so no ambiguity can arise.
+    ///
+    /// Reads the slot's first still-live member (a quantity-one slot has
+    /// exactly one; a departed member is skipped — partial fizzle,
+    /// [CR#608.2b]); out-of-range degrades to the null id (never-crash).
+    ///
+    /// Does NOT chase [CR#400.7j] moves: an object this resolution moved is a
+    /// NEW object and has its own channel — the move product, read as
+    /// [`That(Sort)`](Reference::That). "Exile target creature, then return
+    /// that card" is `Target(0)` then `That(Card)`.
     Target(usize),
     /// The triggering event's OBJECT — the doer/source ("that card"): the
     /// moving object of a zone change, the source of damage
@@ -175,9 +194,13 @@ pub enum Reference {
     /// The SORTED singular anaphor — "that card", "that creature", "that
     /// player": the nearest singular antecedent of this [`Sort`](crate::Sort)
     /// on the antecedent stack (R1 nearest-compatible, R2 uniqueness gate).
-    /// Antecedents are pushed by target slots ([CR#115.3]), producing clauses
-    /// (the moved/created object, [CR#400.7]), event bodies ([CR#603.2e]), and
-    /// binders ([CR#608.2d]); resolution is dynamic at engine eval time (over
+    /// Antecedents are pushed by producing clauses (the moved/created object,
+    /// [CR#400.7]), event bodies ([CR#603.2e]), and binders ([CR#608.2d]) —
+    /// NOT by target slots, which are read positionally as
+    /// [`Target(n)`](Reference::Target). This is the read for a move's PRODUCT
+    /// ("exile target creature … return that **card**"): the returned card is
+    /// a new object [CR#400.7], so `Target(0)` cannot name it and `That(Card)`
+    /// does. Resolution is dynamic at engine eval time (over
     /// the frame), and its soundness is proven by the Idris re-emit gate. A
     /// many-antecedent is read instead as
     /// [`Selection::They`](crate::Selection::They) /

@@ -13,6 +13,8 @@ mod outcome;
 mod replacement;
 mod template;
 
+use std::cell::Cell;
+
 use deckmaste_core::Ability;
 use deckmaste_core::CardFace;
 use deckmaste_core::ManaCost;
@@ -67,25 +69,71 @@ pub(crate) struct Ctx<'a> {
     /// Display name of the subject object (used for self-referential
     /// events/effects).
     pub subject: &'a str,
-    /// The current ability's targets, so the slot-bound anaphors
-    /// (`It`/`Target(n)`) can print their announce phrases.
+    /// The current ability's announce list ([CR#115.1]), so a positional read
+    /// (`Target(n)` / `Targets(n)`) can print its slot's phrase.
     pub targets: &'a [TargetSpec],
     /// The noun phrase the enclosing `OneShotEffect::With` bound, so the body's
     /// `Reference::That` / `Selection::Those` anaphor renders as that phrase
     /// ("Sacrifice a creature"). `None` outside a `With` body.
     pub that: Option<&'a str>,
+    /// Which announced slots this announce list has already NAMED — a bitmask
+    /// keyed by slot index.
+    ///
+    /// English announces a target once and pronominalizes every later mention
+    /// of it ("… **target player** controls … the pile of **that player**'s
+    /// choice"). The model draws no such distinction — both reads are the same
+    /// `Reference::Target(n)`, because a slot is one indexed entry however
+    /// often it is named — so the announce/re-mention register is the
+    /// renderer's to track. Set as each slot is first printed; scoped to one
+    /// announce list, since a nested `Targeted` rebinds `targets` and starts
+    /// its own slot 0. `None` outside any announce list (a `Ctx` with no
+    /// `targets` has no slot to announce), where every read announces.
+    pub named: Option<&'a Cell<u32>>,
 }
 
 impl<'a> Ctx<'a> {
     /// Re-bind the `that` anaphor over an inner render — the
     /// `OneShotEffect::With` body sees its binder's noun phrase via
-    /// `Reference::That` / `Selection::Those`.
+    /// `Reference::That` / `Selection::Those`. Keeps the announce state: the
+    /// body is still inside the same announce list.
     pub(super) fn with_that(&self, phrase: &'a str) -> Ctx<'a> {
         Ctx {
             subject: self.subject,
             targets: self.targets,
             that: Some(phrase),
+            named: self.named,
         }
+    }
+
+    /// Bind an announce list over an inner render — the
+    /// `OneShotEffect::Targeted` body reads these slots by index
+    /// ([CR#115.3,601.2c]). `named` starts fresh: these are new slots, none of
+    /// them printed yet.
+    pub(super) fn with_targets(&self, targets: &'a [TargetSpec], named: &'a Cell<u32>) -> Ctx<'a> {
+        Ctx {
+            subject: self.subject,
+            targets,
+            that: self.that,
+            named: Some(named),
+        }
+    }
+
+    /// Claim slot `n`'s ANNOUNCE: `true` the first time the slot is named (the
+    /// caller prints the announce phrase, "target creature"), `false` on every
+    /// later read (the caller pronominalizes, "that creature").
+    ///
+    /// A slot index past the bitmask's width always announces — re-announcing
+    /// is a wordier render, never a wrong one.
+    pub(super) fn announce(&self, n: usize) -> bool {
+        let Some(named) = self.named else {
+            return true;
+        };
+        if n >= u32::BITS as usize {
+            return true;
+        }
+        let seen = named.get();
+        named.set(seen | (1 << n));
+        seen & (1 << n) == 0
     }
 }
 
@@ -115,6 +163,7 @@ fn rules(view: &CardView) -> Vec<String> {
                     subject: view.name,
                     targets: &[],
                     that: None,
+                    named: None,
                 },
             )
         {
@@ -140,6 +189,7 @@ fn rules(view: &CardView) -> Vec<String> {
                     subject: view.name,
                     targets: &[],
                     that: None,
+                    named: None,
                 },
             )
         {
@@ -156,6 +206,7 @@ fn rules(view: &CardView) -> Vec<String> {
                     subject: view.name,
                     targets: &[],
                     that: None,
+                    named: None,
                 };
                 // A spell's effect can itself be multi-line (a modal's
                 // "Choose ..." + bulleted modes, or an "as an additional
@@ -185,6 +236,7 @@ fn rules(view: &CardView) -> Vec<String> {
                         subject: view.name,
                         targets: &[],
                         that: None,
+                        named: None,
                     },
                 );
                 body.extend(lines);
