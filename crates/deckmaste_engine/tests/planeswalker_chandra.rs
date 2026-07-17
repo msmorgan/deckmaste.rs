@@ -10,8 +10,6 @@
 //!    under one shared once-per-turn gate, `−7` mints a functioning emblem,
 //!    `−3` kills a 4-toughness creature.
 
-#![allow(clippy::too_many_lines)]
-
 use std::path::Path;
 use std::sync::Arc;
 

@@ -171,7 +171,7 @@ fn gen_struct_helpers(input: &Input) -> TokenStream {
         });
         Some(quote! {
             #[derive(::serde::Deserialize, ::serde::Serialize)]
-            #[allow(non_camel_case_types)]
+            #[allow(non_camel_case_types, reason = "generated RON-flattening helper struct named after its `Enum_Variant`")]
             struct #helper { #(#fields)* }
         })
     });

@@ -44,8 +44,7 @@ pub struct IdrisCheckArgs {
 /// # Errors
 /// If the plugin fails to load, the named card is missing/invalid, or (batch
 /// mode) any card fails to typecheck.
-#[allow(clippy::needless_pass_by_value)] // matches xtask's other `run(args: FooArgs)` commands (e.g. graduate.rs)
-pub fn run(args: IdrisCheckArgs) -> anyhow::Result<()> {
+pub fn run(args: &IdrisCheckArgs) -> anyhow::Result<()> {
     let idris_dir = idris_root()?;
     let plugin = Plugin::load_with_sibling_prelude(&args.plugin_dir)
         .with_context(|| format!("loading plugin {}", args.plugin_dir.display()))?;

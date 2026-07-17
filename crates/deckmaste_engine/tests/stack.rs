@@ -7,10 +7,6 @@
 //! float mana with the Stage-1 mana ability, `CastSpell`, answer
 //! `ChooseTargets` / `PayMana` as they surface, and `Pass` to resolve.
 
-// `too_many_lines` is exempted for this whole test target: each test is one
-// cohesive end-to-end scenario that reads better whole than split into helpers.
-#![allow(clippy::too_many_lines)]
-
 use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::Arc;
@@ -1903,6 +1899,10 @@ fn etb_trigger_draws_a_card() {
 ///    simultaneous triggers, then P1 orders its three; P1's are placed last
 ///    (resolve first in LIFO).
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "exhaustive occurrence-batch + APNAP trigger-ordering scenario; splitting the seven-trigger sequence across helpers would obscure it"
+)]
 fn occurrence_batch_and_apnap_ordering() {
     let pyroclasm = card("Pyroclasm");
     let fiend = card("Footlight Fiend");
@@ -3919,6 +3919,10 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
 /// then copies the still-unresolved Bolt with the copier (only `Copied`
 /// fires, `Cast` does not fire again).
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "end-to-end magecraft Cast-vs-Copied filter scenario; the cast-then-copy sequence reads clearer whole than split into helpers"
+)]
 fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
     let bolt_card = card("Lightning Bolt");
     let mountain = Arc::new(builtin().card("Mountain").unwrap());

@@ -16,11 +16,6 @@
 //! the conferral replacement is what puts the loyalty counters on — never a
 //! hand-set counter map.
 
-// `too_many_lines` is exempted for this whole test target, as in `activate.rs`:
-// each test is one cohesive end-to-end scenario that reads better whole than
-// split across helpers.
-#![allow(clippy::too_many_lines)]
-
 use std::path::Path;
 use std::sync::Arc;
 

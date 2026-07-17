@@ -21,8 +21,7 @@ pub struct GraduateArgs {
 ///
 /// # Errors
 /// If the plugin fails to load or a file isn't readable/renamable.
-#[allow(clippy::needless_pass_by_value)]
-pub fn run(args: GraduateArgs) -> anyhow::Result<()> {
+pub fn run(args: &GraduateArgs) -> anyhow::Result<()> {
     let report = deckmaste_migrations::graduate::graduate_plugin(&args.plugin_dir)?;
     print_report(&args.plugin_dir, &report);
     Ok(())

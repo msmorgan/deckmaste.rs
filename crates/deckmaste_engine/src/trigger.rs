@@ -238,7 +238,12 @@ impl GameState {
     /// Mirrors `target::matches` but sources characteristics from the snapshot
     /// instead of a live object — necessary for leaves where the object is
     /// already reminted/gone.
-    #[allow(clippy::match_same_arms)] // distinct `=> false` reasons; seam arms diverge as later tasks land
+    #[allow(
+        clippy::match_same_arms,
+        reason = "distinct `=> false` seam arms with per-arm rationale that \
+        diverge as later tasks land; #[allow] not #[expect] to avoid churn as \
+        they split"
+    )]
     pub(crate) fn filter_matches_snapshot(
         &self,
         filter: &Predicate,

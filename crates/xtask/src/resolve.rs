@@ -16,7 +16,6 @@ pub struct ResolveArgs {
 ///
 /// # Errors
 /// If a `.ron.todo` isn't readable/parsable/writable.
-#[allow(clippy::needless_pass_by_value)]
-pub fn run(args: ResolveArgs) -> anyhow::Result<()> {
+pub fn run(args: &ResolveArgs) -> anyhow::Result<()> {
     deckmaste_migrations::resolve::resolve_cards(&args.plugin_dir)
 }

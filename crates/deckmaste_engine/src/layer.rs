@@ -873,18 +873,26 @@ fn resolve_count_ref(
 /// of `eval_count` to keep that function under the line-count lint. A zero
 /// divisor fizzles to 0 (never-crash) rather than panicking.
 fn eval_divide(mode: deckmaste_core::RoundMode, a: Int, b: Int) -> Int {
+    // Clamp both operands non-negative right where they enter the division, so
+    // the RoundUp truncation bound below (quotient <= a <= i32::MAX) — and the
+    // zero-divisor fizzle — hold regardless of the caller. `Count::Divide`
+    // already `.max(0)`s both operands, but correctness must not rest on that;
+    // a negative divisor now fizzles to 0 like a zero one.
+    let a = a.max(0);
+    let b = b.max(0);
     if b == 0 {
         0
     } else {
         match mode {
-            // `a as i64 + b as i64 - 1` cannot overflow i64, and the quotient
-            // is bounded by `a <= i32::MAX`, so this never truncates in the
-            // reachable non-negative domain; widening avoids i32 overflow
-            // near `i32::MAX` because signed `div_ceil` is unstable
-            // (int_roundings) on stable.
+            // `a as i64 + b as i64 - 1` cannot overflow i64, and with the
+            // operands clamped non-negative above (`b >= 1` here) the ceil
+            // quotient is at most `a <= i32::MAX`, so this never truncates;
+            // widening avoids i32 overflow near `i32::MAX` because signed
+            // `div_ceil` is unstable (int_roundings) on stable.
             #[expect(
                 clippy::cast_possible_truncation,
-                reason = "quotient is bounded by a <= i32::MAX; see comment above"
+                reason = "quotient bounded by a <= i32::MAX; a and b are clamped \
+                non-negative inside eval_divide (no longer caller-dependent) — see comment above"
             )]
             deckmaste_core::RoundMode::RoundUp => {
                 ((i64::from(a) + i64::from(b) - 1) / i64::from(b)) as i32
@@ -1282,7 +1290,6 @@ pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
 /// borrowed mutably, anchoring carrier refs to the effect's `watcher`. The
 /// immutable `working` read is scoped to end before the `get_mut`, so there is
 /// no borrow conflict.
-#[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
 fn apply(
     m: &Modification,
     effect_controller: PlayerId,
@@ -1376,7 +1383,14 @@ fn resolve_type(state: &GameState, name: &Ident) -> TypeDef {
 /// The count-free `Modification` arms (layers 2-6, 7d). Split out so the
 /// count-bearing 7a-7c arms in `apply` can resolve their `Count` against
 /// `working` immutably before taking the `&mut DerivedObject` here.
-#[allow(clippy::match_same_arms)] // deferred stub arms will diverge as later tasks fill them
+#[allow(
+    clippy::match_same_arms,
+    reason = "four intentionally-identical `{}` stub arms (BecomeBasicLandType, \
+    AllCreatureTypes, SetText, BaseLoyalty/BaseDefense) kept distinct by their \
+    per-arm comments and backing tickets (engine-layers-misc, \
+    engine-layers-1-copy-facedown-text); #[expect] is deliberately avoided here \
+    because it would churn every time one stub diverges while the others stay identical"
+)]
 fn apply_static(
     m: &Modification,
     effect_controller: PlayerId,

@@ -80,11 +80,12 @@ impl Driver {
         self.drive(crate::interact::is_interactive, Self::DECISION_BUDGET)
     }
 
-    /// Interactive (priority only): used by the existing render/board tests.
+    /// Interactive (priority only): used by the existing render/board unit
+    /// tests.
     ///
     /// # Errors
     /// As [`Driver::drive`].
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn run_to_priority(&mut self) -> Result<Stop, DecisionError> {
         self.drive(
             |p| matches!(p, PendingDecision::Priority { .. }),
@@ -101,14 +102,14 @@ impl Driver {
     }
 
     /// Submit a decision, then run to the next interactive stop. The app loop
-    /// now drives via [`Driver::submit_and_advance`]; this remains for
-    /// integration tests.
+    /// now drives via [`Driver::submit_and_advance`]; this remains for unit
+    /// tests.
     ///
     /// # Errors
     /// Returns the `DecisionError` if the engine rejects `decision` (e.g. an
     /// illegal selection); the caller keeps the current interaction and
     /// re-prompts.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn submit(&mut self, decision: Decision) -> Result<Stop, DecisionError> {
         self.state.submit_decision(decision)?;
         self.run_to_decision()
@@ -170,7 +171,7 @@ impl Driver {
     /// Submit a decision, then [`Driver::advance`].
     ///
     /// # Errors
-    /// As [`Driver::submit`].
+    /// As [`Driver::advance`].
     pub fn submit_and_advance(
         &mut self,
         decision: Decision,

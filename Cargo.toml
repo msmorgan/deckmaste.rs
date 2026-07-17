@@ -16,6 +16,10 @@ members = [
 # `[lints] workspace = true`.
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+# Every #[allow]/#[expect] must carry a `reason` — makes the stale-suppression
+# rot class (see docs/tickets clippy-suppression-hygiene) unrepresentable going
+# forward, since a reasonless suppression now warns.
+allow_attributes_without_reason = "warn"
 
 [package]
 publish = false

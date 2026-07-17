@@ -112,7 +112,13 @@ fn row_style(
 
 /// Draw the whole board for one frame. `view` is the caller's once-per-frame
 /// `state.layers()`. `help` overlays the keybinding cheat-sheet.
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "render is the board's per-frame draw entry point, threading nine \
+              discrete inputs (frame, state, view, board, stop, interaction, \
+              error, pass, help); folding them into a context struct is \
+              optional and deliberately not done here"
+)]
 pub fn render(
     frame: &mut Frame,
     state: &GameState,
@@ -301,7 +307,13 @@ fn render_header(
     );
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "render_zone is the per-zone draw entry point, threading eight \
+              discrete inputs (frame, area, state, view, board, interaction, \
+              zone, title); folding them into a context struct is optional \
+              and deliberately not done here"
+)]
 fn render_zone(
     frame: &mut Frame,
     area: Rect,

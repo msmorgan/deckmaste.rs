@@ -215,7 +215,10 @@ mod tests {
     use super::*;
 
     /// A registry that structures the line "Flying" only.
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "conforms to the AbilityParser fn-pointer table signature; the Ok/Some wrap is structural, not a real fallible path"
+    )]
     fn flying_only(line: &str, _ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
         Ok((line == "Flying").then(|| "Flying".to_owned()))
     }

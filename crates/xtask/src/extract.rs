@@ -15,7 +15,6 @@ pub struct ExtractArgs {
 ///
 /// # Errors
 /// If source data is unreadable or a card fails to render.
-#[allow(clippy::needless_pass_by_value)]
-pub fn run(args: ExtractArgs) -> anyhow::Result<()> {
+pub fn run(args: &ExtractArgs) -> anyhow::Result<()> {
     deckmaste_migrations::extract::extract_cards(&args.plugin_dir)
 }

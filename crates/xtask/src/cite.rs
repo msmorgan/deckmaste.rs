@@ -39,8 +39,7 @@ fn script_path() -> PathBuf {
 /// # Errors
 /// Fails when the script is missing, cannot be spawned, or exits non-zero
 /// (stale citations, non-compliant strings, …).
-#[allow(clippy::needless_pass_by_value)]
-pub fn dispatch(args: CiteArgs) -> anyhow::Result<()> {
+pub fn dispatch(args: &CiteArgs) -> anyhow::Result<()> {
     let root = repo_root();
     let script = script_path();
     anyhow::ensure!(

@@ -2,9 +2,12 @@
 //! the `cargo-xtask` binary can drive the command logic. xtask owns all of
 //! the workspace's CLI parsing; the other crates are pure libraries.
 
-// Internal tooling: `# Errors`/`# Panics` doc sections aren't worth keeping
-// accurate here, unlike in the library crates.
-#![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    reason = "internal tooling: `# Errors`/`# Panics` doc sections aren't worth \
+    keeping accurate here, unlike in the library crates"
+)]
 
 pub mod card;
 pub mod cite;

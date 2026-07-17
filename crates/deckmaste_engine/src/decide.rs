@@ -1225,7 +1225,11 @@ impl GameState {
                 let (subject, base, pip_spell) = match &pending.object {
                     crate::stack::StackObject::Spell(o) => (
                         *o,
-                        self.mana_cost(*o).expect("a castable spell has a cost"),
+                        // A face with no mana cost reads as mana value 0 here:
+                        // the `mana_cost` seam reserves `None` for a future
+                        // no-cost face, and an empty cost concretizes/affords as
+                        // a free base. The engine never panics on card data.
+                        self.mana_cost(*o).unwrap_or_default(),
                         Some(*o),
                     ),
                     crate::stack::StackObject::Activated {

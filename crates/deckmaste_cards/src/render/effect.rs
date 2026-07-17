@@ -54,10 +54,6 @@ fn payer_verbs(payer: &str) -> (&'static str, &'static str, &'static str) {
 
 /// Render an `OneShotEffect` as one or more sentences joined into a single
 /// rules string.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one arm per OneShotEffect variant; splitting would scatter the dispatch"
-)]
 pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
     match e {
         OneShotEffect::Act(a) => action(a, ctx),

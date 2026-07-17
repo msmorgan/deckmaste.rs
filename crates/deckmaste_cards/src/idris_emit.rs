@@ -36,7 +36,11 @@
     clippy::needless_pass_by_value,
     clippy::trivially_copy_pass_by_ref,
     clippy::ref_option,
-    clippy::unnecessary_wraps
+    clippy::unnecessary_wraps,
+    reason = "~60 uniform `&NodeType -> Result` emitters share one calling \
+    convention (by-reference args; uniform `Result` return so coverage grows \
+    without signature churn); these pedantic lints flag that intentional style \
+    at each site — allowed module-wide, see the module note above"
 )]
 
 use std::cell::RefCell;

@@ -31,8 +31,7 @@ pub struct GenerateArgs {
 ///
 /// # Errors
 /// If any stage fails (unreadable source data, unparsable `.ron.todo`, etc.).
-#[allow(clippy::needless_pass_by_value)]
-pub fn run(args: GenerateArgs) -> anyhow::Result<()> {
+pub fn run(args: &GenerateArgs) -> anyhow::Result<()> {
     std::fs::create_dir_all(&args.plugin_dir)
         .with_context(|| format!("creating plugin dir {}", args.plugin_dir.display()))?;
     if args.minimal {

@@ -396,7 +396,7 @@ pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) {
     pool.remove_units(&payment.units);
 }
 
-/// Canonical auto-tap ([CR#601.2g], a runner/test convenience — the engine
+/// Canonical auto-tap ([CR#601.2g], a test convenience — the engine
 /// surfaces the choice, this answers it): pick pool unit indices covering
 /// `cost` (colored pips to matching-color units, `{S}` pips to snow-rider units
 /// [CR#107.4h], generic pips to any remaining). Caller ensures `can_pay` first.
@@ -409,12 +409,9 @@ pub fn apply_payment(pool: &mut ManaPool, payment: &Payment) {
 ///
 /// Panics if `cost` is out of scope or `pool` cannot cover it (call `can_pay`
 /// first).
+#[cfg(test)]
 #[must_use]
-#[allow(
-    dead_code,
-    reason = "public subject-free auto-tap helper; engine paths now route through auto_pay_pending (spendability-aware), but this stays the canonical pure form for runners/tests"
-)]
-pub fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
+fn auto_pay(pool: &ManaPool, cost: &ManaCost) -> Payment {
     auto_pay_spendable(pool, cost, &vec![true; pool.units().len()])
 }
 
@@ -1811,10 +1808,6 @@ impl GameState {
     /// leaves room for future faces/zones that have no castable cost (and
     /// lets `can_cast`/`pay_cost` share the `let Some(cost) = …` gate).
     #[must_use]
-    #[allow(
-        clippy::unnecessary_wraps,
-        reason = "the Option is the cast-legality seam; future no-cost faces return None (now a pub API, so clippy may not fire — keep the seam documented)"
-    )]
     pub fn mana_cost(&self, object: ObjectId) -> Option<ManaCost> {
         Some(self.modified_mana_cost(object))
     }

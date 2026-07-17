@@ -7,10 +7,6 @@
 //! activates the way a UI would: pick the offered `ActivateAbility`, answer
 //! `ChooseTargets` / `PayMana` as they surface, and `Pass` to resolve.
 
-// `too_many_lines` is exempted for this whole test target: each test is one
-// cohesive end-to-end scenario that reads better whole than split into helpers.
-#![allow(clippy::too_many_lines)]
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -1141,7 +1137,9 @@ fn cost_game(seed: u64, card: &Arc<Card>) -> GameState {
 /// [CR#118.5,118.5a]: a `{0}` cost is a placeholder payable with nothing, but
 /// the ability is NOT paid automatically — the action still requires the
 /// player's acknowledgment. The engine models that acknowledgment as a real
-/// `PayMana` decision carrying the (zero) cost, answered here via `auto_pay`.
+/// `PayMana` decision carrying the (zero) cost, answered here via
+/// `auto_pay_pending`, which autotaps whatever the pending `PayMana` needs — an
+/// empty payment for `{0}`.
 /// Every `artifact_with_cost` test below relies on this `{0}`-surfaces-PayMana
 /// contract, so this asserts it once for all of them.
 fn activate_and_pay_zero(state: &mut GameState, object: ObjectId) {

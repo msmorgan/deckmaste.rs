@@ -374,9 +374,11 @@ pub(crate) fn legend_rule_groups(
 
 #[cfg(test)]
 mod tests {
-    // `too_many_lines` is exempted for this test module: e2e scenarios read
-    // better whole than split into helpers.
-    #![allow(clippy::too_many_lines)]
+    #![allow(
+        clippy::too_many_lines,
+        reason = "e2e SBA scenarios in this test module read better whole than \
+        split into helpers; exempted module-wide"
+    )]
 
     use std::path::Path;
     use std::sync::Arc;
