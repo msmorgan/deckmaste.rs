@@ -69,6 +69,10 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     let mut server = Server::new(root.as_deref());
     server.run(&connection)?;
 
+    // Drop `connection` (and its writer-channel sender) before joining. Otherwise
+    // the writer thread never sees the channel close and `io_threads.join()` hangs,
+    // leaving the process alive after the client's `exit`.
+    drop(connection);
     io_threads.join()?;
     Ok(())
 }
