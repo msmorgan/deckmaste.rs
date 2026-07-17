@@ -300,7 +300,17 @@ impl GameState {
                          with the ETB machinery"
                     );
                 }
-                let objects = self.eval_selection_set(group, frame);
+                // A group member with no zone to leave — a player proxy
+                // (`zone: None`, which `Predicate::Any` matches) — is skipped,
+                // never moved; an all-zoneless selection then fizzles via the
+                // empty guard below (the engine-never-crashes-on-authoring
+                // -mistakes ruling). Each surviving member carries its `from`
+                // zone alongside its id, so the zone read can't panic.
+                let objects: Vec<(ObjectId, Zone)> = self
+                    .eval_selection_set(group, frame)
+                    .into_iter()
+                    .filter_map(|object| Some((object, self.objects.obj(object).zone?)))
+                    .collect();
                 if objects.is_empty() {
                     return vec![];
                 }
@@ -310,10 +320,10 @@ impl GameState {
                 };
                 let events: Vec<GameEvent> = objects
                     .iter()
-                    .map(|&object| GameEvent::ZoneChange {
+                    .map(|&(object, from)| GameEvent::ZoneChange {
                         snapshot: None,
                         object,
-                        from: Some(self.objects.obj(object).zone.expect("move a zoned object")),
+                        from: Some(from),
                         to: to_zone,
                         enters: None,
                         position: anchor.map(|a| self.library_index(object, a, frame)),
@@ -324,7 +334,7 @@ impl GameState {
                 let mut items = vec![WorkItem::Emit(occurrence_of(events))];
                 if let Some(anchor) = anchor {
                     let (end, _) = self.anchor_end_offset(anchor, frame);
-                    let library_owner = self.owner_of(objects[0]);
+                    let library_owner = self.owner_of(objects[0].0);
                     let arranger = match arrangement {
                         // [CR#401.4]: "any order" is arranged by the cards'
                         // owner; RandomOrder/SameOrder carry no arranger (unused,
@@ -413,7 +423,12 @@ impl GameState {
             if self.objects.get(object).is_none() {
                 continue;
             }
-            let from = self.objects.obj(object).zone.expect("move a zoned object");
+            // A resolved member with no zone to leave — a player proxy
+            // (`zone: None`, which `Predicate::Any` matches) — is skipped, never
+            // moved (the engine-never-crashes-on-authoring-mistakes ruling).
+            let Some(from) = self.objects.obj(object).zone else {
+                continue;
+            };
             // [CR#701.8a,701.9a,701.17a]: the `from` fizzle-guard — a zone
             // mismatch is a silent no-op for this object, never a panic.
             if let Some(z) = guard
@@ -2342,7 +2357,7 @@ mod tests {
         use crate::decide::PendingDecision;
         use crate::step::StepOutcome;
         for _ in 0..200 {
-            // Mana empties at every step boundary ([CR#500.4]); the delayed
+            // Mana empties at every step boundary ([CR#500.5]); the delayed
             // trigger resolves a step or two after the discard, so top the pool
             // back up to the madness cost while we wait for its cast offer.
             if cast && state.player(PlayerId(0)).mana_pool.is_empty() {
@@ -2910,6 +2925,149 @@ mod tests {
             state.player(PlayerId(0)).life,
             life_before - 2,
             "the CONFERRED trigger fired off the discard and resolved its life loss"
+        );
+    }
+
+    // ===== Canon madness pair (Task 11) =====
+    // Behavior of the two shipped canon cards, driven against the REAL card
+    // data loaded from the canon plugin (plus its `rules/grant` conferral).
+
+    /// [CR#616.1,702.35a]: STACKED madness applies once — the Falkenrath Gorger
+    /// choose-one ruling with zero authored guard. A Vampire discarded from
+    /// hand that BOTH prints madness AND is granted madness by Gorger's
+    /// conferral has two applicable `Instead` self-replacements; only ONE
+    /// applies (an `Instead` replaces the discard intent entirely, so the
+    /// sibling has nothing left to match, [CR#616.1f]) — a single exile, a
+    /// single madness window.
+    #[test]
+    fn gorger_stacked_madness_applies_once() {
+        let (mut state, _a) = bear_on_field();
+        // The real game wires the plugin's conferral rules; the bare fixture
+        // leaves them empty — install Gorger's grant explicitly.
+        state.conferral_rules = canon().conferral_rules;
+        // Empty P0's opening hand (retire the cards to the library) so the
+        // discard target is the only card in hand.
+        for o in state.zones.hands[0].clone() {
+            state.objects.obj_mut(o).zone = Some(Zone::Library);
+            state.zones.libraries[0].push_back(o);
+        }
+        state.zones.hands[0].clear();
+        // Falkenrath Gorger on the battlefield. (Its card static also grants an
+        // INERT layer-view madness; only the companion ConferralRule is gathered
+        // by the replacement scan.)
+        let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap());
+        // A Vampire in hand that ALSO prints its own madness — the two-source
+        // stack.
+        let vampire = mint_in_hand_with(
+            &mut state,
+            PlayerId(0),
+            CardFace {
+                name: "Printed-Madness Vampire".into(),
+                types: vec![Type::Creature.def()],
+                subtypes: vec![subtype("Vampire")],
+                abilities: vec![keyword("Madness([Mana([Red])])")],
+                ..CardFace::default()
+            },
+        );
+        let frame = frame_src(vampire);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::This)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        let in_exile = state
+            .zones
+            .exile
+            .iter()
+            .filter(|&&o| matches!(state.def(o), Card::Normal(f) if f.name == "Printed-Madness Vampire"))
+            .count();
+        assert_eq!(
+            in_exile, 1,
+            "exactly ONE exile — stacked madness applies once ([CR#616.1,702.35a])"
+        );
+        assert!(
+            !zone_has_named(
+                &state,
+                &state.zones.graveyards[0],
+                "Printed-Madness Vampire"
+            ),
+            "a single Instead applied — the card did not also fall to the graveyard"
+        );
+        assert!(
+            discarded_fact(&state, vampire),
+            "the discard name-fact stands under the redirect ([CR#701.9c])"
+        );
+    }
+
+    /// [CR#121.2,616.1,702.35a]: Anje's Ravager's attack trigger — "discard your
+    /// hand, then draw three cards" — discards every card in hand as its own
+    /// `Act(Discard)` (a madness card among them opens its [CR#702.35a] window
+    /// and exiles; a plain card reaches the graveyard) and then Batch-draws
+    /// three ([CR#121.2]). Driven off the card's OWN authored trigger effect
+    /// (the attack declaration that fires it is the `ThisAttacks` event macro,
+    /// exercised with the trigger family).
+    #[test]
+    fn anje_ravager_attack_trigger_discards_hand_and_draws_three() {
+        let (mut state, _a) = bear_on_field();
+        // Retire P0's opening hand into the library (clears the hand AND leaves
+        // the library deep enough to draw three).
+        for o in state.zones.hands[0].clone() {
+            state.objects.obj_mut(o).zone = Some(Zone::Library);
+            state.zones.libraries[0].push_back(o);
+        }
+        state.zones.hands[0].clear();
+        // Anje's Ravager on the battlefield — the trigger's source.
+        let anje = mint_on_field(&mut state, canon().card("Anje's Ravager").unwrap());
+        // A two-card hand: a madness card + a plain card.
+        let mad = mint_in_hand_with(
+            &mut state,
+            PlayerId(0),
+            CardFace {
+                name: "Hand Madness".into(),
+                types: vec![Type::Creature.def()],
+                abilities: vec![keyword("Madness([Mana([Red])])")],
+                ..CardFace::default()
+            },
+        );
+        let plain = mint_in_hand(&mut state, PlayerId(0), "Hand Plain");
+        // Anje's OWN attack-trigger effect (discard your hand, then draw three).
+        let effect = {
+            let Card::Normal(face) = state.def(anje) else {
+                panic!("Anje's Ravager is single-faced")
+            };
+            face.abilities
+                .iter()
+                .find_map(|a| match a {
+                    Ability::Triggered(t) => Some(t.effect.clone()),
+                    _ => None,
+                })
+                .expect("Anje's Ravager has an attack trigger")
+        };
+        let frame = frame_src(anje);
+        state.run_effect(effect, &frame);
+        run_injected(&mut state);
+
+        assert!(
+            discarded_fact(&state, mad),
+            "the madness card was discarded (its own Act(Discard))"
+        );
+        assert!(
+            discarded_fact(&state, plain),
+            "the plain card was discarded (its own Act(Discard))"
+        );
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Hand Madness"),
+            "the discarded madness card opened its window and exiled ([CR#702.35a])"
+        );
+        assert!(
+            zone_has_named(&state, &state.zones.graveyards[0], "Hand Plain"),
+            "the plain discard reached the graveyard ([CR#701.9a])"
+        );
+        assert_eq!(
+            state.zones.hands[0].len(),
+            3,
+            "drew three after emptying the hand ([CR#121.2])"
         );
     }
 
@@ -3568,6 +3726,40 @@ mod tests {
         assert!(
             !moved,
             "a from-guard mismatch fizzles: no zone-change event"
+        );
+    }
+
+    /// A `MoveGroup` whose `SelectAll(Any)` selection sweeps in a zoneless
+    /// member — a player proxy (`zone: None`, which `Predicate::Any` matches) —
+    /// skips that member instead of panicking on its absent zone (the
+    /// engine-never-crashes-on-authoring-mistakes ruling). The zoned members
+    /// still move.
+    #[test]
+    fn move_group_skips_zoneless_members() {
+        let (mut state, _bear) = bear_on_field();
+        let proxy = state.player(PlayerId(0)).object;
+        assert!(
+            state.objects.obj(proxy).zone.is_none(),
+            "a player proxy is minted zoneless"
+        );
+        let frame = frame_src(proxy);
+        state.run_effect(
+            OneShotEffect::Act(Action::MoveGroup {
+                group: Selection::SelectAll(Predicate::Any),
+                arrangement: deckmaste_core::Arrangement::AnyOrder,
+                to: Destination::Zone(Zone::Graveyard),
+                riders: vec![],
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert!(
+            zone_has_named(&state, &state.zones.graveyards[0], "Grizzly Bears"),
+            "the zoned battlefield creature still moved to its graveyard"
+        );
+        assert!(
+            state.objects.obj(proxy).zone.is_none(),
+            "the zoneless proxy was skipped, never moved"
         );
     }
 

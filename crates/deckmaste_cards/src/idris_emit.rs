@@ -1572,8 +1572,12 @@ fn fight_fighters(body: &OneShotEffect) -> Option<(&Reference, &Reference)> {
 /// Reconstruct the parameterized `KeywordActionSpec` constructor from a verb
 /// NAME plus the coordinates carried in its expanded body ([CR#701]) — the
 /// `KeywordAction` atom enum retired, so name + body-shape is the source of
-/// truth (shared by the engine's resolve dispatch and the renderer). `Fateseal`
-/// and any unrecognized verb are gaps against the current Idris mirror.
+/// truth (shared by the engine's resolve dispatch and the renderer). ENTITY-
+/// keyed: each atom names only the coordinates it fixes — Scry/Surveil the
+/// count (your library by definition), Mill/Draw the performing player (count
+/// rides the enclosing `Batch`), Fateseal the fatesealed player plus the count,
+/// Discard the discarding player plus the choice count, Destroy/Fight their
+/// objects. Any unrecognized verb is a gap against the current Idris mirror.
 fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
     match name {
         "Destroy" => {
@@ -1581,10 +1585,29 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
                 .ok_or_else(|| gap("Destroy composite body is not a Move"))?;
             Ok(app("Destroy", vec![emit_reference(r)?]))
         }
-        "Scry" | "Surveil" | "Mill" | "Draw" => {
-            let (whose, count) = top_of_library(body)
+        "Scry" | "Surveil" => {
+            // Definitionally YOUR library ([CR#701.22a,701.25a]): the atom carries
+            // only the count; the top-slice `whose` is implicit.
+            let (_whose, count) = top_of_library(body)
                 .ok_or_else(|| gap(format!("{name} composite body has no TopOfLibrary slice")))?;
-            Ok(app(name, vec![emit_reference(whose)?, emit_count(count)?]))
+            Ok(app(name, vec![emit_count(count)?]))
+        }
+        "Mill" | "Draw" => {
+            // SLICE family ([CR#121.2,701.17a]): the atom carries the performing
+            // player; the count rides the enclosing `Batch`, and each contained
+            // atom is a single top-slot slice — so no count arg here.
+            let (whose, _count) = top_of_library(body)
+                .ok_or_else(|| gap(format!("{name} composite body has no TopOfLibrary slice")))?;
+            Ok(app(name, vec![emit_reference(whose)?]))
+        }
+        "Fateseal" => {
+            // The named player's library top ([CR#701.20a]) plus the count.
+            let (whose, count) = top_of_library(body)
+                .ok_or_else(|| gap("Fateseal composite body has no TopOfLibrary slice"))?;
+            Ok(app(
+                "Fateseal",
+                vec![emit_reference(whose)?, emit_count(count)?],
+            ))
         }
         "Discard" => {
             // Chosen/random form: the `With` binder carries whose + count
@@ -1616,9 +1639,6 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
                 fight_fighters(body).ok_or_else(|| gap("Fight composite body has no fighters"))?;
             Ok(app("Fight", vec![emit_reference(a)?, emit_reference(b)?]))
         }
-        "Fateseal" => Err(gap(
-            "Composite keyword action Fateseal has no Idris KeywordActionSpec",
-        )),
         other => Err(gap(format!(
             "Composite keyword action {other} has no Idris KeywordActionSpec"
         ))),
@@ -2654,13 +2674,28 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             reject_amount(amount)?;
             (vec!["Draw".to_string()], actor_facet(who)?)
         }
-        // [CR#701]: the named keyword-action intent filter. Stage 1 plumbing
-        // only — its Idris `EventKind` mapping lands with the destroy/draw/mill
-        // migration (engine-keyword-action-intent Stage 2+).
-        EventFilter::Act { .. } => {
-            return Err(gap(
-                "EventFilter::Act has no Idris EventKind counterpart yet ([CR#701]) — engine-keyword-action-intent Stage 2+",
-            ));
+        // [CR#701]: the named keyword-action filter lowers to the verb's
+        // `EventKind` (`Destroy`/`Discard`/`Draw`/`Mill`/`Scry`/`Surveil`/
+        // `Fateseal`/`Fight`) — the verb pins the kind, the performer `who` rides
+        // the `Actor` facet and the affected object `on` the `Agent` facet
+        // ([CR#616.1,701.9c] name-fact matching). `cause` (agency/cost narrowing —
+        // "cycles" as a discard) has no Idris coordinate, so a narrowed filter is
+        // a gap.
+        EventFilter::Act {
+            verb,
+            who,
+            on,
+            cause,
+        } => {
+            if cause.is_some() {
+                return Err(gap(
+                    "EventFilter::Act{cause} has no Idris EventKind coordinate (agency/cost narrowing)",
+                ));
+            }
+            (
+                vec![act_event_kind(verb.as_str())?],
+                actor_agent_facets(who, on)?,
+            )
         }
         EventFilter::CounterPlaced { kind, on, amount } => {
             reject_amount(amount)?;
@@ -2907,6 +2942,22 @@ fn actor_agent_facets(who: &Predicate, what: &Predicate) -> Result<Vec<String>, 
     let mut facets = actor_facet(who)?;
     facets.extend(agent_facet(what)?);
     Ok(facets)
+}
+
+/// Map a keyword-action verb name ([CR#701]) to its Idris `EventKind`
+/// constructor for an `EventFilter::Act` lowering. The verb-named kinds
+/// (`Destroy`/`Discard`/`Draw` and the added
+/// `Mill`/`Scry`/`Surveil`/`Fateseal`/ `Fight`) sit beside one another in
+/// `Core.idr`'s `EventKind`; an unrecognized verb is a gap.
+fn act_event_kind(verb: &str) -> Result<String, Gap> {
+    match verb {
+        "Destroy" | "Discard" | "Draw" | "Mill" | "Scry" | "Surveil" | "Fateseal" | "Fight" => {
+            Ok(verb.to_string())
+        }
+        other => Err(gap(format!(
+            "EventFilter::Act verb {other} has no Idris EventKind counterpart"
+        ))),
+    }
 }
 
 /// `AllOf` merges constituents that share the same emitted kind list,
@@ -3509,6 +3560,70 @@ mod tests {
         let out = emit_player_action(&action, &Reference::You)
             .expect("ChooseNewTargets with a non-default `by` should emit");
         assert_eq!(out, "(ChooseNewTargets This {by = (Only OpponentOf)})");
+    }
+
+    /// A `TopOfLibrary`-slice body for a slice/reorder verb
+    /// ([CR#121,701.17a,701.22a]) — the `Each` binder `emit_keyword_spec` reads
+    /// its coordinates off. The `effect` is inert (only the binder is read).
+    fn top_slice_body(count: Count, whose: Reference) -> OneShotEffect {
+        OneShotEffect::Each(deckmaste_core::Each {
+            binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary { count, whose }),
+            effect: Box::new(OneShotEffect::Act(Action::move_to(
+                Reference::It,
+                deckmaste_core::Zone::Graveyard,
+            ))),
+        })
+    }
+
+    /// [CR#701.22a,701.25a]: scry/surveil re-key entity-only — the atom carries
+    /// just the COUNT (your library by definition), no performer.
+    #[test]
+    fn scry_spec_carries_only_the_count() {
+        let out = emit_keyword_spec("Scry", &top_slice_body(Count::Literal(2), Reference::You))
+            .expect("Scry should emit");
+        assert!(out.contains("Scry"), "expected the Scry tag, got: {out}");
+        assert!(
+            !out.contains("You"),
+            "scry carries only the count, no performer: {out}"
+        );
+    }
+
+    /// [CR#121.2,701.17a]: mill/draw re-key to the performing PLAYER only — the
+    /// count rides the enclosing `Batch`, so the per-unit atom has no count
+    /// arg.
+    #[test]
+    fn mill_and_draw_specs_carry_only_the_player() {
+        let mill = emit_action(&Action::mill_one(Reference::You)).expect("mill should emit");
+        assert!(mill.contains("Mill You"), "mill carries the player: {mill}");
+        let draw = emit_action(&Action::draw_one(Reference::You)).expect("draw should emit");
+        assert!(draw.contains("Draw You"), "draw carries the player: {draw}");
+    }
+
+    /// [CR#701.20a]: fateseal now emits (previously an Idris gap) — the
+    /// fatesealed player plus the count.
+    #[test]
+    fn fateseal_spec_emits_player_and_count() {
+        let out = emit_keyword_spec(
+            "Fateseal",
+            &top_slice_body(Count::Literal(1), Reference::Opponent),
+        )
+        .expect("Fateseal should emit (was a gap)");
+        assert!(out.contains("Fateseal"), "expected Fateseal, got: {out}");
+    }
+
+    /// [CR#701]: an `EventFilter::Act` lowers to its verb `EventKind` plus the
+    /// Actor/Agent facets — previously a hard gap; a `cause`-narrowed filter
+    /// still gaps (no Idris agency coordinate).
+    #[test]
+    fn act_filter_lowers_to_the_verb_event_kind() {
+        let (kinds, _facets) = emit_event_filter(&EventFilter::Act {
+            verb: deckmaste_core::VerbName::from("Mill"),
+            who: Predicate::Ref(Reference::You),
+            on: Predicate::Any,
+            cause: None,
+        })
+        .expect("EventFilter::Act should now lower (was a gap)");
+        assert_eq!(kinds, vec!["Mill".to_string()]);
     }
 
     /// `StatePredicate::WasCastWith` resolves its tag through the same

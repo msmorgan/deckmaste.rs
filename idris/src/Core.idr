@@ -463,6 +463,18 @@ namespace EventKind
     PutCounters : EventKind
     RemoveCounters : EventKind
     Destroy : EventKind
+    -- the remaining keyword-action verbs ([CR#701]) as event kinds, REUSING the
+    -- `KeywordActionSpec`/`Action` verb names (like `Draw`/`Discard` above) so an
+    -- `EventFilter::Act {verb, who, on}` lowers here: the verb pins the kind, the
+    -- performer rides the `Actor` facet and the affected object the `Agent` facet.
+    -- This is what makes "whenever you scry/mill/fateseal", "whenever a creature
+    -- fights", and cant/replace over those verbs match on the finalized name-fact
+    -- ([CR#616.1,701.9c]). No new axis — verb kinds sit beside `Destroy`.
+    Mill : EventKind
+    Scry : EventKind
+    Surveil : EventKind
+    Fateseal : EventKind
+    Fight : EventKind
     ZoneChanged : Maybe Zone -> Maybe Zone -> EventKind
     BeginStep : PhaseStep -> EventKind
     -- "whenever ~ BECOMES [state]" — TRANSITION states only (gated; not `SummoningSick`).
@@ -2179,27 +2191,42 @@ mutual
     -- recognizable payload the `Act` event/filter matches on (the desugared
     -- `body` also mentions them, but the body is gone once the event fires). The
     -- arg-carrying arms mirror the already-parameterized `KeywordSpec`
-    -- (`Ward Cost`, `Protection Quality`). Heterogeneous by design:
-    --  * player-report verbs (Scry/Surveil/Mill/Draw) carry the PERFORMING player
-    --    `who` (so `Act` records who scried/drew/milled — "whenever an opponent
-    --    draws") then the count. `who` is an EXPLICIT positional (player-first),
-    --    always named — the surface is `Scry You n`, never elided.
+    -- (`Ward Cost`, `Protection Quality`). ENTITY-KEYED and heterogeneous —
+    -- each atom names only the coordinates it fixes ([CR#701]):
+    --  * SLICE-family verbs read the top of a library
+    --    ([CR#121,701.17a,701.22a,701.20a]). Scry/Surveil act on YOUR library by
+    --    definition, so they carry only the `count` — no performer. Mill/Draw
+    --    carry the PERFORMING player
+    --    `who` (so `Act` records who milled/drew — "whenever an opponent draws"),
+    --    but NOT a count: their multi-card forms ride the `Batch` count tier
+    --    ([CR#121.2a]) and each contained atom is a single top-slot slice.
+    --    Fateseal ([CR#701.20a]) names the fatesealed player's library plus the
+    --    `count` (an opponent's top, not yours).
+    --  * `Discard` ([CR#701.9a]) is a CHOICE verb: the affected cards live in the
+    --    body's `With (Choose ..) ..`/`With (Existing (Random ..)) ..` decision
+    --    (the [CR#701.9b] batch choice, or the bound single `Move` for "discard
+    --    this card", [CR#702.29a]); the atom carries the discarding player `who`
+    --    plus the count of the choice. The engine realizes per-card
+    --    `Act (Discard …)` events so madness ([CR#702.35a]) and discard triggers
+    --    bite card-by-card. (The per-card contained `Composite (Discard …)`
+    --    carries the same `who`/count over one card.)
     --  * `Destroy` carries the patient object; its performer is the cause's
     --    agent/source (not a player), so no `who`.
     --  * `Fight` carries its two fighter objects.
+    -- (Rust data-fies these as `Action::Composite(VerbName, body)` — the verb name
+    -- plus the coordinates reconstructed from the expanded body; this typed mirror
+    -- stays the soundness gate. `Mill`/`Draw` are the landed slice-family shape:
+    -- an earlier draft keyed `Mill` on an object, superseded by the 2026-07-16
+    -- `Batch`-containment ruling that made mill a slice verb like draw.)
     data KeywordActionSpec : Ctx -> Type where
-      Scry    : Reference b APlayer -> Count b -> KeywordActionSpec b
-      Surveil : Reference b APlayer -> Count b -> KeywordActionSpec b
-      Mill    : Reference b APlayer -> Count b -> KeywordActionSpec b
-      Draw    : Reference b APlayer -> Count b -> KeywordActionSpec b
-      -- discard ([CR#701.9a]) — player-report like Mill/Draw: `who` then the count. WHICH cards
-      -- is the body's business (a `With (Choose ..) ..`/`With (Existing (Random ..)) ..` decision,
-      -- the [CR#701.9b] batch choice — or the bound single `Move` for "discard this card",
-      -- [CR#702.29a]); the engine realizes per-card `Act (Discard …)` events so madness
-      -- ([CR#702.35a]) and discard triggers bite card-by-card.
-      Discard : Reference b APlayer -> Count b -> KeywordActionSpec b
-      Destroy : Reference b AnObject -> KeywordActionSpec b
-      Fight   : Reference b AnObject -> Reference b AnObject -> KeywordActionSpec b
+      Scry     : Count b -> KeywordActionSpec b
+      Surveil  : Count b -> KeywordActionSpec b
+      Fateseal : Reference b APlayer -> Count b -> KeywordActionSpec b
+      Mill     : Reference b APlayer -> KeywordActionSpec b
+      Draw     : Reference b APlayer -> KeywordActionSpec b
+      Discard  : Reference b APlayer -> Count b -> KeywordActionSpec b
+      Destroy  : Reference b AnObject -> KeywordActionSpec b
+      Fight    : Reference b AnObject -> Reference b AnObject -> KeywordActionSpec b
 
   -- The verbs ([CR#701]). `OneShotEffect::Act` wraps these. Object verbs carry an object
   -- `source` (default `This`); player verbs an `actor : Reference b APlayer` (default `You`).

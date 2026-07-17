@@ -53,6 +53,10 @@ fn payer_verbs(payer: &str) -> (&'static str, &'static str, &'static str) {
 
 /// Render an `OneShotEffect` as one or more sentences joined into a single
 /// rules string.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per OneShotEffect variant; splitting would scatter the dispatch"
+)]
 pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
     match e {
         OneShotEffect::Act(a) => action(a, ctx),
@@ -1304,10 +1308,6 @@ fn turn_marker(m: TurnMarker) -> &'static str {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one arm per action verb; splitting would scatter the dispatch"
-)]
 fn action(a: &Action, ctx: &Ctx) -> String {
     match a {
         // Damage always names its source in oracle text ("~ deals 3 damage

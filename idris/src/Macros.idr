@@ -215,11 +215,15 @@ modifyPT op = [Alter Power op, Alter Toughness (ptTwin op)]
 -- `Each`/`With`/`Modal`/`Move`/`ToLibrary`/`DealDamage`, so there are no bespoke `Scry`/`Surveil`/
 -- `Fight` verbs in `Action`.
 
--- mill n ([CR#701.17a]): put the top n of your library into your graveyard. The graveyard is unordered,
--- so a simultaneous `Each` over the top-n needs no `Arrangement`.
+-- mill n ([CR#701.17a]): put the top n of your library into your graveyard as ONE
+-- simultaneous batch — the [CR#701.17a] "mills as one group" distinction from draw's
+-- per-card [CR#121.2]. Rides `Batch n` over the per-unit slice-family `Composite (Mill
+-- You)` whose body is a single top-slot `MoveArranged` to the graveyard (matching the
+-- Rust `Mill.ron`/`mill_one`): the count lives on the `Batch`, and the entity-keyed atom
+-- carries only the performer — no count, no per-card `Each`.
 public export
 mill : Count b -> OneShotEffect b
-mill n = Act (Composite (Mill You n) (Each (Existing (TopOfLibrary n)) (Act (Move It (ToZone Graveyard)))))
+mill n = Batch n (Act (Composite (Mill You) (Act (MoveArranged (TopOfLibrary (^1)) ChosenOrder (ToZone Graveyard)))))
 
 -- discard n ([CR#701.9a]): choose n cards from your hand and put them into your graveyard. The choice
 -- is the affected player's, an ordinary `Choose` binder over `inHand` ([CR#701.9b]); the engine realizes
@@ -270,7 +274,7 @@ destroy r = Composite (Destroy r) (Act (Move r (ToZone Graveyard)))
 -- 1-of-2 `Modal`.
 public export
 scry : Count b -> OneShotEffect b
-scry n = Act (Composite (Scry You n)
+scry n = Act (Composite (Scry n)
   (Each (Existing (TopOfLibrary n))
     (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
       [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))
@@ -279,7 +283,7 @@ scry n = Act (Composite (Scry You n)
 -- surveil n ([CR#701.25a]): scry's shape, but the spill zone is the graveyard, not the library bottom.
 public export
 surveil : Count b -> OneShotEffect b
-surveil n = Act (Composite (Surveil You n)
+surveil n = Act (Composite (Surveil n)
   (Each (Existing (TopOfLibrary n))
     (Modal (MkChooseSpec (Range (Just (^1)) (Just (^1))))
       [ MkMode (Act (Move It (ToLibrary (FromTop (^0)))))

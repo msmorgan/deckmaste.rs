@@ -1,0 +1,41 @@
+// waiver: two renderer seams, both orthogonal to behavior. (1) Keyword-line
+// ordering — the renderer emits the Madness line first, ahead of the
+// must-attack requirement and the attack trigger (the same seam Weather the
+// Storm is waived for). (2) "Discard your hand" as a whole-hand distributed
+// per-card discard (`Each(SelectAll(InHand(You)), Composite(Discard, Move(It,
+// Graveyard)))`) has no dedicated phrasing, so the binder/body render as
+// `[unrendered: ...]` placeholders rather than "discard your hand". Behavior is
+// faithful: the attack trigger discards every card in hand as its own
+// `Act(Discard)` (so a discarded madness card opens its [CR#702.35a] window)
+// and then draws three ([CR#121.2]); the must-attack requirement and native
+// Madness {1}{R} are exact.
+Normal(
+  name: "Anje's Ravager",
+  mana_cost: [
+    Generic(2),
+    Red,
+  ],
+  types: [
+    Creature,
+  ],
+  subtypes: [
+    Vampire,
+    Berserker,
+  ],
+  abilities: [
+    Static(Must(Attack(by: Ref(This)))),
+    Triggered(
+      event: ThisAttacks,
+      effect: Sequentially([
+        Each(
+          binder: Existing(SelectAll(InHand(You))),
+          effect: Composite(name: Discard, body: Move(It, Graveyard)),
+        ),
+        Draw(3),
+      ]),
+    ),
+    Keyword(Madness([Mana([Generic(1), Red])])),
+  ],
+  power: 3,
+  toughness: 3,
+)

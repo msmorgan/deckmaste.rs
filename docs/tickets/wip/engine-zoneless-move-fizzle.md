@@ -1,15 +1,22 @@
 ---
 needs: []
 ---
-Retire the remaining zoneless-object `.expect`s on the move paths. The mill
-batch lane's instance was fixed (filter_map fizzle, 2026-07), but its two
-pre-existing twins in `resolve/action.rs` — the `.expect("move a zoned
-object")` sites on the single-`Move`/group-move lanes — still panic when an
-authored selection resolves to a zoneless object (a player proxy: minted with
-`zone: None`, and `Predicate::Any` matches it). Raw-authored selections reach
-these lanes, so this violates bad-authoring-fizzles-never-panics.
+SHIPPED: the remaining zoneless-object `.expect`s on the move paths are
+retired. The mill batch lane's instance was fixed earlier (filter_map fizzle);
+its two pre-existing twins in `resolve/action.rs` — the
+`.expect("move a zoned object")` sites on the group-move (`MoveGroup`) and
+single-`Move` (reference-set) lanes — now skip a zoneless member instead of
+panicking on its absent zone. A member with no zone to leave (a player proxy:
+minted `zone: None`, matched by `Predicate::Any`) is dropped from the group;
+an all-zoneless selection then fizzles via the existing empty guard. This is
+the same "skip the member" fizzle shape the mill fix chose (not
+whole-instruction fizzle), keeping every zoned member's move intact.
 
-Decide the fizzle shape per lane (skip the zoneless member vs fizzle the
-whole instruction — the mill fix skips) and cover with a test that moves a
-`SelectAll(Any)` selection. Grep for any further `zone.expect(` siblings
-while in there.
+Covered by `move_group_skips_zoneless_members` (a `MoveGroup` over
+`SelectAll(Any)` that sweeps in a player proxy alongside a battlefield
+creature: the creature still reaches its graveyard, the proxy is untouched, no
+panic). The single-`Move` lane's fix mirrors the gone-object skip already
+sitting one line above it. The only remaining `zone.expect(` sibling
+(`lki.rs`, "a zoned object has a zone to leave") is a different invariant — an
+LKI snapshot taken at a zone change, where the object definitionally has a
+zone — and is intentionally left in place.

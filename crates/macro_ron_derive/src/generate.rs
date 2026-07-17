@@ -314,6 +314,11 @@ fn gen_kind(input: &Input, ty_name: &str) -> TokenStream {
 }
 
 /// One `from_variant` match arm for an own tagged variant.
+// The tuple-arity match arms bind field slots positionally as `a, b, c, d`,
+// mirroring the variant's own field order; renaming them would obscure that
+// correspondence. The 4-field arm plus `v` trips `many_single_char_names` on
+// current clippy (the workspace pins no toolchain), so scope the allow here.
+#[allow(clippy::many_single_char_names)]
 fn from_variant_arm(ty: &Ident, v: &Variant) -> Result<TokenStream> {
     let v_ident = &v.ident;
     let name = v_ident.to_string();

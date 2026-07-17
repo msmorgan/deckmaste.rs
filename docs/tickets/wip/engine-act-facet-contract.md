@@ -1,66 +1,79 @@
 ---
 needs: []
 ---
-Pin down the per-verb facet contract of the `Act` composite lane. The shipped
-dual-facet `Composite(KeywordAction, body)` gives each verb its own implicit
-semantics — destroy/draw make `Act` the pre-commit replaceable moment, while
-mill/scry/surveil/fateseal emit `Act` post-commit — but the shared surfaces
-still advertise ONE uniform contract, and several correctness holes fall out
-of the mismatch (found in the 2026-07-16 post-integration review):
+Pin down the per-verb facet contract of the `Act` composite lane. SHIPPED: the
+dual-facet `Composite { name, body }` now gives each verb its own implicit
+semantics under one honest contract, and the six correctness holes the
+2026-07-16 post-integration review found are closed (item 3 by a surface
+reshape rather than the validator the ticket first sketched; item 6 by the
+`Batch` count channel).
 
-1. **Post-commit verbs are not replaceable, but claim to be.**
-   `replace_registry.rs` `replaceable()` marks every `GameEvent::Act`
-   replaceable, and the `EventFilter::Act` docs (core `event.rs`, engine
-   `event.rs`) call `Act` "both the guardable/replaceable moment and the
-   trigger fact". For mill (batch committed first, `resolve/action.rs`) an
-   authored `Instead(would: Act(Mill(..)), ..)` — the exact shape
-   `Regenerate.ron` uses for destroy — fires after the cards already moved:
-   the `instead` effect runs IN ADDITION to the mill and only the trigger
-   fact is suppressed. Fix: make `replaceable()` verb-aware (pre-commit lanes
-   only) and correct both docs; decide where a mill/scry replacement is
-   supposed to bite (the per-card `ZoneWillChange`s today).
+What landed, item by item:
 
-2. **Degenerate destroy falls into the reorder branch.** When the patient is
-   gone, zoneless, or already in the destination zone, `move_shape` is `None`
-   (`resolve/action.rs` `from != to` gate) and a destroy composite runs its
-   stored `Move` body as a plain UNGUARDED move AND emits `Act(Destroy)`
-   anyway (`composite_body_acts` defaults true for an `Act`-headed body) —
-   spurious graveyard-remint `ZoneChanged` facts plus a shapeless
-   `Act(Destroy)` that `Act(Destroy(Any))` triggers match, for an action that
-   should do nothing [CR#701.8a]. A destroy whose `move_shape` is `None` must
-   fizzle: no body run, no `Act`.
+1. **Post-commit verbs are no longer falsely replaceable.** `Act` carries a
+   `committed: bool` phase marker (the mirror of `ZoneChange`'s
+   `snapshot: Option`); `replace_registry::replaceable()` gates the FUTURE
+   `committed: false` window as the one guardable/replaceable moment and
+   refuses the committed PAST fact — so a mill/scry replacement can no longer
+   fire "in addition" after the cards already moved. `FinalizeAct` records the
+   committed fact observationally, only when the verb's characteristic change
+   actually lands (redirect- and suppression-safe).
 
-3. **No atom↔body coherence gate.** The raw `Composite(atom, body)` spelling
-   is accepted plain-RON grammar and nothing validates the two facets agree
-   (`validate.rs` has no check). `Composite(Mill(You,3), MoveGroup(top-5 …))`
-   mills five while the `Act` fact reports the atom;
-   `Composite(Destroy(x), Move(y, Exile))` commits y→Exile tagged
-   `Cause::destroy` (the cause mapping is move-shape-, not verb-, keyed) — a
-   silent wrong-fact commit instead of a fizzle. Add a load-time validation
-   that the body is the atom's canonical expansion (or derive one facet from
-   the other), and key the cause on the verb.
+2. **Degenerate destroy fizzles.** A composite whose `move_from` is `None`
+   (patient gone, zoneless, or already in the destination) or whose
+   `from == to` returns no work — no body run, no `Act` ([CR#701.8a]).
 
-4. **`Act(Mill)` outlives a fully-suppressed batch.** The aggregate mill
-   `Act` is scheduled once the schedule-time batch is non-empty; if an
-   apply-time cant (e.g. `CantHappen(ZoneChange(from: Library))`) suppresses
-   every per-card move, zero cards move yet the mill fact + "whenever you
-   mill" triggers still fire [CR#614.17]. The act emit needs to be
-   conditioned on the batch actually committing.
+3. **Atom↔body coherence — resolved by reshape, not a validator.** The nested
+   `Act(Verb(..))` effect/pattern spelling was retired: `Action::Composite` is
+   a struct variant `{ name, body }`, and each verb reads its own body facets
+   at dispatch, keying its cause on the verb (not the move shape). Pattern
+   twins are 8 hand-authored bare-verb `filter/` macros (`Destroy(pred)`,
+   `Discard(who, what)`, `Mill/Draw/Scry/Surveil/Fateseal(who)`,
+   `Fight(a, b)`) expanding to the `EventFilter::Act { verb, who, on, cause }`
+   master form. No load-time `Composite` validator was built — the reshape plus
+   the observational `FinalizeAct` (which won't commit a fact the body didn't
+   realize) removes the silent-wrong-fact class without one.
 
-5. **Draw with a non-player `who` leaves phantom facts.** `who: None`
-   resolves gracefully, but the lane still emits N `Act(Draw)` singles that
-   fall through the pure-fact arm in `step.rs` — N trigger-visible "a player
-   drew" facts with no card moved. The lane should fizzle before emitting
-   when `who` is unresolvable.
+4. **`Act(Mill)` no longer outlives a fully-suppressed batch.** Slice verbs
+   ride the `Batch` aggregate (`Batch(Param(0), Act(Composite(..)))`) with
+   per-contained-future replaceability; `BatchActHead.from = Some(Library)`
+   gives Mill a source-scoped `CantHappen(from: Library)` that suppresses the
+   WHOLE aggregate (fact included), while a destination-scoped Instead (Rest in
+   Peace) bites only the per-card contained futures — tested in both directions
+   ([CR#701.17c]).
 
-6. **No count channel for multi-draw/mill replacement.** [CR#121.2a] requires
-   count-level modification of a multi-draw before the individual draws
-   (Alhammarret's Archive; Bruvac for mill), but draw N is decomposed into N
-   `Act(Draw)` at schedule time and `Act`/`KeywordActionPattern` carry no
-   count. Design where "draws twice that many" intercepts — this is a forward
-   gap baked into the current surface, not a regression.
+5. **Draw/mill with an unresolvable `who` fizzles before emitting** — no
+   phantom "a player drew" facts.
 
-The `Composite` variant doc in core `action.rs` ("resolving it runs `body`")
-also mis-describes the destroy/draw lanes — align it with whatever contract
-this ticket settles. Items 1-5 are behavior bugs; 6 is design. All six move
-together because the fix is one contract, not five patches.
+6. **Count channel for multi-draw/mill replacement — present.** Draw/mill are
+   `Batch(Param(0), Act(..))` carrying `batch: Some(n)`, surfaced on the fact
+   as `amount`, so a count-doubling replacement (Bruvac / Alhammarret's
+   Archive) bites the aggregate before any card moves ([CR#121.2a]).
+
+Beyond the six items, this feature also shipped, as one contract:
+
+- **Lane-split matching** — the trigger/history lanes match the finalized
+  name-fact (verb + who/on + cause); the Replacement lane ADDITIONALLY requires
+  the event's realized zone facets to still match the verb's canonical shape (a
+  divergence-only auto-guard sourced from the entailment table), giving stacked
+  madness / Leyline-first its "applies once" behavior with zero authored clause
+  ([CR#616.1,616.1f]).
+- **Madness end-to-end** — `Cast(Reference, Option<Cost>)` alt-cost facet,
+  unified `Delayed`/`Reflexive`, `Madness.ron`, and the full [CR#702.35a]
+  matrix (Megrim under redirect, owner-chosen Leyline/madness order, stacked
+  madness once, declined-cast graveyard move, alt-cost `{1}{R}` payment).
+- **Conferred-ability gathering (Task 10b)** — `derive::derived_abilities_of`
+  folds predicate-scoped `ConferralRule` abilities into the printed list for
+  the replacement gather (all three sweeps) and the trigger scan, so an
+  off-battlefield conferred replacement (Falkenrath Gorger's madness on an
+  in-hand Vampire) is now GATHERED, not just conferred. This shipped as part of
+  this feature.
+- **Canon pair + idris parity** — Falkenrath Gorger and Anje's Ravager
+  authored with render fidelity; `KeywordActionSpec` re-typed entity-keyed and
+  `EventFilter::Act` given its `EventKind` lowering (see `idris-act-parity`).
+
+Residual, tracked elsewhere (not regressions of this contract):
+`engine-act-fight-patient` (the `Fight` fact still carries only the first
+combatant, so a narrowed/second-slot fight pattern can't fire — an open design
+fork); `idris-act-parity` item 1 (a `Composite` draw paired with `ThatMany`
+still fails the idris typecheck — latent until a canon card needs it).

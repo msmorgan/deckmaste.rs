@@ -537,7 +537,7 @@ fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<CoreAction> {
 fn partition_alternative_cost(cost: &deckmaste_core::Cost) -> (ManaCost, Vec<CostComponent>) {
     let mut symbols: Vec<ManaSymbol> = Vec::new();
     let mut verbs: Vec<CostComponent> = Vec::new();
-    for component in cost.iter() {
+    for component in cost {
         match component {
             CostComponent::Mana(m) => symbols.extend(m.iter().copied()),
             CostComponent::Cost(nested) => {
