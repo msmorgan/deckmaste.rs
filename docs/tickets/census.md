@@ -29,7 +29,9 @@ grammar (`core-card-shapes`), extraction, and engine behavior. Slug:
 Per-keyword work = macro body (stub: `plugins/wizards/keyword_abilities/*.todo.ron`;
 authored macros land in `plugins/builtin/macros/keyword/`),
 any engine machinery (right column names the engine ticket it rides on), parser
-coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
+coverage, and graduating its cards. Slug: `kw-<kebab-case>`. Rows tagged
+**[shipped]** are integrated (authored macro + `done/` ticket) — kept here for
+the card-count census, not as open work.
 
 | Keyword | Cards | Machinery |
 |---|---|---|
@@ -64,11 +66,11 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Mutate | 140 | merged permanents (`shape-mutate`) **[design]** |
 | Unearth | 135 | reanimate + exile-at-end replacement |
 | Overload | 104 | alt cost + target→each text change (layer 3) |
-| Fear | 103 | block restriction |
+| Fear | 103 | block restriction **[shipped]** |
 | Cascade | 94 | cast trigger: exile until cheaper, free cast |
 | Infect | 92 | damage as counters/poison (`engine-poison`) |
 | Foretell | 91 | exile face down + later alt cost |
-| Exalted | 90 | attacks-alone trigger; add ExaltedCounter keyword counter once the keyword lands |
+| Exalted | 90 | attacks-alone trigger; add ExaltedCounter keyword counter once the keyword lands **[shipped]** |
 | Storm | 87 | stack copies × cast tally (`engine-copy-spells`) |
 | Hideaway | 87 | ETB exile face down + linked play permission |
 | Exhaust | 85 | once-per-game activation |
@@ -83,8 +85,8 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Ascend | 71 | `engine-citys-blessing` |
 | Dredge | 69 | draw replacement |
 | Saddle | 68 | crew-alike for Mounts |
-| Echo | 67 | upkeep echo cost |
-| Shroud | 66 | target restriction (everyone) |
+| Echo | 67 | upkeep echo cost **[shipped]** |
+| Shroud | 66 | target restriction (everyone) **[shipped]** |
 | Escape | 66 | graveyard alt cost + exile fuel |
 | Companion | 66 | deck constraint + outside-game (`runner-outside-game`) |
 | Toxic | 65 | poison on combat damage |
@@ -100,26 +102,26 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Extort | 56 | cast trigger drain |
 | Exploit | 56 | ETB may-sacrifice + trigger |
 | Compleated | 56 | Phyrexian loyalty payment |
-| Modular | 55 | ETB counters + dies-move-counters |
-| Intimidate | 54 | block restriction |
+| Modular | 55 | ETB counters + dies-move-counters **[shipped]** |
+| Intimidate | 54 | block restriction **[shipped]** |
 | Splice | 52 | add effect text to a spell for a cost |
-| Undying | 51 | dies-return with +1/+1 counter |
+| Undying | 51 | dies-return with +1/+1 counter **[shipped]** |
 | Dash | 51 | alt cost + haste + return at end |
 | Reconfigure | 50 | self attach/unattach |
-| Mentor | 50 | attack trigger counter |
-| Evolve | 50 | bigger-creature-ETB counter |
+| Mentor | 50 | attack trigger counter **[shipped]** |
+| Evolve | 50 | bigger-creature-ETB counter **[shipped]** |
 | Cleave | 50 | alt cost removing clause |
-| Bushido | 49 | blocks/blocked pump |
+| Bushido | 49 | blocks/blocked pump **[shipped]** |
 | Spree | 48 | modal with per-mode costs |
 | Craft | 48 | exile materials + transform return |
 | Vanishing | 47 | time counters + sacrifice |
-| Shadow | 47 | evasion class |
+| Shadow | 47 | evasion class **[shipped]** |
 | Renown | 47 | combat damage → renowned + counters |
 | Prototype | 45 | `shape-prototype` |
 | Embalm | 45 | graveyard exile: token copy |
 | Wither | 43 | damage as −1/−1 counters |
 | Retrace | 43 | recast from graveyard + discard land |
-| Outlast | 43 | tap + counter activated |
+| Outlast | 43 | tap + counter activated **[shipped]** |
 | Gift | 43 | (BLB) extra-cost promise + opponent reward |
 | Umbra armor | 42 | destroy-replacement on enchanted |
 | Fabricate | 42 | ETB choice: counters or tokens |
@@ -127,8 +129,8 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Emerge | 42 | alt cost via sacrifice |
 | Soulbond | 41 | pairing designation |
 | Offspring | 41 | extra cost → 1/1 token copy |
-| Cumulative upkeep | 41 | age counters + growing cost |
-| Graft | 39 | counters migrate on others' ETB |
+| Cumulative upkeep | 41 | age counters + growing cost **[shipped]** |
+| Graft | 39 | counters migrate on others' ETB **[shipped]** |
 | Devour | 39 | ETB sacrifice × counters |
 | Boast | 39 | once-per-turn activation if attacked |
 | Sunburst | 38 | colors-spent memory |
@@ -139,10 +141,10 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Awaken | 36 | alt cost: land animation rider |
 | Escalate | 35 | per-extra-mode cost |
 | Backup | 35 | ETB counters + ability grant |
-| Soulshift | 34 | dies: return Spirit |
+| Soulshift | 34 | dies: return Spirit **[shipped]** |
 | Mayhem | 34 | (FIN) cast from graveyard after discard |
 | Training | 32 | attacks-with-stronger counter |
-| Skulk | 32 | power-based block restriction |
+| Skulk | 32 | power-based block restriction **[shipped]** |
 | Blitz | 32 | alt cost: haste, sacrifice, dies-draw |
 | Spectacle | 31 | alt cost if opponent lost life |
 | Unleash | 30 | counter choice; can't block rider |
@@ -154,7 +156,7 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Jump-start | 27 | flashback + discard |
 | Casualty | 27 | sacrifice → copy |
 | Surge | 26 | alt cost if prior spell this turn |
-| Scavenge | 26 | graveyard exile: counters |
+| Scavenge | 26 | graveyard exile: counters **[shipped]** |
 | Buyback | 26 | extra cost → return to hand on resolution |
 | Riot | 25 | ETB choice: counter or haste |
 | Afflict | 25 | becomes-blocked life loss |
@@ -167,7 +169,7 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 | Cipher | 22 | encode on creature + linked recast |
 | Read Ahead | 21 | saga starting chapter |
 | Freerunning | 21 | conditional alt cost |
-| Reinforce | 20 | discard: counters |
+| Reinforce | 20 | discard: counters **[shipped]** |
 | For Mirrodin! | 20 | ETB token + attach |
 | Enlist | 19 | tap helper to add power |
 | Prowl | 18 | type-conditional alt cost |
@@ -196,21 +198,22 @@ coverage, and graduating its cards. Slug: `kw-<kebab-case>`.
 ## 7. Keyword actions
 
 Mostly macros over engine primitives plus a few dedicated subsystems. Slug:
-`ka-<kebab-case>`.
+`ka-<kebab-case>`. Rows tagged **[shipped]** are integrated (authored macro +
+`done/` ticket) — kept here for the card-count census, not as open work.
 
 | Action | Cards | Machinery |
 |---|---|---|
 | Transform | 1,926 | `engine-transform` |
-| Mill | 1,459 | library→graveyard primitive |
-| Scry | 1,307 | look + reorder/bottom decision |
+| Mill | 1,459 | library→graveyard primitive **[shipped]** |
+| Scry | 1,307 | look + reorder/bottom decision **[shipped]** |
 | Treasure | 789 | predefined token (`engine-tokens`) |
-| Surveil | 455 | scry-to-graveyard |
-| Fight | 373 | mutual damage |
+| Surveil | 455 | scry-to-graveyard **[shipped]** |
+| Fight | 373 | mutual damage **[shipped]** |
 | Double (counters/life/power) | 343 | counter/stat doubling |
-| Investigate | 285 | Clue token |
+| Investigate | 285 | Clue token **[shipped]** |
 | Food | 266 | predefined token |
 | Proliferate | 224 | counter API (`engine-counters-api`) |
-| Amass | 136 | Army token + counters |
+| Amass | 136 | Army token + counters **[shipped]** |
 | Prepared | 128 | `shape-prepare` (TLA) |
 | Manifest / Manifest dread / Cloak | 194 | `engine-face-down` |
 | Explore | 99 | reveal top, counter-or-graveyard choice |
@@ -242,7 +245,7 @@ Mostly macros over engine primitives plus a few dedicated subsystems. Slug:
 | Forage | 14 | exile from graveyard or sacrifice Food |
 | Triple | 12 | counter/stat tripling |
 | Goad | 5 | attack requirement (`engine-combat-requirements`) |
-| Fateseal | 5 | scry an opponent's library |
+| Fateseal | 5 | scry an opponent's library **[shipped]** |
 | Assemble | 3 | — |
 
 ## 8. Ability words
