@@ -3,14 +3,14 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use serde_json::Value;
-use serde_json::json;
+use lsp_types::Location as LspLocation;
 
+use crate::convert;
 use crate::source::Position;
 use crate::source::identifiers;
 use crate::source::position_at;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Location {
     path: PathBuf,
     start: Position,
@@ -18,14 +18,10 @@ pub struct Location {
 }
 
 impl Location {
-    pub fn to_json(&self) -> Value {
-        let uri = format!("file://{}", self.path.to_string_lossy().replace(' ', "%20"));
-        json!({
-            "uri": uri,
-            "range": {
-                "start": { "line": self.start.line, "character": self.start.character },
-                "end": { "line": self.end.line, "character": self.end.character }
-            }
+    pub fn to_lsp(&self) -> Option<LspLocation> {
+        Some(LspLocation {
+            uri: convert::to_uri(&self.path)?,
+            range: convert::to_lsp_range(self.start, self.end),
         })
     }
 }

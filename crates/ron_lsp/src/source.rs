@@ -1,18 +1,7 @@
-use serde_json::Value;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
     pub line: u32,
     pub character: u32,
-}
-
-impl Position {
-    pub fn from_json(value: &Value) -> Option<Self> {
-        Some(Self {
-            line: u32::try_from(value["line"].as_u64()?).ok()?,
-            character: u32::try_from(value["character"].as_u64()?).ok()?,
-        })
-    }
 }
 
 pub fn offset_at(text: &str, position: Position) -> Option<usize> {

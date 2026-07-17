@@ -1,8 +1,9 @@
 //! Lexical binder resolution for deckmaste's `It` anaphor.
 
-use serde_json::Value;
-use serde_json::json;
+use lsp_types::DocumentHighlight;
+use lsp_types::DocumentHighlightKind;
 
+use crate::convert::to_lsp_range;
 use crate::source::Position;
 use crate::source::offset_at;
 use crate::source::position_at;
@@ -41,7 +42,7 @@ struct Binding {
     uses: Vec<Span>,
 }
 
-pub fn document_highlights(text: &str, position: Position) -> Vec<Value> {
+pub fn document_highlights(text: &str, position: Position) -> Vec<DocumentHighlight> {
     let Some(offset) = offset_at(text, position) else {
         return Vec::new();
     };
@@ -53,22 +54,25 @@ pub fn document_highlights(text: &str, position: Position) -> Vec<Value> {
         return Vec::new();
     };
 
-    std::iter::once((binding.source, 3))
-        .chain(binding.uses.iter().copied().map(|span| (span, 2)))
+    std::iter::once((binding.source, DocumentHighlightKind::WRITE))
+        .chain(
+            binding
+                .uses
+                .iter()
+                .copied()
+                .map(|span| (span, DocumentHighlightKind::READ)),
+        )
         .map(|(span, kind)| highlight(text, span, kind))
         .collect()
 }
 
-fn highlight(text: &str, span: Span, kind: u8) -> Value {
+fn highlight(text: &str, span: Span, kind: DocumentHighlightKind) -> DocumentHighlight {
     let start = position_at(text, span.start);
     let end = position_at(text, span.end);
-    json!({
-        "range": {
-            "start": { "line": start.line, "character": start.character },
-            "end": { "line": end.line, "character": end.character }
-        },
-        "kind": kind
-    })
+    DocumentHighlight {
+        range: to_lsp_range(start, end),
+        kind: Some(kind),
+    }
 }
 
 fn bindings(text: &str) -> Vec<Binding> {

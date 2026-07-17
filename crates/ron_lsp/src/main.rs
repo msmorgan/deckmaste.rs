@@ -1,129 +1,195 @@
 mod binding;
+mod convert;
 mod source;
 mod workspace;
 
 use std::collections::HashMap;
-use std::io::BufRead;
-use std::io::Write;
-use std::io::{self};
+use std::error::Error;
+use std::path::Path;
 use std::path::PathBuf;
 
-use serde_json::Value;
-use serde_json::json;
+use lsp_server::Connection;
+use lsp_server::Message;
+use lsp_server::Request;
+use lsp_server::RequestId;
+use lsp_server::Response;
+use lsp_types::DidChangeTextDocumentParams;
+use lsp_types::DidOpenTextDocumentParams;
+use lsp_types::DocumentHighlight;
+use lsp_types::DocumentHighlightParams;
+use lsp_types::GotoDefinitionParams;
+use lsp_types::GotoDefinitionResponse;
+use lsp_types::InitializeParams;
+use lsp_types::OneOf;
+use lsp_types::ServerCapabilities;
+use lsp_types::TextDocumentSyncCapability;
+use lsp_types::TextDocumentSyncKind;
+use lsp_types::Uri;
+use lsp_types::notification::DidChangeTextDocument;
+use lsp_types::notification::DidOpenTextDocument;
+use lsp_types::notification::Notification as _;
+use lsp_types::request::DocumentHighlightRequest;
+use lsp_types::request::GotoDefinition;
+use lsp_types::request::Request as _;
 
 use crate::binding::document_highlights;
-use crate::source::Position;
-use crate::source::word_at;
 use crate::workspace::WorkspaceIndex;
 
-fn main() -> io::Result<()> {
-    Server::default().run()
+/// JSON-RPC "method not found" error code.
+const METHOD_NOT_FOUND: i32 = -32601;
+
+fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
+    eprintln!("deckmaste ron_lsp starting");
+    let (connection, io_threads) = Connection::stdio();
+    let capabilities = serde_json::to_value(server_capabilities())?;
+    let init = connection.initialize(capabilities)?;
+    let params: InitializeParams = serde_json::from_value(init)?;
+
+    let root = workspace_root(&params);
+    let mut server = Server::new(root.as_deref());
+    server.run(&connection)?;
+
+    io_threads.join()?;
+    Ok(())
 }
 
-#[derive(Default)]
+fn server_capabilities() -> ServerCapabilities {
+    ServerCapabilities {
+        text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
+        definition_provider: Some(OneOf::Left(true)),
+        document_highlight_provider: Some(OneOf::Left(true)),
+        ..ServerCapabilities::default()
+    }
+}
+
+#[expect(
+    deprecated,
+    reason = "root_uri is the pre-workspaceFolders fallback the spec still requires"
+)]
+fn workspace_root(params: &InitializeParams) -> Option<PathBuf> {
+    if let Some(folders) = &params.workspace_folders
+        && let Some(first) = folders.first()
+    {
+        return uri_to_path(&first.uri);
+    }
+    params.root_uri.as_ref().and_then(uri_to_path)
+}
+
+fn uri_to_path(uri: &Uri) -> Option<PathBuf> {
+    let path = uri.as_str().strip_prefix("file://")?;
+    Some(PathBuf::from(percent_decode(path)))
+}
+
 struct Server {
     index: Option<WorkspaceIndex>,
-    documents: HashMap<String, String>,
+    documents: HashMap<Uri, String>,
 }
 
 impl Server {
-    fn run(&mut self) -> io::Result<()> {
-        let stdin = io::stdin();
-        let mut input = stdin.lock();
-        let stdout = io::stdout();
-        let mut output = stdout.lock();
+    fn new(root: Option<&Path>) -> Self {
+        Self {
+            index: root.map(WorkspaceIndex::build),
+            documents: HashMap::new(),
+        }
+    }
 
-        while let Some(message) = read_message(&mut input)? {
-            if let Some(response) = self.handle(&message) {
-                write_message(&mut output, &response)?;
+    fn run(&mut self, connection: &Connection) -> Result<(), Box<dyn Error + Sync + Send>> {
+        for message in &connection.receiver {
+            match message {
+                Message::Request(request) => {
+                    if connection.handle_shutdown(&request)? {
+                        return Ok(());
+                    }
+                    if let Some(response) = self.handle_request(request) {
+                        connection.sender.send(Message::Response(response))?;
+                    }
+                }
+                Message::Notification(notification) => self.handle_notification(&notification),
+                Message::Response(_) => {}
             }
         }
         Ok(())
     }
 
-    fn handle(&mut self, message: &Value) -> Option<Value> {
-        let method = message.get("method")?.as_str()?;
-        let id = message.get("id").cloned();
-        let params = message.get("params").unwrap_or(&Value::Null);
-
-        match method {
-            "initialize" => {
-                let root = workspace_root(params);
-                self.index = root.as_ref().map(|path| WorkspaceIndex::build(path));
-                id.map(|id| response(&id, &json!({
-                    "capabilities": {
-                        "definitionProvider": true,
-                        "documentHighlightProvider": true,
-                        "textDocumentSync": 1
-                    },
-                    "serverInfo": { "name": "deckmaste-ron-lsp", "version": env!("CARGO_PKG_VERSION") }
-                })))
+    fn handle_request(&mut self, request: Request) -> Option<Response> {
+        let id = request.id.clone();
+        match request.method.as_str() {
+            GotoDefinition::METHOD => {
+                let (id, params) = cast::<GotoDefinition>(request)?;
+                Some(ok(id, self.definition(&params)))
             }
-            "shutdown" => id.map(|id| response(&id, &Value::Null)),
-            "textDocument/didOpen" => {
-                let doc = &params["textDocument"];
-                if let (Some(uri), Some(text)) = (doc["uri"].as_str(), doc["text"].as_str()) {
-                    self.documents.insert(uri.to_owned(), text.to_owned());
-                }
-                None
+            DocumentHighlightRequest::METHOD => {
+                let (id, params) = cast::<DocumentHighlightRequest>(request)?;
+                Some(ok(id, self.highlights(&params)))
             }
-            "textDocument/didChange" => {
-                let uri = params["textDocument"]["uri"].as_str()?;
-                let text = params["contentChanges"].as_array()?.last()?["text"].as_str()?;
-                self.documents.insert(uri.to_owned(), text.to_owned());
-                None
-            }
-            "textDocument/definition" => id.map(|id| {
-                let result = self.definition(params).unwrap_or(Value::Null);
-                response(&id, &result)
-            }),
-            "textDocument/documentHighlight" => id.map(|id| {
-                let result = self.highlights(params).unwrap_or(Value::Null);
-                response(&id, &result)
-            }),
-            _ => id.map(|id| error(&id, -32601, "method not found")),
+            _ => Some(Response::new_err(
+                id,
+                METHOD_NOT_FOUND,
+                "method not found".to_owned(),
+            )),
         }
     }
 
-    fn definition(&self, params: &Value) -> Option<Value> {
-        let uri = params["textDocument"]["uri"].as_str()?;
-        let text = self.documents.get(uri)?;
-        let position = Position::from_json(&params["position"])?;
-        let name = word_at(text, position)?;
-        let locations = self.index.as_ref()?.definitions(name);
-        Some(Value::Array(
-            locations
-                .iter()
-                .map(crate::workspace::Location::to_json)
-                .collect(),
+    fn handle_notification(&mut self, notification: &lsp_server::Notification) {
+        match notification.method.as_str() {
+            DidOpenTextDocument::METHOD => {
+                if let Ok(params) =
+                    serde_json::from_value::<DidOpenTextDocumentParams>(notification.params.clone())
+                {
+                    self.documents
+                        .insert(params.text_document.uri, params.text_document.text);
+                }
+            }
+            DidChangeTextDocument::METHOD => {
+                if let Ok(params) = serde_json::from_value::<DidChangeTextDocumentParams>(
+                    notification.params.clone(),
+                ) && let Some(change) = params.content_changes.into_iter().last()
+                {
+                    self.documents.insert(params.text_document.uri, change.text);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn definition(&self, params: &GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
+        let pos = &params.text_document_position_params;
+        let text = self.documents.get(&pos.text_document.uri)?;
+        let name = source::word_at(text, convert::src_position(pos.position))?;
+        let locations: Vec<_> = self
+            .index
+            .as_ref()?
+            .definitions(name)
+            .iter()
+            .filter_map(workspace::Location::to_lsp)
+            .collect();
+        (!locations.is_empty()).then_some(GotoDefinitionResponse::Array(locations))
+    }
+
+    fn highlights(&self, params: &DocumentHighlightParams) -> Option<Vec<DocumentHighlight>> {
+        let pos = &params.text_document_position_params;
+        let text = self.documents.get(&pos.text_document.uri)?;
+        Some(document_highlights(
+            text,
+            convert::src_position(pos.position),
         ))
     }
-
-    fn highlights(&self, params: &Value) -> Option<Value> {
-        let uri = params["textDocument"]["uri"].as_str()?;
-        let text = self.documents.get(uri)?;
-        let position = Position::from_json(&params["position"])?;
-        Some(Value::Array(document_highlights(text, position)))
-    }
 }
 
-fn workspace_root(params: &Value) -> Option<PathBuf> {
-    params["workspaceFolders"]
-        .as_array()
-        .and_then(|folders| folders.first())
-        .and_then(|folder| folder["uri"].as_str())
-        .or_else(|| params["rootUri"].as_str())
-        .and_then(file_uri_path)
+fn cast<R>(request: Request) -> Option<(RequestId, R::Params)>
+where
+    R: lsp_types::request::Request,
+{
+    request.extract::<R::Params>(R::METHOD).ok()
 }
 
-fn file_uri_path(uri: &str) -> Option<PathBuf> {
-    let path = uri.strip_prefix("file://")?;
-    Some(PathBuf::from(percent_decode(path)))
+fn ok<T: serde::Serialize>(id: RequestId, result: Option<T>) -> Response {
+    Response::new_ok(id, result)
 }
 
 fn percent_decode(value: &str) -> String {
-    let mut result = Vec::with_capacity(value.len());
     let bytes = value.as_bytes();
+    let mut result = Vec::with_capacity(value.len());
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%'
@@ -140,44 +206,6 @@ fn percent_decode(value: &str) -> String {
     String::from_utf8_lossy(&result).into_owned()
 }
 
-fn response(id: &Value, result: &Value) -> Value {
-    json!({ "jsonrpc": "2.0", "id": id, "result": result })
-}
-
-fn error(id: &Value, code: i32, message: &str) -> Value {
-    json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
-}
-
-fn read_message(input: &mut impl BufRead) -> io::Result<Option<Value>> {
-    let mut content_length = None;
-    loop {
-        let mut header = String::new();
-        if input.read_line(&mut header)? == 0 {
-            return Ok(None);
-        }
-        if header == "\r\n" || header == "\n" {
-            break;
-        }
-        if let Some(value) = header.strip_prefix("Content-Length:") {
-            content_length = value.trim().parse::<usize>().ok();
-        }
-    }
-    let length = content_length
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "missing Content-Length"))?;
-    let mut body = vec![0; length];
-    input.read_exact(&mut body)?;
-    serde_json::from_slice(&body)
-        .map(Some)
-        .map_err(io::Error::other)
-}
-
-fn write_message(output: &mut impl Write, message: &Value) -> io::Result<()> {
-    let body = serde_json::to_vec(message).map_err(io::Error::other)?;
-    write!(output, "Content-Length: {}\r\n\r\n", body.len())?;
-    output.write_all(&body)?;
-    output.flush()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,7 +213,7 @@ mod tests {
     #[test]
     fn decodes_file_uri() {
         assert_eq!(
-            file_uri_path("file:///tmp/a%20b"),
+            uri_to_path(&"file:///tmp/a%20b".parse::<Uri>().unwrap()),
             Some(PathBuf::from("/tmp/a b"))
         );
     }
