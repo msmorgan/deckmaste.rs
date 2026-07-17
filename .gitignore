@@ -7,3 +7,7 @@
 !/plugins/testing/
 !/plugins/demo/
 !/CLAUDE.md
+# The Claude Code RON-LSP plugin is checked in; re-include it despite the
+# machine-global `.claude/*` ignore.
+!/.claude/ron-lsp/
+!/.claude/ron-lsp/**

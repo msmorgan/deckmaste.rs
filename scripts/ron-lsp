@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# deckmaste RON language server over stdio, for Claude Code / editors.
+#
+# Pin the manifest to THIS checkout so a server launched from a jj feature
+# workspace (../NAME) builds and indexes that workspace, not `default`.
+# --quiet keeps cargo's build chatter off stdout; the server logs to stderr,
+# so stdout carries nothing but LSP frames (a stray byte breaks the protocol).
+exec cargo run --quiet -p ron_lsp \
+  --manifest-path "$(dirname "$0")/../Cargo.toml" -- "$@"

@@ -1,0 +1,11 @@
+{
+  "name": "deckmaste-local",
+  "owner": { "name": "deckmaste" },
+  "plugins": [
+    {
+      "name": "ron-lsp",
+      "source": "./",
+      "description": "deckmaste RON language server for *.ron / *.ron.todo card files"
+    }
+  ]
+}
