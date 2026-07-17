@@ -1,7 +1,9 @@
 // "Fight(a, b)" ([CR#701.14a]) — the bare-verb pattern TWIN: "whenever `a`
 // fights `b`". Both combatants are patients: `a` rides the master form's `who`
-// slot and `b` its `on` slot, and the engine binds them to the fact's two
-// patient coordinates (`object`/`patient`) — Fight has no performer. Expands to
+// slot and `b` its `on` slot, bound to the fact's two patient coordinates
+// (`object`/`patient`) — Fight has no performer. NOTE: the emitter currently
+// populates only the FIRST fighter (`patient` stays empty), so a narrowed `b`
+// slot cannot match yet — the open engine-act-fight-patient ticket. Expands to
 // the `Act` master form.
 (
     name: "Fight",

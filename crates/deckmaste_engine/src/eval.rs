@@ -756,8 +756,11 @@ impl GameState {
 
             // [CR#701]: the named keyword action, ONE master form. The verb
             // TAG fixes the name (`fact.act_name`); `who`/`on` narrow the
-            // fact's performer/patient, decomposed per-verb — Fight carries
-            // its two combatants on `object`/`patient` ([CR#701.14a]), every
+            // fact's performer/patient, decomposed per-verb — Fight is MEANT
+            // to carry its two combatants on `object`/`patient`
+            // ([CR#701.14a]), but the emitter today populates only `object`
+            // (first fighter; `patient` stays `None` — the open
+            // engine-act-fight-patient ticket); every
             // other verb rides `actor` (performer) and `object` (its single
             // patient), an `Any` default matching the coordinate a verb leaves
             // empty. `cause` narrows the cause triple.

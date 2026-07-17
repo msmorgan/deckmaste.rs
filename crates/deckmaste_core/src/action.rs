@@ -143,7 +143,7 @@ pub enum Action {
     /// reference that isn't attached.
     Unattach(Reference),
     /// Move the referenced object to a [`Destination`] ([CR#400.7]) — a plain
-    /// zone change (emits `ZoneWillChange`), NOT destruction (so indestructible
+    /// zone change (emits the future-form `ZoneChange`), NOT destruction (so indestructible
     /// does not apply, distinct from [`Action::destroy`]) and NOT a
     /// sacrifice. A graveyard/hand/library destination is the object's
     /// *owner's*; exile is the shared exile zone. The destination is a bare
