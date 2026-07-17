@@ -8,6 +8,8 @@
 !/plugins/demo/
 !/CLAUDE.md
 # The Claude Code RON-LSP plugin is checked in; re-include it despite the
-# machine-global `.claude/*` ignore.
-!/.claude/ron-lsp/
-!/.claude/ron-lsp/**
+# machine-global `.claude/*` ignore. Everything else under .claude/skills/
+# stays ignored (personal, machine-local skills).
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/ron-lsp/

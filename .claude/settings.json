@@ -5,16 +5,9 @@
         "source": "github",
         "repo": "msmorgan/mtg-rules"
       }
-    },
-    "deckmaste-local": {
-      "source": {
-        "source": "directory",
-        "path": "./.claude/ron-lsp"
-      }
     }
   },
   "enabledPlugins": {
-    "mtg-rules@mtg-rules": true,
-    "ron-lsp@deckmaste-local": true
+    "mtg-rules@mtg-rules": true
   }
 }

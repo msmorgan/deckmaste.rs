@@ -1,6 +1,6 @@
 {
   "ron_lsp": {
-    "command": "${CLAUDE_PLUGIN_ROOT}/../../scripts/ron-lsp",
+    "command": "${CLAUDE_PLUGIN_ROOT}/../../../scripts/ron-lsp",
     "transport": "stdio",
     "extensionToLanguage": {
       ".ron": "ron",

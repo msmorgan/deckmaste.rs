@@ -44,12 +44,12 @@ Configure an editor LSP client to launch that command for both `*.ron` and
 `scripts/ron-lsp` launches the server (`cargo run -q -p ron_lsp`, manifest pinned
 to its own checkout so each jj workspace runs its own build; all logs go to
 stderr to keep the stdio protocol clean). A checked-in Claude Code plugin at
-`.claude/ron-lsp/` registers it for `.ron` / `.ron.todo` via `.lsp.json`:
+`.claude/skills/ron-lsp/` registers it for `.ron` / `.ron.todo` via `.lsp.json`:
 
 ```json
 {
   "ron_lsp": {
-    "command": "${CLAUDE_PLUGIN_ROOT}/../../scripts/ron-lsp",
+    "command": "${CLAUDE_PLUGIN_ROOT}/../../../scripts/ron-lsp",
     "transport": "stdio",
     "extensionToLanguage": { ".ron": "ron", ".ron.todo": "ron" },
     "startupTimeout": 60000
@@ -57,15 +57,18 @@ stderr to keep the stdio protocol clean). A checked-in Claude Code plugin at
 }
 ```
 
-The plugin doubles as its own local `directory` marketplace
-(`.claude/ron-lsp/.claude-plugin/marketplace.json`) and is enabled from
-`.claude/settings.json`. The repo `.gitignore` re-includes `.claude/ron-lsp/`
-so the plugin is version-controlled even though `.claude/` is otherwise ignored.
-After first checkout, run
-`cargo build -p ron_lsp` once to warm the build (the wrapper's first launch
-otherwise waits on a debug compile, which `startupTimeout` is sized to cover),
-then use `/plugin` and `/reload-plugins` in a Claude Code session to confirm the
-server registers. Once live, Claude's `LSP` tool drives all of the capabilities
+A plugin directory under the project's `.claude/skills/` is auto-discovered as
+`<name>@skills-dir` once the project is trusted — so this needs **no marketplace
+and no entry in `settings.json`**. (A local `directory` marketplace would work
+too, but its `path` must be absolute, which can't be checked in.) The repo
+`.gitignore` re-includes `.claude/skills/ron-lsp/` so the plugin is
+version-controlled even though `.claude/` is otherwise ignored; anything else
+under `.claude/skills/` stays ignored.
+
+After first checkout, run `cargo build -p ron_lsp` once to warm the build (the
+wrapper's first launch otherwise waits on a debug compile, which
+`startupTimeout` is sized to cover), then `/reload-plugins` and check `/plugin`
+for load errors. Once live, Claude's `LSP` tool drives all of the capabilities
 above — e.g. `workspaceSymbol` with a plugin name lists that plugin's cards.
 
 ## Notes
