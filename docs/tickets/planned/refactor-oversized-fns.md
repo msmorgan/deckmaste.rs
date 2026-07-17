@@ -20,16 +20,24 @@ function drops under the threshold its expectation goes unfulfilled and clippy
 forces the attribute's removal, so these placeholders cannot silently outlive
 the refactor.
 
-- `decide::submit_decision` (~635 lines) — split by decision kind:
-  priority / cast-procedure / combat. The outer `match (pending, decision)` is
-  the dispatch; each arm's body is the candidate to extract into a per-kind
-  handler method.
-- `step::apply` (~400 lines) — split by subsystem: stack / zone-change /
-  player. (The action-driven zone-change collapse — draw / land / discard →
-  `ZoneWillChange` — is already done; that part need not move.)
-- `tui::interactive_loop` (~243 lines) — extract the key-dispatch `match` (and
-  the popup/navigation handling) out of the event loop into a handler that maps
-  a key event to an action, leaving the loop itself short.
+- `decide::submit_decision` (953 lines as of 2026-07-16; ~635 when this ticket
+  was written) — split by decision kind: priority / cast-procedure / combat.
+  The outer `match (pending, decision)` is the dispatch; each arm's body is the
+  candidate to extract into a per-kind handler method. Three arms are full
+  procedures now (ChooseTargets ~134 lines, DeclareBlockers ~128, YesNo ~106).
+- `step::apply` (713 lines as of 2026-07-16; ~400 at writing) — split by
+  subsystem: stack / zone-change / player. Fat arms: DamageDealt ~98,
+  TriggerFired ~94, Copied ~59. (The action-driven zone-change collapse —
+  draw / land / discard → `ZoneWillChange` — is already done; that part need
+  not move.)
+- `tui::interactive_loop` (270 lines as of 2026-07-16; ~243 at writing) —
+  extract the key-dispatch `match` (and the popup/navigation handling) out of
+  the event loop into a handler that maps a key event to an action, leaving the
+  loop itself short.
+
+Re-triaged `maybe/` → `planned/` 2026-07-16: a suppression audit found the two
+engine functions had grown 50–78% past the sizes recorded above while parked —
+the placeholder expects were working as anesthesia, not tracking.
 
 `[design]`: the split boundaries above are a starting proposal, not a settled
 plan — agree the seams (especially for `submit_decision`) before carving, so the
