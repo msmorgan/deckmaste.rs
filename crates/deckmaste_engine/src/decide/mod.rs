@@ -6,7 +6,6 @@ use deckmaste_core::KeywordAbility;
 use deckmaste_core::LockPoint;
 use deckmaste_core::Uint;
 use deckmaste_core::Visibility;
-use rand::RngExt;
 
 use crate::object::ObjectId;
 use crate::player::PlayerId;
@@ -218,10 +217,9 @@ pub enum PendingDecision {
 }
 
 /// One pending-decision kind's answer-validate-and-apply behavior, dispatched
-/// by `submit_decision`'s incremental routing pre-match. Each newtype payload
-/// struct under `pending/` implements this one variant at a time
-/// (refactor-oversized-fns); the legacy `match (pending, decision)` still
-/// handles every not-yet-migrated variant.
+/// by `submit_decision`'s routing match — the whole dispatch, one arm per
+/// `PendingDecision` variant. Each newtype payload struct under `pending/`
+/// implements exactly this one method.
 pub(crate) trait DecisionHandler {
     /// Validate `answer` against this pending decision and apply it. On success
     /// the handler sets `g.pending = None`; on ANY error it leaves `g.pending`
@@ -522,11 +520,6 @@ impl GameState {
     /// Panics if a `ChooseTargets` decision is answered while no announce is in
     /// flight — an engine invariant (the announce slot is open across the
     /// decision), not caller input.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "decomposition by decision kind (priority / cast-procedure / \
-                  combat) tracked in refactor-oversized-fns"
-    )]
     pub fn submit_decision(&mut self, decision: Decision) -> Result<(), DecisionError> {
         let Some(pending) = &self.pending else {
             return Err(DecisionError::NothingPending);
@@ -540,378 +533,38 @@ impl GameState {
             self.concede(player);
             return Ok(());
         }
-        // Incremental migration: variants whose handler exists dispatch here; the rest
-        // fall through to the legacy match below. `decision.clone()` keeps `decision`
-        // available for the legacy match (both removed in Task 1.5 once every variant
-        // is migrated). Decision derives Clone.
-        match self.pending.clone().expect("checked Some above") {
-            PendingDecision::Priority(h) => return h.resolve(self, decision),
-            PendingDecision::ChooseManaColor(h) => return h.resolve(self, decision),
-            PendingDecision::ChooseManaMode(h) => return h.resolve(self, decision),
-            PendingDecision::ChooseTargets(h) => return h.resolve(self, decision),
-            PendingDecision::ChooseNewTargets(h) => return h.resolve(self, decision),
-            PendingDecision::ChooseXValue(h) => return h.resolve(self, decision),
-            PendingDecision::PayMana(h) => return h.resolve(self, decision),
-            PendingDecision::ChooseCostOptions(h) => return h.resolve(self, decision),
-            PendingDecision::ChooseModes(h) => return h.resolve(self, decision),
-            PendingDecision::DeclareAttackers(h) => return h.resolve(self, decision),
-            PendingDecision::DeclareBlockers(h) => return h.resolve(self, decision),
-            PendingDecision::AssignCombatDamage(h) => return h.resolve(self, decision),
-            _ => {}
-        }
-        match (pending, decision) {
-            (
-                PendingDecision::DiscardToHandSize(DiscardToHandSize { player, count })
-                | PendingDecision::DiscardCards(DiscardCards { player, count }),
-                Decision::Discard(objects),
-            ) => {
-                let (player, count) = (*player, *count);
-                self.submit_discards(player, count, objects)
-            }
-            (
-                PendingDecision::OrderTriggers(OrderTriggers { player, triggers }),
-                Decision::Order(order),
-            ) => {
-                let (player, triggers) = (*player, triggers.clone());
-                self.submit_order_triggers(player, &triggers, &order)
-            }
-            (
-                PendingDecision::ChooseObjects(ChooseObjects {
-                    candidates,
-                    min,
-                    max,
-                    ..
-                }),
-                Decision::Chosen(chosen),
-            ) => {
-                // [CR#608.2d]: distinct, all from the offered set, count in range.
-                let chosen_count = Uint::try_from(chosen.len()).expect("chosen count fits Uint");
-                let distinct: HashSet<_> = chosen.iter().copied().collect();
-                let legal = distinct.len() == chosen.len()
-                    && chosen_count >= *min
-                    && chosen_count <= *max
-                    && chosen.iter().all(|id| candidates.contains(id));
-                if !legal {
-                    return Err(DecisionError::Illegal {
-                        reason: "illegal object selection".into(),
-                    });
-                }
-                // All reads of `pending` are done; safe to mutate self.
-                self.pending = None;
-                match self
-                    .choice
-                    .take()
-                    .expect("a ChooseObjects decision stashed its continuation")
-                {
-                    // [CR#608.2d]: the ordinary binder path — bind the picks
-                    // as `chosen` and re-run the choosing effect.
-                    crate::state::ChoiceContinuation::BindChoice { effect, mut frame } => {
-                        frame.anaphora.chosen = Some(chosen);
-                        self.schedule_front(vec![WorkItem::RunEffect { effect, frame }]);
-                    }
-                    // [CR#607.2a,608.2d]: a `ChooseAndNote(_, Objects)` write —
-                    // record the picks into the fact-backed `noted` group under
-                    // `key` (each a live `NotedMember`, mirroring `note_enacted`'s
-                    // shape: LKI snapshot + post-move identity, here the object's
-                    // own live id). No effect re-runs; the resolution continues.
-                    // A pick that has since left play (or is a player proxy) is
-                    // skipped — never a snapshot panic (authoring mistakes never
-                    // crash).
-                    crate::state::ChoiceContinuation::NoteObjects { key } => {
-                        let members: Vec<crate::state::NotedMember> = chosen
-                            .iter()
-                            .filter(|&&id| self.objects.get(id).is_some_and(|o| o.zone.is_some()))
-                            .map(|&id| crate::state::NotedMember {
-                                snapshot: crate::lki::LkiSnapshot::capture(self, id),
-                                now: Some(id),
-                            })
-                            .collect();
-                        self.noted.insert(key, members);
-                    }
-                    other => {
-                        unreachable!(
-                            "a ChooseObjects decision stashes a BindChoice/NoteObjects \
-                             continuation, got {other:?}"
-                        )
-                    }
-                }
-                Ok(())
-            }
-            (
-                PendingDecision::ChooseNoteNumber(ChooseNoteNumber { key, .. }),
-                Decision::XValue(n),
-            ) => {
-                // [CR#608.2c,607.2]: record the chosen number in the
-                // resolution note slot; `Count::Noted(key)` reads it back
-                // within THIS resolution. Any value >= 0 is legal (unbounded,
-                // like the X-announce), so no re-validation gate is needed.
-                // The answer reuses `Decision::XValue` — a chosen non-negative
-                // number — rather than mint a note-only twin.
-                let key = *key;
-                self.pending = None;
-                self.resolution_notes
-                    .insert(key, crate::state::NotedValue::Number(n));
-                Ok(())
-            }
-            (
-                PendingDecision::ChooseNoteCardName(ChooseNoteCardName { key, .. }),
-                Decision::CardName(name),
-            ) => {
-                if name.is_empty() {
-                    return Err(DecisionError::Illegal {
-                        reason: "a card name can't be empty".to_owned(),
-                    });
-                }
-                let key = *key;
-                self.pending = None;
-                self.resolution_notes
-                    .insert(key, crate::state::NotedValue::CardName(name));
-                Ok(())
-            }
-            (PendingDecision::YesNo(YesNo { .. }), Decision::Answer(yes)) => {
-                self.pending = None;
-                let cont = self
-                    .choice
-                    .take()
-                    .expect("a YesNo decision stashed its continuation");
-                match cont {
-                    // [CR#118.12]: `OneShotEffect::May` — yes runs `effect` then
-                    // `if_did`; no runs `if_not` (or nothing). Front-scheduled
-                    // in order so `effect` precedes `if_did`.
-                    crate::state::ChoiceContinuation::May { may, frame } => {
-                        let branch: Vec<Box<deckmaste_core::OneShotEffect>> = if yes {
-                            std::iter::once(may.effect).chain(may.if_did).collect()
-                        } else {
-                            may.if_not.into_iter().collect()
-                        };
-                        let items = branch
-                            .into_iter()
-                            .map(|effect| WorkItem::RunEffect {
-                                effect,
-                                frame: frame.clone(),
-                            })
-                            .collect();
-                        self.schedule_front(items);
-                    }
-                    // [CR#601.2b,702.33d]: "pay this tagged optional cost
-                    // (again)?" — yes records the tag and adds its components
-                    // to the total ([CR#601.2f]); a repeatable row re-offers
-                    // ([CR#702.33c] multikicker), else the walk advances.
-                    crate::state::ChoiceContinuation::OptionalCost {
-                        tag,
-                        components,
-                        repeatable,
-                        index,
-                    } => {
-                        if yes {
-                            let announce = self
-                                .announcing
-                                .as_mut()
-                                .expect("an optional-cost announce in flight");
-                            match announce.paid_costs.iter_mut().find(|(t, _)| *t == tag) {
-                                Some(entry) => entry.1 += 1,
-                                None => announce.paid_costs.push((tag, 1)),
-                            }
-                            announce.optional_components.extend(components);
-                        }
-                        let index = if yes && repeatable { index } else { index + 1 };
-                        self.schedule_front(vec![WorkItem::AnnounceOptionalCosts { index }]);
-                    }
-                    // [CR#118.12a,608.2d]: `OneShotEffect::Unless` — yes pays the cost
-                    // (each component as the payer's action) and `effect` is
-                    // skipped; no runs `effect`.
-                    crate::state::ChoiceContinuation::Unless {
-                        effect,
-                        who,
-                        unless,
-                        frame,
-                    } => {
-                        let items: Vec<WorkItem> = if yes {
-                            let payer = self.acting_player(&who, &frame);
-                            unless
-                                .iter()
-                                .map(|c| toll_item(c, &who, payer, &frame))
-                                .collect()
-                        } else {
-                            vec![WorkItem::RunEffect { effect, frame }]
-                        };
-                        self.schedule_front(items);
-                    }
-                    // [CR#603,608]: `OneShotEffect::MayPay` — yes pays the cost (each
-                    // component as `actor`'s action) THEN runs `and_then`; no
-                    // runs `or_else` (or nothing). Front-scheduled in order so
-                    // the payment precedes `and_then`.
-                    crate::state::ChoiceContinuation::MayPay {
-                        actor,
-                        cost,
-                        and_then,
-                        or_else,
-                        frame,
-                    } => {
-                        let items: Vec<WorkItem> = if yes {
-                            let payer = self.acting_player(&actor, &frame);
-                            cost.iter()
-                                .map(|c| toll_item(c, &actor, payer, &frame))
-                                .chain(std::iter::once(WorkItem::RunEffect {
-                                    effect: and_then,
-                                    frame: frame.clone(),
-                                }))
-                                .collect()
-                        } else {
-                            or_else
-                                .into_iter()
-                                .map(|effect| WorkItem::RunEffect {
-                                    effect,
-                                    frame: frame.clone(),
-                                })
-                                .collect()
-                        };
-                        self.schedule_front(items);
-                    }
-                    other => {
-                        unreachable!("a YesNo decision stashed a non-YesNo continuation: {other:?}")
-                    }
-                }
-                Ok(())
-            }
-            (PendingDecision::CallFlip(CallFlip { .. }), Decision::Answer(call)) => {
-                self.pending = None;
-                let cont = self
-                    .choice
-                    .take()
-                    .expect("a CallFlip decision stashed its continuation");
-                let crate::state::ChoiceContinuation::CallFlip {
-                    player,
-                    remaining,
-                    mut events,
-                } = cont
-                else {
-                    unreachable!(
-                        "a CallFlip decision stashed a non-CallFlip continuation: {cont:?}"
-                    )
-                };
-                // [CR#705.2]: the flipper called; call == result → win.
-                let heads: bool = self.rng.random();
-                events.push(GameEvent::CoinFlipped {
-                    player,
-                    heads,
-                    won: Some(call == heads),
-                });
-                let remaining = remaining - 1;
-                if remaining > 0 {
-                    self.pending = Some(PendingDecision::CallFlip(CallFlip { player }));
-                    self.choice = Some(crate::state::ChoiceContinuation::CallFlip {
-                        player,
-                        remaining,
-                        events,
-                    });
-                } else {
-                    // ONE simultaneous batch, like the uncalled path
-                    // ([CR#603.3b] — the multi-discard precedent).
-                    self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
-                }
-                Ok(())
-            }
-            (
-                PendingDecision::ChooseReplacement(ChooseReplacement { applicable, .. }),
-                Decision::ReplacementChoice(key),
-            ) => {
-                // [CR#616.1]: validate the chosen key is in the offered set.
-                if !applicable.contains(&key) {
-                    return Err(DecisionError::Illegal {
-                        reason: "chosen replacement key not in the applicable set".into(),
-                    });
-                }
-                // Take the suspended replacement state.
-                let rs = self
-                    .replace_state
-                    .take()
-                    .expect("ChooseReplacement requires replace_state");
-                self.pending = None;
-                // Resume the replacement loop from the suspended state.
-                crate::replace_registry::resume_replacements(self, rs, key);
-                Ok(())
-            }
-            (
-                PendingDecision::LegendRule(LegendRule {
-                    player: _,
-                    candidates,
-                }),
-                Decision::Chosen(kept),
-            ) => {
-                // [CR#704.5j]: the player keeps exactly one of the candidate
-                // legendaries; the rest are put into their owners' graveyards
-                // as a move (not a destroy — indestructible does not prevent
-                // this).
-                let kept_one = match kept.as_slice() {
-                    [one] if candidates.contains(one) => *one,
-                    _ => {
-                        return Err(DecisionError::Illegal {
-                            reason: "the legend rule keeps exactly one of the candidates".into(),
-                        });
-                    }
-                };
-                let losers: Vec<GameEvent> = candidates
-                    .iter()
-                    .copied()
-                    .filter(|id| *id != kept_one)
-                    .map(|id| GameEvent::ZoneChange {
-                        snapshot: None,
-                        object: id,
-                        from: Some(Zone::Battlefield),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                        face: None,
-                        cause: None,
-                    })
-                    .collect();
-                self.pending = None;
-                self.schedule_front(vec![
-                    WorkItem::Emit(Occurrence::Batch(losers)),
-                    WorkItem::CheckSbas,
-                ]);
-                Ok(())
-            }
-            (
-                PendingDecision::ArrangePile(ArrangePile { player, .. }),
-                Decision::Arranged(order),
-            ) => {
-                // [CR#401.4]: the order must be a permutation of the offered
-                // pile. Take the walk state, reorder that pile, then surface the
-                // next pending pile (or finish).
-                let arranger = *player;
-                let crate::state::ChoiceContinuation::ArrangePiles { current, remaining } = self
-                    .choice
-                    .take()
-                    .expect("an ArrangePile decision stashed its continuation")
-                else {
-                    unreachable!("an ArrangePile decision stashes an ArrangePiles continuation");
-                };
-                let want: HashSet<ObjectId> = current.objects.iter().copied().collect();
-                let got: HashSet<ObjectId> = order.iter().copied().collect();
-                if order.len() != current.objects.len() || want != got {
-                    // Restore the continuation so the (idempotent) decision can be
-                    // re-answered.
-                    self.choice =
-                        Some(crate::state::ChoiceContinuation::ArrangePiles { current, remaining });
-                    return Err(DecisionError::Illegal {
-                        reason: "an arrangement is a permutation of the offered pile".into(),
-                    });
-                }
-                self.pending = None;
-                self.apply_arranged(&current, &order);
-                self.open_next_arrange(arranger, remaining);
-                Ok(())
-            }
-            (
-                PendingDecision::Division(_)
-                | PendingDecision::Vote(_)
-                | PendingDecision::PreGame(_)
-                | PendingDecision::OrderReplacements(_),
-                _,
-            ) => todo!("P0.W4/W7: submission handling for shell decision kinds"),
-            _ => Err(DecisionError::WrongKind),
+        // The whole dispatch: one arm per `PendingDecision` variant, each
+        // routing to that kind's `DecisionHandler::resolve`. `.clone()` is
+        // needed because `self.pending` can't be moved out of while `self`
+        // is passed to `h.resolve` mutably.
+        match self.pending.clone().expect("checked Some") {
+            PendingDecision::Priority(h) => h.resolve(self, decision),
+            PendingDecision::DiscardToHandSize(h) => h.resolve(self, decision),
+            PendingDecision::DiscardCards(h) => h.resolve(self, decision),
+            PendingDecision::CallFlip(h) => h.resolve(self, decision),
+            PendingDecision::ChooseManaColor(h) => h.resolve(self, decision),
+            PendingDecision::ChooseManaMode(h) => h.resolve(self, decision),
+            PendingDecision::ChooseTargets(h) => h.resolve(self, decision),
+            PendingDecision::ChooseNewTargets(h) => h.resolve(self, decision),
+            PendingDecision::PayMana(h) => h.resolve(self, decision),
+            PendingDecision::OrderTriggers(h) => h.resolve(self, decision),
+            PendingDecision::DeclareAttackers(h) => h.resolve(self, decision),
+            PendingDecision::DeclareBlockers(h) => h.resolve(self, decision),
+            PendingDecision::AssignCombatDamage(h) => h.resolve(self, decision),
+            PendingDecision::ChooseModes(h) => h.resolve(self, decision),
+            PendingDecision::Division(h) => h.resolve(self, decision),
+            PendingDecision::Vote(h) => h.resolve(self, decision),
+            PendingDecision::YesNo(h) => h.resolve(self, decision),
+            PendingDecision::ChooseCostOptions(h) => h.resolve(self, decision),
+            PendingDecision::ChooseXValue(h) => h.resolve(self, decision),
+            PendingDecision::ChooseNoteNumber(h) => h.resolve(self, decision),
+            PendingDecision::ChooseNoteCardName(h) => h.resolve(self, decision),
+            PendingDecision::OrderReplacements(h) => h.resolve(self, decision),
+            PendingDecision::ChooseReplacement(h) => h.resolve(self, decision),
+            PendingDecision::PreGame(h) => h.resolve(self, decision),
+            PendingDecision::ChooseObjects(h) => h.resolve(self, decision),
+            PendingDecision::LegendRule(h) => h.resolve(self, decision),
+            PendingDecision::ArrangePile(h) => h.resolve(self, decision),
         }
     }
 
@@ -1495,6 +1148,54 @@ mod snow_provenance_tests {
             riders.is_empty(),
             "a ceased/absent source contributes no snow provenance (must not \
              panic): {riders:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::decide::pending::Priority;
+    use crate::state::GameConfig;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+
+    fn game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        })
+    }
+
+    /// `submit_decision`'s contract: a REJECTED submission leaves the
+    /// decision OPEN (`self.pending` unchanged), so the runner can re-ask.
+    /// Pins the clone-then-clear-on-success design.
+    #[test]
+    fn rejected_submission_leaves_pending_open() {
+        // Open a Priority pending with a known legal list, then submit an
+        // action that is NOT in it.
+        let mut state = game();
+        let player = PlayerId(0);
+        state.pending = Some(PendingDecision::Priority(Priority {
+            player,
+            legal: vec![Action::Pass],
+        }));
+        let before = state.pending.clone();
+        let result = state.submit_decision(Decision::Act(Action::PlayLand {
+            object: ObjectId::from_raw(9999),
+        }));
+        assert!(result.is_err(), "an illegal action is rejected");
+        assert_eq!(
+            state.pending, before,
+            "the decision stays pending after rejection"
         );
     }
 }
