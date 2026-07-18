@@ -182,6 +182,15 @@ pub(super) fn count(c: &Count) -> String {
             characteristic_word(*axis),
             reference(r, &it_ctx())
         ),
+        // [CR#107.3] "for each" — a plain filtered-object count read as a
+        // bare noun (no "for each" text here; the caller — a pump's own
+        // dedicated clause, `ability::for_each_pump_clause` — supplies
+        // that). Structural fallback for any OTHER position a bare
+        // `CountOf(Objects)` count appears (outside the pump family, which
+        // has its own recognizer for the reason `Count::Aggregate`'s doc
+        // comment above gives — the delta family reads only
+        // `Count::Literal` today).
+        Count::CountOf(Countable::Objects(filter)) => filter_noun(filter),
         // [CR#107.1] the fold over a projection — "the total/greatest/
         // least/average [by] among [of]". A devotion-shaped fold (`SumOf`
         // over permanents you control's matching mana symbols, [CR#700.5])
@@ -536,6 +545,7 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
     // graveyard-scoped filter with no type qualifier) the bare "card" noun.
     let base_noun = find_card_type(filter)
         .map(|t| t.as_str().to_lowercase())
+        .or_else(|| find_bare_subtype_noun(filter))
         .or_else(|| find_macro_noun(filter))
         .or_else(|| is_graveyard_card.then(|| "card".to_string()));
     if let Some(base) = base_noun {
@@ -919,6 +929,27 @@ pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Ident> {
     match strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(*t),
         Predicate::And(vs) => vs.iter().find_map(find_card_type),
+        _ => None,
+    }
+}
+
+/// A bare (non-negated) subtype atom among a filter's `And` parts
+/// ([CR#205.3]), read as the base noun ONLY when [`find_card_type`] found no
+/// card-TYPE atom to key off of — a basic land type doubles as its own noun
+/// with no accompanying `Type(Land)` atom in a "for each" selection filter
+/// ("for each Forest you control", Primal Bellow's `And([Permanent,
+/// Subtype("Forest"), ControlledBy(You)])` — the `Permanent` macro carries no
+/// `Type(_)` atom of its own, [CR#110.1]); the Type-having case (a specific
+/// creature subtype named alongside `Type(Creature)`, "other attacking
+/// Goblin") is unreached here since `find_card_type` already resolved it
+/// first. `None` when the filter carries no bare `Subtype(_)` atom (or only
+/// a negated one — [`subtype_exclusion_prefix`]'s job, not this noun's).
+fn find_bare_subtype_noun(f: &Predicate) -> Option<String> {
+    match strip_expanded(f) {
+        Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
+            Some(name.as_str().to_string())
+        }
+        Predicate::And(vs) => vs.iter().find_map(find_bare_subtype_noun),
         _ => None,
     }
 }

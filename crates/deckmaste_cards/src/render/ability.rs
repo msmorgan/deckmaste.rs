@@ -823,6 +823,7 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
         StaticEffect::Modify(r, change) => {
             if let Some(clause) = doubling_power_clause(r, change, ctx)
                 .or_else(|| axis_sum_pump_clause(r, change, ctx))
+                .or_else(|| for_each_pump_clause(r, change, ctx))
             {
                 return Some(format!("{clause}."));
             }
@@ -1036,6 +1037,94 @@ fn axis_sum_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
     Some(format!(
         "{subj} gets +1/+1 for each supertype, card type, and subtype it has"
     ))
+}
+
+/// "{subj} gets +P/+T for each <noun>" — the plain "for each `<selection>`"
+/// scaled pump family ([CR#107.3] "for each"; Blanchwood Armor, Primal
+/// Bellow, Might of the Masses, Goblin Piledriver's own "+2/+0" coefficient).
+/// Because render flattens a change-bundling macro through `Expanded` before
+/// `modifications_predicate` ever runs (its `pt_delta_clause` piece matches
+/// only `Count::Literal`), this raw structural shape needs its own
+/// recognizer — mirrors [`axis_sum_pump_clause`]'s symmetric-`Several` shape,
+/// with `c = CountOf(Objects(pred))` (coefficient 1) or `Times(Literal(n),
+/// CountOf(Objects(pred)))` (coefficient n). A lone `Power(Up(c))` (no
+/// `Toughness` node at all — the stored `P1P0ForEach`/`P2P0ForEach`/
+/// `P3P0ForEach` macro body shape) reads "+n/+0", never a "the toughness half
+/// is absent" special case.
+///
+/// Looks through only a `Modification::Expanded` wrapper on `change` itself
+/// (mirrors `effect::modification_has_dynamic_pt_delta`'s shallow
+/// look-through) — NOT a deep [`Expand::expand_all`], which would strip the
+/// macro-provenance `Predicate::Expanded` markers `fragment::filter_noun`
+/// reads off the nested selection filter (e.g. the bare `Permanent` macro
+/// atom in Primal Bellow's `And([Permanent, Subtype("Forest"), …])`). `None`
+/// for any other shape.
+fn for_each_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Option<String> {
+    let (p, t, pred) = match strip_modification_expanded(change) {
+        Modification::Several(parts) => {
+            let [
+                Modification::Power(NumericOp::Up(power_delta)),
+                Modification::Toughness(NumericOp::Up(toughness_delta)),
+            ] = parts.as_slice()
+            else {
+                return None;
+            };
+            if power_delta != toughness_delta {
+                return None;
+            }
+            let (coeff, pred) = for_each_magnitude(power_delta)?;
+            (coeff, coeff, pred)
+        }
+        Modification::Power(NumericOp::Up(delta)) => {
+            let (coeff, pred) = for_each_magnitude(delta)?;
+            (coeff, 0, pred)
+        }
+        _ => return None,
+    };
+    let subj = super::fragment::reference(r, ctx);
+    Some(format!(
+        "{subj} gets +{p}/+{t} for each {}",
+        super::fragment::filter_noun(pred)
+    ))
+}
+
+/// Look through a `Modification::Expanded` wrapper — the shallow,
+/// single-layer twin of `effect::modification_has_dynamic_pt_delta`'s own
+/// look-through, kept local since [`for_each_pump_clause`] needs the
+/// reference (not a bool).
+fn strip_modification_expanded(m: &Modification) -> &Modification {
+    match m {
+        Modification::Expanded(exp) => strip_modification_expanded(&exp.value),
+        other => other,
+    }
+}
+
+/// The magnitude half of [`for_each_pump_clause`]'s recognized shape:
+/// `CountOf(Objects(pred))` (coefficient 1) or `Times(Literal(n),
+/// CountOf(Objects(pred)))` (coefficient n, [CR#107.1] "twice X"). Looks
+/// through a `Count::Expanded` wrapper at each position, same shallow
+/// look-through reason as [`strip_modification_expanded`]. `None` for any
+/// other `Count` shape.
+fn for_each_magnitude(c: &Count) -> Option<(i64, &Predicate)> {
+    use deckmaste_core::Countable;
+
+    fn strip_count_expanded(c: &Count) -> &Count {
+        match c {
+            Count::Expanded(exp) => strip_count_expanded(&exp.value),
+            other => other,
+        }
+    }
+
+    match strip_count_expanded(c) {
+        Count::CountOf(Countable::Objects(pred)) => Some((1, pred.as_ref())),
+        Count::Times(a, b) => match (strip_count_expanded(a), strip_count_expanded(b)) {
+            (Count::Literal(n), Count::CountOf(Countable::Objects(pred))) => {
+                Some((i64::from(*n), pred.as_ref()))
+            }
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 // ── Modification predicate builder ──────────────────────────────────────────
@@ -2323,6 +2412,67 @@ mod tests {
                 &ctx
             ),
             ("Whenever", "an opponent casts a creature spell".to_string())
+        );
+    }
+
+    /// The plain "gets +N/+M for each `<selection>`" pump family
+    /// ([CR#107.3] "for each") — the structural render arm for the RAW
+    /// `CountOf(Objects)` shape ([`for_each_pump_clause`]), since render
+    /// flattens a change-bundling macro through `Expanded` before
+    /// `modifications_predicate`'s `pt_delta_clause` piece (which matches
+    /// only `Count::Literal`) ever runs. Covers the symmetric `Several`
+    /// shape (Blanchwood Armor/Primal Bellow/Might of the Masses), the
+    /// power-only lone-`Power` shape (no `Toughness` node — the
+    /// `P1P0ForEach` macro body shape), and the `Times(Literal(n), ..)`
+    /// coefficient shape (Goblin Piledriver's own "+2/+0").
+    #[test]
+    fn for_each_pump_renders_symmetric_power_only_and_coefficient() {
+        use deckmaste_core::Countable;
+
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+            named: None,
+        };
+        let pred = Predicate::And(vec![
+            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+        let count = Count::CountOf(Countable::Objects(Arc::new(pred.clone())));
+
+        let symmetric = StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(count.clone())),
+                Modification::Toughness(NumericOp::Up(count.clone())),
+            ]),
+        );
+        assert_eq!(
+            static_effect(&symmetric, &ctx).as_deref(),
+            Some("Test gets +1/+1 for each creature you control.")
+        );
+
+        let power_only =
+            StaticEffect::Modify(Reference::This, Modification::Power(NumericOp::Up(count)));
+        assert_eq!(
+            static_effect(&power_only, &ctx).as_deref(),
+            Some("Test gets +1/+0 for each creature you control.")
+        );
+
+        let coeff_count = Count::Times(
+            Arc::new(Count::Literal(2)),
+            Arc::new(Count::CountOf(Countable::Objects(Arc::new(pred)))),
+        );
+        let coeff = StaticEffect::Modify(
+            Reference::This,
+            Modification::Power(NumericOp::Up(coeff_count)),
+        );
+        assert_eq!(
+            static_effect(&coeff, &ctx).as_deref(),
+            Some("Test gets +2/+0 for each creature you control.")
         );
     }
 }
