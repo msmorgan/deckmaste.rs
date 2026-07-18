@@ -65,16 +65,20 @@ fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
 /// durational twin ([`crate::parsers::effect`]'s `parse_pump`) already emits.
 /// `where`/`equal to` binders are not a static-pump amount form and decline.
 ///
-/// The change folds to its `Modification`-kind macro invocation
-/// (`PowerAndToughnessUp(N, M)`/`PowerAndToughnessDown(N, M)`) when the reverse
-/// index has a template that renders the WHOLE "gets ±N/±M" phrase — tried
-/// against `pred` as a whole, so a grant-tail combo ("gets +N/+M and have …")
-/// never fully consumes (the tail survives past the template's own "±N/±M"
-/// span) and falls straight through to the core `changes` list, unaffected. A
-/// SCALED delta skips the fold entirely: the literal-count
-/// `PowerAndToughnessUp`/`Down` macro can't carry the per-count multiplier, so
-/// the inline `Several([Power(Up(count)), Toughness(Up(count))])` must stand
-/// (the same rule [`crate::parsers::effect`]'s `pump_change_folded` applies).
+/// The change folds to its `Modification`-kind macro invocation when the
+/// reverse index has a template that renders the WHOLE "gets ±N/±M [for each
+/// <selection>]" phrase — tried against the ORIGINAL, pre-scaler-peel phrase
+/// as a whole (`Predicate`-slot reader added:
+/// [`crate::parsers::effect::modification_slot_reader`]). An unscaled delta
+/// folds to `PowerAndToughnessUp(N, M)`/`PowerAndToughnessDown(N, M)`
+/// via its `Count` slots (unaffected — the literal-pump fold is byte-identical
+/// to before); a SCALED "for each" delta now folds too, to
+/// `P1P1ForEach(<pred>)` et al. (the `Predicate` slot reads the selection noun
+/// via [`crate::parsers::filter::parse_phrase`]) — the same `P·ForEach` stored
+/// form [`crate::parsers::effect`]'s `pump_change_folded` folds to. Either way,
+/// a grant-tail combo ("gets +N/+M and have …") never fully consumes (the tail
+/// survives past the template's own span) and falls straight through to the
+/// core `changes` list, unaffected.
 ///
 /// The subject folds independently to its `Selection`-kind macro invocation
 /// (`OtherCreaturesYouControl`/`CreaturesOpponentControls`) when the raw
@@ -89,7 +93,13 @@ fn parse_pt(subj: &str, pred: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<S
         return Ok(None);
     };
     // Peel an optional trailing "for each <selection>" count scaler; a
-    // `where`/`equal to` binder is not a pump-amount form, so decline.
+    // `where`/`equal to` binder is not a pump-amount form, so decline. `pred`
+    // is shadowed to the pre-scaler head for the `changes` grammar below; the
+    // ORIGINAL full phrase (scaler intact) survives as `full_pred` for the
+    // `Modification`-macro fold below, which matches the WHOLE "gets ±N/±M
+    // [for each <selection>]" phrase against the reverse index — the
+    // `P·ForEach` macros' templates spell "for each ${0}" literally.
+    let full_pred = pred;
     let (pred, scaled) = match count::strip(pred) {
         Some(c) if matches!(c.binder, count::Binder::ForEach) => (c.head, Some(c.count)),
         Some(_) => return Ok(None),
@@ -111,20 +121,20 @@ fn parse_pt(subj: &str, pred: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<S
         };
         changes.extend(kw_changes);
     }
-    // The `Modification`-macro fold applies only to an UNSCALED delta (a scaled
-    // change keeps the inline `Several(...)`, see the doc note above).
-    let change = if scaled.is_some() {
-        modify::changes_to_modification(&changes)
-    } else {
-        let gets = format!("gets {}", pred.trim());
-        match ctx.index.match_with(
-            "Modification",
-            &gets,
-            crate::parsers::effect::count_delim_slot_reader,
-        )? {
-            Some(m) if m.consumed == gets.len() => m.invocation,
-            _ => modify::changes_to_modification(&changes), // core fallback
-        }
+    // The `Modification`-macro fold matches the FULL phrase — an unscaled
+    // delta via the `Count` slots (`PowerAndToughnessUp`/`Down`), a scaled
+    // "for each" delta via the new `Predicate` slot (`P1P1ForEach` et al.),
+    // so a scaled change folds too now; a keyword-grant tail still declines
+    // the fold (the tail survives past the template's own span, failing full
+    // consumption) and keeps the inline `Several(...)`.
+    let gets = format!("gets {}", full_pred.trim());
+    let change = match ctx.index.match_with(
+        "Modification",
+        &gets,
+        crate::parsers::effect::modification_slot_reader,
+    )? {
+        Some(m) if m.consumed == gets.len() => m.invocation,
+        _ => modify::changes_to_modification(&changes), // core fallback
     };
     let subject = subj.trim();
     let target = match ctx.index.match_kind("Selection", subject)? {
@@ -512,6 +522,34 @@ mod tests {
             Some(
                 "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])))))])))"
             )
+        );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
+    fn for_each_pump_folds_to_invocation() {
+        // "Enchanted creature gets +1/+1 for each Forest you control." — the
+        // scaled anthem pump now folds through the reverse index too: the
+        // `P1P1ForEach` macro's template spells "for each ${0}" literally, so
+        // the WHOLE "gets +1/+1 for each <selection>" phrase matches it (via
+        // the new `Predicate` slot reader), same as the literal-count fold —
+        // no more raw `Several(...)`.
+        let ron = stat_with_macros("Enchanted creature gets +1/+1 for each Forest you control.")
+            .expect("parses");
+        assert!(
+            ron.contains("P1P1ForEach("),
+            "expected macro invocation, got: {ron}"
+        );
+        assert!(
+            !ron.contains("Several(["),
+            "should not keep raw Several: {ron}"
+        );
+        assert_eq!(
+            ron,
+            "Static(Modify(AttachHostOf(This), P1P1ForEach(And([Permanent, Subtype(\"Forest\"), ControlledBy(Ref(You))]))))"
         );
     }
 

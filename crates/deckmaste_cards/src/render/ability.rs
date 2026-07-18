@@ -1101,7 +1101,15 @@ fn for_each_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
         }
         _ => return None,
     };
-    let subj = super::fragment::reference(r, ctx);
+    // `modify_subject` (not the plain `reference`): this clause always reads
+    // as a full sentence subject in EITHER position it's used from — the bare
+    // top-level static's own line (Blanchwood Armor's "Enchanted creature
+    // gets …", needing `modify_subject`'s `AttachHostOf(This)` -> "Enchanted
+    // creature" arm `reference` lacks) or a `Continuously`-wrapped one-shot
+    // (Primal Bellow, Goblin Piledriver), whose `duration_qualified` always
+    // `lower_first`s this clause anyway (a "for each" delta is always
+    // `leads`), so the capitalized form costs nothing there.
+    let subj = super::fragment::modify_subject(r, ctx);
     Some(format!(
         "{subj} gets +{p}/+{t} for each {}",
         super::fragment::filter_noun(pred)

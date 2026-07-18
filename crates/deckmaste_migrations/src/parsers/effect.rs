@@ -482,6 +482,35 @@ pub(super) fn count_delim_slot_reader(ty: &str, input: &str) -> Option<(String, 
     Some((n.to_string(), end))
 }
 
+/// The composed `Modification`-macro slot reader: `Count` dispatches to
+/// [`count_delim_slot_reader`] UNCHANGED (the 1,638 literal pumps'
+/// `PowerAndToughnessUp`/`Down` fold keeps its exact bounded-digit behavior);
+/// `Predicate` dispatches to [`modification_predicate_slot`] (the
+/// `P·ForEach` family's selection noun, "Forest you control" et al.) — added
+/// in isolation, mirroring [`crate::parsers::condition::condition_predicate`]'s
+/// `Predicate`-slot handling. `pub(super)`: both this module's own
+/// `pump_change_folded` and [`crate::parsers::static_ability`]'s `parse_pt`
+/// pass it to `TemplateIndex::match_with`.
+pub(super) fn modification_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
+    match ty {
+        "Count" => count_delim_slot_reader(ty, input),
+        "Predicate" => modification_predicate_slot(input),
+        _ => None,
+    }
+}
+
+/// A `Modification`-macro `Predicate` slot's reader (the `P·ForEach` family's
+/// trailing selection noun) — consumes the whole remaining phrase, mirroring
+/// [`crate::parsers::condition::condition_predicate`]'s bare
+/// [`filter::parse_phrase`] read exactly. The macro body itself wraps the
+/// bare predicate in `Objects(...)`/`CountOf(...)` ([`P1P1ForEach`](crate) et
+/// al.), so this reader hands back the bare filter RON unwrapped.
+fn modification_predicate_slot(input: &str) -> Option<(String, usize)> {
+    let phrase = input.trim_end();
+    let pred = filter::parse_phrase(phrase)?;
+    Some((pred, phrase.len()))
+}
+
 /// `<base>. If <condition>, [instead] <override> [instead].` -> a within-effect
 /// conditional: `If(condition: <cond>, then: <override>, otherwise: <base>)`.
 /// This is later text modifying earlier text in one resolving effect
@@ -587,11 +616,12 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect
 /// required — it's what makes this a one-shot continuous effect rather than an
 /// always-on static anthem ([`crate::parsers::static_ability`], which declines
 /// the marker). The ±N/±N + keyword-grant grammar is shared with that anthem
-/// parser via [`modify`]. An unscaled `±N/±N` change folds to its
-/// `PowerAndToughnessUp`/`Down` `Modification` macro via the reverse
-/// `TemplateIndex` (see [`pump_change_folded`]), exactly as
-/// [`crate::parsers::static_ability`]'s `parse_pt` folds the anthem change;
-/// a "for each" scaler or a keyword grant tail keeps the inline core changes.
+/// parser via [`modify`]. A `±N/±N` change folds to its `Modification` macro
+/// via the reverse `TemplateIndex` (see [`pump_change_folded`]), exactly as
+/// [`crate::parsers::static_ability`]'s `parse_pt` folds the anthem change —
+/// unscaled to `PowerAndToughnessUp`/`Down`, a "for each" scaler to
+/// `P1P1ForEach` et al.; a keyword grant tail still keeps the inline core
+/// changes.
 /// Subject: a target ("target creature" -> bare `It` + `TargetOne(<filter>)`),
 /// or a team/self class via the shared subject grammar (a bare `Reference` or a
 /// distributed class filter).
@@ -599,6 +629,14 @@ fn parse_pump(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffec
     let Some(body) = line.strip_suffix('.') else {
         return Ok(None);
     };
+    // A marker-free copy of `body`, kept for the `Modification`-macro fold
+    // below: the durational "until end of turn" marker sits either after the
+    // count clause or between the amount and it (the Piledriver/Rabblemaster
+    // order — see the branch below), so it's removed by CONTENT rather than
+    // position, reconstructing the "gets ±N/±M [for each <selection>]" phrase
+    // the fold matches against (the marker itself is never part of a
+    // `Modification` template — it's the outer `Continuously` duration).
+    let marker_free = body.replace(" until end of turn", "");
     // The required "until end of turn" marker may sit on EITHER side of a "for
     // each" count tail: "gets +1/+1 for each … until end of turn" (marker last)
     // or "gets +2/+0 until end of turn for each …" (marker mid, the
@@ -627,7 +665,7 @@ fn parse_pump(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffec
     let Some(changes) = pump_changes(body, scaled.as_deref()) else {
         return Ok(None);
     };
-    let change = pump_change_folded(body, scaled.as_deref(), &changes, ctx)?;
+    let change = pump_change_folded(&marker_free, &changes, ctx)?;
     let Some(subject) = pump_subject(body) else {
         return Ok(None);
     };
@@ -643,30 +681,34 @@ fn parse_pump(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffec
     }))
 }
 
-/// Fold an unscaled `±N/±N` pump change to its `PowerAndToughnessUp`/`Down`
-/// `Modification` macro via the reverse
+/// Fold a `±N/±N` pump change to its `Modification` macro via the reverse
 /// [`crate::parsers::static_ability`]-style `TemplateIndex` lookup, falling
-/// back to the inline core `changes` otherwise. Two cases decline the fold: a
-/// "for each" scaler (the literal-count macro can't carry the per-count
-/// multiplier, so the scaled inline form must stand) and a keyword grant tail
-/// (`"gets +2/+2 and gain haste"` — the tail leaves the `"gets …"` phrase only
-/// partially matched, failing the full-consumption gate).
+/// back to the inline core `changes` otherwise — mirroring `parse_pt` exactly
+/// (see its doc note): an unscaled delta folds to `PowerAndToughnessUp`/`Down`
+/// via the `Count` slots, a scaled "for each" delta folds to `P1P1ForEach`
+/// et al. via the new `Predicate` slot
+/// ([`modification_slot_reader`]/[`modification_predicate_slot`]).
+/// `marker_free` is `parse_pump`'s marker-stripped-by-content copy of the
+/// body (so the "for each <selection>" clause survives here even though
+/// `parse_pump`'s own `body` has already had it peeled into `scaled`'s RON).
+/// One case still declines the fold: a keyword grant tail (`"gets +2/+2 and
+/// gain haste"` — the tail leaves the `"gets …"` phrase only partially
+/// matched, failing the full-consumption gate).
 fn pump_change_folded(
-    body: &str,
-    scaled: Option<&str>,
+    marker_free: &str,
     changes: &[String],
     ctx: &ResolveCtx,
 ) -> anyhow::Result<String> {
-    let gets = match (scaled, modify::split_marker(body, &[" gets ", " get "])) {
-        (None, Some((_, pred))) => format!("gets {}", pred.trim()),
-        _ => return Ok(modify::changes_to_modification(changes)),
+    let Some((_, pred)) = modify::split_marker(marker_free, &[" gets ", " get "]) else {
+        return Ok(modify::changes_to_modification(changes));
     };
-    // Mirror `parse_pt`: fold only on a FULL-consumption match (a grant tail
-    // leaves the phrase partially matched → keep the inline changes). A same-kind
-    // ambiguous match is a hard generation error (`?`), not a decline.
+    let gets = format!("gets {}", pred.trim());
+    // Fold only on a FULL-consumption match (a grant tail leaves the phrase
+    // partially matched → keep the inline changes). A same-kind ambiguous
+    // match is a hard generation error (`?`), not a decline.
     let change = match ctx
         .index
-        .match_with("Modification", &gets, count_delim_slot_reader)?
+        .match_with("Modification", &gets, modification_slot_reader)?
     {
         Some(m) if m.consumed == gets.len() => m.invocation,
         _ => modify::changes_to_modification(changes),
@@ -2604,15 +2646,16 @@ mod tests {
         );
     }
 
-    /// A "for each" scaler declines the change fold EVEN under the builtin
-    /// index: the literal-count `PowerAndToughnessUp` can't carry the per-count
-    /// multiplier, so the scaled inline `Several(...)` must stand.
+    /// A "for each" scaler now folds under the builtin index too: the
+    /// `P1P1ForEach` macro's template spells "for each ${0}" literally, so
+    /// the WHOLE "gets +1/+1 for each <selection>" phrase matches it via the
+    /// `Predicate` slot reader — no more raw `Several(...)`.
     #[test]
     #[cfg_attr(
         not(scryfall_catalogs),
         ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
     )]
-    fn durational_pump_scaled_declines_change_fold() {
+    fn durational_pump_scaled_folds_to_for_each_macro() {
         assert_eq!(
             parsed_with_macros(
                 "Creatures you control get +1/+1 for each Goblin you control until end of turn."
@@ -2620,8 +2663,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
-                 Toughness(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))]))), \
+                 Modify(It, P1P1ForEach(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
