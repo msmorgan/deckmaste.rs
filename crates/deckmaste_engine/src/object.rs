@@ -198,6 +198,17 @@ pub enum ObjectSource {
     Player(PlayerId),
 }
 
+/// Which face of a double-faced card a battlefield permanent currently shows
+/// ([CR#712.8d,712.8e]). Meaningful only for a `Card::TwoFaced { layout:
+/// Transforming, .. }` on the battlefield; every other object stays `Front`.
+/// Distinct from the morph `status::Face { Up, Down }` — that is face-up vs
+/// face-down ([CR#708]), this is front vs back ([CR#712]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Side {
+    Front,
+    Back,
+}
+
 /// One instance of marked damage on a permanent ([CR#120.3]), tagged with the
 /// source that dealt it and that source's abilities captured *at deal time*.
 /// Provenance is deal-time because damage-source effects — deathtouch most
@@ -261,6 +272,10 @@ pub struct GameObject {
     /// attachment becomes unattached ([CR#701.3d]) — `mint` always sets it
     /// `None`, and a zone change remints a fresh object.
     pub attached_to: Option<ObjectId>,
+    /// The face this permanent currently shows ([CR#712.18]: a transform does
+    /// not remint, so this persists across a flip; a zone change remints and it
+    /// resets to `Front`, [CR#712.14]). Meaningful only on the battlefield.
+    pub side: Side,
     /// `None` for a player proxy.
     pub zone: Option<Zone>,
 }
@@ -368,6 +383,7 @@ impl ObjectStore {
             damage: Vec::new(),
             counters: HashMap::new(),
             attached_to: None,
+            side: Side::Front,
             zone,
         })
     }
@@ -441,5 +457,20 @@ mod tests {
         };
         assert_eq!(face.power, Some(StatValue::Number(1)));
         assert_eq!(face.toughness, Some(StatValue::Number(1)));
+    }
+
+    #[test]
+    fn mint_defaults_side_front() {
+        let mut store = ObjectStore::default();
+        let id = store.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        assert_eq!(
+            store.obj(id).side,
+            Side::Front,
+            "objects enter Front-face-up [CR#712.14]"
+        );
     }
 }
