@@ -1847,8 +1847,10 @@ fn any_graveyard_card_filter(subject: &str) -> Option<String> {
 /// `Or([Type(Instant), Type(Sorcery)])`), or `None` for a bare "card" (no
 /// type qualifier) or an unmodeled phrase. Card-type spelling via
 /// [`filter::type_filter`], so the live matcher reads the printed card type,
-/// not a battlefield-only macro.
-fn graveyard_card_type(subject: &str) -> Option<String> {
+/// not a battlefield-only macro. `pub(super)` so the count parser
+/// ([`crate::parsers::count`]) can reuse it for "for each <type> card in your
+/// graveyard" scalers.
+pub(super) fn graveyard_card_type(subject: &str) -> Option<String> {
     if subject.is_empty() {
         return None;
     }

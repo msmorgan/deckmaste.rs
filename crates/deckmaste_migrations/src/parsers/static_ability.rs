@@ -54,28 +54,55 @@ fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
     Ok(None)
 }
 
-/// "<subject> gets ±N/±M [and have/has/gain/gains <kw…>]." → the always-on P/T
-/// anthem/pump static. The change folds to its `Modification`-kind macro
-/// invocation (`PowerAndToughnessUp(N, M)`/`PowerAndToughnessDown(N, M)`) when
-/// the reverse index has a template that renders the WHOLE "gets ±N/±M"
-/// phrase — tried against `pred` as a whole, so a grant-tail combo ("gets
-/// +N/+M and have …") never fully consumes (the tail survives past the
-/// template's own "±N/±M" span) and falls straight through to the core
-/// `changes` list, unaffected. The subject folds independently to its
-/// `Selection`-kind macro invocation (`OtherCreaturesYouControl`/
-/// `CreaturesOpponentControls`) when the raw English subject exactly matches
-/// a Selection template (plural-collective wording, no singularize/pluralize
-/// normalization); otherwise it falls back to the core
-/// `SelectAll(<filter>)` target. A same-kind ambiguous match from the index is
-/// a hard generation error (`?`), not a decline.
+/// "<subject> gets ±N/±M [for each <selection>] [and have/has/gain/gains
+/// <kw…>]." → the always-on P/T anthem/pump static.
+///
+/// A trailing "for each <selection>" count scaler ([CR#107.3]) lowers to the
+/// SAME `Modify` static with a `CountOf(<selection>)`-scaled magnitude ("~ gets
+/// +1/+1 for each Elf you control." → `Power(Up(CountOf(Objects(<Elf
+/// filter>))))`), peeled here via [`crate::parsers::count`] and lowered by
+/// [`modify::parse_pt_changes_scaled`] — the same `Count`-product form the
+/// durational twin ([`crate::parsers::effect`]'s `parse_pump`) already emits.
+/// `where`/`equal to` binders are not a static-pump amount form and decline.
+///
+/// The change folds to its `Modification`-kind macro invocation
+/// (`PowerAndToughnessUp(N, M)`/`PowerAndToughnessDown(N, M)`) when the reverse
+/// index has a template that renders the WHOLE "gets ±N/±M" phrase — tried
+/// against `pred` as a whole, so a grant-tail combo ("gets +N/+M and have …")
+/// never fully consumes (the tail survives past the template's own "±N/±M"
+/// span) and falls straight through to the core `changes` list, unaffected. A
+/// SCALED delta skips the fold entirely: the literal-count
+/// `PowerAndToughnessUp`/`Down` macro can't carry the per-count multiplier, so
+/// the inline `Several([Power(Up(count)), Toughness(Up(count))])` must stand
+/// (the same rule [`crate::parsers::effect`]'s `pump_change_folded` applies).
+///
+/// The subject folds independently to its `Selection`-kind macro invocation
+/// (`OtherCreaturesYouControl`/`CreaturesOpponentControls`) when the raw
+/// English subject exactly matches a Selection template (plural-collective
+/// wording, no singularize/pluralize normalization); otherwise it falls back to
+/// the core `SelectAll(<filter>)` target. A same-kind ambiguous match from the
+/// index is a hard generation error (`?`), not a decline.
 fn parse_pt(subj: &str, pred: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    use crate::parsers::count;
+
     let Some(filter) = modify::subject_to_filter(subj) else {
         return Ok(None);
+    };
+    // Peel an optional trailing "for each <selection>" count scaler; a
+    // `where`/`equal to` binder is not a pump-amount form, so decline.
+    let (pred, scaled) = match count::strip(pred) {
+        Some(c) if matches!(c.binder, count::Binder::ForEach) => (c.head, Some(c.count)),
+        Some(_) => return Ok(None),
+        None => (pred, None),
     };
     // Optional combo tail: "+N/+M and have/has/gain/gains <kw…>" → the P/T changes
     // followed by one GainAbility per granted keyword.
     let (pt_part, grant_tail) = modify::split_grant_tail(pred);
-    let Some(mut changes) = modify::parse_pt_changes(pt_part.trim()) else {
+    let parsed_pt = match scaled.as_deref() {
+        Some(count) => modify::parse_pt_changes_scaled(pt_part.trim(), count),
+        None => modify::parse_pt_changes(pt_part.trim()),
+    };
+    let Some(mut changes) = parsed_pt else {
         return Ok(None);
     };
     if let Some(tail) = grant_tail {
@@ -84,14 +111,20 @@ fn parse_pt(subj: &str, pred: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<S
         };
         changes.extend(kw_changes);
     }
-    let gets = format!("gets {}", pred.trim());
-    let change = match ctx.index.match_with(
-        "Modification",
-        &gets,
-        crate::parsers::effect::count_delim_slot_reader,
-    )? {
-        Some(m) if m.consumed == gets.len() => m.invocation,
-        _ => modify::changes_to_modification(&changes), // core fallback
+    // The `Modification`-macro fold applies only to an UNSCALED delta (a scaled
+    // change keeps the inline `Several(...)`, see the doc note above).
+    let change = if scaled.is_some() {
+        modify::changes_to_modification(&changes)
+    } else {
+        let gets = format!("gets {}", pred.trim());
+        match ctx.index.match_with(
+            "Modification",
+            &gets,
+            crate::parsers::effect::count_delim_slot_reader,
+        )? {
+            Some(m) if m.consumed == gets.len() => m.invocation,
+            _ => modify::changes_to_modification(&changes), // core fallback
+        }
     };
     let subject = subj.trim();
     let target = match ctx.index.match_kind("Selection", subject)? {
@@ -424,6 +457,73 @@ mod tests {
             .unwrap()
             .is_none()
         );
+    }
+
+    #[test]
+    fn pt_scaled_for_each_type_you_control() {
+        // "~ gets +1/+0 for each artifact you control." — a count-scaled pump
+        // static ([CR#107.3]): the `+1` side scales to the `CountOf`, the `+0`
+        // side stays a bare `0`. A type-noun filter needs no catalog.
+        assert_eq!(
+            stat("~ gets +1/+0 for each artifact you control.").as_deref(),
+            Some(
+                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Type(\"Artifact\"), ControlledBy(Ref(You))]))))), Toughness(Up(0))])))"
+            )
+        );
+    }
+
+    #[test]
+    fn pt_scaled_equipped_creature_subject() {
+        // "Equipped creature gets +1/+1 for each creature you control." — the
+        // conferred subject variant: the scaled `Modify` lands on the attach
+        // host, both P/T sides scaling to the same `CountOf`.
+        assert_eq!(
+            stat("Equipped creature gets +1/+1 for each creature you control.").as_deref(),
+            Some(
+                "Static(Modify(AttachHostOf(This), Several([Power(Up(CountOf(Objects(And([Creature, ControlledBy(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Creature, ControlledBy(Ref(You))])))))])))"
+            )
+        );
+    }
+
+    #[test]
+    fn pt_scaled_for_each_card_in_graveyard() {
+        // "~ gets +1/+1 for each creature card in your graveyard." — a
+        // graveyard-zone count ([CR#400.7]): the selection is a card you own in
+        // your graveyard, spelled with the printed card type (`Type(Creature)`),
+        // not the battlefield-scoped `Creature` macro.
+        assert_eq!(
+            stat("~ gets +1/+1 for each creature card in your graveyard.").as_deref(),
+            Some(
+                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))])))))])))"
+            )
+        );
+    }
+
+    #[test]
+    #[cfg_attr(
+        not(scryfall_catalogs),
+        ignore = "needs data/catalogs (gitignored); catalog-dependent subtype/keyword parse"
+    )]
+    fn pt_scaled_for_each_subtype_you_control() {
+        // The flagship shape: "~ gets +1/+1 for each Elf you control." — a
+        // subtype selection (catalog-gated), both sides scaling to its count.
+        assert_eq!(
+            stat("~ gets +1/+1 for each Elf you control.").as_deref(),
+            Some(
+                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])))))])))"
+            )
+        );
+    }
+
+    #[test]
+    fn pt_scaled_declines_negative_and_where_binder() {
+        // A negative scaled side is meaningless — object counts are non-negative
+        // ([CR#107.1b]) — so a "-N" side declines the whole.
+        assert!(stat("~ gets +1/-1 for each artifact you control.").is_none());
+        // A `where … is the number of` binder is not a static-pump amount form.
+        assert!(stat("~ gets +1/+1, where X is the number of artifacts you control.").is_none());
+        // An unparseable count filter declines rather than graduate a wrong card.
+        assert!(stat("~ gets +1/+1 for each creature wearing a hat.").is_none());
     }
 
     #[test]

@@ -78,10 +78,53 @@ pub(super) fn strip(body: &str) -> Option<CountClause<'_>> {
 /// `<filter phrase>` -> `CountOf(<filter RON>)`, or `None` when the filter
 /// doesn't parse.
 fn count_of(phrase: &str) -> Option<String> {
+    let phrase = phrase.trim();
+    // A graveyard-zone count ("creature card in your graveyard", "card in a
+    // graveyard"): [`filter::parse_phrase`] is battlefield-scoped ([CR#109.2])
+    // and can't reach a graveyard, so route the "… card(s) in your/a graveyard"
+    // shape to the shared graveyard-card filter first ([CR#400.7]).
+    if let Some(filter) = graveyard_count_filter(phrase) {
+        return Some(format!("CountOf(Objects({filter}))"));
+    }
     Some(format!(
         "CountOf(Objects({}))",
-        filter::parse_phrase(phrase.trim())?
+        filter::parse_phrase(phrase)?
     ))
+}
+
+/// "[<type>] card(s) in your graveyard" / "… in a graveyard" -> the graveyard
+/// count filter, mirroring `effect::graveyard_card_filter`'s shape:
+/// `And([<type>, InZone(Graveyard), Owner(Ref(You))])` for "your", dropping the
+/// `Owner` atom for the owner-agnostic "a graveyard". A bare "card" (no type)
+/// drops the type atom, and a lone remaining atom is spliced unwrapped (the
+/// corpus convention of never nesting a singleton in a one-element `And`). The
+/// type spelling reuses [`crate::parsers::effect::graveyard_card_type`]
+/// (`Type("Creature")`, `Or([Type("Instant"), Type("Sorcery")])`); a subtype or
+/// other unmodeled qualifier ("Lesson card", "noncreature, nonland card")
+/// declines here and the whole "for each" clause stays unparsed.
+fn graveyard_count_filter(phrase: &str) -> Option<String> {
+    let (head, owned) = phrase
+        .strip_suffix(" in your graveyard")
+        .map(|h| (h, true))
+        .or_else(|| phrase.strip_suffix(" in a graveyard").map(|h| (h, false)))?;
+    let subject = if head == "card" || head == "cards" {
+        ""
+    } else {
+        head.strip_suffix(" card")
+            .or_else(|| head.strip_suffix(" cards"))?
+    };
+    let mut atoms: Vec<String> = Vec::new();
+    if !subject.is_empty() {
+        atoms.push(crate::parsers::effect::graveyard_card_type(subject)?);
+    }
+    atoms.push("InZone(Graveyard)".to_owned());
+    if owned {
+        atoms.push("Owner(Ref(You))".to_owned());
+    }
+    Some(match atoms.as_slice() {
+        [one] => one.clone(),
+        many => format!("And([{}])", many.join(", ")),
+    })
 }
 
 #[cfg(test)]
