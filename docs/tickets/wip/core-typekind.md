@@ -1,6 +1,30 @@
 ---
 needs: []
 ---
+WON'T-FIX (2026-07-18, decided with the user): keep `TypeDef.permanent: bool`.
+
+Rationale:
+
+- `.permanent` has exactly **one** production reader — `is_permanent_spell`
+  (`crates/deckmaste_engine/src/resolve/mod.rs`), `.any(|t| t.permanent)` —
+  driving a single boolean fork: enter the battlefield vs. resolve-then-graveyard.
+  There is no third resolution mode. A bool is the honest, minimal representation
+  for that fork.
+- The structured `TypeKind`'s only real payoff — capabilities as struct fields
+  (`Permanent{can_attack, can_block, …}`) — is exactly what the conferred
+  `May(…)` grants replaced ([[composite-types-capability-gating]],
+  [[conferrals-sourced-from-ron]]). Reintroducing them as fields creates a second
+  source of truth for combat capability competing with `TypeDef.confers` (folded
+  in `layer.rs fold_conferred_abilities`).
+- Stripped of the capability fields, a two-variant `Spell | Permanent` enum is
+  just nominal typing over a bool with no extensibility actually coming, at the
+  cost of migrating ~40 fixtures + the `Type::permanent()` const-fn mirror +
+  serde/RON authoring. YAGNI — not worth it.
+
+Original framing preserved below for the design history.
+
+---
+
 Design question (2026-07-12, exploratory — may well close as won't-fix):
 should `TypeDef.permanent: bool` become a structured `TypeKind`? Sketch:
 
