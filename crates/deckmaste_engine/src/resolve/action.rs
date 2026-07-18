@@ -12,6 +12,7 @@ use super::occurrence_of;
 use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::event::AbilityCountered;
+use crate::event::Act;
 use crate::event::Attached;
 use crate::event::Cause;
 use crate::event::ControlChanged;
@@ -556,31 +557,33 @@ impl GameState {
                       from: Option<Zone>,
                       to: Option<Zone>,
                       cause: Option<Cause>,
-                      carry: bool| GameEvent::Act {
-            verb: deckmaste_core::VerbName::from(verb),
-            who,
-            on,
-            from,
-            to,
-            cause,
-            committed: false,
-            contents: carry.then(|| {
-                Box::new(crate::event::ActContents {
-                    body: body.clone(),
-                    frame: frame.clone(),
-                })
-            }),
-            // An ordinary keyword-action window is never an aggregate.
-            batch: None,
-            // [CR#614.5]: carry forward whatever lineage `frame` itself
-            // inherited (a passed aggregate `Batch` window's apply builds
-            // ITS contained per-entity futures' frames with
-            // `Anaphora::inherited_replacements` populated) — empty for the
-            // overwhelming majority of ordinary keyword actions.
-            inherited: frame.anaphora.inherited_replacements.clone(),
-            // [CR#616.1g,121.2a]: this window is one of an aggregate's
-            // contained per-entity futures iff `frame` says so.
-            contained: frame.anaphora.contained_in_batch,
+                      carry: bool| {
+            GameEvent::Act(Act {
+                verb: deckmaste_core::VerbName::from(verb),
+                who,
+                on,
+                from,
+                to,
+                cause,
+                committed: false,
+                contents: carry.then(|| {
+                    Box::new(crate::event::ActContents {
+                        body: body.clone(),
+                        frame: frame.clone(),
+                    })
+                }),
+                // An ordinary keyword-action window is never an aggregate.
+                batch: None,
+                // [CR#614.5]: carry forward whatever lineage `frame` itself
+                // inherited (a passed aggregate `Batch` window's apply builds
+                // ITS contained per-entity futures' frames with
+                // `Anaphora::inherited_replacements` populated) — empty for the
+                // overwhelming majority of ordinary keyword actions.
+                inherited: frame.anaphora.inherited_replacements.clone(),
+                // [CR#616.1g,121.2a]: this window is one of an aggregate's
+                // contained per-entity futures iff `frame` says so.
+                contained: frame.anaphora.contained_in_batch,
+            })
         };
         // The move verbs' agent: the resolving source and its controller.
         let agent = Some((frame.source, frame.controller));
@@ -935,6 +938,7 @@ mod tests {
     use crate::PendingDecision;
     use crate::agenda::WorkItem;
     use crate::event::AbilityCountered;
+    use crate::event::Act;
     use crate::event::Attached;
     use crate::event::CounterPlaced;
     use crate::event::DamageDealt;
@@ -1458,7 +1462,9 @@ mod tests {
         let events = drain_events(&mut state, 30);
 
         assert!(
-            !events.iter().any(|e| matches!(e, GameEvent::Act { .. })),
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
             "a degenerate destroy fires no keyword-action fact"
         );
         assert!(
@@ -1468,7 +1474,7 @@ mod tests {
             "a degenerate destroy schedules no zone change"
         );
         assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Act { .. })),
+            !logged(&state, |e| matches!(e, GameEvent::Act(Act { .. }))),
             "no Act(Destroy) fact is recorded"
         );
         assert!(
@@ -1507,7 +1513,7 @@ mod tests {
         assert!(
             !events
                 .iter()
-                .any(|e| matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Mill")),
+                .any(|e| matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Mill")),
             "a fully-suppressed mill fires no Act(Mill) fact"
         );
         assert!(
@@ -1524,7 +1530,7 @@ mod tests {
         assert!(
             !logged(
                 &state,
-                |e| matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Mill")
+                |e| matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Mill")
             ),
             "no Act(Mill) fact is recorded"
         );
@@ -1545,7 +1551,9 @@ mod tests {
         let events = drain_events(&mut state, 30);
 
         assert!(
-            !events.iter().any(|e| matches!(e, GameEvent::Act { .. })),
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
             "an unresolvable draw fires no keyword-action fact"
         );
         assert!(
@@ -1608,7 +1616,7 @@ mod tests {
         assert!(
             !logged(
                 &state,
-                |e| matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Mill")
+                |e| matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Mill")
             ),
             "a replaced mill records no Act(Mill) fact"
         );
@@ -1683,7 +1691,7 @@ mod tests {
         assert!(
             logged(
                 &state,
-                |e| matches!(e, GameEvent::Act { verb, committed: true, .. }
+                |e| matches!(e, GameEvent::Act(Act { verb, committed: true, .. })
                     if verb.as_str() == "Discard")
             ),
             "the Act(Discard) name-fact still records ([CR#701.9c])"
@@ -1713,7 +1721,7 @@ mod tests {
         let act = trace
             .iter()
             .position(|p| matches!(p, Progress::Applied(occ)
-                if occ_has(occ, |e| matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Scry"))))
+                if occ_has(occ, |e| matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"))))
             .expect("the scry fact was recorded");
         assert!(
             act > repos,
@@ -1758,11 +1766,11 @@ mod tests {
         assert_eq!(items.len(), 1);
         assert!(items.iter().all(|item| matches!(
             item,
-            WorkItem::Emit(Occurrence::Single(GameEvent::Act {
+            WorkItem::Emit(Occurrence::Single(GameEvent::Act(Act {
                 who: Some(PlayerId(0)),
                 on: None,
                 ..
-            }))
+            })))
         )));
 
         // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3})
@@ -1826,11 +1834,11 @@ mod tests {
         assert_eq!(items.len(), 1);
         assert!(items.iter().all(|item| matches!(
             item,
-            WorkItem::Emit(Occurrence::Single(GameEvent::Act {
+            WorkItem::Emit(Occurrence::Single(GameEvent::Act(Act {
                 who: Some(PlayerId(1)),
                 on: None,
                 ..
-            }))
+            })))
         )));
     }
 
@@ -2039,7 +2047,7 @@ mod tests {
         let facts: Vec<GameEvent> = state.history.entries().map(|e| e.fact.clone()).collect();
         let act_pos = facts
             .iter()
-            .position(|f| matches!(f, GameEvent::Act { verb, .. } if verb.as_str() == "Mill"))
+            .position(|f| matches!(f, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Mill"))
             .expect("the mill emits its aggregate Act(Mill) fact");
         let last_gy = facts
             .iter()
@@ -2068,11 +2076,9 @@ mod tests {
         );
         run_injected(&mut state);
         assert!(
-            !state
-                .history
-                .entries()
-                .skip(before)
-                .any(|e| matches!(&e.fact, GameEvent::Act { verb, .. } if verb.as_str() == "Mill")),
+            !state.history.entries().skip(before).any(
+                |e| matches!(&e.fact, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Mill")
+            ),
             "an empty-library mill performs no keyword action ([CR#701.17b,701.22b])"
         );
     }
@@ -2175,7 +2181,7 @@ mod tests {
             .history
             .entries()
             .filter(|e| {
-                matches!(&e.fact, crate::event::GameEvent::Act { verb, who, on, .. }
+                matches!(&e.fact, crate::event::GameEvent::Act(Act { verb, who, on, .. })
                     if verb.as_str() == "Discard"
                         && *who == Some(PlayerId(0))
                         && on.is_some_and(|o| picks.contains(&o)))
@@ -2334,7 +2340,7 @@ mod tests {
     /// a "whenever you discard" trigger (Megrim) keys on ([CR#701.9c]).
     fn discarded_fact(state: &GameState, card: ObjectId) -> bool {
         state.history.entries().any(|e| {
-            matches!(&e.fact, GameEvent::Act { verb, on, committed, .. }
+            matches!(&e.fact, GameEvent::Act(Act { verb, on, committed, .. })
                 if verb.as_str() == "Discard" && *on == Some(card) && *committed)
         })
     }
@@ -3291,7 +3297,7 @@ mod tests {
             .history
             .entries()
             .filter(|e| {
-                matches!(&e.fact, crate::event::GameEvent::Act { verb, on, .. }
+                matches!(&e.fact, crate::event::GameEvent::Act(Act { verb, on, .. })
                     if verb.as_str() == "Discard" && *on == Some(card))
             })
             .count();
@@ -3339,7 +3345,7 @@ mod tests {
         );
         assert!(
             !state.history.entries().any(|e| {
-                matches!(&e.fact, crate::event::GameEvent::Act { verb, .. }
+                matches!(&e.fact, crate::event::GameEvent::Act(Act { verb, .. })
                     if verb.as_str() == "Discard")
             }),
             "a canted discard performs no keyword action — no fact, no trigger"
@@ -4761,7 +4767,7 @@ mod tests {
         assert!(
             events.iter().any(|e| matches!(
                 e,
-                GameEvent::Act { verb, .. } if verb.as_str() == "Scry"
+                GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
             )),
             "scry-1 fires the keyword-action event"
         );
@@ -4781,7 +4787,9 @@ mod tests {
         state.run_effect(scry_effect(0), &frame);
         let events = drain_events(&mut state, 60);
         assert!(
-            !events.iter().any(|e| matches!(e, GameEvent::Act { .. })),
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
             "scry 0 emits no keyword event ([CR#701.22b])"
         );
 
@@ -4799,7 +4807,7 @@ mod tests {
             .filter(|e| {
                 matches!(
                     e,
-                    GameEvent::Act { verb, .. } if verb.as_str() == "Scry"
+                    GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
                 )
             })
             .count();
@@ -4867,7 +4875,7 @@ mod tests {
         assert!(
             events.iter().any(|e| matches!(
                 e,
-                GameEvent::Act { verb, .. } if verb.as_str() == "Scry"
+                GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
             )),
             "the keyword event still fires"
         );
@@ -4941,7 +4949,9 @@ mod tests {
             state.pending
         );
         assert!(
-            !events.iter().any(|e| matches!(e, GameEvent::Act { .. })),
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
             "a suppressed composite fires no keyword-action fact"
         );
         assert_eq!(

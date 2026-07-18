@@ -73,6 +73,7 @@ mod event;
 pub use event::AbilityActivated;
 pub use event::AbilityCountered;
 pub use event::AbilityUsed;
+pub use event::Act;
 pub use event::Attached;
 pub use event::Attacking;
 pub use event::Audience;

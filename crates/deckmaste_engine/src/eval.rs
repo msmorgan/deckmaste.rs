@@ -34,6 +34,7 @@ use deckmaste_core::Zone;
 use crate::event::AbilityActivated;
 use crate::event::AbilityCountered;
 use crate::event::AbilityUsed;
+use crate::event::Act;
 use crate::event::Attached;
 use crate::event::Attacking;
 use crate::event::BecameTarget;
@@ -368,7 +369,7 @@ impl<'a> FactView<'a> {
             // slot so `Act(Destroy(pred))` narrows it; `who` (player-report
             // verbs) is the performing player, riding the `actor` slot so
             // `Act(Scry(pred))` narrows it.
-            GameEvent::Act {
+            GameEvent::Act(Act {
                 verb,
                 who,
                 on,
@@ -384,7 +385,7 @@ impl<'a> FactView<'a> {
                 contents: _,
                 inherited: _,
                 contained: _,
-            } => {
+            }) => {
                 v = FactView::bare(FactKind::Act, state);
                 v.act_name = Some(Cow::Borrowed(&verb.0));
                 v.object = on.as_ref().map(|o| part(*o));

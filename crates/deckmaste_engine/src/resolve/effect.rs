@@ -27,6 +27,7 @@ use super::peel_binder;
 use super::peel_effect;
 use super::top_targets;
 use crate::agenda::WorkItem;
+use crate::event::Act;
 use crate::event::Cause;
 use crate::event::DamageDealt;
 use crate::event::GameEvent;
@@ -1141,7 +1142,7 @@ impl GameState {
                 {
                     if let Some(head) = self.batch_act_head(name, composite_body, frame) {
                         let verb = deckmaste_core::VerbName::from(head.verb);
-                        let act = GameEvent::Act {
+                        let act = GameEvent::Act(Act {
                             verb,
                             who: head.who,
                             on: head.on,
@@ -1164,7 +1165,7 @@ impl GameState {
                             // only the n futures ITS PASSED apply schedules
                             // are ([CR#616.1g]).
                             contained: false,
-                        };
+                        });
                         // Only the ONE window is opened here — no
                         // `FinalizeAct` is planted yet. Unlike the move
                         // verbs (whose id-scoped `Patients` watch is safely
@@ -1851,6 +1852,7 @@ mod tests {
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
+    use crate::event::Act;
     use crate::event::ControlChanged;
     use crate::event::DamageDealt;
     use crate::event::GameEvent;
@@ -2447,7 +2449,7 @@ mod tests {
             .history
             .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
             .filter(|e| {
-                matches!(e, GameEvent::Act { verb, committed: true, .. } if verb.as_str() == "Mill")
+                matches!(e, GameEvent::Act(Act { verb, committed: true, .. }) if verb.as_str() == "Mill")
             })
             .count();
         assert_eq!(
@@ -2623,7 +2625,7 @@ mod tests {
             .history
             .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
             .filter(|e| {
-                matches!(e, GameEvent::Act { verb, committed: true, .. } if verb.as_str() == "Mill")
+                matches!(e, GameEvent::Act(Act { verb, committed: true, .. }) if verb.as_str() == "Mill")
             })
             .count();
         assert_eq!(
@@ -3124,7 +3126,7 @@ mod tests {
         assert_eq!(state.objects.obj(a).total_damage(), 2, "a took b's power");
         assert_eq!(state.objects.obj(b).total_damage(), 2, "b took a's power");
         assert!(
-            logged(&state, |e| matches!(e, GameEvent::Act { .. })),
+            logged(&state, |e| matches!(e, GameEvent::Act(Act { .. }))),
             "the fight fired its 'fights' keyword-action fact"
         );
     }
@@ -3152,7 +3154,7 @@ mod tests {
             "neither creature deals damage ([CR#701.14b])"
         );
         assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Act { .. })),
+            !logged(&state, |e| matches!(e, GameEvent::Act(Act { .. }))),
             "no fight occurred, so no 'fights' fact"
         );
         assert_eq!(state.objects.obj(a).total_damage(), 0);

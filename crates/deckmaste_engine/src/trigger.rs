@@ -23,6 +23,7 @@ use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
+use crate::event::Act;
 use crate::event::Attacking;
 use crate::event::BecameTarget;
 use crate::event::Blocked;
@@ -476,7 +477,7 @@ impl GameState {
                 // The FUTURE keyword-action window is not trigger-scanned; its
                 // committed PAST form (`FinalizeAct`) carries the
                 // "whenever you scry/discard/…" trigger fact ([CR#701.22d]).
-                | GameEvent::Act { committed: false, .. } => continue,
+                | GameEvent::Act(Act { committed: false, .. }) => continue,
                 GameEvent::Blocked(Blocked { attacker, .. }) if !blocked_attackers.insert(*attacker) => {
                     continue;
                 }

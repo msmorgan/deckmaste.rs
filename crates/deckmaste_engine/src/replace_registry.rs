@@ -18,6 +18,7 @@ use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
 
 use crate::event::AbilityActivated;
+use crate::event::Act;
 use crate::event::CounterPlaced;
 use crate::event::CounterRemoved;
 use crate::event::DamageDealt;
@@ -63,10 +64,10 @@ pub(crate) fn replaceable(e: &GameEvent) -> bool {
         // (`committed: true`), recorded by `FinalizeAct`, opens NO window (this
         // gate refuses it) so a finalized fact never re-triggers cant/replace —
         // the exact analogue of `ZoneChange`'s `snapshot: None` future gate.
-        GameEvent::Act {
+        GameEvent::Act(Act {
             committed: false,
             ..
-        } | GameEvent::ZoneChange(ZoneChange { snapshot: None, .. })
+        }) | GameEvent::ZoneChange(ZoneChange { snapshot: None, .. })
             | GameEvent::DamageDealt(DamageDealt { .. })
             | GameEvent::LifeGained(LifeGained { .. })
             | GameEvent::LifeLost(LifeLost { .. })
@@ -88,9 +89,9 @@ pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
     match e {
         // `Act(Destroy(x))` (and any object-patient keyword action) affects its
         // `on` object — regeneration's replacement body reads it as `That`.
-        GameEvent::Act {
+        GameEvent::Act(Act {
             on: Some(object), ..
-        }
+        })
         | GameEvent::ZoneChange(ZoneChange { object, .. })
         | GameEvent::CounterPlaced(CounterPlaced { object, .. })
         | GameEvent::CounterRemoved(CounterRemoved { object, .. })
@@ -100,11 +101,11 @@ pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
         // A player-report keyword action (`Act(Draw)`, scry/mill/…) with no
         // patient affects its performer — a draw replacement reads the drawing
         // player ([CR#121.1,616.1]).
-        GameEvent::Act {
+        GameEvent::Act(Act {
             who: Some(player),
             on: None,
             ..
-        }
+        })
         | GameEvent::LifeGained(LifeGained { player, .. })
         | GameEvent::LifeLost(LifeLost { player, .. })
         | GameEvent::GotDesignation(GotDesignation { player, .. }) => {
@@ -361,7 +362,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         // they are NOT applied (and, being unapplied, NOT consumed). Scoped to
         // the destroy intent `Act(Destroy(…))` (the only event regeneration
         // replaces).
-        if matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Destroy")
+        if matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Destroy")
             && state.no_regen_subjects.contains(&inst.subject)
         {
             continue;
@@ -524,7 +525,7 @@ pub(crate) enum ReplaceOutcome {
 /// modified events that may replace that event."
 fn inherited_seed(e: &GameEvent) -> std::collections::HashSet<ReplacementKey> {
     match e {
-        GameEvent::Act { inherited, .. } => inherited.clone(),
+        GameEvent::Act(Act { inherited, .. }) => inherited.clone(),
         _ => std::collections::HashSet::new(),
     }
 }
@@ -619,7 +620,7 @@ fn intent_magnitude(e: &GameEvent) -> Option<deckmaste_core::Uint> {
         // contained per-entity future exists. An ordinary (non-aggregate)
         // `Act` carries no batch magnitude of its own — `None`, like every
         // other non-amount-carrying intent.
-        GameEvent::Act { batch, .. } => *batch,
+        GameEvent::Act(Act { batch, .. }) => *batch,
         _ => None,
     }
 }
@@ -1138,7 +1139,7 @@ mod tests {
             on: Predicate::Ref(Reference::This),
             cause: None,
         };
-        let e = GameEvent::Act {
+        let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
@@ -1150,7 +1151,7 @@ mod tests {
             batch: None,
             inherited: std::collections::HashSet::new(),
             contained: false,
-        };
+        });
         assert!(replacement_watches(&state, &would, id, &e));
     }
 
@@ -1192,7 +1193,7 @@ mod tests {
                 cause: None,
             }),
         );
-        let e = GameEvent::Act {
+        let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
@@ -1204,7 +1205,7 @@ mod tests {
             batch: None,
             inherited: std::collections::HashSet::new(),
             contained: false,
-        };
+        });
         assert!(cant_event(&state, &e));
     }
 
@@ -1227,18 +1228,20 @@ mod tests {
             on: Predicate::Any,
             cause: None,
         };
-        let discard_to = |to: Zone| GameEvent::Act {
-            verb: deckmaste_core::VerbName::from("Discard"),
-            who: None,
-            on: Some(id),
-            from: Some(Zone::Hand),
-            to: Some(to),
-            cause: None,
-            committed: false,
-            contents: None,
-            batch: None,
-            inherited: std::collections::HashSet::new(),
-            contained: false,
+        let discard_to = |to: Zone| {
+            GameEvent::Act(Act {
+                verb: deckmaste_core::VerbName::from("Discard"),
+                who: None,
+                on: Some(id),
+                from: Some(Zone::Hand),
+                to: Some(to),
+                cause: None,
+                committed: false,
+                contents: None,
+                batch: None,
+                inherited: std::collections::HashSet::new(),
+                contained: false,
+            })
         };
         let pristine = discard_to(Zone::Graveyard);
         let redirected = discard_to(Zone::Exile);
@@ -1375,7 +1378,7 @@ mod tests {
             one_shot: true,
             source: id,
         });
-        let e = GameEvent::Act {
+        let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
@@ -1387,7 +1390,7 @@ mod tests {
             batch: None,
             inherited: std::collections::HashSet::new(),
             contained: false,
-        };
+        });
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 2);
     }
@@ -1437,7 +1440,7 @@ mod tests {
             source: subject,
         });
 
-        let e = GameEvent::Act {
+        let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(subject),
@@ -1449,7 +1452,7 @@ mod tests {
             batch: None,
             inherited: std::collections::HashSet::new(),
             contained: false,
-        };
+        });
         let app = gather_applicable(&state, &e);
         assert_eq!(
             app.len(),
@@ -1471,7 +1474,7 @@ mod tests {
             to: Some(Zone::Graveyard),
             cause: None,
         };
-        let destroy = GameEvent::Act {
+        let destroy = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
@@ -1483,8 +1486,8 @@ mod tests {
             batch: None,
             inherited: std::collections::HashSet::new(),
             contained: false,
-        };
-        let scry = GameEvent::Act {
+        });
+        let scry = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Scry"),
             who: Some(crate::player::PlayerId(0)),
             on: None,
@@ -1496,7 +1499,7 @@ mod tests {
             batch: None,
             inherited: std::collections::HashSet::new(),
             contained: false,
-        };
+        });
         assert!(
             replacement_watches(&state, &would, id, &destroy),
             "a →Graveyard would bites the destroy composite's BODY facet"
@@ -1529,7 +1532,7 @@ mod tests {
             one_shot: true,
             source: id,
         });
-        let e = GameEvent::Act {
+        let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
             on: Some(id),
@@ -1541,7 +1544,7 @@ mod tests {
             batch: None,
             inherited: std::collections::HashSet::new(),
             contained: false,
-        };
+        });
         // Without the rider: the shield is gathered.
         assert_eq!(gather_applicable(&state, &e).len(), 1);
         // With the subject in the no-regen set: skipped, and still present.

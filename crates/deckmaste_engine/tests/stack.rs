@@ -18,6 +18,7 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
+use deckmaste_engine::Act;
 use deckmaste_engine::Action;
 use deckmaste_engine::BecameTarget;
 use deckmaste_engine::Copied;
@@ -2143,7 +2144,7 @@ fn occurrence_batch_and_apnap_ordering() {
                 if let Progress::Applied(Occurrence::Batch(events)) = p {
                     let destroys = events
                         .iter()
-                        .filter(|e| matches!(e, GameEvent::Act { verb, .. } if verb.as_str() == "Destroy"))
+                        .filter(|e| matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Destroy"))
                         .count();
                     if destroys >= 3 {
                         saw_sba_destroy_batch = true;

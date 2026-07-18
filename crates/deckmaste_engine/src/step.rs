@@ -19,6 +19,7 @@ use crate::decide::PendingDecision;
 use crate::event::AbilityActivated;
 use crate::event::AbilityCountered;
 use crate::event::AbilityUsed;
+use crate::event::Act;
 use crate::event::Attached;
 use crate::event::Attacking;
 use crate::event::BecameTarget;
@@ -930,7 +931,7 @@ impl GameState {
             // characteristic change committed. A REPLACED or CANTED window never
             // reaches here. The committed PAST fact (`committed: true`, emitted
             // by `FinalizeAct`) applies as a pure record (arm below).
-            GameEvent::Act {
+            GameEvent::Act(Act {
                 verb,
                 who,
                 on,
@@ -942,25 +943,27 @@ impl GameState {
                 batch,
                 inherited,
                 contained,
-            } => {
+            }) => {
                 // The future window, stripped of resolution plumbing — reused
                 // as the record the paired `FinalizeAct` commits, and as this
                 // apply's inert (skipped) return value. `contained` passes
                 // through UNCHANGED — `finalize_act` reads it off `act` to
                 // decide whether this window's eventual commit is
                 // trigger-visible ([CR#616.1g]).
-                let rebuilt = || GameEvent::Act {
-                    verb,
-                    who,
-                    on,
-                    from,
-                    to,
-                    cause: cause.clone(),
-                    committed: false,
-                    contents: None,
-                    batch,
-                    inherited: std::collections::HashSet::new(),
-                    contained,
+                let rebuilt = || {
+                    GameEvent::Act(Act {
+                        verb,
+                        who,
+                        on,
+                        from,
+                        to,
+                        cause: cause.clone(),
+                        committed: false,
+                        contents: None,
+                        batch,
+                        inherited: std::collections::HashSet::new(),
+                        contained,
+                    })
                 };
                 if let Some(n) = batch {
                     // [CR#616.1g,121.2a]: a PASSED aggregate `Batch` window —
@@ -1204,9 +1207,9 @@ impl GameState {
             }
             // The committed PAST keyword-action fact — a pure record (its
             // characteristic change already committed); apply mutates nothing.
-            GameEvent::Act {
+            GameEvent::Act(Act {
                 committed: true, ..
-            } => event,
+            }) => event,
             GameEvent::DesignationChanged(DesignationChanged { .. }) => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
             }
@@ -1728,14 +1731,14 @@ impl GameState {
         // ONE ACT-level ("whenever you Verb") commit for the whole batch.
         let contained = matches!(
             act,
-            GameEvent::Act {
+            GameEvent::Act(Act {
                 contained: true,
                 ..
-            }
+            })
         );
         if committed && !contained {
             let done = match act {
-                GameEvent::Act {
+                GameEvent::Act(Act {
                     verb,
                     who,
                     on,
@@ -1743,7 +1746,7 @@ impl GameState {
                     to,
                     cause,
                     ..
-                } => GameEvent::Act {
+                }) => GameEvent::Act(Act {
                     verb,
                     who,
                     on,
@@ -1755,7 +1758,7 @@ impl GameState {
                     batch: None,
                     inherited: std::collections::HashSet::new(),
                     contained: false,
-                },
+                }),
                 other => other,
             };
             self.schedule_front(vec![WorkItem::Emit(Occurrence::single(done))]);
@@ -1864,7 +1867,7 @@ impl GameState {
                 // committed PAST form (recorded by `FinalizeAct`) is what
                 // history/triggers read ([CR#603.6]); recording the future too
                 // would double-count every keyword-action query.
-                | GameEvent::Act { committed: false, .. } => {}
+                | GameEvent::Act(Act { committed: false, .. }) => {}
                 _ => {
                     self.note_enacted(event);
                     // [CR#603.12]: the resolution-scoped window a reflexive
@@ -2089,7 +2092,7 @@ impl GameState {
                 // `Act(Draw)` keyword action as an effect draw — the active
                 // player draws one card (`on: None`, the drawn card binds at
                 // apply). A turn-based action has no source object.
-                vec![WorkItem::Emit(Occurrence::single(GameEvent::Act {
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::Act(Act {
                     verb: deckmaste_core::VerbName::from("Draw"),
                     who: Some(self.turn.active_player),
                     on: None,
@@ -2108,7 +2111,7 @@ impl GameState {
                     batch: None,
                     inherited: std::collections::HashSet::new(),
                     contained: false,
-                }))]
+                })))]
             }
             PhaseStep::Beginning(BeginningStep::Draw) => vec![],
             // [CR#508.1]: the active player declares attackers — surface the
@@ -3034,6 +3037,7 @@ mod tests {
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
+    use crate::event::Act;
     use crate::event::Copied;
     use crate::event::CounterPlaced;
     use crate::event::GameEvent;
@@ -3209,21 +3213,23 @@ mod tests {
         let (mut state, _view, a) = crate::replace_registry::tests_support::lone_creature();
         let b = crate::replace_registry::tests_support::mint_creature_on_battlefield(&mut state);
 
-        let destroy = |object| GameEvent::Act {
-            verb: deckmaste_core::VerbName::from("Destroy"),
-            who: None,
-            on: Some(object),
-            from: Some(Zone::Battlefield),
-            to: Some(Zone::Graveyard),
-            cause: Some(crate::event::Cause::destroy(
-                deckmaste_core::Agency::EffectInstruction,
-                None,
-            )),
-            committed: false,
-            contents: None,
-            batch: None,
-            inherited: std::collections::HashSet::new(),
-            contained: false,
+        let destroy = |object| {
+            GameEvent::Act(Act {
+                verb: deckmaste_core::VerbName::from("Destroy"),
+                who: None,
+                on: Some(object),
+                from: Some(Zone::Battlefield),
+                to: Some(Zone::Graveyard),
+                cause: Some(crate::event::Cause::destroy(
+                    deckmaste_core::Agency::EffectInstruction,
+                    None,
+                )),
+                committed: false,
+                contents: None,
+                batch: None,
+                inherited: std::collections::HashSet::new(),
+                contained: false,
+            })
         };
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
             destroy(a),

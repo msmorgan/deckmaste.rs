@@ -501,6 +501,7 @@ use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::derive;
 use crate::event::AbilityActivated;
+use crate::event::Act;
 use crate::event::Cause;
 use crate::event::DamageDealt;
 use crate::event::GameEvent;
@@ -634,28 +635,30 @@ impl GameState {
         }
         let acts: Vec<GameEvent> = objects
             .into_iter()
-            .map(|object| GameEvent::Act {
-                verb: deckmaste_core::VerbName::from("Discard"),
-                who: Some(player),
-                on: Some(object),
-                from: Some(Zone::Hand),
-                to: Some(Zone::Graveyard),
-                cause: Some(Cause::discard(Agency::EffectInstruction, None)),
-                // Each per-card discard is a FUTURE window ([CR#616.1]) whose
-                // apply commits the single Hand → Graveyard move; a bound
-                // single move needs no `contents`.
-                committed: false,
-                contents: None,
-                batch: None,
-                inherited: std::collections::HashSet::new(),
-                contained: false,
+            .map(|object| {
+                GameEvent::Act(Act {
+                    verb: deckmaste_core::VerbName::from("Discard"),
+                    who: Some(player),
+                    on: Some(object),
+                    from: Some(Zone::Hand),
+                    to: Some(Zone::Graveyard),
+                    cause: Some(Cause::discard(Agency::EffectInstruction, None)),
+                    // Each per-card discard is a FUTURE window ([CR#616.1]) whose
+                    // apply commits the single Hand → Graveyard move; a bound
+                    // single move needs no `contents`.
+                    committed: false,
+                    contents: None,
+                    batch: None,
+                    inherited: std::collections::HashSet::new(),
+                    contained: false,
+                })
             })
             .collect();
         let mark = self.resolution_events.len();
         let mut items = Vec::with_capacity(acts.len() + 1);
         items.push(WorkItem::Emit(Occurrence::Batch(acts.clone())));
         for act in acts {
-            if let GameEvent::Act { on: Some(on), .. } = act {
+            if let GameEvent::Act(Act { on: Some(on), .. }) = act {
                 items.push(WorkItem::FinalizeAct {
                     act,
                     watch: FinalizeWatch::Patients(vec![on]),

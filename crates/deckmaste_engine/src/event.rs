@@ -496,6 +496,117 @@ pub struct DamageRemoved {
     pub object: ObjectId,
 }
 
+/// A NAMED keyword action ([CR#701]) — the ONE present-tense event that
+/// serves both roles: the guardable/replaceable moment AND the "it
+/// happened" fact. `verb` is the printed keyword name-atom
+/// (`Scry`/`Destroy`/…, the retired-`CauseVerb` [`VerbName`] namespace);
+/// `who` is the RESOLVED performing player for the player-report verbs
+/// (scry/surveil/fateseal/mill/draw) — the actor "whenever an opponent
+/// draws" reads; `on` is the RESOLVED patient object for the object verbs
+/// (destroy/fight). At most one of `who`/`on` is set for today's atoms.
+/// Matched by the [`EventFilter::Act`](deckmaste_core::EventFilter::Act)
+/// master form (verb + who/on/cause) on BOTH
+/// lanes: a `Cant(Destroy(…))` static ([CR#702.12b]) suppresses the whole
+/// action so its body never runs ([CR#701.22b]), while a surviving `Act` in
+/// the log is the "whenever you scry/surveil/…" trigger fact
+/// ([CR#701.22d]) — no separate post-fact. RESULT-side
+/// "destroyed"/"milled"/"drawn" triggers still key on the body's past-form
+/// `ZoneChange`/`Drawn` fact ([CR#700.4]). A move-verb (`Act(Destroy)`)
+/// carries its body facet in `from`/`to` and COMMITS that move directly on
+/// apply — ONE dual-facet event through cant→replace→apply, never a second
+/// replaceable future-form `ZoneChange` below it ([CR#616.1]); the reorder
+/// verbs (scry/surveil/fateseal) run their body ahead of a `None`-shape
+/// post-fact.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Act {
+    pub verb: deckmaste_core::VerbName,
+    pub who: Option<PlayerId>,
+    pub on: Option<ObjectId>,
+    /// The BODY facet ([CR#603.6]) — the composite's canonical realized
+    /// zone-change, derived from the stored `Move` body BEFORE it runs
+    /// (`Destroy(x)` → `from: Battlefield, to: Graveyard`). A move-verb
+    /// carries `Some`; the apply COMMITS this move directly (atomic — no
+    /// separate replaceable future-form `ZoneChange` below it). A reorder
+    /// verb (scry/surveil/fateseal) reorders WITHIN a zone and
+    /// carries `None`, so a `ZoneChange(→Graveyard)` query never
+    /// matches it. Paired with the tag facet (`verb`/`on`/`who`) so
+    /// ONE event is matchable on both ([CR#616.1]).
+    pub from: Option<Zone>,
+    pub to: Option<Zone>,
+    /// The causal context this keyword action rides ([CR#701.8b]) — its
+    /// `agency`/`agent`, used to tag the committed move the move-verb apply
+    /// performs ([CR#701.8a]). `verb` duplicates the atom's name; a `None`
+    /// cause is a keyword action with no cause-tagged move
+    /// (scry/surveil reorder within a zone).
+    pub cause: Option<Cause>,
+    /// The phase marker ([CR#616.1], mirroring `ZoneChange`'s `snapshot`
+    /// law): `false` = the FUTURE, replaceable window — the ONE cant →
+    /// replace moment for every description of this keyword action; `true`
+    /// = the committed, trigger-visible PAST fact, recorded by
+    /// `FinalizeAct` only once the verb's characteristic change actually
+    /// committed. `replaceable()` gates on `committed: false`;
+    /// `record_history`/`scan_triggers` skip it; a committed `Act` opens no
+    /// window.
+    pub committed: bool,
+    /// The keyword action's unresolved CONTENTS + resolution context —
+    /// carried ONLY on the future form of a verb whose apply must unwrap a
+    /// body it cannot reconstruct from the flat coordinates: mill's
+    /// top-slice group derivation ([CR#701.17a]) and the scry family's
+    /// arrange `RunEffect` ([CR#701.22a]). `None` for the single-move verbs
+    /// (destroy/discard commit `on`/`from`/`to` directly) and draw (its
+    /// apply late-binds the library top), and always `None` once committed
+    /// (the recorded fact carries no resolution context — it never enters
+    /// `FactView`). Also carried by the [`OneShotEffect::Batch`]
+    /// aggregate window (`batch: Some(n)` below): `body` there is the
+    /// stored PER-UNIT keyword action, replicated `n` times once the
+    /// window passes.
+    pub contents: Option<Box<ActContents>>,
+    /// [CR#616.1g,121.2a]: `Some(n)` on the ONE aggregate window a
+    /// `Batch(n, keyword-action)` resolve builds
+    /// ([`OneShotEffect::Batch`]), carrying the batch cardinality
+    /// so a count-multiplying replacement (Bruvac-style "mill twice
+    /// as many") can read/ rewrite it via `Count::ThatMany`
+    /// (`intent_magnitude`'s batch arm, [CR#107.3]) BEFORE any of
+    /// the n contained per-entity futures exists ([CR#616.1g]: the
+    /// outer effect is chosen before the inner one). `None` for
+    /// every ordinary (non-aggregate) keyword-action
+    /// window — including each of the n per-entity futures a PASSED
+    /// aggregate's apply schedules, which are ordinary windows in their
+    /// own right.
+    pub batch: Option<Uint>,
+    /// [CR#614.5]: the replacement lineage this window's OWN
+    /// `replace_event` loop starts pre-applied with — "a replacement
+    /// effect doesn't invoke itself repeatedly; it gets only one
+    /// opportunity to affect an event OR ANY MODIFIED EVENTS THAT MAY
+    /// REPLACE THAT EVENT." Populated by `schedule_body` (an `Instead`/
+    /// `Also` body that re-emits an event of the SAME shape its own
+    /// replacement watches must not be caught by it again) and by a
+    /// PASSED aggregate `Batch` window's apply (the aggregate's own
+    /// inherited-plus-applied set rides into each of the n contained
+    /// per-entity futures it schedules, so THEY aren't re-caught either
+    /// — the Archive Trap shape: "draw 2" instead of an infinite
+    /// "draw 2, which becomes draw 2, which becomes …"). Empty for the
+    /// overwhelming majority of keyword-action windows; always empty
+    /// once `committed` (resolution plumbing, dropped like `contents`).
+    pub inherited: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
+    /// [CR#616.1g,121.2a]: `true` on each of the `n` per-entity futures a
+    /// PASSED aggregate `Batch` window's apply schedules — never on the
+    /// aggregate itself. A "whenever you Verb" ACT-level trigger
+    /// ([CR#701.22d]'s "fires after the process is complete" timing,
+    /// e.g. "whenever you mill one or more cards") reads the
+    /// count-tier's `Batch` as ONE instruction, so `finalize_act`
+    /// suppresses a `contained` window's own committed-fact emission
+    /// (the aggregate's own `FinalizeAct{AnyContained}` is the ONE
+    /// trigger-visible commit for the whole batch). This does NOT touch
+    /// the underlying `ZoneChange`/`Drawn` fact each contained future's
+    /// apply still commits directly — a RESULT-side "whenever a card is
+    /// milled/drawn" trigger ([CR#700.4]) keys on THAT, unaffected, so
+    /// it still fires once per card exactly as it would outside a
+    /// `Batch` ([CR#121.2] draw is genuinely per-card). `false` for
+    /// every ordinary (non-contained) keyword-action window.
+    pub contained: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameEvent {
     TurnBegan(TurnBegan),
@@ -521,115 +632,7 @@ pub enum GameEvent {
     /// replacement rewriting a draw); the loss SBA keys on the flag it sets.
     DrewFromEmpty(PlayerId),
 
-    /// A NAMED keyword action ([CR#701]) — the ONE present-tense event that
-    /// serves both roles: the guardable/replaceable moment AND the "it
-    /// happened" fact. `verb` is the printed keyword name-atom
-    /// (`Scry`/`Destroy`/…, the retired-`CauseVerb` [`VerbName`] namespace);
-    /// `who` is the RESOLVED performing player for the player-report verbs
-    /// (scry/surveil/fateseal/mill/draw) — the actor "whenever an opponent
-    /// draws" reads; `on` is the RESOLVED patient object for the object verbs
-    /// (destroy/fight). At most one of `who`/`on` is set for today's atoms.
-    /// Matched by the [`EventFilter::Act`](deckmaste_core::EventFilter::Act)
-    /// master form (verb + who/on/cause) on BOTH
-    /// lanes: a `Cant(Destroy(…))` static ([CR#702.12b]) suppresses the whole
-    /// action so its body never runs ([CR#701.22b]), while a surviving `Act` in
-    /// the log is the "whenever you scry/surveil/…" trigger fact
-    /// ([CR#701.22d]) — no separate post-fact. RESULT-side
-    /// "destroyed"/"milled"/"drawn" triggers still key on the body's past-form
-    /// `ZoneChange`/`Drawn` fact ([CR#700.4]). A move-verb (`Act(Destroy)`)
-    /// carries its body facet in `from`/`to` and COMMITS that move directly on
-    /// apply — ONE dual-facet event through cant→replace→apply, never a second
-    /// replaceable future-form `ZoneChange` below it ([CR#616.1]); the reorder
-    /// verbs (scry/surveil/fateseal) run their body ahead of a `None`-shape
-    /// post-fact.
-    Act {
-        verb: deckmaste_core::VerbName,
-        who: Option<PlayerId>,
-        on: Option<ObjectId>,
-        /// The BODY facet ([CR#603.6]) — the composite's canonical realized
-        /// zone-change, derived from the stored `Move` body BEFORE it runs
-        /// (`Destroy(x)` → `from: Battlefield, to: Graveyard`). A move-verb
-        /// carries `Some`; the apply COMMITS this move directly (atomic — no
-        /// separate replaceable future-form `ZoneChange` below it). A reorder
-        /// verb (scry/surveil/fateseal) reorders WITHIN a zone and
-        /// carries `None`, so a `ZoneChange(→Graveyard)` query never
-        /// matches it. Paired with the tag facet (`verb`/`on`/`who`) so
-        /// ONE event is matchable on both ([CR#616.1]).
-        from: Option<Zone>,
-        to: Option<Zone>,
-        /// The causal context this keyword action rides ([CR#701.8b]) — its
-        /// `agency`/`agent`, used to tag the committed move the move-verb apply
-        /// performs ([CR#701.8a]). `verb` duplicates the atom's name; a `None`
-        /// cause is a keyword action with no cause-tagged move
-        /// (scry/surveil reorder within a zone).
-        cause: Option<Cause>,
-        /// The phase marker ([CR#616.1], mirroring `ZoneChange`'s `snapshot`
-        /// law): `false` = the FUTURE, replaceable window — the ONE cant →
-        /// replace moment for every description of this keyword action; `true`
-        /// = the committed, trigger-visible PAST fact, recorded by
-        /// `FinalizeAct` only once the verb's characteristic change actually
-        /// committed. `replaceable()` gates on `committed: false`;
-        /// `record_history`/`scan_triggers` skip it; a committed `Act` opens no
-        /// window.
-        committed: bool,
-        /// The keyword action's unresolved CONTENTS + resolution context —
-        /// carried ONLY on the future form of a verb whose apply must unwrap a
-        /// body it cannot reconstruct from the flat coordinates: mill's
-        /// top-slice group derivation ([CR#701.17a]) and the scry family's
-        /// arrange `RunEffect` ([CR#701.22a]). `None` for the single-move verbs
-        /// (destroy/discard commit `on`/`from`/`to` directly) and draw (its
-        /// apply late-binds the library top), and always `None` once committed
-        /// (the recorded fact carries no resolution context — it never enters
-        /// `FactView`). Also carried by the [`OneShotEffect::Batch`]
-        /// aggregate window (`batch: Some(n)` below): `body` there is the
-        /// stored PER-UNIT keyword action, replicated `n` times once the
-        /// window passes.
-        contents: Option<Box<ActContents>>,
-        /// [CR#616.1g,121.2a]: `Some(n)` on the ONE aggregate window a
-        /// `Batch(n, keyword-action)` resolve builds
-        /// ([`OneShotEffect::Batch`]), carrying the batch cardinality
-        /// so a count-multiplying replacement (Bruvac-style "mill twice
-        /// as many") can read/ rewrite it via `Count::ThatMany`
-        /// (`intent_magnitude`'s batch arm, [CR#107.3]) BEFORE any of
-        /// the n contained per-entity futures exists ([CR#616.1g]: the
-        /// outer effect is chosen before the inner one). `None` for
-        /// every ordinary (non-aggregate) keyword-action
-        /// window — including each of the n per-entity futures a PASSED
-        /// aggregate's apply schedules, which are ordinary windows in their
-        /// own right.
-        batch: Option<Uint>,
-        /// [CR#614.5]: the replacement lineage this window's OWN
-        /// `replace_event` loop starts pre-applied with — "a replacement
-        /// effect doesn't invoke itself repeatedly; it gets only one
-        /// opportunity to affect an event OR ANY MODIFIED EVENTS THAT MAY
-        /// REPLACE THAT EVENT." Populated by `schedule_body` (an `Instead`/
-        /// `Also` body that re-emits an event of the SAME shape its own
-        /// replacement watches must not be caught by it again) and by a
-        /// PASSED aggregate `Batch` window's apply (the aggregate's own
-        /// inherited-plus-applied set rides into each of the n contained
-        /// per-entity futures it schedules, so THEY aren't re-caught either
-        /// — the Archive Trap shape: "draw 2" instead of an infinite
-        /// "draw 2, which becomes draw 2, which becomes …"). Empty for the
-        /// overwhelming majority of keyword-action windows; always empty
-        /// once `committed` (resolution plumbing, dropped like `contents`).
-        inherited: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
-        /// [CR#616.1g,121.2a]: `true` on each of the `n` per-entity futures a
-        /// PASSED aggregate `Batch` window's apply schedules — never on the
-        /// aggregate itself. A "whenever you Verb" ACT-level trigger
-        /// ([CR#701.22d]'s "fires after the process is complete" timing,
-        /// e.g. "whenever you mill one or more cards") reads the
-        /// count-tier's `Batch` as ONE instruction, so `finalize_act`
-        /// suppresses a `contained` window's own committed-fact emission
-        /// (the aggregate's own `FinalizeAct{AnyContained}` is the ONE
-        /// trigger-visible commit for the whole batch). This does NOT touch
-        /// the underlying `ZoneChange`/`Drawn` fact each contained future's
-        /// apply still commits directly — a RESULT-side "whenever a card is
-        /// milled/drawn" trigger ([CR#700.4]) keys on THAT, unaffected, so
-        /// it still fires once per card exactly as it would outside a
-        /// `Batch` ([CR#121.2] draw is genuinely per-card). `false` for
-        /// every ordinary (non-contained) keyword-action window.
-        contained: bool,
-    },
+    Act(Act),
 
     Tapped(Tapped),
     ManaAdded(ManaAdded),

@@ -14,6 +14,7 @@ use deckmaste_core::PhaseStep;
 use deckmaste_core::Predicate;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
+use deckmaste_engine::Act;
 use deckmaste_engine::Action;
 use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
@@ -474,7 +475,7 @@ fn cleanup_discards_to_hand_size() {
                 // The cleanup discard is per-card `Act(Discard)` events
                 // ([CR#701.9a] — one replaceable moment per card; madness
                 // works off a cleanup discard like any other).
-                GameEvent::Act { on: Some(object), cause: Some(c), .. }
+                GameEvent::Act(Act { on: Some(object), cause: Some(c), .. })
                     if *object == chosen && c.verb.as_str() == "Discard"
             ))
     )));
