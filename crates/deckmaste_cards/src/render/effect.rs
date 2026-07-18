@@ -1391,6 +1391,8 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // [CR#701.6a]: counter a spell or ability on the stack — "Counter
         // target spell" (Mana Leak's punisher branch).
         Action::Counter(r) => format!("Counter {}.", fragment::reference(r, ctx)),
+        // [CR#701.27a]: flip a transforming DFC to its other face.
+        Action::Transform(r) => format!("Transform {}.", fragment::reference(r, ctx)),
         // [CR#122]: move counters between two objects. `AllKinds` -> "all
         // counters"; a named kind -> "<n> <kind> counter(s)".
         Action::MoveCounters(spec, from, to) => {
@@ -3489,6 +3491,22 @@ mod tests {
         assert_eq!(
             effect(&parsed, &ctx),
             "Shuffle your graveyard into your library."
+        );
+    }
+
+    /// [CR#701.27a]: "Transform ~." — flip a transforming DFC to its other
+    /// face.
+    #[test]
+    fn renders_transform() {
+        let ctx = Ctx {
+            subject: "~",
+            targets: &[],
+            that: None,
+            named: None,
+        };
+        assert_eq!(
+            action(&Action::Transform(Reference::This), &ctx),
+            "Transform ~."
         );
     }
 }

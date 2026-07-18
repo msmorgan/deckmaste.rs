@@ -1648,6 +1648,7 @@ fn emit_action(a: &Action) -> R {
         // Destroy is not a bespoke verb — it emits through the `Composite` arm
         // below (`Composite (Destroy r) (Act (moveAttacking r Graveyard))`).
         Action::Counter(r) => app("Counter", vec![emit_reference(r)?]),
+        Action::Transform(r) => app("Transform", vec![emit_reference(r)?]),
         Action::Attach { what, to } => {
             app("Attach", vec![emit_reference(what)?, emit_reference(to)?])
         }

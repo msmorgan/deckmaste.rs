@@ -279,6 +279,13 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             batch.",
         ),
         (
+            n("Action", "Transform"),
+            "DEFERRED: the grammar (core variant, render, idris emit) is built and \
+            unit-tested ([CR#701.27a]), but the engine resolve arm is a deliberate Task 5 stub \
+            (`Action::Transform(_) => todo!(\"resolve arm: Task 5\")` in resolve/action.rs) — no \
+            transforming-DFC real card can graduate until that lands.",
+        ),
+        (
             n("PlayerAction", "VentureIntoDungeon"),
             "DEFERRED: no dungeon-venture real card in this \
             batch.",

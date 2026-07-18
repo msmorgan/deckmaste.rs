@@ -134,6 +134,12 @@ pub enum Action {
     /// simply ceases. "Can't be countered" is deontic-layer territory, not
     /// part of the verb.
     Counter(Reference),
+    /// Turn a transforming double-faced permanent to its other face
+    /// ([CR#701.27a]). No-op on a non-DFC permanent ([CR#701.27c]) or when the
+    /// destination face is an instant/sorcery ([CR#701.27d]). Convert
+    /// ([CR#701.28a]) is the same operation. Identity is preserved — a
+    /// transform does not remint ([CR#712.18]).
+    Transform(Reference),
     /// Attach `what` to `to` ([CR#701.3a..701.3b]) — the one verb the whole
     /// attachment family shares (Equipment, Auras, Fortifications). The
     /// attachment RELATION (storage; the illegal-attachment SBAs,

@@ -401,6 +401,7 @@ impl GameState {
             Action::TheRingTempts(_) => {
                 todo!("engine seam: the Ring tempts you ([CR#701.54a]) — Ring machinery unbuilt")
             }
+            Action::Transform(_) => todo!("resolve arm: Task 5"),
         }
     }
 
