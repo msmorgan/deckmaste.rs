@@ -1,0 +1,14 @@
+// "+1/+0 for each <selection>" scaled pump ([CR#613.4c] layer 7c, [CR#107.3]
+// "for each"). Predicate slot = the selection noun; Objects+CountOf wrap it,
+// forwarded into the SOLE power axis. NO toughness node — the printed "/+0"
+// is template-literal text, not a real scaling axis (unlike `P1P1ForEach`,
+// which genuinely scales both). Render flattens this through the structural
+// `for_each_pump_clause` arm (a lone `Power(Up(<scaled>))` renders "+N/+0 for
+// each <noun>") — the template is parse-only.
+(
+    name: "P1P0ForEach",
+    template: "gets +1/+0 for each ${0}",
+    kinds: [Modification],
+    params: [Predicate],
+    body: Power(Up(CountOf(Objects(Param(0))))),
+)

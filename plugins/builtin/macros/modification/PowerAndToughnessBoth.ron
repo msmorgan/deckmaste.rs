@@ -1,0 +1,17 @@
+// "PowerAndToughnessBoth" = a delegate-only building block (no `template`,
+// like its `PowerAndToughness` sibling — it never stands alone as printed
+// text): applies ONE `NumericOp` to BOTH axes ([CR#613.4c] layer 7c), so a
+// caller whose power and toughness change by the SAME expression writes that
+// expression once, not twice. `P1P1ForEach` is the first consumer —
+// `PowerAndToughnessBoth(Up(CountOf(Objects(pred))))` bundles both deltas
+// from a single `Param(0)` occurrence in the CALLER; `Param(0)` is read
+// TWICE here, in the delegate's own body — the same repeated-Param
+// substitution `Fight`'s `Param(0)`/`Param(1)` already rely on.
+// `PowerAndToughness(NumericOp, NumericOp)` stays the two-DIFFERENT-ops
+// building block; this is its equal-ops twin.
+(
+    name: "PowerAndToughnessBoth",
+    kinds: [Modification],
+    params: [NumericOp],
+    body: Several([Power(Param(0)), Toughness(Param(0))]),
+)

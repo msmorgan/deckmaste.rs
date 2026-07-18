@@ -1,0 +1,15 @@
+// "+1/+1 for each <selection>" scaled pump ([CR#613.4c] layer 7c, [CR#107.3]
+// "for each"). Predicate slot = the selection noun ("Forest you control");
+// Objects+CountOf wrap it ONCE and forward into `PowerAndToughnessBoth` (its
+// single `NumericOp` param), so BOTH axes share the same computed count
+// without repeating the `CountOf(Objects(...))` construction — genuinely two
+// real scaling axes, unlike the `P·0` family below. Render flattens this
+// through the structural `for_each_pump_clause` arm — the template is
+// parse-only.
+(
+    name: "P1P1ForEach",
+    template: "gets +1/+1 for each ${0}",
+    kinds: [Modification],
+    params: [Predicate],
+    body: PowerAndToughnessBoth(Up(CountOf(Objects(Param(0))))),
+)

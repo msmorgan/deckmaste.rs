@@ -442,6 +442,84 @@ mod tests {
         assert_eq!(direct.expand_all(), concrete);
     }
 
+    /// The `P1P1ForEach` macro (real `plugins/builtin` corpus — the nested
+    /// `Permanent`/`PowerAndToughnessBoth` delegates must actually load, not
+    /// a hand-inserted stand-in) is the stored form of "gets +1/+1 for each
+    /// <selection>" pumps ([CR#613.4c] layer 7c, [CR#107.3] "for each"): its
+    /// `Predicate` param wraps into `CountOf(Objects(...))` ONCE and forwards
+    /// into `PowerAndToughnessBoth`'s single `NumericOp` slot, so both axes
+    /// read the SAME computed count — genuinely two real scaling axes.
+    /// Expanding all the way through both macro layers (`P1P1ForEach` →
+    /// `PowerAndToughnessBoth`) must land on the flat two-axis `Several`.
+    #[test]
+    fn p1p1_for_each_expands_and_reserializes() {
+        use deckmaste_core::Count;
+        use deckmaste_core::Countable;
+        use deckmaste_core::Expand as _;
+        use deckmaste_core::NumericOp;
+
+        let macros = builtin().macros;
+        let pred_src = r#"And([Permanent,Type("Creature"),ControlledBy(Ref(You))])"#;
+        // Expanded, matching how `m.expand_all()` below normalizes the SAME
+        // predicate nested inside the macro's own `Param(0)` substitution
+        // (`Permanent` is itself a macro; both sides must reduce it away).
+        let pred: Predicate = macros.read_str(pred_src).unwrap();
+        let pred = pred.expand_all();
+
+        let ron = format!("P1P1ForEach({pred_src})");
+        let m: Modification = macros.read_str(&ron).unwrap();
+        let Modification::Expanded(exp) = &m else {
+            panic!("expected a remembered modification, got {m:?}");
+        };
+        assert_eq!(exp.name, "P1P1ForEach");
+
+        // Round-trips to the invocation, not the expansion.
+        assert_eq!(deckmaste_core::ron::options().to_string(&m).unwrap(), ron);
+
+        // Fully expanded (through the `PowerAndToughnessBoth` delegate)
+        // lands on the flat two-axis `Several`, both sides reading the SAME
+        // count — the "+1/+1 for each" shape Task 1's render arm consumes.
+        let count = Count::CountOf(Countable::Objects(Arc::new(pred)));
+        assert_eq!(
+            m.expand_all(),
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(count.clone())),
+                Modification::Toughness(NumericOp::Up(count)),
+            ])
+        );
+    }
+
+    /// The `P1P0ForEach` macro — the lone-`Power` twin: only ONE axis
+    /// genuinely scales (the printed "+1/+0"'s toughness half is
+    /// template-literal text, not a real op), so its body is a bare
+    /// `Power(Up(CountOf(Objects(...))))` — no `PowerAndToughnessBoth`/
+    /// `Several` wrapping at all, unlike `P1P1ForEach`.
+    #[test]
+    fn p1p0_for_each_expands_to_lone_power() {
+        use deckmaste_core::Count;
+        use deckmaste_core::Countable;
+        use deckmaste_core::Expand as _;
+        use deckmaste_core::NumericOp;
+
+        let macros = builtin().macros;
+        let pred_src = r#"And([Permanent,Type("Creature"),ControlledBy(Ref(You))])"#;
+        // Expanded, matching how `m.expand_all()` below normalizes the SAME
+        // predicate nested inside the macro's own `Param(0)` substitution
+        // (`Permanent` is itself a macro; both sides must reduce it away).
+        let pred: Predicate = macros.read_str(pred_src).unwrap();
+        let pred = pred.expand_all();
+
+        let ron = format!("P1P0ForEach({pred_src})");
+        let m: Modification = macros.read_str(&ron).unwrap();
+        let Modification::Expanded(exp) = &m else {
+            panic!("expected a remembered modification, got {m:?}");
+        };
+        assert_eq!(exp.name, "P1P0ForEach");
+        assert_eq!(deckmaste_core::ron::options().to_string(&m).unwrap(), ron);
+
+        let count = Count::CountOf(Countable::Objects(Arc::new(pred)));
+        assert_eq!(m.expand_all(), Modification::Power(NumericOp::Up(count)));
+    }
     /// Same pin for Selection positions: nothing exercises Selection macros
     /// in real data yet, and Plan 2 will make this path load-bearing.
     #[test]

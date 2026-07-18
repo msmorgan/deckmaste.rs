@@ -1,0 +1,15 @@
+// "+3/+0 for each <selection>" scaled pump ([CR#613.4c] layer 7c, [CR#107.3]
+// "for each") — the coefficient-3 twin of `P1P0ForEach`/`P2P0ForEach`.
+// Predicate slot = the selection noun; Objects+CountOf wrap it, then
+// `Times(Literal(3), ...)` triples the count before it feeds the sole power
+// axis. NO toughness node — the printed "/+0" is template-literal text, not a
+// real scaling axis. Render flattens this through the structural
+// `for_each_pump_clause` arm (which recognizes the `Times(Literal(n),
+// CountOf(Objects(pred)))` coefficient shape) — the template is parse-only.
+(
+    name: "P3P0ForEach",
+    template: "gets +3/+0 for each ${0}",
+    kinds: [Modification],
+    params: [Predicate],
+    body: Power(Up(Times(Literal(3), CountOf(Objects(Param(0)))))),
+)
