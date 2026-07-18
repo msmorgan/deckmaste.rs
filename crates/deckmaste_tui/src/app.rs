@@ -4,12 +4,14 @@ use anyhow::Result;
 use clap::Parser;
 use deckmaste_engine::Action;
 use deckmaste_engine::GameState;
+use deckmaste_engine::LayeredView;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::sim::GreedyDemo;
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::Event;
 use ratatui::crossterm::event::KeyCode;
+use ratatui::crossterm::event::KeyEvent;
 use ratatui::crossterm::event::KeyEventKind;
 use ratatui::crossterm::event::{self};
 
@@ -134,70 +136,23 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
         if key.kind != KeyEventKind::Press {
             continue;
         }
-        // The help overlay is modal: the next keypress dismisses it.
-        if help {
-            help = false;
-            continue;
-        }
-        if key.code == KeyCode::Char('q') {
-            break Ok(());
-        }
-        if key.code == KeyCode::Char('?') {
-            help = true;
-            continue;
+        match handle_global_key(
+            key,
+            &mut board,
+            &mut help,
+            &mut current,
+            &driver.state,
+            &view,
+        ) {
+            GlobalKey::Quit => break Ok(()),
+            GlobalKey::Consumed => continue,
+            GlobalKey::Pass => {}
         }
         // The cursor's object, if the focused selection is one.
         let cursor = match board.selected(&driver.state, &view) {
             Some(Selected::Object(id)) => Some(id),
             _ => None,
         };
-
-        // Direct zone hotkeys (b/o/h/s/g/e) jump focus, except under the
-        // ability popup where letter keys would be ambiguous (arrows drive it).
-        let popup_open = matches!(
-            current.as_ref(),
-            Some(Interaction::Priority { sub: Some(_) })
-        );
-        if !popup_open
-            && let KeyCode::Char(c) = key.code
-            && let Some(zone) = ui::zone_for_key(c, board.perspective)
-        {
-            board.focus_zone(zone);
-            continue;
-        }
-
-        // Shared navigation (Tab / arrows). When the ability popup is open the
-        // arrows move its selection instead of the board. Each arm `continue`s,
-        // ending the `current.as_mut()` borrow immediately.
-        match key.code {
-            KeyCode::Tab => {
-                board.cycle_zone(true);
-                continue;
-            }
-            KeyCode::BackTab => {
-                board.cycle_zone(false);
-                continue;
-            }
-            KeyCode::Up | KeyCode::Left => {
-                if let Some(Interaction::Priority { sub: Some(pick) }) = current.as_mut() {
-                    pick.sel = pick.sel.saturating_sub(1);
-                } else {
-                    board.step_selection(false, board.focused_len(&driver.state, &view));
-                }
-                continue;
-            }
-            KeyCode::Down | KeyCode::Right => {
-                if let Some(Interaction::Priority { sub: Some(pick) }) = current.as_mut() {
-                    if pick.sel + 1 < pick.actions.len() {
-                        pick.sel += 1;
-                    }
-                } else {
-                    board.step_selection(true, board.focused_len(&driver.state, &view));
-                }
-                continue;
-            }
-            _ => {}
-        }
 
         // Main dispatch: delegate to the current interaction's own key
         // semantics ([`Interaction::on_key`]). Own `current` for the duration
@@ -258,6 +213,91 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
                 Err(e) => error = Some(e.to_string()),
             }
         }
+    }
+}
+
+/// How the loop should proceed after [`handle_global_key`].
+enum GlobalKey {
+    /// `q` was pressed — exit the loop.
+    Quit,
+    /// The key was fully handled here (e.g. a navigation key, or the help
+    /// overlay's dismiss) — the loop should `continue` without reaching
+    /// `Interaction::on_key`.
+    Consumed,
+    /// The key is none of the global ones — fall through to the cursor
+    /// computation and the interaction's own dispatch.
+    Pass,
+}
+
+/// Handle the window-global keys (help, quit, zone focus, navigation) that
+/// take precedence over the active interaction. Returns how the loop should
+/// proceed.
+fn handle_global_key(
+    key: KeyEvent,
+    board: &mut BoardState,
+    help: &mut bool,
+    current: &mut Option<Interaction>,
+    state: &GameState,
+    view: &LayeredView,
+) -> GlobalKey {
+    // The help overlay is modal: the next keypress dismisses it.
+    if *help {
+        *help = false;
+        return GlobalKey::Consumed;
+    }
+    if key.code == KeyCode::Char('q') {
+        return GlobalKey::Quit;
+    }
+    if key.code == KeyCode::Char('?') {
+        *help = true;
+        return GlobalKey::Consumed;
+    }
+
+    // Direct zone hotkeys (b/o/h/s/g/e) jump focus, except under the
+    // ability popup where letter keys would be ambiguous (arrows drive it).
+    let popup_open = matches!(
+        current.as_ref(),
+        Some(Interaction::Priority { sub: Some(_) })
+    );
+    if !popup_open
+        && let KeyCode::Char(c) = key.code
+        && let Some(zone) = ui::zone_for_key(c, board.perspective)
+    {
+        board.focus_zone(zone);
+        return GlobalKey::Consumed;
+    }
+
+    // Shared navigation (Tab / arrows). When the ability popup is open the
+    // arrows move its selection instead of the board. Each arm returns
+    // `Consumed`, ending the `current.as_mut()` borrow immediately.
+    match key.code {
+        KeyCode::Tab => {
+            board.cycle_zone(true);
+            GlobalKey::Consumed
+        }
+        KeyCode::BackTab => {
+            board.cycle_zone(false);
+            GlobalKey::Consumed
+        }
+        KeyCode::Up | KeyCode::Left => {
+            if let Some(Interaction::Priority { sub: Some(pick) }) = current.as_mut() {
+                pick.sel = pick.sel.saturating_sub(1);
+            } else {
+                board.step_selection(false, board.focused_len(state, view));
+            }
+            GlobalKey::Consumed
+        }
+        KeyCode::Down | KeyCode::Right => {
+            if let Some(Interaction::Priority { sub: Some(pick) }) = current.as_mut() {
+                if pick.sel + 1 < pick.actions.len() {
+                    pick.sel += 1;
+                }
+            } else {
+                board.step_selection(true, board.focused_len(state, view));
+            }
+            GlobalKey::Consumed
+        }
+        _ => GlobalKey::Pass,
     }
 }
 

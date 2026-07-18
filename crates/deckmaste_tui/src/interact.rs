@@ -98,9 +98,6 @@ pub struct KeyOutcome {
     pub replace: Option<Interaction>,
     pub autotap_cast: Option<ObjectId>,
     pub error: Option<String>,
-    /// False when the current variant does not recognize `key` at all — the
-    /// caller falls through to global-key handling in that case.
-    pub handled: bool,
 }
 
 /// The object an action concerns, if any (`None` for Pass/Concede/Special).
@@ -437,14 +434,12 @@ impl Interaction {
     /// Map a key event to an outcome for the decision currently shown. Owns
     /// the per-variant key semantics that lived in `interactive_loop`'s
     /// dispatch match: `Enter`/`Esc`/`Space`/`Backspace` act on the variant's
-    /// own selection state, everything else reports `handled: false` so the
-    /// caller can fall through to global-key handling.
+    /// own selection state; every other key is a no-op (the caller runs
+    /// global-key handling BEFORE this dispatch, so those keys never reach
+    /// here).
     #[must_use]
     pub fn on_key(&mut self, key: KeyEvent, ctx: &mut KeyCtx) -> KeyOutcome {
-        let mut outcome = KeyOutcome {
-            handled: true,
-            ..KeyOutcome::default()
-        };
+        let mut outcome = KeyOutcome::default();
         match self {
             // ---- Priority, ability popup open ----
             Interaction::Priority { sub: Some(pick) } => match key.code {
@@ -452,7 +447,7 @@ impl Interaction {
                     outcome.submit = Some(Decision::Act(pick.actions[pick.sel].clone()));
                 }
                 KeyCode::Esc => outcome.replace = Some(Interaction::Priority { sub: None }),
-                _ => outcome.handled = false,
+                _ => {}
             },
             // ---- Priority, object-first ----
             // Pass is `a`, not Space — Space is the giant easy-to-fat-finger key
@@ -495,7 +490,7 @@ impl Interaction {
                     }
                     _ => outcome.error = Some("select a card or permanent first".to_string()),
                 },
-                _ => outcome.handled = false,
+                _ => {}
             },
             // ---- Targets ----
             it @ Interaction::Targets { .. } => match key.code {
@@ -512,7 +507,7 @@ impl Interaction {
                     }
                 }
                 KeyCode::Esc => it.cancel(),
-                _ => outcome.handled = false,
+                _ => {}
             },
             // ---- Attackers / Discard (toggle a subset of the dimmed board,
             //      then submit; the cursor's object is the one toggled) ----
@@ -524,7 +519,7 @@ impl Interaction {
                 }
                 KeyCode::Enter => outcome.submit = it.confirm(),
                 KeyCode::Esc => it.cancel(),
-                _ => outcome.handled = false,
+                _ => {}
             },
             // ---- Blockers ----
             it @ Interaction::Blockers { .. } => {
@@ -568,7 +563,7 @@ impl Interaction {
                     }
                     KeyCode::Backspace => it.unpair_last(),
                     KeyCode::Esc => it.cancel(),
-                    _ => outcome.handled = false,
+                    _ => {}
                 }
             }
         }
