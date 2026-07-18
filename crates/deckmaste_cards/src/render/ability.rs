@@ -1049,8 +1049,17 @@ fn axis_sum_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
 /// with `c = CountOf(Objects(pred))` (coefficient 1) or `Times(Literal(n),
 /// CountOf(Objects(pred)))` (coefficient n). A lone `Power(Up(c))` (no
 /// `Toughness` node at all — the stored `P1P0ForEach`/`P2P0ForEach`/
-/// `P3P0ForEach` macro body shape) reads "+n/+0", never a "the toughness half
-/// is absent" special case.
+/// `P3P0ForEach` macro body shape) reads "+n/+0".
+///
+/// A `Several`'s two axes are evaluated INDEPENDENTLY via [`for_each_axis`]:
+/// each is either SCALED (a `for_each_magnitude` shape, carrying a
+/// coefficient and a selection predicate) or FLAT ZERO (`Literal(0)`, an
+/// idle axis). At least one axis must be scaled; if BOTH are, their
+/// predicates must be equal (the shared selection). This is the OTHER
+/// asymmetric shape distinct from the lone-`Power` case above — Goblin
+/// Piledriver's actual stored ability is a `Several([Power(Up(Times(
+/// Literal(2), CountOf(Objects(pred))))), Toughness(Up(Literal(0)))])`, not
+/// a lone `Power`.
 ///
 /// Looks through only a `Modification::Expanded` wrapper on `change` itself
 /// (mirrors `effect::modification_has_dynamic_pt_delta`'s shallow
@@ -1069,11 +1078,22 @@ fn for_each_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
             else {
                 return None;
             };
-            if power_delta != toughness_delta {
-                return None;
-            }
-            let (coeff, pred) = for_each_magnitude(power_delta)?;
-            (coeff, coeff, pred)
+            let (p, power_pred) = for_each_axis(power_delta)?;
+            let (t, toughness_pred) = for_each_axis(toughness_delta)?;
+            let pred = match (power_pred, toughness_pred) {
+                (Some(pp), Some(tp)) => {
+                    if pp != tp {
+                        return None;
+                    }
+                    pp
+                }
+                (Some(pp), None) => pp,
+                (None, Some(tp)) => tp,
+                // Both axes flat zero: no scaled axis at all, so this isn't
+                // a "for each" pump.
+                (None, None) => return None,
+            };
+            (p, t, pred)
         }
         Modification::Power(NumericOp::Up(delta)) => {
             let (coeff, pred) = for_each_magnitude(delta)?;
@@ -1099,6 +1119,16 @@ fn strip_modification_expanded(m: &Modification) -> &Modification {
     }
 }
 
+/// Look through a `Count::Expanded` wrapper — the shallow, single-layer
+/// twin of [`strip_modification_expanded`], used at each position
+/// [`for_each_magnitude`]/[`for_each_axis`] inspect.
+fn strip_count_expanded(c: &Count) -> &Count {
+    match c {
+        Count::Expanded(exp) => strip_count_expanded(&exp.value),
+        other => other,
+    }
+}
+
 /// The magnitude half of [`for_each_pump_clause`]'s recognized shape:
 /// `CountOf(Objects(pred))` (coefficient 1) or `Times(Literal(n),
 /// CountOf(Objects(pred)))` (coefficient n, [CR#107.1] "twice X"). Looks
@@ -1107,13 +1137,6 @@ fn strip_modification_expanded(m: &Modification) -> &Modification {
 /// other `Count` shape.
 fn for_each_magnitude(c: &Count) -> Option<(i64, &Predicate)> {
     use deckmaste_core::Countable;
-
-    fn strip_count_expanded(c: &Count) -> &Count {
-        match c {
-            Count::Expanded(exp) => strip_count_expanded(&exp.value),
-            other => other,
-        }
-    }
 
     match strip_count_expanded(c) {
         Count::CountOf(Countable::Objects(pred)) => Some((1, pred.as_ref())),
@@ -1125,6 +1148,21 @@ fn for_each_magnitude(c: &Count) -> Option<(i64, &Predicate)> {
         },
         _ => None,
     }
+}
+
+/// One axis of a `Several([Power(Up(_)), Toughness(Up(_))])` pump's `Up`
+/// operand ([CR#107.3] "for each") — SCALED (delegates to
+/// [`for_each_magnitude`], carrying a coefficient and the selection
+/// predicate) or FLAT ZERO (`Literal(0)`, the idle axis of an asymmetric
+/// pump — Goblin Piledriver's own `Toughness(Up(Literal(0)))` half of "+2/+0
+/// for each other attacking Goblin"). `None` for any other `Count` shape —
+/// [`for_each_pump_clause`] then rejects the whole `Several`.
+fn for_each_axis(c: &Count) -> Option<(i64, Option<&Predicate>)> {
+    if matches!(strip_count_expanded(c), Count::Literal(0)) {
+        return Some((0, None));
+    }
+    let (coeff, pred) = for_each_magnitude(c)?;
+    Some((coeff, Some(pred)))
 }
 
 // ── Modification predicate builder ──────────────────────────────────────────
@@ -2423,8 +2461,11 @@ mod tests {
     /// only `Count::Literal`) ever runs. Covers the symmetric `Several`
     /// shape (Blanchwood Armor/Primal Bellow/Might of the Masses), the
     /// power-only lone-`Power` shape (no `Toughness` node — the
-    /// `P1P0ForEach` macro body shape), and the `Times(Literal(n), ..)`
-    /// coefficient shape (Goblin Piledriver's own "+2/+0").
+    /// `P1P0ForEach` macro body shape), the `Times(Literal(n), ..)`
+    /// coefficient shape, and Goblin Piledriver's own REAL stored shape — an
+    /// ASYMMETRIC `Several` whose toughness axis is a flat
+    /// `Toughness(Up(Literal(0)))`, not a lone `Power` (the two are distinct
+    /// stored shapes that both read "+n/+0").
     #[test]
     fn for_each_pump_renders_symmetric_power_only_and_coefficient() {
         use deckmaste_core::Countable;
@@ -2468,11 +2509,37 @@ mod tests {
         );
         let coeff = StaticEffect::Modify(
             Reference::This,
-            Modification::Power(NumericOp::Up(coeff_count)),
+            Modification::Power(NumericOp::Up(coeff_count.clone())),
         );
         assert_eq!(
             static_effect(&coeff, &ctx).as_deref(),
             Some("Test gets +2/+0 for each creature you control.")
+        );
+
+        // Goblin Piledriver's REAL stored shape (plugins/wizards/cards/
+        // "Goblin Piledriver.ron"): `Several([Power(Up(Times(Literal(2),
+        // CountOf(Objects(pred))))), Toughness(Up(Literal(0)))])` — an
+        // asymmetric `Several`, power scaled and toughness a flat zero, NOT
+        // the lone-`Power` `P2P0ForEach` macro-body shape covered above.
+        let goblin_pred = Predicate::And(vec![
+            Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::State(StatePredicate::Attacking),
+        ]);
+        let goblin_count = Count::Times(
+            Arc::new(Count::Literal(2)),
+            Arc::new(Count::CountOf(Countable::Objects(Arc::new(goblin_pred)))),
+        );
+        let goblin_piledriver = StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Up(goblin_count)),
+                Modification::Toughness(NumericOp::Up(Count::Literal(0))),
+            ]),
+        );
+        assert_eq!(
+            static_effect(&goblin_piledriver, &ctx).as_deref(),
+            Some("Test gets +2/+0 for each other attacking Goblin.")
         );
     }
 }
