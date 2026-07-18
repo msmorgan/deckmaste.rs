@@ -18,6 +18,7 @@ use deckmaste_core::RoundMode;
 use deckmaste_core::Selection;
 use deckmaste_core::Stat;
 use deckmaste_core::StatePredicate;
+use deckmaste_core::Status;
 use deckmaste_core::SymbolPred;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Zone;
@@ -567,6 +568,20 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
             Some(suffix) => format!("{base} {suffix}"),
             None => base,
         };
+        // A combat/tap-state adjective rides directly ahead of the noun:
+        // "attacking Goblin" (Goblin Piledriver, [CR#508.1a]), "untapped
+        // creature" (Knotvine Paladin, [CR#110.5]).
+        let base = match adjective_adjunct(filter) {
+            Some(adj) => format!("{adj} {base}"),
+            None => base,
+        };
+        // The self-exclusion "other" prefix rides outermost — ahead of any
+        // adjective adjunct too ([CR#205.3g]-style: "for each other
+        // attacking Goblin", never "attacking other Goblin").
+        let base = match self_exclusion_prefix(filter) {
+            Some(prefix) => format!("{prefix} {base}"),
+            None => base,
+        };
         // A controller restrictor rides the noun: "creature you control",
         // "creature you don't control", "creature an opponent controls" —
         // the restrictor is printed text, never dropped.
@@ -613,6 +628,41 @@ fn keyword_quality_suffix(filter: &Predicate) -> Option<String> {
                 }
             }
             _ => {}
+        }
+    }
+    None
+}
+
+/// A combat/tap-state adjective among a filter's `And` parts, read as an
+/// adjunct riding directly ahead of the base noun ([CR#508.1a] "attacking",
+/// [CR#110.5] "untapped") — Goblin Piledriver's `Attacking` half of "for each
+/// other attacking Goblin", Knotvine Paladin's `Status(Untapped)` half of
+/// "for each untapped creature you control". `None` when the filter carries
+/// neither atom.
+fn adjective_adjunct(filter: &Predicate) -> Option<&'static str> {
+    for part in flatten_all_of(filter) {
+        match strip_expanded(part) {
+            Predicate::State(StatePredicate::Attacking) => return Some("attacking"),
+            Predicate::State(StatePredicate::Status(Status::Untapped)) => return Some("untapped"),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// The self-exclusion "other" prefix among a filter's `And` parts
+/// ([CR#205.3g]-style anaphora, "each OTHER creature") — `Not(Ref(This))` ->
+/// "other", read ahead of the base noun (and any adjective adjunct):
+/// Goblin Piledriver's "for each other attacking Goblin". Bare-noun register
+/// only — mid-sentence subject position reads "another" instead
+/// ([`subject_phrase`]'s `SingularArticle` register), a different function's
+/// job. `None` when the filter carries no self-exclusion.
+fn self_exclusion_prefix(filter: &Predicate) -> Option<&'static str> {
+    for part in flatten_all_of(filter) {
+        if let Predicate::Not(inner) = strip_expanded(part)
+            && strip_expanded(inner).is_this()
+        {
+            return Some("other");
         }
     }
     None
@@ -1271,6 +1321,37 @@ mod tests {
             ))),
         ]);
         assert_eq!(filter_noun(&nonflying), "creature without flying");
+    }
+
+    /// The combat/tap-state adjuncts `filter_noun` needs for two real cards'
+    /// "for each" selections: Goblin Piledriver's `And([Permanent,
+    /// Subtype("Goblin"), Not(Ref(This)), Attacking])` -> "other attacking
+    /// Goblin" (bare-subtype base noun, [`find_bare_subtype_noun`] — no
+    /// `Type(_)` atom, so the self-exclusion "other" prefix and the
+    /// "attacking" adjective both ride ahead of the subtype noun); Knotvine
+    /// Paladin's `And([Creature, Status(Untapped), ControlledBy(Ref(You))])`
+    /// -> "untapped creature you control" (typed base noun, "untapped"
+    /// adjective ahead of it, controller suffix trailing as usual).
+    #[test]
+    fn filter_noun_renders_attacking_and_untapped_adjuncts() {
+        let goblin_piledriver = Predicate::And(vec![
+            Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::State(StatePredicate::Attacking),
+        ]);
+        assert_eq!(filter_noun(&goblin_piledriver), "other attacking Goblin");
+
+        let knotvine_paladin = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::State(StatePredicate::Status(Status::Untapped)),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]);
+        assert_eq!(
+            filter_noun(&knotvine_paladin),
+            "untapped creature you control"
+        );
     }
 
     /// [`subject_phrase`]'s two inflections over the same qualified filter
