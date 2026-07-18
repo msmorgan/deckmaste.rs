@@ -281,16 +281,20 @@ fn base_values(state: &GameState, id: ObjectId) -> DerivedObject {
     let obj = state.objects.obj(id);
     let card = obj.card_id().expect("card-backed object");
     let instance = state.cards.get(card);
-    let face = crate::derive::face(&instance.def);
+    // The object's CURRENT face and its matching precomputed cache
+    // ([CR#712.8d,712.8e]): a back-up two-faced permanent derives from its
+    // back face.
+    let face = crate::derive::face_of(state, id);
+    let cache = instance.face_cache(obj.side);
     DerivedObject {
         characteristics: Characteristics {
             power: base_stat(face.power.as_ref()),
             toughness: base_stat(face.toughness.as_ref()),
-            colors: Arc::clone(&instance.colors),
-            card_types: Arc::clone(&instance.card_types),
-            subtypes: Arc::clone(&instance.subtypes),
-            supertypes: Arc::clone(&instance.supertypes),
-            abilities: Arc::clone(&instance.printed),
+            colors: Arc::clone(&cache.colors),
+            card_types: Arc::clone(&cache.card_types),
+            subtypes: Arc::clone(&cache.subtypes),
+            supertypes: Arc::clone(&cache.supertypes),
+            abilities: Arc::clone(&cache.printed),
         },
         // Base controller ([CR#108.4]): what the object would have absent any
         // control-change effect. Layer 2 may overwrite it.
@@ -2595,6 +2599,59 @@ mod tests {
             Some(2),
             "an opponent's Goblin is not buffed (ControlledBy(Ref(You)))"
         );
+    }
+
+    /// engine-transform: a permanent's base characteristics reflect its CURRENT
+    /// face ([CR#712.8d,712.8e]). A hand-authored transforming DFC shows FRONT
+    /// P/T while `Side::Front`, and BACK P/T once its `side` flips to `Back`
+    /// (driven directly here; Task 5 makes `Transform` set it).
+    #[test]
+    fn back_up_permanent_shows_back_face_characteristics() {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::Type;
+
+        use crate::object::Side;
+        let front = CardFace {
+            name: "Delverish".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(1)),
+            toughness: Some(StatValue::Number(1)),
+            ..CardFace::default()
+        };
+        let back = CardFace {
+            name: "Insectile Aberration".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(3)),
+            toughness: Some(StatValue::Number(2)),
+            ..CardFace::default()
+        };
+        let card = Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front,
+            back,
+        };
+        let mut state = game();
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+
+        assert_eq!(
+            state.layers().power(id),
+            Some(1),
+            "front-up shows front P [CR#712.8d]"
+        );
+
+        state.objects.obj_mut(id).side = Side::Back;
+        let view = state.layers();
+        assert_eq!(view.power(id), Some(3), "back-up shows back P [CR#712.8e]");
+        assert_eq!(view.toughness(id), Some(2), "back-up shows back T");
     }
 
     /// engine-static-scope-carrier: a spell-built FLOATING scope (Overrun's

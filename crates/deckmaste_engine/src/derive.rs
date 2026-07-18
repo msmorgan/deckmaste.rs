@@ -28,6 +28,23 @@ pub fn face(card: &Card) -> &CardFace {
     }
 }
 
+/// The face an object currently presents on the battlefield
+/// ([CR#712.8d,712.8e]): the back face iff it's a two-faced card showing its
+/// back (`Side::Back`), else the front. Off the battlefield use `face` (front
+/// only, [CR#712.8a]).
+#[must_use]
+pub fn face_of(state: &GameState, id: ObjectId) -> &CardFace {
+    let obj = state.objects.obj(id);
+    let card = &state
+        .cards
+        .get(obj.card_id().expect("card-backed object"))
+        .def;
+    match (obj.side, card.as_ref()) {
+        (crate::object::Side::Back, Card::TwoFaced { back, .. }) => back,
+        _ => face(card),
+    }
+}
+
 /// A face's INTRINSIC printed abilities only (`face.abilities`) — NOT
 /// type/subtype conferrals. Type/subtype conferral is re-derived from the
 /// object's CURRENT characteristics each layer pass by
@@ -57,7 +74,7 @@ pub(crate) fn printed_of_face(face: &CardFace) -> Vec<Ability> {
 #[must_use]
 pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> &[Ability] {
     let card = state.objects.obj(id).card_id().expect("card-backed object");
-    &state.cards.get(card).printed
+    &state.cards.get(card).front.printed
 }
 
 /// Predicate-scoped ability conferrals ([Task 2], `ConferralRule`): for each
@@ -268,7 +285,7 @@ fn printed_base_len(state: &GameState, id: ObjectId) -> usize {
         .objects
         .get(id)
         .and_then(crate::object::GameObject::card_id)
-        .map_or(0, |card| state.cards.get(card).printed.len())
+        .map_or(0, |card| state.cards.get(card).front.printed.len())
 }
 
 /// Splice a composite keyword's members into `out` (recursively — a

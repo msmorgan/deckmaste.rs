@@ -43,6 +43,24 @@ pub struct Timestamp(pub Uint);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct CardId(pub Uint);
 
+/// Precomputed base copiable values for one face, shared by `Arc` so a layer
+/// rebuild is a bump not a deep clone (see `CardInstance`).
+#[derive(Debug, Clone)]
+pub(crate) struct FaceCache {
+    /// The face's INTRINSIC printed abilities (not type/subtype conferrals,
+    /// which the layer-4 fold re-derives per pass), precomputed at setup so the
+    /// layer pipeline's base values are an `Arc` bump per rebuild instead of a
+    /// deep clone per object.
+    pub(crate) printed: Arc<Vec<Ability>>,
+    /// The face's subtypes, shared for the same reason (`Subtype` carries its
+    /// `confers` payload, so cloning it per rebuild is as heavy as abilities).
+    pub(crate) subtypes: Arc<Vec<Subtype>>,
+    /// Base colors ([CR#202.2]: cost symbols, else color indicator).
+    pub(crate) colors: Arc<Vec<deckmaste_core::Color>>,
+    pub(crate) card_types: Arc<Vec<deckmaste_core::TypeDef>>,
+    pub(crate) supertypes: Arc<Vec<deckmaste_core::Supertype>>,
+}
+
 /// One physical card ([CR#108]) — or a created token's definition: its
 /// shared characteristics and its owner, fixed for the whole game
 /// ([CR#108.3]; [CR#111.2] for a token's creator).
@@ -60,18 +78,23 @@ pub struct CardInstance {
     /// def carries only the emblem's abilities ([CR#114.3]), and `object_kind`
     /// reports `Emblem` so every card/type/permanent filter excludes it.
     pub is_emblem: bool,
-    /// The face's INTRINSIC printed abilities (not type/subtype conferrals,
-    /// which the layer-4 fold re-derives per pass), precomputed at setup so the
-    /// layer pipeline's base values are an `Arc` bump per rebuild instead of a
-    /// deep clone per object.
-    pub(crate) printed: Arc<Vec<Ability>>,
-    /// The face's subtypes, shared for the same reason (`Subtype` carries its
-    /// `confers` payload, so cloning it per rebuild is as heavy as abilities).
-    pub(crate) subtypes: Arc<Vec<Subtype>>,
-    /// Base colors ([CR#202.2]: cost symbols, else color indicator).
-    pub(crate) colors: Arc<Vec<deckmaste_core::Color>>,
-    pub(crate) card_types: Arc<Vec<deckmaste_core::TypeDef>>,
-    pub(crate) supertypes: Arc<Vec<deckmaste_core::Supertype>>,
+    /// Base copiable values for the FRONT face ([CR#712.8d]) — the face every
+    /// object presents off the battlefield ([CR#712.8a]) and the default on it.
+    pub(crate) front: FaceCache,
+    /// Present only for `Card::TwoFaced` — the back face's base values
+    /// ([CR#712.8e]).
+    pub(crate) back: Option<FaceCache>,
+}
+
+impl CardInstance {
+    /// The base cache for the given face — back only when this is a two-faced
+    /// card and `Side::Back` is requested, else front ([CR#712.8d,712.8e]).
+    pub(crate) fn face_cache(&self, side: crate::object::Side) -> &FaceCache {
+        match (side, &self.back) {
+            (crate::object::Side::Back, Some(back)) => back,
+            _ => &self.front,
+        }
+    }
 }
 
 /// The game's card table: the cards the decklists brought, built at game
@@ -148,22 +171,25 @@ impl Cards {
         is_emblem: bool,
     ) -> CardId {
         let id = CardId(Uint::try_from(self.0.len()).expect("card table fits in Uint"));
-        let face = crate::derive::face(&def);
-        let printed = Arc::new(crate::derive::printed_of_face(face));
-        let subtypes = Arc::new(face.subtypes.clone());
-        let colors = Arc::new(crate::layer::base_colors(face));
-        let card_types = Arc::new(face.types.clone());
-        let supertypes = Arc::new(face.supertypes.clone());
+        let build = |face: &CardFace| FaceCache {
+            printed: Arc::new(crate::derive::printed_of_face(face)),
+            subtypes: Arc::new(face.subtypes.clone()),
+            colors: Arc::new(crate::layer::base_colors(face)),
+            card_types: Arc::new(face.types.clone()),
+            supertypes: Arc::new(face.supertypes.clone()),
+        };
+        let front = build(crate::derive::face(&def));
+        let back = match def.as_ref() {
+            Card::TwoFaced { back, .. } => Some(build(back)),
+            Card::Normal(_) => None,
+        };
         self.0.push(CardInstance {
             def,
             owner,
             is_token,
             is_emblem,
-            printed,
-            subtypes,
-            colors,
-            card_types,
-            supertypes,
+            front,
+            back,
         });
         id
     }
@@ -451,7 +477,7 @@ mod tests {
         };
         let id = cards.push_token(&token, PlayerId(0));
         let inst = cards.get(id);
-        assert_eq!(*inst.colors, vec![Color::Red]);
+        assert_eq!(*inst.front.colors, vec![Color::Red]);
         let Card::Normal(face) = inst.def.as_ref() else {
             panic!("a token synthesizes a one-faced Normal card");
         };

@@ -1051,6 +1051,7 @@ mod tests {
             state
                 .cards
                 .get(card)
+                .front
                 .subtypes
                 .iter()
                 .any(|s| s.name == "Treasure"),
@@ -1089,6 +1090,7 @@ mod tests {
             state
                 .cards
                 .get(card)
+                .front
                 .subtypes
                 .iter()
                 .any(|s| s.name == "Treasure"),
