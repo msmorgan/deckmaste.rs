@@ -91,6 +91,25 @@ fn renders_must_pay_controller_of_mana_leak() {
     );
 }
 
+/// `MustPay(actor: Coalesce([ControllerOf(Target(0)), Target(0)]), …)` — the
+/// Rhystic-toll payer ([CR#118.12a]) derived from an `AnyTarget` slot
+/// ([CR#115.4]) — renders the coalesced first-non-null payer as the single
+/// player anaphor "that player" ([CR#109.4]), not a debug marker. The
+/// `Reference::Coalesce` accept fixture (`Rhystic-toll DealDamage`).
+#[test]
+fn renders_must_pay_coalesce_rhystic_toll() {
+    let r = render_card_face(&testing_face("Rhystic-toll DealDamage"));
+    assert_eq!(r.mana_cost, "{2}{R}");
+    assert_eq!(r.type_line, "Instant");
+    assert_eq!(
+        r.rules,
+        vec![
+            "Rhystic-toll DealDamage deals 3 damage to any target unless that player pays {2}."
+                .to_string()
+        ]
+    );
+}
+
 /// A dynamic damage amount prints the oracle X-form with its "where X is …"
 /// definition clause — the `where_x` adjunct survives to the render — and
 /// the `ability_word` metadata prefixes the line ([CR#207.2c]).

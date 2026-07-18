@@ -391,6 +391,21 @@ pub(super) fn reference(r: &Reference, ctx: &Ctx) -> String {
         // ([CR#108.3]).
         Reference::ControllerOf(_) => "its controller".to_string(),
         Reference::OwnerOf(_) => "its owner".to_string(),
+        // The first-non-null payer read of a Rhystic-toll ([CR#118.12a]): the
+        // targeted permanent's controller ([CR#109.4]), or the targeted player
+        // itself. Both branches resolve to a PLAYER — the toll is always paid
+        // by a player — so the disjunction collapses to the single anaphor
+        // "that player" (coincidentally the same phrase `EventActor` prints,
+        // for the unrelated reason that a responsible player is also "that
+        // player"). The engine, not the renderer, picks the live branch
+        // (`eval_reference`); here it is one player either way.
+        #[expect(
+            clippy::match_same_arms,
+            reason = "distinct references (an event's responsible player vs. a coalesced \
+                      toll-payer) that happen to share the 'that player' anaphor; kept apart \
+                      for their separate semantics and documentation"
+        )]
+        Reference::Coalesce(_) => "that player".to_string(),
         other => format!("[unrendered: {other:?}]"),
     }
 }

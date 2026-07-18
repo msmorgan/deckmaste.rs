@@ -1,0 +1,26 @@
+// {2}{R} instant: "~ deals 3 damage to any target unless that player pays
+// {2}." — the `Reference::Coalesce` fixture. The resolution-time toll
+// ([CR#118.12a] MustPay punisher) names a SINGLE payer that is derived one of
+// two ways from an `AnyTarget` slot ([CR#115.4]): a permanent's controller
+// ([CR#109.4]), or — when the target IS a player — that player directly.
+// `Coalesce([ControllerOf(Target(0)), Target(0)])` is exactly that "first
+// non-null payer" read (proven both branches in
+// resolve::query::tests). No real card in canon/testing/builtin carries the
+// coalesced-payer shape (the only one, Rhystic Lightning, lives in the
+// generated plugins/wizards, which the no-dead-grammar gate does not count),
+// so this mock isolates it end to end (parse -> render -> engine).
+Normal(
+    name: "Rhystic-toll DealDamage",
+    mana_cost: [Generic(2), Red],
+    types: [Instant],
+    abilities: [
+        Spell(effect: Targeted(
+            targets: [AnyTarget],
+            effect: MustPay(
+                actor: Coalesce([ControllerOf(Target(0)), Target(0)]),
+                cost: [Mana([Generic(2)])],
+                or_else: DealDamage(This, 3, Target(0)),
+            ),
+        )),
+    ],
+)
