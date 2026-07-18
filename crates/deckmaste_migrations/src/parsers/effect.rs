@@ -1125,9 +1125,19 @@ fn parse_counter(line: &str) -> Option<ParsedEffect> {
 
 /// `Put <count> <kind> counter[s] on <where>.` -> a counter placement
 /// ([CR#122.1]):
-/// - `on target <subject>.` -> `PutCounters(It, <kind>, <n>)` with a
+/// - `on target <subject>.` -> `PutCounters(Target(0), <kind>, <n>)` with a
 ///   `TargetOne(<filter>)` declaration (the subject parsed by the shared
 ///   [`object_target_filter`] grammar).
+/// - `on each <subject>.` -> the effect-level `Each` distribution over the
+///   matching set (`Each(binder: Existing(SelectAll(<filter>)), effect:
+///   PutCounters(It, <kind>, <n>))`), the placement running once per member as
+///   the iteration anaphor `It` ([CR#608.2d]). No target — a distributive
+///   "each" announces nothing. Reuses the same [`object_target_filter`] grammar
+///   (a controller postfix, a subtype/type adjective, a disjunction, …) as the
+///   targeted arm, so any filter it already models sweeps too — the counter
+///   twin of the damage-sweeper's `each <subject>` arm ([`damage_target`]). The
+///   chosen-target `each of up to <n> target …` form declines here (it needs a
+///   bounded-choice target selection, a separate seam).
 /// - `on it.` / `on ~.` -> `PutCounters(This, <kind>, <n>)`, no target — the
 ///   resolving source counters itself (the combat-damage trigger surface).
 ///
@@ -1146,11 +1156,30 @@ fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Par
     let Some((count, kind)) = parse_counter_clause(counter_clause, ctx)? else {
         return Ok(None);
     };
-    // Destination -> (selection, target declarations).
-    let (selection, targets) = match dest {
+    // Destination -> (target declarations, effect). The self and mass arms
+    // announce no target; the targeted arm declares its announce slot.
+    let (targets, effect) = match dest {
         // Self placement: the resolving source ("it" — a trigger anaphor — or
         // "~"). No target.
-        "it" | "~" => ("This".to_owned(), Vec::new()),
+        "it" | "~" => (Vec::new(), format!("PutCounters(This, {kind}, {count})")),
+        // Mass placement: "each <subject>" — the effect-level `Each` binds each
+        // matching member as the per-element anaphor `It` and runs the
+        // single-object placement body per element ([CR#608.2d]).
+        _ if dest.starts_with("each ") => {
+            let Some(subject) = dest.strip_prefix("each ") else {
+                return Ok(None);
+            };
+            let Some(filter) = object_target_filter(subject) else {
+                return Ok(None);
+            };
+            (
+                Vec::new(),
+                format!(
+                    "Each(binder: Existing(SelectAll({filter})), \
+                     effect: PutCounters(It, {kind}, {count}))"
+                ),
+            )
+        }
         // Targeted placement: "target <subject>".
         _ => {
             let Some(subject) = dest.strip_prefix("target ") else {
@@ -1159,13 +1188,13 @@ fn parse_put_counters(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<Par
             let Some(filter) = object_target_filter(subject) else {
                 return Ok(None);
             };
-            ("Target(0)".to_owned(), vec![format!("TargetOne({filter})")])
+            (
+                vec![format!("TargetOne({filter})")],
+                format!("PutCounters(Target(0), {kind}, {count})"),
+            )
         }
     };
-    Ok(Some(ParsedEffect {
-        targets,
-        effect: format!("PutCounters({selection}, {kind}, {count})"),
-    }))
+    Ok(Some(ParsedEffect { targets, effect }))
 }
 
 /// `<count> <kind> counter[s]` (the clause before "on …") -> `(count RON, kind
@@ -4832,6 +4861,50 @@ mod tests {
                 String::new(),
                 "PutCounters(This, M1M1Counter, 1)".to_owned()
             ))
+        );
+    }
+
+    #[test]
+    fn put_counter_on_each() {
+        // "Put a +1/+1 counter on each creature you control." — the mass
+        // patient wraps the single-object placement in the effect-level `Each`
+        // distribution over the matching set, binding each member as `It`
+        // ([CR#122.1,608.2d]); no target. Reuses the shared object-target
+        // grammar for the selection filter.
+        assert_eq!(
+            parsed_with_macros("Put a +1/+1 counter on each creature you control."),
+            Some((
+                String::new(),
+                "Each(binder: Existing(SelectAll(And([Creature, ControlledBy(Ref(You))]))), \
+                 effect: PutCounters(It, P1P1Counter, 1))"
+                    .to_owned()
+            ))
+        );
+        // The bare "each creature" set (no controller postfix).
+        assert_eq!(
+            parsed_with_macros("Put a -1/-1 counter on each creature."),
+            Some((
+                String::new(),
+                "Each(binder: Existing(SelectAll(Creature)), \
+                 effect: PutCounters(It, M1M1Counter, 1))"
+                    .to_owned()
+            ))
+        );
+        // Plural count over the mass patient: "two +1/+1 counters on each …".
+        assert_eq!(
+            parsed_with_macros("Put two +1/+1 counters on each creature you control."),
+            Some((
+                String::new(),
+                "Each(binder: Existing(SelectAll(And([Creature, ControlledBy(Ref(You))]))), \
+                 effect: PutCounters(It, P1P1Counter, 2))"
+                    .to_owned()
+            ))
+        );
+        // The chosen-target "each of up to <n> target …" form is a separate
+        // seam (bounded-choice target selection) and declines cleanly here.
+        assert!(
+            parsed_with_macros("Put a +1/+1 counter on each of up to two target creatures.")
+                .is_none()
         );
     }
 

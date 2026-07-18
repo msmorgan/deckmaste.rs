@@ -1039,6 +1039,16 @@ fn each_collective(act: &Action, binder: &deckmaste_core::Binder, ctx: &Ctx) -> 
         Action::By(_, PlayerAction::Untap(Reference::It)) => {
             Some(format!("Untap {}.", each_group()))
         }
+        // Set-wide counter placement ([CR#122.1,608.2d]): "Put a +1/+1 counter
+        // on each <group>." — the mass twin of the targeted "Put … on <ref>."
+        // (`player_action`'s `PutCounters` arm), the loop element the
+        // placement patient `It`. The `By` actor (the placing player, an
+        // implicit `You`) plays no part in the printed sentence.
+        Action::By(_, PlayerAction::PutCounters(Reference::It, kind, count)) => Some(format!(
+            "Put {} on {}.",
+            counter_phrase(kind, count),
+            each_group(),
+        )),
         // [CR#119.1,119.5]: "Each player's life total becomes N." — a
         // possessive-subject sentence (the value belongs to the loop
         // element), unlike the subject-verb pattern the generic `By(It, pa)`
@@ -3096,6 +3106,21 @@ mod tests {
             ))),
         });
         assert_eq!(effect(&gain, &ctx), "For each creature, you gain 1 life.");
+        // Set-wide counter placement ([CR#122.1,608.2d]) collapses to the
+        // "Put … on each <group>." surface, the render half of the migrations
+        // parser's `on each <subject>` arm.
+        let counters = OneShotEffect::Each(Each {
+            binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
+            effect: Arc::new(OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                Reference::It,
+                deckmaste_core::CounterRef::from("P1P1Counter"),
+                Count::Literal(1),
+            ))),
+        });
+        assert_eq!(
+            effect(&counters, &ctx),
+            "Put a +1/+1 counter on each creature."
+        );
     }
 
     /// The damage-sweeper family's own macro
