@@ -1075,6 +1075,28 @@ pub(super) fn target_slot_filter<'a>(r: &Reference, ctx: &'a Ctx) -> Option<&'a 
     target_spec_filter(ctx.targets.get(n)?)
 }
 
+/// The English possessive for a hand/library zone-move destination
+/// ([CR#400.3]/[CR#402.1]): "your" when the moved object is provably the
+/// controller's, "its owner's" for a targeted permanent that could be an
+/// opponent's (the Unsummon/Excommunicate bounce family).
+///
+/// A bare `Move` destination carries no owner qualifier, so the possessive is
+/// inferred from the reference SHAPE. Only a `Target(n)` slot on a
+/// NON-graveyard filter is possibly-foreign: a self-bounce (`This`), a
+/// search/reveal anaphor (`It`/`That`), and a graveyard-scoped target (cards in
+/// a graveyard are owned by that graveyard's player) all name a provably-owned
+/// object. A target slot this ability didn't announce is treated as
+/// possibly-foreign — the safe default for a targeted permanent.
+///
+/// The chosen-subject "a creature you control" bounce prints "its owner's" via
+/// its own `With`-composition arm (you control it but may not own it), not this
+/// reference-shape helper.
+pub(super) fn move_possessive(r: &Reference, ctx: &Ctx) -> &'static str {
+    let targeted_foreign = matches!(r, Reference::Target(_))
+        && !target_slot_filter(r, ctx).is_some_and(is_graveyard_scoped);
+    if targeted_foreign { "its owner's" } else { "your" }
+}
+
 // ── Devotion recognizer ([CR#700.5]) ────────────────────────────────────────
 
 /// Whether `filter` is (up to macro provenance) exactly "permanents you

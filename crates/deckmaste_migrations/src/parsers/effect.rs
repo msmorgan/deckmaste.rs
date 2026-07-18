@@ -1298,10 +1298,13 @@ fn counter_kind(phrase: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>
 ///   the battlefield-scoped `Creature` macro, scoped `InZone(Graveyard)` +
 ///   `Owner(Ref(You))`.
 ///
-/// DEFERRED (not built here): non-target *chosen-subject* bounce — "Return a
-/// land you control to its owner's hand." / "return another creature you
-/// control to its owner's hand." — these need chosen-object (not `target`)
-/// selection semantics, a design decision beyond this pass.
+/// - `Return a/another <subject> you control to its owner's hand.` -> a
+///   non-target *chosen-subject* bounce ([CR#400.3]): the controller picks one
+///   permanent they control (which they may not own — hence "its owner's"), a
+///   `With(ChooseOne(<filter>), Move(That(Permanent), Hand))` distinct from the
+///   *targeted* bounce. The leading determiner (`a`/`an`/`another`/`other`)
+///   fixes N=1 and stays in the phrase so the filter grammar reads `another` as
+///   self-exclusion — the same discipline as [`super::cost`]'s `sacrifice`.
 fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
     let body = strip_prefix_ci(line, "return ")?.strip_suffix('.')?;
     // Self-bounce: "Return ~/it to its owner's hand." or "...to your hand."
@@ -1350,14 +1353,32 @@ fn parse_return_to_hand(line: &str) -> Option<ParsedEffect> {
             effect: "Move(Target(0), Hand)".to_owned(),
         });
     }
-    // Battlefield bounce: "target <subject> to its owner's hand."
-    let subject = body
-        .strip_suffix(" to its owner's hand")?
-        .strip_prefix("target ")?;
+    // Battlefield bounce: "target <subject> to its owner's hand." (targeted) or
+    // "a/another <subject> to its owner's hand." (chosen, non-target).
+    let subject = body.strip_suffix(" to its owner's hand")?;
+    if let Some(target_subject) = subject.strip_prefix("target ") {
+        let filter = object_target_filter(target_subject)?;
+        return Some(ParsedEffect {
+            targets: vec![format!("TargetOne({filter})")],
+            effect: "Move(Target(0), Hand)".to_owned(),
+        });
+    }
+    // Chosen-subject bounce ([CR#400.3]): the controller picks one permanent
+    // among a filtered set, not a target. The determiner fixes N=1 and stays in
+    // the phrase so the filter grammar reads "another" as self-exclusion.
+    let (determiner, _) = subject.split_once(' ')?;
+    if !matches!(
+        determiner.to_ascii_lowercase().as_str(),
+        "a" | "an" | "another" | "other"
+    ) {
+        return None;
+    }
     let filter = object_target_filter(subject)?;
     Some(ParsedEffect {
-        targets: vec![format!("TargetOne({filter})")],
-        effect: "Move(Target(0), Hand)".to_owned(),
+        targets: Vec::new(),
+        effect: format!(
+            "With(binder: ChooseOne(filter: {filter}), body: Move(That(Permanent), Hand))"
+        ),
     })
 }
 
@@ -4075,6 +4096,29 @@ mod tests {
             Some((
                 "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
                 "Move(Target(0), Hand)".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn return_chosen_subject_to_hand() {
+        // A non-target chosen-subject bounce ([CR#400.3]): the controller picks
+        // one permanent they control (may not own -> "its owner's hand"), a
+        // `With(ChooseOne, Move(That, Hand))`, no announced target.
+        assert_eq!(
+            parsed("Return a land you control to its owner's hand."),
+            Some((
+                String::new(),
+                "With(binder: ChooseOne(filter: And([Type(\"Land\"), ControlledBy(Ref(You))])), body: Move(That(Permanent), Hand))".to_owned()
+            ))
+        );
+        // The determiner stays in the phrase so "another" reads as
+        // self-exclusion (`Not(Ref(This))`).
+        assert_eq!(
+            parsed("Return another creature you control to its owner's hand."),
+            Some((
+                String::new(),
+                "With(binder: ChooseOne(filter: And([Creature, Not(Ref(This)), ControlledBy(Ref(You))])), body: Move(That(Permanent), Hand))".to_owned()
             ))
         );
     }

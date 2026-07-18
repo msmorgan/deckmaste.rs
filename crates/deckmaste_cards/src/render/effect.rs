@@ -238,7 +238,7 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // anaphor, so `With(ChooseOne(Creature), Sacrifice(That))` renders
         // "Sacrifice a creature."
         OneShotEffect::With(w) => {
-            if let Some(rendered) = search_library(w) {
+            if let Some(rendered) = search_library(w).or_else(|| chosen_bounce(w)) {
                 return rendered;
             }
             let phrase = binder_phrase(&w.binder, ctx);
@@ -369,6 +369,38 @@ fn reveal_until_body(body: &OneShotEffect, whose_poss: &str) -> Option<String> {
         "Put that card {found_dest} and the rest on {} of {whose_poss} library{order}.",
         fragment::library_position(anchor),
     ))
+}
+
+/// The chosen-subject bounce ([CR#400.3]/[CR#402.1]): `With(ChooseOne(filter),
+/// Move(That, Hand))` -> "Return a land you control to its owner's hand." /
+/// "Return another creature you control to its owner's hand." The controller
+/// chooses one permanent they control — which they may not OWN, so the
+/// destination reads "its owner's hand" (a graveyard-scoped choice, owned by
+/// its player, stays "your"). Distinct from a *targeted* bounce; the bound
+/// `That` phrase is built by `subject_phrase`'s `SingularArticle` register so
+/// self-exclusion prints "another", not "an other". `None` for any
+/// binder/body/destination outside this shape — the caller falls back to the
+/// generic `With` rendering, matching the other bespoke recognizers here
+/// (`search_library`, `reveal_until`).
+fn chosen_bounce(w: &With) -> Option<String> {
+    let Binder::ChooseOne { filter, .. } = &w.binder else {
+        return None;
+    };
+    let OneShotEffect::Act(Action::Move(
+        Reference::That(_),
+        Destination::Zone(Zone::Hand),
+        riders,
+        None,
+    )) = &*w.body
+    else {
+        return None;
+    };
+    if !riders.is_empty() {
+        return None;
+    }
+    let subject = fragment::subject_phrase(filter, fragment::SubjectNumber::SingularArticle)?;
+    let possessive = if fragment::is_graveyard_scoped(filter) { "your" } else { "its owner's" };
+    Some(format!("Return {subject} to {possessive} hand."))
 }
 
 /// The library-search / tutor family ([CR#701.23a]): `With(SearchOne(filter),
@@ -1383,9 +1415,10 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // A rider list never applies to a library destination.
         Action::Move(r, Destination::Library(anchor), riders, None) if riders.is_empty() => {
             format!(
-                "Put {} on {} of your library.",
+                "Put {} on {} of {} library.",
                 fragment::reference(r, ctx),
                 fragment::library_position(anchor),
+                fragment::move_possessive(r, ctx),
             )
         }
         // [CR#401.4]: a GROUP move to an ordered library position — Brainstorm's
@@ -1435,18 +1468,18 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         Action::Move(r, Destination::Zone(Zone::Exile), riders, None) if riders.is_empty() => {
             format!("Exile {}.", fragment::reference(r, ctx))
         }
-        // [CR#402.1]: a hand destination — "Return <r> to your hand." The
-        // self-referential graveyard-return idiom (Death Spark's "return
-        // this card to your hand") and the "return ~/it/that card to your
-        // hand" bounce forms (the retired `ReturnToHand` verb's migrated
-        // self/anaphor productions) are the shapes this corpus exercises
-        // yet; a target-relative "to its owner's hand" (Unsummon-style
-        // bounce, or a self-bounce whose owner may differ from its
-        // controller) is unbuilt — flagged for the next card that needs it,
-        // since the renderer has no signal here to tell an owned-by-you
-        // reference from an arbitrary one.
+        // [CR#402.1]/[CR#400.3]: a hand destination — "Return <r> to your
+        // hand." / "Return <r> to its owner's hand." The possessive is chosen
+        // by `fragment::move_possessive` from the reference shape: the self /
+        // search / reveal forms (`This`/`It`/`That`) and a graveyard-scoped
+        // target print "your"; a targeted permanent that could be an
+        // opponent's (Unsummon-style bounce) prints "its owner's".
         Action::Move(r, Destination::Zone(Zone::Hand), riders, None) if riders.is_empty() => {
-            format!("Return {} to your hand.", fragment::reference(r, ctx))
+            format!(
+                "Return {} to {} hand.",
+                fragment::reference(r, ctx),
+                fragment::move_possessive(r, ctx),
+            )
         }
         // [CR#400.7]: graveyard reanimation — the empty-rider battlefield case
         // (the migrations `parse_reanimate` production's emission, no rider
@@ -1929,9 +1962,10 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         }
         PlayerAction::Move(r, Destination::Library(anchor), riders) if riders.is_empty() => {
             format!(
-                "Put {} on {} of your library.",
+                "Put {} on {} of {} library.",
                 fragment::reference(r, ctx),
                 fragment::library_position(anchor),
+                fragment::move_possessive(r, ctx),
             )
         }
         PlayerAction::GetDesignation(name) if name.as_ref() == "CitysBlessing" => {
@@ -2602,20 +2636,17 @@ mod tests {
     }
 
     /// Bounce-to-library — the migrations `parse_bounce_to_library`
-    /// production's TARGETED `Move(It, Library(anchor))` shape round-trips
-    /// through the SAME generic library-destination arm as the self form
-    /// above, reading the announced target's phrase via `Reference::It`
-    /// (mirroring `parse_return_to_hand`'s battlefield-bounce shape).
+    /// production's TARGETED `Move(Target(0), Library(anchor))` shape
+    /// round-trips through the generic library-destination arm, reading the
+    /// announced target's phrase via `Reference::Target`.
     ///
-    /// KNOWN LIMITATION (not the desired final output): both "its owner's
-    /// library" and "your library" input phrasings collapse onto this one
-    /// canonical "your library" render, same as `Move(_, Hand)`'s
-    /// "your hand"/"its owner's hand" idiom pair. That is WRONG for a
-    /// targeted, possibly-opponent-owned creature (oracle says "its owner's
-    /// library"), so most real bounce-to-library cards fail the byte-exact
-    /// fidelity gate and do not graduate until an owner-relative render arm
-    /// lands — tracked in the `bounce-followups` ticket (§1). This test pins
-    /// the current collapse behavior, not a blessed target output.
+    /// A targeted permanent could be an opponent's, so the destination reads
+    /// "its owner's library" ([CR#400.3]) —
+    /// `fragment::move_possessive` keys off the reference SHAPE (a
+    /// non-graveyard `Target` slot is possibly-foreign). This is the render
+    /// that unblocks the ~118-card bounce-to-library family (Excommunicate,
+    /// Temporal Spring, …) from the byte-exact fidelity gate —
+    /// `bounce-followups` ticket §1.
     #[test]
     fn move_to_library_renders_targeted_top_and_bottom() {
         use deckmaste_core::Anchor;
@@ -2635,7 +2666,7 @@ mod tests {
         );
         assert_eq!(
             action(&top, &ctx),
-            "Put target creature on top of your library."
+            "Put target creature on top of its owner's library."
         );
         let bottom = Action::Move(
             Reference::Target(0),
@@ -2645,7 +2676,141 @@ mod tests {
         );
         assert_eq!(
             action(&bottom, &ctx),
-            "Put target creature on the bottom of your library."
+            "Put target creature on the bottom of its owner's library."
+        );
+    }
+
+    /// Bounce possessive ([CR#400.3]/[CR#402.1]): a hand/library return prints
+    /// "your X" only when the moved object is provably the controller's — a
+    /// self-bounce (`This`) or a target scoped to a graveyard (cards in a
+    /// graveyard are owned by that graveyard's player) — and "its owner's X"
+    /// for a targeted permanent that could be an opponent's (the Unsummon
+    /// family). Covers the Hand arm and the graveyard-scoped-stays-"your" case
+    /// that the targeted-library test above does NOT (it uses a battlefield
+    /// filter).
+    #[test]
+    fn bounce_possessive_your_vs_owners() {
+        use deckmaste_core::Anchor;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+
+        // Self-bounce -> "your hand".
+        let self_ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+            named: None,
+        };
+        let self_hand = Action::Move(Reference::This, Destination::Zone(Zone::Hand), vec![], None);
+        assert_eq!(action(&self_hand, &self_ctx), "Return it to your hand.");
+
+        // Targeted permanent (battlefield) -> "its owner's hand".
+        let battlefield = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let bf_ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&battlefield),
+            that: None,
+            named: None,
+        };
+        let bf_hand = Action::Move(
+            Reference::Target(0),
+            Destination::Zone(Zone::Hand),
+            vec![],
+            None,
+        );
+        assert_eq!(
+            action(&bf_hand, &bf_ctx),
+            "Return target creature to its owner's hand."
+        );
+
+        // Target scoped to a graveyard -> "your" (owned by its graveyard's
+        // player); the possessive keeps "your library" even for a `Target`.
+        let grave = TargetSpec::Target(
+            Quantity::one(),
+            Predicate::And(vec![
+                Predicate::creature(),
+                Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+                Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]),
+        );
+        let grave_ctx = Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(&grave),
+            that: None,
+            named: None,
+        };
+        let grave_lib = Action::Move(
+            Reference::Target(0),
+            Destination::Library(Anchor::FromTop(Count::Literal(0))),
+            vec![],
+            None,
+        );
+        let rendered = action(&grave_lib, &grave_ctx);
+        assert!(
+            rendered.contains("of your library."),
+            "graveyard-scoped target stays \"your\": {rendered}"
+        );
+        assert!(
+            !rendered.contains("owner"),
+            "graveyard-scoped target is not owner-relative: {rendered}"
+        );
+    }
+
+    /// The chosen-subject bounce ([CR#400.3]/[CR#402.1]) —
+    /// `With(ChooseOne(filter), Move(That, Hand))` renders "Return a land you
+    /// control to its owner's hand." (a permanent you control but may not own)
+    /// and, with self-exclusion, "Return another creature you control to its
+    /// owner's hand." — exercising `subject_phrase`'s "another" register (not
+    /// "an other"). Distinct from the targeted bounce.
+    #[test]
+    fn chosen_subject_bounce_renders_its_owners_hand() {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::Sort;
+
+        let ctx = Ctx {
+            subject: "Skyfisher",
+            targets: &[],
+            that: None,
+            named: None,
+        };
+        let you = || Arc::new(Predicate::Ref(Reference::You));
+        let chosen_hand = |filter| {
+            OneShotEffect::With(With {
+                binder: Binder::ChooseOne {
+                    filter,
+                    by: Reference::You,
+                },
+                body: Arc::new(OneShotEffect::Act(Action::Move(
+                    Reference::That(Sort::Permanent),
+                    Destination::Zone(Zone::Hand),
+                    vec![],
+                    None,
+                ))),
+            })
+        };
+
+        let land_you_control = Predicate::And(vec![
+            Predicate::Characteristic(CharacteristicPredicate::Type(deckmaste_core::Ident::new(
+                "Land",
+            ))),
+            Predicate::Relation(RelationPredicate::ControlledBy(you())),
+        ]);
+        assert_eq!(
+            effect(&chosen_hand(land_you_control), &ctx),
+            "Return a land you control to its owner's hand."
+        );
+
+        let another_creature = Predicate::And(vec![
+            Predicate::creature(),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(you())),
+        ]);
+        assert_eq!(
+            effect(&chosen_hand(another_creature), &ctx),
+            "Return another creature you control to its owner's hand."
         );
     }
 
