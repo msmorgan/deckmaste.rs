@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -145,7 +147,7 @@ pub enum Modification {
     Supertypes(CollectionOp<Supertype>),
     /// Gain an ability ([CR#613.1f]). Boxed: `Ability` is the enum's largest
     /// variant by far, so indirection keeps `Modification` small.
-    GainAbility(Box<Ability>),
+    GainAbility(Arc<Ability>),
     /// Lose a named keyword ability ([CR#613.1f]).
     LoseAbility(Ident),
     /// Lose all abilities ([CR#613.1f]).
@@ -237,7 +239,7 @@ pub enum CostChange {
     /// so every counting form (`CountOf`, X, queries) composes. Boxed to
     /// break the self-reference.
     Scaled {
-        change: Box<CostChange>,
+        change: Arc<CostChange>,
         times: Count,
     },
 }
@@ -246,7 +248,7 @@ pub enum CostChange {
 /// control" — the source permanent's controller ([CR#603.2c]). The common case
 /// (Panharmonicon / Yarok), so it is the serde default and is omitted from RON.
 fn affected_you_control() -> Predicate {
-    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
         Reference::You,
     ))))
 }
@@ -283,7 +285,7 @@ pub enum StaticEffect {
     /// re-evaluated every layer pass, so the affected set tracks state changes
     /// live ([CR#613.6]). Mirrors Idris `Each : Bindable Many -> StaticEffect
     /// -> StaticEffect`; `Each(SelectAll(F), Modify(It, Δ))` is the anthem.
-    Each(crate::Selection, Box<StaticEffect>),
+    Each(crate::Selection, Arc<StaticEffect>),
     /// A conditional static ([CR#611.3a]) — "as long as [condition],
     /// [effect]." Wraps an inner static effect with a game-state predicate; the
     /// effect applies only while the condition holds (re-checked continuously,
@@ -291,7 +293,7 @@ pub enum StaticEffect {
     /// struct, now a composable effect wrapper. (Engine gating is a seam,
     /// [CR#611.3a] — currently unwired, so a `Conditionally` static is not yet
     /// gathered.)
-    Conditionally(Condition, Box<StaticEffect>),
+    Conditionally(Condition, Arc<StaticEffect>),
     /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/Gate read bare
     /// in RON (`effects: [Cant(…)]`) via the flatten dispatch.
     #[macro_ron(flatten)]
@@ -337,10 +339,10 @@ pub enum StaticEffect {
     /// A replacement effect ([CR#614]). Boxed: `Replacement` is by far the
     /// largest payload here, so boxing keeps `StaticEffect` small
     /// (`clippy::large_enum_variant`).
-    Replacement(Box<Replacement>),
+    Replacement(Arc<Replacement>),
     /// A prevention effect ([CR#615]). Boxed for the same size reason as
     /// `Replacement`.
-    Prevention(Box<Prevention>),
+    Prevention(Arc<Prevention>),
     /// "Damage … can't be prevented" ([CR#615.12]): matching damage —
     /// `from` the source, `to` the recipient — is unpreventable. Gates
     /// exactly the [`Prevention`] class and nothing else, BY CONSTRUCTION:
@@ -370,8 +372,8 @@ pub enum StaticEffect {
     /// `OneShotEffect` dominates `StaticEffect`'s size; `Box` only for the
     /// size cycle, per the "Box only for cycles" rule).
     Sba {
-        when: Box<Condition>,
-        then: Box<crate::OneShotEffect>,
+        when: Arc<Condition>,
+        then: Arc<crate::OneShotEffect>,
     },
     /// An outcome gate: "[who] can't lose the game" / "can't win the game".
     /// NOT a deontic row — outcome-"can't" modifies the §104/§704 outcome
@@ -548,7 +550,7 @@ mod tests {
                 crate::Selection::SelectAll(Predicate::Characteristic(
                     crate::CharacteristicPredicate::Type(Type::Creature.name())
                 )),
-                Box::new(StaticEffect::Modify(
+                Arc::new(StaticEffect::Modify(
                     Reference::It,
                     Modification::Several(vec![
                         Modification::Power(NumericOp::Up(Count::Literal(1))),
@@ -573,7 +575,7 @@ mod tests {
                 crate::Selection::SelectAll(Predicate::Characteristic(
                     crate::CharacteristicPredicate::Type(Type::Creature.name())
                 )),
-                Box::new(StaticEffect::Modify(
+                Arc::new(StaticEffect::Modify(
                     Reference::It,
                     Modification::Several(vec![
                         Modification::Power(NumericOp::Down(Count::Literal(1))),
@@ -599,7 +601,7 @@ mod tests {
                 crate::Selection::SelectAll(Predicate::Characteristic(
                     crate::CharacteristicPredicate::Type(Type::Creature.name())
                 )),
-                Box::new(StaticEffect::Modify(
+                Arc::new(StaticEffect::Modify(
                     Reference::It,
                     Modification::Several(vec![
                         Modification::Colors(CollectionOp::Set(vec![Color::Black])),
@@ -624,10 +626,10 @@ mod tests {
         use crate::Zone;
 
         let sba = StaticEffect::Sba {
-            when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
+            when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                 Reference::This,
             )))),
-            then: Box::new(OneShotEffect::Act(Action::move_to(
+            then: Arc::new(OneShotEffect::Act(Action::move_to(
                 Reference::This,
                 Zone::Graveyard,
             ))),
@@ -780,7 +782,7 @@ mod tests {
                 PayAct::TapToPay(Predicate::And(vec![
                     Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
                     Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You
                     )))),
                 ])),

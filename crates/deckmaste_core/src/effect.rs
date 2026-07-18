@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -150,9 +152,9 @@ pub enum OneShotEffect {
     /// Note the object set the inner effect moves/touches under `key`
     /// ([CR#607.2a] exiled-with linkage).
     Noting(Noting),
-    Delayed(Box<TriggeredAbility>),
+    Delayed(Arc<TriggeredAbility>),
     /// A reflexive triggered ability created on resolution ([CR#603.12]).
-    Reflexive(Box<TriggeredAbility>),
+    Reflexive(Arc<TriggeredAbility>),
     /// A modal effect: choose modes, then apply them ([CR#700.2]).
     Modal(Modal),
     /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
@@ -174,7 +176,7 @@ pub enum OneShotEffect {
     /// the `OneShotEffect` → `Repeat` → `OneShotEffect` size cycle. Mirrors
     /// the Idris `Repeat : (count : Count b) -> OneShotEffect
     /// b -> OneShotEffect b`.
-    Repeat(Count, Box<OneShotEffect>),
+    Repeat(Count, Arc<OneShotEffect>),
     /// `Repeat`'s BATCHING twin ([CR#616.1g]): performs `body` `count` times
     /// as ONE aggregate containing event — the count tier where "twice that
     /// many" replacements bite ([CR#121.2a,616.1g]) and aggregate triggers
@@ -184,7 +186,7 @@ pub enum OneShotEffect {
     /// the same `OneShotEffect` → `Batch` → `OneShotEffect` size-cycle
     /// reason as `Repeat`. Mirrors the Idris `Batch : (count : Count b) ->
     /// OneShotEffect b -> OneShotEffect b`.
-    Batch(Count, Box<OneShotEffect>),
+    Batch(Count, Arc<OneShotEffect>),
     /// The variable-length DIG-UNTIL ([CR#702.85] cascade, [CR#701.57]
     /// discover): `whose` reveals cards off the top of their library one at a
     /// time until one matches `matches`; `body` then runs with the found card
@@ -219,7 +221,7 @@ impl OneShotEffect {
     /// [`Mill`](../plugins)/`Mills` macros expand to this.
     #[must_use]
     pub fn mill(who: crate::Reference, count: Count) -> OneShotEffect {
-        OneShotEffect::Batch(count, Box::new(OneShotEffect::Act(Action::mill_one(who))))
+        OneShotEffect::Batch(count, Arc::new(OneShotEffect::Act(Action::mill_one(who))))
     }
 
     /// "`who` draws `count`" ([CR#121.1]) — a slice-family keyword action:
@@ -229,7 +231,7 @@ impl OneShotEffect {
     /// expand to this.
     #[must_use]
     pub fn draw(who: crate::Reference, count: Count) -> OneShotEffect {
-        OneShotEffect::Batch(count, Box::new(OneShotEffect::Act(Action::draw_one(who))))
+        OneShotEffect::Batch(count, Arc::new(OneShotEffect::Act(Action::draw_one(who))))
     }
 }
 
@@ -238,7 +240,7 @@ impl OneShotEffect {
 /// cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Continuously {
-    pub effect: Box<StaticEffect>,
+    pub effect: Arc<StaticEffect>,
     pub duration: Duration,
 }
 
@@ -254,17 +256,17 @@ pub struct Continuously {
 pub struct Targeted {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub targets: Vec<TargetSpec>,
-    pub effect: Box<OneShotEffect>,
+    pub effect: Arc<OneShotEffect>,
 }
 
 impl Targeted {
     /// Scopes `targets` over `effect`, boxing the inner effect. Builds the
-    /// wrapper without the caller spelling the `Box::new` / field order.
+    /// wrapper without the caller spelling the `Arc::new` / field order.
     #[must_use]
     pub fn new(targets: Vec<TargetSpec>, effect: OneShotEffect) -> Targeted {
         Targeted {
             targets,
-            effect: Box::new(effect),
+            effect: Arc::new(effect),
         }
     }
 }
@@ -272,11 +274,11 @@ impl Targeted {
 /// `May { do, if_did, if_not }` — `do` is a keyword, so the field is `effect`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct May {
-    pub effect: Box<OneShotEffect>,
+    pub effect: Arc<OneShotEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub if_did: Option<Box<OneShotEffect>>,
+    pub if_did: Option<Arc<OneShotEffect>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub if_not: Option<Box<OneShotEffect>>,
+    pub if_not: Option<Arc<OneShotEffect>>,
 }
 
 /// `If { condition, then, else }` — `else` is a keyword, so the field is
@@ -284,16 +286,16 @@ pub struct May {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct If {
     pub condition: Condition,
-    pub then: Box<OneShotEffect>,
+    pub then: Arc<OneShotEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub otherwise: Option<Box<OneShotEffect>>,
+    pub otherwise: Option<Arc<OneShotEffect>>,
 }
 
 /// `Noting { key, effect }` — see `OneShotEffect::Noting`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Noting {
     pub key: crate::Ident,
-    pub effect: Box<OneShotEffect>,
+    pub effect: Arc<OneShotEffect>,
 }
 
 /// serde default for the paying/acting player — "you" unless the text names
@@ -318,9 +320,9 @@ pub struct MayPay {
     #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub actor: Reference,
     pub cost: Cost,
-    pub and_then: Box<OneShotEffect>,
+    pub and_then: Arc<OneShotEffect>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub or_else: Option<Box<OneShotEffect>>,
+    pub or_else: Option<Arc<OneShotEffect>>,
 }
 
 /// `MustPay { actor, cost, or_else }` — "[actor] must pay [cost], or else
@@ -335,7 +337,7 @@ pub struct MustPay {
     #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub actor: Reference,
     pub cost: Cost,
-    pub or_else: Box<OneShotEffect>,
+    pub or_else: Arc<OneShotEffect>,
 }
 
 /// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
@@ -351,7 +353,7 @@ pub struct MustPay {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct AdditionalCost {
     pub pay: Cost,
-    pub body: Box<OneShotEffect>,
+    pub body: Arc<OneShotEffect>,
 }
 
 /// `Each { binder, do }` — `do` is a keyword, so the field is `effect`.
@@ -361,7 +363,7 @@ pub struct AdditionalCost {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Each {
     pub binder: crate::Binder,
-    pub effect: Box<OneShotEffect>,
+    pub effect: Arc<OneShotEffect>,
 }
 
 /// `With { binder, body }` — `body`/`do` is a keyword, so the field is `body`.
@@ -372,7 +374,7 @@ pub struct Each {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct With {
     pub binder: crate::Binder,
-    pub body: Box<OneShotEffect>,
+    pub body: Arc<OneShotEffect>,
 }
 
 /// `Distribute { amount, binder, body }` — see [`OneShotEffect::Distribute`].
@@ -386,7 +388,7 @@ pub struct With {
 pub struct Distribute {
     pub amount: crate::Count,
     pub binder: crate::Binder,
-    pub body: Box<OneShotEffect>,
+    pub body: Arc<OneShotEffect>,
 }
 
 /// `RevealUntil { whose, matches, body }` — see
@@ -399,7 +401,7 @@ pub struct Distribute {
 pub struct RevealUntil {
     pub whose: crate::Reference,
     pub matches: crate::Predicate,
-    pub body: Box<OneShotEffect>,
+    pub body: Arc<OneShotEffect>,
 }
 
 /// `Modal { choose, modes }` ([CR#700.2]).
@@ -414,7 +416,7 @@ pub struct Modal {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Label {
     pub r#as: crate::Ident,
-    pub effect: Box<OneShotEffect>,
+    pub effect: Arc<OneShotEffect>,
 }
 
 /// `SeparatePiles { group, into, by, note, then }` — see
@@ -429,7 +431,7 @@ pub struct SeparatePiles {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<crate::Ident>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub then: Option<Box<OneShotEffect>>,
+    pub then: Option<Arc<OneShotEffect>>,
 }
 
 /// `ChoosePile { from, by, random, then }` — see [`OneShotEffect::ChoosePile`].
@@ -442,7 +444,7 @@ pub struct ChoosePile {
     pub by: Reference,
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub random: bool,
-    pub then: Box<OneShotEffect>,
+    pub then: Arc<OneShotEffect>,
 }
 
 /// Where a [`ChoosePile`] takes its piles from: labels introduced in scope
@@ -623,7 +625,7 @@ mod tests {
              effect:Move(It,Library(FromTop(Literal(0))))))",
             // `Batch` is `Repeat`'s BATCHING twin ([CR#616.1g]) — in THIS
             // task shell-equivalent to `Repeat`, so it round-trips the same
-            // `(Count, Box<OneShotEffect>)` shape.
+            // `(Count, Arc<OneShotEffect>)` shape.
             "Batch(Literal(2),GainLife(Literal(1)))",
         ];
         for source in cases {
@@ -645,7 +647,7 @@ mod tests {
         let OneShotEffect::MustPay(m) = &parsed else {
             panic!("expected MustPay, got {parsed:?}");
         };
-        assert_eq!(m.actor, Reference::ControllerOf(Box::new(Reference::It)));
+        assert_eq!(m.actor, Reference::ControllerOf(Arc::new(Reference::It)));
         assert_eq!(
             m.cost.0.len(),
             1,

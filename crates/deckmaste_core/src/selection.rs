@@ -135,6 +135,8 @@ fn ref_is_you(r: &Reference) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::CharacteristicPredicate;
     use crate::Count;
@@ -254,10 +256,10 @@ mod tests {
         let v = Selection::Pick {
             op: crate::AggregateOp::MaxOf,
             proj: crate::Projection {
-                of: crate::Countable::Objects(Box::new(Predicate::Characteristic(
+                of: crate::Countable::Objects(Arc::new(Predicate::Characteristic(
                     CharacteristicPredicate::Type(Type::Creature.name()),
                 ))),
-                by: Box::new(Count::StatOf(crate::Reference::It, crate::Stat::Power)),
+                by: Arc::new(Count::StatOf(crate::Reference::It, crate::Stat::Power)),
             },
         };
         let s = crate::ron::options().to_string(&v).unwrap();

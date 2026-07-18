@@ -2,6 +2,8 @@
 //! AST as reified agenda work. Stage 3 wires the corpus's arms; the rest are
 //! `todo!`.
 
+use std::sync::Arc;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Agency;
 use deckmaste_core::OneShotEffect;
@@ -164,7 +166,7 @@ impl GameState {
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
-                            effect: Box::new(effect),
+                            effect: Arc::new(effect),
                             frame,
                         },
                         WorkItem::Emit(Occurrence::single(leave)),
@@ -252,7 +254,7 @@ impl GameState {
                 } else if self.targets_still_legal(&entry) {
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
-                            effect: Box::new(t.effect),
+                            effect: Arc::new(t.effect),
                             frame,
                         },
                         WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
@@ -297,7 +299,7 @@ impl GameState {
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
-                            effect: Box::new(ability.effect.clone()),
+                            effect: Arc::new(ability.effect.clone()),
                             frame,
                         },
                         WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),

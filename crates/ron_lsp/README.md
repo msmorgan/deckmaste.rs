@@ -44,23 +44,39 @@ Configure an editor LSP client to launch that command for both `*.ron` and
 `scripts/ron-lsp` launches the server (`cargo run -q -p ron_lsp`, manifest pinned
 to its own checkout so each jj workspace runs its own build; all logs go to
 stderr to keep the stdio protocol clean). A checked-in Claude Code plugin at
-`.claude/skills/ron-lsp/` registers it for `.ron` / `.ron.todo` via `.lsp.json`:
+`.claude/skills/ron-lsp/` registers it for `.ron` / `.ron.todo` via the
+`lspServers` map in `.claude-plugin/plugin.json`:
 
 ```json
 {
-  "ron_lsp": {
-    "command": "${CLAUDE_PLUGIN_ROOT}/../../../scripts/ron-lsp",
-    "transport": "stdio",
-    "extensionToLanguage": { ".ron": "ron", ".ron.todo": "ron" },
-    "startupTimeout": 60000
+  "name": "ron-lsp",
+  "lspServers": {
+    "ron_lsp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/../../../scripts/ron-lsp",
+      "transport": "stdio",
+      "extensionToLanguage": { ".ron": "ron", ".ron.todo": "ron" },
+      "startupTimeout": 60000
+    }
   }
 }
 ```
 
+`lspServers` must be the server map **inline** — a path string such as
+`"../.lsp.json"` fails manifest validation with `lspServers: Invalid input`, and
+the plugin then silently never loads. `${CLAUDE_PLUGIN_ROOT}` is the plugin
+directory (`.claude/skills/ron-lsp/`), so the `../../../` hop lands on the
+repo-root `scripts/ron-lsp`.
+
 A plugin directory under the project's `.claude/skills/` is auto-discovered as
-`<name>@skills-dir` once the project is trusted — so this needs **no marketplace
-and no entry in `settings.json`**. (A local `directory` marketplace would work
-too, but its `path` must be absolute, which can't be checked in.) The repo
+`<name>@skills-dir` — so this needs **no marketplace and no entry in
+`settings.json`**. (A local `directory` marketplace would work too, but its
+`path` must be absolute, which can't be checked in.) Being project-scope, it
+loads only once the workspace is **trusted**: until then `claude plugin list`
+reports it as "not loaded because this workspace was not trusted when plugins
+were scanned", and the `LSP` tool answers `No LSP server available for file
+type: .ron`. Trust is per-checkout-path (`hasTrustDialogAccepted` in
+`~/.claude.json`), and with `permissions.defaultMode: auto` plus
+`skipAutoPermissionPrompt` the dialog may never appear to grant it. The repo
 `.gitignore` re-includes `.claude/skills/ron-lsp/` so the plugin is
 version-controlled even though `.claude/` is otherwise ignored; anything else
 under `.claude/skills/` stays ignored.

@@ -118,13 +118,13 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                 Reference::This,
                 Predicate::State(StatePredicate::SummoningSick),
             ),
-            Condition::Not(Box::new(Condition::Matches(
+            Condition::Not(Arc::new(Condition::Matches(
                 Reference::This,
                 Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
             ))),
         ])
     };
-    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::r#static(s)));
+    let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
         permanent: true,
@@ -140,7 +140,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             }))),
             ability(StaticEffect::Conditionally(
                 sick_not_hasty(),
-                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attack {
                         by: Predicate::Ref(Reference::This),
                         on: Predicate::Any,
@@ -149,7 +149,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             )),
             ability(StaticEffect::Conditionally(
                 sick_not_hasty(),
-                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Activate {
                         what: Predicate::Ref(Reference::This),
                         by: Predicate::Any,
@@ -180,7 +180,7 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
+        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -387,8 +387,8 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         toughness: Some(StatValue::Number(2)),
         // Two SEPARATE static abilities so gather yields two different keys.
         abilities: vec![
-            Ability::r#static(StaticEffect::Replacement(Box::new(instead.clone()))),
-            Ability::r#static(StaticEffect::Replacement(Box::new(instead))),
+            Ability::r#static(StaticEffect::Replacement(Arc::new(instead.clone()))),
+            Ability::r#static(StaticEffect::Replacement(Arc::new(instead))),
         ],
         ..CardFace::default()
     }));
@@ -594,8 +594,8 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
     // authored `subject:` field).
     OneShotEffect::With(deckmaste_core::With {
         binder: deckmaste_core::Binder::TheRef(subject_ref),
-        body: Box::new(OneShotEffect::Act(Action::CreateReplacement {
-            replacement: Box::new(Replacement::Instead { would, instead }),
+        body: Arc::new(OneShotEffect::Act(Action::CreateReplacement {
+            replacement: Arc::new(Replacement::Instead { would, instead }),
             duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
             one_shot: true,
         })),
@@ -616,7 +616,7 @@ fn resolve_and_drive(state: &mut GameState, effect: OneShotEffect, source: Objec
     state.pending = None;
     let controller = state.objects.obj(source).controller;
     state.agenda.push_front(WorkItem::RunEffect {
-        effect: Box::new(effect),
+        effect: Arc::new(effect),
         frame: Frame::bare(source, controller),
     });
     drive(state);
@@ -799,12 +799,14 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
     else {
         unreachable!("regenerate_effect builds a With(TheRef, CreateReplacement)")
     };
-    let OneShotEffect::Act(Action::CreateReplacement { replacement, .. }) = *body else {
+    let OneShotEffect::Act(Action::CreateReplacement { replacement, .. }) =
+        Arc::unwrap_or_clone(body)
+    else {
         unreachable!("the With body is a CreateReplacement")
     };
     state.shields.push(ReplacementInstance {
         id: InstanceId(7),
-        replacement: *replacement,
+        replacement: Arc::unwrap_or_clone(replacement),
         subject,
         source, // distinct from subject — the key of this test
         duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
@@ -882,15 +884,15 @@ fn regeneration_shield_expires_end_of_turn() {
 /// are both live on the battlefield; `aura.attached_to == Some(creature)`.
 fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // The `would.what` for "the enchanted permanent":
-    // `Predicate::Ref(Reference::AttachHostOf(Box::new(Reference::This)))` —
+    // `Predicate::Ref(Reference::AttachHostOf(Arc::new(Reference::This)))` —
     // "the object THIS (the Aura) is attached to" ([CR#702.89a]).
-    let enchanted_perm = Predicate::Ref(Reference::AttachHostOf(Box::new(Reference::This)));
+    let enchanted_perm = Predicate::Ref(Reference::AttachHostOf(Arc::new(Reference::This)));
 
     let instead_body = OneShotEffect::Sequentially(vec![
         // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
         OneShotEffect::Act(Action::By(
             Reference::You,
-            PlayerAction::RemoveDamage(Reference::AttachHostOf(Box::new(Reference::This))),
+            PlayerAction::RemoveDamage(Reference::AttachHostOf(Arc::new(Reference::This))),
         )),
         // [CR#702.89a]: destroy this Aura.
         OneShotEffect::Act(Action::destroy(Reference::This)),
@@ -930,7 +932,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
                 what: Predicate::Ref(Reference::This),
                 to: Predicate::creature(),
             }))),
-            Ability::r#static(StaticEffect::Replacement(Box::new(umbra_armor))),
+            Ability::r#static(StaticEffect::Replacement(Arc::new(umbra_armor))),
         ],
         ..CardFace::default()
     }));
@@ -1280,7 +1282,7 @@ fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) ->
         Reference::You,
         PlayerAction::PutCounters(recipient, kind.into(), Count::ThatMuch),
     ));
-    Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+    Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Instead {
         would,
         instead,
     })))

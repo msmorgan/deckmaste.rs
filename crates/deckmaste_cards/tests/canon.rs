@@ -5,6 +5,7 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
@@ -184,7 +185,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     };
     assert_eq!(
         m.actor,
-        Reference::ControllerOf(Box::new(Reference::Target(0))),
+        Reference::ControllerOf(Arc::new(Reference::Target(0))),
         "the payer is the targeted spell's controller"
     );
     assert_eq!(

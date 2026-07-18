@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_cards::render::CardView;
@@ -653,7 +654,7 @@ fn renders_aura_host_pump() {
         name: "Test Buff Aura".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticEffect::Modify(
-            Reference::AttachHostOf(Box::new(Reference::This)),
+            Reference::AttachHostOf(Arc::new(Reference::This)),
             Modification::Several(vec![
                 Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(2))),
                 Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(2))),
@@ -698,7 +699,7 @@ fn renders_continuously_pump_until_eot() {
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
                 OneShotEffect::Continuously(Continuously {
-                    effect: Box::new(StaticEffect::Modify(
+                    effect: Arc::new(StaticEffect::Modify(
                         Reference::Target(0),
                         Modification::Several(vec![
                             Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(3))),
@@ -749,7 +750,7 @@ fn renders_continuously_cant_block_eot() {
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
                 OneShotEffect::Continuously(Continuously {
-                    effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+                    effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
                         by: Predicate::Ref(Reference::Target(0)),
                         on: Predicate::Any,
                         count: None,
@@ -794,7 +795,7 @@ fn renders_continuously_cant_be_blocked_eot() {
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
                 vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
                 OneShotEffect::Continuously(Continuously {
-                    effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+                    effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
                         by: Predicate::Any,
                         on: Predicate::Ref(Reference::Target(0)),
                         count: None,
@@ -838,7 +839,7 @@ fn renders_that_creature_cant_block_eot() {
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Continuously(Continuously {
-                effect: Box::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+                effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
                     by: Predicate::Ref(Reference::That(Sort::OfType(Type::Creature))),
                     on: Predicate::Any,
                     count: None,
@@ -1065,14 +1066,14 @@ fn renders_graveyard_static_from_zone() {
                 Reference::This,
                 Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
             ),
-            Box::new(StaticEffect::Each(
+            Arc::new(StaticEffect::Each(
                 Selection::SelectAll(Predicate::And(vec![
                     Predicate::type_(Type::Creature),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ])),
-                Box::new(StaticEffect::Modify(
+                Arc::new(StaticEffect::Modify(
                     Reference::It,
                     Modification::Several(vec![
                         Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
@@ -1126,7 +1127,7 @@ fn renders_trigger_with_turnof_intervening_if() {
             },
             from: None,
             condition: Some(Condition::TurnOf(Predicate::Relation(
-                RelationPredicate::OpponentOf(Box::new(Predicate::Ref(Reference::You))),
+                RelationPredicate::OpponentOf(Arc::new(Predicate::Ref(Reference::You))),
             ))),
             limits: vec![],
             effect: draw,

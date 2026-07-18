@@ -1,8 +1,12 @@
+use std::sync::Arc;
+
 use crate::Expansion;
 use crate::SupportsMacros;
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::Reference;
 
     fn read(source: &str) -> Reference {
@@ -11,7 +15,7 @@ mod tests {
 
     #[test]
     fn attach_host_of_round_trips() {
-        let v = Reference::AttachHostOf(Box::new(Reference::This));
+        let v = Reference::AttachHostOf(Arc::new(Reference::This));
         let w = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&w), v);
     }
@@ -90,7 +94,7 @@ mod tests {
     #[test]
     fn coalesce_round_trips() {
         let value = Reference::Coalesce(vec![
-            Reference::ControllerOf(Box::new(Reference::Target(0))),
+            Reference::ControllerOf(Arc::new(Reference::Target(0))),
             Reference::Target(0),
         ]);
         let written = crate::ron::options().to_string(&value).unwrap();
@@ -99,7 +103,7 @@ mod tests {
 
     #[test]
     fn single_round_trips() {
-        let value = Reference::Single(Box::new(crate::Selection::SelectAll(
+        let value = Reference::Single(Arc::new(crate::Selection::SelectAll(
             crate::Predicate::Ref(Reference::You),
         )));
         let written = crate::ron::options().to_string(&value).unwrap();
@@ -122,7 +126,7 @@ pub enum Reference {
     This,
     /// Demote a selection to its sole element. Empty and ambiguous
     /// selections fail closed. Rust counterpart of Idris `Reference.Single`.
-    Single(Box<crate::Selection>),
+    Single(Arc<crate::Selection>),
     /// The controller of this ability ([CR#109.5]).
     You,
     /// An opponent of `You` ([CR#102.1]); in a two-player game, the other
@@ -213,15 +217,15 @@ pub enum Reference {
     /// exiled with this, the chosen value, the cost paid.
     Linked(crate::Ident),
     /// The controller of a referenced object ([CR#109.5]).
-    ControllerOf(Box<Reference>),
+    ControllerOf(Arc<Reference>),
     /// The first reference in order that resolves to a non-null value.
     Coalesce(Vec<Reference>),
     /// The owner of a referenced object ([CR#108.3]).
-    OwnerOf(Box<Reference>),
+    OwnerOf(Arc<Reference>),
     /// The permanent that attachment R is attached to — attachment→host
     /// direction ([CR#301.5,303.4]).  Covers Equipment hosts, Aura
     /// enchantees, and Fortification hosts alike.
-    AttachHostOf(Box<Reference>),
+    AttachHostOf(Arc<Reference>),
     /// The sources of marked damage on the object under evaluation (the
     /// frame's [`This`](Reference::This) — the creature an SBA rule's scope
     /// binds) — a SET-valued binding over each source *as it was when it dealt

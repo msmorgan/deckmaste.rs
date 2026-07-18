@@ -1449,10 +1449,13 @@ fn action(a: &Action, ctx: &Ctx) -> String {
         // the same discipline as the exile-from-a-graveyard arm above — so a
         // battlefield-return of a target that isn't graveyard-scoped falls
         // through rather than being mislabelled.
-        Action::Move(r @ Reference::Target(_), Destination::Zone(Zone::Battlefield), riders, None)
-            if riders.is_empty()
-                && fragment::target_slot_filter(r, ctx)
-                    .is_some_and(fragment::is_graveyard_scoped) =>
+        Action::Move(
+            r @ Reference::Target(_),
+            Destination::Zone(Zone::Battlefield),
+            riders,
+            None,
+        ) if riders.is_empty()
+            && fragment::target_slot_filter(r, ctx).is_some_and(fragment::is_graveyard_scoped) =>
         {
             format!(
                 "Return {} from your graveyard to the battlefield.",
@@ -2209,6 +2212,8 @@ fn ensure_period(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use deckmaste_core::Action;
     use deckmaste_core::Binder;
     use deckmaste_core::Count;
@@ -2264,9 +2269,9 @@ mod tests {
             named: None,
         };
         let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
-        let draw = || Box::new(kw("Draw(1)"));
+        let draw = || Arc::new(kw("Draw(1)"));
         let lose = || {
-            Box::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
+            Arc::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
                 Count::Literal(1),
             )))
         };
@@ -2650,7 +2655,7 @@ mod tests {
         let graveyard_creature = Predicate::And(vec![
             Predicate::creature(),
             Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-            Predicate::Relation(RelationPredicate::Owner(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
@@ -2675,7 +2680,7 @@ mod tests {
         // Bare "card" (no type qualifier).
         let bare_card = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-            Predicate::Relation(RelationPredicate::Owner(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
@@ -2791,7 +2796,7 @@ mod tests {
             &deckmaste_core::OneShotEffect::Distribute(Distribute {
                 amount: Count::Literal(3),
                 binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-                body: Box::new(deckmaste_core::OneShotEffect::Act(Action::deal_damage(
+                body: Arc::new(deckmaste_core::OneShotEffect::Act(Action::deal_damage(
                     Reference::It,
                     Count::Allotment,
                 ))),
@@ -2825,7 +2830,7 @@ mod tests {
                 // "sacrifice a creature" is now the choose-then-pay `With` cost
                 // step: ChooseOne(Creature) binds `That`, then `Sacrifice(That)`.
                 pay: Cost(vec![CostComponent::With {
-                    binder: Box::new(Binder::ChooseOne {
+                    binder: Arc::new(Binder::ChooseOne {
                         filter: Predicate::creature(),
                         by: Reference::You,
                     }),
@@ -2835,7 +2840,7 @@ mod tests {
                         )),
                     ))]),
                 }]),
-                body: Box::new(kw("Draw(1)")),
+                body: Arc::new(kw("Draw(1)")),
             }),
             &ctx,
         );
@@ -2863,7 +2868,7 @@ mod tests {
                 filter: Predicate::creature(),
                 by: Reference::You,
             },
-            body: Box::new(OneShotEffect::act_by_you(PlayerAction::Sacrifice(
+            body: Arc::new(OneShotEffect::act_by_you(PlayerAction::Sacrifice(
                 Reference::That(deckmaste_core::Sort::OfType(deckmaste_core::Type::Creature)),
             ))),
         });
@@ -2921,7 +2926,7 @@ mod tests {
                 from: vec![Zone::Library],
                 if_none: None,
             },
-            body: Box::new(OneShotEffect::Sequentially(vec![
+            body: Arc::new(OneShotEffect::Sequentially(vec![
                 OneShotEffect::act_by_you(PlayerAction::Reveal {
                     what: Reference::That(Sort::Card),
                     to: None,
@@ -2948,7 +2953,7 @@ mod tests {
                 from: vec![Zone::Library],
                 if_none: None,
             },
-            body: Box::new(OneShotEffect::Sequentially(vec![
+            body: Arc::new(OneShotEffect::Sequentially(vec![
                 OneShotEffect::Act(Action::Move(
                     Reference::That(Sort::Card),
                     Destination::Zone(Zone::Battlefield),
@@ -2997,7 +3002,7 @@ mod tests {
                 from: vec![Zone::Library],
                 if_none: None,
             },
-            body: Box::new(OneShotEffect::Sequentially(vec![
+            body: Arc::new(OneShotEffect::Sequentially(vec![
                 OneShotEffect::act_by_you(PlayerAction::Reveal {
                     what: Reference::That(Sort::Card),
                     to: None,
@@ -3024,7 +3029,7 @@ mod tests {
                 from: vec![Zone::Library],
                 if_none: None,
             },
-            body: Box::new(OneShotEffect::Sequentially(vec![
+            body: Arc::new(OneShotEffect::Sequentially(vec![
                 OneShotEffect::Act(Action::Move(
                     Reference::That(Sort::Card),
                     Destination::Zone(Zone::Battlefield),
@@ -3080,13 +3085,13 @@ mod tests {
         // A group verb on the per-element `It` → the collective sentence.
         let destroy = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-            effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
+            effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
         });
         assert_eq!(effect(&destroy, &ctx), "Destroy each creature.");
         // A body the collapse does not recognise → the per-element form.
         let gain = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::creature())),
-            effect: Box::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
+            effect: Arc::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
                 Count::Literal(1),
             ))),
         });
@@ -3174,13 +3179,13 @@ mod tests {
         let highest_life = Count::Aggregate(
             AggregateOp::MaxOf,
             Projection {
-                of: Countable::Players(Box::new(Predicate::Kind(ObjectKind::Player))),
-                by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                of: Countable::Players(Arc::new(Predicate::Kind(ObjectKind::Player))),
+                by: Arc::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
             },
         );
         let set_life = OneShotEffect::Each(Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
-            effect: Box::new(OneShotEffect::Act(Action::By(
+            effect: Arc::new(OneShotEffect::Act(Action::By(
                 Reference::It,
                 PlayerAction::SetLife(highest_life),
             ))),
@@ -3230,7 +3235,12 @@ mod tests {
             that: None,
             named: None,
         };
-        let exiled = Action::Move(Reference::Target(0), Destination::Zone(Zone::Exile), vec![], None);
+        let exiled = Action::Move(
+            Reference::Target(0),
+            Destination::Zone(Zone::Exile),
+            vec![],
+            None,
+        );
         assert_eq!(
             action(&exiled, &ctx),
             "Exile target creature card from a graveyard."

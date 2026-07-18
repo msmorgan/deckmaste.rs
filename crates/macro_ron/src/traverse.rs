@@ -19,6 +19,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::hash::Hash;
+use std::sync::Arc;
 
 use crate::Ident;
 
@@ -72,6 +73,17 @@ impl<T: Expand> Expand for Box<T> {
     }
 }
 
+// Authored grammar constructs are shared via `Arc` (cheap clones on the
+// engine's hot path). Unlike `Box`, an `Arc` can't move its payload out when
+// shared, so this rebuild clones only when the node is aliased
+// (`unwrap_or_clone`); on the common uniquely-owned case it moves, matching the
+// `Box` impl's cost.
+impl<T: Expand + Clone> Expand for Arc<T> {
+    fn expand_all(self) -> Self {
+        Arc::new(Arc::unwrap_or_clone(self).expand_all())
+    }
+}
+
 impl<T: Expand> Expand for Option<T> {
     fn expand_all(self) -> Self {
         self.map(Expand::expand_all)
@@ -115,6 +127,13 @@ impl<A: Expand, B: Expand, C: Expand> Expand for (A, B, C) {
 impl<T: Normalize> Normalize for Box<T> {
     fn normalize(self) -> Self {
         Box::new((*self).normalize())
+    }
+}
+
+// See the `Expand for Arc<T>` note: clone-on-shared, move when uniquely owned.
+impl<T: Normalize + Clone> Normalize for Arc<T> {
+    fn normalize(self) -> Self {
+        Arc::new(Arc::unwrap_or_clone(self).normalize())
     }
 }
 

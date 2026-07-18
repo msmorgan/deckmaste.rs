@@ -120,6 +120,8 @@ pub fn macro_set() -> MacroSet {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::AsThough;
@@ -559,8 +561,8 @@ mod tests {
         ]);
         let expected_atom = Predicate::And(vec![
             creature,
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
@@ -592,7 +594,7 @@ mod tests {
         assert_eq!(macros.read_str::<Reference>("It").unwrap(), Reference::It);
         assert_eq!(
             macros.read_str::<Reference>("ControllerOf(This)").unwrap(),
-            Reference::ControllerOf(Box::new(Reference::This)),
+            Reference::ControllerOf(Arc::new(Reference::This)),
         );
     }
 
@@ -617,7 +619,7 @@ mod tests {
         assert_eq!(expanded.name, "MyController");
         assert_eq!(
             *expanded.value,
-            Reference::ControllerOf(Box::new(Reference::This)),
+            Reference::ControllerOf(Arc::new(Reference::This)),
         );
     }
 
@@ -724,7 +726,7 @@ mod tests {
         assert_eq!(expanded.name, "MyController");
         assert_eq!(
             *expanded.value,
-            Reference::ControllerOf(Box::new(Reference::This))
+            Reference::ControllerOf(Arc::new(Reference::This))
         );
     }
 

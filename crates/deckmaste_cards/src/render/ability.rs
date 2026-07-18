@@ -1481,6 +1481,8 @@ fn ability_noun(a: &Ability) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
 
     /// The function-zone qualifier ([CR#113.6,113.6b]) shared by the triggered
@@ -1603,7 +1605,7 @@ mod tests {
             named: None,
         };
         let you = || {
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
             ))))
         };
@@ -1675,7 +1677,7 @@ mod tests {
         assert_eq!(
             event_clause(
                 &event(Predicate::Relation(RelationPredicate::OpponentOf(
-                    Box::new(Predicate::Ref(Reference::You))
+                    Arc::new(Predicate::Ref(Reference::You))
                 ))),
                 &ctx
             ),
@@ -1737,7 +1739,7 @@ mod tests {
         assert_eq!(
             event_clause(
                 &event(Predicate::Relation(RelationPredicate::OpponentOf(
-                    Box::new(Predicate::Ref(Reference::You))
+                    Arc::new(Predicate::Ref(Reference::You))
                 ))),
                 &ctx
             ),
@@ -1856,7 +1858,7 @@ mod tests {
                 cost: Cost(vec![CostComponent::Mana(ManaCost::from(vec![
                     ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
                 ]))]),
-                or_else: Box::new(sacrifice_this()),
+                or_else: Arc::new(sacrifice_this()),
             }),
         );
         let enchantment_view = CardView {
@@ -1953,7 +1955,7 @@ mod tests {
             named: None,
         };
         let opponent = || {
-            Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(Predicate::Ref(
                 Reference::You,
             ))))
         };
@@ -2089,7 +2091,7 @@ mod tests {
             event_clause(
                 &event(Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Not(Box::new(Predicate::Characteristic(
+                    Predicate::Not(Arc::new(Predicate::Characteristic(
                         CharacteristicPredicate::Type(Type::Creature.name())
                     ))),
                 ])),
@@ -2174,7 +2176,7 @@ mod tests {
             event_clause(
                 &event(Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
-                    Predicate::State(StatePredicate::Targets(Box::new(Predicate::Ref(
+                    Predicate::State(StatePredicate::Targets(Arc::new(Predicate::Ref(
                         Reference::This
                     )))),
                 ])),
@@ -2224,7 +2226,7 @@ mod tests {
         assert_eq!(
             event_clause(
                 &EventFilter::Cast {
-                    who: Predicate::Relation(RelationPredicate::OpponentOf(Box::new(
+                    who: Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(
                         Predicate::Ref(Reference::You)
                     ))),
                     what: what(),

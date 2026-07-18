@@ -6,6 +6,7 @@
 //! that `validate_plugin` reports zero failures when tokens are included.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
@@ -242,10 +243,10 @@ fn vibranium_token_parses() {
         Count::Literal(1),
         ManaProduction::WithRiders {
             mana: ManaSpec::Specific(ColorOrColorless::Colorless),
-            riders: vec![ManaRider::SpendOnly(Predicate::Not(Box::new(
+            riders: vec![ManaRider::SpendOnly(Predicate::Not(Arc::new(
                 Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Not(Box::new(Predicate::type_(Type::Artifact))),
+                    Predicate::Not(Arc::new(Predicate::type_(Type::Artifact))),
                 ]),
             )))],
         },

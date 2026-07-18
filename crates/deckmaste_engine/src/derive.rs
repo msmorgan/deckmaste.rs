@@ -407,7 +407,7 @@ mod tests {
         };
         let card = Card::Normal(CardFace {
             name: "Innate Triggerer".into(),
-            abilities: vec![Ability::Innate(Box::new(Ability::triggered(
+            abilities: vec![Ability::Innate(Arc::new(Ability::triggered(
                 trigger.clone(),
             )))],
             ..CardFace::default()
@@ -441,7 +441,7 @@ mod tests {
             scope: Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Planeswalker.name(),
             )),
-            confer: Property::Ability(Box::new(Ability::Keyword(KeywordAbility::Trample))),
+            confer: Property::Ability(Arc::new(Ability::Keyword(KeywordAbility::Trample))),
         }];
 
         let walker = Card::Normal(CardFace {

@@ -275,6 +275,8 @@ pub(super) fn render_cost(cost: &[deckmaste_core::CostComponent]) -> Option<Stri
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use deckmaste_core::Expansion;
     use deckmaste_core::ExpansionArgs;
 
@@ -320,10 +322,10 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
-            filter: Box::new(Predicate::And(vec![
+            filter: Arc::new(Predicate::And(vec![
                 Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
-                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])),
@@ -338,7 +340,7 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::X,
-            filter: Box::new(Predicate::creature()),
+            filter: Arc::new(Predicate::creature()),
         };
         assert_eq!(render_cost(&[dynamic]), None);
     }

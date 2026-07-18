@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -69,11 +71,11 @@ pub enum Condition {
     ///
     /// `event` is boxed: unboxed it made `Happened` a ~359 B outlier that set
     /// `Condition`'s whole size; the box drops the variant to ~16 B. serde
-    /// treats `Box<T>` transparently, so the RON reads flat (`Happened(event:
+    /// treats `Arc<T>` transparently, so the RON reads flat (`Happened(event:
     /// …, within: …)`) unchanged — build one via [`Condition::happened`]
     /// rather than the struct literal. See `engine-event-size-boxing`.
     Happened {
-        event: Box<EventFilter>,
+        event: Arc<EventFilter>,
         within: Lookback,
     },
     /// The watched `value` was below `threshold` before the triggering
@@ -121,7 +123,7 @@ pub enum Condition {
     /// At least one sub-condition holds.
     Or(Vec<Condition>),
     /// The sub-condition does not hold.
-    Not(Box<Condition>),
+    Not(Arc<Condition>),
     /// A remembered `Condition` macro invocation (ability words: `Threshold`,
     /// `Delirium`, `Morbid`). Serialized as the invocation, not the struct.
     #[macro_ron(expanded)]
@@ -136,7 +138,7 @@ impl Condition {
     #[must_use]
     pub fn happened(event: EventFilter, within: Lookback) -> Self {
         Condition::Happened {
-            event: Box::new(event),
+            event: Arc::new(event),
             within,
         }
     }
@@ -176,7 +178,7 @@ mod tests {
         assert_eq!(
             opp,
             Condition::TurnOf(Predicate::Relation(crate::RelationPredicate::OpponentOf(
-                Box::new(Predicate::Ref(Reference::You))
+                Arc::new(Predicate::Ref(Reference::You))
             ))),
         );
         let written = crate::ron::options().to_string(&opp).unwrap();

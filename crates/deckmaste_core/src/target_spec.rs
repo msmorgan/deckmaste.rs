@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::Expansion;
 use crate::Predicate;
 use crate::Quantity;
@@ -39,7 +41,7 @@ pub enum TargetSpec {
     /// set — retargeting may swap members; only the whole set is checked,
     /// at announce and at the [CR#608.2b] re-check. Never a fixed-binding
     /// exclusion (that is `And([…, Not(Ref(…))])` inside the filter).
-    Distinct(Vec<usize>, Box<TargetSpec>),
+    Distinct(Vec<usize>, Arc<TargetSpec>),
     /// A remembered `TargetSpec` macro invocation.
     #[macro_ron(expanded)]
     Expanded(Expansion<TargetSpec>),

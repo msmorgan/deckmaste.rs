@@ -600,6 +600,7 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
 
     use deckmaste_core::Action;
     use deckmaste_core::Binder;
@@ -679,7 +680,7 @@ mod tests {
         // panic in `layers().controller()`.
         assert!(
             state
-                .eval_reference(&Reference::ControllerOf(Box::new(Reference::It)), &frame)
+                .eval_reference(&Reference::ControllerOf(Arc::new(Reference::It)), &frame)
                 .is_null()
         );
     }
@@ -849,13 +850,13 @@ mod tests {
         let frame = frame_src(a);
         state.run_effect(
             OneShotEffect::With(With {
-                binder: Binder::Produce(Box::new(Action::Move(
+                binder: Binder::Produce(Arc::new(Action::Move(
                     Reference::This,
                     Destination::Zone(Zone::Exile),
                     vec![],
                     None,
                 ))),
-                body: Box::new(OneShotEffect::Act(Action::Move(
+                body: Arc::new(OneShotEffect::Act(Action::Move(
                     Reference::That(deckmaste_core::Sort::Card),
                     Destination::Zone(Zone::Battlefield),
                     vec![],
@@ -885,7 +886,7 @@ mod tests {
         let frame_a = frame_src(a);
         assert_eq!(
             state.eval_reference(
-                &Reference::AttachHostOf(Box::new(Reference::This)),
+                &Reference::AttachHostOf(Arc::new(Reference::This)),
                 &frame_a
             ),
             b,
@@ -941,7 +942,7 @@ mod tests {
                     filter: creatures,
                     by: Reference::Opponent,
                 },
-                body: Box::new(OneShotEffect::Act(Action::destroy(Reference::That(
+                body: Arc::new(OneShotEffect::Act(Action::destroy(Reference::That(
                     deckmaste_core::Sort::Permanent,
                 )))),
             }),
@@ -983,14 +984,14 @@ mod tests {
 
         assert_eq!(
             state.eval_reference(
-                &Reference::ControllerOf(Box::new(Reference::Target(0))),
+                &Reference::ControllerOf(Arc::new(Reference::Target(0))),
                 &frame
             ),
             state.player(PlayerId(1)).object,
             "controller of player 1's creature is player 1"
         );
         let payer = Reference::Coalesce(vec![
-            Reference::ControllerOf(Box::new(Reference::Target(0))),
+            Reference::ControllerOf(Arc::new(Reference::Target(0))),
             Reference::Target(0),
         ]);
         assert_eq!(
@@ -1005,7 +1006,7 @@ mod tests {
             state.player(PlayerId(1)).object,
             "a player target falls back to the player itself"
         );
-        let only_you = Reference::Single(Box::new(Selection::SelectAll(Predicate::Ref(
+        let only_you = Reference::Single(Arc::new(Selection::SelectAll(Predicate::Ref(
             Reference::You,
         ))));
         assert_eq!(
@@ -1013,7 +1014,7 @@ mod tests {
             state.player(PlayerId(0)).object,
             "Single resolves a singleton selection"
         );
-        let ambiguous_players = Reference::Single(Box::new(Selection::SelectAll(Predicate::Kind(
+        let ambiguous_players = Reference::Single(Arc::new(Selection::SelectAll(Predicate::Kind(
             deckmaste_core::ObjectKind::Player,
         ))));
         assert!(
@@ -1021,7 +1022,7 @@ mod tests {
             "Single fails closed when the selection has multiple values"
         );
         assert_eq!(
-            state.eval_reference(&Reference::OwnerOf(Box::new(Reference::Target(0))), &frame),
+            state.eval_reference(&Reference::OwnerOf(Arc::new(Reference::Target(0))), &frame),
             state.player(PlayerId(0)).object,
             "owner is still player 0"
         );

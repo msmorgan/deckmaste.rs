@@ -1,6 +1,8 @@
 //! Rendering for `Condition` predicates — the intervening-if / "only if"
 //! clauses around triggered and activated abilities ([CR#603.4,602.5b]).
 
+use std::sync::Arc;
+
 use deckmaste_core::AggregateOp;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Cmp;
@@ -130,7 +132,7 @@ pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
 fn graveyard_cards_you_own() -> Predicate {
     Predicate::And(vec![
         Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-        Predicate::Relation(RelationPredicate::Owner(Box::new(Predicate::Ref(
+        Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
             Reference::You,
         )))),
     ])
@@ -146,7 +148,7 @@ fn permanents_you_control(ty: deckmaste_core::Ident) -> Predicate {
     Predicate::And(vec![
         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
         Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(ty)),
-        Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
             Reference::You,
         )))),
     ])
@@ -390,7 +392,7 @@ mod tests {
         assert_eq!(
             condition(
                 &Condition::TurnOf(Predicate::Relation(RelationPredicate::OpponentOf(
-                    Box::new(Predicate::Ref(Reference::You))
+                    Arc::new(Predicate::Ref(Reference::You))
                 ))),
                 &ctx()
             ),
@@ -399,7 +401,7 @@ mod tests {
         assert_eq!(
             condition(
                 &Condition::TurnOf(Predicate::Relation(RelationPredicate::TeammateOf(
-                    Box::new(Predicate::Ref(Reference::You))
+                    Arc::new(Predicate::Ref(Reference::You))
                 ))),
                 &ctx()
             ),
@@ -416,7 +418,7 @@ mod tests {
         assert_eq!(
             condition(
                 &Condition::Compare(
-                    Count::CountOf(Countable::Objects(Box::new(graveyard_cards_you_own()))),
+                    Count::CountOf(Countable::Objects(Arc::new(graveyard_cards_you_own()))),
                     Cmp::AtLeast,
                     Count::Literal(7),
                 ),
@@ -430,8 +432,8 @@ mod tests {
                     Count::Aggregate(
                         AggregateOp::SumOf,
                         deckmaste_core::Projection {
-                            of: Countable::Objects(Box::new(creatures_you_control())),
-                            by: Box::new(Count::StatOf(Reference::It, Stat::Power)),
+                            of: Countable::Objects(Arc::new(creatures_you_control())),
+                            by: Arc::new(Count::StatOf(Reference::It, Stat::Power)),
                         },
                     ),
                     Cmp::AtLeast,
@@ -444,7 +446,7 @@ mod tests {
         assert_eq!(
             condition(
                 &Condition::Compare(
-                    Count::CountOf(Countable::Objects(Box::new(permanents_you_control(
+                    Count::CountOf(Countable::Objects(Arc::new(permanents_you_control(
                         deckmaste_core::Type::Artifact.name()
                     )))),
                     Cmp::AtLeast,
@@ -477,7 +479,7 @@ mod tests {
                 Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Subtype(
                     subtype.into(),
                 )),
-                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ]);
@@ -508,7 +510,7 @@ mod tests {
             condition(
                 &Condition::Exists(Predicate::And(vec![
                     artifact.clone(),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You
                     )))),
                 ])),
@@ -538,8 +540,8 @@ mod tests {
             condition(
                 &Condition::Exists(Predicate::And(vec![
                     human,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
-                        Predicate::Relation(RelationPredicate::OpponentOf(Box::new(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                        Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(
                             Predicate::Ref(Reference::You)
                         )))
                     ))),
@@ -561,7 +563,7 @@ mod tests {
             condition(
                 &Condition::Exists(Predicate::And(vec![
                     griffin_creature,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You
                     )))),
                 ])),
@@ -586,14 +588,14 @@ mod tests {
         };
         let another_multicolored_permanent = Predicate::And(vec![
             permanent_noun(),
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
             Predicate::Characteristic(CharacteristicPredicate::Multicolored),
         ]);
         assert_eq!(
             condition(
                 &Condition::Exists(Predicate::And(vec![
                     another_multicolored_permanent,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You
                     )))),
                 ])),
@@ -609,7 +611,7 @@ mod tests {
             condition(
                 &Condition::Exists(Predicate::And(vec![
                     red_permanent,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You
                     )))),
                 ])),
@@ -636,7 +638,7 @@ mod tests {
         assert_eq!(
             condition(
                 &Condition::Matches(
-                    Reference::AttachHostOf(Box::new(Reference::This)),
+                    Reference::AttachHostOf(Arc::new(Reference::This)),
                     Predicate::Characteristic(CharacteristicPredicate::ColorIs(
                         deckmaste_core::Color::Black
                     )),
@@ -647,8 +649,8 @@ mod tests {
         );
         assert_eq!(
             condition(
-                &Condition::Not(Box::new(Condition::Matches(
-                    Reference::AttachHostOf(Box::new(Reference::This)),
+                &Condition::Not(Arc::new(Condition::Matches(
+                    Reference::AttachHostOf(Arc::new(Reference::This)),
                     Predicate::Characteristic(CharacteristicPredicate::Supertype(
                         Supertype::Legendary
                     )),

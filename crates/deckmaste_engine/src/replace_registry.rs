@@ -9,6 +9,8 @@
 //! `replace_event` loop, `ChooseReplacement` decision, regeneration,
 //! umbra/totem armor, genericity proof, and Skip step elision.
 
+use std::sync::Arc;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Duration;
 use deckmaste_core::EventFilter;
@@ -237,12 +239,12 @@ pub enum ReplacementKey {
 
 #[derive(Debug, Clone)]
 pub(crate) enum ApplicableEffect {
-    // Boxed: `Replacement` (~928 B) / `Prevention` (~656 B) are large ASTs.
+    // Arc-shared: `Replacement` (~928 B) / `Prevention` (~656 B) are large ASTs.
     // `gather_applicable` builds a `Vec<Applicable>` per event, so an unboxed
-    // payload made every element ~960 B; the clone already allocates internally,
-    // so the box is noise. See `engine-event-size-boxing`.
-    Replacement(Box<Replacement>),
-    Prevention(Box<Prevention>),
+    // payload made every element ~960 B; the pointer keeps it thin. See
+    // `engine-event-size-boxing`.
+    Replacement(Arc<Replacement>),
+    Prevention(Arc<Prevention>),
 }
 
 /// One replacement or prevention effect that is applicable to the current event
@@ -370,7 +372,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         if floating_watches(state, &inst.replacement, inst.subject, e) {
             out.push(Applicable {
                 key: ReplacementKey::Floating(inst.id),
-                effect: ApplicableEffect::Replacement(Box::new(inst.replacement.clone())),
+                effect: ApplicableEffect::Replacement(Arc::new(inst.replacement.clone())),
                 source: inst.source,
             });
         }
@@ -783,7 +785,7 @@ fn schedule_body(
         ..crate::stack::Frame::bare(source, controller)
     };
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
-        effect: Box::new(effect),
+        effect: Arc::new(effect),
         frame,
     }]);
 }
@@ -1368,7 +1370,7 @@ mod tests {
             instead: OneShotEffect::Sequentially(vec![]),
         };
         let (mut state, id) = tests_support::creature_with_static(StaticEffect::Replacement(
-            Box::new(instead.clone()),
+            Arc::new(instead.clone()),
         ));
         state.shields.push(ReplacementInstance {
             id: InstanceId(0),
@@ -1424,7 +1426,7 @@ mod tests {
             )),
         };
         let (mut state, subject) =
-            tests_support::creature_with_static(StaticEffect::Replacement(Box::new(rip)));
+            tests_support::creature_with_static(StaticEffect::Replacement(Arc::new(rip)));
 
         // A regeneration shield on the SUBJECT: watches the TAG facet.
         let regen = deckmaste_core::Replacement::Instead {
@@ -1629,7 +1631,7 @@ mod tests {
         use deckmaste_core::Reference;
 
         let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
-            Box::new(Prevention::PreventAll {
+            Arc::new(Prevention::PreventAll {
                 from: Predicate::Any,
                 to: Predicate::Ref(Reference::This),
                 duration: None,
@@ -1661,7 +1663,7 @@ mod tests {
         use deckmaste_core::Reference;
 
         let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
-            Box::new(Prevention::PreventNext {
+            Arc::new(Prevention::PreventNext {
                 n: Count::Literal(2),
                 from: Predicate::Any,
                 to: Predicate::Ref(Reference::This),
@@ -1751,7 +1753,7 @@ mod tests {
                     ability: 0,
                     effect,
                 },
-                effect: ApplicableEffect::Replacement(Box::new(Replacement::Instead {
+                effect: ApplicableEffect::Replacement(Arc::new(Replacement::Instead {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Any,
                         from: None,

@@ -754,7 +754,7 @@ mod tests {
         let your_turn = Condition::YourTurn;
         let turn_of_you = Condition::TurnOf(Predicate::Ref(Reference::You));
         let turn_of_opp = Condition::TurnOf(Predicate::Relation(RelationPredicate::OpponentOf(
-            Box::new(Predicate::Ref(Reference::You)),
+            Arc::new(Predicate::Ref(Reference::You)),
         )));
 
         for active in [PlayerId(0), PlayerId(1)] {
@@ -788,7 +788,7 @@ mod tests {
     fn compare_counts_stack_census() {
         let mut state = game();
         let cond = Condition::Compare(
-            Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+            Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
                 Predicate::State(StatePredicate::InZone(Zone::Stack)),
             ))),
             Cmp::Eq,
@@ -864,7 +864,7 @@ mod tests {
         );
         state.zones.battlefield.push(bear);
 
-        let creatures = Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+        let creatures = Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
             Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
         )));
         assert!(
@@ -1019,7 +1019,7 @@ mod tests {
         let gate = Condition::happened(
             EventFilter::Damage {
                 source: Predicate::any(),
-                to: Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Ref(
+                to: Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
                 combat: None,
@@ -1274,7 +1274,7 @@ mod tests {
 
         let gained_this_turn = Condition::happened(
             EventFilter::Within(
-                Box::new(EventFilter::LifeGained {
+                Arc::new(EventFilter::LifeGained {
                     who: deckmaste_core::Predicate::any(),
                     amount: None,
                 }),
@@ -1307,7 +1307,7 @@ mod tests {
     fn combinators() {
         let state = game();
         let p = PlayerId(0);
-        let cond = Condition::Not(Box::new(Condition::And(vec![Condition::Or(vec![])])));
+        let cond = Condition::Not(Arc::new(Condition::And(vec![Condition::Or(vec![])])));
         assert!(
             state.condition_holds(&cond, &frame_for(&state, p)),
             "Not(And([Or([])])) should be true (vacuous Or false → And false → Not true)"

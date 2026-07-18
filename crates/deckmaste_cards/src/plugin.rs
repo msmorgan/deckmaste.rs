@@ -553,6 +553,8 @@ pub(crate) fn ron_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use deckmaste_core::Type;
 
     use super::*;
@@ -672,7 +674,7 @@ mod tests {
             TypeDef {
                 name: "Land".into(),
                 permanent: true,
-                confers: vec![deckmaste_core::Property::Ability(Box::new(
+                confers: vec![deckmaste_core::Property::Ability(Arc::new(
                     deckmaste_core::Ability::r#static(deckmaste_core::StaticEffect::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Play {
                             what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This),
@@ -691,7 +693,7 @@ mod tests {
             TypeDef {
                 name: "Instant".into(),
                 permanent: false,
-                confers: vec![deckmaste_core::Property::Ability(Box::new(
+                confers: vec![deckmaste_core::Property::Ability(Arc::new(
                     deckmaste_core::Ability::r#static(deckmaste_core::StaticEffect::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Cast {
                             what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This),

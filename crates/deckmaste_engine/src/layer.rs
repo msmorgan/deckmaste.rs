@@ -1971,7 +1971,7 @@ mod tests {
             Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Creature.name(),
             ))),
-            Box::new(StaticEffect::Modify(
+            Arc::new(StaticEffect::Modify(
                 Reference::It,
                 Modification::Several(vec![
                     Modification::Power(NumericOp::Up(Count::Literal(2))),
@@ -1979,7 +1979,7 @@ mod tests {
                 ]),
             )),
         ));
-        if innate { Ability::Innate(Box::new(s)) } else { s }
+        if innate { Ability::Innate(Arc::new(s)) } else { s }
     }
 
     /// Mint a 2/2 creature carrying `abilities` onto the battlefield (player
@@ -2105,7 +2105,7 @@ mod tests {
         let island = Subtype {
             name: "Island".into(),
             types: vec![Type::Land],
-            confers: vec![Property::Ability(Box::new(Ability::activated(
+            confers: vec![Property::Ability(Arc::new(Ability::activated(
                 deckmaste_core::ActivatedAbility {
                     ability_word: None,
                     cost: vec![CostComponent::Tap].into(),
@@ -2291,7 +2291,7 @@ mod tests {
     fn host_pump_static(n: u32) -> Ability {
         use deckmaste_core::Reference;
         Ability::r#static(StaticEffect::Modify(
-            Reference::AttachHostOf(Box::new(Reference::This)),
+            Reference::AttachHostOf(Arc::new(Reference::This)),
             Modification::Several(vec![
                 Modification::Power(NumericOp::Up(Count::Literal(n))),
                 Modification::Toughness(NumericOp::Up(Count::Literal(n))),
@@ -2545,13 +2545,13 @@ mod tests {
         Ability::r#static(StaticEffect::Each(
             Selection::SelectAll(Predicate::And(vec![
                 Predicate::creature(),
-                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
                 Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
-                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])),
-            Box::new(StaticEffect::Modify(
+            Arc::new(StaticEffect::Modify(
                 Reference::It,
                 Modification::Several(vec![
                     Modification::Power(NumericOp::Up(Count::Literal(1))),
@@ -2619,7 +2619,7 @@ mod tests {
             controller: PlayerId(0),
             scope: ScopeResolved::Floating(Predicate::And(vec![
                 Predicate::creature(),
-                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])),
@@ -2661,7 +2661,7 @@ mod tests {
     /// gather, not of the layer number.
     fn creature_count_cda() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Countable::Objects(Box::new(Predicate::creature())));
+        let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
@@ -2703,7 +2703,7 @@ mod tests {
     /// `Of(This)`.
     fn creature_count_pump() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Countable::Objects(Box::new(Predicate::creature())));
+        let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
@@ -2792,7 +2792,7 @@ mod tests {
             Subtype {
                 name: name.into(),
                 types: vec![Type::Creature],
-                confers: vec![Property::Ability(Box::new(Ability::Keyword(
+                confers: vec![Property::Ability(Arc::new(Ability::Keyword(
                     KeywordAbility::Trample,
                 )))],
             },
@@ -2956,11 +2956,11 @@ mod tests {
         Ability::r#static(StaticEffect::Each(
             Selection::SelectAll(Predicate::And(vec![
                 Predicate::creature(),
-                Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
             ])),
-            Box::new(StaticEffect::Modify(
+            Arc::new(StaticEffect::Modify(
                 Reference::It,
-                Modification::GainAbility(Box::new(granted)),
+                Modification::GainAbility(Arc::new(granted)),
             )),
         ))
     }

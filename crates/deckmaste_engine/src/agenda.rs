@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use deckmaste_core::PhaseStep;
 
 use crate::event::GameEvent;
@@ -234,7 +236,7 @@ pub enum WorkItem {
     /// Interpret one `OneShotEffect` node against a resolution frame
     /// ([CR#608.2]).
     RunEffect {
-        effect: Box<deckmaste_core::OneShotEffect>,
+        effect: Arc<deckmaste_core::OneShotEffect>,
         frame: crate::stack::Frame,
     },
     /// [CR#611.2a,701.19c]: install the instruction-scoped "can't be

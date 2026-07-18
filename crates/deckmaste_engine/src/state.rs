@@ -162,7 +162,7 @@ pub enum ChoiceContinuation {
     /// `frame.anaphora.chosen`, then re-run `effect` (the action whose
     /// `Choose`/`Random` selection produced the decision).
     BindChoice {
-        effect: Box<deckmaste_core::OneShotEffect>,
+        effect: Arc<deckmaste_core::OneShotEffect>,
         frame: crate::stack::Frame,
     },
     /// A `ChooseObjects` answer for `PlayerAction::ChooseAndNote(_,
@@ -189,7 +189,7 @@ pub enum ChoiceContinuation {
     /// `who` is the paying player, so each cost component runs as that
     /// player's action.
     Unless {
-        effect: Box<deckmaste_core::OneShotEffect>,
+        effect: Arc<deckmaste_core::OneShotEffect>,
         who: deckmaste_core::Reference,
         unless: Vec<deckmaste_core::CostComponent>,
         frame: crate::stack::Frame,
@@ -202,8 +202,8 @@ pub enum ChoiceContinuation {
     MayPay {
         actor: deckmaste_core::Reference,
         cost: Vec<deckmaste_core::CostComponent>,
-        and_then: Box<deckmaste_core::OneShotEffect>,
-        or_else: Option<Box<deckmaste_core::OneShotEffect>>,
+        and_then: Arc<deckmaste_core::OneShotEffect>,
+        or_else: Option<Arc<deckmaste_core::OneShotEffect>>,
         frame: crate::stack::Frame,
     },
     /// [CR#401.4]: walking the post-pick arrange decisions — `current` is the

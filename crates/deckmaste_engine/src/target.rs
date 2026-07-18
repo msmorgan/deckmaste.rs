@@ -1211,7 +1211,7 @@ mod tests {
     #[test]
     fn controlled_by_matches_controllers_proxy() {
         let (state, bear, p1_card) = marked_p0_game();
-        let f = Predicate::Relation(RelationPredicate::ControlledBy(Box::new(marked())));
+        let f = Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(marked())));
         assert!(matches(&state, bear, &f)); // controlled by marked P0
         assert!(!matches(&state, p1_card, &f)); // controlled by un-marked P1
     }
@@ -1223,7 +1223,7 @@ mod tests {
         let (state, _bear, _p1_card) = marked_p0_game();
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
-        let f = Predicate::Relation(RelationPredicate::OpponentOf(Box::new(marked())));
+        let f = Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(marked())));
         assert!(matches(&state, p1, &f)); // P1 is an opponent of marked P0
         assert!(!matches(&state, p0, &f)); // P0's only opponent (P1) is un-marked
     }
@@ -1233,7 +1233,7 @@ mod tests {
     #[test]
     fn owner_matches_owning_player() {
         let (state, bear, p1_card) = marked_p0_game();
-        let f = Predicate::Relation(RelationPredicate::Owner(Box::new(marked())));
+        let f = Predicate::Relation(RelationPredicate::Owner(Arc::new(marked())));
         assert!(matches(&state, bear, &f)); // owned by marked P0
         assert!(!matches(&state, p1_card, &f)); // owned by un-marked P1
         assert!(!matches(&state, state.players[0].object, &f)); // a player has no owner
@@ -1246,7 +1246,7 @@ mod tests {
         let (state, bear, _p1_card) = marked_p0_game();
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
-        let f = Predicate::Relation(RelationPredicate::Controls(Box::new(cf(CF::Type(
+        let f = Predicate::Relation(RelationPredicate::Controls(Arc::new(cf(CF::Type(
             Type::Creature.name(),
         )))));
         assert!(matches(&state, p0, &f)); // P0 controls the bear
@@ -1263,7 +1263,7 @@ mod tests {
         let (state, _bear, _p1_card) = marked_p0_game();
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
-        let teammate = Predicate::Relation(RelationPredicate::TeammateOf(Box::new(marked())));
+        let teammate = Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(marked())));
         assert!(
             !matches(&state, p0, &teammate),
             "a player is never their own teammate"
@@ -1273,7 +1273,7 @@ mod tests {
             "no teammates exist in a 1v1 game (singleton teams)"
         );
         // The opponent relation still resolves (P1 is an opponent of marked P0).
-        let opponent = Predicate::Relation(RelationPredicate::OpponentOf(Box::new(marked())));
+        let opponent = Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(marked())));
         assert!(matches(&state, p1, &opponent));
     }
 
@@ -1390,10 +1390,10 @@ mod tests {
     #[test]
     fn targets_reads_a_stack_objects_chosen_targets() {
         let (state, spell, bear) = spell_targeting_bear();
-        let targets_creature = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
+        let targets_creature = Predicate::State(StatePredicate::Targets(Arc::new(cf(CF::Type(
             Type::Creature.name(),
         )))));
-        let targets_land = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
+        let targets_land = Predicate::State(StatePredicate::Targets(Arc::new(cf(CF::Type(
             Type::Land.name(),
         )))));
         assert!(matches(&state, spell, &targets_creature));
@@ -1407,7 +1407,7 @@ mod tests {
     #[test]
     fn targets_ignores_a_departed_target() {
         let (mut state, spell, bear) = spell_targeting_bear();
-        let targets_creature = Predicate::State(StatePredicate::Targets(Box::new(cf(CF::Type(
+        let targets_creature = Predicate::State(StatePredicate::Targets(Arc::new(cf(CF::Type(
             Type::Creature.name(),
         )))));
         assert!(matches(&state, spell, &targets_creature));
@@ -1474,11 +1474,11 @@ mod tests {
         state.zones.battlefield.push(a);
         state.objects.obj_mut(a).attached_to = Some(b);
 
-        let attached_to_creature = Predicate::Relation(RelationPredicate::AttachedTo(Box::new(
+        let attached_to_creature = Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(
             cf(CF::Type(Type::Creature.name())),
         )));
         let has_any_attachment =
-            Predicate::Relation(RelationPredicate::Attachment(Box::new(Predicate::Any)));
+            Predicate::Relation(RelationPredicate::Attachment(Arc::new(Predicate::Any)));
 
         assert!(
             matches(&state, a, &attached_to_creature),
@@ -1544,7 +1544,7 @@ mod tests {
     }
 
     fn where_is_subject_color(c: deckmaste_core::Color) -> Predicate {
-        Predicate::Where(Box::new(deckmaste_core::Condition::Matches(
+        Predicate::Where(Arc::new(deckmaste_core::Condition::Matches(
             deckmaste_core::Reference::It,
             Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::ColorIs(c)),
         )))
@@ -1567,7 +1567,7 @@ mod tests {
                 Condition::Matches(Reference::This, Predicate::Characteristic(ColorIs(c))),
             ])
         };
-        Predicate::Where(Box::new(Condition::Or(vec![
+        Predicate::Where(Arc::new(Condition::Or(vec![
             branch(White),
             branch(Blue),
             branch(Black),
@@ -1686,7 +1686,7 @@ mod tests {
         use deckmaste_core::Stat;
         Predicate::And(vec![
             Predicate::State(StatePredicate::Attacking),
-            Predicate::Where(Box::new(Condition::Compare(
+            Predicate::Where(Arc::new(Condition::Compare(
                 Count::StatOf(Reference::It, Stat::Power),
                 Cmp::Less,
                 Count::StatOf(Reference::This, Stat::Power),

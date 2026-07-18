@@ -8,6 +8,8 @@
 //! `scan_triggers` and `place_triggers` are the scheduling/agenda-touching
 //! functions.
 
+use std::sync::Arc;
+
 use deckmaste_core::Ability;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Count;
@@ -107,7 +109,7 @@ pub struct NotedTrigger {
     /// `Some` for a delayed/reflexive trigger ([CR#603.7,603.12]) — its
     /// by-value body carried from creation (see [`CreatedTrigger`]); `None`
     /// for a printed trigger indexed by `ability`.
-    pub created: Option<Box<deckmaste_core::TriggeredAbility>>,
+    pub created: Option<Arc<deckmaste_core::TriggeredAbility>>,
     pub controller: PlayerId,
     pub bindings: TriggerBindings,
 }
@@ -132,7 +134,7 @@ pub struct CreatedTrigger {
     pub controller: PlayerId,
     /// The ability body — its `event` is the fire pattern, its `effect` runs
     /// on the stack when it fires.
-    pub ability: Box<deckmaste_core::TriggeredAbility>,
+    pub ability: Arc<deckmaste_core::TriggeredAbility>,
     /// The context captured at creation: `~`/`This` (the creating object's
     /// last-known self) and any event roles it should carry to resolution.
     pub bindings: TriggerBindings,
@@ -151,7 +153,7 @@ pub struct PendingTrigger {
     pub ability: usize,
     /// `Some` for a delayed/reflexive trigger ([CR#603.7,603.12]) — carried
     /// through placement to the committed `StackEntry`.
-    pub created: Option<Box<deckmaste_core::TriggeredAbility>>,
+    pub created: Option<Arc<deckmaste_core::TriggeredAbility>>,
     pub controller: PlayerId,
     pub bindings: TriggerBindings,
 }
@@ -1976,12 +1978,12 @@ mod tests {
         use deckmaste_core::Stat;
         use deckmaste_core::StatePredicate;
         Condition::Compare(
-            Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+            Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
                 Predicate::And(vec![
                     Predicate::creature(),
                     Predicate::State(StatePredicate::Attacking),
-                    Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-                    Predicate::Where(Box::new(Condition::Compare(
+                    Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                    Predicate::Where(Arc::new(Condition::Compare(
                         Count::StatOf(Reference::It, Stat::Power),
                         Cmp::Greater,
                         Count::StatOf(Reference::This, Stat::Power),
@@ -2635,8 +2637,8 @@ mod tests {
         // one the watcher's own controller controls does not.
         let by_opponent = EventFilter::BecomesTarget {
             what: Predicate::Ref(Reference::This),
-            by: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
-                Predicate::Relation(deckmaste_core::RelationPredicate::OpponentOf(Box::new(
+            by: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
+                Predicate::Relation(deckmaste_core::RelationPredicate::OpponentOf(Arc::new(
                     Predicate::Ref(Reference::You),
                 ))),
             ))),
@@ -2680,7 +2682,7 @@ mod tests {
             who: Predicate::Ref(Reference::You),
             what: Predicate::And(vec![
                 Predicate::Kind(ObjectKind::Spell),
-                Predicate::Not(Box::new(Predicate::Characteristic(
+                Predicate::Not(Arc::new(Predicate::Characteristic(
                     CharacteristicPredicate::Type(Type::Creature.name()),
                 ))),
             ]),
@@ -2843,7 +2845,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::ZoneChange {
-            what: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
+            what: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
                 Predicate::Ref(Reference::You),
             ))),
             from: None,
@@ -3488,7 +3490,7 @@ mod tests {
         state.delayed_triggers.push(super::CreatedTrigger {
             source: ObjectSource::Player(PlayerId(0)),
             controller: PlayerId(0),
-            ability: Box::new(draw_on(EventFilter::StepBegins {
+            ability: Arc::new(draw_on(EventFilter::StepBegins {
                 at: PhaseStep::Ending(EndingStep::End),
                 whose: WhoseTurn::EachPlayers,
             })),
@@ -3572,7 +3574,7 @@ mod tests {
         // No earlier event in this resolution yet → the "when you do" window is
         // empty, so the reflexive trigger does NOT fire (it never waits for a
         // future event — [CR#603.12]).
-        state.run_effect(OneShotEffect::Reflexive(Box::new(ability.clone())), &frame);
+        state.run_effect(OneShotEffect::Reflexive(Arc::new(ability.clone())), &frame);
         assert_eq!(
             total_fired(&state),
             0,
@@ -3591,7 +3593,7 @@ mod tests {
                 player: PlayerId(0),
                 amount: 3,
             }));
-        state.run_effect(OneShotEffect::Reflexive(Box::new(ability)), &frame);
+        state.run_effect(OneShotEffect::Reflexive(Arc::new(ability)), &frame);
         assert_eq!(
             total_fired(&state),
             1,
@@ -3629,7 +3631,7 @@ mod tests {
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
         let frame = Frame::bare(src, PlayerId(0));
-        state.run_effect(OneShotEffect::Delayed(Box::new(ability.clone())), &frame);
+        state.run_effect(OneShotEffect::Delayed(Arc::new(ability.clone())), &frame);
         assert_eq!(
             total_fired(&state),
             0,
@@ -3653,7 +3655,7 @@ mod tests {
                 player: PlayerId(0),
                 amount: 3,
             }));
-        state.run_effect(OneShotEffect::Delayed(Box::new(ability)), &frame);
+        state.run_effect(OneShotEffect::Delayed(Arc::new(ability)), &frame);
         assert_eq!(
             total_fired(&state),
             1,
@@ -4352,7 +4354,7 @@ mod tests {
             .insert("mark".into(), 1);
         let snap = LkiSnapshot::capture(&state, bear);
         let w = state.objects.obj(bear).source;
-        let marked = || Box::new(Predicate::State(StatePredicate::HasCounter("mark".into())));
+        let marked = || Arc::new(Predicate::State(StatePredicate::HasCounter("mark".into())));
         assert!(state.filter_matches_snapshot(
             &Predicate::Relation(RelationPredicate::ControlledBy(marked())),
             &snap,
@@ -4364,7 +4366,7 @@ mod tests {
             w
         ));
         assert!(!state.filter_matches_snapshot(
-            &Predicate::Relation(RelationPredicate::OpponentOf(Box::new(Predicate::Any))),
+            &Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(Predicate::Any))),
             &snap,
             w
         ));

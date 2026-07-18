@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use deckmaste_core::Uint;
 
@@ -411,7 +412,7 @@ impl DecisionHandler for ChooseModes {
         let items = picks
             .into_iter()
             .map(|i| WorkItem::RunEffect {
-                effect: Box::new(modes[i as usize].effect.clone()),
+                effect: Arc::new(modes[i as usize].effect.clone()),
                 frame: frame.clone(),
             })
             .collect();

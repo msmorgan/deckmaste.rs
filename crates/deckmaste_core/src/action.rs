@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::Count;
 use crate::CounterRef;
 use crate::Expansion;
@@ -143,19 +145,20 @@ pub enum Action {
     /// reference that isn't attached.
     Unattach(Reference),
     /// Move the referenced object to a [`Destination`] ([CR#400.7]) — a plain
-    /// zone change (emits the future-form `ZoneChange`), NOT destruction (so indestructible
-    /// does not apply, distinct from [`Action::destroy`]) and NOT a
-    /// sacrifice. A graveyard/hand/library destination is the object's
-    /// *owner's*; exile is the shared exile zone. The destination is a bare
-    /// zone name (`Move(This, Graveyard)` — the [CR#704.5m] Aura graveyard SBA)
-    /// or the library at an anchor (`Move(This, Library(FromTop(0)))` — top of
-    /// library, the former `PutInLibrary`; `Library(FromBottom(0))` — bottom,
-    /// [CR#401.7]). This one verb subsumes the old `Move`/`PutInLibrary` split,
-    /// and (`Move(_, Hand)`) the former dedicated `ReturnToHand` bounce verb —
-    /// a hand destination is exactly as unremarkable as any other zone.
-    /// The `riders` list ([`EnterRider`], default `[]`, omitted on write when
-    /// empty) spells arrival state for a BATTLEFIELD destination — "onto the
-    /// battlefield tapped / under its owner's control / with a +1/+1 counter
+    /// zone change (emits the future-form `ZoneChange`), NOT destruction (so
+    /// indestructible does not apply, distinct from [`Action::destroy`])
+    /// and NOT a sacrifice. A graveyard/hand/library destination is the
+    /// object's *owner's*; exile is the shared exile zone. The destination
+    /// is a bare zone name (`Move(This, Graveyard)` — the [CR#704.5m] Aura
+    /// graveyard SBA) or the library at an anchor (`Move(This,
+    /// Library(FromTop(0)))` — top of library, the former `PutInLibrary`;
+    /// `Library(FromBottom(0))` — bottom, [CR#401.7]). This one verb
+    /// subsumes the old `Move`/`PutInLibrary` split, and (`Move(_, Hand)`)
+    /// the former dedicated `ReturnToHand` bounce verb — a hand destination
+    /// is exactly as unremarkable as any other zone. The `riders` list
+    /// ([`EnterRider`], default `[]`, omitted on write when empty) spells
+    /// arrival state for a BATTLEFIELD destination — "onto the battlefield
+    /// tapped / under its owner's control / with a +1/+1 counter
     /// on it" ([CR#614.12]); riders on any other destination are ill-formed
     /// (rejected by the Idris re-emit gate).
     ///
@@ -228,7 +231,7 @@ pub enum Action {
     /// `one_shot` consumes the shield on first use ([CR#614.3]).
     /// [CR#701.19a,614.8]
     CreateReplacement {
-        replacement: Box<crate::replacement::Replacement>,
+        replacement: Arc<crate::replacement::Replacement>,
         duration: crate::continuous::Duration,
         one_shot: bool,
     },
@@ -248,7 +251,7 @@ pub enum Action {
     /// `Action` size cycle.
     Composite {
         name: crate::VerbName,
-        body: Box<crate::OneShotEffect>,
+        body: Arc<crate::OneShotEffect>,
     },
     /// A named player performs the [`PlayerAction`] ([CR#608.2]). `By(You, …)`
     /// is the implicit-you default and is written bare in RON.
@@ -478,7 +481,7 @@ impl Action {
     pub fn destroy(what: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Destroy"),
-            body: Box::new(crate::OneShotEffect::Act(Action::move_to(
+            body: Arc::new(crate::OneShotEffect::Act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
@@ -500,7 +503,7 @@ impl Action {
     pub fn mill_one(who: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Mill"),
-            body: Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
+            body: Arc::new(crate::OneShotEffect::Act(Action::MoveGroup {
                 group: Selection::TopOfLibrary {
                     count: Count::Literal(1),
                     whose: who,
@@ -529,12 +532,12 @@ impl Action {
     pub fn draw_one(who: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Draw"),
-            body: Box::new(crate::OneShotEffect::Each(crate::Each {
+            body: Arc::new(crate::OneShotEffect::Each(crate::Each {
                 binder: crate::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(1),
                     whose: who,
                 }),
-                effect: Box::new(crate::OneShotEffect::Act(Action::move_to(
+                effect: Arc::new(crate::OneShotEffect::Act(Action::move_to(
                     Reference::It,
                     crate::Zone::Hand,
                 ))),
@@ -574,11 +577,11 @@ impl Action {
         };
         Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Box::new(crate::OneShotEffect::With(crate::With {
+            body: Arc::new(crate::OneShotEffect::With(crate::With {
                 binder,
-                body: Box::new(crate::OneShotEffect::Each(crate::Each {
+                body: Arc::new(crate::OneShotEffect::Each(crate::Each {
                     binder: crate::Binder::Existing(Selection::They),
-                    effect: Box::new(crate::OneShotEffect::Act(Action::discard_what(
+                    effect: Arc::new(crate::OneShotEffect::Act(Action::discard_what(
                         Reference::It,
                     ))),
                 })),
@@ -600,7 +603,7 @@ impl Action {
     pub fn discard_what(what: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Box::new(crate::OneShotEffect::Act(Action::move_to(
+            body: Arc::new(crate::OneShotEffect::Act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
@@ -617,7 +620,7 @@ impl Action {
 fn discard_hand_filter(who: Reference) -> crate::Predicate {
     crate::Predicate::And(vec![
         crate::Predicate::State(crate::StatePredicate::InZone(crate::Zone::Hand)),
-        crate::Predicate::Relation(crate::RelationPredicate::Owner(Box::new(
+        crate::Predicate::Relation(crate::RelationPredicate::Owner(Arc::new(
             crate::Predicate::Ref(who),
         ))),
     ])
@@ -1374,12 +1377,12 @@ mod tests {
     fn composite_round_trips() {
         let scry = Action::Composite {
             name: crate::VerbName::from("Scry"),
-            body: Box::new(crate::OneShotEffect::Each(crate::Each {
+            body: Arc::new(crate::OneShotEffect::Each(crate::Each {
                 binder: crate::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
                     whose: Reference::You,
                 }),
-                effect: Box::new(crate::OneShotEffect::Act(Action::Move(
+                effect: Arc::new(crate::OneShotEffect::Act(Action::Move(
                     Reference::It,
                     Destination::Library(Anchor::FromTop(Count::Literal(0))),
                     vec![],
@@ -1414,7 +1417,7 @@ mod tests {
             mill,
             Action::Composite {
                 name: crate::VerbName::from("Mill"),
-                body: Box::new(crate::OneShotEffect::Act(Action::MoveGroup {
+                body: Arc::new(crate::OneShotEffect::Act(Action::MoveGroup {
                     group: Selection::TopOfLibrary {
                         count: Count::Literal(1),
                         whose: Reference::It,
@@ -1438,7 +1441,7 @@ mod tests {
             whole,
             crate::OneShotEffect::Batch(
                 Count::Literal(5),
-                Box::new(crate::OneShotEffect::Act(Action::mill_one(Reference::It)))
+                Arc::new(crate::OneShotEffect::Act(Action::mill_one(Reference::It)))
             )
         );
     }

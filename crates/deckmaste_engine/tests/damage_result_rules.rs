@@ -70,13 +70,13 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                 Reference::This,
                 Predicate::State(StatePredicate::SummoningSick),
             ),
-            Condition::Not(Box::new(Condition::Matches(
+            Condition::Not(Arc::new(Condition::Matches(
                 Reference::This,
                 Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
             ))),
         ])
     };
-    let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::r#static(s)));
+    let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
         permanent: true,
@@ -92,7 +92,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             }))),
             ability(StaticEffect::Conditionally(
                 sick_not_hasty(),
-                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attack {
                         by: Predicate::Ref(Reference::This),
                         on: Predicate::Any,
@@ -101,7 +101,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             )),
             ability(StaticEffect::Conditionally(
                 sick_not_hasty(),
-                Box::new(StaticEffect::Deontic(Deontic::Cant(
+                Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Activate {
                         what: Predicate::Ref(Reference::This),
                         by: Predicate::Any,

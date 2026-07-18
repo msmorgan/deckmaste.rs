@@ -7,6 +7,8 @@
 //!
 //! [`EventApply`]: crate::step::EventApply
 
+use std::sync::Arc;
+
 use deckmaste_core::Selection;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -173,9 +175,9 @@ impl GameState {
             let mark = self.resolution_events.len();
             self.schedule_front(vec![
                 WorkItem::RunEffect {
-                    effect: Box::new(deckmaste_core::OneShotEffect::Repeat(
+                    effect: Arc::new(deckmaste_core::OneShotEffect::Repeat(
                         deckmaste_core::Count::Literal(n),
-                        Box::new(contents.body),
+                        Arc::new(contents.body),
                     )),
                     frame: repeat_frame,
                 },
@@ -285,7 +287,7 @@ impl GameState {
             .contents
             .expect("a discard window carries its choice body in contents");
         self.schedule_front(vec![WorkItem::RunEffect {
-            effect: Box::new(contents.body),
+            effect: Arc::new(contents.body),
             frame: contents.frame,
         }]);
         rebuilt
@@ -304,7 +306,7 @@ impl GameState {
         let mark = self.resolution_events.len();
         self.schedule_front(vec![
             WorkItem::RunEffect {
-                effect: Box::new(contents.body),
+                effect: Arc::new(contents.body),
                 frame: contents.frame,
             },
             WorkItem::FinalizeAct {

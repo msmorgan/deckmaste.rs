@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fmt;
+use std::sync::Arc;
 
 use deckmaste_core::DeciderSpec;
 use deckmaste_core::KeywordAbility;
@@ -441,7 +442,7 @@ pub(crate) fn toll_item(
         },
         deckmaste_core::CostComponent::Expanded(e) => toll_item(&e.value, who, payer, frame),
         other => WorkItem::RunEffect {
-            effect: Box::new(unless_cost_effect(other, who)),
+            effect: Arc::new(unless_cost_effect(other, who)),
             frame: frame.clone(),
         },
     }
@@ -470,7 +471,7 @@ pub(crate) fn unless_cost_effect(
         // surfaces its own choice) and reuse the `OneShotEffect::With` interpreter.
         CostComponent::With { binder, body } => OneShotEffect::With(deckmaste_core::With {
             binder: (**binder).clone(),
-            body: Box::new(cost_body_effect(body, who)),
+            body: Arc::new(cost_body_effect(body, who)),
         }),
         // Look through a remembered macro invocation so a wrapped `With` is
         // still intercepted here (not delegated to the Action-only path).

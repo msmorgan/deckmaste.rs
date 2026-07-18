@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -94,7 +96,7 @@ pub enum StatePredicate {
     /// The object is related to a matching object by a named, declared
     /// relation ([CR#607] family). Box because the inner predicate is a
     /// Predicate.
-    RelatedBy(Ident, Box<Predicate>),
+    RelatedBy(Ident, Arc<Predicate>),
     /// Declared as an attacker, still in combat ([CR#508.1a]).
     Attacking,
     /// Declared as a blocker, still in combat ([CR#509.1a]).
@@ -105,7 +107,7 @@ pub enum StatePredicate {
     /// chosen targets CURRENTLY matches — departed targets are ignored,
     /// never read through LKI (the one value read with no LKI fallback).
     /// Box breaks the `Predicate` size cycle.
-    Targets(Box<Predicate>),
+    Targets(Arc<Predicate>),
     /// "with [N] target(s)" ([CR#115.9a]): counts the target instances
     /// chosen at stack-put; "targets only …" counts distinct chosen
     /// targets, then checks current state ([CR#115.9c]).
@@ -134,29 +136,29 @@ pub enum StatePredicate {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum RelationPredicate {
     /// The object's controller matches ([CR#109.5]).
-    ControlledBy(Box<Predicate>),
+    ControlledBy(Arc<Predicate>),
     /// The object is a player who controls a matching object — the inverse
     /// of [`ControlledBy`](RelationPredicate::ControlledBy) ([CR#109.5]).
     /// Zone-agnostic: control spans the battlefield, the stack (spells and
     /// abilities), and the command zone, so the inner filter carries any
     /// zone restriction it needs (e.g. `Controls(And([Permanent, …]))`
     /// for "controls a permanent").
-    Controls(Box<Predicate>),
+    Controls(Arc<Predicate>),
     /// The object's owner matches ([CR#108.3]).
-    Owner(Box<Predicate>),
+    Owner(Arc<Predicate>),
     /// The object is an opponent of a matching player ([CR#102.2,102.3]) — a
     /// player NOT on the matching player's team.
-    OpponentOf(Box<Predicate>),
+    OpponentOf(Arc<Predicate>),
     /// The object is a teammate of a matching player ([CR#102.3,810.1]) —
     /// ANOTHER player on the matching player's team (never that player itself).
     /// PRIMITIVE, not `Not(OpponentOf …)`: in Two-Headed Giant a teammate is
     /// neither you nor an opponent ([CR#810]). "your team" ([CR#102.4]) is
     /// `Or([Ref(You), TeammateOf(Ref(You))])`.
-    TeammateOf(Box<Predicate>),
+    TeammateOf(Arc<Predicate>),
     /// The object is attached to a matching object ([CR#301.5,303.4]).
-    AttachedTo(Box<Predicate>),
+    AttachedTo(Arc<Predicate>),
     /// The object has a matching attachment ([CR#301.5,303.4]).
-    Attachment(Box<Predicate>),
+    Attachment(Arc<Predicate>),
 }
 
 /// A predicate over game objects, players included. Compartmentalized in
@@ -212,10 +214,10 @@ pub enum Predicate {
     /// spell carries its qualities itself, so "red spells or abilities from
     /// red sources" is `Or([And([Kind(Spell), ColorIs(Red)]),
     /// FromSource(ColorIs(Red))])`. Boxed like the other one-child atoms.
-    FromSource(Box<Predicate>),
+    FromSource(Arc<Predicate>),
     And(Vec<Predicate>),
     Or(Vec<Predicate>),
-    Not(Box<Predicate>),
+    Not(Arc<Predicate>),
     /// The candidate matches iff a [`Condition`] holds with `It` bound to
     /// it — the bridge that lets a per-object filter slot reach the whole
     /// condition language ([CR#603.4] predicates) against the object being
@@ -225,7 +227,7 @@ pub enum Predicate {
     /// cycle. The one candidate-relative escape hatch: "shares a color with ~",
     /// "has the same name as ~", etc., expressed as
     /// `Where(SharesColor(It, This))` and kin.
-    Where(Box<Condition>),
+    Where(Arc<Condition>),
     /// Matches every object — the bare-Predicate default for event participant
     /// slots (an `EventFilter` master form's `who`/`what`).
     Any,
@@ -393,7 +395,7 @@ mod tests {
         let v = read("TeammateOf(Ref(You))");
         assert_eq!(
             v,
-            Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
                 Reference::You
             )))),
         );
@@ -405,7 +407,7 @@ mod tests {
             read("Or([Ref(You), TeammateOf(Ref(You))])"),
             Predicate::Or(vec![
                 Predicate::Ref(Reference::You),
-                Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
+                Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
                     Reference::You
                 )))),
             ]),
@@ -462,20 +464,20 @@ mod tests {
             read(r#"RelatedBy("PairedWith", Type("Creature"))"#),
             Predicate::State(StatePredicate::RelatedBy(
                 "PairedWith".into(),
-                Box::new(Predicate::Characteristic(CharacteristicPredicate::Type(
+                Arc::new(Predicate::Characteristic(CharacteristicPredicate::Type(
                     Type::Creature.name()
                 ))),
             )),
         );
         assert_eq!(
             read("AttachedTo(Type(\"Creature\"))"),
-            Predicate::Relation(RelationPredicate::AttachedTo(Box::new(
+            Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(
                 Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()),)
             ))),
         );
         assert_eq!(
             read("Attachment(Type(\"Enchantment\"))"),
-            Predicate::Relation(RelationPredicate::Attachment(Box::new(
+            Predicate::Relation(RelationPredicate::Attachment(Arc::new(
                 Predicate::Characteristic(CharacteristicPredicate::Type(Type::Enchantment.name()),)
             ))),
         );
@@ -515,7 +517,7 @@ mod tests {
         let v = read("FromSource(ColorIs(Red))");
         assert_eq!(
             v,
-            Predicate::FromSource(Box::new(Predicate::Characteristic(
+            Predicate::FromSource(Arc::new(Predicate::Characteristic(
                 CharacteristicPredicate::ColorIs(Color::Red)
             ))),
         );
@@ -559,7 +561,7 @@ mod tests {
         );
         assert_eq!(
             read("Not(Kind(Player))"),
-            Predicate::Not(Box::new(Predicate::Kind(ObjectKind::Player))),
+            Predicate::Not(Arc::new(Predicate::Kind(ObjectKind::Player))),
         );
     }
 
@@ -568,13 +570,13 @@ mod tests {
         use crate::Reference;
         assert_eq!(
             read("ControlledBy(Ref(You))"),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You
             )))),
         );
         assert_eq!(
             read("Controls(Type(\"Land\"))"),
-            Predicate::Relation(RelationPredicate::Controls(Box::new(
+            Predicate::Relation(RelationPredicate::Controls(Arc::new(
                 Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land.name()))
             ))),
         );

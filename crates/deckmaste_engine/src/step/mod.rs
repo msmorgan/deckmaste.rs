@@ -298,7 +298,7 @@ impl GameState {
             }
             WorkItem::RunEffect { effect, frame } => {
                 let source = frame.source;
-                self.run_effect(*effect, &frame);
+                self.run_effect(std::sync::Arc::unwrap_or_clone(effect), &frame);
                 Progress::Resolving(source)
             }
             WorkItem::InstallRiders { no_regen } => {

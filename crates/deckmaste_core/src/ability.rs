@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -201,7 +203,7 @@ pub struct Mode {
 /// (`CardFace::abilities`) elements from ~1416 B to ~88 B and clears
 /// `large_enum_variant` without a suppression. Build them via the boxing
 /// constructors ([`Ability::triggered`] / `activated` / `spell` / `r#static`)
-/// rather than `Ability::Triggered(Box::new(…))`. See
+/// rather than `Ability::Triggered(Arc::new(…))`. See
 /// `engine-event-size-boxing`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Ability {
@@ -211,10 +213,10 @@ pub enum Ability {
     /// [CR#611.3]); conditionality/other qualifiers compose as `StaticEffect`
     /// wrappers ([`Conditionally`](crate::StaticEffect::Conditionally)), never
     /// a struct field. Mirrors Idris `Static : StaticEffect -> Ability`.
-    Static(Box<StaticEffect>),
-    Activated(Box<ActivatedAbility>),
-    Triggered(Box<TriggeredAbility>),
-    Spell(Box<SpellAbility>),
+    Static(Arc<StaticEffect>),
+    Activated(Arc<ActivatedAbility>),
+    Triggered(Arc<TriggeredAbility>),
+    Spell(Arc<SpellAbility>),
     /// A keyword ability ([CR#702]) — always spelled `Keyword(…)` on cards.
     /// The five intrinsic variants read as themselves (`Keyword(Trample)`);
     /// every other keyword name resolves inside the `KeywordAbility`
@@ -232,7 +234,7 @@ pub enum Ability {
     /// abilities to other cards ([CR#113.12]). Engine machinery (the SBA
     /// sweep, `attachment_legal`, layer static-application) peels `Innate` to
     /// see the inner ability. A look-through wrapper, like `Expanded`.
-    Innate(Box<Ability>),
+    Innate(Arc<Ability>),
     /// A remembered macro invocation ([CR#702] keyword abilities, and any other
     /// `Ability` macro). Absorbs the old `Keyword`/`KeywordAbility` shape.
     #[macro_ron(expanded)]
@@ -242,28 +244,28 @@ pub enum Ability {
 impl Ability {
     /// Build [`Ability::Static`], boxing the [`StaticEffect`] payload — the
     /// value-side counterpart of the flat RON `Static(…)`, so call sites never
-    /// hand-write `Box::new`. (Raw ident: `static` is a keyword.)
+    /// hand-write `Arc::new`. (Raw ident: `static` is a keyword.)
     #[must_use]
     pub fn r#static(effect: StaticEffect) -> Self {
-        Ability::Static(Box::new(effect))
+        Ability::Static(Arc::new(effect))
     }
 
     /// Build [`Ability::Activated`], boxing the payload.
     #[must_use]
     pub fn activated(ability: ActivatedAbility) -> Self {
-        Ability::Activated(Box::new(ability))
+        Ability::Activated(Arc::new(ability))
     }
 
     /// Build [`Ability::Triggered`], boxing the payload.
     #[must_use]
     pub fn triggered(ability: TriggeredAbility) -> Self {
-        Ability::Triggered(Box::new(ability))
+        Ability::Triggered(Arc::new(ability))
     }
 
     /// Build [`Ability::Spell`], boxing the payload.
     #[must_use]
     pub fn spell(ability: SpellAbility) -> Self {
-        Ability::Spell(Box::new(ability))
+        Ability::Spell(Arc::new(ability))
     }
 
     /// Peel any `Innate` wrapper to the inner ability — the view engine
@@ -511,12 +513,12 @@ mod tests {
         let inner = Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
             DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
-                to: Predicate::Not(Box::new(Predicate::Characteristic(
+                to: Predicate::Not(Arc::new(Predicate::Characteristic(
                     crate::CharacteristicPredicate::Type(crate::Type::Creature.name()),
                 ))),
             },
         )));
-        let innate = Ability::Innate(Box::new(inner.clone()));
+        let innate = Ability::Innate(Arc::new(inner.clone()));
         assert!(innate.is_innate());
         assert!(!inner.is_innate());
         // peel_innate reaches the inner ability (through any nesting).
@@ -541,7 +543,7 @@ mod tests {
             Reference::This,
             crate::Modification::LoseAllAbilities,
         ));
-        let innate = Ability::Innate(Box::new(inner.clone()));
+        let innate = Ability::Innate(Arc::new(inner.clone()));
         // A macro-expanded Innate: `Expanded(Innate(...))`.
         let wrapped = Ability::Expanded(Expansion {
             name: "AuraGraveyardRule".into(),

@@ -4,6 +4,8 @@
 //! announce flow (`announce_targets` / `pay_cost`) is shared with activated
 //! abilities ([CR#602.2b]); see `activate.rs` for the activation entry point.
 
+use std::sync::Arc;
+
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
@@ -478,7 +480,7 @@ fn verb_payment_items(
             let mut frame = Frame::bare(source, player);
             frame.anaphora.x = x;
             WorkItem::RunEffect {
-                effect: Box::new(OneShotEffect::Act(verb.clone())),
+                effect: Arc::new(OneShotEffect::Act(verb.clone())),
                 frame,
             }
         })
@@ -1627,7 +1629,7 @@ impl GameState {
                     let effect =
                         crate::decide::unless_cost_effect(with, &deckmaste_core::Reference::You);
                     items.push(WorkItem::RunEffect {
-                        effect: Box::new(effect),
+                        effect: Arc::new(effect),
                         frame: Frame::bare(source, controller),
                     });
                 }
@@ -2469,10 +2471,10 @@ mod tests {
             abilities: vec![Ability::r#static(StaticEffect::CostModifier {
                 of: Predicate::Ref(Reference::This),
                 change: CostChange::Scaled {
-                    change: Box::new(CostChange::Reduce(vec![CostComponent::Mana(
+                    change: Arc::new(CostChange::Reduce(vec![CostComponent::Mana(
                         "{1}".parse().unwrap(),
                     )])),
-                    times: Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+                    times: Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
                         Predicate::And(vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Characteristic(CharacteristicPredicate::Type(
@@ -2624,7 +2626,7 @@ mod tests {
         deckmaste_core::TypeDef {
             name: "Instant".into(),
             permanent: false,
-            confers: vec![deckmaste_core::Property::Ability(Box::new(
+            confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Cast {
                         what: Predicate::Ref(Reference::This),
@@ -2710,7 +2712,7 @@ mod tests {
         deckmaste_core::TypeDef {
             name: "Land".into(),
             permanent: true,
-            confers: vec![deckmaste_core::Property::Ability(Box::new(
+            confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Play {
                         what: Predicate::Ref(Reference::This),

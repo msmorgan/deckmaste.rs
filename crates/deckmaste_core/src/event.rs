@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -559,27 +561,27 @@ pub enum EventFilter {
     /// anchor: the operand must bottom out in master forms and `Not`
     /// itself never kind-anchors a live lane ([CR#603.2]; no
     /// freeze-everything `CantHappen`).
-    Not(Box<EventFilter>),
+    Not(Arc<EventFilter>),
     /// One or more matching occurrences in one event, matched as the
     /// BATCH: the pattern matches the occurrence once, not per member
     /// ([CR#603.2c]). Trigger/replacement lanes only.
-    OneOrMore(Box<EventFilter>),
+    OneOrMore(Arc<EventFilter>),
     /// The nth matching occurrence within a lookback ([CR#603.2]; a dead
     /// 0th occurrence never happens, [CR#603.2g]) — "the second spell you
     /// cast this turn". `n` is 1-based (≥ 1, gated by the Idris model).
     Nth {
         n: Uint,
-        of: Box<EventFilter>,
+        of: Arc<EventFilter>,
         within: Lookback,
     },
     /// A game-state refinement on the occurrence ("during your turn") —
     /// the condition is evaluated as the event occurs ([CR#603.4] states
     /// the ability-level twin; this is the pattern-level residue).
-    When(Box<EventFilter>, Box<Condition>),
+    When(Arc<EventFilter>, Arc<Condition>),
     /// A history-lane window refinement ([CR#608.2i]) — legal ONLY under
     /// `Happened`/`EventCount`/`EventSum` (history lanes); vacuous, and
     /// refused, in live lanes ([CR#603.2]).
-    Within(Box<EventFilter>, Lookback),
+    Within(Arc<EventFilter>, Lookback),
     /// The storm refinement ([CR#702.40a]): the occurrence happened strictly
     /// BEFORE the referenced object's OWN cast this window — keyed on cast
     /// ORDER ([CR#601.2i]), never resolution time. `Before(This)` delivers

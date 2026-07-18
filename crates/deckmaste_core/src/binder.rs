@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::Action;
 use crate::Expansion;
 use crate::Predicate;
@@ -53,7 +55,7 @@ pub enum Binder {
     /// (Cavern-of-Souls-style "exile it":
     /// `With(Produce(Move(It, Exile)), …)`). Boxed: an open [`Action`] is the
     /// largest leaf enum (`clippy::large_enum_variant`).
-    Produce(Box<Action>),
+    Produce(Arc<Action>),
     /// Search `whose`'s `from`-zones (hidden libraries/graveyards) for exactly
     /// ONE match, bound as `That` — One → `That`. The Idris `SearchOne`;
     /// `by`/`whose` default to `You`, `from` to `[Library]` (each omitted on
@@ -79,7 +81,7 @@ pub enum Binder {
         /// binding, so reading the search's `That` inside it is unsound
         /// (rejected by the Idris re-emit gate).
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        if_none: Option<Box<crate::OneShotEffect>>,
+        if_none: Option<Arc<crate::OneShotEffect>>,
     },
     /// The chooser picks a quantity of matches — Many → `That` (group).
     /// ("choose two cards") Same `by` default as
@@ -118,7 +120,7 @@ pub enum Binder {
         /// [`SearchOne::if_none`](Binder::SearchOne). Elaborates without the
         /// searched group bound.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        if_none: Option<Box<crate::OneShotEffect>>,
+        if_none: Option<Arc<crate::OneShotEffect>>,
     },
     /// A remembered `Binder` macro invocation.
     #[macro_ron(expanded)]
@@ -194,7 +196,7 @@ mod tests {
                 by: Reference::Opponent,
             },
             Binder::Existing(Selection::They),
-            Binder::Produce(Box::new(Action::Move(
+            Binder::Produce(Arc::new(Action::Move(
                 Reference::It,
                 Destination::Zone(Zone::Exile),
                 vec![],
@@ -322,7 +324,7 @@ mod tests {
             by: Reference::You,
             whose: Reference::You,
             from: vec![Zone::Library],
-            if_none: Some(Box::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
+            if_none: Some(Arc::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
                 Count::Literal(1),
             )))),
         };

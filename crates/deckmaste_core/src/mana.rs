@@ -1,5 +1,6 @@
 use std::fmt;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -206,7 +207,7 @@ pub enum SymbolPred {
     /// Any of the given filters (non-empty by convention; empty = "no colors").
     Or(Vec<SymbolPred>),
     /// The negation of a filter.
-    Not(Box<SymbolPred>),
+    Not(Arc<SymbolPred>),
 }
 
 impl SymbolPred {
@@ -267,10 +268,10 @@ pub enum ManaRider {
     SpendOnly(crate::Predicate),
     /// An effect granted to the spell or ability the mana is spent on
     /// ("If that mana is spent on a creature spell, it gains riot").
-    GrantOnSpend(Box<crate::OneShotEffect>),
+    GrantOnSpend(Arc<crate::OneShotEffect>),
     /// A delayed trigger ([CR#603.7a]) firing when the mana is spent
     /// ("When that mana is spent to cast …, copy that spell").
-    TriggerOnSpend(Box<crate::OneShotEffect>),
+    TriggerOnSpend(Arc<crate::OneShotEffect>),
     /// Persistence override ([CR#106.4] emptying does not claim it until
     /// the marker — firebending's "you don't lose this mana",
     /// [CR#702.189a]).
@@ -706,7 +707,7 @@ mod tests {
         assert!(!SymbolPred::AnyColor.matches(&generic2));
         assert!(wb.matches(&hybrid_gw)); // Or: {G/W} is white
         assert!(
-            SymbolPred::Not(Box::new(SymbolPred::IsGeneric))
+            SymbolPred::Not(Arc::new(SymbolPred::IsGeneric))
                 .matches(&ManaSymbol::from(Color::Green))
         );
     }

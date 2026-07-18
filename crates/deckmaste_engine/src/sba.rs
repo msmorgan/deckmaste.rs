@@ -166,7 +166,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
         let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::OneShotEffect)> = Vec::new();
         crate::legal::for_each_static(state, view, id, |e| {
             if let deckmaste_core::StaticEffect::Sba { when, then } = e {
-                rows.push((*when.clone(), (**then).clone()));
+                rows.push((when.as_ref().clone(), (**then).clone()));
             }
         });
         for (when, then) in rows {
@@ -953,11 +953,11 @@ mod tests {
     /// The Aura-subtype shape (scaffolded in-Rust): `Innate(Static([Sba(Not(
     /// LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))]))`.
     fn aura_graveyard_sba() -> Ability {
-        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Sba {
-            when: Box::new(Condition::Not(Box::new(Condition::LegallyAttached(
+        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Sba {
+            when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                 Reference::This,
             )))),
-            then: Box::new(OneShotEffect::Act(deckmaste_core::Action::move_to(
+            then: Arc::new(OneShotEffect::Act(deckmaste_core::Action::move_to(
                 Reference::This,
                 Zone::Graveyard,
             ))),
@@ -968,7 +968,7 @@ mod tests {
     /// what: Ref(This), to: Creature))]))` — an attachment that may legally
     /// attach to a creature host (and to nothing else without a further grant).
     fn may_attach_creature() -> Ability {
-        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
+        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
                 to: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
@@ -1184,23 +1184,23 @@ mod tests {
         // The Ascend static, built typed (mirrors the builtin macro's expansion).
         let gate = Condition::And(vec![
             Condition::Compare(
-                Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
+                Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ])))),
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),
-            Condition::Not(Box::new(Condition::Matches(
+            Condition::Not(Arc::new(Condition::Matches(
                 Reference::You,
                 Predicate::State(StatePredicate::Designated(name)),
             ))),
         ]);
         let ascend = Ability::r#static(StaticEffect::Sba {
-            when: Box::new(gate),
-            then: Box::new(OneShotEffect::Act(Action::By(
+            when: Arc::new(gate),
+            then: Arc::new(OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GetDesignation(name),
             ))),
@@ -1274,23 +1274,23 @@ mod tests {
         // controller's permanents and grants to that controller.
         let ascend = || {
             Ability::r#static(StaticEffect::Sba {
-                when: Box::new(Condition::And(vec![
+                when: Arc::new(Condition::And(vec![
                     Condition::Compare(
-                        Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
+                        Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
                                 Predicate::Ref(Reference::You),
                             ))),
                         ])))),
                         Cmp::AtLeast,
                         Count::Literal(10),
                     ),
-                    Condition::Not(Box::new(Condition::Matches(
+                    Condition::Not(Arc::new(Condition::Matches(
                         Reference::You,
                         Predicate::State(StatePredicate::Designated(name)),
                     ))),
                 ])),
-                then: Box::new(OneShotEffect::Act(Action::By(
+                then: Arc::new(OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GetDesignation(name),
                 ))),

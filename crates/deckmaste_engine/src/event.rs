@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::Token;
@@ -386,7 +388,7 @@ pub struct TriggerFired {
     /// `Some` for a delayed/reflexive ([CR#603.7,603.12]) trigger created
     /// at resolution — its by-value body, printed on no permanent. `None`
     /// for a printed trigger (`ability` indexes `abilities_of_source`).
-    pub created: Option<Box<deckmaste_core::TriggeredAbility>>,
+    pub created: Option<Arc<deckmaste_core::TriggeredAbility>>,
     /// Boxed: `TriggerBindings` carries three LKI snapshots (~280 B) and
     /// dominated `GameEvent`'s size, cascading through every by-value event
     /// move in `step()`; a trigger fires far less often than events move, so

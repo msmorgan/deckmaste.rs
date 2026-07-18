@@ -3,6 +3,8 @@
 //! abilities; the announce slot serves casts ([CR#601.2]) and activations
 //! ([CR#602.2]).
 
+use std::sync::Arc;
+
 use deckmaste_core::CostComponent;
 use deckmaste_core::ManaCost;
 use deckmaste_core::Zone;
@@ -34,7 +36,7 @@ pub enum StackObject {
         /// `Some` for a delayed/reflexive trigger created at resolution — its
         /// authoritative body (`ability` is then a placeholder). `None` for a
         /// printed trigger, read via `abilities_of_source(source)[ability]`.
-        created: Option<Box<deckmaste_core::TriggeredAbility>>,
+        created: Option<Arc<deckmaste_core::TriggeredAbility>>,
         bindings: TriggerBindings,
     },
     /// An activated ability on the stack ([CR#602.2a]). Carries the ability's

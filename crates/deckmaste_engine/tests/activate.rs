@@ -1492,7 +1492,7 @@ fn activated_ability_pays_choose_sacrifice_cost() {
             // "sacrifice a creature": the cost-side choose-then-pay `With` step
             // ([CR#601.2b]) — ChooseOne binds `That`, then `Sacrifice(That)`.
             CostComponent::With {
-                binder: Box::new(deckmaste_core::Binder::ChooseOne {
+                binder: Arc::new(deckmaste_core::Binder::ChooseOne {
                     filter: creature_filter,
                     by: Reference::You,
                 }),

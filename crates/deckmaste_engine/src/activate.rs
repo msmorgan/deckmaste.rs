@@ -165,7 +165,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
             }),
             CostComponent::Do(action) => {
                 if action.is_cost_eligible() {
-                    verbs.push(*action.clone());
+                    verbs.push(action.as_ref().clone());
                 } else {
                     // Non-eligible verbs in a cost are malformed.
                     return None;
@@ -809,6 +809,8 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::ActivatedAbility;
@@ -1039,7 +1041,7 @@ mod tests {
                 stat: Stat::Power,
                 cmp: Cmp::AtLeast,
                 count: Count::Literal(3),
-                filter: Box::new(Predicate::creature()),
+                filter: Arc::new(Predicate::creature()),
             },
         ];
         let summary = cost_summary(&cost).expect("a TapTotal cost summarizes");

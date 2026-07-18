@@ -1451,7 +1451,7 @@ mod tests {
     /// conferred attachable-to-host shape (Equipment/Fortification subtype
     /// rule) under default-deny attachment.
     fn innate_may_attach(what: Predicate, to: Predicate) -> Ability {
-        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
+        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::May(DeonticAction::Attach { what, to }),
         ))))
     }
@@ -1601,7 +1601,7 @@ mod tests {
         // recurses through the collector.
         let pathological = Ability::r#static(StaticEffect::Conditionally(
             Condition::LegallyAttached(Reference::This),
-            Box::new(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+            Arc::new(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
                 to: Predicate::Any,
             }))),
@@ -1721,10 +1721,10 @@ mod tests {
     /// An `Innate` static (any conferred rule): PEELED in place — never
     /// dropped — by the usable list, so it occupies an index slot.
     fn innate_static() -> Ability {
-        Ability::Innate(Box::new(Ability::r#static(StaticEffect::Deontic(
+        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::Cant(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
-                to: Predicate::Not(Box::new(creature())),
+                to: Predicate::Not(Arc::new(creature())),
             }),
         ))))
     }
@@ -1879,7 +1879,7 @@ mod tests {
         deckmaste_core::TypeDef {
             name: "Land".into(),
             permanent: true,
-            confers: vec![deckmaste_core::Property::Ability(Box::new(
+            confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Play {
                     what: Predicate::Ref(Reference::This),
                     by: Predicate::Any,
@@ -1978,7 +1978,7 @@ mod tests {
             vec![Type::Creature],
             vec![Ability::r#static(StaticEffect::Conditionally(
                 Condition::Compare(Count::Literal(0), Cmp::Greater, Count::Literal(1)),
-                Box::new(cant()),
+                Arc::new(cant()),
             ))],
         );
         let v = off.layers();
@@ -1995,7 +1995,7 @@ mod tests {
             vec![Type::Creature],
             vec![Ability::r#static(StaticEffect::Conditionally(
                 Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(1)),
-                Box::new(cant()),
+                Arc::new(cant()),
             ))],
         );
         let v = on.layers();
@@ -2027,13 +2027,13 @@ mod tests {
                     Reference::This,
                     Predicate::State(StatePredicate::SummoningSick),
                 ),
-                Condition::Not(Box::new(Condition::Matches(
+                Condition::Not(Arc::new(Condition::Matches(
                     Reference::This,
                     Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
                 ))),
             ])
         };
-        let ability = |s: StaticEffect| Property::Ability(Box::new(Ability::r#static(s)));
+        let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
         deckmaste_core::TypeDef {
             name: "Creature".into(),
             permanent: true,
@@ -2049,7 +2049,7 @@ mod tests {
                 }))),
                 ability(StaticEffect::Conditionally(
                     sick_not_hasty(),
-                    Box::new(StaticEffect::Deontic(Deontic::Cant(
+                    Arc::new(StaticEffect::Deontic(Deontic::Cant(
                         DeonticAction::Attack {
                             by: Predicate::Ref(Reference::This),
                             on: Predicate::Any,
@@ -2058,7 +2058,7 @@ mod tests {
                 )),
                 ability(StaticEffect::Conditionally(
                     sick_not_hasty(),
-                    Box::new(StaticEffect::Deontic(Deontic::Cant(
+                    Arc::new(StaticEffect::Deontic(Deontic::Cant(
                         DeonticAction::Activate {
                             what: Predicate::Ref(Reference::This),
                             by: Predicate::Any,

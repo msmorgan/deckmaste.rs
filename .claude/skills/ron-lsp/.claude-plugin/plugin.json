@@ -2,5 +2,15 @@
   "name": "ron-lsp",
   "description": "deckmaste RON language server for *.ron / *.ron.todo card files",
   "version": "0.1.0",
-  "lspServers": "../.lsp.json"
+  "lspServers": {
+    "ron_lsp": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/../../../scripts/ron-lsp",
+      "transport": "stdio",
+      "extensionToLanguage": {
+        ".ron": "ron",
+        ".ron.todo": "ron"
+      },
+      "startupTimeout": 60000
+    }
+  }
 }

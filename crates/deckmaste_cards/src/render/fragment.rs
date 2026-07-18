@@ -1152,6 +1152,8 @@ pub(super) fn library_position(anchor: &Anchor) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
 
     fn ctx() -> Ctx<'static> {
@@ -1198,7 +1200,7 @@ mod tests {
     /// player relations relative to "you".
     #[test]
     fn filter_noun_renders_ability_and_team_relative_players() {
-        let you = || Box::new(Predicate::Ref(Reference::You));
+        let you = || Arc::new(Predicate::Ref(Reference::You));
         assert_eq!(
             filter_noun(&Predicate::Kind(ObjectKind::Ability)),
             "ability"
@@ -1218,7 +1220,7 @@ mod tests {
         assert_eq!(filter_noun(&flying), "creature with flying");
         let nonflying = Predicate::And(vec![
             Predicate::creature(),
-            Predicate::Not(Box::new(Predicate::Characteristic(
+            Predicate::Not(Arc::new(Predicate::Characteristic(
                 CharacteristicPredicate::Has("Flying".into()),
             ))),
         ]);
@@ -1244,10 +1246,10 @@ mod tests {
     /// strongest pin for "wrong register selected".
     #[test]
     fn subject_phrase_renders_singular_and_plural_inflections() {
-        let you = || Box::new(Predicate::Ref(Reference::You));
+        let you = || Arc::new(Predicate::Ref(Reference::You));
         let filtered = Predicate::And(vec![
             Predicate::creature(),
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
             Predicate::Relation(RelationPredicate::ControlledBy(you())),
         ]);
         assert_eq!(
@@ -1262,8 +1264,8 @@ mod tests {
 
         let doubled = Predicate::And(vec![
             Predicate::creature(),
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
             Predicate::Relation(RelationPredicate::ControlledBy(you())),
         ]);
         assert_eq!(
@@ -1284,8 +1286,8 @@ mod tests {
 
         let opponent_controls = Predicate::And(vec![
             Predicate::creature(),
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
                 Predicate::Relation(RelationPredicate::OpponentOf(you())),
             ))),
         ]);
@@ -1300,8 +1302,8 @@ mod tests {
 
         let teammate_controls = Predicate::And(vec![
             Predicate::creature(),
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
                 Predicate::Relation(RelationPredicate::TeammateOf(you())),
             ))),
         ]);
@@ -1319,7 +1321,7 @@ mod tests {
         // "another".
         let opponent_controls_no_self_exclusion = Predicate::And(vec![
             Predicate::creature(),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
                 Predicate::Relation(RelationPredicate::OpponentOf(you())),
             ))),
         ]);
@@ -1341,8 +1343,8 @@ mod tests {
             Predicate::Characteristic(CharacteristicPredicate::Type(
                 deckmaste_core::Type::Creature.name(),
             )),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(
-                Predicate::Relation(RelationPredicate::TeammateOf(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ))),
@@ -1357,16 +1359,16 @@ mod tests {
     fn count_renders_single_color_devotion() {
         let permanents_you_control = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
         let devotion_green = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(permanents_you_control)),
-                by: Box::new(Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::It),
+                of: Countable::Objects(Arc::new(permanents_you_control)),
+                by: Arc::new(Count::CountOf(Countable::ManaSymbols(
+                    Arc::new(Reference::It),
                     SymbolPred::CountsAs(Color::Green),
                 ))),
             },
@@ -1380,16 +1382,16 @@ mod tests {
     fn count_renders_two_color_devotion() {
         let permanents_you_control = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
         let devotion_wb = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(permanents_you_control)),
-                by: Box::new(Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::It),
+                of: Countable::Objects(Arc::new(permanents_you_control)),
+                by: Arc::new(Count::CountOf(Countable::ManaSymbols(
+                    Arc::new(Reference::It),
                     SymbolPred::Or(vec![
                         SymbolPred::CountsAs(Color::White),
                         SymbolPred::CountsAs(Color::Black),
@@ -1407,13 +1409,13 @@ mod tests {
         let total_power = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(Predicate::And(vec![
+                of: Countable::Objects(Arc::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Characteristic(CharacteristicPredicate::Type(
                         deckmaste_core::Type::Creature.name(),
                     )),
                 ]))),
-                by: Box::new(Count::StatOf(Reference::It, Stat::Power)),
+                by: Arc::new(Count::StatOf(Reference::It, Stat::Power)),
             },
         );
         // `Count::StatOf` itself has no dedicated `count()` phrase yet (a
@@ -1436,8 +1438,8 @@ mod tests {
         let highest_life = Count::Aggregate(
             AggregateOp::MaxOf,
             Projection {
-                of: Countable::Players(Box::new(Predicate::Kind(ObjectKind::Player))),
-                by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                of: Countable::Players(Arc::new(Predicate::Kind(ObjectKind::Player))),
+                by: Arc::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
             },
         );
         assert_eq!(
@@ -1455,8 +1457,8 @@ mod tests {
         let odd_fold = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Players(Box::new(Predicate::Kind(ObjectKind::Player))),
-                by: Box::new(Count::Literal(3)),
+                of: Countable::Players(Arc::new(Predicate::Kind(ObjectKind::Player))),
+                by: Arc::new(Count::Literal(3)),
             },
         );
         assert_eq!(count(&odd_fold), format!("[unrendered: {odd_fold:?}]"));

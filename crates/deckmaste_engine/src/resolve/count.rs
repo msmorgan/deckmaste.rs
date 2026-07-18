@@ -734,7 +734,7 @@ mod tests {
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(cast_event), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(cast_event), Lookback::ThisTurn),
                 &frame
             ),
             3,
@@ -775,7 +775,7 @@ mod tests {
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(draw_event), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(draw_event), Lookback::ThisTurn),
                 &frame
             ),
             2,
@@ -817,7 +817,7 @@ mod tests {
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(play_event), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(play_event), Lookback::ThisTurn),
                 &frame
             ),
             1,
@@ -861,7 +861,7 @@ mod tests {
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_event), Lookback::ThisTurn),
+                &Count::EventSum(Arc::new(lose_event), Lookback::ThisTurn),
                 &frame
             ),
             5,
@@ -869,7 +869,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(gain_event), Lookback::ThisTurn),
+                &Count::EventSum(Arc::new(gain_event), Lookback::ThisTurn),
                 &frame
             ),
             4,
@@ -888,7 +888,7 @@ mod tests {
         };
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(cast_event2), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(cast_event2), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -896,7 +896,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(draw_event2), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(draw_event2), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -929,7 +929,7 @@ mod tests {
 
         // The storm count, evaluated in the storm spell's frame (This = S).
         let storm_count = Count::EventCount(
-            Box::new(EventFilter::AllOf(vec![
+            Arc::new(EventFilter::AllOf(vec![
                 EventFilter::Cast {
                     who: Predicate::Any,
                     what: Predicate::Any,
@@ -971,7 +971,7 @@ mod tests {
         state.record_history_fact(1, None, GameEvent::SpellCast(storm));
 
         let storm_count = Count::EventCount(
-            Box::new(EventFilter::AllOf(vec![
+            Arc::new(EventFilter::AllOf(vec![
                 EventFilter::Cast {
                     who: Predicate::Any,
                     what: Predicate::Any,
@@ -1072,7 +1072,7 @@ mod tests {
         ]);
         assert_eq!(
             state.eval_count(
-                &Count::CountOf(Countable::Objects(Box::new(creatures.clone()))),
+                &Count::CountOf(Countable::Objects(Arc::new(creatures.clone()))),
                 &frame
             ),
             2
@@ -1081,12 +1081,12 @@ mod tests {
         // "Creatures you control": only the frame side's bear.
         let yours = Predicate::And(vec![
             creatures,
-            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Box::new(
+            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
                 Predicate::Ref(Reference::You),
             ))),
         ]);
         assert_eq!(
-            state.eval_count(&Count::CountOf(Countable::Objects(Box::new(yours))), &frame),
+            state.eval_count(&Count::CountOf(Countable::Objects(Arc::new(yours))), &frame),
             1
         );
     }
@@ -1125,7 +1125,7 @@ mod tests {
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::This),
+                    Arc::new(Reference::This),
                     SymbolPred::CountsAs(deckmaste_core::Color::Green),
                 )),
                 &frame,
@@ -1139,7 +1139,7 @@ mod tests {
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::This),
+                    Arc::new(Reference::This),
                     SymbolPred::CountsAs(deckmaste_core::Color::Green),
                 )),
                 &frame,
@@ -1150,7 +1150,7 @@ mod tests {
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::This),
+                    Arc::new(Reference::This),
                     SymbolPred::CountsAs(deckmaste_core::Color::White),
                 )),
                 &frame,
@@ -1161,7 +1161,7 @@ mod tests {
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::This),
+                    Arc::new(Reference::This),
                     SymbolPred::Or(vec![
                         SymbolPred::CountsAs(deckmaste_core::Color::White),
                         SymbolPred::CountsAs(deckmaste_core::Color::Black),
@@ -1217,7 +1217,7 @@ mod tests {
 
         let your_permanents = Predicate::And(vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
@@ -1225,9 +1225,9 @@ mod tests {
         let devotion_green = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(your_permanents)),
-                by: Box::new(Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::It),
+                of: Countable::Objects(Arc::new(your_permanents)),
+                by: Arc::new(Count::CountOf(Countable::ManaSymbols(
+                    Arc::new(Reference::It),
                     SymbolPred::CountsAs(Color::Green),
                 ))),
             },
@@ -1247,17 +1247,17 @@ mod tests {
         let total_power = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(Predicate::And(vec![
+                of: Countable::Objects(Arc::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::creature(),
                 ]))),
-                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+                by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
             },
         );
         assert_eq!(power_state.eval_count(&total_power, &frame), 7);
 
         // The empty set folds every `AggregateOp` to 0.
-        let empty = Countable::Objects(Box::new(Predicate::Not(Box::new(Predicate::Any))));
+        let empty = Countable::Objects(Arc::new(Predicate::Not(Arc::new(Predicate::Any))));
         for op in [
             AggregateOp::SumOf,
             AggregateOp::MinOf,
@@ -1268,7 +1268,7 @@ mod tests {
                 op,
                 Projection {
                     of: empty.clone(),
-                    by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+                    by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
                 },
             );
             assert_eq!(
@@ -1308,8 +1308,8 @@ mod tests {
             Count::Aggregate(
                 op,
                 Projection {
-                    of: Countable::Players(Box::new(all_players.clone())),
-                    by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                    of: Countable::Players(Arc::new(all_players.clone())),
+                    by: Arc::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
                 },
             )
         };
@@ -1332,7 +1332,7 @@ mod tests {
         // An empty player set (an authoring mistake, but must stay safe on
         // ANY input, not just the real ≥1-player fixtures) folds every op to
         // 0 rather than panicking on `Iterator::min`/`max` of an empty set.
-        let no_players = Predicate::Not(Box::new(Predicate::Any));
+        let no_players = Predicate::Not(Arc::new(Predicate::Any));
         for op in [
             AggregateOp::SumOf,
             AggregateOp::MinOf,
@@ -1342,8 +1342,8 @@ mod tests {
             let empty_fold = Count::Aggregate(
                 op,
                 Projection {
-                    of: Countable::Players(Box::new(no_players.clone())),
-                    by: Box::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
+                    of: Countable::Players(Arc::new(no_players.clone())),
+                    by: Arc::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
                 },
             );
             assert_eq!(
@@ -1373,7 +1373,7 @@ mod tests {
         state.player_mut(PlayerId(1)).life = 10;
 
         let count_at_most = |threshold| {
-            Count::CountOf(Countable::Players(Box::new(Predicate::PlayerStatCmp(
+            Count::CountOf(Countable::Players(Arc::new(Predicate::PlayerStatCmp(
                 PlayerAttr::Life,
                 Cmp::AtMost,
                 Count::Literal(threshold),
@@ -1415,7 +1415,7 @@ mod tests {
         let your_permanents = || {
             Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])
@@ -1425,8 +1425,8 @@ mod tests {
                 AggregateOp::SumOf,
                 Projection {
                     of,
-                    by: Box::new(Count::CountOf(Countable::ManaSymbols(
-                        Box::new(Reference::It),
+                    by: Arc::new(Count::CountOf(Countable::ManaSymbols(
+                        Arc::new(Reference::It),
                         SymbolPred::Or(vec![
                             SymbolPred::CountsAs(Color::White),
                             SymbolPred::CountsAs(Color::Black),
@@ -1446,7 +1446,7 @@ mod tests {
         let frame = frame_src(src);
         assert_eq!(
             state.eval_count(
-                &devotion_wb(Countable::Objects(Box::new(your_permanents()))),
+                &devotion_wb(Countable::Objects(Arc::new(your_permanents()))),
                 &frame
             ),
             3,
@@ -1470,7 +1470,7 @@ mod tests {
         let frame = frame_src(src);
         assert_eq!(
             empty_state.eval_count(
-                &devotion_wb(Countable::Objects(Box::new(your_permanents()))),
+                &devotion_wb(Countable::Objects(Arc::new(your_permanents()))),
                 &frame
             ),
             0,
@@ -1575,14 +1575,14 @@ mod tests {
         let frame = frame_src(bear);
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Box::new(Reference::This), "P1P1Counter".into()),
+                &Count::CounterCount(Arc::new(Reference::This), "P1P1Counter".into()),
                 &frame
             ),
             3
         );
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Box::new(Reference::This), "M1M1Counter".into()),
+                &Count::CounterCount(Arc::new(Reference::This), "M1M1Counter".into()),
                 &frame
             ),
             0,
@@ -1616,7 +1616,7 @@ mod tests {
 
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Box::new(Reference::This), "P1P1Counter".into()),
+                &Count::CounterCount(Arc::new(Reference::This), "P1P1Counter".into()),
                 &frame
             ),
             2,
@@ -1624,7 +1624,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Box::new(Reference::This), "M1M1Counter".into()),
+                &Count::CounterCount(Arc::new(Reference::This), "M1M1Counter".into()),
                 &frame
             ),
             0,
@@ -1684,7 +1684,7 @@ mod tests {
         let frame = frame_src(bear);
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Box::new(Reference::This), "LoyaltyCounter".into()),
+                &Count::CounterCount(Arc::new(Reference::This), "LoyaltyCounter".into()),
                 &frame
             ),
             4,
@@ -1746,7 +1746,7 @@ mod tests {
             let before = state.zones.battlefield.len();
             state.run_effect(
                 OneShotEffect::act_by_you(PlayerAction::Create(
-                    Count::CountOf(Countable::Objects(Box::new(parsed))),
+                    Count::CountOf(Countable::Objects(Arc::new(parsed))),
                     deckmaste_core::Token {
                         color_indicator: vec![],
                         supertypes: vec![],
@@ -1876,7 +1876,7 @@ mod tests {
         // No deaths recorded yet → 0.
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(death_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -1890,7 +1890,7 @@ mod tests {
         // Both deaths match → 2.
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(death_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             2,
@@ -1900,7 +1900,7 @@ mod tests {
         // A non-matching pattern → 0.
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(enter_pattern), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(enter_pattern), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -1911,7 +1911,7 @@ mod tests {
         state.turn.turn_number = 2;
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern.clone()), Lookback::ThisTurn),
+                &Count::EventCount(Arc::new(death_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -1919,7 +1919,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventCount(Box::new(death_pattern), Lookback::ThisGame),
+                &Count::EventCount(Arc::new(death_pattern), Lookback::ThisGame),
                 &frame
             ),
             2,
@@ -1962,7 +1962,7 @@ mod tests {
         // No facts yet → 0.
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
+                &Count::EventSum(Arc::new(lose_life_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -1999,7 +1999,7 @@ mod tests {
         // Only player 0's losses sum → 5.
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
+                &Count::EventSum(Arc::new(lose_life_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             5,
@@ -2010,7 +2010,7 @@ mod tests {
         state.turn.turn_number = 2;
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern.clone()), Lookback::ThisTurn),
+                &Count::EventSum(Arc::new(lose_life_pattern.clone()), Lookback::ThisTurn),
                 &frame
             ),
             0,
@@ -2018,7 +2018,7 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::EventSum(Box::new(lose_life_pattern), Lookback::ThisGame),
+                &Count::EventSum(Arc::new(lose_life_pattern), Lookback::ThisGame),
                 &frame
             ),
             5,
@@ -2059,7 +2059,7 @@ mod tests {
 
         let used = |n| {
             Count::EventCount(
-                Box::new(EventFilter::Used {
+                Arc::new(EventFilter::Used {
                     of: Reference::This,
                 }),
                 n,
@@ -2154,7 +2154,7 @@ mod tests {
         // "if this object's abilities have been used exactly twice this turn".
         let twice = Condition::Compare(
             Count::EventCount(
-                Box::new(EventFilter::Used {
+                Arc::new(EventFilter::Used {
                     of: Reference::This,
                 }),
                 Lookback::ThisTurn,
@@ -2198,7 +2198,7 @@ mod tests {
     fn count_arithmetic_evaluates() {
         let state = game();
         let frame = frame_for(&state, PlayerId(0));
-        let lit = |n| Box::new(Count::Literal(n));
+        let lit = |n| Arc::new(Count::Literal(n));
         let ev = |c: &Count| state.eval_count(c, &frame);
         assert_eq!(ev(&Count::Plus(lit(2), lit(3))), 5);
         assert_eq!(ev(&Count::Minus(lit(2), lit(5))), 0, "a count floors at 0");
@@ -2233,7 +2233,7 @@ mod tests {
         let frame = frame_for(&state, PlayerId(0));
         let powers = Count::CountDistinct(
             deckmaste_core::Characteristic::Power,
-            Countable::Objects(Box::new(creatures_in_play())),
+            Countable::Objects(Arc::new(creatures_in_play())),
         );
         assert_eq!(
             state.eval_count(&powers, &frame),
@@ -2242,7 +2242,7 @@ mod tests {
         );
         let toughnesses = Count::CountDistinct(
             deckmaste_core::Characteristic::Toughness,
-            Countable::Objects(Box::new(creatures_in_play())),
+            Countable::Objects(Arc::new(creatures_in_play())),
         );
         assert_eq!(
             state.eval_count(&toughnesses, &frame),
@@ -2262,8 +2262,8 @@ mod tests {
         let greatest = Selection::Pick {
             op: deckmaste_core::AggregateOp::MaxOf,
             proj: deckmaste_core::Projection {
-                of: deckmaste_core::Countable::Objects(Box::new(creatures_in_play())),
-                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+                of: deckmaste_core::Countable::Objects(Arc::new(creatures_in_play())),
+                by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
             },
         };
         assert_eq!(
@@ -2274,8 +2274,8 @@ mod tests {
         let least = Selection::Pick {
             op: deckmaste_core::AggregateOp::MinOf,
             proj: deckmaste_core::Projection {
-                of: deckmaste_core::Countable::Objects(Box::new(creatures_in_play())),
-                by: Box::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
+                of: deckmaste_core::Countable::Objects(Arc::new(creatures_in_play())),
+                by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
             },
         };
         let picked = state.eval_selection_set(&least, &frame);

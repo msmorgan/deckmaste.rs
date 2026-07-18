@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -17,7 +19,7 @@ pub enum Property {
     /// Joins ability derivation like printed text: layer-6-strippable,
     /// stack-using if triggered ([CR#305.6,714.3a]). Boxed like
     /// `Modification::GainAbility`; serde keeps the RON flat.
-    Ability(Box<Ability>),
+    Ability(Arc<Ability>),
     /// A continuous effect ([CR#611]) — the "boost" flavor. Applied at the
     /// `Modification`'s natural layer (`Modification` spans layers 2–7: P/T,
     /// `GainAbility`, colors, types, controller, …), so "any layer is
@@ -34,14 +36,14 @@ pub enum Property {
     /// canonical instances. Parses today; the engine executes it in
     /// stage 3.
     StateBased {
-        condition: Box<Condition>,
-        effect: Box<OneShotEffect>,
+        condition: Arc<Condition>,
+        effect: Arc<OneShotEffect>,
     },
     /// Executed as a turn-based action — no stack ([CR#714.3c]). Parses
     /// today; the engine executes it in stage 3.
     TurnBased {
         at: PhaseStep,
-        effect: Box<OneShotEffect>,
+        effect: Arc<OneShotEffect>,
     },
 }
 

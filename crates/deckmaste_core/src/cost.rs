@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -49,7 +51,7 @@ pub enum CostComponent {
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists, so an
     /// unboxed variant would size every element to it
     /// (`clippy::large_enum_variant`).
-    Do(Box<crate::Action>),
+    Do(Arc<crate::Action>),
     /// A *nested* cost list. It exists only to let a macro splice a
     /// list-valued cost param into a larger cost list — the body writes
     /// `cost: [Cost(Param(0)), Do(Discard(…))]`, so the spliced `[Mana(…)]`
@@ -80,7 +82,7 @@ pub enum CostComponent {
         stat: Stat,
         cmp: Cmp,
         count: Count,
-        filter: Box<Predicate>,
+        filter: Arc<Predicate>,
     },
     /// A choice/bind step made BEFORE the cost actions it scopes
     /// ([CR#601.2b]) — the cost-level twin of
@@ -93,7 +95,7 @@ pub enum CostComponent {
     /// OUT of the verb — the cost action receives an already-bound
     /// reference. `binder` is boxed (an open `Binder` is large and
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists).
-    With { binder: Box<Binder>, body: Cost },
+    With { binder: Arc<Binder>, body: Cost },
     /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
     /// sugar, …).
     #[macro_ron(expanded)]
@@ -102,13 +104,13 @@ pub enum CostComponent {
 
 impl CostComponent {
     /// Pay by performing a (cost-eligible) player verb —
-    /// `Do(Box::new(By(You, action)))`, hiding the box and the implicit-you
+    /// `Do(Arc::new(By(You, action)))`, hiding the box and the implicit-you
     /// `By` wrapper the widened variant requires. Eligibility itself stays a
     /// cards-layer validation lint ([CR#601.2b],
     /// [`Action::is_cost_eligible`](crate::Action::is_cost_eligible)).
     #[must_use]
     pub fn do_(action: PlayerAction) -> CostComponent {
-        CostComponent::Do(Box::new(crate::Action::by_you(action)))
+        CostComponent::Do(Arc::new(crate::Action::by_you(action)))
     }
 
     /// Pay by performing a full [`Action`](crate::Action) — the
@@ -116,7 +118,7 @@ impl CostComponent {
     /// [CR#701.9,601.2b]).
     #[must_use]
     pub fn do_action(action: crate::Action) -> CostComponent {
-        CostComponent::Do(Box::new(action))
+        CostComponent::Do(Arc::new(action))
     }
 }
 
@@ -316,7 +318,7 @@ mod tests {
         let creature =
             Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
         let with = CostComponent::With {
-            binder: Box::new(Binder::ChooseOne {
+            binder: Arc::new(Binder::ChooseOne {
                 filter: creature,
                 by: Reference::You,
             }),
@@ -421,7 +423,7 @@ mod tests {
             read("ManaCostOf(This)"),
             CostComponent::ManaCostOf(Reference::This),
         );
-        let v = CostComponent::ManaCostOf(Reference::ControllerOf(Box::new(Reference::This)));
+        let v = CostComponent::ManaCostOf(Reference::ControllerOf(Arc::new(Reference::This)));
         let written = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&written), v, "round-trips: {written}");
     }
@@ -443,7 +445,7 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
-            filter: Box::new(Predicate::creature()),
+            filter: Arc::new(Predicate::creature()),
         };
         assert_eq!(
             read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Type(\"Creature\"))"),

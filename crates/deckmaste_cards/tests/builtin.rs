@@ -4,6 +4,7 @@
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
@@ -42,7 +43,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
     Subtype {
         name: name.into(),
         types: vec![Type::Land],
-        confers: vec![Property::Ability(Box::new(Ability::activated(
+        confers: vec![Property::Ability(Arc::new(Ability::activated(
             ActivatedAbility {
                 ability_word: None,
                 from: None,
@@ -81,7 +82,7 @@ fn land_type() -> deckmaste_core::TypeDef {
     deckmaste_core::TypeDef {
         name: "Land".into(),
         permanent: true,
-        confers: vec![Property::Ability(Box::new(Ability::r#static(
+        confers: vec![Property::Ability(Arc::new(Ability::r#static(
             deckmaste_core::StaticEffect::Deontic(deckmaste_core::Deontic::May(
                 deckmaste_core::DeonticAction::Play {
                     what: deckmaste_core::Predicate::Ref(Reference::This),
@@ -241,7 +242,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         replacement,
         duration,
         one_shot,
-    }) = *body
+    }) = body.as_ref().clone()
     else {
         panic!("the With body is a CreateReplacement, got {body:?}");
     };
@@ -252,7 +253,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     );
     // The watched event is a destruction `Instead`; the heal+tap body taps and
     // removes damage from the same reference.
-    let Replacement::Instead { instead, .. } = *replacement else {
+    let Replacement::Instead { instead, .. } = replacement.as_ref().clone() else {
         panic!("regeneration is an Instead replacement");
     };
     let OneShotEffect::Sequentially(body) = instead else {

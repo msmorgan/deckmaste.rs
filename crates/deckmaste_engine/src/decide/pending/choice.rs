@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -176,7 +177,7 @@ impl DecisionHandler for YesNo {
             // `if_did`; no runs `if_not` (or nothing). Front-scheduled
             // in order so `effect` precedes `if_did`.
             crate::state::ChoiceContinuation::May { may, frame } => {
-                let branch: Vec<Box<deckmaste_core::OneShotEffect>> = if yes {
+                let branch: Vec<Arc<deckmaste_core::OneShotEffect>> = if yes {
                     std::iter::once(may.effect).chain(may.if_did).collect()
                 } else {
                     may.if_not.into_iter().collect()

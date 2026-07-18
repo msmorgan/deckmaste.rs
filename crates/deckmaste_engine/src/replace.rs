@@ -315,7 +315,7 @@ mod tests {
                     what: Predicate::Ref(Reference::This),
                     to: Predicate::creature(),
                 }))),
-                Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Also {
+                Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
                         from: None,
@@ -332,7 +332,7 @@ mod tests {
                             ]),
                             by: Reference::You,
                         },
-                        body: Box::new(OneShotEffect::Act(Action::Attach {
+                        body: Arc::new(OneShotEffect::Act(Action::Attach {
                             what: Reference::This,
                             to: Reference::It,
                         })),
@@ -448,7 +448,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Counterer".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
+            abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
@@ -525,13 +525,13 @@ mod tests {
 
         let other_lands_you_control = Predicate::And(vec![
             Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land.name())),
-            Predicate::Not(Box::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
             )))),
         ]);
         let gate = Condition::Compare(
-            Count::CountOf(deckmaste_core::Countable::Objects(Box::new(
+            Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
                 other_lands_you_control,
             ))),
             Cmp::AtLeast,
@@ -540,7 +540,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Test Tapland".into(),
             types: vec![Type::Land.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
+            abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
@@ -549,8 +549,8 @@ mod tests {
                         cause: None,
                     },
                     also: OneShotEffect::If(If {
-                        condition: Condition::Not(Box::new(gate)),
-                        then: Box::new(OneShotEffect::Act(Action::By(
+                        condition: Condition::Not(Arc::new(gate)),
+                        then: Arc::new(OneShotEffect::Act(Action::By(
                             Reference::You,
                             PlayerAction::Tap(Reference::This),
                         ))),
@@ -665,8 +665,8 @@ mod tests {
             scope: Predicate::Characteristic(CharacteristicPredicate::Type(
                 Type::Planeswalker.name(),
             )),
-            confer: Property::Ability(Box::new(Ability::r#static(StaticEffect::Replacement(
-                Box::new(Replacement::Also {
+            confer: Property::Ability(Arc::new(Ability::r#static(StaticEffect::Replacement(
+                Arc::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::This),
                         from: None,

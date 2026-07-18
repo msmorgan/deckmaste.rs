@@ -1016,7 +1016,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Equipment".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::Innate(Box::new(Ability::r#static(
+            abilities: vec![Ability::Innate(Arc::new(Ability::r#static(
                 StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
                     what: Predicate::Ref(Reference::This),
                     to: Predicate::creature(),
@@ -1259,7 +1259,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Each(Each {
                 binder: Binder::Existing(Selection::Random(Quantity::one(), creatures)),
-                effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
+                effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             }),
             &frame,
         );
@@ -1314,7 +1314,7 @@ mod tests {
                     filter: creatures,
                     by: Reference::You,
                 },
-                body: Box::new(OneShotEffect::Act(Action::destroy(Reference::That(
+                body: Arc::new(OneShotEffect::Act(Action::destroy(Reference::That(
                     deckmaste_core::Sort::Permanent,
                 )))),
             }),
@@ -1581,7 +1581,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Mill Warden".into(),
                 types: vec![Type::Creature.def()],
-                abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
+                abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                     Replacement::Instead {
                         would: EventFilter::Act {
                             verb: VerbName::from("Mill"),
@@ -1644,7 +1644,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Leyline".into(),
                 types: vec![Type::Creature.def()],
-                abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
+                abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                     Replacement::Instead {
                         would: EventFilter::Act {
                             verb: VerbName::from("Discard"),
@@ -1867,14 +1867,14 @@ mod tests {
 
         let effect = OneShotEffect::Noting(deckmaste_core::Noting {
             key: "destroyed".into(),
-            effect: Box::new(OneShotEffect::Each(deckmaste_core::Each {
+            effect: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
                 binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Predicate::And(
                     vec![
                         Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
                         Predicate::creature(),
                     ],
                 ))),
-                effect: Box::new(OneShotEffect::Act(Action::destroy(Reference::It))),
+                effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             })),
         });
         let frame = frame_src(a);
@@ -1930,14 +1930,14 @@ mod tests {
         let effect = OneShotEffect::Sequentially(vec![
             OneShotEffect::Noting(deckmaste_core::Noting {
                 key: "milled".into(),
-                effect: Box::new(OneShotEffect::mill(Reference::You, Count::Literal(3))),
+                effect: Arc::new(OneShotEffect::mill(Reference::You, Count::Literal(3))),
             }),
             OneShotEffect::Each(deckmaste_core::Each {
                 binder: deckmaste_core::Binder::Existing(Selection::AmongNoted(
                     "milled".into(),
                     deckmaste_core::Quantity::Range(None, None),
                 )),
-                effect: Box::new(OneShotEffect::Act(Action::Move(
+                effect: Arc::new(OneShotEffect::Act(Action::Move(
                     Reference::It,
                     deckmaste_core::Destination::Zone(Zone::Exile),
                     vec![],
@@ -2106,7 +2106,7 @@ mod tests {
         let card = Arc::new(Card::Normal(CardFace {
             name: "Rest in Peace".into(),
             types: vec![Type::Enchantment.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(rip)))],
+            abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(rip)))],
             ..CardFace::default()
         }));
         let card_id = state.cards.push(card, PlayerId(0));
@@ -2252,7 +2252,7 @@ mod tests {
             Card::Normal(CardFace {
                 name: "Madness Watcher".into(),
                 types: vec![Type::Enchantment.def()],
-                abilities: vec![Ability::r#static(StaticEffect::Replacement(Box::new(
+                abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                     madness,
                 )))],
                 ..CardFace::default()
@@ -2823,7 +2823,7 @@ mod tests {
         // "If a player would discard THIS card, exile it instead." — conferred,
         // not printed, onto a matching card that isn't on the battlefield.
         let madness =
-            Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+            Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Instead {
                 would: EventFilter::Act {
                     verb: VerbName::from("Discard"),
                     who: Predicate::Any,
@@ -2837,11 +2837,11 @@ mod tests {
                 Predicate::Characteristic(CharacteristicPredicate::Named(
                     "Conferred Vampire".into(),
                 )),
-                Predicate::Not(Box::new(Predicate::State(StatePredicate::InZone(
+                Predicate::Not(Arc::new(Predicate::State(StatePredicate::InZone(
                     Zone::Battlefield,
                 )))),
             ]),
-            confer: Property::Ability(Box::new(madness)),
+            confer: Property::Ability(Arc::new(madness)),
         }];
 
         let card = mint_in_hand_with(
@@ -2890,7 +2890,7 @@ mod tests {
         use deckmaste_core::VerbName;
 
         let (mut state, _a) = bear_on_field();
-        let shield = Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+        let shield = Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Instead {
             would: EventFilter::Act {
                 verb: VerbName::from("Destroy"),
                 who: Predicate::Any,
@@ -2901,7 +2901,7 @@ mod tests {
         })));
         state.conferral_rules = vec![ConferralRule {
             scope: Predicate::Characteristic(CharacteristicPredicate::Named("Destroy Host".into())),
-            confer: Property::Ability(Box::new(shield)),
+            confer: Property::Ability(Arc::new(shield)),
         }];
 
         let host = mint_on_field(
@@ -2960,7 +2960,7 @@ mod tests {
         });
         state.conferral_rules = vec![ConferralRule {
             scope: Predicate::Characteristic(CharacteristicPredicate::Named("Trigger Host".into())),
-            confer: Property::Ability(Box::new(trigger)),
+            confer: Property::Ability(Arc::new(trigger)),
         }];
 
         let _host = mint_on_field(
@@ -3666,7 +3666,7 @@ mod tests {
         // N energy" ([CR#107.14]).
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Box::new(Reference::You), "Energy".into()),
+                &Count::CounterCount(Arc::new(Reference::You), "Energy".into()),
                 &frame
             ),
             3,
@@ -4218,7 +4218,7 @@ mod tests {
     /// (`Of(AttachHostOf(This))`) — the equipped/enchanted-creature bonus.
     fn host_pump(n: u32) -> Ability {
         Ability::r#static(StaticEffect::Modify(
-            Reference::AttachHostOf(Box::new(Reference::This)),
+            Reference::AttachHostOf(Arc::new(Reference::This)),
             Modification::Several(vec![
                 Modification::Power(NumericOp::Up(Count::Literal(n))),
                 Modification::Toughness(NumericOp::Up(Count::Literal(n))),
@@ -4671,12 +4671,12 @@ mod tests {
         };
         OneShotEffect::Act(Action::Composite {
             name: deckmaste_core::VerbName::from("Scry"),
-            body: Box::new(OneShotEffect::Each(deckmaste_core::Each {
+            body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
                 binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(n),
                     whose: Reference::You,
                 }),
-                effect: Box::new(OneShotEffect::Modal(deckmaste_core::Modal {
+                effect: Arc::new(OneShotEffect::Modal(deckmaste_core::Modal {
                     choose: deckmaste_core::ChooseSpec {
                         count: deckmaste_core::Quantity::Range(
                             Some(Count::Literal(1)),

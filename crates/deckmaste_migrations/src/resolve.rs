@@ -212,6 +212,8 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
 
     /// A registry that structures the line "Flying" only.
@@ -507,16 +509,16 @@ mod tests {
 
         let canonical = Condition::And(vec![
             Condition::Compare(
-                Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
+                Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ])))),
                 Cmp::AtLeast,
                 Count::Literal(10),
             ),
-            Condition::Not(Box::new(Condition::Matches(
+            Condition::Not(Arc::new(Condition::Matches(
                 Reference::You,
                 Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
             ))),

@@ -324,6 +324,8 @@ fn distinct_reps_exist(
 /// `TargetSpec` peels. Opaque fabricated ids (no live store needed).
 #[cfg(test)]
 mod target_set_tests {
+    use std::sync::Arc;
+
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Count;
     use deckmaste_core::Predicate;
@@ -354,7 +356,7 @@ mod target_set_tests {
     }
 
     fn distinct(siblings: Vec<usize>, inner: TargetSpec) -> TargetSpec {
-        TargetSpec::Distinct(siblings, Box::new(inner))
+        TargetSpec::Distinct(siblings, Arc::new(inner))
     }
 
     fn id(n: u64) -> ObjectId {

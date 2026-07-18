@@ -4,6 +4,7 @@
 //! and requires the body to deserialize as a real `KeywordAbility`.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::KeywordAbility;
@@ -488,23 +489,23 @@ fn ascend_macro_expands_to_static_sba() {
     // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
     let canonical = Condition::And(vec![
         Condition::Compare(
-            Count::CountOf(Countable::Objects(Box::new(Predicate::And(vec![
+            Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
             ])))),
             Cmp::AtLeast,
             Count::Literal(10),
         ),
-        Condition::Not(Box::new(Condition::Matches(
+        Condition::Not(Arc::new(Condition::Matches(
             Reference::You,
             Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
         ))),
     ]);
     assert_eq!(
         when,
-        Box::new(canonical),
+        Arc::new(canonical),
         "Ascend macro's Sba gate drifted from the canonical Ascend gate"
     );
 }

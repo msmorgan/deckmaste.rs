@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -198,13 +199,13 @@ impl PredefinedToken {
         let restricted_colorless = || {
             let nonartifact_spell = Predicate::And(vec![
                 Predicate::Kind(ObjectKind::Spell),
-                Predicate::Not(Box::new(Predicate::type_(Type::Artifact))),
+                Predicate::Not(Arc::new(Predicate::type_(Type::Artifact))),
             ]);
             PlayerAction::AddMana(
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(ColorOrColorless::Colorless),
-                    riders: vec![ManaRider::SpendOnly(Predicate::Not(Box::new(
+                    riders: vec![ManaRider::SpendOnly(Predicate::Not(Arc::new(
                         nonartifact_spell,
                     )))],
                 },

@@ -45,6 +45,7 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
@@ -3138,7 +3139,7 @@ fn emit_effect(e: &OneShotEffect) -> R {
 
 /// An optional sub-effect as a plain Idris `Maybe` — `Nothing`, or `(Just
 /// <effect>)` — for the positional `mayWith`/`ifElse`/`mayPayFull` helpers.
-fn opt_effect(e: &Option<Box<OneShotEffect>>) -> R {
+fn opt_effect(e: &Option<Arc<OneShotEffect>>) -> R {
     match e {
         None => Ok("Nothing".to_string()),
         Some(inner) => Ok(format!("(Just {})", emit_effect(inner)?)),
@@ -3576,7 +3577,7 @@ mod tests {
     fn top_slice_body(count: Count, whose: Reference) -> OneShotEffect {
         OneShotEffect::Each(deckmaste_core::Each {
             binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary { count, whose }),
-            effect: Box::new(OneShotEffect::Act(Action::move_to(
+            effect: Arc::new(OneShotEffect::Act(Action::move_to(
                 Reference::It,
                 deckmaste_core::Zone::Graveyard,
             ))),

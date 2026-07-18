@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -83,7 +85,7 @@ pub const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain"
 pub enum Countable {
     /// Objects matching a filter — the common count domain. Boxed `Predicate`
     /// to break the `Predicate` → `Count` size cycle.
-    Objects(Box<Predicate>),
+    Objects(Arc<Predicate>),
     /// Players matching a filter — the cross-player fold domain ([CR#119.1]):
     /// `Aggregate(MaxOf, Projection { of: Players(<all players>), by:
     /// PlayerStatOf(It, Life) })` reads "the highest life total among all
@@ -95,13 +97,13 @@ pub enum Countable {
     /// pinned to `Objects`/`Singleton`); the engine mirrors that by fizzling
     /// the ungated combinations rather than enforcing it at the Rust type
     /// level (never-crash on an authoring mistake).
-    Players(Box<Predicate>),
+    Players(Arc<Predicate>),
     /// The mana symbols in a referenced object's mana cost, filtered by a
     /// [`SymbolPred`](crate::SymbolPred) ([CR#700.5] devotion) —
     /// `CountOf(ManaSymbols(It, CountsAs(Green)))` counts that object's green
     /// pips. `Reference` is boxed (it is 80 bytes, like its `CounterCount`
     /// peer) so this variant doesn't blow up `Count`/`Predicate`'s size.
-    ManaSymbols(Box<Reference>, crate::SymbolPred),
+    ManaSymbols(Arc<Reference>, crate::SymbolPred),
     /// ONE object treated as a singleton set — the per-object twin of
     /// `Objects`, so [`Count::CountDistinct`] can read a characteristic off a
     /// SINGLE object rather than a filtered many ([CR#105.2]): Embiggen's
@@ -109,7 +111,7 @@ pub enum Countable {
     /// `CountDistinct(Types, Singleton(This))`. `Reference` is boxed (it is
     /// 80 bytes, like its `ManaSymbols` peer) so this variant doesn't blow up
     /// `Count`/`Countable`'s size.
-    Singleton(Box<Reference>),
+    Singleton(Arc<Reference>),
     /// Mana SPENT to cast/activate a referenced object, filtered by a
     /// [`SymbolPred`](crate::SymbolPred) ([CR#107.4]: what a mana symbol
     /// counts as) — Adamant's "if at least three white [mana symbols were
@@ -117,7 +119,7 @@ pub enum Countable {
     /// symbols); the FILTERED twin of the plain mana-spent domain (which is
     /// read via `CountDistinct(Colors, ..)` instead). `Reference` boxed, like
     /// its `ManaSymbols` peer.
-    ManaSpentMatching(Box<Reference>, crate::SymbolPred),
+    ManaSpentMatching(Arc<Reference>, crate::SymbolPred),
 }
 
 /// A fold operator over a projected set ([CR#107.1]) — the Idris `AggregateOp`.
@@ -146,7 +148,7 @@ pub struct Projection {
     /// projectable today — Idris's `Projectable` proof.
     pub of: Countable,
     /// The per-element read, over `Reference::It`.
-    pub by: Box<Count>,
+    pub by: Arc<Count>,
 }
 
 /// A scalar magnitude an effect computes at resolution: an amount, never an
@@ -200,38 +202,38 @@ pub enum Count {
     /// bare `CounterRef`, not a string. The `Reference` is boxed (it is 80
     /// bytes) so this variant doesn't make `Count` larger than its `StatOf`
     /// peer.
-    CounterCount(Box<Reference>, crate::CounterRef),
+    CounterCount(Arc<Reference>, crate::CounterRef),
     /// The smaller of two counts — the +1/+1 vs -1/-1 annihilation removes
     /// `Min(CounterCount(+1/+1), CounterCount(-1/-1))` of each ([CR#704.5q]),
     /// and "the lesser of X and Y" appears across the card base. Boxed to keep
     /// `Count` small.
-    Min(Box<Count>, Box<Count>),
+    Min(Arc<Count>, Arc<Count>),
     /// The greater of two counts ([CR#107.1], "the greater of X and Y") — the
     /// twin of `Min`. Boxed to keep `Count` small.
-    Max(Box<Count>, Box<Count>),
+    Max(Arc<Count>, Arc<Count>),
     /// The sum of two counts ([CR#107.1], "X plus N"). Boxed.
-    Plus(Box<Count>, Box<Count>),
+    Plus(Arc<Count>, Arc<Count>),
     /// The difference of two counts, floored at 0 ([CR#107.1b] — a count never
     /// goes negative). Boxed.
-    Minus(Box<Count>, Box<Count>),
+    Minus(Arc<Count>, Arc<Count>),
     /// The product of two counts ([CR#107.1], "twice X" = `Times(2, X)`).
     /// Boxed.
-    Times(Box<Count>, Box<Count>),
+    Times(Arc<Count>, Arc<Count>),
     /// Half a count, rounded per [`RoundMode`] ([CR#107.1a], "half its power
     /// rounded up"). Boxed.
-    Half(RoundMode, Box<Count>),
+    Half(RoundMode, Arc<Count>),
     /// Divide the first count by the second, rounded per [`RoundMode`]
     /// ([CR#107.1a]) — the general twin of `Half`'s dedicated /2 constructor
     /// ("divided by X, rounded down"). Boxed.
-    Divide(RoundMode, Box<Count>, Box<Count>),
+    Divide(RoundMode, Arc<Count>, Arc<Count>),
     /// The remainder of the first count divided by the second ([CR#107.1] —
     /// parity checks: "if X is even" reads `Compare(Mod(X, 2), Eq, 0)`).
     /// Boxed.
-    Mod(Box<Count>, Box<Count>),
+    Mod(Arc<Count>, Arc<Count>),
     /// The first count raised to the second's power ([CR#107.1] —
     /// exponential-growth effects: "double ~'s power X times" builds a
     /// `Times`/`Minus` delta from `Pow(2, X)`; Mathemagics). Boxed.
-    Pow(Box<Count>, Box<Count>),
+    Pow(Arc<Count>, Arc<Count>),
     /// How many times a referenced object was chosen as a target when it was
     /// put on the stack ([CR#115.9a]) — Strive's "for each target beyond the
     /// first" reads `Minus(TargetsOf(This), 1)`. Unboxed, like its `Damage`/
@@ -258,14 +260,14 @@ pub enum Count {
     /// count-valued twin of `Condition::Happened`. The window is a required
     /// field: history counting never gets a silent default. The pattern is
     /// boxed (it is large) to keep `Count` from growing, mirroring
-    /// `CountOf(Box<Predicate>)`.
-    EventCount(Box<crate::EventFilter>, crate::Lookback),
+    /// `CountOf(Arc<Predicate>)`.
+    EventCount(Arc<crate::EventFilter>, crate::Lookback),
     /// The summed AMOUNT of history facts matching the pattern within the
     /// [`Lookback`](crate::Lookback) ([CR#608.2i,119.3]) — e.g. total life
     /// lost this turn. The match is by the same pattern as `EventCount`;
     /// the magnitude is each matched fact's carried amount. `EventCount`
     /// counts; `EventSum` sums.
-    EventSum(Box<crate::EventFilter>, crate::Lookback),
+    EventSum(Arc<crate::EventFilter>, crate::Lookback),
     /// A noted number read back from a slot ([CR#607.2] linked values).
     Noted(crate::Ident),
     /// How many times the tagged optional cost
@@ -412,7 +414,7 @@ mod tests {
     fn count_of_objects_and_mana_symbols_round_trip() {
         use crate::Color;
         let mk = Count::CountOf(Countable::ManaSymbols(
-            Box::new(Reference::It),
+            Arc::new(Reference::It),
             crate::SymbolPred::CountsAs(Color::Green),
         ));
         assert_eq!(read(&write(&mk)), mk);
@@ -431,13 +433,13 @@ mod tests {
 
         let singleton = Count::CountDistinct(
             Characteristic::Types,
-            Countable::Singleton(Box::new(Reference::This)),
+            Countable::Singleton(Arc::new(Reference::This)),
         );
         assert_eq!(read("CountDistinct(Types, Singleton(This))"), singleton,);
         assert_eq!(read(&write(&singleton)), singleton);
 
         let mana_spent = Count::CountOf(Countable::ManaSpentMatching(
-            Box::new(Reference::This),
+            Arc::new(Reference::This),
             crate::SymbolPred::CountsAs(Color::White),
         ));
         assert_eq!(
@@ -472,7 +474,7 @@ mod tests {
         let parsed = read("EventCount(Cast(who: Ref(You)), ThisTurn)");
         assert_eq!(
             parsed,
-            Count::EventCount(Box::new(event.clone()), Lookback::ThisTurn),
+            Count::EventCount(Arc::new(event.clone()), Lookback::ThisTurn),
         );
         // Serialize → read round-trip.
         let written = write(&parsed);
@@ -486,42 +488,42 @@ mod tests {
         let cases = [
             (
                 "Plus(X, 1)",
-                Count::Plus(Box::new(Count::X), Box::new(Count::Literal(1))),
+                Count::Plus(Arc::new(Count::X), Arc::new(Count::Literal(1))),
             ),
             (
                 "Minus(3, X)",
-                Count::Minus(Box::new(Count::Literal(3)), Box::new(Count::X)),
+                Count::Minus(Arc::new(Count::Literal(3)), Arc::new(Count::X)),
             ),
             (
                 "Times(2, X)",
-                Count::Times(Box::new(Count::Literal(2)), Box::new(Count::X)),
+                Count::Times(Arc::new(Count::Literal(2)), Arc::new(Count::X)),
             ),
             (
                 "Max(X, 1)",
-                Count::Max(Box::new(Count::X), Box::new(Count::Literal(1))),
+                Count::Max(Arc::new(Count::X), Arc::new(Count::Literal(1))),
             ),
             (
                 "Half(RoundUp, StatOf(This, Power))",
                 Count::Half(
                     RoundMode::RoundUp,
-                    Box::new(Count::StatOf(Reference::This, Stat::Power)),
+                    Arc::new(Count::StatOf(Reference::This, Stat::Power)),
                 ),
             ),
             (
                 "Divide(RoundDown, X, 2)",
                 Count::Divide(
                     RoundMode::RoundDown,
-                    Box::new(Count::X),
-                    Box::new(Count::Literal(2)),
+                    Arc::new(Count::X),
+                    Arc::new(Count::Literal(2)),
                 ),
             ),
             (
                 "Mod(X, 2)",
-                Count::Mod(Box::new(Count::X), Box::new(Count::Literal(2))),
+                Count::Mod(Arc::new(Count::X), Arc::new(Count::Literal(2))),
             ),
             (
                 "Pow(2, X)",
-                Count::Pow(Box::new(Count::Literal(2)), Box::new(Count::X)),
+                Count::Pow(Arc::new(Count::Literal(2)), Arc::new(Count::X)),
             ),
         ];
         for (src, want) in cases {
@@ -536,7 +538,7 @@ mod tests {
     fn count_distinct_round_trips() {
         let value = Count::CountDistinct(
             Characteristic::Subtypes,
-            Countable::Objects(Box::new(Predicate::Characteristic(
+            Countable::Objects(Arc::new(Predicate::Characteristic(
                 crate::CharacteristicPredicate::Type(crate::Type::Land.name()),
             ))),
         );
@@ -604,14 +606,14 @@ mod tests {
         let devotion_green = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Box::new(Predicate::And(vec![
+                of: Countable::Objects(Arc::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Box::new(Predicate::Ref(
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You,
                     )))),
                 ]))),
-                by: Box::new(Count::CountOf(Countable::ManaSymbols(
-                    Box::new(Reference::It),
+                by: Arc::new(Count::CountOf(Countable::ManaSymbols(
+                    Arc::new(Reference::It),
                     crate::SymbolPred::CountsAs(Color::Green),
                 ))),
             },
@@ -642,7 +644,7 @@ mod tests {
         let parsed = read("EventSum(LifeLost(), ThisTurn)");
         assert_eq!(
             parsed,
-            Count::EventSum(Box::new(event.clone()), Lookback::ThisTurn),
+            Count::EventSum(Arc::new(event.clone()), Lookback::ThisTurn),
         );
         // Serialize → read round-trip.
         let written = write(&parsed);
