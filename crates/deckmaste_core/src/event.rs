@@ -121,6 +121,10 @@ pub enum StateChange {
     /// Is turned to the given face ([CR#708]; on turn-up, copiable values
     /// revert and ETB abilities don't fire again, [CR#708.8]).
     TurnedFace(crate::Face),
+    /// Turned to its other face by transform/convert
+    /// ([CR#701.27a,701.28a]) — front↔back, distinct from the morph
+    /// `TurnedFace` ([CR#708]).
+    Transformed,
 }
 
 /// The machinery that demanded an event — the cause triple's AGENCY

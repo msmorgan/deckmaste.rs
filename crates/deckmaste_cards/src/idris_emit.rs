@@ -2764,6 +2764,11 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                         "StateChange::TurnedFace(Up) has no Idris ObjectState transition",
                     ));
                 }
+                deckmaste_core::StateChange::Transformed => {
+                    return Err(gap(
+                        "StateChange::Transformed has no Idris ObjectState transition",
+                    ));
+                }
             };
             (vec![kind], agent_facet(of)?)
         }

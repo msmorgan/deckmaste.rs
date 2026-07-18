@@ -619,6 +619,10 @@ pub enum GameEvent {
     TurnBegan(TurnBegan),
     StepBegan(PhaseStep),
     Untapped(ObjectId),
+    /// A permanent turned to its other face ([CR#701.27a]) — carries the
+    /// object, like `Untapped`. Apply toggles its `Side`; identity is
+    /// preserved ([CR#712.18]).
+    Transformed(ObjectId),
     // No intent event is a bespoke variant: destruction, draw, AND discard are
     // keyword actions (above). Discard is the per-card `Act(Discard)`
     // ([CR#701.9a]) — the batched hand choice realizes one dual-facet event per

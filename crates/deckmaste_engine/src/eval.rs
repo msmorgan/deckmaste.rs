@@ -525,6 +525,12 @@ impl<'a> FactView<'a> {
                 v = FactView::bare(FactKind::StateBecame(StateChange::Untapped), state);
                 v.object = Some(part(*o));
             }
+            // [CR#701.27a,712.18]: the transform status transition — same
+            // shape as `Tapped`/`Untapped`, matched by `StateBecame`.
+            GameEvent::Transformed(o) => {
+                v = FactView::bare(FactKind::StateBecame(StateChange::Transformed), state);
+                v.object = Some(part(*o));
+            }
             // [CR#601.2c]: the targeted object is the patient, the targeting
             // stack object the source-side participant.
             GameEvent::BecameTarget(BecameTarget { target, source }) => {

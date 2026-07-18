@@ -159,6 +159,17 @@ pub(crate) fn handle_untapped(g: &mut GameState, id: ObjectId) -> Option<GameEve
     None
 }
 
+/// `Transformed` carries a bare `ObjectId` (like `Untapped`); apply toggles
+/// the object's face in place ([CR#712.18] — no remint).
+pub(crate) fn handle_transformed(g: &mut GameState, id: ObjectId) -> Option<GameEvent> {
+    let obj = g.objects.obj_mut(id);
+    obj.side = match obj.side {
+        crate::object::Side::Front => crate::object::Side::Back,
+        crate::object::Side::Back => crate::object::Side::Front,
+    };
+    None
+}
+
 /// `DrewFromEmpty` carries a bare `PlayerId` — see `handle_untapped`.
 ///
 /// The `Act(Draw)` apply-time transform produces this on an empty library;

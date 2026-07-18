@@ -390,6 +390,7 @@ impl GameState {
             GameEvent::Shuffled(player) => zone::handle_shuffled(self, *player),
             GameEvent::DamageRemoved(e) => e.apply(self),
             GameEvent::Untapped(id) => player::handle_untapped(self, *id),
+            GameEvent::Transformed(id) => player::handle_transformed(self, *id),
             GameEvent::DrewFromEmpty(p) => player::handle_drew_from_empty(self, *p),
             GameEvent::Tapped(e) => e.apply(self),
             GameEvent::ManaAdded(e) => e.apply(self),
@@ -3159,6 +3160,51 @@ mod tests {
             state.stack.len(),
             1,
             "no new stack entry was pushed — only the original ability remains"
+        );
+    }
+
+    /// engine-transform: applying `Transformed` toggles a transforming DFC's
+    /// `Side` in place, front↔back, identity preserved ([CR#712.18]).
+    #[test]
+    fn transformed_event_toggles_side() {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::FaceLayout;
+
+        use crate::object::Side;
+
+        let card = Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front: CardFace {
+                name: "Delverish".into(),
+                ..CardFace::default()
+            },
+            back: CardFace {
+                name: "Insectile Aberration".into(),
+                ..CardFace::default()
+            },
+        };
+        let mut state = game();
+        let card_id = state.cards.push(std::sync::Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+
+        assert_eq!(state.objects.obj(id).side, Side::Front);
+        state.apply(GameEvent::Transformed(id));
+        assert_eq!(
+            state.objects.obj(id).side,
+            Side::Back,
+            "transform flips to back [CR#712.18]"
+        );
+        state.apply(GameEvent::Transformed(id));
+        assert_eq!(
+            state.objects.obj(id).side,
+            Side::Front,
+            "transform again flips back to front"
         );
     }
 }
