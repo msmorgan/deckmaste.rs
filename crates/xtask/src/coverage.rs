@@ -65,6 +65,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use anyhow::Context;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -207,6 +208,94 @@ pub fn check_ratchet(current: &Lock, baseline: &Lock) -> Vec<String> {
     out
 }
 
+const LOCK_FILE: &str = "cr-coverage.lock";
+
+/// Entry point for `cargo xtask cite coverage [--check|--bless]`.
+///
+/// # Errors
+/// Ratchet failure (`--check`), or any IO/parse error.
+pub fn run(args: &[String]) -> anyhow::Result<()> {
+    let root = crate::cite::repo_root();
+    let excludes = load_source_excludes(&root)?;
+    let scan = scan_tree(&root, &excludes);
+    let current = lock_from_scan(&scan);
+
+    if args.iter().any(|a| a == "--bless") {
+        let path = root.join(LOCK_FILE);
+        let json = serde_json::to_string_pretty(&current)?;
+        std::fs::write(&path, format!("{json}\n"))
+            .with_context(|| format!("writing {}", path.display()))?;
+        println!(
+            "blessed {LOCK_FILE}: {} tested, {} strong",
+            current.tested.len(),
+            current.strong.len()
+        );
+        return Ok(());
+    }
+
+    if args.iter().any(|a| a == "--check") {
+        let baseline = read_lock(&root)?;
+        let regressions = check_ratchet(&current, &baseline);
+        if regressions.is_empty() {
+            println!(
+                "coverage ratchet OK: {} tested, {} strong (>= floor)",
+                current.tested.len(),
+                current.strong.len()
+            );
+            return Ok(());
+        }
+        for line in &regressions {
+            eprintln!("coverage REGRESSION: {line}");
+        }
+        anyhow::bail!(
+            "{} coverage regression(s); add citations back or justify + re-bless",
+            regressions.len()
+        );
+    }
+
+    // No gate flag: the report (Task 5).
+    report(&root, &scan)
+}
+
+fn read_lock(root: &Path) -> anyhow::Result<Lock> {
+    let path = root.join(LOCK_FILE);
+    let text = std::fs::read_to_string(&path)
+        .with_context(|| format!("reading {} — run `--bless` first", path.display()))?;
+    Ok(serde_json::from_str(&text)?)
+}
+
+/// `sources.exclude` from `cite-config.json`, so coverage scans the same
+/// universe as `cite check`.
+fn load_source_excludes(root: &Path) -> anyhow::Result<Vec<String>> {
+    let path = root.join("cite-config.json");
+    let text =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+    let cfg: serde_json::Value = serde_json::from_str(&text)?;
+    Ok(cfg["sources"]["exclude"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default())
+}
+
+/// Placeholder for the human-readable coverage table (Task 5).
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "stub always succeeds; Task 5's real report can fail on IO"
+)]
+fn report(_root: &Path, scan: &BTreeMap<String, Tier>) -> anyhow::Result<()> {
+    let lock = lock_from_scan(scan);
+    println!(
+        "{} tested, {} strong (report table lands in Task 5)",
+        lock.tested.len(),
+        lock.strong.len()
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -337,6 +426,28 @@ mod tests {
             regressions
                 .iter()
                 .any(|r| r.contains("200.2") && r.contains("Strong"))
+        );
+    }
+
+    #[test]
+    fn ratchet_end_to_end_over_temp_tree() {
+        let dir = tempdir_with(&[
+            ("crates/e/tests/a.rs", "// [CR#100.1]"),
+            ("crates/e/src/b.rs", "// [CR#200.2]"),
+        ]);
+        let scan = scan_tree(dir.path(), &[]);
+        let lock = lock_from_scan(&scan);
+        assert_eq!(lock.tested, vec!["100.1"]);
+        assert_eq!(lock.strong, vec!["100.1", "200.2"]);
+
+        // Remove the test citation -> ratchet must flag 100.1 losing Tested.
+        std::fs::write(dir.path().join("crates/e/tests/a.rs"), "// no cite").unwrap();
+        let scan2 = scan_tree(dir.path(), &[]);
+        let regressions = check_ratchet(&lock_from_scan(&scan2), &lock);
+        assert!(
+            regressions
+                .iter()
+                .any(|r| r.contains("100.1") && r.contains("Tested"))
         );
     }
 

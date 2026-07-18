@@ -40,6 +40,9 @@ fn script_path() -> PathBuf {
 /// Fails when the script is missing, cannot be spawned, or exits non-zero
 /// (stale citations, non-compliant strings, …).
 pub fn dispatch(args: &CiteArgs) -> anyhow::Result<()> {
+    if args.args.first().map(String::as_str) == Some("coverage") {
+        return crate::coverage::run(&args.args[1..]);
+    }
     let root = repo_root();
     let script = script_path();
     anyhow::ensure!(
