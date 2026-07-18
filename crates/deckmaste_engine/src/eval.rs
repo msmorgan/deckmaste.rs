@@ -388,7 +388,7 @@ impl<'a> FactView<'a> {
             }) => {
                 v = FactView::bare(FactKind::Act, state);
                 v.act_name = Some(Cow::Borrowed(&verb.0));
-                v.object = on.as_ref().map(|o| part(*o));
+                v.object = on.first().map(|&o| part(o));
                 v.actor = *who;
                 // The BODY facet ([CR#603.6]): a move-verb (`Act(Destroy)`)
                 // carries its realized zone-change so a `ZoneChange(→Graveyard)`

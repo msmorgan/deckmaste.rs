@@ -1324,7 +1324,7 @@ impl GameState {
                 BatchActHead {
                     verb: "Destroy",
                     who: None,
-                    on: Some(on),
+                    on: vec![on],
                     cause: Some(Cause::destroy(Agency::EffectInstruction, agent)),
                     from: None,
                 }
@@ -1332,7 +1332,7 @@ impl GameState {
             "Discard" => BatchActHead {
                 verb: "Discard",
                 who: Some(performer()?),
-                on: None,
+                on: vec![],
                 cause: Some(Cause::discard(Agency::EffectInstruction, agent)),
                 from: None,
             },
@@ -1353,7 +1353,7 @@ impl GameState {
                 BatchActHead {
                     verb: "Mill",
                     who,
-                    on: None,
+                    on: vec![],
                     cause: Some(Cause::mill(Agency::EffectInstruction, agent)),
                     // Mill reads the library — a "can't leave the library" cant
                     // suppresses the whole aggregate ([CR#614.17,701.17a]).
@@ -1363,7 +1363,7 @@ impl GameState {
             "Draw" => BatchActHead {
                 verb: "Draw",
                 who: Some(performer()?),
-                on: None,
+                on: vec![],
                 cause: Some(Cause::draw(Agency::EffectInstruction, agent)),
                 from: None,
             },
@@ -1375,7 +1375,7 @@ impl GameState {
                 BatchActHead {
                     verb,
                     who,
-                    on: None,
+                    on: vec![],
                     cause: None,
                     from: None,
                 }
@@ -1388,7 +1388,7 @@ impl GameState {
                 BatchActHead {
                     verb: "Fight",
                     who: None,
-                    on: Some(on),
+                    on: vec![on],
                     cause: None,
                     from: None,
                 }
@@ -1753,7 +1753,7 @@ fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
 struct BatchActHead {
     verb: &'static str,
     who: Option<crate::player::PlayerId>,
-    on: Option<ObjectId>,
+    on: Vec<ObjectId>,
     cause: Option<Cause>,
     // The SOURCE facet ([CR#603.6]): a slice-verb aggregate exposes the zone
     // its cards leave (`Mill`'s `Library`) so a source-scoped `CantHappen`

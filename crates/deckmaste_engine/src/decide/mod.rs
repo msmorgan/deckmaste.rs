@@ -640,7 +640,7 @@ impl GameState {
                 GameEvent::Act(Act {
                     verb: deckmaste_core::VerbName::from("Discard"),
                     who: Some(player),
-                    on: Some(object),
+                    on: vec![object],
                     from: Some(Zone::Hand),
                     to: Some(Zone::Graveyard),
                     cause: Some(Cause::discard(Agency::EffectInstruction, None)),
@@ -659,7 +659,9 @@ impl GameState {
         let mut items = Vec::with_capacity(acts.len() + 1);
         items.push(WorkItem::Emit(Occurrence::Batch(acts.clone())));
         for act in acts {
-            if let GameEvent::Act(Act { on: Some(on), .. }) = act {
+            if let GameEvent::Act(Act { on, .. }) = &act
+                && let Some(&on) = on.first()
+            {
                 items.push(WorkItem::FinalizeAct {
                     act,
                     watch: FinalizeWatch::Patients(vec![on]),

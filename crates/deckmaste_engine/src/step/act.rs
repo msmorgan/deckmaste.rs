@@ -31,7 +31,7 @@ fn rebuilt_act(a: &Act) -> GameEvent {
     GameEvent::Act(Act {
         verb: a.verb,
         who: a.who,
-        on: a.on,
+        on: a.on.clone(),
         from: a.from,
         to: a.to,
         cause: a.cause.clone(),
@@ -67,7 +67,7 @@ impl GameState {
             return self.apply_act_batch(a, n);
         }
         if a.verb.0.as_str() == "Draw"
-            && a.on.is_none()
+            && a.on.is_empty()
             && let Some(player) = a.who
         {
             return self.apply_act_draw(&a, player);
@@ -85,7 +85,7 @@ impl GameState {
             }
             return self.apply_act_reorder_or_fight(a);
         }
-        if let (Some(object), Some(to)) = (a.on, a.to)
+        if let (&[object], Some(to)) = (a.on.as_slice(), a.to)
             && self.objects.get(object).and_then(|o| o.zone) == a.from
         {
             return self.apply_act_bound_move(&a, object, to);

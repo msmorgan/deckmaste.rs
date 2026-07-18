@@ -504,8 +504,8 @@ pub struct DamageRemoved {
 /// (`Scry`/`Destroy`/…, the retired-`CauseVerb` [`VerbName`] namespace);
 /// `who` is the RESOLVED performing player for the player-report verbs
 /// (scry/surveil/fateseal/mill/draw) — the actor "whenever an opponent
-/// draws" reads; `on` is the RESOLVED patient object for the object verbs
-/// (destroy/fight). At most one of `who`/`on` is set for today's atoms.
+/// draws" reads; `on` is the RESOLVED patient object SUBJECT(S) for the
+/// object verbs (destroy/fight).
 /// Matched by the [`EventFilter::Act`](deckmaste_core::EventFilter::Act)
 /// master form (verb + who/on/cause) on BOTH
 /// lanes: a `Cant(Destroy(…))` static ([CR#702.12b]) suppresses the whole
@@ -523,7 +523,12 @@ pub struct DamageRemoved {
 pub struct Act {
     pub verb: deckmaste_core::VerbName,
     pub who: Option<PlayerId>,
-    pub on: Option<ObjectId>,
+    /// The RESOLVED object SUBJECT(S) the verb acts on ([CR#701]):
+    /// destroy/bound-discard carry one, the player-report verbs none, and
+    /// Fight BOTH combatants ([CR#701.14a] — the window is symmetric; the
+    /// committed past fact is emitted once per subject, `finalize_act`).
+    /// Empty ≙ no object subject; every verb but Fight is `len() <= 1`.
+    pub on: Vec<ObjectId>,
     /// The BODY facet ([CR#603.6]) — the composite's canonical realized
     /// zone-change, derived from the stored `Move` body BEFORE it runs
     /// (`Destroy(x)` → `from: Battlefield, to: Graveyard`). A move-verb

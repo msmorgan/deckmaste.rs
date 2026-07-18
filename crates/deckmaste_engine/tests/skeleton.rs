@@ -475,8 +475,8 @@ fn cleanup_discards_to_hand_size() {
                 // The cleanup discard is per-card `Act(Discard)` events
                 // ([CR#701.9a] — one replaceable moment per card; madness
                 // works off a cleanup discard like any other).
-                GameEvent::Act(Act { on: Some(object), cause: Some(c), .. })
-                    if *object == chosen && c.verb.as_str() == "Discard"
+                GameEvent::Act(Act { on, cause: Some(c), .. })
+                    if on.as_slice() == [chosen] && c.verb.as_str() == "Discard"
             ))
     )));
     assert_eq!(state.zones.hands[1].len(), 7);

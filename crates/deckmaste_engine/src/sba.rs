@@ -627,11 +627,11 @@ mod tests {
                 e,
                 GameEvent::Act(Act {
                     verb,
-                    on: Some(object),
+                    on,
                     cause: Some(c),
                     ..
                 }) if verb.as_str() == "Destroy"
-                    && *object == bear
+                    && on.as_slice() == [bear]
                     && c.verb == deckmaste_core::Ident::from("Destroy")
                     && c.agency == deckmaste_core::Agency::StateBasedAction
             )),
@@ -1403,7 +1403,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear])),
             "toughness-0 is a put-into-graveyard, never a destroy; got {actions:?}"
         );
     }
@@ -1727,12 +1727,12 @@ mod tests {
         let actions = sba::sweep(&state);
         let n = actions
             .iter()
-            .filter(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear))
+            .filter(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear]))
             .count();
         assert_eq!(n, 1, "exactly one Act(Destroy) from the rule");
         let ev = actions
             .iter()
-            .find(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear))
+            .find(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear]))
             .unwrap();
         let GameEvent::Act(Act { cause: Some(c), .. }) = ev else {
             panic!("Act(Destroy) must carry a cause; got {ev:?}")
@@ -1767,7 +1767,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear])),
             "a creature struck by deathtouch must be destroyed ([CR#704.5h]); got {actions:?}"
         );
     }
@@ -1836,7 +1836,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear])),
             "a source that dealt deathtouch damage then left still destroys the target; got {actions:?}"
         );
     }
@@ -1859,7 +1859,7 @@ mod tests {
         let actions = sba::sweep(&state);
         let n = actions
             .iter()
-            .filter(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear))
+            .filter(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear]))
             .count();
         assert_eq!(
             n, 1,
@@ -1878,7 +1878,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear])),
             "sublethal damage without deathtouch must not destroy; got {actions:?}"
         );
     }
@@ -1909,7 +1909,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { verb, on: Some(object), .. }) if verb.as_str() == "Destroy" && *object == bear)),
+                .any(|e| matches!(e, GameEvent::Act(Act { verb, on, .. }) if verb.as_str() == "Destroy" && on.as_slice() == [bear])),
             "toughness > 0 guard: no lethal-damage destroy on a 0-toughness creature; \
              got {actions:?}"
         );

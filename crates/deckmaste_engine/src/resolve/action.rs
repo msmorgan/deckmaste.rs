@@ -553,7 +553,7 @@ impl GameState {
         // top-slice group, the reorder/fight arrange RunEffect).
         let future = |verb: &str,
                       who: Option<crate::player::PlayerId>,
-                      on: Option<ObjectId>,
+                      on: Vec<ObjectId>,
                       from: Option<Zone>,
                       to: Option<Zone>,
                       cause: Option<Cause>,
@@ -612,7 +612,7 @@ impl GameState {
                 let act = future(
                     "Destroy",
                     None,
-                    Some(on),
+                    vec![on],
                     Some(from),
                     Some(to),
                     Some(Cause::destroy(Agency::EffectInstruction, agent)),
@@ -643,7 +643,7 @@ impl GameState {
                     let act = future(
                         "Discard",
                         Some(player),
-                        Some(on),
+                        vec![on],
                         Some(from),
                         Some(to),
                         Some(Cause::discard(Agency::EffectInstruction, agent)),
@@ -677,7 +677,7 @@ impl GameState {
                     let act = future(
                         "Discard",
                         Some(player),
-                        None,
+                        vec![],
                         None,
                         None,
                         Some(Cause::discard(Agency::EffectInstruction, agent)),
@@ -711,7 +711,7 @@ impl GameState {
                 let act = future(
                     "Mill",
                     Some(player),
-                    None,
+                    vec![],
                     Some(Zone::Library),
                     Some(Zone::Graveyard),
                     Some(Cause::mill(Agency::EffectInstruction, agent)),
@@ -735,7 +735,7 @@ impl GameState {
                 vec![WorkItem::Emit(Occurrence::single(future(
                     "Draw",
                     Some(player),
-                    None,
+                    vec![],
                     None,
                     None,
                     Some(Cause::draw(Agency::EffectInstruction, agent)),
@@ -757,7 +757,7 @@ impl GameState {
                 // inside an apply), which then schedules `FinalizeAct` — so a
                 // replaced/canted reorder records nothing, and the surviving
                 // fact lands AFTER the arrange ([CR#701.22d]).
-                let act = future(verb, Some(player), None, None, None, None, true);
+                let act = future(verb, Some(player), vec![], None, None, None, true);
                 vec![WorkItem::Emit(Occurrence::single(act))]
             }
             // ── Fight: If-guarded reciprocal damage ([CR#701.14a]) ──
@@ -769,7 +769,7 @@ impl GameState {
                 if self.objects.get(on).is_none() || !self.composite_body_would_act(body, frame) {
                     return vec![]; // gone fighter / guard fails — fizzle [CR#701.14b]
                 }
-                let act = future("Fight", None, Some(on), None, None, None, true);
+                let act = future("Fight", None, vec![on], None, None, None, true);
                 vec![WorkItem::Emit(Occurrence::single(act))]
             }
             // An unknown verb name performs no keyword action — fizzle, never
@@ -1748,9 +1748,9 @@ mod tests {
             item,
             WorkItem::Emit(Occurrence::Single(GameEvent::Act(Act {
                 who: Some(PlayerId(0)),
-                on: None,
+                on,
                 ..
-            })))
+            }))) if on.is_empty()
         )));
 
         // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3})
@@ -1816,9 +1816,9 @@ mod tests {
             item,
             WorkItem::Emit(Occurrence::Single(GameEvent::Act(Act {
                 who: Some(PlayerId(1)),
-                on: None,
+                on,
                 ..
-            })))
+            }))) if on.is_empty()
         )));
     }
 
@@ -2164,7 +2164,7 @@ mod tests {
                 matches!(&e.fact, crate::event::GameEvent::Act(Act { verb, who, on, .. })
                     if verb.as_str() == "Discard"
                         && *who == Some(PlayerId(0))
-                        && on.is_some_and(|o| picks.contains(&o)))
+                        && on.first().is_some_and(|o| picks.contains(o)))
             })
             .count();
         assert_eq!(
@@ -2321,7 +2321,7 @@ mod tests {
     fn discarded_fact(state: &GameState, card: ObjectId) -> bool {
         state.history.entries().any(|e| {
             matches!(&e.fact, GameEvent::Act(Act { verb, on, committed, .. })
-                if verb.as_str() == "Discard" && *on == Some(card) && *committed)
+                if verb.as_str() == "Discard" && on.as_slice() == [card] && *committed)
         })
     }
 
@@ -3278,7 +3278,7 @@ mod tests {
             .entries()
             .filter(|e| {
                 matches!(&e.fact, crate::event::GameEvent::Act(Act { verb, on, .. })
-                    if verb.as_str() == "Discard" && *on == Some(card))
+                    if verb.as_str() == "Discard" && on.as_slice() == [card])
             })
             .count();
         assert_eq!(acts, 1, "ONE dual-facet Act(Discard) commits the move");

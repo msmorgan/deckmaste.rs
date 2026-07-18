@@ -1243,12 +1243,12 @@ impl GameState {
             PhaseStep::Beginning(BeginningStep::Draw) if self.turn.turn_number > 1 => {
                 // [CR#121.1,504.1]: the turn-based draw is the same atomic
                 // `Act(Draw)` keyword action as an effect draw — the active
-                // player draws one card (`on: None`, the drawn card binds at
+                // player draws one card (`on: vec![]`, the drawn card binds at
                 // apply). A turn-based action has no source object.
                 vec![WorkItem::Emit(Occurrence::single(GameEvent::Act(Act {
                     verb: deckmaste_core::VerbName::from("Draw"),
                     who: Some(self.turn.active_player),
-                    on: None,
+                    on: vec![],
                     from: None,
                     to: None,
                     // [CR#703.4d]: agency distinguishes the draw-step draw
@@ -2370,7 +2370,7 @@ mod tests {
             GameEvent::Act(Act {
                 verb: deckmaste_core::VerbName::from("Destroy"),
                 who: None,
-                on: Some(object),
+                on: vec![object],
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: Some(crate::event::Cause::destroy(

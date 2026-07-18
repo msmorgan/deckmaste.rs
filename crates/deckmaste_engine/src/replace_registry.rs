@@ -89,26 +89,21 @@ pub(crate) fn replaceable(e: &GameEvent) -> bool {
 /// not yet minted, a game-scope designation flip).
 pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
     match e {
-        // `Act(Destroy(x))` (and any object-patient keyword action) affects its
-        // `on` object — regeneration's replacement body reads it as `That`.
-        GameEvent::Act(Act {
-            on: Some(object), ..
-        })
-        | GameEvent::ZoneChange(ZoneChange { object, .. })
+        // `Act(Destroy(x))` (and any object-subject keyword action) affects
+        // its first `on` subject — regeneration's replacement body reads it
+        // as `That`; a subjectless player-report action (draw/scry/mill)
+        // affects its performer ([CR#121.1,616.1]).
+        GameEvent::Act(Act { on, who, .. }) => match on.first() {
+            Some(&object) => Some(Affected::Object(object)),
+            None => who.map(Affected::Player),
+        },
+        GameEvent::ZoneChange(ZoneChange { object, .. })
         | GameEvent::CounterPlaced(CounterPlaced { object, .. })
         | GameEvent::CounterRemoved(CounterRemoved { object, .. })
         | GameEvent::DamageDealt(DamageDealt { target: object, .. }) => {
             Some(Affected::Object(*object))
         }
-        // A player-report keyword action (`Act(Draw)`, scry/mill/…) with no
-        // patient affects its performer — a draw replacement reads the drawing
-        // player ([CR#121.1,616.1]).
-        GameEvent::Act(Act {
-            who: Some(player),
-            on: None,
-            ..
-        })
-        | GameEvent::LifeGained(LifeGained { player, .. })
+        GameEvent::LifeGained(LifeGained { player, .. })
         | GameEvent::LifeLost(LifeLost { player, .. })
         | GameEvent::GotDesignation(GotDesignation { player, .. }) => {
             Some(Affected::Player(*player))
@@ -1144,7 +1139,7 @@ mod tests {
         let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
-            on: Some(id),
+            on: vec![id],
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
@@ -1198,7 +1193,7 @@ mod tests {
         let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
-            on: Some(id),
+            on: vec![id],
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: None,
@@ -1234,7 +1229,7 @@ mod tests {
             GameEvent::Act(Act {
                 verb: deckmaste_core::VerbName::from("Discard"),
                 who: None,
-                on: Some(id),
+                on: vec![id],
                 from: Some(Zone::Hand),
                 to: Some(to),
                 cause: None,
@@ -1383,7 +1378,7 @@ mod tests {
         let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
-            on: Some(id),
+            on: vec![id],
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
@@ -1445,7 +1440,7 @@ mod tests {
         let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
-            on: Some(subject),
+            on: vec![subject],
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
@@ -1479,7 +1474,7 @@ mod tests {
         let destroy = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
-            on: Some(id),
+            on: vec![id],
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::EffectInstruction, None)),
@@ -1492,7 +1487,7 @@ mod tests {
         let scry = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Scry"),
             who: Some(crate::player::PlayerId(0)),
-            on: None,
+            on: vec![],
             from: None,
             to: None,
             cause: None,
@@ -1537,7 +1532,7 @@ mod tests {
         let e = GameEvent::Act(Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: None,
-            on: Some(id),
+            on: vec![id],
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
             cause: Some(Cause::destroy(Agency::StateBasedAction, None)),
