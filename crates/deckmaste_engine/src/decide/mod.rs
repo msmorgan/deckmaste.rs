@@ -548,6 +548,12 @@ impl GameState {
             PendingDecision::Priority(h) => return h.resolve(self, decision),
             PendingDecision::ChooseManaColor(h) => return h.resolve(self, decision),
             PendingDecision::ChooseManaMode(h) => return h.resolve(self, decision),
+            PendingDecision::ChooseTargets(h) => return h.resolve(self, decision),
+            PendingDecision::ChooseNewTargets(h) => return h.resolve(self, decision),
+            PendingDecision::ChooseXValue(h) => return h.resolve(self, decision),
+            PendingDecision::PayMana(h) => return h.resolve(self, decision),
+            PendingDecision::ChooseCostOptions(h) => return h.resolve(self, decision),
+            PendingDecision::ChooseModes(h) => return h.resolve(self, decision),
             _ => {}
         }
         match (pending, decision) {
@@ -558,205 +564,6 @@ impl GameState {
             ) => {
                 let (player, count) = (*player, *count);
                 self.submit_discards(player, count, objects)
-            }
-            (
-                PendingDecision::ChooseTargets(ChooseTargets {
-                    player: _,
-                    spec,
-                    legal,
-                }),
-                Decision::Targets(chosen),
-            ) => {
-                // [CR#601.2c,115] / [CR#603.3d]: one chosen SET per spec, each
-                // member drawn from that spec's legal candidate set.
-                if chosen.len() != spec.len()
-                    || chosen
-                        .iter()
-                        .zip(legal)
-                        .any(|(picks, set)| picks.iter().any(|c| !set.contains(c)))
-                {
-                    return Err(DecisionError::Illegal {
-                        reason: "illegal target selection".into(),
-                    });
-                }
-                // [CR#601.2c,115.7e]: per-slot count within bounds, within-slot
-                // distinctness, and cross-slot Distinct disjointness.
-                if let Err(reason) = crate::resolve::validate_target_set(spec, &chosen) {
-                    return Err(DecisionError::Illegal { reason });
-                }
-                // Targeting requirements (Must(Target) rows — the
-                // Flagbearer class, "must choose at least one … if able"):
-                // for each row whose `by` matches the targeting object,
-                // if any spec's candidate set holds an `on`-matching
-                // object, the chosen targets must include at least one.
-                // Disjoint multi-row conflicts would need the maximize
-                // arbitration (identical rows — the printed class — are
-                // jointly satisfied by one choice, so per-row checks are
-                // exact today). Triggered abilities are exempt by the
-                // printed wording, but `by` can't spell that
-                // discrimination yet — a row matching a placing trigger's
-                // source is a LOUD seam, not an evaluation.
-                let view = self.layers();
-                let must_rows = crate::legal::must_target_rows(self, &view);
-                if !must_rows.is_empty() {
-                    // Both staging slots carry a real stack identity: a
-                    // placing trigger's is minted at placement
-                    // ([CR#603.3d]), an announce's when it opened
-                    // ([CR#602.2a] / a spell's own id).
-                    let targeting = match &self.placing_trigger {
-                        Some(t) => t.id,
-                        None => self.announcing.as_ref().expect("an announce in flight").id,
-                    };
-                    for (carrier, by, on) in &must_rows {
-                        if !crate::legal::deed_agent_matches(self, by, targeting, *carrier) {
-                            continue;
-                        }
-                        if self.placing_trigger.is_some() {
-                            todo!(
-                                "Must(Target) row matching a triggered ability — the by-filter \
-                                 can't exempt triggers yet"
-                            );
-                        }
-                        let able = legal.iter().any(|set| {
-                            set.iter()
-                                .any(|&t| self.filter_matches_live(on, t, *carrier))
-                        });
-                        let obeyed = chosen
-                            .iter()
-                            .flatten()
-                            .any(|&t| self.filter_matches_live(on, t, *carrier));
-                        if able && !obeyed {
-                            return Err(DecisionError::Illegal {
-                                reason: format!(
-                                    "a Must(Target) requirement on {carrier:?} obliges this \
-                                     choice to include a matching target"
-                                ),
-                            });
-                        }
-                    }
-                }
-                self.pending = None;
-                // [CR#601.2c]: the chosen objects become targets NOW — one
-                // fact per distinct target (an object chosen for two specs
-                // becomes the target once), simultaneous as one occurrence.
-                // The targeting object: a placing trigger's minted stack id
-                // ([CR#603.3d]), the announcing spell itself (stack zone —
-                // its remint is the deferred one), or an ability announce's
-                // SOURCE ([CR#602.2a] — no stack id until promote).
-                let targeting = if let Some(staged) = &self.placing_trigger {
-                    staged.id
-                } else {
-                    match &self
-                        .announcing
-                        .as_ref()
-                        .expect("an announce in flight")
-                        .object
-                    {
-                        crate::stack::StackObject::Spell(o) => *o,
-                        crate::stack::StackObject::Activated { source, .. } => *source,
-                        crate::stack::StackObject::Triggered { .. } => {
-                            unreachable!("triggers choose targets at placement, not announce")
-                        }
-                    }
-                };
-                let mut became: Vec<GameEvent> = Vec::new();
-                for &target in chosen.iter().flatten() {
-                    let dup = became.iter().any(
-                        |e| matches!(e, GameEvent::BecameTarget { target: t, .. } if *t == target),
-                    );
-                    if !dup {
-                        became.push(GameEvent::BecameTarget {
-                            target,
-                            source: targeting,
-                        });
-                    }
-                }
-                if self.placing_trigger.is_some() {
-                    // [CR#603.3d]: a triggered ability chose its targets at
-                    // placement — commit it onto the stack and resume placement.
-                    self.commit_placing_trigger(chosen);
-                    self.schedule_front(vec![WorkItem::CheckSbas, WorkItem::PlaceTriggers]);
-                } else {
-                    self.announcing
-                        .as_mut()
-                        .expect("an announce in flight")
-                        .targets = chosen;
-                }
-                // Ahead of the resumed placement / cast continuation, so
-                // becomes-target triggers (ward, [CR#702.21a]) note in this
-                // lock's wake.
-                let occ = if became.len() == 1 {
-                    Occurrence::Single(became.pop().expect("len 1"))
-                } else {
-                    Occurrence::Batch(became)
-                };
-                self.schedule_front(vec![WorkItem::Emit(occ)]);
-                Ok(())
-            }
-            (
-                PendingDecision::ChooseNewTargets(ChooseNewTargets {
-                    player: _,
-                    entry,
-                    spec,
-                    legal,
-                }),
-                Decision::Targets(chosen),
-            ) => {
-                // [CR#707.10c]: same length/membership validation as
-                // `ChooseTargets` above — each slot's answer is drawn from
-                // `legal[i]`, which the handler already unioned with the
-                // entry's CURRENT target (leaving a slot unchanged is always
-                // legal, even when the current target no longer qualifies
-                // fresh; a CHANGED slot must land on a fresh-legal
-                // candidate).
-                if chosen.len() != spec.len()
-                    || chosen
-                        .iter()
-                        .zip(legal)
-                        .any(|(picks, set)| picks.iter().any(|c| !set.contains(c)))
-                {
-                    return Err(DecisionError::Illegal {
-                        reason: "illegal target selection".into(),
-                    });
-                }
-                // [CR#601.2c,115.7e]: counts (locked at announce) unchanged,
-                // within-slot + Distinct re-validated on the whole proposed set.
-                if let Err(reason) = crate::resolve::validate_target_set(spec, &chosen) {
-                    return Err(DecisionError::Illegal { reason });
-                }
-                let entry = *entry;
-                self.pending = None;
-                // [CR#707.10c]: the referenced entry may have left the stack
-                // between this decision surfacing and its answer (e.g.
-                // countered in response) — a no-op, not a crash.
-                if let Some(e) = self.stack.iter_mut().find(|e| e.id == entry) {
-                    e.targets = chosen;
-                }
-                Ok(())
-            }
-            (
-                PendingDecision::PayMana(PayMana {
-                    player,
-                    cost,
-                    pool: _,
-                    subject,
-                }),
-                Decision::Pay(payment),
-            ) => {
-                let player = *player;
-                let cost = cost.clone();
-                let subject = *subject;
-                // [CR#106.6]: layer SpendOnly spendability on the structural
-                // coverage check — each selected unit must be spendable on the
-                // object being paid for.
-                if !self.validate_spendable(player, &cost, &payment, subject) {
-                    return Err(DecisionError::Illegal {
-                        reason: "payment does not cover the cost".into(),
-                    });
-                }
-                self.pending = None;
-                crate::cast::apply_payment(&mut self.player_mut(player).mana_pool, &payment);
-                Ok(())
             }
             (
                 PendingDecision::OrderTriggers(OrderTriggers { player, triggers }),
@@ -1040,64 +847,6 @@ impl GameState {
                 }
                 Ok(())
             }
-            (PendingDecision::ChooseXValue(ChooseXValue { player }), Decision::XValue(x)) => {
-                let player = *player;
-                // [CR#601.2b]: record the announced value in the open slot.
-                self.announcing
-                    .as_mut()
-                    .expect("an announce in flight for ChooseXValue")
-                    .x = Some(x);
-                // [CR#601.2h,733]: an unpayable announcement reverses the cast.
-                // Read the kind + base cost immutably, then decide.
-                let pending = self.announcing.as_ref().expect("an announce in flight");
-                // `pip_spell` names the spell whose `PayPips` statics (convoke /
-                // delve / improvise) may cover pips of the X-concretized cost —
-                // `Some` only for a spell; an activated ability has no `PayPips`.
-                let (subject, base, pip_spell) = match &pending.object {
-                    crate::stack::StackObject::Spell(o) => (
-                        *o,
-                        // A face with no mana cost reads as mana value 0 here:
-                        // the `mana_cost` seam reserves `None` for a future
-                        // no-cost face, and an empty cost concretizes/affords as
-                        // a free base. The engine never panics on card data.
-                        self.mana_cost(*o).unwrap_or_default(),
-                        Some(*o),
-                    ),
-                    crate::stack::StackObject::Activated {
-                        source, ability, ..
-                    } => (
-                        *source,
-                        crate::activate::cost_summary(&ability.cost)
-                            .expect("can_activate vetted the cost")
-                            .mana,
-                        None,
-                    ),
-                    crate::stack::StackObject::Triggered { .. } => {
-                        unreachable!("triggers never occupy the announce slot")
-                    }
-                };
-                // [CR#601.2b,107.3a,107.4e,107.4f]: with X now fixed to its
-                // announced value, the cost may STILL carry hybrid/Phyrexian
-                // symbols (a `{X}{W/U}`-style cost composing engine-x-costs with
-                // engine-cost-payment). A bare `can_pay` rejects any cost with a
-                // choosable symbol (`requirement` returns `None`), so the
-                // payability check must go through the reading-search gate —
-                // "is SOME hybrid/Phyrexian reading of the X-concretized cost
-                // payable?" — which subsumes `can_pay` for a plain/X-only cost.
-                let payable = self.affordable_concretization(
-                    player,
-                    &crate::cast::concretize_x(&base, x),
-                    subject,
-                    pip_spell,
-                );
-                self.pending = None;
-                // Writing `x` first is safe: `rewind_announce` discards the
-                // whole announcing slot, including the `x` just written.
-                if !payable {
-                    self.rewind_announce();
-                }
-                Ok(())
-            }
             (
                 PendingDecision::ChooseNoteNumber(ChooseNoteNumber { key, .. }),
                 Decision::XValue(n),
@@ -1127,31 +876,6 @@ impl GameState {
                 self.pending = None;
                 self.resolution_notes
                     .insert(key, crate::state::NotedValue::CardName(name));
-                Ok(())
-            }
-            (
-                PendingDecision::ChooseCostOptions(ChooseCostOptions { cost, .. }),
-                Decision::CostOptions(choices),
-            ) => {
-                // [CR#601.2b]: apply the announced readings to the printed cost.
-                // An illegal announce (wrong pick count, or a reading the symbol
-                // doesn't offer) is rejected — the decision stays pending.
-                let cost = cost.clone();
-                let concrete = match crate::cost_options::concretize(&cost, &choices) {
-                    Ok(c) => c,
-                    Err(e) => {
-                        return Err(DecisionError::Illegal {
-                            reason: format!("illegal cost-option announce: {e:?}"),
-                        });
-                    }
-                };
-                // Stash the concretized (mana, Phyrexian-life verbs) on the
-                // announce slot for `PayCost` to consume.
-                self.announcing
-                    .as_mut()
-                    .expect("an announce is in flight across ChooseCostOptions")
-                    .concretized = Some(concrete);
-                self.pending = None;
                 Ok(())
             }
             (PendingDecision::YesNo(YesNo { .. }), Decision::Answer(yes)) => {
@@ -1296,49 +1020,6 @@ impl GameState {
                     // ([CR#603.3b] — the multi-discard precedent).
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
                 }
-                Ok(())
-            }
-            (
-                PendingDecision::ChooseModes(ChooseModes {
-                    options,
-                    min,
-                    max,
-                    repeats,
-                    ..
-                }),
-                Decision::Modes(picks),
-            ) => {
-                let (options, min, max, repeats) = (*options, *min, *max, *repeats);
-                // [CR#700.2,700.2d]: count in [min,max], each index a real mode,
-                // distinct unless the same mode may be chosen more than once.
-                let n = Uint::try_from(picks.len()).expect("pick count fits Uint");
-                let distinct = repeats || {
-                    let set: HashSet<_> = picks.iter().copied().collect();
-                    set.len() == picks.len()
-                };
-                let legal = n >= min && n <= max && picks.iter().all(|&i| i < options) && distinct;
-                if !legal {
-                    return Err(DecisionError::Illegal {
-                        reason: "illegal mode selection".into(),
-                    });
-                }
-                self.pending = None;
-                let crate::state::ChoiceContinuation::Modal { modes, frame } = self
-                    .choice
-                    .take()
-                    .expect("a ChooseModes decision stashed its continuation")
-                else {
-                    unreachable!("a ChooseModes decision stashes a Modal continuation");
-                };
-                // [CR#700.2]: apply the chosen modes' effects in pick order.
-                let items = picks
-                    .into_iter()
-                    .map(|i| WorkItem::RunEffect {
-                        effect: Box::new(modes[i as usize].effect.clone()),
-                        frame: frame.clone(),
-                    })
-                    .collect();
-                self.schedule_front(items);
                 Ok(())
             }
             (
