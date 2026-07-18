@@ -83,6 +83,12 @@ pub use counter::CounterRef;
 pub use counter::CounterScope;
 pub use counter::CounterSpec;
 
+mod copy;
+pub use copy::CopiableValues;
+pub use copy::CopyException;
+pub use copy::CopySource;
+pub use copy::CopySpec;
+
 mod decision;
 pub use decision::DeciderSpec;
 pub use decision::NotedKind;
