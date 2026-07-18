@@ -762,14 +762,23 @@ impl GameState {
             }
             // ── Fight: If-guarded reciprocal damage ([CR#701.14a]) ──
             "Fight" => {
-                let Some((a, _b)) = deckmaste_core::fight_body_fighters(body) else {
+                let Some((a, b)) = deckmaste_core::fight_body_fighters(body) else {
                     return vec![];
                 };
-                let on = self.eval_reference(a, frame);
-                if self.objects.get(on).is_none() || !self.composite_body_would_act(body, frame) {
+                let first = self.eval_reference(a, frame);
+                let second = self.eval_reference(b, frame);
+                // [CR#701.14c]: a self-fight has ONE subject — dedup so the
+                // committed fact (and its trigger) fires once, not twice.
+                let mut on = vec![first];
+                if second != first {
+                    on.push(second);
+                }
+                if on.iter().any(|&f| self.objects.get(f).is_none())
+                    || !self.composite_body_would_act(body, frame)
+                {
                     return vec![]; // gone fighter / guard fails — fizzle [CR#701.14b]
                 }
-                let act = future("Fight", None, vec![on], None, None, None, true);
+                let act = future("Fight", None, on, None, None, None, true);
                 vec![WorkItem::Emit(Occurrence::single(act))]
             }
             // An unknown verb name performs no keyword action — fizzle, never

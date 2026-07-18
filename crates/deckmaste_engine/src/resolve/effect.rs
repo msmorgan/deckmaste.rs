@@ -1381,14 +1381,24 @@ impl GameState {
                 }
             }
             "Fight" => {
-                let on = self.eval_reference(deckmaste_core::fight_body_fighters(body)?.0, frame);
-                if self.objects.get(on).is_none() || !self.composite_body_would_act(body, frame) {
+                let (a, b) = deckmaste_core::fight_body_fighters(body)?;
+                let first = self.eval_reference(a, frame);
+                let second = self.eval_reference(b, frame);
+                // [CR#701.14c]: a self-fight has ONE subject — dedup so the
+                // committed fact (and its trigger) fires once, not twice.
+                let mut on = vec![first];
+                if second != first {
+                    on.push(second);
+                }
+                if on.iter().any(|&f| self.objects.get(f).is_none())
+                    || !self.composite_body_would_act(body, frame)
+                {
                     return None; // gone fighter / guard fails — fizzle [CR#701.14b]
                 }
                 BatchActHead {
                     verb: "Fight",
                     who: None,
-                    on: vec![on],
+                    on,
                     cause: None,
                     from: None,
                 }
@@ -3060,44 +3070,6 @@ mod tests {
         );
     }
 
-    /// The `Fight` grammar macro's expansion ([CR#701.14a]): `Composite Fight`
-    /// wrapping `If (both fighters are creatures on the battlefield —
-    /// [CR#701.14b]) (Simultaneously [each deals its power to the OTHER, source
-    /// = itself])`. Slots `x`/`y` are the two fighters. Mirrors
-    /// `plugins/builtin/macros/effect/Fight.ron` (the guard's `Permanent` is
-    /// spelled here as `InZone(Battlefield)`, an equivalent for the test).
-    fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
-        use deckmaste_core::CharacteristicPredicate;
-        use deckmaste_core::Condition;
-        use deckmaste_core::Predicate;
-        use deckmaste_core::Stat;
-        use deckmaste_core::StatePredicate;
-        let is_creature = |r: &Reference| {
-            Condition::Matches(
-                r.clone(),
-                Predicate::And(vec![
-                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                ]),
-            )
-        };
-        let half = |tgt: &Reference, src: &Reference| {
-            OneShotEffect::Act(Action::DealDamage(
-                src.clone(),
-                Count::StatOf(src.clone(), Stat::Power),
-                tgt.clone(),
-            ))
-        };
-        OneShotEffect::Act(Action::Composite {
-            name: deckmaste_core::VerbName::from("Fight"),
-            body: Arc::new(OneShotEffect::If(deckmaste_core::If {
-                condition: Condition::And(vec![is_creature(x), is_creature(y)]),
-                then: Arc::new(OneShotEffect::Simultaneously(vec![half(y, x), half(x, y)])),
-                otherwise: None,
-            })),
-        })
-    }
-
     /// [CR#701.14a]: a fight — each creature deals damage equal to its power to
     /// the other, as ONE simultaneous batch of noncombat ([CR#701.14d]) damage
     /// facts; SBAs run after the whole batch. The `Composite Fight` fires its
@@ -3195,6 +3167,91 @@ mod tests {
                 })
             )),
             "one coalesced damage instance of twice its power"
+        );
+    }
+
+    /// [CR#701.14a]: the committed fight fact is PER SUBJECT — one committed
+    /// `Act(Fight)` per combatant, members of ONE batch occurrence (shared
+    /// history batch id: they were one fight).
+    #[test]
+    fn fight_commits_one_fact_per_fighter_sharing_a_batch_id() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            &frame,
+        );
+        run_injected(&mut state);
+        let fights: Vec<_> = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(&e.fact, GameEvent::Act(Act { verb, committed: true, .. })
+                    if verb.as_str() == "Fight")
+            })
+            .collect();
+        assert_eq!(fights.len(), 2, "one committed fact per combatant");
+        let subjects: Vec<_> = fights
+            .iter()
+            .map(|e| match &e.fact {
+                GameEvent::Act(Act { on, .. }) => on.clone(),
+                _ => unreachable!(),
+            })
+            .collect();
+        assert!(subjects.contains(&vec![a]) && subjects.contains(&vec![b]));
+        assert!(
+            fights[0].batch.is_some() && fights[0].batch == fights[1].batch,
+            "the two per-subject facts share one batch id ([CR#603.3b])"
+        );
+    }
+
+    /// [CR#701.14c]: a self-fight has ONE subject — one committed fact.
+    #[test]
+    fn self_fight_commits_exactly_one_fact() {
+        let (mut state, a, _b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![a, a]);
+        state.run_effect(
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            &frame,
+        );
+        run_injected(&mut state);
+        let count = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(&e.fact, GameEvent::Act(Act { verb, committed: true, .. })
+                    if verb.as_str() == "Fight")
+            })
+            .count();
+        assert_eq!(count, 1, "self-fight fires once ([CR#701.14c])");
+    }
+
+    /// [CR#120.8,701.14b]: a 0-power fighter still FOUGHT — its per-subject
+    /// fact records regardless of any damage event (the fact derives from the
+    /// body instructions, never from `DamageDealt`).
+    #[test]
+    fn zero_power_fighter_still_records_its_fight_fact() {
+        // Darksteel Myr is canon's 0/1 (see myr_on_field, resolve/action.rs:971-1003).
+        let (mut state, a, _b) = two_permanents_on_field();
+        let myr_card = Arc::new(canon().card("Darksteel Myr").unwrap());
+        let cid = state.cards.push(myr_card, PlayerId(0));
+        let myr = state.objects.mint(
+            ObjectSource::Card(cid),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(myr);
+        let frame = frame_src_targets(a, vec![myr, a]);
+        state.run_effect(
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert!(
+            state.history.entries().any(|e| matches!(&e.fact,
+                GameEvent::Act(Act { verb, on, committed: true, .. })
+                    if verb.as_str() == "Fight" && on.as_slice() == [myr])),
+            "the 0-power fighter's own fact recorded"
         );
     }
 

@@ -890,7 +890,7 @@ impl GameState {
             })
         );
         if committed && !contained {
-            let done = match act {
+            let done: Vec<GameEvent> = match act {
                 GameEvent::Act(Act {
                     verb,
                     who,
@@ -899,22 +899,46 @@ impl GameState {
                     to,
                     cause,
                     ..
-                }) => GameEvent::Act(Act {
-                    verb,
-                    who,
-                    on,
-                    from,
-                    to,
-                    cause,
-                    committed: true,
-                    contents: None,
-                    batch: None,
-                    inherited: std::collections::HashSet::new(),
-                    contained: false,
-                }),
-                other => other,
+                }) => {
+                    // ONE committed past fact PER SUBJECT ([CR#701.14a] — a
+                    // symmetric verb's "fights" trigger fires once per
+                    // combatant, and `event_roles` binds "it" per fact). A
+                    // subjectless or single-subject verb splits into itself —
+                    // the identity for every verb but Fight.
+                    let per_subject: Vec<Vec<ObjectId>> = if on.len() <= 1 {
+                        vec![on]
+                    } else {
+                        on.into_iter().map(|s| vec![s]).collect()
+                    };
+                    per_subject
+                        .into_iter()
+                        .map(|on| {
+                            GameEvent::Act(Act {
+                                verb,
+                                who,
+                                on,
+                                from,
+                                to,
+                                cause: cause.clone(),
+                                committed: true,
+                                contents: None,
+                                batch: None,
+                                inherited: std::collections::HashSet::new(),
+                                contained: false,
+                            })
+                        })
+                        .collect()
+                }
+                other => vec![other],
             };
-            self.schedule_front(vec![WorkItem::Emit(Occurrence::single(done))]);
+            // >1 subject → ONE Batch occurrence: the members share a history
+            // batch id ([CR#603.3b] — they were one fight; the per-FIGHT
+            // dedup hook for any future fight-counting consumer).
+            let occ = match done.len() {
+                1 => Occurrence::single(done.into_iter().next().expect("one fact")),
+                _ => Occurrence::Batch(done),
+            };
+            self.schedule_front(vec![WorkItem::Emit(occ)]);
         }
         Progress::ActFinalized {
             recorded: committed,

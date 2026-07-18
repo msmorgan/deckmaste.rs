@@ -6,9 +6,13 @@ use std::sync::Arc;
 
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_core::Ability;
+use deckmaste_core::Action;
 use deckmaste_core::Card;
 use deckmaste_core::CardFace;
+use deckmaste_core::Count;
+use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
+use deckmaste_core::Reference;
 use deckmaste_core::Subtype;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
@@ -291,4 +295,42 @@ pub(super) fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
         ids.push(obj);
     }
     (state, ids)
+}
+
+/// The `Fight` grammar macro's expansion ([CR#701.14a]): `Composite Fight`
+/// wrapping `If (both fighters are creatures on the battlefield —
+/// [CR#701.14b]) (Simultaneously [each deals its power to the OTHER, source
+/// = itself])`. Slots `x`/`y` are the two fighters. Mirrors
+/// `plugins/builtin/macros/effect/Fight.ron` (the guard's `Permanent` is
+/// spelled here as `InZone(Battlefield)`, an equivalent for the test).
+pub(super) fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
+    use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::Condition;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Stat;
+    use deckmaste_core::StatePredicate;
+    let is_creature = |r: &Reference| {
+        Condition::Matches(
+            r.clone(),
+            Predicate::And(vec![
+                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            ]),
+        )
+    };
+    let half = |tgt: &Reference, src: &Reference| {
+        OneShotEffect::Act(Action::DealDamage(
+            src.clone(),
+            Count::StatOf(src.clone(), Stat::Power),
+            tgt.clone(),
+        ))
+    };
+    OneShotEffect::Act(Action::Composite {
+        name: deckmaste_core::VerbName::from("Fight"),
+        body: Arc::new(OneShotEffect::If(deckmaste_core::If {
+            condition: Condition::And(vec![is_creature(x), is_creature(y)]),
+            then: Arc::new(OneShotEffect::Simultaneously(vec![half(y, x), half(x, y)])),
+            otherwise: None,
+        })),
+    })
 }
