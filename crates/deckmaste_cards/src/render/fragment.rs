@@ -989,11 +989,19 @@ pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Ident> {
 /// with no accompanying `Type(Land)` atom in a "for each" selection filter
 /// ("for each Forest you control", Primal Bellow's `And([Permanent,
 /// Subtype("Forest"), ControlledBy(You)])` — the `Permanent` macro carries no
-/// `Type(_)` atom of its own, [CR#110.1]); the Type-having case (a specific
-/// creature subtype named alongside `Type(Creature)`, "other attacking
-/// Goblin") is unreached here since `find_card_type` already resolved it
-/// first. `None` when the filter carries no bare `Subtype(_)` atom (or only
-/// a negated one — [`subtype_exclusion_prefix`]'s job, not this noun's).
+/// `Type(_)` atom of its own, [CR#110.1]). The "other attacking Goblin" case
+/// is the SAME shape, not a Type-having one: Goblin Piledriver's own filter
+/// is `And([Permanent, Subtype("Goblin"), Not(Ref(This)), Attacking])` —
+/// `Permanent` carries no `Type(_)` atom either, so `find_card_type` returns
+/// `None` and THIS function is what supplies "Goblin". The latent edge runs
+/// the other way: if a filter ever carried BOTH `Type(Creature)` and a bare
+/// `Subtype`, `find_card_type` would win (it's tried first in
+/// [`filter_noun`]'s `or_else` chain) and the noun would degrade (e.g.
+/// "creature" instead of "Goblin") — safe today only because pump/for-each
+/// selections are authored `Permanent`+`Subtype`, never `Creature`+
+/// `Subtype`. `None` when the filter carries no bare `Subtype(_)` atom (or
+/// only a negated one — [`subtype_exclusion_prefix`]'s job, not this
+/// noun's).
 fn find_bare_subtype_noun(f: &Predicate) -> Option<String> {
     match strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {

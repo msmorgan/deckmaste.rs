@@ -1056,10 +1056,16 @@ fn axis_sum_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
 /// coefficient and a selection predicate) or FLAT ZERO (`Literal(0)`, an
 /// idle axis). At least one axis must be scaled; if BOTH are, their
 /// predicates must be equal (the shared selection). This is the OTHER
-/// asymmetric shape distinct from the lone-`Power` case above — Goblin
-/// Piledriver's actual stored ability is a `Several([Power(Up(Times(
-/// Literal(2), CountOf(Objects(pred))))), Toughness(Up(Literal(0)))])`, not
-/// a lone `Power`.
+/// asymmetric shape distinct from the lone-`Power` case above: a raw
+/// `Several([Power(Up(Times(Literal(n), CountOf(Objects(pred))))),
+/// Toughness(Up(Literal(0)))])` with one axis scaled and the other flat
+/// zero. Goblin Piledriver itself does NOT take this shape — its stored
+/// `P2P0ForEach` invocation IS the lone-`Power` case above (`P2P0ForEach`'s
+/// body is a bare `Power(Up(Times(Literal(2), CountOf(Objects(Param(0))))))`,
+/// no `Toughness` node); no card in the corpus currently stores this raw
+/// asymmetric `Several` shape — the recognizer covers it defensively (a
+/// hand-built asymmetric pump would take it), exercised only synthetically
+/// in the test below (reusing Goblin Piledriver's predicate/wording).
 ///
 /// Looks through only a `Modification::Expanded` wrapper on `change` itself
 /// (mirrors `effect::modification_has_dynamic_pt_delta`'s shallow
@@ -1162,9 +1168,11 @@ fn for_each_magnitude(c: &Count) -> Option<(i64, &Predicate)> {
 /// operand ([CR#107.3] "for each") — SCALED (delegates to
 /// [`for_each_magnitude`], carrying a coefficient and the selection
 /// predicate) or FLAT ZERO (`Literal(0)`, the idle axis of an asymmetric
-/// pump — Goblin Piledriver's own `Toughness(Up(Literal(0)))` half of "+2/+0
-/// for each other attacking Goblin"). `None` for any other `Count` shape —
-/// [`for_each_pump_clause`] then rejects the whole `Several`.
+/// pump — a hand-built "+2/+0 for each other attacking Goblin" `Several`
+/// would carry this as its `Toughness(Up(Literal(0)))` half; Goblin
+/// Piledriver's ACTUAL stored ability is the lone-`Power` `P2P0ForEach`
+/// invocation, not this `Several` shape). `None` for any other `Count`
+/// shape — [`for_each_pump_clause`] then rejects the whole `Several`.
 fn for_each_axis(c: &Count) -> Option<(i64, Option<&Predicate>)> {
     if matches!(strip_count_expanded(c), Count::Literal(0)) {
         return Some((0, None));
@@ -2469,11 +2477,13 @@ mod tests {
     /// only `Count::Literal`) ever runs. Covers the symmetric `Several`
     /// shape (Blanchwood Armor/Primal Bellow/Might of the Masses), the
     /// power-only lone-`Power` shape (no `Toughness` node — the
-    /// `P1P0ForEach` macro body shape), the `Times(Literal(n), ..)`
-    /// coefficient shape, and Goblin Piledriver's own REAL stored shape — an
-    /// ASYMMETRIC `Several` whose toughness axis is a flat
-    /// `Toughness(Up(Literal(0)))`, not a lone `Power` (the two are distinct
-    /// stored shapes that both read "+n/+0").
+    /// `P1P0ForEach`/`P2P0ForEach` macro body shape, Goblin Piledriver's OWN
+    /// stored shape), the `Times(Literal(n), ..)` coefficient shape, and the
+    /// asymmetric `Several` shape whose toughness axis is a flat
+    /// `Toughness(Up(Literal(0)))` — a distinct, hand-built stored shape (no
+    /// card in the corpus currently uses it) that also reads "+n/+0",
+    /// exercised below via a synthetic case built on Goblin Piledriver's own
+    /// predicate/wording.
     #[test]
     fn for_each_pump_renders_symmetric_power_only_and_coefficient() {
         use deckmaste_core::Countable;
@@ -2525,10 +2535,15 @@ mod tests {
         );
 
         // Goblin Piledriver's REAL stored shape (plugins/wizards/cards/
-        // "Goblin Piledriver.ron"): `Several([Power(Up(Times(Literal(2),
-        // CountOf(Objects(pred))))), Toughness(Up(Literal(0)))])` — an
-        // asymmetric `Several`, power scaled and toughness a flat zero, NOT
-        // the lone-`Power` `P2P0ForEach` macro-body shape covered above.
+        // "Goblin Piledriver.ron") IS the lone-`Power` `P2P0ForEach`
+        // invocation covered above: `Modify(This, P2P0ForEach(And([
+        // Permanent, Subtype("Goblin"), Not(Ref(This)), Attacking])))`. This
+        // asymmetric `Several([Power(Up(Times(Literal(2),
+        // CountOf(Objects(pred))))), Toughness(Up(Literal(0)))])` is a
+        // different, hand-built shape — not what P2P0ForEach expands to —
+        // built here only to exercise the render arm's raw-`Several`
+        // asymmetric branch directly, reusing Goblin Piledriver's own
+        // predicate and wording.
         let goblin_pred = Predicate::And(vec![
             Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
             Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
