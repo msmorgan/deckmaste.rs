@@ -454,6 +454,18 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         },
         "block (Gate polarity)",
     );
+    // [CR#509.1b] surfacing refinement: a permanent is surfaced as a legal
+    // blocker only when at least ONE declared attacker point-wise permits it
+    // (an attacker whose flying-family `Cant(Block)` row does not forbid the
+    // pairing). A creature no attacker permits can't legally block anything, so
+    // surfacing it is a lie — prune it. Arrangement bounds (menace's `count`)
+    // do NOT prune: `block_forbidden_by` consults only the point-wise rows, so
+    // a lone menace-blocker — illegal alone but legal with a partner — stays
+    // surfaced. (With no declared attackers there is nothing to block, so the
+    // surfaced set is empty; the Declare Blockers step is reached only when an
+    // attacker exists, [CR#508.8].)
+    let attackers = state.combat.attackers();
+    let cant_rows = cant_block_rows(state, &view);
     state
         .zones
         .battlefield
@@ -465,6 +477,11 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
             // new controller. `blockable` reads the `May(Block)` grant
             // (default-deny combat capability).
             view.controller(id) == player && !obj.tapped && blockable(state, &view, id)
+        })
+        .filter(|&id| {
+            attackers
+                .iter()
+                .any(|&attacker| block_forbidden_by(state, &cant_rows, id, attacker).is_none())
         })
         .collect()
 }
@@ -2117,6 +2134,12 @@ mod tests {
         let mut state = game();
         let bear = conferred_creature_on_field(&mut state, "Bear", false);
         let rock = obj_on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
+        // [CR#509.1b] surfacing prunes a blocker no attacker point-wise permits,
+        // so a legal blocker is only surfaced against a declared attacker; a
+        // plain attacker (no evasion) permits every ground blocker.
+        let foe = conferred_creature_on_field(&mut state, "Foe", false);
+        let target = state.player(PlayerId(1)).object;
+        state.combat.declare_attacker(foe, target);
         let attackers = super::legal_attackers(&state, PlayerId(0));
         let blockers = super::legal_blockers(&state, PlayerId(0));
         assert!(
@@ -2147,6 +2170,11 @@ mod tests {
     fn sick_creature_no_attack_yes_block_haste_lifts_it() {
         let mut state = game();
         let sick = conferred_creature_on_field(&mut state, "Sick Bear", true);
+        // [CR#509.1b] surfacing needs a declared attacker to permit the blocker;
+        // a plain attacker (no evasion) permits every ground blocker.
+        let foe = conferred_creature_on_field(&mut state, "Foe", false);
+        let target = state.player(PlayerId(1)).object;
+        state.combat.declare_attacker(foe, target);
         assert!(
             !super::legal_attackers(&state, PlayerId(0)).contains(&sick),
             "a summoning-sick creature can't attack ([CR#302.6])"

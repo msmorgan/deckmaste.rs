@@ -308,23 +308,67 @@ impl StrategyEvaluator {
             _ => None,
         });
         let attackers = state.combat.attackers();
-        match policy {
-            None | Some(BlockPolicy::NoBlocks) => vec![],
-            Some(_) if attackers.is_empty() => vec![],
-            Some(BlockPolicy::BlockAll) => legal
+        let policy = match policy {
+            None | Some(BlockPolicy::NoBlocks) => return vec![],
+            Some(_) if attackers.is_empty() => return vec![],
+            Some(policy) => policy,
+        };
+        // Repair the naive proposal against block legality so the strategy never
+        // submits an illegal decision ([CR#509.1b,702.111b]) — the play error a
+        // blind flyer-vs-ground round-robin would otherwise `expect`-panic in
+        // the sim. A blocker is only paired with an attacker its point-wise
+        // Cant(Block) rows permit, and an attacker whose resulting blocker set
+        // trips an arrangement bound (menace — too few blockers) is left
+        // unblocked. `validate_blocks` enforces these same rules on submission.
+        let view = state.layers();
+        let rows = crate::legal::cant_block_rows(state, &view);
+        let permits = |b: ObjectId, a: ObjectId| {
+            crate::legal::block_forbidden_by(state, &rows, b, a).is_none()
+        };
+        let mut pairs: Vec<(ObjectId, ObjectId)> = match policy {
+            // Handled by the early return; kept for exhaustiveness.
+            BlockPolicy::NoBlocks => Vec::new(),
+            // Spread blockers across attackers (round-robin), skipping to the
+            // first attacker each blocker may legally block; a blocker no
+            // attacker permits is dropped.
+            BlockPolicy::BlockAll => legal
                 .iter()
                 .enumerate()
-                .map(|(i, &b)| (b, attackers[i % attackers.len()]))
+                .filter_map(|(i, &b)| {
+                    (0..attackers.len())
+                        .map(|k| attackers[(i + k) % attackers.len()])
+                        .find(|&a| permits(b, a))
+                        .map(|a| (b, a))
+                })
                 .collect(),
-            Some(BlockPolicy::ChumpBiggest) => {
-                let biggest = attackers
-                    .iter()
-                    .copied()
-                    .max_by_key(|&a| state.layers().power(a).unwrap_or(0))
-                    .expect("attackers non-empty");
-                legal.iter().map(|&b| (b, biggest)).collect()
+            // Gang the biggest attacker each blocker may legally block.
+            BlockPolicy::ChumpBiggest => legal
+                .iter()
+                .filter_map(|&b| {
+                    attackers
+                        .iter()
+                        .copied()
+                        .filter(|&a| permits(b, a))
+                        .max_by_key(|&a| view.power(a).unwrap_or(0))
+                        .map(|a| (b, a))
+                })
+                .collect(),
+        };
+        // Drop any attacker whose blocker set trips an arrangement bound
+        // (menace): the AI can't legally satisfy it, so it declines to block it.
+        let mut by_attacker: std::collections::HashMap<ObjectId, Vec<ObjectId>> =
+            std::collections::HashMap::new();
+        for &(b, a) in &pairs {
+            by_attacker.entry(a).or_default().push(b);
+        }
+        let mut forbidden: std::collections::HashSet<ObjectId> = std::collections::HashSet::new();
+        for (&a, blockers) in &by_attacker {
+            if crate::legal::arrangement_forbidden_by(state, &rows, a, blockers).is_some() {
+                forbidden.insert(a);
             }
         }
+        pairs.retain(|&(_, a)| !forbidden.contains(&a));
+        pairs
     }
 
     /// Choose `count` cards to discard: the applicable `Discard` preference's
@@ -933,6 +977,64 @@ mod tests {
             legal: vec![blocker],
         });
         assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
+    }
+
+    /// `DeclareBlockers` × `BlockAll`: the strategy must never PROPOSE an
+    /// illegal pair. With a flier AND a ground attacker on the board, the
+    /// ground blocker is point-wise forbidden from the flier ([CR#702.9b])
+    /// but may block the ground attacker — `decide_blocks` repairs the
+    /// naive round-robin so the blocker is sent at an attacker it can
+    /// legally block, and the whole proposal passes `validate_blocks`,
+    /// keeping the sim's "a strategy submits only legal decisions"
+    /// expectation honest.
+    #[test]
+    fn block_all_repairs_illegal_flyer_pairing() {
+        let strix = Arc::new(canon().card("Baleful Strix").unwrap());
+        let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+        let mut state = empty_two_player();
+        let flyer = put_creature(&mut state, &strix, PlayerId(0));
+        let ground = put_creature(&mut state, &bears, PlayerId(0));
+        let blocker = put_creature(&mut state, &bears, PlayerId(1));
+        let defender_proxy = state.player(PlayerId(1)).object;
+        state.combat.declare_attacker(flyer, defender_proxy);
+        state.combat.declare_attacker(ground, defender_proxy);
+
+        // Precondition: the flier's point-wise Cant(Block) is live — a ground
+        // blocker can't legally block it, but it may block the ground attacker.
+        assert!(
+            state.validate_blocks(&[(blocker, flyer)]).is_err(),
+            "flying's Cant(Block) is active on the flier"
+        );
+        // Surfacing keeps the ground blocker: the ground attacker permits it.
+        let legal = crate::legal::legal_blockers(&state, PlayerId(1));
+        assert!(
+            legal.contains(&blocker),
+            "the ground blocker is surfaced — the ground attacker permits it: {legal:?}"
+        );
+
+        let eval = StrategyEvaluator::new(
+            always_prefer(Preference::Block(BlockPolicy::BlockAll)),
+            PlayerId(1),
+        );
+        let pending = PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers {
+            player: PlayerId(1),
+            legal,
+        });
+        let Decision::Blocks(pairs) = eval.decide(&state, &pending) else {
+            panic!("a DeclareBlockers decision yields Blocks");
+        };
+        assert!(
+            !pairs.is_empty(),
+            "the ground blocker CAN block the ground attacker — BlockAll blocks it: {pairs:?}"
+        );
+        assert!(
+            pairs.iter().all(|&(_, a)| a != flyer),
+            "no ground blocker is sent at the flier ([CR#702.9b]): {pairs:?}"
+        );
+        assert!(
+            state.validate_blocks(&pairs).is_ok(),
+            "the repaired proposal is a legal block assignment: {pairs:?}"
+        );
     }
 
     /// Discard: the `Discard` selector ranks the hand and sheds the `count`

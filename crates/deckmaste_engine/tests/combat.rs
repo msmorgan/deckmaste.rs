@@ -183,19 +183,26 @@ fn legal_attackers_gates_on_sickness_and_tapped() {
 #[test]
 fn legal_blockers_ignores_summoning_sickness() {
     let mut state = two_player_with("Grizzly Bears", 1, 10);
-    let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    // P0 (active) attacks with a plain bear; P1 (defender) holds the blocker
+    // under test. [CR#509.1b] surfacing only permits a blocker against a
+    // declared attacker, so drive a real attacker into combat first — a plain
+    // bear (no evasion) point-wise permits this ground blocker.
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let (defender, _legal) = drive_to_declare_blockers(&mut state, &[attacker]);
+    assert_eq!(defender, PlayerId(1));
 
     state.objects.obj_mut(bear).summoning_sick = true;
     state.objects.obj_mut(bear).tapped = false;
     assert!(
-        legal_blockers(&state, PlayerId(0)).contains(&bear),
+        legal_blockers(&state, PlayerId(1)).contains(&bear),
         "a summoning-sick creature is still a legal blocker ([CR#509.1a])"
     );
 
     // But a tapped creature can't block.
     state.objects.obj_mut(bear).tapped = true;
     assert!(
-        !legal_blockers(&state, PlayerId(0)).contains(&bear),
+        !legal_blockers(&state, PlayerId(1)).contains(&bear),
         "a tapped creature can't be declared as a blocker ([CR#509.1a])"
     );
 }
@@ -2320,9 +2327,21 @@ fn flying_attacker_blockable_only_by_flying_or_reach() {
     let spider = force_onto_battlefield(&mut state, PlayerId(1), "Giant Spider");
 
     let (_, legal) = drive_to_declare_blockers(&mut state, &[attacker]);
-    assert!(legal.contains(&bear) && legal.contains(&spider));
+    // [CR#509.1b] surfacing: vs a LONE flier, a ground creature no attacker
+    // point-wise permits is pruned from the surfaced blocker set (it can't
+    // legally block anything); reach — which flying's own clause names — is
+    // still surfaced.
+    assert!(
+        !legal.contains(&bear),
+        "a ground creature can't block the lone flier — not surfaced: {legal:?}"
+    );
+    assert!(
+        legal.contains(&spider),
+        "reach permits blocking the flier — surfaced ([CR#702.17b]): {legal:?}"
+    );
 
-    // A ground creature can't block the flier ([CR#702.9b]).
+    // A ground creature can't block the flier ([CR#702.9b]) — now rejected as
+    // outside the surfaced legal set.
     assert!(matches!(
         state.submit_decision(Decision::Blocks(vec![(bear, attacker)])),
         Err(DecisionError::Illegal { .. })
@@ -2375,6 +2394,191 @@ fn menace_attacker_needs_two_blockers() {
     // Two or more is legal.
     state
         .submit_decision(Decision::Blocks(vec![(b1, attacker), (b2, attacker)]))
+        .unwrap();
+}
+
+/// [CR#509.1b] surfacing (the "≥ 1 permitting attacker" refinement): a ground
+/// creature stays a surfaced legal blocker as long as SOME declared attacker
+/// point-wise permits it — even when another attacker (a flier) forbids it. It
+/// is pruned only when NO attacker permits it (see
+/// `flying_attacker_blockable_only_by_flying_or_reach`). Menace never prunes
+/// the surface (its bound is arrangement-level, not point-wise) — a lone
+/// menace-blocker stays surfaced (see `menace_attacker_needs_two_blockers`).
+#[test]
+fn surfacing_keeps_a_blocker_permitted_by_any_attacker() {
+    let strix = card("Baleful Strix");
+    let bears = card("Grizzly Bears");
+    let mut p0_deck = deck(&strix, 5);
+    p0_deck.extend(deck(&bears, 5));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0_deck },
+            PlayerConfig {
+                deck: deck(&bears, 10),
+            },
+        ],
+        seed: 19,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let flyer = force_onto_battlefield(&mut state, PlayerId(0), "Baleful Strix");
+    let ground = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let blocker = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+
+    let (_, legal) = drive_to_declare_blockers(&mut state, &[flyer, ground]);
+    // The ground attacker point-wise permits the bear, so it stays surfaced —
+    // even though the flier forbids it.
+    assert!(
+        legal.contains(&blocker),
+        "a ground blocker is surfaced when a ground attacker permits it: {legal:?}"
+    );
+    // And it may legally block that ground attacker.
+    state
+        .submit_decision(Decision::Blocks(vec![(blocker, ground)]))
+        .unwrap();
+}
+
+/// [part-2] `validate_blocks` is the pure block-legality query the submission
+/// arm runs: asking it never mutates state, and its verdict matches what
+/// submission enforces. Vs a lone flier a ground creature is rejected and reach
+/// is accepted ([CR#702.9b,702.17b]).
+#[test]
+fn validate_blocks_query_matches_submission_flyer() {
+    let strix = card("Baleful Strix");
+    let bears = card("Grizzly Bears");
+    let spider_card = card("Giant Spider");
+    let mut p1_deck = deck(&bears, 5);
+    p1_deck.extend(deck(&spider_card, 5));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: deck(&strix, 10),
+            },
+            PlayerConfig { deck: p1_deck },
+        ],
+        seed: 11,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Baleful Strix");
+    let bear = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let spider = force_onto_battlefield(&mut state, PlayerId(1), "Giant Spider");
+    let (_, _legal) = drive_to_declare_blockers(&mut state, &[attacker]);
+
+    // The query answers WITHOUT submitting (the pending decision stays intact).
+    assert!(
+        state.validate_blocks(&[(bear, attacker)]).is_err(),
+        "a ground creature can't block the flier ([CR#702.9b])"
+    );
+    assert!(
+        state.validate_blocks(&[(spider, attacker)]).is_ok(),
+        "reach can block the flier ([CR#702.17b])"
+    );
+    // Enforcement agrees — the still-pending decision accepts the reach block.
+    state
+        .submit_decision(Decision::Blocks(vec![(spider, attacker)]))
+        .unwrap();
+}
+
+/// [part-2] `validate_blocks` judges the WHOLE assignment set-level: menace's
+/// arrangement bound rejects a lone blocker but accepts two ([CR#702.111b]) —
+/// exactly what submission enforces.
+#[test]
+fn validate_blocks_query_matches_submission_menace() {
+    let brute = card("Boggart Brute");
+    let bears = card("Grizzly Bears");
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: deck(&brute, 10),
+            },
+            PlayerConfig {
+                deck: deck(&bears, 10),
+            },
+        ],
+        seed: 13,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Boggart Brute");
+    let b1 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let b2 = force_onto_battlefield(&mut state, PlayerId(1), "Grizzly Bears");
+    let (_, _legal) = drive_to_declare_blockers(&mut state, &[attacker]);
+
+    assert!(
+        state.validate_blocks(&[(b1, attacker)]).is_err(),
+        "a lone blocker is a forbidden menace arrangement ([CR#702.111b])"
+    );
+    assert!(
+        state
+            .validate_blocks(&[(b1, attacker), (b2, attacker)])
+            .is_ok(),
+        "two blockers satisfy menace ([CR#702.111b])"
+    );
+    // Enforcement agrees.
+    state
+        .submit_decision(Decision::Blocks(vec![(b1, attacker), (b2, attacker)]))
+        .unwrap();
+}
+
+/// [part-4] `validate_attacks` is the pure attack-legality query the submission
+/// arm runs (the symmetric probe to `validate_blocks`): a legal attacker at a
+/// legal target is accepted; a non-legal attacker or a non-legal target is
+/// rejected ([CR#508.1a,508.1b]) — matching what submission enforces, without
+/// mutating state.
+#[test]
+fn validate_attacks_query_matches_submission() {
+    let mut state = two_player_with("Grizzly Bears", 7, 20);
+    let attacker = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    let (_trace, stop) = pass_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { legal_targets, .. },
+    )) = stop
+    else {
+        panic!("expected a DeclareAttackers decision, got {stop:?}");
+    };
+    let target = *legal_targets
+        .first()
+        .expect("the defender proxy is a legal target");
+
+    // The query answers WITHOUT submitting (the pending decision stays intact).
+    assert!(
+        state.validate_attacks(&[(attacker, target)]).is_ok(),
+        "a legal attacker at a legal target is accepted"
+    );
+    assert!(
+        state
+            .validate_attacks(&[(attacker, ObjectId::default())])
+            .is_err(),
+        "attacking a non-legal target is rejected ([CR#508.1b])"
+    );
+    assert!(
+        state
+            .validate_attacks(&[(ObjectId::default(), target)])
+            .is_err(),
+        "a non-legal attacker is rejected ([CR#508.1a])"
+    );
+    // Enforcement agrees.
+    state
+        .submit_decision(Decision::Attackers(vec![(attacker, target)]))
         .unwrap();
 }
 
