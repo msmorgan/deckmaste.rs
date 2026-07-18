@@ -5155,7 +5155,7 @@ mod tests {
     }
 
     /// The saga-chapter walk-through ([CR#714.2b]): three chapter abilities
-    /// authored through the `Chapter` MACRO (`Chapter(n: N, effect: …)` —
+    /// authored through the `Chapter` MACRO (`Chapter(n: [N], effect: …)` —
     /// the [CR#714.2b] "{rN}—[`OneShotEffect`]" spelling, expanding to
     /// `OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This)))` gated by
     /// `Crossed` at thresholds 1/2/3) against a counter-DOUBLED
@@ -5165,7 +5165,7 @@ mod tests {
     /// already-crossed thresholds never re-fire.
     #[test]
     fn saga_chapters_fire_on_crossed_thresholds_from_one_batch_fact() {
-        let chapter = |n: u32| format!("Chapter(n: {n}, effect: GainLife(1))");
+        let chapter = |n: u32| format!("Chapter(n: [{n}], effect: GainLife(1))");
         let source = format!(
             "Normal(name: \"Test Saga\", types: [Enchantment], abilities: [{}, {}, {}])",
             chapter(1),

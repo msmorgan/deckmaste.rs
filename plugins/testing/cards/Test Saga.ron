@@ -12,9 +12,9 @@ Normal(
     types: [Enchantment],
     subtypes: [Saga],
     abilities: [
-        Chapter(n: 1, effect: GainLife(1)),
-        Chapter(n: 2, effect: GainLife(2)),
-        Chapter(n: 3, effect: GainLife(3)),
+        Chapter(n: [1], effect: GainLife(1)),
+        Chapter(n: [2], effect: GainLife(2)),
+        Chapter(n: [3], effect: GainLife(3)),
         // [CR#714.4]: sacrifice once the lore total reaches the final
         // chapter number (3 here).
         Static(Sba(

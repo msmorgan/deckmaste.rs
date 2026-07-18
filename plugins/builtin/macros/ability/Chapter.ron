@@ -4,30 +4,39 @@
 // [effect]." `OneOrMore` matches the placement BATCH once ([CR#603.3b]),
 // and `Crossed` is [CR#714.2b]'s was-less-than/became-at-least gate
 // verbatim, read off the fired fact's before/after channel — a
-// counter-doubled 0→2 jump is ONE fact whose crossing chapters I and II
-// each observe (and chapter III does not). The Saga subtype registry row
-// (types/enchantment/Saga.ron) confers the enters-with-counter Also
-// [CR#714.3a] and the turn-based lore increment [CR#714.3c]; the
-// final-chapter sacrifice SBA carries the card's own final chapter
-// number, so it is spelled card-side ([CR#714.4,714.2d] — the Idris
+// counter-doubled 0→2 jump (Doubling Season) is ONE fact whose crossing
+// chapters I and II each observe (and chapter III does not). The Saga
+// subtype registry row (types/enchantment/Saga.ron) confers the
+// enters-with-counter Also [CR#714.3a] and the turn-based lore increment
+// [CR#714.3c]; the final-chapter sacrifice SBA carries the card's own final
+// chapter number, so it is spelled card-side ([CR#714.4,714.2d] — the Idris
 // History of Benalia exemplar).
 //
-// The inner ability is `Innate` — the rule OF THE CHAPTER SYMBOL
-// ([CR#714.2] "a chapter symbol is a keyword ability that represents a
-// triggered ability"); removal strips the authored Expanded wrapper.
+// `n` is ONE OR MORE chapter numbers ([CR#714.2c] — a range "{rN1}, {rN2}—"
+// fires the same effect at each), spliced into `Crossed`'s `thresholds`
+// list; a single chapter is a one-element list (`n: [1]`).
 //
-// Usage: Chapter(n: 2, effect: <chapter effect>).
+// The inner ability is a PLAIN, REMOVABLE `Triggered` — NOT `Innate`. A
+// chapter ability is the card's printed ability ([CR#714.2] "a chapter
+// symbol is a keyword ability that represents a triggered ability"), and
+// [CR#714.2d] contemplates a Saga that has lost its chapter abilities
+// (final chapter number 0) — exactly what layer-6 ability removal produces.
+// `Innate` (rule-of-the-object, removal-immune) stays only on the Saga
+// subtype-conferred rules, never on chapters.
+//
+// Usage: Chapter(n: [2], effect: <chapter effect>) /
+//        Chapter(n: [1, 2], effect: <chapter effect>).
 (
     name: "Chapter",
     template: "${n} — ${effect}",
     kinds: [Ability],
-    params: { "n": Count, "effect": OneShotEffect },
-    body: Innate(Triggered(
+    params: { "n": Counts, "effect": OneShotEffect },
+    body: Triggered(
         event: OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This))),
         condition: Crossed(
             value: CounterCount(This, LoreCounter),
-            threshold: AtLeast(Param(n)),
+            thresholds: Param(n),
         ),
         effect: Param(effect),
-    )),
+    ),
 )

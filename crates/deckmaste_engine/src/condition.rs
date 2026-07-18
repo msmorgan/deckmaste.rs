@@ -145,13 +145,17 @@ impl GameState {
             // — read off the firing counter fact's before/after channel
             // (never recomputed; `value` is the checker's tie to that
             // antecedent). A doubled 0→2 placement is ONE fact whose
-            // crossing satisfies both a threshold of 1 and of 2.
-            Condition::Crossed { threshold, .. } => {
+            // crossing satisfies both a threshold of 1 and of 2. A range
+            // ([CR#714.2c]) lists more than one threshold; the gate holds if
+            // the fact carried the count across ANY of them.
+            Condition::Crossed { thresholds, .. } => {
                 let Some((before, after)) = frame.anaphora.crossed else {
                     todo!("Crossed with no before/after channel in the frame is not yet supported")
                 };
-                !threshold.satisfied_by(before, |c| self.eval_count(c, frame))
-                    && threshold.satisfied_by(after, |c| self.eval_count(c, frame))
+                thresholds.iter().any(|t| {
+                    let n = self.eval_count(t, frame);
+                    before < n && after >= n
+                })
             }
 
             // [CR#702.33d]: "was kicked" — the resolving entry's announced

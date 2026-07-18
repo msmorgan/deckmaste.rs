@@ -70,6 +70,10 @@ pub fn param_types() -> ParamTypeSet {
     // The `Vec<Ability>` a keyword/`Composite` meta forwards
     // (`KeywordAbility(abilities: [...])`).
     param_types.add_typed::<Vec<dc::Ability>>("Abilities");
+    // A LIST of counts (`[1]`, `[2, 3]`) — the one-or-more chapter numbers a
+    // saga `Chapter`'s crossing gate holds ([CR#714.2c] ranges), spliced into
+    // `Crossed { thresholds }`; distinct from the single `Count`.
+    param_types.add_typed::<Vec<dc::Count>>("Counts");
     // Every macroable core kind gets its own-name validator (delta 1).
     param_types.add_typed::<dc::Ability>("Ability");
     param_types.add_typed::<dc::Action>("Action");

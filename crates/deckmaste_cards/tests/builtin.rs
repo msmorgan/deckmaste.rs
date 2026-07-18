@@ -504,30 +504,59 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         "a multikicker cost IS a kicker cost ([CR#702.33c])"
     );
 
-    // Chapter — sagas as data ([CR#714.2b]): OneOrMore + Crossed.
+    // Chapter — sagas as data ([CR#714.2b]): OneOrMore + Crossed, a plain
+    // REMOVABLE triggered ability (NOT Innate: [CR#714.2d] contemplates a
+    // Saga that has lost its chapter abilities, so they cannot be innate).
     let chapter: Ability = plugin
         .macros
-        .read_str("Chapter(n: 2, effect: Draw(1))")
+        .read_str("Chapter(n: [1], effect: Draw(1))")
         .unwrap();
     let Ability::Expanded(exp) = chapter else {
         panic!("expected a remembered Chapter expansion");
     };
-    let Ability::Innate(inner) = exp.value.as_ref() else {
-        panic!("a chapter is the rule of the chapter symbol (Innate)");
-    };
-    let Ability::Triggered(t) = inner.as_ref() else {
-        panic!("a chapter is a triggered ability ([CR#714.2])");
+    let Ability::Triggered(t) = exp.value.as_ref() else {
+        panic!("a chapter is a plain removable triggered ability ([CR#714.2,714.2d])");
     };
     assert!(
         matches!(&t.event, deckmaste_core::EventFilter::OneOrMore(_)),
         "one occurrence per placement batch ([CR#603.3b])"
     );
-    assert!(
-        matches!(
-            &t.condition,
-            Some(deckmaste_core::Condition::Crossed { .. })
-        ),
-        "the [CR#714.2b] was-less-than/became-at-least gate"
+    let Some(deckmaste_core::Condition::Crossed { thresholds, .. }) = &t.condition else {
+        panic!("the [CR#714.2b] was-less-than/became-at-least gate");
+    };
+    assert_eq!(
+        thresholds,
+        &vec![deckmaste_core::Count::Literal(1)],
+        "a single chapter is a one-element threshold list"
+    );
+}
+
+/// A chapter RANGE `{rN1}, {rN2}—[Effect]` ([CR#714.2c]) is ONE `Chapter`
+/// atom with a multi-number `n`, expanding to a single removable triggered
+/// ability whose `Crossed` gate lists every chapter number.
+#[test]
+fn chapter_range_expands_to_plural_thresholds() {
+    let plugin = builtin();
+    let chapter: Ability = plugin
+        .macros
+        .read_str("Chapter(n: [2, 3], effect: Draw(1))")
+        .unwrap();
+    let Ability::Expanded(exp) = chapter else {
+        panic!("expected a remembered Chapter expansion");
+    };
+    let Ability::Triggered(t) = exp.value.as_ref() else {
+        panic!("a chapter is a plain removable triggered ability ([CR#714.2,714.2d])");
+    };
+    let Some(deckmaste_core::Condition::Crossed { thresholds, .. }) = &t.condition else {
+        panic!("the [CR#714.2b] crossing gate");
+    };
+    assert_eq!(
+        thresholds,
+        &vec![
+            deckmaste_core::Count::Literal(2),
+            deckmaste_core::Count::Literal(3)
+        ],
+        "a range lists every chapter number ([CR#714.2c])"
     );
 }
 

@@ -78,18 +78,27 @@ pub enum Condition {
         event: Arc<EventFilter>,
         within: Lookback,
     },
-    /// The watched `value` was below `threshold` before the triggering
-    /// occurrence and satisfies it after — [CR#714.2b]'s "the number of lore
-    /// counters on it was less than N and became at least N", verbatim: a
+    /// The watched `value` was below a threshold before the triggering
+    /// occurrence and became at least it after — [CR#714.2b]'s "the number of
+    /// lore counters on it was less than N and became at least N", verbatim: a
     /// chapter ability's intervening-if. `value` NAMES the crossing quantity
     /// (a saga's lore total, `CounterCount(This, LoreCounter)`) for the
     /// checker to tie to the trigger's counter event; the engine reads the
     /// fired FACT's `before`/`after` channel, never a recomputation — a
     /// doubled 0→2 placement is one fact whose crossing both chapter I and
     /// chapter II observe.
+    ///
+    /// `thresholds` holds ONE OR MORE chapter numbers: a range
+    /// `{rN1}, {rN2}—[Effect]` ([CR#714.2c] — the same effect at each listed
+    /// chapter) is one condition whose crossing fires if the fact carried the
+    /// count across ANY of them. Each threshold is a plain [`Count`] — crossing
+    /// is inherently "became AT LEAST N" ([CR#714.2b]), so no comparator is
+    /// stored. (Per-crossed-member firing when a single doubled batch crosses
+    /// two members of one range at once is engine-sagas follow-up; normal
+    /// one-at-a-time play fires each member on its own placement event.)
     Crossed {
         value: Count,
-        threshold: crate::CountBound,
+        thresholds: Vec<Count>,
     },
     /// The tagged optional cost ([`OptionalCost`](crate::OptionalCost)) was
     /// paid for this object — "if it was kicked" ([CR#702.33d]; buyback's
@@ -158,6 +167,31 @@ mod tests {
             read("Compare(X, AtLeast, Literal(3))"),
             Condition::Compare(Count::X, Cmp::AtLeast, Count::Literal(3)),
         );
+    }
+
+    /// A chapter's crossing gate ([CR#714.2b]) holds ONE OR MORE thresholds:
+    /// a range `{rN1}, {rN2}—[Effect]` ([CR#714.2c]) fires at each listed
+    /// chapter number. Reads the bare-numeral `thresholds` list and
+    /// round-trips.
+    #[test]
+    fn crossed_reads_plural_thresholds() {
+        let v = read("Crossed(value: CounterCount(This, LoreCounter), thresholds: [2, 3])");
+        let Condition::Crossed { thresholds, .. } = &v else {
+            panic!("expected a Crossed condition");
+        };
+        assert_eq!(thresholds, &vec![Count::Literal(2), Count::Literal(3)]);
+        let written = crate::ron::options().to_string(&v).unwrap();
+        assert_eq!(read(&written), v, "round-trips");
+    }
+
+    /// A single chapter is a one-element `thresholds` list ([CR#714.2b]).
+    #[test]
+    fn crossed_reads_single_threshold() {
+        let v = read("Crossed(value: CounterCount(This, LoreCounter), thresholds: [1])");
+        let Condition::Crossed { thresholds, .. } = &v else {
+            panic!("expected a Crossed condition");
+        };
+        assert_eq!(thresholds, &vec![Count::Literal(1)]);
     }
 
     #[test]
