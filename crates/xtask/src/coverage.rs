@@ -61,6 +61,100 @@ pub fn extract_attr_rules(text: &str) -> Vec<String> {
     out
 }
 
+use std::collections::BTreeMap;
+use std::path::Path;
+
+/// Binding strength of a citation site. Ordered `Mentioned < Bound < Tested`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub enum Tier {
+    Mentioned,
+    Bound,
+    Tested,
+}
+
+/// Dirs never walked: VCS/build/generated/fixture trees, plus the CI data
+/// mirror checkout (`_data`). Repo-specific source excludes come from
+/// `cite-config.json` and are passed in separately.
+const SKIP_DIRS: &[&str] = &[
+    ".git",
+    ".jj",
+    "target",
+    "data",
+    "_data",
+    ".claude",
+    "plugins/wizards",
+];
+const EXTENSIONS: &[&str] = &["rs", "md", "ron", "idr"];
+
+/// Classify a repo-relative path into its citation tier.
+#[must_use]
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "repo paths are always lowercase-extension; a `Path::extension()` \
+              round-trip would only add allocation for the same answer"
+)]
+pub fn tier_for_path(rel: &str) -> Tier {
+    if rel.ends_with(".md") {
+        return Tier::Mentioned;
+    }
+    let is_test = rel.contains("/tests/") || rel.starts_with("plugins/testing/");
+    if is_test { Tier::Tested } else { Tier::Bound }
+}
+
+/// Walk `root`, extracting every cited rule and keeping the strongest tier.
+///
+/// `excludes` are repo-relative path prefixes to skip (from
+/// `cite-config.json`'s `sources.exclude`, e.g. `crates/xtask/`).
+#[must_use]
+pub fn scan_tree(root: &Path, excludes: &[String]) -> BTreeMap<String, Tier> {
+    let mut acc: BTreeMap<String, Tier> = BTreeMap::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let rel = path.strip_prefix(root).unwrap_or(&path);
+            let rel_str = rel.to_string_lossy().replace('\\', "/");
+            if path.is_dir() {
+                if SKIP_DIRS.iter().any(|s| rel_str == *s)
+                    || excludes.iter().any(|e| starts_with_prefix(&rel_str, e))
+                {
+                    continue;
+                }
+                stack.push(path);
+                continue;
+            }
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if !EXTENSIONS.contains(&ext) {
+                continue;
+            }
+            if excludes.iter().any(|e| starts_with_prefix(&rel_str, e)) {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&path) else { continue };
+            let tier = tier_for_path(&rel_str);
+            let mut rules = extract_bracket_rules(&text);
+            if ext == "rs" {
+                rules.extend(extract_attr_rules(&text));
+            }
+            for rule in rules {
+                let slot = acc.entry(rule).or_insert(Tier::Mentioned);
+                if tier > *slot {
+                    *slot = tier;
+                }
+            }
+        }
+    }
+    acc
+}
+
+/// `cite-config.json` excludes are written like `crates/xtask/` (trailing
+/// slash) or `CLAUDE.md`; match both dir-prefix and exact-file forms.
+fn starts_with_prefix(rel: &str, prefix: &str) -> bool {
+    let p = prefix.trim_end_matches('/');
+    rel == p || rel.starts_with(&format!("{p}/"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +197,83 @@ mod tests {
         );
         assert_eq!(extract_attr_rules(r#"#[cr( "305.2" )]"#), vec!["305.2"]);
         assert!(extract_attr_rules("#[test]").is_empty());
+    }
+
+    #[test]
+    fn tier_by_path() {
+        assert_eq!(
+            tier_for_path("crates/deckmaste_engine/tests/activate.rs"),
+            Tier::Tested
+        );
+        assert_eq!(tier_for_path("plugins/testing/cards/Foo.ron"), Tier::Tested);
+        assert_eq!(
+            tier_for_path("crates/deckmaste_engine/src/step/mod.rs"),
+            Tier::Bound
+        );
+        assert_eq!(
+            tier_for_path("plugins/builtin/rules/sba/toughness-zero.ron"),
+            Tier::Bound
+        );
+        assert_eq!(tier_for_path("idris/src/Core.idr"), Tier::Bound);
+        assert_eq!(tier_for_path("docs/tickets/done/foo.md"), Tier::Mentioned);
+        // any markdown is prose regardless of dir
+        assert_eq!(tier_for_path("README.md"), Tier::Mentioned);
+    }
+
+    #[test]
+    fn tier_ordering() {
+        assert!(Tier::Tested > Tier::Bound);
+        assert!(Tier::Bound > Tier::Mentioned);
+    }
+
+    #[test]
+    fn scan_tree_strongest_tier_wins() {
+        let dir = tempdir_with(&[
+            ("crates/e/src/a.rs", "// [CR#100.1] bound here"),
+            ("crates/e/tests/a.rs", "// [CR#100.1] also tested"),
+            ("docs/x.md", "[CR#200.2] only mentioned"),
+            ("crates/e/tests/b.rs", r#"#[cr("300.3")]"#),
+        ]);
+        let scan = scan_tree(dir.path(), &[]);
+        assert_eq!(scan.get("100.1"), Some(&Tier::Tested)); // test beats src
+        assert_eq!(scan.get("200.2"), Some(&Tier::Mentioned));
+        assert_eq!(scan.get("300.3"), Some(&Tier::Tested)); // attribute counts
+    }
+
+    fn tempdir_with(files: &[(&str, &str)]) -> TempDir {
+        let dir = TempDir::new();
+        for (rel, body) in files {
+            let path = dir.path().join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, body).unwrap();
+        }
+        dir
+    }
+
+    /// Minimal self-cleaning temp dir (avoids adding the `tempfile` crate).
+    struct TempDir(std::path::PathBuf);
+    impl TempDir {
+        fn new() -> Self {
+            // process id + a monotonically increasing counter keeps this unique
+            // without Date/rand (both unavailable / undesirable here).
+            use std::sync::atomic::AtomicU32;
+            use std::sync::atomic::Ordering;
+            static N: AtomicU32 = AtomicU32::new(0);
+            let base = std::env::temp_dir().join(format!(
+                "xtask-cov-{}-{}",
+                std::process::id(),
+                N.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir_all(&base).unwrap();
+            Self(base)
+        }
+        fn path(&self) -> &std::path::Path {
+            &self.0
+        }
+    }
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
     }
 }
