@@ -3,9 +3,14 @@
 // ask "was this cast that way", and an exile-instead replacement gated on
 // that tag via `Conditionally(CastWith(Flashback), …)`. The exile half is
 // factored into the shared static/ExileWhenLeavesStack macro (reused by the
-// other graveyard-recast keywords); the cast half stays inline because its
-// cost rides Param(0), and the macro layer can't forward a Param into a
-// nested macro invocation.
+// other graveyard-recast keywords). The cast half is left inline by CHOICE,
+// not by limitation: the macro layer CAN forward a `Param` into a nested
+// macro invocation (see `PowerAndToughnessUp`, and the `macro-param-
+// forwarding` machinery — a factored `CastFromGraveyard(Param(0))` expands
+// fine). Factoring the cast half into its own `StaticEffect`-kind macro would
+// only wrap every Flashback card's permission in an extra remembered-
+// `Expanded` layer with no rendering gain, so it is deferred to a
+// graveyard-recast-family factoring pass rather than done here.
 // CAVEAT: the "was cast this way" linkage now lands in the SHAPE via the
 // `tag`/`Conditionally(CastWith(Flashback), …)` pair, so the exile row no
 // longer over-claims on paper. Engine GATING of a `Conditionally` static is

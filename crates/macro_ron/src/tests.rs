@@ -594,6 +594,64 @@ fn body_forwards_params_into_nested_named_macro() {
     assert_eq!(options().to_string(&m).unwrap(), "Power(Up(5))");
 }
 
+/// A body forwards its own `Param` as the WHOLE, bare argument of a nested
+/// positional macro invocation (`Boost(Param(0))`), rather than nested inside
+/// an argument as `body_forwards_params_into_nested_macro`'s
+/// `Pair(Up(Param(0)), …)` does. This is the `macro-param-forwarding` ticket's
+/// `CastFromGraveyard(Param(0))` shape at the machinery level.
+#[test]
+fn body_forwards_whole_value_param_into_positional_macro() {
+    let mut set = macros();
+    set.insert(&def(r#"(
+        name: "Boost",
+        kinds: [Modification],
+        params: [NumericOp],
+        body: Power(Param(0)),
+    )"#))
+        .unwrap();
+    set.insert(&def(r#"(
+        name: "Relay",
+        kinds: [Modification],
+        params: [NumericOp],
+        body: Boost(Param(0)),
+    )"#))
+        .unwrap();
+    let m: Modification = set.read_str("Relay(Up(5))").unwrap();
+    assert_eq!(options().to_string(&m).unwrap(), "Power(Up(5))");
+}
+
+/// The forwarded whole-value param is LIST-typed (`Vec`), landing at a nested
+/// SEQUENCE position (`Several(Param(0))`) — the ticket's `cost:
+/// Components(Param(0))` shape, where the deckmaste `Cost` param type is a
+/// `Vec<CostComponent>`. The list path (`deserialize_seq`) must resolve a
+/// whole-value hole that arrives already forwarded from the caller's frame.
+#[test]
+fn body_forwards_list_typed_whole_value_param_into_seq_position() {
+    let mut param_types = ParamTypeSet::default();
+    param_types.add_typed::<u32>("Count");
+    param_types.add_typed::<NumericOp>("NumericOp");
+    param_types.add_typed::<Vec<Modification>>("Mods");
+    let mut set = MacroSet::new(kinds())
+        .with_options(options())
+        .with_param_types(param_types);
+    set.insert(&def(r#"(
+        name: "WrapMods",
+        kinds: [Modification],
+        params: [Mods],
+        body: Several(Param(0)),
+    )"#))
+        .unwrap();
+    set.insert(&def(r#"(
+        name: "RelayMods",
+        kinds: [Modification],
+        params: [Mods],
+        body: WrapMods(Param(0)),
+    )"#))
+        .unwrap();
+    let m: Modification = set.read_str("RelayMods([Power(Up(1))])").unwrap();
+    assert_eq!(options().to_string(&m).unwrap(), "Several([Power(Up(1))])");
+}
+
 #[test]
 fn effect_positions_expand_macros() {
     let mut macros = empty();

@@ -395,6 +395,53 @@ mod tests {
         );
     }
 
+    /// End-to-end guard for the `macro-param-forwarding` capability on REAL
+    /// card types: a `Cost`-typed (`Vec<CostComponent>`) whole-value `Param`
+    /// forwarded through one macro into a nested one, landing at the `cost:
+    /// Components(…)` slot — the exact shape the `Flashback.ron` lore once
+    /// claimed the macro layer "can't forward" (it errored with "Expected
+    /// opening `[`" before `forward_arg` landed). `CastFromGraveyard` factors
+    /// Flashback's cast half; `RelayCast` stands in for a keyword body that
+    /// forwards its own cost `Param` into that factored macro. Both fully
+    /// expand to the same `May(Cast(…))`, differing only in the remembered
+    /// invocation wrapper `expand_all` strips.
+    #[test]
+    fn cost_param_forwards_into_nested_macro() {
+        use deckmaste_core::Expand;
+
+        let mut set = macro_set();
+        set.insert(&def(r#"(
+            name: "CastFromGraveyard",
+            kinds: [StaticEffect],
+            params: [Cost],
+            body: May(Cast(what: Ref(This), from: Graveyard, cost: Components(Param(0)), tag: Flashback)),
+        )"#))
+            .unwrap();
+        set.insert(&def(r#"(
+            name: "RelayCast",
+            kinds: [StaticEffect],
+            params: [Cost],
+            body: CastFromGraveyard(Param(0)),
+        )"#))
+            .unwrap();
+
+        let direct: StaticEffect = set
+            .read_str("CastFromGraveyard([Mana([Generic(2)])])")
+            .unwrap();
+        let forwarded: StaticEffect = set.read_str("RelayCast([Mana([Generic(2)])])").unwrap();
+
+        // Forwarding resolved the whole-value `Cost` param through both macro
+        // layers: the fully-expanded permissions are identical.
+        assert_eq!(direct.clone().expand_all(), forwarded.expand_all());
+        // ...and it is the concrete alternative cost, not a dangling `Param`.
+        let concrete: StaticEffect = set
+            .read_str(
+                "May(Cast(what: Ref(This), from: Graveyard, cost: Components([Mana([Generic(2)])]), tag: Flashback))",
+            )
+            .unwrap();
+        assert_eq!(direct.expand_all(), concrete);
+    }
+
     /// Same pin for Selection positions: nothing exercises Selection macros
     /// in real data yet, and Plan 2 will make this path load-bearing.
     #[test]
