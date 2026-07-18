@@ -218,6 +218,18 @@ pub enum PendingDecision {
     ArrangePile(ArrangePile),
 }
 
+/// One pending-decision kind's answer-validate-and-apply behavior, dispatched
+/// by `submit_decision`'s incremental routing pre-match. Each newtype payload
+/// struct under `pending/` implements this one variant at a time
+/// (refactor-oversized-fns); the legacy `match (pending, decision)` still
+/// handles every not-yet-migrated variant.
+pub(crate) trait DecisionHandler {
+    /// Validate `answer` against this pending decision and apply it. On success
+    /// the handler sets `g.pending = None`; on ANY error it leaves `g.pending`
+    /// untouched (`submit_decision`'s contract: a rejected decision stays open).
+    fn resolve(self, g: &mut GameState, answer: Decision) -> Result<(), DecisionError>;
+}
+
 /// An answer to the pending decision.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Decision {
@@ -528,18 +540,17 @@ impl GameState {
             self.concede(player);
             return Ok(());
         }
+        // Incremental migration: variants whose handler exists dispatch here; the rest
+        // fall through to the legacy match below. `decision.clone()` keeps `decision`
+        // available for the legacy match (both removed in Task 1.5 once every variant
+        // is migrated). Decision derives Clone.
+        match self.pending.clone().expect("checked Some above") {
+            PendingDecision::Priority(h) => return h.resolve(self, decision),
+            PendingDecision::ChooseManaColor(h) => return h.resolve(self, decision),
+            PendingDecision::ChooseManaMode(h) => return h.resolve(self, decision),
+            _ => {}
+        }
         match (pending, decision) {
-            (PendingDecision::Priority(Priority { player, legal }), Decision::Act(action)) => {
-                if !legal.contains(&action) {
-                    return Err(DecisionError::Illegal {
-                        reason: format!("{action:?} is not a legal action right now"),
-                    });
-                }
-                let player = *player;
-                self.pending = None;
-                self.take_priority_action(player, &action);
-                Ok(())
-            }
             (
                 PendingDecision::DiscardToHandSize(DiscardToHandSize { player, count })
                 | PendingDecision::DiscardCards(DiscardCards { player, count }),
@@ -547,65 +558,6 @@ impl GameState {
             ) => {
                 let (player, count) = (*player, *count);
                 self.submit_discards(player, count, objects)
-            }
-            (
-                PendingDecision::ChooseManaColor(ChooseManaColor {
-                    player,
-                    options,
-                    amount,
-                    riders,
-                }),
-                Decision::ManaColor(mana),
-            ) => {
-                // [CR#106.1b]: the choice is drawn from the offered set.
-                if !options.contains(&mana) {
-                    return Err(DecisionError::Illegal {
-                        reason: format!("{mana:?} is not one of the offered mana options"),
-                    });
-                }
-                let (player, amount, riders) = (*player, *amount, riders.clone());
-                self.pending = None;
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::ManaAdded {
-                        player,
-                        mana,
-                        amount,
-                        riders,
-                    },
-                ))]);
-                Ok(())
-            }
-            (
-                PendingDecision::ChooseManaMode(ChooseManaMode {
-                    player,
-                    options,
-                    amount,
-                    riders,
-                }),
-                Decision::ManaMode(choice),
-            ) => {
-                // [CR#106.1b]: the chosen run is drawn from the offered set.
-                let run = usize::try_from(choice)
-                    .ok()
-                    .and_then(|i| options.get(i))
-                    .ok_or_else(|| DecisionError::Illegal {
-                        reason: format!("{choice} is not one of the offered mana runs"),
-                    })?;
-                let (player, amount, riders) = (*player, *amount, riders.clone());
-                // The whole run's mana lands at once — one `ManaAdded` per
-                // symbol in printed order, each carrying the shared riders.
-                let events = run
-                    .iter()
-                    .map(|&mana| GameEvent::ManaAdded {
-                        player,
-                        mana,
-                        amount,
-                        riders: riders.clone(),
-                    })
-                    .collect();
-                self.pending = None;
-                self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
-                Ok(())
             }
             (
                 PendingDecision::ChooseTargets(ChooseTargets {
