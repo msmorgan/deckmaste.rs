@@ -37,9 +37,11 @@ The `workflow` (and `conflicts`) commands come from the **jj-workflow** plugin (
   wizards regen — they live here); write "standard constraints apply" plus deltas
   only. Context sections cite prior docs and describe deltas; re-derived subsystem
   prose is a review flag.
-- Dispatching agents: explore once, pass the brief — fork subagents inherit the main
-  conversation; include the relevant settled rulings in design/audit agent prompts
-  rather than letting them re-derive (or contradict) them.
+- Dispatching agents: explore once, pass the brief — paste it as a byte-identical
+  prompt prefix across the fan-out (prompt-cache-shared, question at the tail), or
+  send follow-ups to an agent that already holds the context instead of spawning
+  fresh; include the relevant settled rulings in design/audit agent prompts rather
+  than letting them re-derive (or contradict) them.
 
 ## New jj workspaces
 
