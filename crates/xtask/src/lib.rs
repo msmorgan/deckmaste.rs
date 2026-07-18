@@ -11,6 +11,7 @@
 
 pub mod card;
 pub mod cite;
+pub mod coverage;
 pub mod extract;
 pub mod fidelity;
 pub mod generate;
