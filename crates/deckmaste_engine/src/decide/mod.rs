@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 
@@ -226,7 +225,8 @@ pub enum PendingDecision {
 pub(crate) trait DecisionHandler {
     /// Validate `answer` against this pending decision and apply it. On success
     /// the handler sets `g.pending = None`; on ANY error it leaves `g.pending`
-    /// untouched (`submit_decision`'s contract: a rejected decision stays open).
+    /// untouched (`submit_decision`'s contract: a rejected decision stays
+    /// open).
     fn resolve(self, g: &mut GameState, answer: Decision) -> Result<(), DecisionError>;
 }
 
@@ -554,6 +554,9 @@ impl GameState {
             PendingDecision::PayMana(h) => return h.resolve(self, decision),
             PendingDecision::ChooseCostOptions(h) => return h.resolve(self, decision),
             PendingDecision::ChooseModes(h) => return h.resolve(self, decision),
+            PendingDecision::DeclareAttackers(h) => return h.resolve(self, decision),
+            PendingDecision::DeclareBlockers(h) => return h.resolve(self, decision),
+            PendingDecision::AssignCombatDamage(h) => return h.resolve(self, decision),
             _ => {}
         }
         match (pending, decision) {
@@ -571,219 +574,6 @@ impl GameState {
             ) => {
                 let (player, triggers) = (*player, triggers.clone());
                 self.submit_order_triggers(player, &triggers, &order)
-            }
-            (
-                PendingDecision::DeclareAttackers(DeclareAttackers {
-                    player,
-                    legal,
-                    legal_targets,
-                }),
-                Decision::Attackers(chosen),
-            ) => {
-                // [CR#508.1a]: each chosen attacker must be in the surfaced
-                // legal set, and no creature attacks twice. [CR#508.1b]:
-                // each attacker's target must be in the surfaced legal-target
-                // set (the defending player or a planeswalker they control).
-                let distinct: HashSet<_> = chosen.iter().map(|&(a, _)| a).collect();
-                if distinct.len() != chosen.len()
-                    || !chosen.iter().all(|(a, _)| legal.contains(a))
-                    || !chosen.iter().all(|(_, t)| legal_targets.contains(t))
-                {
-                    return Err(DecisionError::Illegal {
-                        reason: "attackers must be distinct, from the legal set, attacking a legal target"
-                            .into(),
-                    });
-                }
-                // [CR#508.1d]: attack requirements ("attacks if able",
-                // goad) — every surfaced-legal creature matched by a
-                // Must(Attack) row whose `on` matches the defender must be
-                // among the chosen. The legal set already excludes
-                // restricted creatures (tapped/sick/Cant rows), the Attack
-                // pattern carries no arrangement bound, and Gate costs are
-                // never forced (Gate rows still trip the presence guard) —
-                // so requirements decompose per-creature and obeying all
-                // of them is always possible: the maximize arbitration
-                // reduces to a membership check.
-                let view = self.layers();
-                let rows = crate::legal::must_attack_rows(self, &view);
-                let defender_proxy = self
-                    .players
-                    .iter()
-                    .find(|p| p.id != *player)
-                    .map(|p| p.object);
-                if let Some(&required) = legal.iter().find(|&&c| {
-                    !chosen.iter().any(|&(a, _)| a == c)
-                        && rows.iter().any(|(carrier, by, on)| {
-                            self.filter_matches_live(by, c, *carrier)
-                                && defender_proxy
-                                    .is_some_and(|d| self.filter_matches_live(on, d, *carrier))
-                        })
-                }) {
-                    return Err(DecisionError::Illegal {
-                        reason: format!(
-                            "a Must(Attack) requirement obliges {required:?} to attack"
-                        ),
-                    });
-                }
-                self.pending = None;
-                // [CR#508.1f]: declaring taps the attacker. The whole declaration
-                // is one simultaneous occurrence — a `Batch` (empty when no
-                // attackers were declared, which schedules nothing observable).
-                if !chosen.is_empty() {
-                    self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
-                        chosen
-                            .into_iter()
-                            .map(|(attacker, defending)| GameEvent::Attacking {
-                                attacker,
-                                defending,
-                            })
-                            .collect(),
-                    ))]);
-                }
-                Ok(())
-            }
-            (
-                PendingDecision::DeclareBlockers(DeclareBlockers { player: _, legal }),
-                Decision::Blocks(pairs),
-            ) => {
-                // [CR#509.1a]: each blocker is from the surfaced legal set, each
-                // blocked creature is an attacker, and no creature blocks twice
-                // (a creature blocks exactly one attacker).
-                let distinct: HashSet<_> = pairs.iter().map(|&(b, _)| b).collect();
-                let attackers = self.combat.attackers();
-                if distinct.len() != pairs.len()
-                    || !pairs
-                        .iter()
-                        .all(|(b, a)| legal.contains(b) && attackers.contains(a))
-                {
-                    return Err(DecisionError::Illegal {
-                        reason: "each blocker (once) blocks an attacker from the legal set".into(),
-                    });
-                }
-                // [CR#509.1b]: evaluate the point-wise Cant(Block) rows
-                // (flying-family evasion) against each proposed pair — the
-                // first deontic rows the engine evaluates instead of
-                // guarding. Arrangement-level bounds (menace) are still the
-                // legal_blockers presence guard's business.
-                let view = self.layers();
-                let rows = crate::legal::cant_block_rows(self, &view);
-                for &(blocker, attacker) in &pairs {
-                    if let Some(carrier) =
-                        crate::legal::block_forbidden_by(self, &rows, blocker, attacker)
-                    {
-                        return Err(DecisionError::Illegal {
-                            reason: format!("a Cant(Block) row on {carrier:?} forbids this block"),
-                        });
-                    }
-                }
-                // [CR#702.111b]-family: arrangement-level bounds judge each
-                // attacker's WHOLE blocker set (menace — a lone blocker is a
-                // forbidden arrangement; no blockers is no arrangement).
-                let mut by_attacker: HashMap<ObjectId, Vec<ObjectId>> = HashMap::new();
-                for &(blocker, attacker) in &pairs {
-                    by_attacker.entry(attacker).or_default().push(blocker);
-                }
-                for (attacker, blockers) in &by_attacker {
-                    if let Some(carrier) =
-                        crate::legal::arrangement_forbidden_by(self, &rows, *attacker, blockers)
-                    {
-                        return Err(DecisionError::Illegal {
-                            reason: format!(
-                                "a Cant(Block) arrangement bound on {carrier:?} forbids this \
-                                 blocker set"
-                            ),
-                        });
-                    }
-                }
-                // [CR#509.1c]: block requirements ("blocks if able", "all
-                // creatures able to block … do so") — each surfaced-legal
-                // blocker matched by a Must(Block) row's `by` is demanded
-                // to block an `on`-matching attacker it isn't point-wise
-                // forbidden from blocking. A blocker obeys all its
-                // instances by blocking inside the intersection of their
-                // demanded sets; an instance whose demanded set is empty
-                // is unsatisfiable and waived. The cases needing the full
-                // maximize arbitration are LOUD seams, not approximations:
-                // requirements interacting with an arrangement bound
-                // ([CR#509.1c]'s menace example — both creatures must
-                // block), conflicting instances (empty intersection), and
-                // a requirement row carrying its own bound.
-                let must_rows = crate::legal::must_block_rows(self, &view);
-                for &b in legal {
-                    let mut demanded: Vec<Vec<ObjectId>> = Vec::new();
-                    for row in &must_rows {
-                        if row.count.is_some() {
-                            todo!("a Must(Block) row carrying an arrangement bound");
-                        }
-                        if !self.filter_matches_live(&row.by, b, row.carrier) {
-                            continue;
-                        }
-                        let set: Vec<ObjectId> = attackers
-                            .iter()
-                            .copied()
-                            .filter(|&a| self.filter_matches_live(&row.on, a, row.carrier))
-                            .filter(|&a| {
-                                crate::legal::block_forbidden_by(self, &rows, b, a).is_none()
-                            })
-                            .collect();
-                        let bounded = set.iter().any(|&a| {
-                            rows.iter().any(|r| {
-                                r.count.is_some() && self.filter_matches_live(&r.on, a, r.carrier)
-                            })
-                        });
-                        if bounded {
-                            todo!(
-                                "Must(Block) × arrangement-bound arbitration \
-                                 ([CR#509.1c]'s menace example)"
-                            );
-                        }
-                        if !set.is_empty() {
-                            demanded.push(set);
-                        }
-                    }
-                    let Some(first) = demanded.first() else {
-                        continue;
-                    };
-                    let obeys: Vec<ObjectId> = first
-                        .iter()
-                        .copied()
-                        .filter(|a| demanded.iter().all(|s| s.contains(a)))
-                        .collect();
-                    if obeys.is_empty() {
-                        todo!("conflicting Must(Block) requirements need the maximize arbitration");
-                    }
-                    let blocks = pairs.iter().find(|&&(bb, _)| bb == b).map(|&(_, a)| a);
-                    if !blocks.is_some_and(|a| obeys.contains(&a)) {
-                        return Err(DecisionError::Illegal {
-                            reason: format!("a Must(Block) requirement obliges {b:?} to block"),
-                        });
-                    }
-                }
-                self.pending = None;
-                // [CR#509.1h]: the whole block declaration is one simultaneous
-                // occurrence — a `Batch` (skipped when empty, which schedules
-                // nothing observable).
-                if !pairs.is_empty() {
-                    self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
-                        pairs
-                            .into_iter()
-                            .map(|(blocker, attacker)| GameEvent::Blocked { blocker, attacker })
-                            .collect(),
-                    ))]);
-                }
-                Ok(())
-            }
-            (
-                PendingDecision::AssignCombatDamage(AssignCombatDamage {
-                    player: _,
-                    source,
-                    recipients,
-                }),
-                Decision::Assignment(amounts),
-            ) => {
-                let source = *source;
-                let recipients = recipients.clone();
-                self.submit_assign_combat_damage(source, &recipients, amounts)
             }
             (
                 PendingDecision::ChooseObjects(ChooseObjects {
