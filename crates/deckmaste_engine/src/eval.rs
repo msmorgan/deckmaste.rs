@@ -232,6 +232,12 @@ pub(crate) struct FactView<'a> {
     /// slots): the moved object, the cast spell, the attacker, the blocker,
     /// the tapped object, the attachment, the counter carrier.
     pub object: Option<Part<'a>>,
+    /// EVERY resolved object subject of an `Act` fact ([CR#701]) — `object`
+    /// above holds the first, for the Replacement-lane `ZoneChange`
+    /// relaxation's singleton move-verb read (`eval.rs:725-752`); the `Act`
+    /// matcher's `on` is ∃-over-subjects; empty ≙ no subject. Non-`Act` kinds
+    /// leave it empty.
+    pub subjects: Vec<Part<'a>>,
     /// The acted-upon PATIENT ([CR#608.2k], kind-poly [CR#120.3]): the
     /// damage recipient, the blocked attacker, the attach host, the targeted
     /// object, the defending player, the designation gainer.
@@ -277,6 +283,7 @@ impl<'a> FactView<'a> {
         FactView {
             kind,
             object: None,
+            subjects: Vec::new(),
             patient: None,
             actor: None,
             source: None,
@@ -389,6 +396,7 @@ impl<'a> FactView<'a> {
                 v = FactView::bare(FactKind::Act, state);
                 v.act_name = Some(Cow::Borrowed(&verb.0));
                 v.object = on.first().map(|&o| part(o));
+                v.subjects = on.iter().map(|&o| part(o)).collect();
                 v.actor = *who;
                 // The BODY facet ([CR#603.6]): a move-verb (`Act(Destroy)`)
                 // carries its realized zone-change so a `ZoneChange(→Graveyard)`
@@ -606,6 +614,11 @@ impl<'a> FactView<'a> {
         FactView {
             kind: self.kind,
             object: self.object.map(|p| p.into_lki(state)),
+            subjects: self
+                .subjects
+                .into_iter()
+                .map(|p| p.into_lki(state))
+                .collect(),
             patient: self.patient.map(|p| p.into_lki(state)),
             actor: self.actor,
             source: self.source.map(|p| p.into_lki(state)),
@@ -791,14 +804,8 @@ impl GameState {
 
             // [CR#701]: the named keyword action, ONE master form. The verb
             // TAG fixes the name (`fact.act_name`); `who`/`on` narrow the
-            // fact's performer/patient, decomposed per-verb — Fight is MEANT
-            // to carry its two combatants on `object`/`patient`
-            // ([CR#701.14a]), but the emitter today populates only `object`
-            // (first fighter; `patient` stays `None` — the open
-            // engine-act-fight-patient ticket); every
-            // other verb rides `actor` (performer) and `object` (its single
-            // patient), an `Any` default matching the coordinate a verb leaves
-            // empty. `cause` narrows the cause triple.
+            // fact's performer/subject(s) through ONE uniform mapping for
+            // every verb (see the arm body). `cause` narrows the cause triple.
             //
             // LANE-SPLIT ([CR#616.1,616.1f]): the trigger/history lanes match
             // the finalized NAME-fact only (verb + who/on/cause) — a redirected
@@ -823,13 +830,13 @@ impl GameState {
             } => {
                 let name_ok = fact.kind == FactKind::Act
                     && fact.act_name.as_deref().map(Ident::as_str) == Some(verb.as_str());
-                let coords_ok = if verb.as_str() == "Fight" {
-                    self.part_matches(who, fact.object.as_ref(), bindings)
-                        && self.part_matches(on, fact.patient.as_ref(), bindings)
-                } else {
-                    self.actor_matches(who, fact.actor, bindings)
-                        && self.part_matches(on, fact.object.as_ref(), bindings)
-                };
+                // ONE uniform mapping ([CR#701]; the Idris emitter's
+                // Actor/Agent facets): `who` narrows the performing player,
+                // `on` the object subject(s) — ∃ over the fact's subject
+                // set, so a symmetric verb (Fight, [CR#701.14a]) matches on
+                // EITHER combatant; an empty set ≙ no subject (only `Any`).
+                let coords_ok = self.actor_matches(who, fact.actor, bindings)
+                    && self.subjects_match(on, &fact.subjects, bindings);
                 let cause_ok = cause
                     .as_ref()
                     .is_none_or(|c| self.cause_matches(c, fact.cause.as_deref(), bindings));
@@ -1264,6 +1271,24 @@ impl GameState {
                 self.filter_matches_snapshot(filter, snapshot, bindings.watcher)
             }
         }
+    }
+
+    /// The ∃-over-subjects filter of an `Act` fact's subject set: empty (a
+    /// subjectless verb) matches only the match-anything default — exactly
+    /// `part_matches`'s missing-participant rule lifted to a list; a
+    /// singleton is `part_matches` verbatim.
+    fn subjects_match(
+        &self,
+        filter: &Predicate,
+        subjects: &[Part<'_>],
+        bindings: &Bindings<'_>,
+    ) -> bool {
+        if subjects.is_empty() {
+            return self.part_matches(filter, None, bindings);
+        }
+        subjects
+            .iter()
+            .any(|p| self.part_matches(filter, Some(p), bindings))
     }
 
     /// A player-slot filter (`who`/`by`/`to`-player) against the fact's

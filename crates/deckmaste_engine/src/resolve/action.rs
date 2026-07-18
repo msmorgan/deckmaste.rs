@@ -3341,6 +3341,65 @@ mod tests {
         );
     }
 
+    /// [CR#614.17,701.14a]: "~ can't fight" on the SECOND-named fighter cants
+    /// the WHOLE window — the future `Act` carries BOTH subjects and the
+    /// uniform matcher arm matches ∃ over them, so no window passes: no
+    /// damage, and no committed `Act(Fight)` fact for EITHER fighter.
+    #[test]
+    fn cant_fight_on_the_second_named_fighter_suppresses_the_whole_fight() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::VerbName;
+
+        let (mut state, a) = bear_on_field();
+        // b: a creature carrying "this creature can't fight".
+        let b = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Pacifist Bear".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                abilities: vec![Ability::r#static(StaticEffect::CantHappen(
+                    EventFilter::Act {
+                        verb: VerbName::from("Fight"),
+                        who: Predicate::Any,
+                        on: Predicate::Ref(Reference::This),
+                        cause: None,
+                    },
+                ))],
+                ..CardFace::default()
+            }),
+        );
+        // Fight(a, b) with b SECOND-named.
+        let frame = frame_src_targets(a, vec![a, b]);
+        state.run_effect(
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            !logged(&state, |e| matches!(
+                e,
+                GameEvent::DamageDealt(DamageDealt { .. })
+            )),
+            "a canted fight deals no damage to EITHER fighter ([CR#614.17])"
+        );
+        assert!(
+            !state.history.entries().any(|e| {
+                matches!(&e.fact, GameEvent::Act(Act { verb, committed: true, .. })
+                    if verb.as_str() == "Fight")
+            }),
+            "no fight occurred — no committed Act(Fight) fact for either fighter"
+        );
+        assert_eq!(
+            state.objects.obj(a).total_damage(),
+            0,
+            "the first-named fighter took no fight damage"
+        );
+    }
+
     /// Cost-position discard ("Discard a card:", e.g. Blood token's
     /// activation cost, [CR#111.10g,701.9,601.2b]) rides the SAME
     /// `OneShotEffect::Act(Action::discard(..))` shape `verb_payment_items`

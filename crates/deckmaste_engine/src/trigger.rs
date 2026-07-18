@@ -2592,6 +2592,60 @@ mod tests {
     }
 
     // -------------------------------------------------------------------------
+    // Act(Fight): symmetric per-subject "whenever ~ fights" ([CR#701.14a])
+    // -------------------------------------------------------------------------
+
+    /// [CR#701.14a]: "whenever ~ fights" matches when ~ is EITHER combatant —
+    /// each per-subject committed fact carries one fighter on `on`, and the
+    /// uniform arm matches the pattern's `on` slot against it.
+    #[test]
+    fn fight_pattern_on_slot_matches_either_fighters_fact() {
+        use deckmaste_core::VerbName;
+
+        use crate::event::Act;
+
+        let (mut state, a) = bear_on_field();
+        let b = {
+            let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
+            let card = state.cards.push(bears, PlayerId(1));
+            let id = state.objects.mint(
+                ObjectSource::Card(card),
+                PlayerId(1),
+                Some(Zone::Battlefield),
+            );
+            state.zones.battlefield.push(id);
+            id
+        };
+        let pattern = EventFilter::Act {
+            verb: VerbName::from("Fight"),
+            who: Predicate::Any,
+            on: Predicate::Ref(Reference::This),
+            cause: None,
+        };
+        let fact_for = |subject: ObjectId| {
+            GameEvent::Act(Act {
+                verb: VerbName::from("Fight"),
+                who: None,
+                on: vec![subject],
+                from: None,
+                to: None,
+                cause: None,
+                committed: true,
+                contents: None,
+                batch: None,
+                inherited: std::collections::HashSet::new(),
+                contained: false,
+            })
+        };
+        let watcher_b = state.objects.obj(b).source;
+        assert!(state.event_matches(&pattern, &fact_for(b), watcher_b));
+        assert!(
+            !state.event_matches(&pattern, &fact_for(a), watcher_b),
+            "the OTHER fighter's fact does not match This=b"
+        );
+    }
+
+    // -------------------------------------------------------------------------
     // BecomesTarget ([CR#601.2c]) — announce-time targeting facts
     // -------------------------------------------------------------------------
 
