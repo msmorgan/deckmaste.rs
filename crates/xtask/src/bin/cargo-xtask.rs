@@ -12,6 +12,7 @@ use xtask::fidelity::FidelityArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
+use xtask::map::MapArgs;
 use xtask::resolve::ResolveArgs;
 use xtask::stubs::StubsArgs;
 use xtask::validate::ValidateArgs;
@@ -51,6 +52,8 @@ enum Cmd {
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.
     /// One card name = single-card mode; omitted = batch-check the plugin.
     IdrisCheck(IdrisCheckArgs),
+    /// On-demand "bearings" dumps of current code shape (`enums`/`idris`).
+    Map(MapArgs),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -65,5 +68,6 @@ fn main() -> anyhow::Result<()> {
         Cmd::Graduate(args) => xtask::graduate::run(&args),
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
+        Cmd::Map(args) => xtask::map::run(&args),
     }
 }

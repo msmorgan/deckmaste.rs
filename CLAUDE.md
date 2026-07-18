@@ -25,6 +25,22 @@ The `workflow` (and `conflicts`) commands come from the **jj-workflow** plugin (
 - After adding or changing citations: `cargo xtask cite check --list-noncompliant` must be empty, and `cargo xtask cite check` must report 0 stale. When you cite a rule not yet in `cr-citations.lock`, run `cargo xtask cite bless` to register it.
 - Rule numbers come from the CR, never from memory. Before committing citation changes, run `cargo xtask cite audit --diff` and read each rule's text against the claim citing it — the hash checker can NOT catch a right-number-wrong-topic cite. Give `bless`'s newly-registered list the same read.
 
+## Bearings (token efficiency)
+
+- Symbol questions (where defined, who calls it, what variants, what signature) →
+  rust-analyzer LSP first, grep second. The LSP tool is deferred — subagents must load
+  it explicitly (ToolSearch `select:LSP`) before use.
+- Current code shape: `cargo xtask map enums` (core taxonomy variant dump) and
+  `cargo xtask map idris` (Idris constructor map) regenerate on demand — prefer these
+  over re-reading source or trusting prose in old plans/specs, which goes stale.
+- Plans/specs: never restate standard constraints (jj, fmt, clippy, CR citations,
+  wizards regen — they live here); write "standard constraints apply" plus deltas
+  only. Context sections cite prior docs and describe deltas; re-derived subsystem
+  prose is a review flag.
+- Dispatching agents: explore once, pass the brief — fork subagents inherit the main
+  conversation; include the relevant settled rulings in design/audit agent prompts
+  rather than letting them re-derive (or contradict) them.
+
 ## New jj workspaces
 
 `workflow start`/`claim` provisions a new workspace's gitignored shared dirs for

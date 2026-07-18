@@ -1783,6 +1783,9 @@ dependencies = [
  "deckmaste_cards",
  "deckmaste_core",
  "deckmaste_migrations",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
