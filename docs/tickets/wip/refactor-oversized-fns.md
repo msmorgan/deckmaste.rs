@@ -39,7 +39,23 @@ Re-triaged `maybe/` → `planned/` 2026-07-16: a suppression audit found the two
 engine functions had grown 50–78% past the sizes recorded above while parked —
 the placeholder expects were working as anesthesia, not tracking.
 
-`[design]`: the split boundaries above are a starting proposal, not a settled
-plan — agree the seams (especially for `submit_decision`) before carving, so the
-decomposition doesn't just trade one long function for a scatter of helpers that
-are harder to follow than the original dispatch.
+`[design]` (SETTLED 2026-07-17): decompose via the **command pattern** — each
+dispatched enum variant gets a payload struct + handler, so the outer match
+dissolves instead of scattering into grouped helper methods. Full design in
+`docs/superpowers/specs/2026-07-17-refactor-oversized-fns-command-pattern-design.md`.
+
+- `submit_decision`: `PendingDecision` → enum of payload structs implementing
+  `DecisionHandler::resolve(self, &mut GameState, Decision) -> Result<(),
+  DecisionError>`. Handlers live in a new `decide/pending/` dir-module grouped by
+  subsystem (priority/cast/combat/mana/choice). Contract preserved: an error
+  leaves `self.pending` open (clone → clear-on-success).
+- `interactive_loop`: move the key dispatch onto `Interaction::on_key(key,
+  &mut KeyCtx) -> KeyOutcome`, and the chrome onto `handle_global_key`; the loop
+  becomes render→read→global-key→interaction-key→apply.
+- `apply`: `GameEvent` → enum of payload structs implementing `EventApply`;
+  handlers in a new `step/` dir-module; the 270-line `Act{committed:false}` arm
+  splits per-verb. Done LAST (646 `GameEvent::` sites rewrite mechanically).
+
+Serde-safe (none of the three enums derive Serialize); no behavioral change;
+pinned by the existing suite + `cargo xtask cite check` (`[CR#]` comments ride
+the moved arms).
