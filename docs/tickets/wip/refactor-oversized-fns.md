@@ -57,5 +57,5 @@ dissolves instead of scattering into grouped helper methods. Full design in
   splits per-verb. Done LAST (646 `GameEvent::` sites rewrite mechanically).
 
 Serde-safe (none of the three enums derive Serialize); no behavioral change;
-pinned by the existing suite + `cargo xtask cite check` (`[CR#]` comments ride
-the moved arms).
+pinned by the existing suite + `cargo xtask cite check` (rule-citation comments
+ride the moved arms verbatim).
