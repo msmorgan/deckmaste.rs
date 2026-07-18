@@ -18,6 +18,13 @@ use crate::resolve::ResolveCtx;
 /// Self-identifying by the trigger word, so the card's `CardKind` is
 /// irrelevant.
 pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
+    // Peel a trailing "This ability triggers only once[ each turn]." rider
+    // sentence ([CR#603.2h]) off the whole line, lifting it into a `UseLimit`
+    // the emitted `Triggered` frame carries; the ability body proper then
+    // parses on its own below, instead of the rider sentence failing the whole
+    // line. Mirrors the activated-frame sibling
+    // `activated_ability::peel_activation_riders`.
+    let (line, limit) = peel_trigger_limit(line);
     // Split off a leading ability-word label ("Landfall — …",
     // "Threshold — …"). Ability words have NO rules meaning ([CR#207.2c]) —
     // the ability underneath is what we parse — but the label is RENDER
@@ -35,7 +42,7 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
         let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
             return Ok(None);
         };
-        return Ok(Some(render(ability_word, &event, &parsed)));
+        return Ok(Some(render(ability_word, &event, limit, &parsed)));
     }
     let Some(rest) = line
         .strip_prefix("When ")
@@ -52,7 +59,35 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
     let Some(parsed) = effect::parse_clause(effect_clause, ctx)? else {
         return Ok(None);
     };
-    Ok(Some(render(ability_word, &event, &parsed)))
+    Ok(Some(render(ability_word, &event, limit, &parsed)))
+}
+
+/// Strip a trailing "This ability triggers only once[ each turn]." rider
+/// sentence off a trigger line, lifting it into the [`UseLimit`] RON atom the
+/// emitted `Triggered` frame carries ([CR#603.2h]) — the parse-direction
+/// mirror of `render::ability::triggered`'s trigger-limit rider, and the
+/// trigger-frame analogue of `activated_ability::peel_activation_riders`. The
+/// self-scoped "This ability" phrase is NOT tilde-normalized (see
+/// `extract::self_ref_to_tilde` — "this ability" is an excluded noun), so it
+/// appears verbatim here. Returns the line with the rider removed (the effect
+/// body keeps its own trailing period, half of the " …" delimiter) and the
+/// limit atom, or the unchanged line and `None` when no such rider trails.
+///
+/// The per-turn form ("… only once each turn.") checks first; the bare
+/// per-game form ("… only once.") is a distinct suffix (ends "once." not
+/// "turn."), so the two never collide. Longer/narrower riders ("… only once
+/// each upkeep.", "… only once for each …", "… only once, no matter how
+/// many …") match neither suffix and stay attached — those trigger-frequency
+/// shapes aren't modeled by `UseLimit`, so the line stays `Unparsed` rather
+/// than lifting a limit the render side can't reproduce.
+fn peel_trigger_limit(line: &str) -> (&str, Option<&'static str>) {
+    if let Some(body) = line.strip_suffix(" This ability triggers only once each turn.") {
+        return (body, Some("OncePerTurn"));
+    }
+    if let Some(body) = line.strip_suffix(" This ability triggers only once.") {
+        return (body, Some("OncePerGame"));
+    }
+    (line, None)
 }
 
 /// Split a leading ability-word label ("Landfall — ", "Pack Tactics — ")
@@ -80,22 +115,37 @@ fn split_ability_word(line: &str) -> (Option<&str>, &str) {
     if bare_label && trigger_follows { (Some(label), rest) } else { (None, line) }
 }
 
-/// Wraps an event + [`ParsedEffect`] in the `Triggered` frame, emitting
-/// `targets:` only when the effect declares any.
+/// Wraps an event + optional [`UseLimit`] + [`ParsedEffect`] in the
+/// `Triggered` frame, emitting `limits:` only when a trigger-limit rider was
+/// peeled and `targets:` only when the effect declares any.
 ///
 /// The body is wrapped VERBATIM, exactly as the spell/activated/modal/loyalty
 /// frames wrap theirs. A trigger's event roles (`anaphora.that_object` &c.) and
 /// its announced targets no longer compete: the effect grammar emits every
 /// target read positionally at its source ([CR#115.3,601.2c]), so nothing here
 /// has to rewrite the body to tell the two apart.
-fn render(ability_word: Option<&str>, event: &str, parsed: &ParsedEffect) -> String {
+///
+/// `limits:` sits on the outer frame between `event:` and `effect:`, in the
+/// `TriggeredAbility` struct's declared field order (mirrors the activated
+/// frame's rider placement).
+fn render(
+    ability_word: Option<&str>,
+    event: &str,
+    limit: Option<&str>,
+    parsed: &ParsedEffect,
+) -> String {
     // [CR#207.2c]: the stripped ability-word label rides as render metadata.
     let word = ability_word.map_or_else(String::new, |w| format!("ability_word: \"{w}\", "));
+    // [CR#603.2h]: the peeled trigger-frequency limit rides as a `limits:` field.
+    let limits = limit.map_or_else(String::new, |l| format!(", limits: [{l}]"));
     if parsed.targets.is_empty() {
-        format!("Triggered({word}event: {event}, effect: {})", parsed.effect)
+        format!(
+            "Triggered({word}event: {event}{limits}, effect: {})",
+            parsed.effect
+        )
     } else {
         format!(
-            "Triggered({word}event: {event}, effect: Targeted(targets: [{}], effect: {}))",
+            "Triggered({word}event: {event}{limits}, effect: Targeted(targets: [{}], effect: {}))",
             parsed.targets.join(", "),
             parsed.effect,
         )
@@ -749,6 +799,60 @@ mod tests {
                 "Triggered(event: ThisDies, effect: \
                  Targeted(targets: [TargetOne(Creature)], effect: Destroy(Target(0))))"
             )
+        );
+    }
+
+    #[test]
+    fn once_each_turn_rider_lifts_per_turn_limit() {
+        // The trailing "This ability triggers only once each turn." rider
+        // ([CR#603.2h]) is peeled off the effect body and lifted into a
+        // `OncePerTurn` use-limit; the body ("draw a card.") parses on its own.
+        assert_eq!(
+            trig("Whenever you cast an instant or sorcery spell, draw a card. This ability triggers only once each turn.")
+                .as_deref(),
+            Some(
+                "Triggered(event: Cast(who: Ref(You), \
+                 what: And([Kind(Spell), Or([Type(\"Instant\"), Type(\"Sorcery\")])])), \
+                 limits: [OncePerTurn], effect: Draw(1))"
+            )
+        );
+    }
+
+    #[test]
+    fn once_bare_rider_lifts_per_game_limit() {
+        // The bare "This ability triggers only once." per-game form (no "each
+        // turn") maps to `OncePerGame` ([CR#603.2h]).
+        assert_eq!(
+            trig("When ~ enters, draw a card. This ability triggers only once.").as_deref(),
+            Some("Triggered(event: ThisEnters, limits: [OncePerGame], effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn once_each_turn_rider_before_targeted_wrapper() {
+        // `limits:` sits on the outer frame, between `event:` and the
+        // `Targeted` effect wrapper — not inside it.
+        assert_eq!(
+            trig(
+                "When ~ dies, destroy target creature. This ability triggers only once each turn."
+            )
+            .as_deref(),
+            Some(
+                "Triggered(event: ThisDies, limits: [OncePerTurn], effect: \
+                 Targeted(targets: [TargetOne(Creature)], effect: Destroy(Target(0))))"
+            )
+        );
+    }
+
+    #[test]
+    fn narrower_once_rider_stays_attached_and_declines() {
+        // Only the two exact rider forms are modeled. A narrower trigger-
+        // frequency rider ("… only once each upkeep.") matches neither suffix,
+        // stays attached to the body, and the whole line declines rather than
+        // lifting a limit the render side can't reproduce.
+        assert!(
+            trig("At the beginning of each player's upkeep, draw a card. This ability triggers only once each upkeep.")
+                .is_none()
         );
     }
 

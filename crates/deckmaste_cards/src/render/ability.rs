@@ -102,6 +102,11 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         that: None,
         named: None,
     };
+    // The trailing "This ability triggers only once[ each turn]." rider the
+    // `limits` field prints ([CR#603.2h]) — appended to whichever complete
+    // sentence this function returns below. The parse-direction mirror is the
+    // migration parser's `triggered_ability::peel_trigger_limit`.
+    let limit_rider = trigger_limit_rider(t);
     let raw_body = effect::effect(&t.effect, &body_ctx);
     // `lower_first` de-capitalizes the effect body's own sentence-start
     // capitalization for this mid-clause position ("Draw a card." -> "draw a
@@ -129,7 +134,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         .as_ref()
         .and_then(|c| adjacent_in_zone_if_clause(c, t.from))
     {
-        return format!("{lead} {clause}, if {cond_clause}, {body}");
+        return format!("{lead} {clause}, if {cond_clause}, {body}{limit_rider}");
     }
 
     // Intervening-if ([CR#603.4]): "…, if <cond>, <effect>." The condition
@@ -155,7 +160,37 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
         None => String::new(),
     };
     let trig = format!("{lead} {clause}, {cond}{body}");
-    from_zone_qualified(t.from, view.name, trig)
+    // The limit rider trails the WHOLE ability sentence, after any
+    // `from_zone_qualified` "As long as ~ is in your Y, …" wrapper.
+    format!(
+        "{}{limit_rider}",
+        from_zone_qualified(t.from, view.name, trig)
+    )
+}
+
+/// The trailing "This ability triggers only once[ each turn]." rider a
+/// [`TriggeredAbility`]'s `limits` print ([CR#603.2h]) — the render-direction
+/// mirror of the migration parser's `triggered_ability::peel_trigger_limit`,
+/// and the trigger-frame analogue of [`activation_rider`] (which prints the
+/// activated frame's "Activate only …" sentence). Empty when no limit is set.
+///
+/// Note the per-game trigger form is the bare "only once." — NOT the activated
+/// frame's "once each game." — matching real oracle text ("This ability
+/// triggers only once."). A `LoyaltyOncePerTurn` limit prints nothing here
+/// (that gate is an implicit loyalty rule, never a printed trigger sentence —
+/// and a loyalty ability never reaches `triggered()` anyway), mirroring
+/// [`activation_rider`]'s suppression.
+fn trigger_limit_rider(t: &TriggeredAbility) -> String {
+    use deckmaste_core::UseLimit;
+    let mut out = String::new();
+    for limit in &t.limits {
+        match limit {
+            UseLimit::OncePerTurn => out.push_str(" This ability triggers only once each turn."),
+            UseLimit::OncePerGame => out.push_str(" This ability triggers only once."),
+            UseLimit::LoyaltyOncePerTurn => {}
+        }
+    }
+    out
 }
 
 /// "this enchantment" / "this creature" / … — a card's own type-noun
@@ -1874,6 +1909,60 @@ mod tests {
         assert_eq!(
             triggered(&toll, &enchantment_view),
             "At the beginning of your upkeep, sacrifice this enchantment unless you pay {2}."
+        );
+    }
+
+    /// A triggered ability's `limits` print the trailing "This ability
+    /// triggers only once[ each turn]." rider ([CR#603.2h]) — the
+    /// render-direction mirror of the migration parser's
+    /// `triggered_ability::peel_trigger_limit`. Both the per-turn and the bare
+    /// per-game forms round-trip.
+    #[test]
+    fn trigger_limit_rider_renders_per_turn_and_per_game() {
+        use deckmaste_core::Action;
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PhaseStep;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::UseLimit;
+        use deckmaste_core::WhoseTurn;
+
+        let event = EventFilter::StepBegins {
+            at: PhaseStep::Beginning(BeginningStep::Upkeep),
+            whose: WhoseTurn::Your,
+        };
+        let sacrifice_this = OneShotEffect::Act(Action::By(
+            Reference::You,
+            PlayerAction::Sacrifice(Reference::This),
+        ));
+        let view = CardView {
+            name: "Test Enchantment",
+            mana_cost: None,
+            supertypes: &[],
+            types: &[Type::Enchantment.def()],
+            subtypes: &[],
+            power: None,
+            toughness: None,
+            abilities: &[],
+        };
+        let with_limit = |limit: UseLimit| TriggeredAbility {
+            ability_word: None,
+            event: event.clone(),
+            from: None,
+            condition: None,
+            limits: vec![limit],
+            where_x: None,
+            effect: sacrifice_this.clone(),
+        };
+        assert_eq!(
+            triggered(&with_limit(UseLimit::OncePerTurn), &view),
+            "At the beginning of your upkeep, sacrifice this enchantment. \
+             This ability triggers only once each turn."
+        );
+        assert_eq!(
+            triggered(&with_limit(UseLimit::OncePerGame), &view),
+            "At the beginning of your upkeep, sacrifice this enchantment. \
+             This ability triggers only once."
         );
     }
 
