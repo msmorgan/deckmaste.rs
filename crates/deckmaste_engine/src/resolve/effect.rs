@@ -22,7 +22,6 @@ use deckmaste_core::Zone;
 use super::action::composite_body_group;
 use super::action::composite_body_whose;
 use super::action::composite_move_src;
-use super::action::fight_first_fighter;
 use super::deref_quantity;
 use super::occurrence_of;
 use super::peel_binder;
@@ -1382,7 +1381,7 @@ impl GameState {
                 }
             }
             "Fight" => {
-                let on = self.eval_reference(fight_first_fighter(body)?, frame);
+                let on = self.eval_reference(deckmaste_core::fight_body_fighters(body)?.0, frame);
                 if self.objects.get(on).is_none() || !self.composite_body_would_act(body, frame) {
                     return None; // gone fighter / guard fails — fizzle [CR#701.14b]
                 }

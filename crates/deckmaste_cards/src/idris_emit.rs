@@ -1558,26 +1558,6 @@ fn discard_choice(body: &OneShotEffect) -> Option<(&Reference, &Count)> {
     ))
 }
 
-/// The two fighters of a `Fight` body ([CR#701.14a]): the reciprocal
-/// `DealDamage` sources under the `If`-guard's `then` batch.
-fn fight_fighters(body: &OneShotEffect) -> Option<(&Reference, &Reference)> {
-    let then = match peel_os(body) {
-        OneShotEffect::If(i) => peel_os(&i.then),
-        _ => return None,
-    };
-    match then {
-        OneShotEffect::Simultaneously(parts) => match parts.as_slice() {
-            [
-                OneShotEffect::Act(Action::DealDamage(a, _, _)),
-                OneShotEffect::Act(Action::DealDamage(b, _, _)),
-                ..,
-            ] => Some((a, b)),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
 /// Reconstruct the parameterized `KeywordActionSpec` constructor from a verb
 /// NAME plus the coordinates carried in its expanded body ([CR#701]) — the
 /// `KeywordAction` atom enum retired, so name + body-shape is the source of
@@ -1644,8 +1624,8 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
             }
         }
         "Fight" => {
-            let (a, b) =
-                fight_fighters(body).ok_or_else(|| gap("Fight composite body has no fighters"))?;
+            let (a, b) = deckmaste_core::fight_body_fighters(body)
+                .ok_or_else(|| gap("Fight composite body has no fighters"))?;
             Ok(app("Fight", vec![emit_reference(a)?, emit_reference(b)?]))
         }
         other => Err(gap(format!(

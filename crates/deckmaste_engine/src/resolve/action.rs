@@ -762,7 +762,7 @@ impl GameState {
             }
             // ── Fight: If-guarded reciprocal damage ([CR#701.14a]) ──
             "Fight" => {
-                let Some(a) = fight_first_fighter(body) else {
+                let Some((a, _b)) = deckmaste_core::fight_body_fighters(body) else {
                     return vec![];
                 };
                 let on = self.eval_reference(a, frame);
@@ -883,26 +883,6 @@ pub(crate) fn composite_body_whose(
             ..
         }) => Some(whose),
         _ => deckmaste_core::discard_body_whose(body),
-    }
-}
-
-/// The first fighter a `Fight` body names — the source of the first of its two
-/// mirrored `DealDamage` halves ([CR#701.14a]). The resolve lane binds only
-/// this one as the window's patient (the reciprocal damage runs from the
-/// body); read off the stored body rather than a per-verb atom.
-pub(crate) fn fight_first_fighter(
-    body: &deckmaste_core::OneShotEffect,
-) -> Option<&deckmaste_core::Reference> {
-    use deckmaste_core::Action as A;
-    use deckmaste_core::OneShotEffect as E;
-    match body {
-        E::Expanded(e) => fight_first_fighter(&e.value),
-        E::If(iff) => fight_first_fighter(&iff.then),
-        E::Simultaneously(parts) => parts.iter().find_map(|p| match p {
-            E::Act(A::DealDamage(source, _, _)) => Some(source),
-            _ => None,
-        }),
-        _ => None,
     }
 }
 

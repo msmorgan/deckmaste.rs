@@ -725,6 +725,30 @@ pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
     }
 }
 
+/// The two fighters a `Fight` body names — the sources of its reciprocal
+/// `DealDamage` halves under the `If`-guard's `then` batch ([CR#701.14a]).
+/// ONE shared read-off-the-body facet (the `discard_body_what` precedent):
+/// the engine's resolve lane and the Idris emitter both consume this, so
+/// the fighters are read off the stored body identically everywhere.
+#[must_use]
+pub fn fight_body_fighters(body: &crate::OneShotEffect) -> Option<(&Reference, &Reference)> {
+    use crate::Action as A;
+    use crate::OneShotEffect as E;
+    match body {
+        E::Expanded(e) => fight_body_fighters(&e.value),
+        E::If(iff) => fight_body_fighters(&iff.then),
+        E::Simultaneously(parts) => match parts.as_slice() {
+            [
+                E::Act(A::DealDamage(a, _, _)),
+                E::Act(A::DealDamage(b, _, _)),
+                ..,
+            ] => Some((a, b)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 impl PlayerAction {
     /// Whether this verb may appear in a cost (`CostComponent::Do`): the
     /// payer performs it, nothing targets ([CR#601.2b..601.2c]). Cost-eligible
@@ -881,6 +905,50 @@ mod tests {
         );
         assert_eq!(discard_body_what(body), Some(&Reference::This));
         assert_eq!(read(&write(&bound)), bound);
+    }
+
+    /// [`fight_body_fighters`] reads the reciprocal `DealDamage` pair off a
+    /// `Fight` body's `If`-guarded `then` batch ([CR#701.14a]) — the shape
+    /// `plugins/builtin/macros/effect/Fight.ron` expands to (mirrored by the
+    /// engine's `fight_effect` test builder at
+    /// `crates/deckmaste_engine/src/resolve/effect.rs`). The guard's exact
+    /// condition is irrelevant to the reader — it only descends into `then` —
+    /// so a minimal `Compare` stands in for the real creature/battlefield
+    /// check.
+    #[test]
+    fn fight_body_fighters_reads_both_reciprocal_sources() {
+        use crate::Action;
+        use crate::OneShotEffect;
+        let half = |src: Reference, tgt: Reference| {
+            OneShotEffect::Act(Action::DealDamage(
+                src.clone(),
+                Count::StatOf(src, crate::Stat::Power),
+                tgt,
+            ))
+        };
+        let body = OneShotEffect::If(crate::If {
+            condition: crate::Condition::Compare(
+                Count::Literal(1),
+                crate::Cmp::Eq,
+                Count::Literal(1),
+            ),
+            then: Arc::new(OneShotEffect::Simultaneously(vec![
+                half(Reference::Target(0), Reference::Target(1)),
+                half(Reference::Target(1), Reference::Target(0)),
+            ])),
+            otherwise: None,
+        });
+        let (a, b) = fight_body_fighters(&body).expect("both fighters");
+        assert_eq!(a, &Reference::Target(0));
+        assert_eq!(b, &Reference::Target(1));
+        // Not a fight body → None, never a panic.
+        assert!(
+            fight_body_fighters(&OneShotEffect::Act(Action::deal_damage(
+                Reference::Target(0),
+                Count::Literal(1)
+            )))
+            .is_none()
+        );
     }
 
     /// A bare player verb reads as `By(You, …)` — the implicit-you default:

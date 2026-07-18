@@ -21,6 +21,7 @@ pub use action::discard_body_count;
 pub use action::discard_body_random;
 pub use action::discard_body_what;
 pub use action::discard_body_whose;
+pub use action::fight_body_fighters;
 
 mod binder;
 pub use binder::Binder;
