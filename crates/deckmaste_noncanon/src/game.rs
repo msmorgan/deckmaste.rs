@@ -148,7 +148,10 @@ mod tests {
     /// Two draw-go seats deck out: the loop, mechanical fallbacks, and probes
     /// survive a full game with zero proactive actions.
     #[test]
-    #[cfg_attr(not(wizards_corpus), ignore = "needs generated plugins/wizards corpus")]
+    // ~640s: three full pass-bot deck-out games. Kept ignored so it stays out of
+    // the default suite; run explicitly with `--run-ignored` (e.g. the noncanon
+    // keep-green job). Also needs the generated `plugins/wizards` corpus.
+    #[ignore = "slow (~640s) full-game deck-out sim; run with --run-ignored"]
     fn passbots_deck_out() {
         let src = CardSource::load();
         let p0 = MatchupStrategy::pass_bot(PlayerId(0));
