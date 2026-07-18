@@ -11,44 +11,26 @@ use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use rand::RngExt;
-use rand::seq::SliceRandom;
 
 use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
-use crate::event::AbilityActivated;
-use crate::event::AbilityCountered;
-use crate::event::AbilityUsed;
 use crate::event::Act;
 use crate::event::Attached;
-use crate::event::Attacking;
-use crate::event::BecameTarget;
-use crate::event::Blocked;
 use crate::event::CoinFlipped;
-use crate::event::ControlChanged;
-use crate::event::Copied;
 use crate::event::CounterPlaced;
 use crate::event::CounterRemoved;
 use crate::event::DamageDealt;
-use crate::event::DamageRemoved;
-use crate::event::DesignationChanged;
 use crate::event::DieRolled;
-use crate::event::EmblemCreated;
 use crate::event::GameEvent;
-use crate::event::GotDesignation;
 use crate::event::LifeGained;
 use crate::event::LifeLost;
-use crate::event::ManaAdded;
 use crate::event::ManaEmptied;
 use crate::event::Occurrence;
 use crate::event::PlayerLost;
 use crate::event::PlayerWon;
-use crate::event::Revealed;
-use crate::event::Tapped;
-use crate::event::TokenCreated;
 use crate::event::TriggerFired;
 use crate::event::TurnBegan;
-use crate::event::Unattached;
 use crate::event::ZoneChange;
 use crate::legal::legal_actions;
 use crate::legal::legal_attackers;
@@ -58,11 +40,29 @@ use crate::object::ObjectSource;
 use crate::player::PlayerId;
 use crate::sba;
 use crate::stack::StackEntry;
-use crate::stack::StackObject;
 use crate::state::GameOutcome;
 use crate::state::GameState;
 use crate::turn::PriorityRound;
 use crate::turn::successor;
+
+mod combat;
+mod player;
+mod stack;
+mod trigger;
+mod zone;
+
+/// One non-`Act` `GameEvent` payload's apply-time effect on `GameState`.
+///
+/// Dispatched from [`GameState::apply`]'s incremental router. Takes `&self`
+/// (the payload by ref) so the caller still owns the original event for the
+/// unchanged path.
+pub(crate) trait EventApply {
+    /// Apply this event's effect to `g`. Returns `None` to leave the event
+    /// unchanged (the common case — `apply` returns it as-is), or `Some(e)`
+    /// to report that a DIFFERENT event actually occurred (e.g. a draw over
+    /// an empty library → `GameEvent::DrewFromEmpty`).
+    fn apply(&self, g: &mut GameState) -> Option<GameEvent>;
+}
 
 /// What one `step()` call produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -365,565 +365,55 @@ impl GameState {
             }
             _ => {}
         }
-        #[expect(
-            clippy::match_same_arms,
-            reason = "large apply dispatch; the pure-fact arms and the `Act` arm both return `event` unchanged but sit hundreds of lines apart with distinct explanatory comments — merging would wreck the structure"
-        )]
+        // Non-`Act` variants dispatch through `EventApply` (by ref); `Act`
+        // falls through to its inline body below (Task 3.4 will route it
+        // too, retiring this match) — it is deliberately absent from this
+        // match, folding into the wildcard fall-through (an explicit
+        // `GameEvent::Act(_) => None,` arm here is clippy::match_same_arms
+        // against that wildcard). `None` = unchanged.
+        let transformed = match &event {
+            GameEvent::Copied(e) => e.apply(self),
+            GameEvent::AbilityActivated(e) => e.apply(self),
+            GameEvent::SpellCast(object) => stack::handle_spell_cast(self, *object),
+            GameEvent::DamageDealt(e) => e.apply(self),
+            GameEvent::ZoneChange(e) => e.apply(self),
+            GameEvent::Attached(e) => e.apply(self),
+            GameEvent::Unattached(e) => e.apply(self),
+            GameEvent::LifeLost(e) => e.apply(self),
+            GameEvent::LifeGained(e) => e.apply(self),
+            GameEvent::Attacking(e) => e.apply(self),
+            GameEvent::Blocked(e) => e.apply(self),
+            GameEvent::CounterPlaced(e) => e.apply(self),
+            GameEvent::CounterRemoved(e) => e.apply(self),
+            GameEvent::TriggerFired(e) => e.apply(self),
+            GameEvent::AbilityCountered(e) => e.apply(self),
+            GameEvent::AbilityResolved(id) => stack::handle_ability_resolved(self, *id),
+            GameEvent::DesignationChanged(e) => e.apply(self),
+            GameEvent::GotDesignation(e) => e.apply(self),
+            GameEvent::ControlChanged(e) => e.apply(self),
+            GameEvent::Shuffled(player) => zone::handle_shuffled(self, *player),
+            GameEvent::DamageRemoved(e) => e.apply(self),
+            GameEvent::Untapped(id) => player::handle_untapped(self, *id),
+            GameEvent::DrewFromEmpty(p) => player::handle_drew_from_empty(self, *p),
+            GameEvent::Tapped(e) => e.apply(self),
+            GameEvent::ManaAdded(e) => e.apply(self),
+            GameEvent::ManaEmptied(e) => e.apply(self),
+            GameEvent::TokenCreated(e) => e.apply(self),
+            GameEvent::EmblemCreated(e) => e.apply(self),
+            GameEvent::TokenCeased(id) => zone::handle_token_ceased(self, *id),
+            GameEvent::PlayerLost(e) => e.apply(self),
+            GameEvent::PlayerWon(e) => e.apply(self),
+            // Pure facts (`TurnBegan`, `StepBegan`, `BecameTarget`,
+            // `AbilityUsed`, `CoinFlipped`, `DieRolled`) and `Revealed` (a
+            // public-information event, not a state mutation) have no real
+            // apply body — nothing to dispatch, unchanged.
+            _ => None,
+        };
+        if !matches!(event, GameEvent::Act(_)) {
+            return transformed.unwrap_or(event);
+        }
+        // Act inline (owned) — Task 3.4 replaces this with `e.apply(self)`:
         match event {
-            // Pure facts: nothing to mutate. `BecameTarget` ([CR#601.2c])
-            // exists for the trigger scan (ward, [CR#702.21a]); the
-            // targeting state itself lives in the announce slot / stack
-            // entry. `AbilityUsed` is bookkeeping recorded directly via
-            // `history.record` at the trigger-fire/activation apply sites
-            // ([CR#608.2i]); it never enters the occurrence pipeline, so its
-            // apply is inert here (defensive only).
-            GameEvent::TurnBegan(TurnBegan { .. })
-            | GameEvent::StepBegan(_)
-            | GameEvent::BecameTarget(BecameTarget { .. })
-            | GameEvent::AbilityUsed(AbilityUsed { .. }) => event,
-            // Pure information facts ([CR#705.1,706.2]): the rng draw
-            // happened in the scheduling work item / call submission —
-            // nothing to mutate; recording (triggers/history) rides the
-            // standard funnel.
-            GameEvent::CoinFlipped(CoinFlipped { .. }) | GameEvent::DieRolled(DieRolled { .. }) => {
-                event
-            }
-            // [CR#707.10]: put a copy of the referenced stack object onto
-            // the stack — "a copy of a spell is itself a spell", so a spell
-            // copy mints a fresh backing object (its own `StackObject::Spell`
-            // identity); an ability copy has no card behind it, so it keeps
-            // the SAME `StackObject::{Triggered,Activated}` source as the
-            // original ([CR#707.10b]) and only its `StackEntry.id` is fresh.
-            // All cast decisions ride the clone (targets, X, paid costs).
-            GameEvent::Copied(Copied {
-                original,
-                controller,
-                ..
-            }) => {
-                let Some(entry) = self.stack.iter().find(|e| e.id == original).cloned() else {
-                    // The original vanished before this applied — fizzle
-                    // (authoring mistakes never crash the engine).
-                    return event;
-                };
-                let source = match &entry.object {
-                    // Safe: a live Spell entry's object id IS the entry's own id, and entry/object
-                    // removal is atomic — a live entry's Spell object can't be dead (contrast the
-                    // Activated arm below, whose SEPARATE source id can go stale).
-                    StackObject::Spell(obj) => self.objects.obj(*obj).source,
-                    StackObject::Triggered { source, .. } => *source,
-                    StackObject::Activated { source, .. } => {
-                        // The activated ability's source is carried by id
-                        // only and may be "possibly gone, possibly changed"
-                        // (`StackObject::Activated` doc) — a zone change
-                        // removes it from the store ([CR#400.7]). A stale id
-                        // here is an authoring-adjacent runtime state, not a
-                        // reason to crash: fizzle
-                        // ([[engine-never-crashes-on-authoring-mistakes]]).
-                        let Some(obj) = self.objects.get(*source) else {
-                            return event;
-                        };
-                        obj.source
-                    }
-                };
-                let new = self.objects.mint(source, controller, Some(Zone::Stack));
-                let copied = StackEntry {
-                    id: new,
-                    object: match &entry.object {
-                        StackObject::Spell(_) => StackObject::Spell(new),
-                        other => other.clone(),
-                    },
-                    controller,
-                    targets: entry.targets.clone(),
-                    x: entry.x,
-                    paid_costs: entry.paid_costs.clone(),
-                    copy: true,
-                };
-                self.stack.push(copied);
-                // The minted id rides the recorded event so history (and any
-                // reader of the occurrence) can see what got created.
-                GameEvent::Copied(Copied {
-                    original,
-                    copy: Some(new),
-                    controller,
-                })
-            }
-            // [CR#122.1]: counters live in the object's (or player proxy's)
-            // counter map. Placement sums by kind; removal saturates at zero
-            // and DROPS the key, so an absent kind reads as zero everywhere
-            // (the layer-7c P/T read, `HasCounter`). The occurred fact
-            // carries the carrier's before/after TOTALS, apply-computed —
-            // the [CR#714.2b] `Crossed` reads run off the fact, never a
-            // post-hoc map read.
-            GameEvent::CounterPlaced(CounterPlaced {
-                object,
-                kind,
-                amount,
-                cause,
-                ..
-            }) => {
-                let entry = self
-                    .objects
-                    .obj_mut(object)
-                    .counters
-                    .entry(kind)
-                    .or_insert(0);
-                let before = *entry;
-                *entry += amount;
-                let after = *entry;
-                GameEvent::CounterPlaced(CounterPlaced {
-                    object,
-                    kind,
-                    amount,
-                    before,
-                    after,
-                    cause,
-                })
-            }
-            GameEvent::CounterRemoved(CounterRemoved {
-                object,
-                ref kind,
-                amount,
-                ..
-            }) => {
-                self.remove_counters_clamped(object, kind, amount);
-                event
-            }
-            GameEvent::Untapped(id) => {
-                self.objects.obj_mut(id).tapped = false;
-                event
-            }
-            GameEvent::DrewFromEmpty(player) => {
-                // The `Act(Draw)` apply-time transform produces this on an empty
-                // library; the arm also serves future direct emitters (a
-                // replacement effect rewriting a draw).
-                self.player_mut(player).drew_from_empty = true;
-                event
-            }
-            GameEvent::Tapped(Tapped { object, .. }) => {
-                self.objects.obj_mut(object).tapped = true;
-                event
-            }
-            GameEvent::ManaAdded(ManaAdded {
-                player,
-                mana,
-                amount,
-                ref riders,
-            }) => {
-                self.player_mut(player)
-                    .mana_pool
-                    .add_riders(mana, amount, riders);
-                event
-            }
-            GameEvent::ManaEmptied(ManaEmptied { player, ending }) => {
-                self.player_mut(player).mana_pool.empty_after(ending);
-                event
-            }
-            GameEvent::TokenCreated(TokenCreated { player, ref token }) => {
-                self.apply_token_created(player, token);
-                event
-            }
-            GameEvent::EmblemCreated(EmblemCreated {
-                player,
-                ref abilities,
-            }) => {
-                self.apply_emblem_created(player, abilities.clone());
-                event
-            }
-            GameEvent::TokenCeased(id) => {
-                self.apply_token_ceased(id);
-                event
-            }
-            GameEvent::PlayerLost(PlayerLost { player, .. }) => {
-                self.player_mut(player).lost = true;
-                event
-            }
-            // [CR#104.2b,104.1]: an effect-driven win ends the game outright —
-            // this player wins, no one else wins or loses. Distinct from the
-            // derived last-player-standing win `check_game_end` computes.
-            GameEvent::PlayerWon(PlayerWon { player }) => {
-                if self.outcome.is_none() {
-                    self.outcome = Some(GameOutcome::Win(player));
-                    self.agenda.clear();
-                }
-                event
-            }
-            GameEvent::SpellCast(object) => {
-                // [CR#601.2i]: promote the staged announce onto the stack.
-                // [CR#405]: a spell's stack identity is its own object id —
-                // unchanged from Stage 2, so existing Resolve(spell) keying by
-                // `StackEntry.id` still finds it.
-                let pending = self.promote_announce();
-                debug_assert_eq!(
-                    pending.object.object(),
-                    object,
-                    "SpellCast event matches the staged announce"
-                );
-                GameEvent::SpellCast(object)
-            }
-            GameEvent::AbilityActivated(AbilityActivated { source, ability }) => {
-                // [CR#602.2a]: promote the staged activation onto the stack
-                // under the stack identity minted when the announce opened
-                // ([CR#405], `begin_activate`).
-                let pending = self.promote_announce();
-                debug_assert!(
-                    matches!(
-                        &pending.object,
-                        StackObject::Activated { source: s, .. } if *s == source
-                    ),
-                    "AbilityActivated event matches the staged announce"
-                );
-                // Record the substantive "this ability was used" fact directly
-                // so history reads (use-limit counts, EventCount) can find it.
-                // Not routed through the occurrence pipeline — must not trigger
-                // anything and must not be re-recorded ([CR#608.2i]).
-                //
-                // Use the announce-time LKI snapshot rather than the live
-                // object — the source may have been removed (e.g. self-sacrifice
-                // cost) before this event applies ([CR#602.2a]).
-                // `begin_activate` always captures `bindings.this`, so the
-                // expect below should never fire in practice.
-                let used_object = match &pending.object {
-                    StackObject::Activated { bindings, .. } => {
-                        bindings
-                            .this
-                            .as_ref()
-                            .expect("begin_activate always captures a this snapshot")
-                            .object
-                    }
-                    _ => panic!("AbilityActivated with non-Activated stack object"),
-                };
-                self.record_history_fact(
-                    self.turn.turn_number,
-                    None,
-                    GameEvent::AbilityUsed(AbilityUsed {
-                        object: used_object,
-                        ability: Uint::try_from(ability).expect("ability index fits in Uint"),
-                    }),
-                );
-                GameEvent::AbilityActivated(AbilityActivated { source, ability })
-            }
-            GameEvent::DamageDealt(DamageDealt {
-                source,
-                target,
-                amount,
-                combat,
-            }) => {
-                // [CR#120.3]: damage to a player is life loss; to a creature it is
-                // marked damage. `Int` is `i32`; `Uint` is `u32` — `try_from`
-                // is required because u32 does not fit into i32 via `From`.
-                // One view for the mark's deal-time abilities and the lifelink
-                // check below (built before the damage lands; neither depends
-                // on the marked total).
-                let view = self.layers();
-                match self.objects.obj(target).source {
-                    ObjectSource::Player(p) => {
-                        // [CR#120.3a]: damage to a player is life loss.
-                        self.player_mut(p).life -=
-                            deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
-                    }
-                    ObjectSource::Card(_) => {
-                        // [CR#120.3]: damage to a permanent has "one or more
-                        // results" — the intrinsic creature result and every
-                        // matching data-driven counter-removal result are applied
-                        // IN ADDITION (a creature-planeswalker is marked AND loses
-                        // loyalty), no longer mutually exclusive.
-
-                        // [CR#120.3e,120.3c]: a COMBATANT (a permanent carrying
-                        // the `May(Attack)` grant — its `Creature` type's
-                        // default-deny combat capability, grant-presence not net
-                        // eligibility) has its damage marked, tagged with the
-                        // source's identity and abilities AS THEY ARE NOW — the
-                        // deal-time snapshot the lethal-damage SBA's deathtouch
-                        // clause reads ([CR#704.5h]), correct even if the source
-                        // later loses the ability or leaves; a stale (gone) source
-                        // contributes no abilities. A non-combatant permanent (a
-                        // plain planeswalker) is NOT marked; it loses loyalty
-                        // instead ([CR#120.3c]).
-                        if crate::legal::is_combatant(self, &view, target) {
-                            let (src, abilities) = match self.objects.get(source) {
-                                // Card-backed source: capture its identity and
-                                // deal-time abilities from the layered view.
-                                Some(o) if o.card_id().is_some() => {
-                                    (Some(o.source), view.get(source).abilities.as_ref().clone())
-                                }
-                                // A player proxy carries no abilities; a gone
-                                // (reminted) source contributes none either.
-                                Some(o) => (Some(o.source), Vec::new()),
-                                None => (None, Vec::new()),
-                            };
-                            self.objects
-                                .obj_mut(target)
-                                .mark_damage(src, abilities, amount);
-                        }
-
-                        // [CR#120.3c,120.3h]: data-driven counter-removal results —
-                        // e.g. planeswalker loyalty (`rules/damage/`). Remove that
-                        // many counters of each matching rule's kind, clamped at 0
-                        // (the shared counter-removal path); the 0-counter SBA
-                        // ([CR#704.5i]) handles death. Collect matches first:
-                        // `matches` borrows `&self` while `remove_counters_clamped`
-                        // needs `&mut self`.
-                        let to_remove: Vec<deckmaste_core::Ident> = self
-                            .damage_result_rules
-                            .iter()
-                            .filter(|rule| crate::matches(self, target, &rule.recipient))
-                            .map(|rule| rule.remove.0)
-                            .collect();
-                        for kind in to_remove {
-                            self.remove_counters_clamped(target, &kind, amount);
-                        }
-                    }
-                }
-                // [CR#702.15]: if the source is a card-backed object with lifelink,
-                // its controller gains life equal to the damage dealt. This applies
-                // to combat damage and any other damage from a lifelink source.
-                // Guard: use `get` (not `obj`) because a dies-trigger's source id
-                // may be a stale (reminted) id that is no longer in the store.
-                if self
-                    .objects
-                    .get(source)
-                    .is_some_and(|o| o.card_id().is_some())
-                    && crate::combat::has_keyword_named(&view, source, "Lifelink")
-                {
-                    let controller = self.objects.obj(source).controller;
-                    self.player_mut(controller).life +=
-                        deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
-                }
-                // [CR#702.2c]: deathtouch is no longer a bespoke flag — it rides
-                // the mark's captured deal-time abilities (recorded above), and
-                // the lethal-damage SBA reads it via `Is(Source, Has(Deathtouch))`
-                // ([CR#704.5h]).
-                GameEvent::DamageDealt(DamageDealt {
-                    source,
-                    target,
-                    amount,
-                    combat,
-                })
-            }
-            GameEvent::ZoneChange(ZoneChange {
-                snapshot: None,
-                object,
-                from,
-                to,
-                enters,
-                position,
-                face,
-                cause,
-            }) => {
-                self.apply_zone_will_change(
-                    object,
-                    from,
-                    to,
-                    enters.clone(),
-                    position,
-                    face,
-                    cause.clone(),
-                );
-                GameEvent::ZoneChange(ZoneChange {
-                    snapshot: None,
-                    object,
-                    from,
-                    to,
-                    enters,
-                    position,
-                    face,
-                    cause,
-                })
-            }
-            // [CR#603.6]: the FACT — the move already happened at the
-            // will-change apply. A no-op; triggers (a later task) match here.
-            // (Same body as the `TurnBegan`/`StepBegan` no-op, but kept its own
-            // arm to carry the CR rationale and the future trigger-match seam.)
-            #[expect(
-                clippy::match_same_arms,
-                reason = "own arm carries its CR rationale and trigger seam"
-            )]
-            GameEvent::ZoneChange(ZoneChange {
-                snapshot: Some(_), ..
-            }) => event,
-            // [CR#701.3a,701.3c]: commit the attachment→host relation — a new
-            // timestamp is implicit (no remint; the relation edit IS the
-            // transition). The verb builder (`Action::Attach`) already filtered
-            // the no-ops; this fact is real, so set the link, then record it for
-            // "becomes attached / equipped" triggers (breadth is a seam, §9).
-            GameEvent::Attached(Attached { attachment, host }) => {
-                self.objects.obj_mut(attachment).attached_to = Some(host);
-                GameEvent::Attached(Attached { attachment, host })
-            }
-            // [CR#701.3d]: commit the unattach — clear the link. The verb
-            // builder filtered the not-attached no-op, so this fact is real.
-            GameEvent::Unattached(Unattached {
-                attachment,
-                former_host,
-            }) => {
-                self.objects.obj_mut(attachment).attached_to = None;
-                GameEvent::Unattached(Unattached {
-                    attachment,
-                    former_host,
-                })
-            }
-            GameEvent::LifeLost(LifeLost { player, amount }) => {
-                self.player_mut(player).life -=
-                    deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
-                GameEvent::LifeLost(LifeLost { player, amount })
-            }
-            // [CR#119.3]: a player gains life — the life total adjusts up.
-            GameEvent::LifeGained(LifeGained { player, amount }) => {
-                self.player_mut(player).life +=
-                    deckmaste_core::Int::try_from(amount).expect("life gain fits in i32");
-                GameEvent::LifeGained(LifeGained { player, amount })
-            }
-            // [CR#508.1a]: record the attacker; [CR#508.1f]: declaring it as an
-            // attacker taps it (not a cost — attacking simply taps).
-            // [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
-            GameEvent::Attacking(Attacking {
-                attacker: o,
-                defending,
-            }) => {
-                self.combat.declare_attacker(o, defending);
-                if !crate::combat::has_keyword(&self.layers(), o, &KeywordAbility::Vigilance)
-                    && !self.objects.obj(o).tapped
-                {
-                    self.objects.obj_mut(o).tapped = true;
-                    // The declaration's tap is a real "becomes tapped"
-                    // transition ([CR#603.2e]), distinguishable by its cause
-                    // ([CR#508.1f] — not a cost): emit the fact in the
-                    // declaration's wake so becomes-tapped triggers see it.
-                    // Re-applying it is an idempotent flip.
-                    self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::Tapped(Tapped {
-                            object: o,
-                            cause: Some(crate::event::Cause::tap(
-                                deckmaste_core::Agency::AttackDeclaration,
-                                None,
-                            )),
-                        }),
-                    ))]);
-                }
-                GameEvent::Attacking(Attacking {
-                    attacker: o,
-                    defending,
-                })
-            }
-            // [CR#509.1a]: record the block; [CR#509.1h]: the attacker becomes a
-            // blocked creature (sticky). Declaring a blocker does NOT tap it. The
-            // "becomes blocked" trigger seam matches on this fact.
-            GameEvent::Blocked(Blocked { blocker, attacker }) => {
-                self.combat.declare_block(blocker, attacker);
-                GameEvent::Blocked(Blocked { blocker, attacker })
-            }
-            // [CR#603.2]: applying a `TriggerFired` *notes* the trigger. It is
-            // inert until the `PlaceTriggers` barrier (a later task) puts it on
-            // the stack. Nothing else happens here.
-            GameEvent::TriggerFired(TriggerFired {
-                source,
-                ability,
-                controller,
-                ref created,
-                ref bindings,
-            }) => {
-                // A delayed/reflexive ([CR#603.7,603.12]) trigger carries its
-                // body by value: it has no printed index, so the use-limit gate
-                // and `AbilityUsed` history (both keyed by `object`+printed
-                // index) do not apply — its firing is governed by the registry
-                // (delayed) or the immediate look-back (reflexive). [CR#603.7h]
-                // — a delayed ability limited to "the Nth resolution this turn"
-                // — is not modeled. Note it and move on.
-                if let Some(created) = created {
-                    self.pending_triggers.push(crate::trigger::NotedTrigger {
-                        source,
-                        ability: 0,
-                        created: Some(created.clone()),
-                        controller,
-                        bindings: bindings.as_ref().clone(),
-                    });
-                    return event;
-                }
-                // [CR#603.2h]: a "once each turn" / once-per-game triggered
-                // ability is noted at most that often. The gate lives HERE, at
-                // note time — NOT at scan-emit — because a single
-                // multi-occurrence event ([CR#603.2c], e.g. two creatures
-                // dying simultaneously) emits both `TriggerFired`s in one scan
-                // pass before either applies; only at sequential apply-time
-                // does the second see the first's recorded `AbilityUsed`. The
-                // limit is per firing object ([CR#400.7]).
-                let obj = bindings.this.as_ref().map(|t| t.object);
-                // Collect the firing ability's limits into an owned vec BEFORE
-                // the `pending_triggers`/`history` mutations below (the
-                // `abilities_of_source` borrow must not overlap them).
-                let limits: Vec<deckmaste_core::UseLimit> =
-                    match crate::derive::abilities_of_source(self, source).get(ability as usize) {
-                        Some(deckmaste_core::Ability::Triggered(t)) => t.limits.clone(),
-                        _ => Vec::new(),
-                    };
-                if let Some(obj) = obj {
-                    for limit in &limits {
-                        let window = match limit {
-                            deckmaste_core::UseLimit::OncePerTurn => {
-                                deckmaste_core::Lookback::ThisTurn
-                            }
-                            deckmaste_core::UseLimit::OncePerGame => {
-                                deckmaste_core::Lookback::ThisGame
-                            }
-                            // `LoyaltyOncePerTurn` ([CR#606.3]) is an
-                            // ACTIVATED-ability limit (it names loyalty
-                            // abilities SHARED across a permanent, gated in
-                            // `GameState::can_activate`) — no authoring path
-                            // puts it on a `TriggeredAbility`. Exhaustiveness
-                            // only: fall back to the per-ability `ThisTurn`
-                            // window `OncePerTurn` uses, rather than panicking
-                            // on a malformed card.
-                            deckmaste_core::UseLimit::LoyaltyOncePerTurn => {
-                                deckmaste_core::Lookback::ThisTurn
-                            }
-                        };
-                        if self.ability_used_count(obj, ability, window) >= 1 {
-                            // The limit is spent: the trigger does NOT fire —
-                            // note nothing, record nothing.
-                            return event;
-                        }
-                    }
-                }
-                self.pending_triggers.push(crate::trigger::NotedTrigger {
-                    source,
-                    ability: ability as usize,
-                    created: None,
-                    controller,
-                    bindings: bindings.as_ref().clone(),
-                });
-                // Record the substantive "this ability was used" fact directly
-                // so history reads (use-limit counts, EventCount) can find it.
-                // Not routed through the occurrence pipeline — must not trigger
-                // anything and must not be re-recorded ([CR#608.2i]).
-                if let Some(this) = &bindings.this {
-                    let used = GameEvent::AbilityUsed(AbilityUsed {
-                        object: this.object,
-                        ability,
-                    });
-                    self.record_history_fact(self.turn.turn_number, None, used);
-                }
-                event
-            }
-            // [CR#608.2n,701.6a,707.10a]: the triggered/activated ability —
-            // or a countered/resolved COPY of a spell or ability — vanishes:
-            // remove its stack entry and discard the (minted, for a spell
-            // copy freshly minted) backing object. No zone move; the source
-            // (already gone for a dies-trigger) is untouched.
-            GameEvent::AbilityCountered(AbilityCountered { id, .. }) => {
-                self.remove_stack_entry(id);
-                self.objects.remove(id);
-                event
-            }
-            GameEvent::AbilityResolved(id) => {
-                self.remove_stack_entry(id);
-                self.objects.remove(id);
-                GameEvent::AbilityResolved(id)
-            }
-            // P0.W6 seams: DesignationChanged will write the W5 registry's game scope;
-            // ControlChanged's will re-home the object ([CR#603.2e] delta,
-            // never a zone move).
-            // Revealing is a public information event, not a state mutation.
-            GameEvent::Revealed(Revealed { .. }) => event,
             // [CR#701,616.1]: a FUTURE keyword-action window that PASSED
             // (unreplaced, uncanted) — the apply unwraps its contents DIRECTLY,
             // opening NO second replacement window, per the verb's commit
@@ -1210,56 +700,7 @@ impl GameState {
             GameEvent::Act(Act {
                 committed: true, ..
             }) => event,
-            GameEvent::DesignationChanged(DesignationChanged { .. }) => {
-                todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
-            }
-            GameEvent::GotDesignation(GotDesignation { player, name }) => {
-                // [CR#702.131c]: set the player-scope flag once; never removed.
-                self.designations
-                    .players
-                    .entry((player, name))
-                    .or_insert(crate::state::DesignationValue::Flag);
-                GameEvent::GotDesignation(GotDesignation { player, name })
-            }
-            // [CR#701.12b,613.1b]: a one-shot control TRANSITION — re-home
-            // the object (a control change is never a zone move; the object
-            // keeps its identity). The base controller moves; layer-2
-            // continuous control effects still override on top. The new
-            // controller has not controlled it continuously since their
-            // last turn began, so it is summoning-sick for them
-            // ([CR#302.6]).
-            GameEvent::ControlChanged(ControlChanged { object, to }) => {
-                if self.objects.get(object).is_some() {
-                    self.objects.obj_mut(object).controller = to;
-                    self.objects.obj_mut(object).summoning_sick = true;
-                }
-                event
-            }
-            // [CR#701.24a]: randomize so NO player knows the order — the
-            // seeded rng (UD-8). Revealed-state reset ([CR#701.20d]) is a
-            // P0.W6 seam (no reveal windows exist yet).
-            GameEvent::Shuffled(player) => {
-                self.zones.libraries[player.index()]
-                    .make_contiguous()
-                    .shuffle(&mut self.rng);
-                event
-            }
-            // [CR#614.8,701.19a]: the regeneration heal clause — zero damage
-            // and remove from combat. If the object is already at 0 damage
-            // this is still a no-op (removal from combat is still correct —
-            // the shield fired, so the permanent would have been in combat
-            // when the destroy was imminent). `remove_object` is idempotent
-            // for non-combat objects. Clearing the marks drops their deal-time
-            // deathtouch provenance too ([CR#704.5h]) — a healed creature is no
-            // longer "dealt damage by a deathtouch source", so a later SBA check
-            // does not re-destroy it.
-            GameEvent::DamageRemoved(DamageRemoved { object }) => {
-                if self.objects.get(object).is_some() {
-                    self.objects.obj_mut(object).clear_damage();
-                }
-                self.combat.remove_object(object);
-                GameEvent::DamageRemoved(DamageRemoved { object })
-            }
+            _ => unreachable!("guarded above: only Act reaches here"),
         }
     }
 
