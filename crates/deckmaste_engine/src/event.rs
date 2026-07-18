@@ -151,11 +151,354 @@ impl Cause {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TurnBegan {
+    pub player: PlayerId,
+    pub turn: Uint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Tapped {
+    pub object: ObjectId,
+    /// Tap causes are trigger-visible language ([CR#107.5] cost vs
+    /// [CR#508.1f] attack vs [CR#701.26a] effect vs [CR#106.12] mana).
+    pub cause: Option<Cause>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManaAdded {
+    pub player: PlayerId,
+    pub mana: ColorOrColorless,
+    pub amount: Uint,
+    pub riders: Vec<deckmaste_core::ManaRider>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManaEmptied {
+    pub player: PlayerId,
+    pub ending: deckmaste_core::PhaseStep,
+}
+
+/// [CR#701.7a,111.2]: `player` creates one token with the characteristics
+/// `token` specifies. Its apply synthesizes a token entry in the card
+/// table (owner = creator), mints the object straight onto the battlefield
+/// (controller = creator), folds `AsEnters` self-replacements, and emits
+/// the past-form `ZoneChange { from: None, to: Battlefield, .. }` fact so
+/// enter-triggers fire. Creating N tokens is a `Batch` of N of these (one
+/// instruction, simultaneous). "Whenever you create a token" triggers
+/// match here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TokenCreated {
+    pub player: PlayerId,
+    pub token: Token,
+}
+
+/// [CR#114.1]: a player gets an emblem. Its apply synthesizes an
+/// abilities-only def ([CR#114.3]) into the card table and mints the object
+/// straight into the command zone, both owned and controlled by that player
+/// ([CR#114.2]). Getting an emblem is not itself a zone-change — no
+/// `ZoneChange` fact — but "whenever you get an emblem"-style triggers
+/// would match here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmblemCreated {
+    pub player: PlayerId,
+    pub abilities: Vec<deckmaste_core::Ability>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerLost {
+    pub player: PlayerId,
+    pub reason: LossReason,
+}
+
+/// [CR#104.2b,104.1]: an effect-driven win. Applies by ending the game with
+/// this player as the winner (others neither win nor lose) — distinct from
+/// the derived last-player-standing win in `check_game_end`. A player who
+/// would simultaneously win and lose loses instead ([CR#104.3f]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerWon {
+    pub player: PlayerId,
+}
+
+/// A spell or ability was COPIED onto the stack ([CR#707.10] — a copy
+/// is put on the stack, not cast). `copy` is filled by the apply (the
+/// minted entry); `original` is the copied stack object.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Copied {
+    pub original: ObjectId,
+    pub copy: Option<ObjectId>,
+    pub controller: PlayerId,
+}
+
+/// [CR#602.2a] — an ability becomes activated. Applies by minting the
+/// stack identity, promoting `announcing` onto the stack, and bumping the
+/// activation ledger. The "whenever … activates an ability" trigger seam
+/// (engine-trigger-events).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AbilityActivated {
+    pub source: ObjectId,
+    pub ability: usize,
+}
+
+/// [CR#120.3] — damage to a creature (marked) or a player (life loss).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DamageDealt {
+    pub source: ObjectId,
+    pub target: ObjectId,
+    pub amount: Uint,
+    /// Combat damage ([CR#510.1]) vs everything else — the combat-damage
+    /// step's assignments set it; effect damage (including a fight's,
+    /// [CR#701.14d]) is `false`. The `Damage:combat` pattern refinement
+    /// reads it.
+    pub combat: bool,
+}
+
+/// A zone change ([CR#400.7,603.6]) — ONE phase-explicit event covering
+/// both the INTENT (replaceable, not yet recorded) and the FACT
+/// (unreplaceable, recorded, trigger-visible). `snapshot.is_none()` is
+/// the FUTURE form: a live object is still about to move, replacements
+/// act here ([CR#614]), and it is neither recorded to history nor
+/// trigger-scanned. `apply` captures the object's LKI the instant before
+/// the move, fills `snapshot` (`Some`), and the SAME variant becomes the
+/// PAST form — the fact triggers (later tasks) fire on. The LKI-snapshot
+/// / immediate-move semantics are unchanged from the old
+/// `ZoneWillChange`/`ZoneChanged` pair ([CR#603.10a]): the move+remint
+/// still happens atomically inside `apply`, not at some later "commit"
+/// step. `enters` is present only when `to == Battlefield`. `position`
+/// is present only when `to == Library`: the insertion index counted
+/// from the top (`0` = top), clamped to the bottom when the library is
+/// shorter ([CR#401.7]); `None` means the top.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ZoneChange {
+    /// The moved object's id. On the future form this is the still-live
+    /// id about to move; on the past form it is the same (now-stale)
+    /// id — `snapshot.object` mirrors it once `snapshot` is filled.
+    pub object: ObjectId,
+    /// `None` before apply (future/replaceable, unrecorded); `Some`
+    /// after (past/recorded) — the moved object's LKI, captured the
+    /// instant before the move ([CR#603.10a]). Boxed to keep the common
+    /// non-zone-change arms of `GameEvent` cheap.
+    pub snapshot: Option<Box<crate::lki::LkiSnapshot>>,
+    pub from: Option<Zone>,
+    pub to: Zone,
+    pub enters: Option<EnterStatus>,
+    pub position: Option<Uint>,
+    /// The face shown on arrival — the master event's `face`
+    /// coordinate; `None` = the default, face up ([CR#110.5b]). No
+    /// emitter sets `Down` yet (morph/manifest are post-P0 macros);
+    /// reveal-on-leave ([CR#708.9]) hooks here when they do.
+    pub face: Option<deckmaste_core::Face>,
+    /// `None` = an unattributed move; named views (sacrificed,
+    /// discarded, played) ride here as cause triples.
+    pub cause: Option<Cause>,
+}
+
+/// [CR#119.3]: a player loses life directly (not via damage).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LifeLost {
+    pub player: PlayerId,
+    pub amount: Uint,
+}
+
+/// [CR#119.3]: a player gains life.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LifeGained {
+    pub player: PlayerId,
+    pub amount: Uint,
+}
+
+/// [CR#508.1a,508.1b]: `attacker` was declared as an attacker attacking
+/// `defending` — the defending player's proxy object or a planeswalker they
+/// control ([CR#506.3,508.1b]). Its apply records both in `CombatState` and
+/// taps the attacker ([CR#508.1f]). The "whenever ~ attacks" trigger seam
+/// (`EventFilter::AttackDeclared`) reads `defending` as the against-target.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attacking {
+    pub attacker: ObjectId,
+    pub defending: ObjectId,
+}
+
+/// [CR#509.1a]: a creature was declared as a blocker against `attacker`. Its
+/// apply records the block in `CombatState` and marks `attacker` blocked
+/// ([CR#509.1h]). The "whenever ~ blocks / becomes blocked" trigger seam.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Blocked {
+    pub blocker: ObjectId,
+    pub attacker: ObjectId,
+}
+
+/// A coin flip's outcome ([CR#705.1..705.2]). `won` is `Some` only for a
+/// CALLED flip (the flipper called heads or tails and won or lost the
+/// flip); `None` when the effect reads only heads/tails and no player
+/// wins or loses.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoinFlipped {
+    pub player: PlayerId,
+    pub heads: bool,
+    pub won: Option<bool>,
+}
+
+/// A die roll's outcome ([CR#706.1..706.2]); an IGNORED roll is
+/// considered never to have happened — no triggers ([CR#706.6]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DieRolled {
+    pub player: PlayerId,
+    pub sides: Uint,
+    pub natural: Uint,
+    pub result: Uint,
+}
+
+/// Counters placed on an object or player proxy ([CR#122.1]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CounterPlaced {
+    pub object: ObjectId,
+    pub kind: deckmaste_core::Ident,
+    pub amount: Uint,
+    /// The carrier's total of `kind` BEFORE this placement — filled at
+    /// apply (emitters leave `0`), alongside `after`, so a chapter
+    /// ability's `Crossed` gate reads "the total was less than N and
+    /// became at least N" off the one fact [CR#714.2b] — a doubled
+    /// placement is still ONE fact whose `after - before` is the doubled
+    /// amount.
+    pub before: Uint,
+    /// The carrier's total of `kind` AFTER this placement (apply-filled,
+    /// like `before`) [CR#714.2b].
+    pub after: Uint,
+    pub cause: Option<Cause>,
+}
+
+/// Counters removed ([CR#122.1]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CounterRemoved {
+    pub object: ObjectId,
+    pub kind: deckmaste_core::Ident,
+    pub amount: Uint,
+    pub cause: Option<Cause>,
+}
+
+/// [CR#603.2]: a triggered ability triggered. Its apply notes it into
+/// `pending_triggers`. Routed as an event so Stage-4 replacements/cant can
+/// intercept (Panharmonicon/Hushwing).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TriggerFired {
+    pub source: ObjectSource,
+    pub ability: Uint,
+    pub controller: PlayerId,
+    /// `Some` for a delayed/reflexive ([CR#603.7,603.12]) trigger created
+    /// at resolution — its by-value body, printed on no permanent. `None`
+    /// for a printed trigger (`ability` indexes `abilities_of_source`).
+    pub created: Option<Box<deckmaste_core::TriggeredAbility>>,
+    /// Boxed: `TriggerBindings` carries three LKI snapshots (~280 B) and
+    /// dominated `GameEvent`'s size, cascading through every by-value event
+    /// move in `step()`; a trigger fires far less often than events move, so
+    /// the box allocates off the hot path. See `engine-event-size-boxing`.
+    pub bindings: Box<crate::trigger::TriggerBindings>,
+}
+
+/// A triggered ability fired ([CR#603.2]) or an activated ability became
+/// activated ([CR#602.2a]); the substantive "use" fact backing use-limit
+/// and `EventCount` history reads ([CR#608.2i]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AbilityUsed {
+    pub object: ObjectId,
+    pub ability: Uint,
+}
+
+/// [CR#608.2n]: a triggered or activated ability fizzled (an
+/// intervening-if no longer held, or every target went illegal) and
+/// vanishes — no zone move. [CR#701.6a]: a triggered or activated
+/// ability was countered and vanishes the same way. [CR#707.10a]: a
+/// countered COPY (of a spell or ability) also vanishes here — same
+/// shape, no card behind it either. Its apply removes the stack entry
+/// whose `id` is the carried (minted, for a spell copy freshly minted)
+/// token, and the backing object with it — no remint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AbilityCountered {
+    pub id: ObjectId,
+    pub cause: Cause,
+}
+
+/// Cards shown ([CR#701.20a]); `to: None` = revealed to ALL players,
+/// `Some` = "look at" — the same operation shown to a subset
+/// ([CR#701.20e]). Revealing never moves the card ([CR#701.20b]).
+/// The reveal window lasts for the containing resolving instruction;
+/// revealing itself changes no game-state characteristic or zone.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Revealed {
+    pub objects: Vec<ObjectId>,
+    pub to: Option<Vec<PlayerId>>,
+}
+
+/// A GAME-scope designation transition in the W5 registry (day/night,
+/// [CR#731.1] — "day becomes night" = losing one designation and
+/// gaining the other, [CR#731.1a]). Shaped, unbuilt: designation
+/// GRANTING effects are P0.W5/W6 seams. Object/player designation
+/// deltas ride their own facts when granting lands.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DesignationChanged {
+    pub name: deckmaste_core::Ident,
+    pub becomes: Option<deckmaste_core::Ident>,
+}
+
+/// A player GAINED a player-scope designation ([CR#702.131c] — the city's
+/// blessing). The object/player-scope counterpart to `DesignationChanged`
+/// (which is game-scope). Idempotent at apply: a player who already holds
+/// `name` is unchanged. The `GetDesignation` verb suppresses re-emission,
+/// so this fact marks a genuine first acquisition.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GotDesignation {
+    pub player: PlayerId,
+    pub name: deckmaste_core::Ident,
+}
+
+/// An object became the target of the spell/ability `source` at
+/// announce ([CR#601.2c]; ward is the family exemplar [CR#702.21a]).
+/// Shaped, unbuilt: the announce flow emits it (P0.W7 seam).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BecameTarget {
+    pub target: ObjectId,
+    pub source: ObjectId,
+}
+
+/// An object changed controller — a becomes-delta, never a zone move
+/// (the object keeps its identity). Shaped, unbuilt: control-changing
+/// continuous effects are a layers seam (L2); its apply will re-home
+/// the object and fire `EventFilter::ControlChanged` patterns.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ControlChanged {
+    pub object: ObjectId,
+    pub to: PlayerId,
+}
+
+/// An attachment became attached to a host ([CR#701.3a]; a re-attach is a
+/// new timestamp per [CR#701.3c]). A fact for "whenever ~ becomes
+/// attached / equipped"; the relation mutation happens in the `Attach`
+/// verb's resolution, so apply only records this. Trigger-matching breadth
+/// is a seam (events are shaped, §9).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attached {
+    pub attachment: ObjectId,
+    pub host: ObjectId,
+}
+
+/// An attachment became unattached ([CR#701.3d]). A fact, mirroring
+/// [`Attached`](GameEvent::Attached); apply only records it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unattached {
+    pub attachment: ObjectId,
+    pub former_host: ObjectId,
+}
+
+/// All marked damage was removed from `object` ([CR#614.8,701.19a] —
+/// the regeneration heal clause). Applied by zeroing `damage` on the
+/// object and removing it from combat ([CR#701.19a] "remove from combat").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DamageRemoved {
+    pub object: ObjectId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameEvent {
-    TurnBegan {
-        player: PlayerId,
-        turn: Uint,
-    },
+    TurnBegan(TurnBegan),
     StepBegan(PhaseStep),
     Untapped(ObjectId),
     // No intent event is a bespoke variant: destruction, draw, AND discard are
@@ -288,45 +631,12 @@ pub enum GameEvent {
         contained: bool,
     },
 
-    Tapped {
-        object: ObjectId,
-        /// Tap causes are trigger-visible language ([CR#107.5] cost vs
-        /// [CR#508.1f] attack vs [CR#701.26a] effect vs [CR#106.12] mana).
-        cause: Option<Cause>,
-    },
-    ManaAdded {
-        player: PlayerId,
-        mana: ColorOrColorless,
-        amount: Uint,
-        riders: Vec<deckmaste_core::ManaRider>,
-    },
-    ManaEmptied {
-        player: PlayerId,
-        ending: deckmaste_core::PhaseStep,
-    },
+    Tapped(Tapped),
+    ManaAdded(ManaAdded),
+    ManaEmptied(ManaEmptied),
 
-    /// [CR#701.7a,111.2]: `player` creates one token with the characteristics
-    /// `token` specifies. Its apply synthesizes a token entry in the card
-    /// table (owner = creator), mints the object straight onto the battlefield
-    /// (controller = creator), folds `AsEnters` self-replacements, and emits
-    /// the past-form `ZoneChange { from: None, to: Battlefield, .. }` fact so
-    /// enter-triggers fire. Creating N tokens is a `Batch` of N of these (one
-    /// instruction, simultaneous). "Whenever you create a token" triggers
-    /// match here.
-    TokenCreated {
-        player: PlayerId,
-        token: Token,
-    },
-    /// [CR#114.1]: a player gets an emblem. Its apply synthesizes an
-    /// abilities-only def ([CR#114.3]) into the card table and mints the object
-    /// straight into the command zone, both owned and controlled by that player
-    /// ([CR#114.2]). Getting an emblem is not itself a zone-change — no
-    /// `ZoneChange` fact — but "whenever you get an emblem"-style triggers
-    /// would match here.
-    EmblemCreated {
-        player: PlayerId,
-        abilities: Vec<deckmaste_core::Ability>,
-    },
+    TokenCreated(TokenCreated),
+    EmblemCreated(EmblemCreated),
     /// [CR#704.5d,111.7]: a token found in a zone other than the battlefield
     /// ceases to exist. Its apply removes the object from its zone and the
     /// store outright — no remint, no `ZoneChange` fact (the token doesn't
@@ -334,263 +644,46 @@ pub enum GameEvent {
     /// move that stranded it ([CR#111.7]'s note); anything still pointing at
     /// it reads the LKI that rode that fact.
     TokenCeased(ObjectId),
-    PlayerLost {
-        player: PlayerId,
-        reason: LossReason,
-    },
-    /// [CR#104.2b,104.1]: an effect-driven win. Applies by ending the game with
-    /// this player as the winner (others neither win nor lose) — distinct from
-    /// the derived last-player-standing win in `check_game_end`. A player who
-    /// would simultaneously win and lose loses instead ([CR#104.3f]).
-    PlayerWon {
-        player: PlayerId,
-    },
+    PlayerLost(PlayerLost),
+    PlayerWon(PlayerWon),
     /// [CR#601.2i] — a spell becomes cast. Applies by promoting `announcing`
     /// onto the stack. The Stage-3 "whenever you cast" seam.
     SpellCast(ObjectId),
-    /// A spell or ability was COPIED onto the stack ([CR#707.10] — a copy
-    /// is put on the stack, not cast). `copy` is filled by the apply (the
-    /// minted entry); `original` is the copied stack object.
-    Copied {
-        original: ObjectId,
-        copy: Option<ObjectId>,
-        controller: PlayerId,
-    },
-    /// [CR#602.2a] — an ability becomes activated. Applies by minting the
-    /// stack identity, promoting `announcing` onto the stack, and bumping the
-    /// activation ledger. The "whenever … activates an ability" trigger seam
-    /// (engine-trigger-events).
-    AbilityActivated {
-        source: ObjectId,
-        ability: usize,
-    },
-    /// [CR#120.3] — damage to a creature (marked) or a player (life loss).
-    DamageDealt {
-        source: ObjectId,
-        target: ObjectId,
-        amount: Uint,
-        /// Combat damage ([CR#510.1]) vs everything else — the combat-damage
-        /// step's assignments set it; effect damage (including a fight's,
-        /// [CR#701.14d]) is `false`. The `Damage:combat` pattern refinement
-        /// reads it.
-        combat: bool,
-    },
-    /// A zone change ([CR#400.7,603.6]) — ONE phase-explicit event covering
-    /// both the INTENT (replaceable, not yet recorded) and the FACT
-    /// (unreplaceable, recorded, trigger-visible). `snapshot.is_none()` is
-    /// the FUTURE form: a live object is still about to move, replacements
-    /// act here ([CR#614]), and it is neither recorded to history nor
-    /// trigger-scanned. `apply` captures the object's LKI the instant before
-    /// the move, fills `snapshot` (`Some`), and the SAME variant becomes the
-    /// PAST form — the fact triggers (later tasks) fire on. The LKI-snapshot
-    /// / immediate-move semantics are unchanged from the old
-    /// `ZoneWillChange`/`ZoneChanged` pair ([CR#603.10a]): the move+remint
-    /// still happens atomically inside `apply`, not at some later "commit"
-    /// step. `enters` is present only when `to == Battlefield`. `position`
-    /// is present only when `to == Library`: the insertion index counted
-    /// from the top (`0` = top), clamped to the bottom when the library is
-    /// shorter ([CR#401.7]); `None` means the top.
-    ZoneChange {
-        /// The moved object's id. On the future form this is the still-live
-        /// id about to move; on the past form it is the same (now-stale)
-        /// id — `snapshot.object` mirrors it once `snapshot` is filled.
-        object: ObjectId,
-        /// `None` before apply (future/replaceable, unrecorded); `Some`
-        /// after (past/recorded) — the moved object's LKI, captured the
-        /// instant before the move ([CR#603.10a]). Boxed to keep the common
-        /// non-zone-change arms of `GameEvent` cheap.
-        snapshot: Option<Box<crate::lki::LkiSnapshot>>,
-        from: Option<Zone>,
-        to: Zone,
-        enters: Option<EnterStatus>,
-        position: Option<Uint>,
-        /// The face shown on arrival — the master event's `face`
-        /// coordinate; `None` = the default, face up ([CR#110.5b]). No
-        /// emitter sets `Down` yet (morph/manifest are post-P0 macros);
-        /// reveal-on-leave ([CR#708.9]) hooks here when they do.
-        face: Option<deckmaste_core::Face>,
-        /// `None` = an unattributed move; named views (sacrificed,
-        /// discarded, played) ride here as cause triples.
-        cause: Option<Cause>,
-    },
-    /// [CR#119.3]: a player loses life directly (not via damage).
-    LifeLost {
-        player: PlayerId,
-        amount: Uint,
-    },
-    /// [CR#119.3]: a player gains life.
-    LifeGained {
-        player: PlayerId,
-        amount: Uint,
-    },
-    /// [CR#508.1a,508.1b]: `attacker` was declared as an attacker attacking
-    /// `defending` — the defending player's proxy object or a planeswalker they
-    /// control ([CR#506.3,508.1b]). Its apply records both in `CombatState` and
-    /// taps the attacker ([CR#508.1f]). The "whenever ~ attacks" trigger seam
-    /// (`EventFilter::AttackDeclared`) reads `defending` as the against-target.
-    Attacking {
-        attacker: ObjectId,
-        defending: ObjectId,
-    },
-    /// [CR#509.1a]: a creature was declared as a blocker against `attacker`. Its
-    /// apply records the block in `CombatState` and marks `attacker` blocked
-    /// ([CR#509.1h]). The "whenever ~ blocks / becomes blocked" trigger seam.
-    Blocked {
-        blocker: ObjectId,
-        attacker: ObjectId,
-    },
-    /// A coin flip's outcome ([CR#705.1..705.2]). `won` is `Some` only for a
-    /// CALLED flip (the flipper called heads or tails and won or lost the
-    /// flip); `None` when the effect reads only heads/tails and no player
-    /// wins or loses.
-    CoinFlipped {
-        player: PlayerId,
-        heads: bool,
-        won: Option<bool>,
-    },
-    /// A die roll's outcome ([CR#706.1..706.2]); an IGNORED roll is
-    /// considered never to have happened — no triggers ([CR#706.6]).
-    DieRolled {
-        player: PlayerId,
-        sides: Uint,
-        natural: Uint,
-        result: Uint,
-    },
-    /// Counters placed on an object or player proxy ([CR#122.1]).
-    CounterPlaced {
-        object: ObjectId,
-        kind: deckmaste_core::Ident,
-        amount: Uint,
-        /// The carrier's total of `kind` BEFORE this placement — filled at
-        /// apply (emitters leave `0`), alongside `after`, so a chapter
-        /// ability's `Crossed` gate reads "the total was less than N and
-        /// became at least N" off the one fact [CR#714.2b] — a doubled
-        /// placement is still ONE fact whose `after - before` is the doubled
-        /// amount.
-        before: Uint,
-        /// The carrier's total of `kind` AFTER this placement (apply-filled,
-        /// like `before`) [CR#714.2b].
-        after: Uint,
-        cause: Option<Cause>,
-    },
-    /// Counters removed ([CR#122.1]).
-    CounterRemoved {
-        object: ObjectId,
-        kind: deckmaste_core::Ident,
-        amount: Uint,
-        cause: Option<Cause>,
-    },
-    /// [CR#603.2]: a triggered ability triggered. Its apply notes it into
-    /// `pending_triggers`. Routed as an event so Stage-4 replacements/cant can
-    /// intercept (Panharmonicon/Hushwing).
-    TriggerFired {
-        source: ObjectSource,
-        ability: Uint,
-        controller: PlayerId,
-        /// `Some` for a delayed/reflexive ([CR#603.7,603.12]) trigger created
-        /// at resolution — its by-value body, printed on no permanent. `None`
-        /// for a printed trigger (`ability` indexes `abilities_of_source`).
-        created: Option<Box<deckmaste_core::TriggeredAbility>>,
-        /// Boxed: `TriggerBindings` carries three LKI snapshots (~280 B) and
-        /// dominated `GameEvent`'s size, cascading through every by-value event
-        /// move in `step()`; a trigger fires far less often than events move, so
-        /// the box allocates off the hot path. See `engine-event-size-boxing`.
-        bindings: Box<crate::trigger::TriggerBindings>,
-    },
-    /// A triggered ability fired ([CR#603.2]) or an activated ability became
-    /// activated ([CR#602.2a]); the substantive "use" fact backing use-limit
-    /// and `EventCount` history reads ([CR#608.2i]).
-    AbilityUsed {
-        object: ObjectId,
-        ability: Uint,
-    },
-    /// [CR#608.2n]: a triggered or activated ability fizzled (an
-    /// intervening-if no longer held, or every target went illegal) and
-    /// vanishes — no zone move. [CR#701.6a]: a triggered or activated
-    /// ability was countered and vanishes the same way. [CR#707.10a]: a
-    /// countered COPY (of a spell or ability) also vanishes here — same
-    /// shape, no card behind it either. Its apply removes the stack entry
-    /// whose `id` is the carried (minted, for a spell copy freshly minted)
-    /// token, and the backing object with it — no remint.
-    AbilityCountered {
-        id: ObjectId,
-        cause: Cause,
-    },
+    Copied(Copied),
+    AbilityActivated(AbilityActivated),
+    DamageDealt(DamageDealt),
+    ZoneChange(ZoneChange),
+    LifeLost(LifeLost),
+    LifeGained(LifeGained),
+    Attacking(Attacking),
+    Blocked(Blocked),
+    CoinFlipped(CoinFlipped),
+    DieRolled(DieRolled),
+    CounterPlaced(CounterPlaced),
+    CounterRemoved(CounterRemoved),
+    TriggerFired(TriggerFired),
+    AbilityUsed(AbilityUsed),
+    AbilityCountered(AbilityCountered),
     /// [CR#608.2n]: a triggered or activated ability finished resolving and
     /// vanishes — no zone move. [CR#707.10a]: a RESOLVED copy (of a spell)
     /// vanishes the same way instead of moving to a graveyard — it has no
     /// card to put there. Its apply removes the stack entry whose `id` is
     /// the carried (minted) token, and the backing object with it.
     AbilityResolved(ObjectId),
-    /// Cards shown ([CR#701.20a]); `to: None` = revealed to ALL players,
-    /// `Some` = "look at" — the same operation shown to a subset
-    /// ([CR#701.20e]). Revealing never moves the card ([CR#701.20b]).
-    /// The reveal window lasts for the containing resolving instruction;
-    /// revealing itself changes no game-state characteristic or zone.
-    Revealed {
-        objects: Vec<ObjectId>,
-        to: Option<Vec<PlayerId>>,
-    },
-    /// A GAME-scope designation transition in the W5 registry (day/night,
-    /// [CR#731.1] — "day becomes night" = losing one designation and
-    /// gaining the other, [CR#731.1a]). Shaped, unbuilt: designation
-    /// GRANTING effects are P0.W5/W6 seams. Object/player designation
-    /// deltas ride their own facts when granting lands.
-    DesignationChanged {
-        name: deckmaste_core::Ident,
-        becomes: Option<deckmaste_core::Ident>,
-    },
-    /// A player GAINED a player-scope designation ([CR#702.131c] — the city's
-    /// blessing). The object/player-scope counterpart to `DesignationChanged`
-    /// (which is game-scope). Idempotent at apply: a player who already holds
-    /// `name` is unchanged. The `GetDesignation` verb suppresses re-emission,
-    /// so this fact marks a genuine first acquisition.
-    GotDesignation {
-        player: PlayerId,
-        name: deckmaste_core::Ident,
-    },
+    Revealed(Revealed),
+    DesignationChanged(DesignationChanged),
+    GotDesignation(GotDesignation),
     /// A library was shuffled ([CR#701.24a]) — an INFORMATION event:
     /// order knowledge is destroyed for every player; revealed cards in
     /// it stop being revealed and become new objects ([CR#701.20d] —
     /// revealed-state reset is a P0.W6 seam). Why library actions never
     /// rewind: [CR#733.1].
     Shuffled(PlayerId),
-    /// An object became the target of the spell/ability `source` at
-    /// announce ([CR#601.2c]; ward is the family exemplar [CR#702.21a]).
-    /// Shaped, unbuilt: the announce flow emits it (P0.W7 seam).
-    BecameTarget {
-        target: ObjectId,
-        source: ObjectId,
-    },
-    /// An object changed controller — a becomes-delta, never a zone move
-    /// (the object keeps its identity). Shaped, unbuilt: control-changing
-    /// continuous effects are a layers seam (L2); its apply will re-home
-    /// the object and fire `EventFilter::ControlChanged` patterns.
-    ControlChanged {
-        object: ObjectId,
-        to: PlayerId,
-    },
-    /// An attachment became attached to a host ([CR#701.3a]; a re-attach is a
-    /// new timestamp per [CR#701.3c]). A fact for "whenever ~ becomes
-    /// attached / equipped"; the relation mutation happens in the `Attach`
-    /// verb's resolution, so apply only records this. Trigger-matching breadth
-    /// is a seam (events are shaped, §9).
-    Attached {
-        attachment: ObjectId,
-        host: ObjectId,
-    },
-    /// An attachment became unattached ([CR#701.3d]). A fact, mirroring
-    /// [`Attached`](GameEvent::Attached); apply only records it.
-    Unattached {
-        attachment: ObjectId,
-        former_host: ObjectId,
-    },
-    /// All marked damage was removed from `object` ([CR#614.8,701.19a] —
-    /// the regeneration heal clause). Applied by zeroing `damage` on the
-    /// object and removing it from combat ([CR#701.19a] "remove from combat").
-    DamageRemoved {
-        object: ObjectId,
-    },
+    BecameTarget(BecameTarget),
+    ControlChanged(ControlChanged),
+    Attached(Attached),
+    Unattached(Unattached),
+    DamageRemoved(DamageRemoved),
 }
 
 /// A future keyword action's unresolved contents + the resolution frame it was
@@ -657,27 +750,27 @@ impl GameEvent {
     #[must_use]
     pub fn audience(&self, state: &crate::state::GameState) -> Audience {
         match self {
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 object,
                 snapshot: None,
                 from: Some(from),
                 to,
                 ..
-            } if from.is_hidden() && to.is_hidden() => {
+            }) if from.is_hidden() && to.is_hidden() => {
                 Audience::Restricted(vec![state.owner_of(*object)])
             }
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: Some(snapshot),
                 from: Some(from),
                 to,
                 ..
-            } if from.is_hidden() && to.is_hidden() => match snapshot.source {
+            }) if from.is_hidden() && to.is_hidden() => match snapshot.source {
                 ObjectSource::Card(card) => Audience::Restricted(vec![state.cards.get(card).owner]),
                 ObjectSource::Player(p) => Audience::Restricted(vec![p]),
             },
-            GameEvent::Revealed {
+            GameEvent::Revealed(Revealed {
                 to: Some(players), ..
-            } => Audience::Restricted(players.clone()),
+            }) => Audience::Restricted(players.clone()),
             _ => Audience::Public,
         }
     }

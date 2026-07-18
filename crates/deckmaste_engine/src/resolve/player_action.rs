@@ -12,7 +12,22 @@ use deckmaste_core::Zone;
 use super::occurrence_of;
 use crate::agenda::WorkItem;
 use crate::event::Cause;
+use crate::event::Copied;
+use crate::event::CounterPlaced;
+use crate::event::CounterRemoved;
+use crate::event::DamageRemoved;
+use crate::event::EmblemCreated;
 use crate::event::GameEvent;
+use crate::event::GotDesignation;
+use crate::event::LifeGained;
+use crate::event::LifeLost;
+use crate::event::ManaAdded;
+use crate::event::PlayerLost;
+use crate::event::PlayerWon;
+use crate::event::Revealed;
+use crate::event::Tapped;
+use crate::event::TokenCreated;
+use crate::event::ZoneChange;
 use crate::stack::Frame;
 use crate::state::GameState;
 
@@ -49,12 +64,14 @@ impl GameState {
                     .eval_reference_set(sel, frame)
                     .into_iter()
                     .filter(|&object| !self.objects.obj(object).tapped)
-                    .map(|object| GameEvent::Tapped {
-                        object,
-                        cause: Some(Cause::tap(
-                            Agency::EffectInstruction,
-                            Some((frame.source, frame.controller)),
-                        )),
+                    .map(|object| {
+                        GameEvent::Tapped(Tapped {
+                            object,
+                            cause: Some(Cause::tap(
+                                Agency::EffectInstruction,
+                                Some((frame.source, frame.controller)),
+                            )),
+                        })
                     })
                     .collect();
                 if events.is_empty() {
@@ -65,17 +82,21 @@ impl GameState {
             }
             PlayerAction::LoseLife(qty) => {
                 let amount = self.eval_count(qty, frame);
-                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
-                    player: actor,
-                    amount,
-                }))]
+                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost(
+                    LifeLost {
+                        player: actor,
+                        amount,
+                    },
+                )))]
             }
             PlayerAction::GainLife(qty) => {
                 let amount = self.eval_count(qty, frame);
-                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained {
-                    player: actor,
-                    amount,
-                }))]
+                vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained(
+                    LifeGained {
+                        player: actor,
+                        amount,
+                    },
+                )))]
             }
             PlayerAction::Untap(sel) => {
                 // [CR#701.26b]: the mirror of `Tap` above — only a tapped
@@ -101,20 +122,22 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::ZoneChange {
-                        snapshot: None,
-                        object,
-                        from: Some(Zone::Battlefield),
-                        to: Zone::Graveyard,
-                        enters: None,
-                        position: None,
-                        // [CR#701.21a]: never a destruction — regeneration
-                        // can't replace it; the cause says so.
-                        face: None,
-                        cause: Some(Cause::sacrifice(
-                            Agency::EffectInstruction,
-                            Some((frame.source, actor)),
-                        )),
+                    .map(|object| {
+                        GameEvent::ZoneChange(ZoneChange {
+                            snapshot: None,
+                            object,
+                            from: Some(Zone::Battlefield),
+                            to: Zone::Graveyard,
+                            enters: None,
+                            position: None,
+                            // [CR#701.21a]: never a destruction — regeneration
+                            // can't replace it; the cause says so.
+                            face: None,
+                            cause: Some(Cause::sacrifice(
+                                Agency::EffectInstruction,
+                                Some((frame.source, actor)),
+                            )),
+                        })
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -141,10 +164,10 @@ impl GameState {
             // permanent; it never enters the battlefield).
             PlayerAction::GetEmblem(abilities) => {
                 vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::EmblemCreated {
+                    GameEvent::EmblemCreated(EmblemCreated {
                         player: actor,
                         abilities: abilities.clone(),
-                    },
+                    }),
                 ))]
             }
             // [CR#701.24a]: shuffle the actor's library; the Shuffled
@@ -162,14 +185,14 @@ impl GameState {
                     .expect("life total fits in i32");
                 let current = self.player(actor).life;
                 let event = match target.cmp(&current) {
-                    std::cmp::Ordering::Less => GameEvent::LifeLost {
+                    std::cmp::Ordering::Less => GameEvent::LifeLost(LifeLost {
                         player: actor,
                         amount: Uint::try_from(current - target).expect("positive difference"),
-                    },
-                    std::cmp::Ordering::Greater => GameEvent::LifeGained {
+                    }),
+                    std::cmp::Ordering::Greater => GameEvent::LifeGained(LifeGained {
                         player: actor,
                         amount: Uint::try_from(target - current).expect("positive difference"),
-                    },
+                    }),
                     std::cmp::Ordering::Equal => return vec![],
                 };
                 vec![WorkItem::Emit(Occurrence::single(event))]
@@ -184,9 +207,9 @@ impl GameState {
                 if self.gate_suppresses(&view, actor, deckmaste_core::OutcomeGateKind::CantWin) {
                     return vec![];
                 }
-                vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerWon {
-                    player: actor,
-                }))]
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerWon(
+                    PlayerWon { player: actor },
+                )))]
             }
             // [CR#104.3e]: "you lose the game", suppressed by a matching
             // `CantLose` gate ([CR#101.1]).
@@ -195,10 +218,12 @@ impl GameState {
                 if self.gate_suppresses(&view, actor, deckmaste_core::OutcomeGateKind::CantLose) {
                     return vec![];
                 }
-                vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerLost {
-                    player: actor,
-                    reason: crate::event::LossReason::Effect,
-                }))]
+                vec![WorkItem::Emit(Occurrence::single(GameEvent::PlayerLost(
+                    PlayerLost {
+                        player: actor,
+                        reason: crate::event::LossReason::Effect,
+                    },
+                )))]
             }
             PlayerAction::RestartGame => {
                 todo!("P0.W6: restart ([CR#727.1] — a terminal with carryover, not a reset)")
@@ -220,10 +245,12 @@ impl GameState {
                             None => return vec![],
                         },
                     };
-                    vec![WorkItem::Emit(Occurrence::single(GameEvent::Revealed {
-                        objects: vec![object],
-                        to,
-                    }))]
+                    vec![WorkItem::Emit(Occurrence::single(GameEvent::Revealed(
+                        Revealed {
+                            objects: vec![object],
+                            to,
+                        },
+                    )))]
                 }
             }
             // [CR#608.2c,608.2d,607.2] choose-and-note: a resolution choice
@@ -267,11 +294,13 @@ impl GameState {
             PlayerAction::CopySpell(what) => {
                 let original = self.eval_reference(what, frame);
                 if self.stack.iter().any(|e| e.id == original) {
-                    vec![WorkItem::Emit(Occurrence::single(GameEvent::Copied {
-                        original,
-                        copy: None,
-                        controller: actor,
-                    }))]
+                    vec![WorkItem::Emit(Occurrence::single(GameEvent::Copied(
+                        Copied {
+                            original,
+                            copy: None,
+                            controller: actor,
+                        },
+                    )))]
                 } else {
                     vec![]
                 }
@@ -361,19 +390,21 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::CounterPlaced {
-                        object,
-                        // The event carries the resolved Ident name (engine
-                        // state is Ident-keyed); the authored ref is a `CounterRef`.
-                        kind: kind.0,
-                        amount: n,
-                        // Apply-computed totals ([CR#714.2b]).
-                        before: 0,
-                        after: 0,
-                        cause: Some(crate::event::Cause::put_counters(
-                            deckmaste_core::Agency::EffectInstruction,
-                            Some((frame.source, frame.controller)),
-                        )),
+                    .map(|object| {
+                        GameEvent::CounterPlaced(CounterPlaced {
+                            object,
+                            // The event carries the resolved Ident name (engine
+                            // state is Ident-keyed); the authored ref is a `CounterRef`.
+                            kind: kind.0,
+                            amount: n,
+                            // Apply-computed totals ([CR#714.2b]).
+                            before: 0,
+                            after: 0,
+                            cause: Some(crate::event::Cause::put_counters(
+                                deckmaste_core::Agency::EffectInstruction,
+                                Some((frame.source, frame.controller)),
+                            )),
+                        })
                     })
                     .collect();
                 if events.is_empty() {
@@ -390,14 +421,16 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::CounterRemoved {
-                        object,
-                        kind: kind.0,
-                        amount: n,
-                        cause: Some(crate::event::Cause::remove_counters(
-                            deckmaste_core::Agency::EffectInstruction,
-                            Some((frame.source, frame.controller)),
-                        )),
+                    .map(|object| {
+                        GameEvent::CounterRemoved(CounterRemoved {
+                            object,
+                            kind: kind.0,
+                            amount: n,
+                            cause: Some(crate::event::Cause::remove_counters(
+                                deckmaste_core::Agency::EffectInstruction,
+                                Some((frame.source, frame.controller)),
+                            )),
+                        })
                     })
                     .collect();
                 if events.is_empty() {
@@ -422,12 +455,14 @@ impl GameState {
                 match spec {
                     // A fixed production needs no choice.
                     ManaSpec::Specific(mana) => {
-                        vec![WorkItem::Emit(Occurrence::Single(GameEvent::ManaAdded {
-                            player: actor,
-                            mana: *mana,
-                            amount,
-                            riders,
-                        }))]
+                        vec![WorkItem::Emit(Occurrence::Single(GameEvent::ManaAdded(
+                            ManaAdded {
+                                player: actor,
+                                mana: *mana,
+                                amount,
+                                riders,
+                            },
+                        )))]
                     }
                     // [CR#106.1b]: the actor chooses on resolution — surfaced
                     // explicitly even when only one option exists (engine
@@ -531,9 +566,11 @@ impl GameState {
                 };
                 let n = self.eval_count(qty, frame);
                 let events: Vec<GameEvent> = (0..n)
-                    .map(|_| GameEvent::TokenCreated {
-                        player: actor,
-                        token: token.clone(),
+                    .map(|_| {
+                        GameEvent::TokenCreated(TokenCreated {
+                            player: actor,
+                            token: token.clone(),
+                        })
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -546,10 +583,10 @@ impl GameState {
                     vec![]
                 } else {
                     vec![WorkItem::Emit(Occurrence::Single(
-                        GameEvent::GotDesignation {
+                        GameEvent::GotDesignation(GotDesignation {
                             player: actor,
                             name: *name,
-                        },
+                        }),
                     ))]
                 }
             }
@@ -561,7 +598,7 @@ impl GameState {
                 let events: Vec<GameEvent> = self
                     .eval_reference_set(sel, frame)
                     .into_iter()
-                    .map(|object| GameEvent::DamageRemoved { object })
+                    .map(|object| GameEvent::DamageRemoved(DamageRemoved { object }))
                     .collect();
                 if events.is_empty() {
                     vec![]
@@ -594,8 +631,14 @@ mod tests {
 
     use crate::PendingDecision;
     use crate::agenda::WorkItem;
+    use crate::event::CoinFlipped;
+    use crate::event::DieRolled;
     use crate::event::GameEvent;
     use crate::event::Occurrence;
+    use crate::event::PlayerLost;
+    use crate::event::PlayerWon;
+    use crate::event::TokenCreated;
+    use crate::event::ZoneChange;
     use crate::matches as obj_matches;
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
@@ -932,10 +975,10 @@ mod tests {
         assert_eq!(made.len(), 2);
         assert!(made.iter().all(|e| matches!(
             e,
-            GameEvent::TokenCreated {
+            GameEvent::TokenCreated(TokenCreated {
                 player: PlayerId(0),
                 ..
-            }
+            })
         )));
 
         let tokens: Vec<ObjectId> = state
@@ -968,12 +1011,12 @@ mod tests {
                 assert_eq!(facts.len(), 2, "both entry facts in one batch");
                 assert!(facts.iter().all(|e| matches!(
                     e,
-                    GameEvent::ZoneChange {
+                    GameEvent::ZoneChange(ZoneChange {
                         snapshot: Some(_),
                         from: None,
                         to: Zone::Battlefield,
                         ..
-                    }
+                    })
                 )));
             }
             other => panic!("expected the tokens' past-form ZoneChange batch, got {other:?}"),
@@ -1132,13 +1175,13 @@ mod tests {
     fn win_and_lose_batch_arbitration_drops_the_win() {
         let (mut state, _bear) = bear_on_field();
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
-            GameEvent::PlayerWon {
+            GameEvent::PlayerWon(PlayerWon {
                 player: PlayerId(0),
-            },
-            GameEvent::PlayerLost {
+            }),
+            GameEvent::PlayerLost(PlayerLost {
                 player: PlayerId(0),
                 reason: crate::event::LossReason::LifeZero,
-            },
+            }),
         ]))]);
         let _ = state.step();
         assert!(state.players[0].lost, "the loss still applies");
@@ -1169,7 +1212,7 @@ mod tests {
             .history
             .entries()
             .filter_map(|e| match &e.fact {
-                GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
                 _ => None,
             })
             .collect();
@@ -1206,9 +1249,9 @@ mod tests {
             .history
             .entries()
             .filter_map(|e| match &e.fact {
-                GameEvent::DieRolled {
+                GameEvent::DieRolled(DieRolled {
                     natural, result, ..
-                } => Some((*natural, *result)),
+                }) => Some((*natural, *result)),
                 _ => None,
             })
             .collect();
@@ -1302,7 +1345,7 @@ mod tests {
                 .history
                 .entries()
                 .filter_map(|e| match &e.fact {
-                    GameEvent::CoinFlipped { heads, .. } => Some(*heads),
+                    GameEvent::CoinFlipped(CoinFlipped { heads, .. }) => Some(*heads),
                     _ => None,
                 })
                 .collect();
@@ -1310,7 +1353,7 @@ mod tests {
                 .history
                 .entries()
                 .filter_map(|e| match &e.fact {
-                    GameEvent::DieRolled { natural, .. } => Some(*natural),
+                    GameEvent::DieRolled(DieRolled { natural, .. }) => Some(*natural),
                     _ => None,
                 })
                 .collect();
@@ -1362,7 +1405,7 @@ mod tests {
             .history
             .entries()
             .filter_map(|e| match &e.fact {
-                GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
                 _ => None,
             })
             .collect();
@@ -1416,7 +1459,7 @@ mod tests {
             .history
             .entries()
             .filter_map(|e| match &e.fact {
-                GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
                 _ => None,
             })
             .collect();
@@ -1600,7 +1643,7 @@ mod tests {
                 .history
                 .entries()
                 .filter_map(|e| match &e.fact {
-                    GameEvent::CoinFlipped { won, .. } => Some(*won),
+                    GameEvent::CoinFlipped(CoinFlipped { won, .. }) => Some(*won),
                     _ => None,
                 })
                 .collect();
@@ -1666,7 +1709,7 @@ mod tests {
             .history
             .entries()
             .filter_map(|e| match &e.fact {
-                GameEvent::CoinFlipped { won, .. } => Some(*won),
+                GameEvent::CoinFlipped(CoinFlipped { won, .. }) => Some(*won),
                 _ => None,
             })
             .collect();
@@ -1816,7 +1859,7 @@ mod tests {
                 .history
                 .entries()
                 .filter_map(|e| match &e.fact {
-                    GameEvent::CoinFlipped { heads, won, .. } => Some((*heads, *won)),
+                    GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
                     _ => None,
                 })
                 .collect();
@@ -1824,9 +1867,9 @@ mod tests {
                 .history
                 .entries()
                 .filter_map(|e| match &e.fact {
-                    GameEvent::DieRolled {
+                    GameEvent::DieRolled(DieRolled {
                         natural, result, ..
-                    } => Some((*natural, *result)),
+                    }) => Some((*natural, *result)),
                     _ => None,
                 })
                 .collect();
@@ -1834,12 +1877,12 @@ mod tests {
                 .history
                 .entries()
                 .filter_map(|e| match &e.fact {
-                    GameEvent::ZoneChange {
+                    GameEvent::ZoneChange(ZoneChange {
                         snapshot: Some(snapshot),
                         from: Some(Zone::Hand),
                         to: Zone::Graveyard,
                         ..
-                    } => minted.iter().position(|&m| m == snapshot.source),
+                    }) => minted.iter().position(|&m| m == snapshot.source),
                     _ => None,
                 })
                 .collect();

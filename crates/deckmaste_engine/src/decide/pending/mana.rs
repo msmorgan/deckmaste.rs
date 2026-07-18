@@ -5,6 +5,7 @@ use crate::decide::Decision;
 use crate::decide::DecisionError;
 use crate::decide::DecisionHandler;
 use crate::event::GameEvent;
+use crate::event::ManaAdded;
 use crate::event::Occurrence;
 use crate::player::PlayerId;
 use crate::state::GameState;
@@ -34,12 +35,12 @@ impl DecisionHandler for ChooseManaColor {
         let (player, amount, riders) = (self.player, self.amount, self.riders);
         g.pending = None;
         g.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ManaAdded {
+            GameEvent::ManaAdded(ManaAdded {
                 player,
                 mana,
                 amount,
                 riders,
-            },
+            }),
         ))]);
         Ok(())
     }
@@ -75,11 +76,13 @@ impl DecisionHandler for ChooseManaMode {
         let (player, amount, riders) = (self.player, self.amount, self.riders);
         let events = run
             .iter()
-            .map(|&mana| GameEvent::ManaAdded {
-                player,
-                mana,
-                amount,
-                riders: riders.clone(),
+            .map(|&mana| {
+                GameEvent::ManaAdded(ManaAdded {
+                    player,
+                    mana,
+                    amount,
+                    riders: riders.clone(),
+                })
             })
             .collect();
         g.pending = None;

@@ -17,7 +17,17 @@ use deckmaste_core::Replacement;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
 
+use crate::event::AbilityActivated;
+use crate::event::CounterPlaced;
+use crate::event::CounterRemoved;
+use crate::event::DamageDealt;
+use crate::event::DesignationChanged;
 use crate::event::GameEvent;
+use crate::event::GotDesignation;
+use crate::event::LifeGained;
+use crate::event::LifeLost;
+use crate::event::TokenCreated;
+use crate::event::ZoneChange;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
@@ -56,17 +66,17 @@ pub(crate) fn replaceable(e: &GameEvent) -> bool {
         GameEvent::Act {
             committed: false,
             ..
-        } | GameEvent::ZoneChange { snapshot: None, .. }
-            | GameEvent::DamageDealt { .. }
-            | GameEvent::LifeGained { .. }
-            | GameEvent::LifeLost { .. }
-            | GameEvent::CounterPlaced { .. }
-            | GameEvent::CounterRemoved { .. }
+        } | GameEvent::ZoneChange(ZoneChange { snapshot: None, .. })
+            | GameEvent::DamageDealt(DamageDealt { .. })
+            | GameEvent::LifeGained(LifeGained { .. })
+            | GameEvent::LifeLost(LifeLost { .. })
+            | GameEvent::CounterPlaced(CounterPlaced { .. })
+            | GameEvent::CounterRemoved(CounterRemoved { .. })
             | GameEvent::SpellCast(_)
-            | GameEvent::AbilityActivated { .. }
-            | GameEvent::TokenCreated { .. }
-            | GameEvent::GotDesignation { .. }
-            | GameEvent::DesignationChanged { .. }
+            | GameEvent::AbilityActivated(AbilityActivated { .. })
+            | GameEvent::TokenCreated(TokenCreated { .. })
+            | GameEvent::GotDesignation(GotDesignation { .. })
+            | GameEvent::DesignationChanged(DesignationChanged { .. })
     )
 }
 
@@ -81,10 +91,12 @@ pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
         GameEvent::Act {
             on: Some(object), ..
         }
-        | GameEvent::ZoneChange { object, .. }
-        | GameEvent::CounterPlaced { object, .. }
-        | GameEvent::CounterRemoved { object, .. }
-        | GameEvent::DamageDealt { target: object, .. } => Some(Affected::Object(*object)),
+        | GameEvent::ZoneChange(ZoneChange { object, .. })
+        | GameEvent::CounterPlaced(CounterPlaced { object, .. })
+        | GameEvent::CounterRemoved(CounterRemoved { object, .. })
+        | GameEvent::DamageDealt(DamageDealt { target: object, .. }) => {
+            Some(Affected::Object(*object))
+        }
         // A player-report keyword action (`Act(Draw)`, scry/mill/…) with no
         // patient affects its performer — a draw replacement reads the drawing
         // player ([CR#121.1,616.1]).
@@ -93,11 +105,15 @@ pub(crate) fn affected(e: &GameEvent) -> Option<Affected> {
             on: None,
             ..
         }
-        | GameEvent::LifeGained { player, .. }
-        | GameEvent::LifeLost { player, .. }
-        | GameEvent::GotDesignation { player, .. } => Some(Affected::Player(*player)),
+        | GameEvent::LifeGained(LifeGained { player, .. })
+        | GameEvent::LifeLost(LifeLost { player, .. })
+        | GameEvent::GotDesignation(GotDesignation { player, .. }) => {
+            Some(Affected::Player(*player))
+        }
         GameEvent::SpellCast(o) => Some(Affected::Object(*o)),
-        GameEvent::AbilityActivated { source, .. } => Some(Affected::Object(*source)),
+        GameEvent::AbilityActivated(AbilityActivated { source, .. }) => {
+            Some(Affected::Object(*source))
+        }
         _ => None,
     }
 }
@@ -300,10 +316,10 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     if let Some(Affected::Object(obj)) = affected(e)
         && !matches!(
             e,
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 to: Zone::Battlefield,
                 ..
-            }
+            })
         )
         && state
             .objects
@@ -360,11 +376,11 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     }
 
     // Static preventions on every battlefield object (watching damage events).
-    if let GameEvent::DamageDealt {
+    if let GameEvent::DamageDealt(DamageDealt {
         source: event_source,
         target: event_target,
         ..
-    } = *e
+    }) = *e
     {
         for &obj in &state.zones.battlefield {
             // DERIVED read (see the replacement sweep above): a conferred damage
@@ -594,9 +610,9 @@ pub(crate) fn replace_event(state: &mut GameState, e: GameEvent) -> ReplaceOutco
 /// Mirrors the `apply`-funnel set ([CR#120.3], damage/life amounts).
 fn intent_magnitude(e: &GameEvent) -> Option<deckmaste_core::Uint> {
     match e {
-        GameEvent::DamageDealt { amount, .. }
-        | GameEvent::LifeLost { amount, .. }
-        | GameEvent::LifeGained { amount, .. } => Some(*amount),
+        GameEvent::DamageDealt(DamageDealt { amount, .. })
+        | GameEvent::LifeLost(LifeLost { amount, .. })
+        | GameEvent::LifeGained(LifeGained { amount, .. }) => Some(*amount),
         // [CR#616.1g,121.2a]: the `Batch` aggregate window's own cardinality —
         // a count-multiplying `Instead` (Bruvac-style "mill twice that many")
         // reads it here, off the replaced AGGREGATE intent, before any
@@ -669,12 +685,12 @@ fn apply_one(
             }
         }
         ApplicableEffect::Prevention(prevention) => {
-            if let GameEvent::DamageDealt {
+            if let GameEvent::DamageDealt(DamageDealt {
                 source: event_source,
                 target: event_target,
                 amount,
                 combat,
-            } = e
+            }) = e
             {
                 match prevention.as_ref() {
                     Prevention::PreventAll { .. } => {
@@ -690,12 +706,12 @@ fn apply_one(
                         if amount <= n_val {
                             None
                         } else {
-                            Some(GameEvent::DamageDealt {
+                            Some(GameEvent::DamageDealt(DamageDealt {
                                 source: event_source,
                                 target: event_target,
                                 amount: amount - n_val,
                                 combat,
-                            })
+                            }))
                         }
                     }
                     Prevention::PreventNextInstance { .. } => {
@@ -1150,7 +1166,7 @@ mod tests {
             on: Predicate::Ref(Reference::This),
             cause: None,
         };
-        let e = GameEvent::ZoneChange {
+        let e = GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             object: id,
             from: Some(Zone::Battlefield),
@@ -1159,7 +1175,7 @@ mod tests {
             position: None,
             face: None,
             cause: Some(Cause::sacrifice(Agency::EffectInstruction, None)),
-        };
+        });
         assert!(!replacement_watches(&state, &would, id, &e));
     }
 
@@ -1269,18 +1285,20 @@ mod tests {
         // A cause-bearing ZoneChange-view intent (the `Act(Destroy)` filter
         // narrows by patient, not agent, so the agent lift is exercised on the
         // still-cause-bearing future-form `ZoneChange` — same would-lane mechanism).
-        let intent = |agent| GameEvent::ZoneChange {
-            snapshot: None,
-            object: id,
-            from: Some(Zone::Battlefield),
-            to: Zone::Graveyard,
-            enters: None,
-            position: None,
-            face: None,
-            cause: Some(crate::event::Cause::destroy(
-                deckmaste_core::Agency::EffectInstruction,
-                agent,
-            )),
+        let intent = |agent| {
+            GameEvent::ZoneChange(ZoneChange {
+                snapshot: None,
+                object: id,
+                from: Some(Zone::Battlefield),
+                to: Zone::Graveyard,
+                enters: None,
+                position: None,
+                face: None,
+                cause: Some(crate::event::Cause::destroy(
+                    deckmaste_core::Agency::EffectInstruction,
+                    agent,
+                )),
+            })
         };
         assert!(
             replacement_watches(
@@ -1556,18 +1574,18 @@ mod tests {
         };
 
         // `this == source_a`: damage from A fires the watch; damage from B does not.
-        let from_a = GameEvent::DamageDealt {
+        let from_a = GameEvent::DamageDealt(DamageDealt {
             source: source_a,
             target,
             amount: 2,
             combat: false,
-        };
-        let from_b = GameEvent::DamageDealt {
+        });
+        let from_b = GameEvent::DamageDealt(DamageDealt {
             source: source_b,
             target,
             amount: 2,
             combat: false,
-        };
+        });
         assert!(
             replacement_watches(&state, &would, source_a, &from_a),
             "a `source: Ref(This)` would watches damage from its own source"
@@ -1615,12 +1633,12 @@ mod tests {
             }),
         ));
         let source = super::tests_support::mint_creature_on_battlefield(&mut state);
-        let e = GameEvent::DamageDealt {
+        let e = GameEvent::DamageDealt(DamageDealt {
             source,
             target: id,
             amount: 3,
             combat: false,
-        };
+        });
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 1, "prevention is applicable to the damage event");
 
@@ -1648,17 +1666,17 @@ mod tests {
             }),
         ));
         let source = super::tests_support::mint_creature_on_battlefield(&mut state);
-        let e = GameEvent::DamageDealt {
+        let e = GameEvent::DamageDealt(DamageDealt {
             source,
             target: id,
             amount: 3,
             combat: false,
-        };
+        });
         let app = gather_applicable(&state, &e);
         assert_eq!(app.len(), 1, "prevention is applicable");
 
         let outcome = replace_event(&mut state, e);
-        if let ReplaceOutcome::Pass(GameEvent::DamageDealt { amount, .. }) = outcome {
+        if let ReplaceOutcome::Pass(GameEvent::DamageDealt(DamageDealt { amount, .. })) = outcome {
             assert_eq!(amount, 1, "3 damage is reduced by 2 to 1");
         } else {
             panic!("expected Pass with reduced amount, got {outcome:?}");
@@ -1679,7 +1697,7 @@ mod tests {
             to: Some(Zone::Graveyard),
             cause: None,
         };
-        let e = GameEvent::ZoneChange {
+        let e = GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             object: id,
             from: Some(Zone::Battlefield),
@@ -1688,7 +1706,7 @@ mod tests {
             position: None,
             face: None,
             cause: Some(Cause::sacrifice(Agency::EffectInstruction, None)),
-        };
+        });
         assert!(
             replacement_watches(&state, &would, id, &e),
             "a graveyard replacement intercepts a sacrifice [CR#701.21a]"
@@ -1743,7 +1761,7 @@ mod tests {
             })
             .collect();
 
-        let e = GameEvent::ZoneChange {
+        let e = GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             object: id,
             from: Some(Zone::Hand),
@@ -1752,7 +1770,7 @@ mod tests {
             position: None,
             face: None,
             cause: Some(Cause::discard(Agency::EffectInstruction, None)),
-        };
+        });
         surface_choice(
             &mut state,
             e,

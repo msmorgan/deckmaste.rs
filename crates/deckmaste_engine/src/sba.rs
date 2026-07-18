@@ -10,10 +10,14 @@ use deckmaste_core::Agency;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
+use crate::event::AbilityCountered;
 use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::LossReason;
 use crate::event::Occurrence;
+use crate::event::PlayerLost;
+use crate::event::Unattached;
+use crate::event::ZoneChange;
 use crate::object::ObjectId;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -61,10 +65,10 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         if let Some(reason) = reason
             && !state.gate_suppresses(&view, player.id, deckmaste_core::OutcomeGateKind::CantLose)
         {
-            actions.push(GameEvent::PlayerLost {
+            actions.push(GameEvent::PlayerLost(PlayerLost {
                 player: player.id,
                 reason,
-            });
+            }));
         }
     }
 
@@ -119,10 +123,10 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
                 .get(*spell)
                 .is_some_and(|o| o.zone != Some(Zone::Stack))
         {
-            actions.push(GameEvent::AbilityCountered {
+            actions.push(GameEvent::AbilityCountered(AbilityCountered {
                 id: entry.id,
                 cause: Cause::counter(Agency::StateBasedAction, None),
-            });
+            }));
         }
     }
 
@@ -187,10 +191,10 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
         {
             // Becomes unattached, stays on the battlefield. The `attached_to`
             // clear happens at the `Unattached` apply (transition-only).
-            out.push(GameEvent::Unattached {
+            out.push(GameEvent::Unattached(Unattached {
                 attachment: id,
                 former_host: host,
-            });
+            }));
         }
     }
 
@@ -266,11 +270,11 @@ fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
 fn stamp_sba_cause(ev: &mut GameEvent) {
     let cause_slot = match ev {
         GameEvent::Act { cause, .. }
-        | GameEvent::ZoneChange {
+        | GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             cause,
             ..
-        } => Some(cause),
+        }) => Some(cause),
         _ => None,
     };
     let Some(cause_opt) = cause_slot else {
@@ -390,8 +394,14 @@ mod tests {
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
+    use crate::event::CounterRemoved;
+    use crate::event::DamageDealt;
     use crate::event::GameEvent;
+    use crate::event::GotDesignation;
     use crate::event::Occurrence;
+    use crate::event::PlayerLost;
+    use crate::event::Unattached;
+    use crate::event::ZoneChange;
     use crate::matches as obj_matches;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
@@ -571,7 +581,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == aura)),
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == aura)),
             "a graduated wizards Aura's Innate graveyard SBA fires when unattached \
              ([CR#704.5m]); got {actions:?}"
         );
@@ -661,7 +671,7 @@ mod tests {
         for kind in ["P1P1Counter", "M1M1Counter"] {
             assert!(
                 actions.iter().any(|e| matches!(e,
-                    GameEvent::CounterRemoved { object, kind: k, amount: 2, .. }
+                    GameEvent::CounterRemoved(CounterRemoved { object, kind: k, amount: 2, .. })
                     if *object == bear && *k == deckmaste_core::Ident::from(kind))),
                 "removes 2 {kind}; got {actions:?}"
             );
@@ -683,7 +693,7 @@ mod tests {
         assert!(
             actions
                 .iter()
-                .all(|e| !matches!(e, GameEvent::CounterRemoved { .. })),
+                .all(|e| !matches!(e, GameEvent::CounterRemoved(CounterRemoved { .. }))),
             "no annihilation without both kinds; got {actions:?}"
         );
     }
@@ -828,7 +838,7 @@ mod tests {
 
         // Put it into the graveyard (the generic move: remint + LKI).
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object: token_obj,
                 from: Some(Zone::Battlefield),
@@ -837,7 +847,7 @@ mod tests {
                 position: None,
                 face: None,
                 cause: None,
-            },
+            }),
         ))]);
         let _ = state.step(); // the move applies
         let _ = state.step(); // its past-form ZoneChange fact
@@ -981,7 +991,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == aura)),
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == aura)),
             "unattached Aura is moved to the graveyard ([CR#704.5m]); got {actions:?}"
         );
     }
@@ -1031,7 +1041,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == aura)),
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == aura)),
             "Innate graveyard SBA survives LoseAllAbilities ([CR#113.12,704.5m]); got {actions:?}"
         );
 
@@ -1069,7 +1079,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == aura)),
+                .any(|e| matches!(e, GameEvent::ZoneChange(ZoneChange { snapshot: None, object, .. }) if *object == aura)),
             "legally-attached Aura stays put; got {actions:?}"
         );
     }
@@ -1095,7 +1105,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::Unattached { attachment, former_host }
+                GameEvent::Unattached(Unattached { attachment, former_host })
                 if *attachment == equip && *former_host == rock)),
             "illegally-attached Equipment becomes unattached ([CR#704.5n]); got {actions:?}"
         );
@@ -1103,7 +1113,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == equip)),
+                .any(|e| matches!(e, GameEvent::ZoneChange(ZoneChange { snapshot: None, object, .. }) if *object == equip)),
             "Equipment stays on the battlefield, not graveyard"
         );
     }
@@ -1144,7 +1154,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::Unattached { attachment, former_host }
+                GameEvent::Unattached(Unattached { attachment, former_host })
                 if *attachment == thing && *former_host == protected)),
             "plain permanent on an illegal host becomes unattached ([CR#704.5p]); got {actions:?}"
         );
@@ -1213,7 +1223,7 @@ mod tests {
         assert!(
             sba::sweep(&state)
                 .iter()
-                .all(|e| !matches!(e, GameEvent::GotDesignation { .. })),
+                .all(|e| !matches!(e, GameEvent::GotDesignation(GotDesignation { .. }))),
             "no blessing at nine permanents"
         );
 
@@ -1222,7 +1232,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::GotDesignation { player, name: n } if *player == p0 && *n == name)),
+                GameEvent::GotDesignation(GotDesignation { player, name: n }) if *player == p0 && *n == name)),
             "blessing granted at ten permanents; got {actions:?}"
         );
 
@@ -1233,7 +1243,7 @@ mod tests {
         assert!(
             sba::sweep(&state)
                 .iter()
-                .all(|e| !matches!(e, GameEvent::GotDesignation { .. })),
+                .all(|e| !matches!(e, GameEvent::GotDesignation(GotDesignation { .. }))),
             "already-held: the Not(Designated) guard stops re-granting"
         );
     }
@@ -1341,12 +1351,12 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::GotDesignation { player, name: n } if *player == p0 && *n == name)),
+                GameEvent::GotDesignation(GotDesignation { player, name: n }) if *player == p0 && *n == name)),
             "p0 gets the blessing; got {actions:?}"
         );
         assert!(
             actions.iter().any(|e| matches!(e,
-                GameEvent::GotDesignation { player, name: n } if *player == p1 && *n == name)),
+                GameEvent::GotDesignation(GotDesignation { player, name: n }) if *player == p1 && *n == name)),
             "p1 gets the blessing; got {actions:?}"
         );
 
@@ -1382,7 +1392,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == bear
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == bear
             )),
             "toughness-0 creature should be put into its graveyard (a Move, not a destroy); \
              got {actions:?}"
@@ -1445,15 +1455,15 @@ mod tests {
             .iter()
             .find(|e| {
                 matches!(e,
-                    GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }
+                    GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. })
                     if *object == bear)
             })
             .expect("toughness-0 future-form ZoneChange must be present");
-        let GameEvent::ZoneChange {
+        let GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             cause: Some(c),
             ..
-        } = move_ev
+        }) = move_ev
         else {
             panic!(
                 "rules-SBA future-form ZoneChange must carry a cause after the stamp; got {move_ev:?}"
@@ -1483,7 +1493,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == pw
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == pw
             )),
             "a planeswalker with loyalty 0 is put into its graveyard; got {actions:?}"
         );
@@ -1497,7 +1507,7 @@ mod tests {
         assert!(
             !actions
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == pw)),
+                .any(|e| matches!(e, GameEvent::ZoneChange(ZoneChange { snapshot: None, object, .. }) if *object == pw)),
             "loyalty 3 planeswalker survives the sweep; got {actions:?}"
         );
     }
@@ -1515,7 +1525,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == battle
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == battle
             )),
             "a battle with defense 0 is put into its graveyard; got {actions:?}"
         );
@@ -1528,7 +1538,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             !actions.iter().any(
-                |e| matches!(e, GameEvent::ZoneChange { snapshot: None, object, .. } if *object == battle)
+                |e| matches!(e, GameEvent::ZoneChange(ZoneChange { snapshot: None, object, .. }) if *object == battle)
             ),
             "defense 4 battle survives the sweep; got {actions:?}"
         );
@@ -1795,12 +1805,12 @@ mod tests {
         // through the real event pipeline — the apply captures the source's
         // deal-time abilities onto the mark.
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source,
                 target: bear,
                 amount: 1,
                 combat: true,
-            },
+            }),
         ))]);
         let _ = state.step(); // the DamageDealt applies, marking the damage
         assert_eq!(
@@ -1890,7 +1900,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. } if *object == bear
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == bear
             )),
             "toughness-0 creature must get the Move; got {actions:?}"
         );
@@ -1998,7 +2008,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             !actions.iter().any(
-                |e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == PlayerId(0))
+                |e| matches!(e, GameEvent::PlayerLost(PlayerLost { player, .. }) if *player == PlayerId(0))
             ),
             "Platinum Angel suppresses the life-zero loss"
         );
@@ -2010,7 +2020,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::PlayerLost { player, reason: crate::event::LossReason::LifeZero }
+                GameEvent::PlayerLost(PlayerLost { player, reason: crate::event::LossReason::LifeZero })
                     if *player == PlayerId(0)
             )),
             "loss fires once the gate is gone"
@@ -2059,7 +2069,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             !actions.iter().any(
-                |e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == PlayerId(0))
+                |e| matches!(e, GameEvent::PlayerLost(PlayerLost { player, .. }) if *player == PlayerId(0))
             ),
             "Platinum Angel suppresses the poison loss"
         );
@@ -2071,7 +2081,7 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(
                 e,
-                GameEvent::PlayerLost { player, reason: crate::event::LossReason::Poison }
+                GameEvent::PlayerLost(PlayerLost { player, reason: crate::event::LossReason::Poison })
                     if *player == PlayerId(0)
             )),
             "loss fires once the gate is gone"
@@ -2126,7 +2136,7 @@ mod tests {
         let actions = sba::sweep(&state);
         assert!(
             !actions.iter().any(
-                |e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == PlayerId(0))
+                |e| matches!(e, GameEvent::PlayerLost(PlayerLost { player, .. }) if *player == PlayerId(0))
             ),
             "no retroactive empty-draw loss after the window lapsed"
         );

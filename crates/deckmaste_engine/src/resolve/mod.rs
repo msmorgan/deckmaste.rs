@@ -9,9 +9,11 @@ use deckmaste_core::TargetSpec;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
+use crate::event::AbilityCountered;
 use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
+use crate::event::ZoneChange;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::stack::Anaphora;
@@ -116,7 +118,7 @@ impl GameState {
                         None
                     };
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::ZoneChange {
+                        GameEvent::ZoneChange(ZoneChange {
                             snapshot: None,
                             object: spell,
                             from: Some(Zone::Stack),
@@ -125,7 +127,7 @@ impl GameState {
                             position: None,
                             face: None,
                             cause: None,
-                        },
+                        }),
                     ))]);
                 } else if self.targets_still_legal(&entry) {
                     // Instant/sorcery with all targets still legal: run its effect.
@@ -149,7 +151,7 @@ impl GameState {
                         // ability vanishing ([CR#608.2n]).
                         GameEvent::AbilityResolved(spell)
                     } else {
-                        GameEvent::ZoneChange {
+                        GameEvent::ZoneChange(ZoneChange {
                             snapshot: None,
                             object: spell,
                             from: Some(Zone::Stack),
@@ -158,7 +160,7 @@ impl GameState {
                             position: None,
                             face: None,
                             cause: None,
-                        }
+                        })
                     };
                     self.schedule_front(vec![
                         WorkItem::RunEffect {
@@ -172,15 +174,15 @@ impl GameState {
                     // — no zone move, no card. Same shape as a triggered
                     // ability vanishing ([CR#608.2n]).
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::AbilityCountered {
+                        GameEvent::AbilityCountered(AbilityCountered {
                             id: spell,
                             cause: Cause::counter(Agency::StateBasedAction, None),
-                        },
+                        }),
                     ))]);
                 } else {
                     // [CR#608.2b]: all targets illegal — the spell fizzles.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::ZoneChange {
+                        GameEvent::ZoneChange(ZoneChange {
                             snapshot: None,
                             object: spell,
                             from: Some(Zone::Stack),
@@ -189,7 +191,7 @@ impl GameState {
                             position: None,
                             face: None,
                             cause: Some(Cause::counter(Agency::StateBasedAction, None)),
-                        },
+                        }),
                     ))]);
                 }
             }
@@ -258,10 +260,10 @@ impl GameState {
                 } else {
                     // [CR#608.2b]: every target illegal — fizzle, vanish.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::AbilityCountered {
+                        GameEvent::AbilityCountered(AbilityCountered {
                             id: entry.id,
                             cause: Cause::counter(Agency::StateBasedAction, None),
-                        },
+                        }),
                     ))]);
                 }
             }
@@ -303,10 +305,10 @@ impl GameState {
                 } else {
                     // [CR#608.2b]: every target illegal — fizzle, vanish.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::AbilityCountered {
+                        GameEvent::AbilityCountered(AbilityCountered {
                             id: entry.id,
                             cause: Cause::counter(Agency::StateBasedAction, None),
-                        },
+                        }),
                     ))]);
                 }
             }

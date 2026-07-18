@@ -27,6 +27,7 @@ use crate::decide::PendingDecision;
 use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
+use crate::event::Tapped;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::ManaPool;
@@ -1582,10 +1583,15 @@ impl GameState {
                 // these items, then `AbilityActivated`.
                 let mut items: Vec<WorkItem> = Vec::new();
                 if summary.tap {
-                    items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
-                        object: source,
-                        cause: Some(Cause::tap(Agency::CostPayment, Some((source, controller)))),
-                    })));
+                    items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped(
+                        Tapped {
+                            object: source,
+                            cause: Some(Cause::tap(
+                                Agency::CostPayment,
+                                Some((source, controller)),
+                            )),
+                        },
+                    ))));
                 }
                 if summary.untap {
                     items.push(WorkItem::Emit(Occurrence::single(GameEvent::Untapped(
@@ -1632,13 +1638,15 @@ impl GameState {
                 for req in &summary.tap_totals {
                     if let Some(subset) = self.tap_total_subset(req, source, controller) {
                         for tapped in subset {
-                            items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
-                                object: tapped,
-                                cause: Some(Cause::tap(
-                                    Agency::CostPayment,
-                                    Some((source, controller)),
-                                )),
-                            })));
+                            items.push(WorkItem::Emit(Occurrence::single(GameEvent::Tapped(
+                                Tapped {
+                                    object: tapped,
+                                    cause: Some(Cause::tap(
+                                        Agency::CostPayment,
+                                        Some((source, controller)),
+                                    )),
+                                },
+                            ))));
                         }
                     }
                 }
@@ -1801,10 +1809,10 @@ impl GameState {
         controller: PlayerId,
     ) -> WorkItem {
         match act {
-            PayAct::TapToPay(_) => WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
+            PayAct::TapToPay(_) => WorkItem::Emit(Occurrence::single(GameEvent::Tapped(Tapped {
                 object: resource,
                 cause: Some(Cause::tap(Agency::CostPayment, Some((spell, controller)))),
-            })),
+            }))),
             PayAct::ExileToPay(_) => WorkItem::Emit(Occurrence::single(
                 self.relocate_from_current(resource, Zone::Exile, None),
             )),

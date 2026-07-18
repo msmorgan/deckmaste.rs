@@ -14,7 +14,11 @@ use deckmaste_core::Replacement;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
 
+#[cfg(test)]
+use crate::event::Attached;
 use crate::event::EnterStatus;
+#[cfg(test)]
+use crate::event::ZoneChange;
 use crate::object::ObjectSource;
 use crate::state::GameState;
 
@@ -363,7 +367,7 @@ mod tests {
             .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
@@ -372,7 +376,7 @@ mod tests {
                 position: None,
                 face: None,
                 cause: None,
-            },
+            }),
         ))]);
         for _ in 0..30 {
             if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
@@ -404,8 +408,10 @@ mod tests {
             state
                 .history
                 .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
-                .any(|e| matches!(e, GameEvent::Attached { attachment, host: h }
-                    if *attachment == aura && *h == host)),
+                .any(
+                    |e| matches!(e, GameEvent::Attached(Attached { attachment, host: h })
+                    if *attachment == aura && *h == host)
+                ),
             "the Attached fact was recorded on entry"
         );
     }
@@ -426,7 +432,7 @@ mod tests {
             !state
                 .history
                 .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
-                .any(|e| matches!(e, GameEvent::Attached { .. })),
+                .any(|e| matches!(e, GameEvent::Attached(Attached { .. }))),
             "no Attached fact when there was no legal host"
         );
     }
@@ -471,7 +477,7 @@ mod tests {
                 .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
@@ -480,7 +486,7 @@ mod tests {
                 position: None,
                 face: None,
                 cause: None,
-            },
+            }),
         ))]);
         for _ in 0..10 {
             if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
@@ -584,7 +590,7 @@ mod tests {
             .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
@@ -593,7 +599,7 @@ mod tests {
                 position: None,
                 face: None,
                 cause: None,
-            },
+            }),
         ))]);
         // Step only until the land appears on the battlefield, then STOP — a
         // further `step()` would advance into the untap step and clear the
@@ -691,7 +697,7 @@ mod tests {
                 .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
@@ -700,7 +706,7 @@ mod tests {
                 position: None,
                 face: None,
                 cause: None,
-            },
+            }),
         ))]);
         for _ in 0..10 {
             if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
@@ -791,7 +797,7 @@ mod tests {
                 .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
         state.zones.hands[PlayerId(0).index()].push(hand_id);
         state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object: hand_id,
                 from: Some(Zone::Hand),
@@ -800,7 +806,7 @@ mod tests {
                 position: None,
                 face: None,
                 cause: None,
-            },
+            }),
         ))]);
         for _ in 0..10 {
             if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
@@ -876,7 +882,7 @@ mod tests {
                     .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Hand));
             state.zones.hands[PlayerId(0).index()].push(hand_id);
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: None,
                     object: hand_id,
                     from: Some(Zone::Hand),
@@ -885,7 +891,7 @@ mod tests {
                     position: None,
                     face: None,
                     cause: None,
-                },
+                }),
             ))]);
             for _ in 0..10 {
                 if matches!(state.step(), StepOutcome::NeedsDecision(_)) {

@@ -6,7 +6,14 @@ use deckmaste_core::Countable;
 use deckmaste_core::Reference;
 use deckmaste_core::Uint;
 
+use crate::event::AbilityUsed;
+use crate::event::CounterPlaced;
+use crate::event::CounterRemoved;
+use crate::event::DamageDealt;
 use crate::event::GameEvent;
+use crate::event::LifeGained;
+use crate::event::LifeLost;
+use crate::event::ZoneChange;
 use crate::object::ObjectId;
 use crate::stack::Anaphora;
 use crate::stack::Frame;
@@ -546,14 +553,14 @@ impl GameState {
     /// amount, so no sound card reaches the fallback.
     fn game_event_amount(fact: &GameEvent) -> Uint {
         match fact {
-            GameEvent::LifeLost { amount, .. }
-            | GameEvent::LifeGained { amount, .. }
-            | GameEvent::DamageDealt { amount, .. }
-            | GameEvent::CounterPlaced { amount, .. }
-            | GameEvent::CounterRemoved { amount, .. } => *amount,
-            GameEvent::ZoneChange {
+            GameEvent::LifeLost(LifeLost { amount, .. })
+            | GameEvent::LifeGained(LifeGained { amount, .. })
+            | GameEvent::DamageDealt(DamageDealt { amount, .. })
+            | GameEvent::CounterPlaced(CounterPlaced { amount, .. })
+            | GameEvent::CounterRemoved(CounterRemoved { amount, .. }) => *amount,
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: Some(_), ..
-            } => 1,
+            }) => 1,
             other => unreachable!("EventSum reached a fact kind with no amount channel: {other:?}"),
         }
     }
@@ -576,12 +583,12 @@ impl GameState {
             .scan(deckmaste_core::Lookback::ThisTurn, self.turn.turn_number)
             .filter(|f| {
                 matches!(f,
-                    GameEvent::ZoneChange {
+                    GameEvent::ZoneChange(ZoneChange {
                         snapshot: Some(snapshot),
                         to: Zone::Battlefield,
                         cause: Some(c),
                         ..
-                    } if c.verb == play && snapshot.controller == player)
+                    }) if c.verb == play && snapshot.controller == player)
             })
             .count();
         Uint::try_from(n).expect("land count fits Uint")
@@ -605,7 +612,7 @@ impl GameState {
             .scan(within, self.turn.turn_number)
             .filter(|f| {
                 matches!(f,
-                    GameEvent::AbilityUsed { object: o, ability: a }
+                    GameEvent::AbilityUsed(AbilityUsed { object: o, ability: a })
                         if *o == object && *a == ability)
             })
             .count();
@@ -662,7 +669,11 @@ mod tests {
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
+    use crate::event::AbilityUsed;
     use crate::event::GameEvent;
+    use crate::event::LifeGained;
+    use crate::event::LifeLost;
+    use crate::event::ZoneChange;
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
@@ -742,7 +753,7 @@ mod tests {
             state.record_history_fact(
                 1,
                 None,
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     object: drawn,
                     snapshot: Some(Box::new(LkiSnapshot::capture(&state, drawn))),
                     from: Some(Zone::Library),
@@ -755,7 +766,7 @@ mod tests {
                         agency: Agency::EffectInstruction,
                         agent: None,
                     }),
-                },
+                }),
             );
         }
         let draw_event = EventFilter::Drawn {
@@ -780,7 +791,7 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 object: land,
                 snapshot: Some(Box::new(LkiSnapshot::capture(&state, land))),
                 from: Some(Zone::Hand),
@@ -793,7 +804,7 @@ mod tests {
                     agency: Agency::SpecialAction,
                     agent: None,
                 }),
-            },
+            }),
         );
         assert_eq!(
             state.lands_played_this_turn(p),
@@ -819,26 +830,26 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::LifeLost {
+            GameEvent::LifeLost(LifeLost {
                 player: p,
                 amount: 3,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::LifeLost {
+            GameEvent::LifeLost(LifeLost {
                 player: p,
                 amount: 2,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::LifeGained {
+            GameEvent::LifeGained(LifeGained {
                 player: p,
                 amount: 4,
-            },
+            }),
         );
         let lose_event = EventFilter::LifeLost {
             who: Predicate::Ref(Reference::You),
@@ -1003,26 +1014,26 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj_a,
                 ability: 0,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj_a,
                 ability: 0,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj_a,
                 ability: 1,
-            },
+            }),
         );
 
         assert_eq!(state.ability_used_count(obj_a, 0, Lookback::ThisGame), 2);
@@ -1034,10 +1045,10 @@ mod tests {
         state.record_history_fact(
             2,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj_a,
                 ability: 0,
-            },
+            }),
         );
 
         // ThisTurn (still turn 1) excludes the turn-2 entry.
@@ -1815,7 +1826,7 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(first_bear);
-        let death1 = GameEvent::ZoneChange {
+        let death1 = GameEvent::ZoneChange(ZoneChange {
             object: first_bear,
             snapshot: Some(Box::new(LkiSnapshot::capture(&state, first_bear))),
             from: Some(Zone::Battlefield),
@@ -1824,7 +1835,7 @@ mod tests {
             position: None,
             face: None,
             cause: None,
-        };
+        });
 
         let second_bear_card = state.cards.push(Arc::clone(&bears), PlayerId(0));
         let second_bear = state.objects.mint(
@@ -1833,7 +1844,7 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(second_bear);
-        let death2 = GameEvent::ZoneChange {
+        let death2 = GameEvent::ZoneChange(ZoneChange {
             object: second_bear,
             snapshot: Some(Box::new(LkiSnapshot::capture(&state, second_bear))),
             from: Some(Zone::Battlefield),
@@ -1842,7 +1853,7 @@ mod tests {
             position: None,
             face: None,
             cause: None,
-        };
+        });
 
         // The creature-death event pattern (same as morbid Condition::Happened).
         let death_pattern = EventFilter::ZoneChange {
@@ -1963,26 +1974,26 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::LifeLost {
+            GameEvent::LifeLost(LifeLost {
                 player: PlayerId(0),
                 amount: 2,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::LifeLost {
+            GameEvent::LifeLost(LifeLost {
                 player: PlayerId(0),
                 amount: 3,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::LifeLost {
+            GameEvent::LifeLost(LifeLost {
                 player: PlayerId(1),
                 amount: 10,
-            },
+            }),
         );
 
         // Only player 0's losses sum → 5.
@@ -2066,26 +2077,26 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj,
                 ability: 0,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj,
                 ability: 0,
-            },
+            }),
         );
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: other,
                 ability: 0,
-            },
+            }),
         );
 
         // Only `obj`'s two uses count (`This` == frame.source == obj).
@@ -2156,10 +2167,10 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj,
                 ability: 0,
-            },
+            }),
         );
         assert!(
             !state.condition_holds(&twice, &frame),
@@ -2170,10 +2181,10 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: obj,
                 ability: 0,
-            },
+            }),
         );
         assert!(
             state.condition_holds(&twice, &frame),

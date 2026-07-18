@@ -11,9 +11,17 @@ use deckmaste_core::Zone;
 use super::occurrence_of;
 use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
+use crate::event::AbilityCountered;
+use crate::event::Attached;
 use crate::event::Cause;
+use crate::event::ControlChanged;
+use crate::event::CounterPlaced;
+use crate::event::CounterRemoved;
+use crate::event::DamageDealt;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
+use crate::event::Unattached;
+use crate::event::ZoneChange;
 use crate::object::ObjectId;
 use crate::stack::Frame;
 use crate::stack::StackObject;
@@ -52,12 +60,14 @@ impl GameState {
                 let targets = self.eval_reference_set(sel, frame);
                 let events: Vec<GameEvent> = targets
                     .into_iter()
-                    .map(|target| GameEvent::DamageDealt {
-                        source: dealer,
-                        target,
-                        amount,
-                        // OneShotEffect damage is never combat damage ([CR#510.1]).
-                        combat: false,
+                    .map(|target| {
+                        GameEvent::DamageDealt(DamageDealt {
+                            source: dealer,
+                            target,
+                            amount,
+                            // OneShotEffect damage is never combat damage ([CR#510.1]).
+                            combat: false,
+                        })
                     })
                     .collect();
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -103,7 +113,7 @@ impl GameState {
                         .map(|e| (e.copy, &e.object))
                     {
                         Some((false, StackObject::Spell(spell))) => {
-                            events.push(GameEvent::ZoneChange {
+                            events.push(GameEvent::ZoneChange(ZoneChange {
                                 snapshot: None,
                                 object: *spell,
                                 from: Some(Zone::Stack),
@@ -115,19 +125,19 @@ impl GameState {
                                     Agency::EffectInstruction,
                                     Some((frame.source, frame.controller)),
                                 )),
-                            });
+                            }));
                         }
                         // [CR#707.10a]: a copy of a spell, or a triggered/
                         // activated ability (copy or not), ceases the same
                         // way — no card, no zone move.
                         Some(_) => {
-                            events.push(GameEvent::AbilityCountered {
+                            events.push(GameEvent::AbilityCountered(AbilityCountered {
                                 id: object,
                                 cause: Cause::counter(
                                     Agency::EffectInstruction,
                                     Some((frame.source, frame.controller)),
                                 ),
-                            });
+                            }));
                         }
                         None => {}
                     }
@@ -160,7 +170,7 @@ impl GameState {
                         if !crate::legal::attachment_legal(self, attachment, host) {
                             continue;
                         }
-                        events.push(GameEvent::Attached { attachment, host });
+                        events.push(GameEvent::Attached(Attached { attachment, host }));
                     }
                 }
                 vec![WorkItem::Emit(occurrence_of(events))]
@@ -175,10 +185,10 @@ impl GameState {
                     .into_iter()
                     .filter_map(|attachment| {
                         self.objects.obj(attachment).attached_to.map(|former_host| {
-                            GameEvent::Unattached {
+                            GameEvent::Unattached(Unattached {
                                 attachment,
                                 former_host,
-                            }
+                            })
                         })
                     })
                     .collect();
@@ -252,13 +262,13 @@ impl GameState {
                 ));
                 let mut events = Vec::with_capacity(moves.len() * 2);
                 for (kind, n) in moves {
-                    events.push(GameEvent::CounterRemoved {
+                    events.push(GameEvent::CounterRemoved(CounterRemoved {
                         object: from_id,
                         kind,
                         amount: n,
                         cause: remove_cause.clone(),
-                    });
-                    events.push(GameEvent::CounterPlaced {
+                    }));
+                    events.push(GameEvent::CounterPlaced(CounterPlaced {
                         object: to_id,
                         kind,
                         amount: n,
@@ -266,7 +276,7 @@ impl GameState {
                         before: 0,
                         after: 0,
                         cause: place_cause.clone(),
-                    });
+                    }));
                 }
                 if events.is_empty() {
                     vec![]
@@ -320,15 +330,17 @@ impl GameState {
                 };
                 let events: Vec<GameEvent> = objects
                     .iter()
-                    .map(|&(object, from)| GameEvent::ZoneChange {
-                        snapshot: None,
-                        object,
-                        from: Some(from),
-                        to: to_zone,
-                        enters: None,
-                        position: anchor.map(|a| self.library_index(object, a, frame)),
-                        face: None,
-                        cause: None,
+                    .map(|&(object, from)| {
+                        GameEvent::ZoneChange(ZoneChange {
+                            snapshot: None,
+                            object,
+                            from: Some(from),
+                            to: to_zone,
+                            enters: None,
+                            position: anchor.map(|a| self.library_index(object, a, frame)),
+                            face: None,
+                            cause: None,
+                        })
                     })
                     .collect();
                 let mut items = vec![WorkItem::Emit(occurrence_of(events))];
@@ -372,7 +384,7 @@ impl GameState {
                     return vec![];
                 }
                 vec![WorkItem::Emit(Occurrence::single(
-                    GameEvent::ControlChanged { object, to: player },
+                    GameEvent::ControlChanged(ControlChanged { object, to: player }),
                 ))]
             }
             // [CR#701.14a]: each fighting creature deals damage equal to
@@ -456,7 +468,7 @@ impl GameState {
                             Some(self.library_index(object, anchor, frame))
                         }
                     };
-                    zone_events.push(GameEvent::ZoneChange {
+                    zone_events.push(GameEvent::ZoneChange(ZoneChange {
                         snapshot: None,
                         object,
                         from: Some(from),
@@ -465,7 +477,7 @@ impl GameState {
                         position,
                         face: None,
                         cause: None,
-                    });
+                    }));
                 }
             }
         }
@@ -922,8 +934,18 @@ mod tests {
     use crate::Decision;
     use crate::PendingDecision;
     use crate::agenda::WorkItem;
+    use crate::event::AbilityCountered;
+    use crate::event::Attached;
+    use crate::event::CounterPlaced;
+    use crate::event::DamageDealt;
+    use crate::event::EmblemCreated;
     use crate::event::GameEvent;
+    use crate::event::LifeGained;
+    use crate::event::LifeLost;
     use crate::event::Occurrence;
+    use crate::event::Tapped;
+    use crate::event::Unattached;
+    use crate::event::ZoneChange;
     use crate::matches as obj_matches;
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
@@ -1043,7 +1065,7 @@ mod tests {
         assert!(
             logged(
                 &state,
-                |e| matches!(e, GameEvent::Attached { attachment, host }
+                |e| matches!(e, GameEvent::Attached(Attached { attachment, host })
                 if *attachment == a && *host == b)
             ),
             "Attached fact recorded"
@@ -1071,7 +1093,10 @@ mod tests {
         drain(&mut state);
         assert_eq!(state.objects.obj(a).attached_to, Some(b));
         assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            !logged(&state, |e| matches!(
+                e,
+                GameEvent::Attached(Attached { .. })
+            )),
             "no Attached fact for a re-attach to the current host"
         );
     }
@@ -1091,7 +1116,10 @@ mod tests {
         drain(&mut state);
         assert_eq!(state.objects.obj(a).attached_to, None, "host == what no-op");
         assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            !logged(&state, |e| matches!(
+                e,
+                GameEvent::Attached(Attached { .. })
+            )),
             "no Attached fact for a self-attach"
         );
     }
@@ -1139,7 +1167,10 @@ mod tests {
             "illegal attach no-ops ([CR#701.3b])"
         );
         assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Attached { .. })),
+            !logged(&state, |e| matches!(
+                e,
+                GameEvent::Attached(Attached { .. })
+            )),
             "no Attached fact for an illegal host"
         );
     }
@@ -1164,7 +1195,7 @@ mod tests {
         assert!(
             logged(
                 &state,
-                |e| matches!(e, GameEvent::Unattached { attachment, former_host }
+                |e| matches!(e, GameEvent::Unattached(Unattached { attachment, former_host })
                 if *attachment == a && *former_host == b)
             ),
             "Unattached fact records the former host"
@@ -1184,7 +1215,10 @@ mod tests {
         drain(&mut state);
         assert_eq!(state.objects.obj(a).attached_to, None);
         assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Unattached { .. })),
+            !logged(&state, |e| matches!(
+                e,
+                GameEvent::Unattached(Unattached { .. })
+            )),
             "no Unattached fact for an already-unattached object"
         );
     }
@@ -1430,7 +1464,7 @@ mod tests {
         assert!(
             !events
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneChange { .. })),
+                .any(|e| matches!(e, GameEvent::ZoneChange(ZoneChange { .. }))),
             "a degenerate destroy schedules no zone change"
         );
         assert!(
@@ -1479,7 +1513,7 @@ mod tests {
         assert!(
             !events
                 .iter()
-                .any(|e| matches!(e, GameEvent::ZoneChange { .. })),
+                .any(|e| matches!(e, GameEvent::ZoneChange(ZoneChange { .. }))),
             "no cards move"
         );
         assert_eq!(
@@ -1705,14 +1739,16 @@ mod tests {
         let items = state.action_items(&Action::by_you(PlayerAction::Tap(Reference::This)), &frame);
         assert_eq!(
             items,
-            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped {
-                object: src,
-                cause: Some(crate::event::Cause {
-                    verb: "Tap".into(),
-                    agency: deckmaste_core::Agency::EffectInstruction,
-                    agent: Some((src, PlayerId(0))),
-                }),
-            }))]
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::Tapped(
+                Tapped {
+                    object: src,
+                    cause: Some(crate::event::Cause {
+                        verb: "Tap".into(),
+                        agency: deckmaste_core::Agency::EffectInstruction,
+                        agent: Some((src, PlayerId(0))),
+                    }),
+                }
+            )))]
         );
 
         // draw_one(You) -> one single-card Act(Draw) for the controller
@@ -1736,10 +1772,12 @@ mod tests {
         );
         assert_eq!(
             items,
-            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost {
-                player: PlayerId(0),
-                amount: 3,
-            }))]
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeLost(
+                LifeLost {
+                    player: PlayerId(0),
+                    amount: 3,
+                }
+            )))]
         );
     }
 
@@ -1858,10 +1896,10 @@ mod tests {
             .filter(|e| {
                 matches!(
                     e.fact,
-                    GameEvent::ZoneChange {
+                    GameEvent::ZoneChange(ZoneChange {
                         snapshot: Some(_),
                         ..
-                    }
+                    })
                 )
             })
             .map(|e| e.batch)
@@ -1908,12 +1946,12 @@ mod tests {
         assert!(
             logged(&state, |e| matches!(
                 e,
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(_),
                     cause: Some(c),
                     to: Zone::Graveyard,
                     ..
-                } if c.verb.as_str() == "Mill"
+                }) if c.verb.as_str() == "Mill"
             )),
             "the moves carry the Mill cause ([CR#701.17a])"
         );
@@ -1968,11 +2006,11 @@ mod tests {
             .filter(|e| {
                 matches!(
                     e.fact,
-                    GameEvent::ZoneChange {
+                    GameEvent::ZoneChange(ZoneChange {
                         snapshot: Some(_),
                         to: Zone::Graveyard,
                         ..
-                    }
+                    })
                 )
             })
             .map(|e| e.batch)
@@ -2008,11 +2046,11 @@ mod tests {
             .rposition(|f| {
                 matches!(
                     f,
-                    GameEvent::ZoneChange {
+                    GameEvent::ZoneChange(ZoneChange {
                         snapshot: Some(_),
                         to: Zone::Graveyard,
                         ..
-                    }
+                    })
                 )
             })
             .expect("the milled cards committed to the graveyard");
@@ -2152,11 +2190,11 @@ mod tests {
             .history
             .entries()
             .filter(|e| {
-                matches!(&e.fact, crate::event::GameEvent::ZoneChange {
+                matches!(&e.fact, crate::event::GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(_),
                     cause: Some(c),
                     ..
-                } if c.verb.as_str() == "Discard")
+                }) if c.verb.as_str() == "Discard")
             })
             .count();
         assert_eq!(
@@ -2643,7 +2681,7 @@ mod tests {
         let exiles = state
             .history
             .entries()
-            .filter(|e| matches!(&e.fact, GameEvent::ZoneChange { to, .. } if *to == Zone::Exile))
+            .filter(|e| matches!(&e.fact, GameEvent::ZoneChange(ZoneChange { to, .. }) if *to == Zone::Exile))
             .count();
         assert_eq!(
             exiles, 1,
@@ -3439,7 +3477,7 @@ mod tests {
         assert!(
             logged(&state, |e| matches!(
                 e,
-                GameEvent::DamageDealt { source, target, amount, .. }
+                GameEvent::DamageDealt(DamageDealt { source, target, amount, .. })
                     if *source == b && *target == a && *amount == 2
             )),
             "DamageDealt carries the explicit source b, not frame.source a"
@@ -3461,10 +3499,12 @@ mod tests {
         );
         assert_eq!(
             items,
-            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained {
-                player: PlayerId(0),
-                amount: 3,
-            }))]
+            vec![WorkItem::Emit(Occurrence::Single(GameEvent::LifeGained(
+                LifeGained {
+                    player: PlayerId(0),
+                    amount: 3,
+                }
+            )))]
         );
 
         let items = state.action_items(
@@ -3500,7 +3540,7 @@ mod tests {
         assert_eq!(
             items,
             vec![WorkItem::Emit(Occurrence::Single(
-                GameEvent::CounterPlaced {
+                GameEvent::CounterPlaced(CounterPlaced {
                     object: bear,
                     kind: "P1P1Counter".into(),
                     amount: 2,
@@ -3510,7 +3550,7 @@ mod tests {
                         Agency::EffectInstruction,
                         Some((bear, PlayerId(0))),
                     )),
-                }
+                })
             ))]
         );
     }
@@ -3877,7 +3917,7 @@ mod tests {
         let moved = state
             .history
             .scan(Lookback::ThisGame, state.turn.turn_number)
-            .any(|e| matches!(e, GameEvent::ZoneChange { .. }));
+            .any(|e| matches!(e, GameEvent::ZoneChange(ZoneChange { .. })));
         assert!(
             !moved,
             "a from-guard mismatch fizzles: no zone-change event"
@@ -4058,7 +4098,7 @@ mod tests {
         let found = state
             .history
             .scan(Lookback::ThisGame, state.turn.turn_number)
-            .any(|e| matches!(e, GameEvent::AbilityCountered { id, .. } if *id == ability_id));
+            .any(|e| matches!(e, GameEvent::AbilityCountered(AbilityCountered { id, .. }) if *id == ability_id));
         assert!(found, "AbilityCountered event must be recorded in history");
     }
 
@@ -4577,10 +4617,12 @@ mod tests {
         let items = state.player_action_items(&pa, p0, &frame);
         assert_eq!(items.len(), 1, "GetEmblem emits exactly one fact");
         match &items[0] {
-            crate::agenda::WorkItem::Emit(Occurrence::Single(GameEvent::EmblemCreated {
-                player,
-                abilities: emitted,
-            })) => {
+            crate::agenda::WorkItem::Emit(Occurrence::Single(GameEvent::EmblemCreated(
+                EmblemCreated {
+                    player,
+                    abilities: emitted,
+                },
+            ))) => {
                 assert_eq!(*player, p0, "the emblem goes to the actor ([CR#114.2])");
                 assert_eq!(*emitted, abilities, "carries the payload abilities");
             }
@@ -4709,10 +4751,10 @@ mod tests {
         assert!(
             !events.iter().any(|e| matches!(
                 e,
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(_),
                     ..
-                }
+                })
             )),
             "a same-library reposition fires no past-form ZoneChange"
         );

@@ -19,6 +19,9 @@ use deckmaste_core::ColorOrColorless;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
+use deckmaste_engine::BecameTarget;
+use deckmaste_engine::Copied;
+use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
 use deckmaste_engine::DecisionError;
 use deckmaste_engine::GameConfig;
@@ -35,6 +38,8 @@ use deckmaste_engine::Progress;
 use deckmaste_engine::StackObject;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
+use deckmaste_engine::TriggerFired;
+use deckmaste_engine::ZoneChange;
 
 // --- plugin + deck building
 // ---------------------------------------------------
@@ -366,7 +371,7 @@ fn bolt_kills_grizzly_bears() {
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
+            Some(GameEvent::DamageDealt(DamageDealt { target, amount: 3, .. })) if *target == bear
         )),
         "3 damage dealt to the Vanilla Creature, trace: {trace:?}"
     );
@@ -922,7 +927,7 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::BecameTarget { target, source })
+            Some(GameEvent::BecameTarget(BecameTarget { target, source }))
                 if *target == bear && *source == bolt
         )),
         "the announce lock emits BecameTarget, trace: {trace:?}"
@@ -930,7 +935,7 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::TriggerFired { source, .. })
+            Some(GameEvent::TriggerFired(TriggerFired { source, .. }))
                 if *source == state.objects.obj(bear).source
         )),
         "the bear's becomes-target trigger fired, trace: {trace:?}"
@@ -964,7 +969,7 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
     assert!(
         !trace
             .iter()
-            .any(|p| matches!(applied(p), Some(GameEvent::DamageDealt { .. }))),
+            .any(|p| matches!(applied(p), Some(GameEvent::DamageDealt(DamageDealt { .. })))),
         "the fizzled bolt deals no damage, trace: {trace:?}"
     );
     assert_eq!(state.players[1].life, 20, "no damage anywhere");
@@ -1417,7 +1422,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::DamageDealt { amount, .. },
+                GameEvent::DamageDealt(DamageDealt { amount, .. }),
             ))) => {
                 assert_eq!(amount, 3);
                 damage_events += 1;
@@ -1762,12 +1767,12 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::DamageDealt {
+                GameEvent::DamageDealt(DamageDealt {
                     source,
                     target,
                     amount,
                     ..
-                },
+                }),
             ))) if target == p1_proxy => {
                 assert_eq!(amount, 1, "the dies-trigger deals 1");
                 damage_source = Some(source);
@@ -1902,17 +1907,17 @@ fn etb_trigger_draws_a_card() {
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::TriggerFired { .. },
+                GameEvent::TriggerFired(TriggerFired { .. }),
             ))) => {
                 trigger_fired = true;
             }
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(_),
                     from: Some(Zone::Library),
                     to: Zone::Hand,
                     ..
-                },
+                }),
             ))) => {
                 card_drawn = true;
             }
@@ -2120,10 +2125,10 @@ fn occurrence_batch_and_apnap_ordering() {
                 if let Progress::Applied(Occurrence::Batch(events)) = p {
                     let all_damage = events
                         .iter()
-                        .all(|e| matches!(e, GameEvent::DamageDealt { .. }));
+                        .all(|e| matches!(e, GameEvent::DamageDealt(DamageDealt { .. })));
                     let count = events
                         .iter()
-                        .filter(|e| matches!(e, GameEvent::DamageDealt { .. }))
+                        .filter(|e| matches!(e, GameEvent::DamageDealt(DamageDealt { .. })))
                         .count();
                     if all_damage && count == 3 {
                         saw_damage_batch = true;
@@ -3460,7 +3465,7 @@ fn resolved_copy_vanishes_without_zone_move() {
         .filter(|p| {
             matches!(
                 applied(p),
-                Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == face
+                Some(GameEvent::DamageDealt(DamageDealt { target, amount: 3, .. })) if *target == face
             )
         })
         .count();
@@ -4194,14 +4199,14 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
         .iter()
         .filter_map(applied)
         .filter(
-            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 0),
+            |e| matches!(e, GameEvent::TriggerFired(TriggerFired { source, ability, .. }) if *source == watcher_source && *ability == 0),
         )
         .count();
     let copied_fires_on_cast = trace
         .iter()
         .filter_map(applied)
         .filter(
-            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 1),
+            |e| matches!(e, GameEvent::TriggerFired(TriggerFired { source, ability, .. }) if *source == watcher_source && *ability == 1),
         )
         .count();
     assert_eq!(
@@ -4257,7 +4262,7 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
         trace
             .iter()
             .filter_map(applied)
-            .any(|e| matches!(e, GameEvent::Copied { .. })),
+            .any(|e| matches!(e, GameEvent::Copied(Copied { .. }))),
         "the copy ability minted a copy, trace: {trace:?}"
     );
     assert_eq!(
@@ -4269,14 +4274,14 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
         .iter()
         .filter_map(applied)
         .filter(
-            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 0),
+            |e| matches!(e, GameEvent::TriggerFired(TriggerFired { source, ability, .. }) if *source == watcher_source && *ability == 0),
         )
         .count();
     let copied_fires = trace
         .iter()
         .filter_map(applied)
         .filter(
-            |e| matches!(e, GameEvent::TriggerFired { source, ability, .. } if *source == watcher_source && *ability == 1),
+            |e| matches!(e, GameEvent::TriggerFired(TriggerFired { source, ability, .. }) if *source == watcher_source && *ability == 1),
         )
         .count();
     assert_eq!(
@@ -4469,7 +4474,7 @@ fn ability_copy_same_source_resolves_and_vanishes() {
         .filter(|p| {
             matches!(
                 applied(p),
-                Some(GameEvent::DamageDealt { target, amount: 1, .. }) if *target == face
+                Some(GameEvent::DamageDealt(DamageDealt { target, amount: 1, .. })) if *target == face
             )
         })
         .count();

@@ -22,6 +22,7 @@ use deckmaste_core::Type;
 use deckmaste_core::Uint;
 
 use crate::Action;
+use crate::DamageDealt;
 use crate::Decision;
 use crate::GameConfig;
 use crate::GameEvent;
@@ -626,7 +627,7 @@ fn note_milestones(
             _ => &[],
         };
         for ev in events {
-            if let GameEvent::DamageDealt { target, amount, .. } = ev {
+            if let GameEvent::DamageDealt(DamageDealt { target, amount, .. }) = ev {
                 let to_player = proxies.contains(target);
                 if to_player && *amount == 2 {
                     *creature_hit_player = true;

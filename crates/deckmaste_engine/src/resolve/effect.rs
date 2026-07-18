@@ -28,8 +28,11 @@ use super::peel_effect;
 use super::top_targets;
 use crate::agenda::WorkItem;
 use crate::event::Cause;
+use crate::event::DamageDealt;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
+use crate::event::TriggerFired;
+use crate::event::ZoneChange;
 use crate::layer::ContinuousEffect;
 use crate::layer::ScopeResolved;
 use crate::object::ObjectId;
@@ -1473,15 +1476,15 @@ impl GameState {
                         bindings.that_object = Some(crate::lki::LkiSnapshot::capture(self, chased));
                     }
                 }
-                emits.push(WorkItem::Emit(Occurrence::single(
-                    GameEvent::TriggerFired {
+                emits.push(WorkItem::Emit(Occurrence::single(GameEvent::TriggerFired(
+                    TriggerFired {
                         source,
                         ability: 0,
                         controller: frame.controller,
                         created: Some(Box::new(ability.clone())),
                         bindings: Box::new(bindings),
                     },
-                )));
+                ))));
             }
         }
         let fired = !emits.is_empty();
@@ -1551,7 +1554,7 @@ impl GameState {
         to: Zone,
         cause: Option<Cause>,
     ) -> GameEvent {
-        GameEvent::ZoneChange {
+        GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             object,
             from: Some(
@@ -1565,7 +1568,7 @@ impl GameState {
             position: None,
             face: None,
             cause,
-        }
+        })
     }
 
     /// Whether an [`Action::Composite`]'s reorder/guarded `body` will actually
@@ -1795,30 +1798,30 @@ fn deontic_subject_slots(a: &mut DeonticAction) -> Vec<&mut Predicate> {
 fn coalesce_simultaneous_damage(events: Vec<GameEvent>) -> Vec<GameEvent> {
     let mut out: Vec<GameEvent> = Vec::with_capacity(events.len());
     for ev in events {
-        if let GameEvent::DamageDealt {
+        if let GameEvent::DamageDealt(DamageDealt {
             source,
             target,
             amount,
             combat,
-        } = ev
+        }) = ev
         {
             let existing = out.iter_mut().find_map(|e| match e {
-                GameEvent::DamageDealt {
+                GameEvent::DamageDealt(DamageDealt {
                     source: s,
                     target: t,
                     amount: a,
                     combat: c,
-                } if *s == source && *t == target && *c == combat => Some(a),
+                }) if *s == source && *t == target && *c == combat => Some(a),
                 _ => None,
             });
             match existing {
                 Some(a) => *a += amount,
-                None => out.push(GameEvent::DamageDealt {
+                None => out.push(GameEvent::DamageDealt(DamageDealt {
                     source,
                     target,
                     amount,
                     combat,
-                }),
+                })),
             }
         } else {
             out.push(ev);
@@ -1848,8 +1851,12 @@ mod tests {
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
+    use crate::event::ControlChanged;
+    use crate::event::DamageDealt;
     use crate::event::GameEvent;
+    use crate::event::LifeGained;
     use crate::event::Occurrence;
+    use crate::event::TriggerFired;
     use crate::matches as obj_matches;
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
@@ -2285,7 +2292,7 @@ mod tests {
         let life_gained_facts = state
             .history
             .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
-            .filter(|e| matches!(e, GameEvent::LifeGained { .. }))
+            .filter(|e| matches!(e, GameEvent::LifeGained(LifeGained { .. })))
             .count();
         assert_eq!(
             life_gained_facts, 2,
@@ -2354,7 +2361,9 @@ mod tests {
             .filter(|p| {
                 matches!(
                     p,
-                    Progress::Applied(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    Progress::Applied(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 )
             })
             .count()
@@ -3001,7 +3010,7 @@ mod tests {
         assert!(
             events
                 .iter()
-                .all(|e| matches!(e, GameEvent::ControlChanged { .. })),
+                .all(|e| matches!(e, GameEvent::ControlChanged(ControlChanged { .. }))),
             "the exchange is a batch of control transitions, got {events:?}"
         );
 
@@ -3098,7 +3107,7 @@ mod tests {
                 Progress::Applied(Occurrence::Batch(evs))
                     if evs
                         .iter()
-                        .all(|e| matches!(e, GameEvent::DamageDealt { .. })) =>
+                        .all(|e| matches!(e, GameEvent::DamageDealt(DamageDealt { .. }))) =>
                 {
                     Some(evs)
                 }
@@ -3109,7 +3118,7 @@ mod tests {
         assert!(
             batch
                 .iter()
-                .all(|e| matches!(e, GameEvent::DamageDealt { combat: false, .. })),
+                .all(|e| matches!(e, GameEvent::DamageDealt(DamageDealt { combat: false, .. }))),
             "fight damage is noncombat damage ([CR#701.14d]), got {batch:?}"
         );
         assert_eq!(state.objects.obj(a).total_damage(), 2, "a took b's power");
@@ -3136,7 +3145,10 @@ mod tests {
         );
         run_injected(&mut state);
         assert!(
-            !logged(&state, |e| matches!(e, GameEvent::DamageDealt { .. })),
+            !logged(&state, |e| matches!(
+                e,
+                GameEvent::DamageDealt(DamageDealt { .. })
+            )),
             "neither creature deals damage ([CR#701.14b])"
         );
         assert!(
@@ -3166,11 +3178,11 @@ mod tests {
         assert!(
             logged(&state, |e| matches!(
                 e,
-                GameEvent::DamageDealt {
+                GameEvent::DamageDealt(DamageDealt {
                     amount: 4,
                     combat: false,
                     ..
-                }
+                })
             )),
             "one coalesced damage instance of twice its power"
         );
@@ -3664,22 +3676,26 @@ mod tests {
             is_cda: false,
         });
         // A non-matching fact (a life gain) leaves it in place.
-        state.sweep_event_durations(&crate::event::Occurrence::single(GameEvent::LifeGained {
-            player: PlayerId(0),
-            amount: 1,
-        }));
+        state.sweep_event_durations(&crate::event::Occurrence::single(GameEvent::LifeGained(
+            LifeGained {
+                player: PlayerId(0),
+                amount: 1,
+            },
+        )));
         assert_eq!(
             state.continuous.len(),
             1,
             "survives a non-matching occurrence"
         );
         // The awaited damage fact ends it.
-        state.sweep_event_durations(&crate::event::Occurrence::single(GameEvent::DamageDealt {
-            source: src,
-            target: src,
-            amount: 1,
-            combat: false,
-        }));
+        state.sweep_event_durations(&crate::event::Occurrence::single(GameEvent::DamageDealt(
+            DamageDealt {
+                source: src,
+                target: src,
+                amount: 1,
+                combat: false,
+            },
+        )));
         assert!(
             state.continuous.is_empty(),
             "removed once the awaited event happens"
@@ -4511,7 +4527,7 @@ mod tests {
                     Occurrence::Batch(es) => es,
                 };
                 for e in events {
-                    if let GameEvent::DamageDealt { target, amount, .. } = e {
+                    if let GameEvent::DamageDealt(DamageDealt { target, amount, .. }) = e {
                         got.push((target, amount));
                     }
                 }

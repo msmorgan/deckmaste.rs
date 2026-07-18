@@ -6,6 +6,7 @@ use crate::agenda::WorkItem;
 use crate::decide::Decision;
 use crate::decide::DecisionError;
 use crate::decide::DecisionHandler;
+use crate::event::BecameTarget;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::object::ObjectId;
@@ -121,12 +122,12 @@ impl DecisionHandler for ChooseTargets {
         for &target in chosen.iter().flatten() {
             let dup = became
                 .iter()
-                .any(|e| matches!(e, GameEvent::BecameTarget { target: t, .. } if *t == target));
+                .any(|e| matches!(e, GameEvent::BecameTarget(BecameTarget { target: t, .. }) if *t == target));
             if !dup {
-                became.push(GameEvent::BecameTarget {
+                became.push(GameEvent::BecameTarget(BecameTarget {
                     target,
                     source: targeting,
-                });
+                }));
             }
         }
         if g.placing_trigger.is_some() {

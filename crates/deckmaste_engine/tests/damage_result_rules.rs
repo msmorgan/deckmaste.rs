@@ -16,6 +16,7 @@ use deckmaste_core::Predicate;
 use deckmaste_core::StatValue;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
+use deckmaste_engine::DamageDealt;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
@@ -199,12 +200,12 @@ fn deal(state: &mut GameState, source: ObjectId, target: ObjectId, amount: u32) 
     state
         .agenda
         .push_front(deckmaste_engine::WorkItem::Emit(Occurrence::single(
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source,
                 target,
                 amount,
                 combat: false,
-            },
+            }),
         )));
     match state.step() {
         StepOutcome::Progress(Progress::Applied(_)) => {}

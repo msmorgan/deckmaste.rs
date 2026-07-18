@@ -287,7 +287,10 @@ mod tests {
     use deckmaste_core::Uint;
     use deckmaste_core::Zone;
 
+    use crate::event::DamageDealt;
     use crate::event::GameEvent;
+    use crate::event::LifeGained;
+    use crate::event::ZoneChange;
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
@@ -362,7 +365,7 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(bear);
-        let death = GameEvent::ZoneChange {
+        let death = GameEvent::ZoneChange(ZoneChange {
             object: bear,
             snapshot: Some(Box::new(LkiSnapshot::capture(&state, bear))),
             from: Some(Zone::Battlefield),
@@ -371,7 +374,7 @@ mod tests {
             position: None,
             face: None,
             cause: None,
-        };
+        });
 
         let morbid_pattern = EventFilter::ZoneChange {
             what: Predicate::creature(),
@@ -1040,12 +1043,12 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source: p1,
                 target: p0,
                 amount: 2,
                 combat: false,
-            },
+            }),
         );
         assert!(
             !state.condition_holds(&gate, &frame_for(&state, PlayerId(0))),
@@ -1057,12 +1060,12 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source: p0,
                 target: p1,
                 amount: 3,
                 combat: false,
-            },
+            }),
         );
         assert!(
             state.condition_holds(&gate, &frame_for(&state, PlayerId(0))),
@@ -1107,12 +1110,12 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source: p1,
                 target: id,
                 amount: 2,
                 combat: false,
-            },
+            }),
         );
 
         // The bear departs: its id is stale everywhere.
@@ -1120,15 +1123,17 @@ mod tests {
         state.objects.remove(id);
         assert!(state.objects.get(id).is_none(), "the recipient is gone");
 
-        let damaged = |filter: Predicate| Condition::happened(
-            EventFilter::Damage {
-                source: Predicate::any(),
-                to: filter,
-                combat: None,
-                amount: None,
-            },
-            Lookback::ThisTurn,
-        );
+        let damaged = |filter: Predicate| {
+            Condition::happened(
+                EventFilter::Damage {
+                    source: Predicate::any(),
+                    to: filter,
+                    combat: None,
+                    amount: None,
+                },
+                Lookback::ThisTurn,
+            )
+        };
         assert!(
             state.condition_holds(
                 &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
@@ -1168,13 +1173,15 @@ mod tests {
             GameEvent::StepBegan(PhaseStep::Beginning(BeginningStep::Upkeep)),
         );
 
-        let began = |whose: WhoseTurn| Condition::happened(
-            EventFilter::StepBegins {
-                at: PhaseStep::Beginning(BeginningStep::Upkeep),
-                whose,
-            },
-            Lookback::ThisTurn,
-        );
+        let began = |whose: WhoseTurn| {
+            Condition::happened(
+                EventFilter::StepBegins {
+                    at: PhaseStep::Beginning(BeginningStep::Upkeep),
+                    whose,
+                },
+                Lookback::ThisTurn,
+            )
+        };
         assert!(
             state.condition_holds(
                 &began(WhoseTurn::EachPlayers),
@@ -1259,10 +1266,10 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::LifeGained {
+            GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 3,
-            },
+            }),
         );
 
         let gained_this_turn = Condition::happened(
@@ -1283,10 +1290,10 @@ mod tests {
         state.record_history_fact(
             2,
             None,
-            GameEvent::LifeGained {
+            GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 1,
-            },
+            }),
         );
         assert!(
             state.condition_holds(&gained_this_turn, &frame_for(&state, PlayerId(0))),

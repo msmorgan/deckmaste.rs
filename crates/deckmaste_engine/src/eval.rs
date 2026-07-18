@@ -31,8 +31,39 @@ use deckmaste_core::Uint;
 use deckmaste_core::WhoseTurn;
 use deckmaste_core::Zone;
 
+use crate::event::AbilityActivated;
+use crate::event::AbilityCountered;
+use crate::event::AbilityUsed;
+use crate::event::Attached;
+use crate::event::Attacking;
+use crate::event::BecameTarget;
+use crate::event::Blocked;
 use crate::event::Cause;
+use crate::event::CoinFlipped;
+use crate::event::ControlChanged;
+use crate::event::Copied;
+use crate::event::CounterPlaced;
+use crate::event::CounterRemoved;
+use crate::event::DamageDealt;
+use crate::event::DamageRemoved;
+use crate::event::DesignationChanged;
+use crate::event::DieRolled;
+use crate::event::EmblemCreated;
 use crate::event::GameEvent;
+use crate::event::GotDesignation;
+use crate::event::LifeGained;
+use crate::event::LifeLost;
+use crate::event::ManaAdded;
+use crate::event::ManaEmptied;
+use crate::event::PlayerLost;
+use crate::event::PlayerWon;
+use crate::event::Revealed;
+use crate::event::Tapped;
+use crate::event::TokenCreated;
+use crate::event::TriggerFired;
+use crate::event::TurnBegan;
+use crate::event::Unattached;
+use crate::event::ZoneChange;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
@@ -287,13 +318,13 @@ impl<'a> FactView<'a> {
         match event {
             // [CR#603.6]: the zone-change FACT (past-form `ZoneChange`) — the
             // moved object rides as its captured snapshot ([CR#603.10a]).
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: Some(snapshot),
                 from,
                 to,
                 cause,
                 ..
-            } => {
+            }) => {
                 // [CR#121.2,121.5]: a committed Library → Hand move tagged
                 // `cause: Draw` IS the SUCCESS draw fact — `FactKind::Drawn`,
                 // what "whenever you draw a card" / `CardsDrawn` read — NOT a
@@ -317,13 +348,13 @@ impl<'a> FactView<'a> {
                 v.cause = cause.as_ref().map(Cow::Borrowed);
             }
             // [CR#400.7]: the zone-change INTENT — the object is still live.
-            GameEvent::ZoneChange { snapshot: None,
+            GameEvent::ZoneChange(ZoneChange { snapshot: None,
                 object,
                 from,
                 to,
                 cause,
                 ..
-            } => {
+            }) => {
                 v = FactView::bare(FactKind::ZoneChange, state);
                 v.object = Some(part(*object));
                 v.actor = controller_of(*object);
@@ -373,48 +404,48 @@ impl<'a> FactView<'a> {
                 v.amount = *batch;
             }
             // [CR#120.3]: damage — source object, kind-poly recipient.
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source,
                 target,
                 amount,
                 combat,
-            } => {
+            }) => {
                 v = FactView::bare(FactKind::Damage, state);
                 v.source = Some(part(*source));
                 v.patient = Some(part(*target));
                 v.amount = Some(*amount);
                 v.combat = Some(*combat);
             }
-            GameEvent::LifeGained { player, amount } => {
+            GameEvent::LifeGained(LifeGained { player, amount }) => {
                 v = FactView::bare(FactKind::LifeGained, state);
                 v.actor = Some(*player);
                 v.amount = Some(*amount);
             }
-            GameEvent::LifeLost { player, amount } => {
+            GameEvent::LifeLost(LifeLost { player, amount }) => {
                 v = FactView::bare(FactKind::LifeLost, state);
                 v.actor = Some(*player);
                 v.amount = Some(*amount);
             }
             // [CR#122.1]: counter deltas.
-            GameEvent::CounterPlaced {
+            GameEvent::CounterPlaced(CounterPlaced {
                 object,
                 kind,
                 amount,
                 cause,
                 ..
-            } => {
+            }) => {
                 v = FactView::bare(FactKind::CounterPlaced, state);
                 v.object = Some(part(*object));
                 v.counter = Some(Cow::Borrowed(kind));
                 v.amount = Some(*amount);
                 v.cause = cause.as_ref().map(Cow::Borrowed);
             }
-            GameEvent::CounterRemoved {
+            GameEvent::CounterRemoved(CounterRemoved {
                 object,
                 kind,
                 amount,
                 cause,
-            } => {
+            }) => {
                 v = FactView::bare(FactKind::CounterRemoved, state);
                 v.object = Some(part(*object));
                 v.counter = Some(Cow::Borrowed(kind));
@@ -432,17 +463,17 @@ impl<'a> FactView<'a> {
             // does not fire here. `object` is the minted copy; falls back
             // to the copied original for a pre-apply view (the apply hasn't
             // filled `copy` in yet).
-            GameEvent::Copied {
+            GameEvent::Copied(Copied {
                 original,
                 copy,
                 controller,
-            } => {
+            }) => {
                 v = FactView::bare(FactKind::Copied, state);
                 v.object = Some(part(copy.unwrap_or(*original)));
                 v.actor = Some(*controller);
             }
             // [CR#602.2a]: `what` matches the ability's SOURCE object.
-            GameEvent::AbilityActivated { source, .. } => {
+            GameEvent::AbilityActivated(AbilityActivated { source, .. }) => {
                 v = FactView::bare(FactKind::ActivatedAb, state);
                 v.object = Some(part(*source));
                 v.actor = controller_of(*source);
@@ -453,10 +484,10 @@ impl<'a> FactView<'a> {
             // they control (an `Obj` part, [CR#508.1b]). Captured from the
             // declaration (not read back live) so a history view keeps the
             // defender of record.
-            GameEvent::Attacking {
+            GameEvent::Attacking(Attacking {
                 attacker,
                 defending,
-            } => {
+            }) => {
                 v = FactView::bare(FactKind::AttackDeclared, state);
                 v.object = Some(part(*attacker));
                 v.actor = controller_of(*attacker);
@@ -464,19 +495,19 @@ impl<'a> FactView<'a> {
             }
             // [CR#509.1g..509.1h]: one fact, two views — the blocker is the
             // object, the blocked attacker the patient.
-            GameEvent::Blocked { blocker, attacker } => {
+            GameEvent::Blocked(Blocked { blocker, attacker }) => {
                 v = FactView::bare(FactKind::BlockDeclared, state);
                 v.object = Some(part(*blocker));
                 v.patient = Some(part(*attacker));
             }
             // [CR#701.3a]: attachment onto host.
-            GameEvent::Attached { attachment, host } => {
+            GameEvent::Attached(Attached { attachment, host }) => {
                 v = FactView::bare(FactKind::Attached, state);
                 v.object = Some(part(*attachment));
                 v.patient = Some(part(*host));
             }
             // [CR#603.2e]: the residual status transitions.
-            GameEvent::Tapped { object, cause } => {
+            GameEvent::Tapped(Tapped { object, cause }) => {
                 v = FactView::bare(FactKind::StateBecame(StateChange::Tapped), state);
                 v.object = Some(part(*object));
                 v.cause = cause.as_ref().map(Cow::Borrowed);
@@ -487,7 +518,7 @@ impl<'a> FactView<'a> {
             }
             // [CR#601.2c]: the targeted object is the patient, the targeting
             // stack object the source-side participant.
-            GameEvent::BecameTarget { target, source } => {
+            GameEvent::BecameTarget(BecameTarget { target, source }) => {
                 v = FactView::bare(FactKind::BecomesTarget, state);
                 v.patient = Some(part(*target));
                 v.source = Some(part(*source));
@@ -502,19 +533,19 @@ impl<'a> FactView<'a> {
             }
             // [CR#613.1b]: the object keeps its identity; the new controller
             // is the responsible actor.
-            GameEvent::ControlChanged { object, to } => {
+            GameEvent::ControlChanged(ControlChanged { object, to }) => {
                 v = FactView::bare(FactKind::ControlChanged, state);
                 v.object = Some(part(*object));
                 v.actor = Some(*to);
             }
             // [CR#109.3]: a game-scope transition has no carrier participant.
-            GameEvent::DesignationChanged { name, becomes } => {
+            GameEvent::DesignationChanged(DesignationChanged { name, becomes }) => {
                 v = FactView::bare(FactKind::DesignationChanged, state);
                 v.designation = Some((Cow::Borrowed(name), becomes.as_ref().map(Cow::Borrowed)));
             }
             // [CR#702.131c]: a player-scope gain — the gaining player is the
             // carrier the pattern's `of` runs against.
-            GameEvent::GotDesignation { player, name } => {
+            GameEvent::GotDesignation(GotDesignation { player, name }) => {
                 v = FactView::bare(FactKind::DesignationChanged, state);
                 v.designation = Some((Cow::Borrowed(name), None));
                 v.patient = Some(Part::Player(*player));
@@ -522,46 +553,46 @@ impl<'a> FactView<'a> {
             }
             // [CR#701.7a,111.2]: the fact carries the token SPEC — no minted
             // object participant (the `TokenCreated:what` cap).
-            GameEvent::TokenCreated { player, .. } => {
+            GameEvent::TokenCreated(TokenCreated { player, .. }) => {
                 v = FactView::bare(FactKind::TokenCreated, state);
                 v.actor = Some(*player);
             }
             // [CR#608.2i]: the substantive ability-use fact — object-scoped
             // identity ([CR#400.7]), so the raw id is the read.
-            GameEvent::AbilityUsed { object, .. } => {
+            GameEvent::AbilityUsed(AbilityUsed { object, .. }) => {
                 v = FactView::bare(FactKind::Used, state);
                 v.object = Some(Part::Obj(*object));
             }
             // [CR#705.1]: the physical outcome, plus the call-relative
             // WIN/LOSS ([CR#705.2]) when the flip was called.
-            GameEvent::CoinFlipped { player, won, .. } => {
+            GameEvent::CoinFlipped(CoinFlipped { player, won, .. }) => {
                 v = FactView::bare(FactKind::CoinFlipped, state);
                 v.actor = Some(*player);
                 v.won = *won;
             }
-            GameEvent::DieRolled { player, result, .. } => {
+            GameEvent::DieRolled(DieRolled { player, result, .. }) => {
                 v = FactView::bare(FactKind::DiceRolled, state);
                 v.actor = Some(*player);
                 v.amount = Some(*result);
             }
             // Plumbing and information events no pattern atom watches.
-            GameEvent::TurnBegan { .. }
-            | GameEvent::TriggerFired { .. }
+            GameEvent::TurnBegan(TurnBegan { .. })
+            | GameEvent::TriggerFired(TriggerFired { .. })
             | GameEvent::AbilityResolved(_)
-            | GameEvent::AbilityCountered { .. }
+            | GameEvent::AbilityCountered(AbilityCountered { .. })
             | GameEvent::DrewFromEmpty(_)
             | GameEvent::TokenCeased(_)
             // [CR#114.1]: getting an emblem is not a watchable zone change —
             // no "whenever you get an emblem" pattern exists yet.
-            | GameEvent::EmblemCreated { .. }
-            | GameEvent::PlayerLost { .. }
-            | GameEvent::PlayerWon { .. }
-            | GameEvent::ManaAdded { .. }
-            | GameEvent::ManaEmptied { .. }
-            | GameEvent::Revealed { .. }
+            | GameEvent::EmblemCreated(EmblemCreated { .. })
+            | GameEvent::PlayerLost(PlayerLost { .. })
+            | GameEvent::PlayerWon(PlayerWon { .. })
+            | GameEvent::ManaAdded(ManaAdded { .. })
+            | GameEvent::ManaEmptied(ManaEmptied { .. })
+            | GameEvent::Revealed(Revealed { .. })
             | GameEvent::Shuffled(_)
-            | GameEvent::Unattached { .. }
-            | GameEvent::DamageRemoved { .. } => return None,
+            | GameEvent::Unattached(Unattached { .. })
+            | GameEvent::DamageRemoved(DamageRemoved { .. }) => return None,
         }
         Some(v)
     }
@@ -612,7 +643,10 @@ impl<'a> FactView<'a> {
 /// so a "dies"/"destroyed" `ZoneChange` trigger never matches the intent — no
 /// double-fire — while the cant/replacement lane matches it AS an `Act`.
 pub(crate) fn shadowed_by_fact(event: &GameEvent) -> bool {
-    matches!(event, GameEvent::ZoneChange { snapshot: None, .. })
+    matches!(
+        event,
+        GameEvent::ZoneChange(ZoneChange { snapshot: None, .. })
+    )
 }
 
 /// Does the recorded/current turn `time` fall inside `within`, seen from

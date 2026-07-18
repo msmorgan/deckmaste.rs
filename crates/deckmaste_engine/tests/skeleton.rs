@@ -15,11 +15,13 @@ use deckmaste_core::Predicate;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
+use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
 use deckmaste_engine::DecisionError;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
+use deckmaste_engine::ManaEmptied;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::ObjectSource;
 use deckmaste_engine::Occurrence;
@@ -33,6 +35,10 @@ use deckmaste_engine::StackEntry;
 use deckmaste_engine::StackObject;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
+use deckmaste_engine::Tapped;
+use deckmaste_engine::TriggerFired;
+use deckmaste_engine::TurnBegan;
+use deckmaste_engine::ZoneChange;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -160,12 +166,12 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     // One event per step: TurnBegan, then StepBegan(Untap).
     assert!(matches!(
         state.step(),
-        StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-            GameEvent::TurnBegan {
+        StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::TurnBegan(
+            TurnBegan {
                 player: PlayerId(0),
                 turn: 1,
             }
-        )))
+        ))))
     ));
     assert!(matches!(
         state.step(),
@@ -371,7 +377,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let (trace, stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::ZoneChange { snapshot: None, object, cause: Some(c), .. })
+        Some(GameEvent::ZoneChange(ZoneChange { snapshot: None, object, cause: Some(c), .. }))
             if *object == land && c.verb.as_str() == "Play"
     )));
     assert_eq!(state.zones.battlefield.len(), 1);
@@ -409,7 +415,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let (trace, _stop) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::Tapped { object, .. }) if *object == played
+        Some(GameEvent::Tapped(Tapped { object, .. })) if *object == played
     )));
     assert_eq!(state.players[0].mana_pool.amount(Color::White.into()), 1);
 
@@ -420,10 +426,10 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let (trace, _) = step_to_stop(&mut state);
     assert!(trace.iter().any(|p| matches!(
         applied(p),
-        Some(GameEvent::ManaEmptied {
+        Some(GameEvent::ManaEmptied(ManaEmptied {
             player: PlayerId(0),
             ..
-        })
+        }))
     )));
     assert!(state.players[0].mana_pool.is_empty());
 }
@@ -573,12 +579,12 @@ fn state_is_assertable_between_two_untap_events() {
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(ref snapshot),
                     face: None,
                     cause: Some(ref c),
                     ..
-                },
+                }),
             ))) if c.verb.as_str() == "Play" && snapshot.controller == PlayerId(0) => {
                 let deckmaste_engine::ObjectSource::Card(card) = snapshot.source else {
                     panic!("land is card-backed");
@@ -820,22 +826,22 @@ fn damage_to_a_player_is_life_loss_and_to_a_creature_is_marked() {
     let victim = state.players[1].object;
     apply_one(
         &mut state,
-        GameEvent::DamageDealt {
+        GameEvent::DamageDealt(DamageDealt {
             source: bear,
             target: victim,
             amount: 3,
             combat: false,
-        },
+        }),
     );
     assert_eq!(state.players[1].life, 17);
     apply_one(
         &mut state,
-        GameEvent::DamageDealt {
+        GameEvent::DamageDealt(DamageDealt {
             source: victim,
             target: bear,
             amount: 2,
             combat: false,
-        },
+        }),
     );
     assert_eq!(state.objects.obj(bear).total_damage(), 2);
 }
@@ -860,7 +866,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
     // and a fresh object sits in the owner's graveyard.
     apply_one(
         &mut state,
-        GameEvent::ZoneChange {
+        GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             object: spell,
             from: Some(Zone::Stack),
@@ -869,7 +875,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
             position: None,
             face: None,
             cause: None,
-        },
+        }),
     );
     assert!(state.stack.is_empty());
     assert!(
@@ -891,7 +897,7 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
     state.objects.obj_mut(bear).set_marked_damage(5);
     apply_one(
         &mut state,
-        GameEvent::ZoneChange {
+        GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             object: bear,
             from: Some(Zone::Battlefield),
@@ -900,7 +906,7 @@ fn destroy_will_change_remints_creature_to_owners_graveyard() {
             position: None,
             face: None,
             cause: None,
-        },
+        }),
     );
     // Old id is gone.
     assert!(state.objects.get(bear).is_none(), "old id must be removed");
@@ -927,7 +933,7 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
     state
         .agenda
         .push_front(deckmaste_engine::WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object: bear,
                 from: Some(Zone::Battlefield),
@@ -936,16 +942,18 @@ fn destroy_will_change_emits_zone_changed_carrying_lki() {
                 position: None,
                 face: None,
                 cause: None,
-            },
+            }),
         )));
     // First step applies the will-change; the next applies the queued fact.
     let _ = state.step();
-    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::ZoneChange {
-        snapshot: Some(snapshot),
-        from,
-        to,
-        ..
-    }))) = state.step()
+    let StepOutcome::Progress(Progress::Applied(Occurrence::Single(GameEvent::ZoneChange(
+        ZoneChange {
+            snapshot: Some(snapshot),
+            from,
+            to,
+            ..
+        },
+    )))) = state.step()
     else {
         panic!("expected an Applied past-form ZoneChange fact after the will-change");
     };
@@ -1092,7 +1100,7 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
+            Some(GameEvent::DamageDealt(DamageDealt { target, amount: 3, .. })) if *target == bear
         )),
         "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
     );
@@ -1101,12 +1109,12 @@ fn resolving_bolt_deals_three_then_leaves_for_graveyard() {
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::ZoneChange { snapshot: None,
+            Some(GameEvent::ZoneChange(ZoneChange { snapshot: None,
                 object,
                 from: Some(Zone::Stack),
                 to: Zone::Graveyard,
                 ..
-            }) if *object == bolt
+            })) if *object == bolt
         )),
         "expected a stack→graveyard future-form ZoneChange for bolt, trace: {trace:?}"
     );
@@ -1141,7 +1149,7 @@ fn all_pass_on_a_nonempty_stack_resolves_the_top() {
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::DamageDealt { target, amount: 3, .. }) if *target == bear
+            Some(GameEvent::DamageDealt(DamageDealt { target, amount: 3, .. })) if *target == bear
         )),
         "expected DamageDealt{{target: bear, amount: 3}}, trace: {trace:?}"
     );
@@ -1289,9 +1297,10 @@ fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
 
     // Trigger stage: its enter trigger fired.
     assert!(
-        trace
-            .iter()
-            .any(|p| matches!(applied(p), Some(GameEvent::TriggerFired { .. }))),
+        trace.iter().any(|p| matches!(
+            applied(p),
+            Some(GameEvent::TriggerFired(TriggerFired { .. }))
+        )),
         "the land's enter trigger fired (trigger stage)"
     );
 }

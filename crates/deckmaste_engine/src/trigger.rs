@@ -23,8 +23,20 @@ use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
+use crate::event::Attacking;
+use crate::event::BecameTarget;
+use crate::event::Blocked;
+use crate::event::ControlChanged;
+use crate::event::CounterPlaced;
+use crate::event::DamageDealt;
 use crate::event::GameEvent;
+use crate::event::LifeGained;
+use crate::event::LifeLost;
 use crate::event::Occurrence;
+use crate::event::Tapped;
+use crate::event::TriggerFired;
+use crate::event::TurnBegan;
+use crate::event::ZoneChange;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
@@ -457,15 +469,15 @@ impl GameState {
             // ([CR#603.2]) key off it (e.g. "at the beginning of combat on your
             // turn"); `TurnBegan` has no pattern shape that watches it.
             match event {
-                GameEvent::TriggerFired { .. }
+                GameEvent::TriggerFired(TriggerFired { .. })
                 | GameEvent::AbilityResolved(_)
-                | GameEvent::TurnBegan { .. }
-                | GameEvent::ZoneChange { snapshot: None, .. }
+                | GameEvent::TurnBegan(TurnBegan { .. })
+                | GameEvent::ZoneChange(ZoneChange { snapshot: None, .. })
                 // The FUTURE keyword-action window is not trigger-scanned; its
                 // committed PAST form (`FinalizeAct`) carries the
                 // "whenever you scry/discard/…" trigger fact ([CR#701.22d]).
                 | GameEvent::Act { committed: false, .. } => continue,
-                GameEvent::Blocked { attacker, .. } if !blocked_attackers.insert(*attacker) => {
+                GameEvent::Blocked(Blocked { attacker, .. }) if !blocked_attackers.insert(*attacker) => {
                     continue;
                 }
                 _ => {}
@@ -516,15 +528,15 @@ impl GameState {
                     continue;
                 }
             }
-            emits.push(WorkItem::Emit(Occurrence::single(
-                GameEvent::TriggerFired {
+            emits.push(WorkItem::Emit(Occurrence::single(GameEvent::TriggerFired(
+                TriggerFired {
                     source: ct.source,
                     ability: 0,
                     controller: ct.controller,
                     created: Some(ct.ability.clone()),
                     bindings: Box::new(bindings),
                 },
-            )));
+            ))));
             fired.push(idx);
         }
     }
@@ -567,16 +579,16 @@ impl GameState {
     pub(crate) fn event_roles(&self, event: &GameEvent) -> EventRoles {
         let (that_object, that_player, that_patient) = match event {
             // The past-form zone-change FACT carries the moved object's snapshot.
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: Some(snapshot),
                 ..
-            } => (Some(snapshot.as_ref().clone()), None, None),
+            }) => (Some(snapshot.as_ref().clone()), None, None),
             // [CR#603.2e] becomes-state transitions: the transitioning object
             // is the agent ("it") with its controller the actor — Exalted
             // ([CR#702.83a]) reads the lone attacker via `EventObject`.
-            GameEvent::Attacking { attacker: o, .. }
+            GameEvent::Attacking(Attacking { attacker: o, .. })
             | GameEvent::Untapped(o)
-            | GameEvent::Tapped { object: o, .. } => {
+            | GameEvent::Tapped(Tapped { object: o, .. }) => {
                 let (agent, actor) = self.event_agent(*o);
                 (agent, actor, None)
             }
@@ -584,14 +596,14 @@ impl GameState {
             // binds as `EventObject`, the recipient (object or player) as the
             // kind-poly patient. Ward's `Counter(EventObject)` ([CR#702.21a])
             // counters "it" (the source on the stack), not the warded permanent.
-            GameEvent::BecameTarget { target, source }
-            | GameEvent::DamageDealt { source, target, .. } => {
+            GameEvent::BecameTarget(BecameTarget { target, source })
+            | GameEvent::DamageDealt(DamageDealt { source, target, .. }) => {
                 let (agent, actor) = self.event_agent(*source);
                 (agent, actor, self.event_patient(*target))
             }
             // [CR#109.5] control change: the moved object is the agent, the new
             // controller the responsible actor.
-            GameEvent::ControlChanged { object, to } => {
+            GameEvent::ControlChanged(ControlChanged { object, to }) => {
                 let (agent, _) = self.event_agent(*object);
                 (agent, Some(*to), None)
             }
@@ -603,7 +615,7 @@ impl GameState {
         let defending_player = match event {
             // The defending player controls the thing attacked ([CR#508.1b]):
             // a planeswalker's controller, or the attacked player's own proxy.
-            GameEvent::Attacking { defending, .. } => {
+            GameEvent::Attacking(Attacking { defending, .. }) => {
                 self.objects.get(*defending).map(|o| o.controller)
             }
             _ => None,
@@ -611,15 +623,17 @@ impl GameState {
         // The event MAGNITUDE — the amount-carrying set the apply funnel fixes
         // into the `that_much` register ("whenever you gain life, … that much").
         let that_much = match event {
-            GameEvent::DamageDealt { amount, .. }
-            | GameEvent::LifeLost { amount, .. }
-            | GameEvent::LifeGained { amount, .. } => Some(*amount),
+            GameEvent::DamageDealt(DamageDealt { amount, .. })
+            | GameEvent::LifeLost(LifeLost { amount, .. })
+            | GameEvent::LifeGained(LifeGained { amount, .. }) => Some(*amount),
             _ => None,
         };
         // The counter event's before/after totals ([CR#714.2b]) — the
         // `Condition::Crossed` channel.
         let crossed = match event {
-            GameEvent::CounterPlaced { before, after, .. } => Some((*before, *after)),
+            GameEvent::CounterPlaced(CounterPlaced { before, after, .. }) => {
+                Some((*before, *after))
+            }
             _ => None,
         };
         EventRoles {
@@ -702,11 +716,11 @@ impl GameState {
                 })
                 .map(|&id| Watcher::Live(id)),
         );
-        if let GameEvent::ZoneChange {
+        if let GameEvent::ZoneChange(ZoneChange {
             snapshot: Some(snapshot),
             from: Some(Zone::Battlefield),
             ..
-        } = event
+        }) = event
         {
             // The leaving object — its abilities are no longer on the
             // battlefield, so add it explicitly ([CR#603.6c]).
@@ -813,13 +827,13 @@ impl GameState {
                 // delayed/reflexive triggers use ([CR#603.7,603.12]). A printed
                 // trigger keeps `created: None` and resolves by index, unchanged.
                 let created = (idx >= printed_len).then(|| t.clone());
-                let fired = GameEvent::TriggerFired {
+                let fired = GameEvent::TriggerFired(TriggerFired {
                     source,
                     ability: Uint::try_from(idx).expect("ability index fits in Uint"),
                     controller,
                     created,
                     bindings: Box::new(bindings),
-                };
+                });
                 for _ in 0..=extra {
                     emits.push(WorkItem::Emit(Occurrence::single(fired.clone())));
                 }
@@ -1228,8 +1242,21 @@ mod tests {
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
+    use crate::event::AbilityUsed;
+    use crate::event::BecameTarget;
+    use crate::event::Blocked;
+    use crate::event::ControlChanged;
+    use crate::event::CounterPlaced;
+    use crate::event::DamageDealt;
+    use crate::event::DesignationChanged;
     use crate::event::GameEvent;
+    use crate::event::GotDesignation;
+    use crate::event::LifeGained;
+    use crate::event::LifeLost;
     use crate::event::Occurrence;
+    use crate::event::Tapped;
+    use crate::event::TriggerFired;
+    use crate::event::ZoneChange;
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
@@ -1296,7 +1323,7 @@ mod tests {
     /// past-form `ZoneChange` as if it moved `from → to`.
     fn zone_changed_event(state: &GameState, id: ObjectId, from: Zone, to: Zone) -> GameEvent {
         let snapshot = LkiSnapshot::capture(state, id);
-        GameEvent::ZoneChange {
+        GameEvent::ZoneChange(ZoneChange {
             object: id,
             face: None,
             cause: None,
@@ -1305,7 +1332,7 @@ mod tests {
             to,
             enters: None,
             position: None,
-        }
+        })
     }
 
     // -------------------------------------------------------------------------
@@ -1335,7 +1362,7 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source: s, .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(TriggerFired { source: s, .. })))
                         if *s == source
                 )
             })
@@ -1573,7 +1600,7 @@ mod tests {
             counters: std::collections::HashMap::new(),
             left: Zone::Hand,
         };
-        let enter_event = GameEvent::ZoneChange {
+        let enter_event = GameEvent::ZoneChange(ZoneChange {
             object: bear,
             snapshot: Some(Box::new(snapshot)),
             from: Some(Zone::Hand),
@@ -1582,7 +1609,7 @@ mod tests {
             position: None,
             face: None,
             cause: None,
-        };
+        });
 
         let dies_pattern = EventFilter::ZoneChange {
             cause: None,
@@ -1621,7 +1648,7 @@ mod tests {
             counters: std::collections::HashMap::new(),
             left: Zone::Battlefield,
         };
-        let event = GameEvent::ZoneChange {
+        let event = GameEvent::ZoneChange(ZoneChange {
             object: land,
             snapshot: Some(Box::new(snapshot)),
             from: Some(Zone::Battlefield),
@@ -1630,7 +1657,7 @@ mod tests {
             position: None,
             face: None,
             cause: None,
-        };
+        });
 
         let dies_pattern = EventFilter::ZoneChange {
             cause: None,
@@ -1785,7 +1812,7 @@ mod tests {
             // from — Hand in this case.
             left: Zone::Hand,
         };
-        let enters_event = GameEvent::ZoneChange {
+        let enters_event = GameEvent::ZoneChange(ZoneChange {
             object: etb_obj,
             snapshot: Some(Box::new(enters_snapshot)),
             from: Some(Zone::Hand),
@@ -1794,7 +1821,7 @@ mod tests {
             position: None,
             face: None,
             cause: None,
-        };
+        });
 
         assert!(
             state.event_matches(&self_enters, &enters_event, etb_source),
@@ -1810,7 +1837,7 @@ mod tests {
         );
 
         // A future-form ZoneChange (not the past form) must not match.
-        let will_change_event = GameEvent::ZoneChange {
+        let will_change_event = GameEvent::ZoneChange(ZoneChange {
             snapshot: None,
             object: etb_obj,
             from: Some(Zone::Hand),
@@ -1819,7 +1846,7 @@ mod tests {
             position: None,
             face: None,
             cause: None,
-        };
+        });
         assert!(
             !state.event_matches(&self_enters, &will_change_event, etb_source),
             "Enters triggers must not fire on the future-form ZoneChange (only on the past form)"
@@ -2082,7 +2109,7 @@ mod tests {
         to: Zone,
         cause: crate::event::Cause,
     ) -> GameEvent {
-        let GameEvent::ZoneChange {
+        let GameEvent::ZoneChange(ZoneChange {
             object,
             snapshot: Some(snapshot),
             from,
@@ -2091,11 +2118,11 @@ mod tests {
             position,
             face,
             ..
-        } = zone_changed_event(state, id, from, to)
+        }) = zone_changed_event(state, id, from, to)
         else {
             unreachable!("zone_changed_event builds a past-form ZoneChange");
         };
-        GameEvent::ZoneChange {
+        GameEvent::ZoneChange(ZoneChange {
             object,
             snapshot: Some(snapshot),
             from,
@@ -2104,7 +2131,7 @@ mod tests {
             position,
             face,
             cause: Some(cause),
-        }
+        })
     }
 
     /// The SBA destruction cause ([CR#701.8b] — one of "destroyed"'s two
@@ -2340,14 +2367,14 @@ mod tests {
             of: Predicate::Ref(Reference::This),
             becomes: StateChange::Tapped,
         };
-        let own_tap = GameEvent::Tapped {
+        let own_tap = GameEvent::Tapped(Tapped {
             object: bear,
             cause: None,
-        };
-        let other_tap = GameEvent::Tapped {
+        });
+        let other_tap = GameEvent::Tapped(Tapped {
             object: other,
             cause: None,
-        };
+        });
         assert!(
             state.event_matches(&pattern, &own_tap, watcher_source),
             "the watcher's own tap matches"
@@ -2377,10 +2404,10 @@ mod tests {
         assert!(state.event_matches(&pattern, &GameEvent::Untapped(bear), watcher_source));
         assert!(!state.event_matches(
             &pattern,
-            &GameEvent::Tapped {
+            &GameEvent::Tapped(Tapped {
                 object: bear,
                 cause: None
-            },
+            }),
             watcher_source
         ));
     }
@@ -2399,22 +2426,22 @@ mod tests {
             of: Predicate::Any,
             becomes: StateChange::Tapped,
         };
-        let cost_tap = GameEvent::Tapped {
+        let cost_tap = GameEvent::Tapped(Tapped {
             object: bear,
             cause: Some(crate::event::Cause {
                 verb: "Tap".into(),
                 agency: deckmaste_core::Agency::CostPayment,
                 agent: None,
             }),
-        };
-        let effect_tap = GameEvent::Tapped {
+        });
+        let effect_tap = GameEvent::Tapped(Tapped {
             object: bear,
             cause: Some(crate::event::Cause {
                 verb: "Tap".into(),
                 agency: deckmaste_core::Agency::EffectInstruction,
                 agent: None,
             }),
-        };
+        });
         assert!(state.event_matches(&pattern, &cost_tap, watcher_source));
         assert!(state.event_matches(&pattern, &effect_tap, watcher_source));
     }
@@ -2446,7 +2473,7 @@ mod tests {
             by: Predicate::Any,
             of: Predicate::Ref(Reference::This),
         };
-        let event = GameEvent::Blocked { blocker, attacker };
+        let event = GameEvent::Blocked(Blocked { blocker, attacker });
         assert!(
             state.event_matches(&pattern, &event, attacker_source),
             "the attacker is the transitioning object"
@@ -2481,14 +2508,14 @@ mod tests {
         };
         let (b1, b2) = (bear(), bear());
         state.scan_triggers(&Occurrence::Batch(vec![
-            GameEvent::Blocked {
+            GameEvent::Blocked(Blocked {
                 blocker: b1,
                 attacker: tantiv,
-            },
-            GameEvent::Blocked {
+            }),
+            GameEvent::Blocked(Blocked {
                 blocker: b2,
                 attacker: tantiv,
-            },
+            }),
         ]));
         let fired = state
             .agenda
@@ -2496,7 +2523,9 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 )
             })
             .count();
@@ -2535,14 +2564,14 @@ mod tests {
         };
         let (b1, b2) = (bear(), bear());
         state.scan_triggers(&Occurrence::Batch(vec![
-            GameEvent::Blocked {
+            GameEvent::Blocked(Blocked {
                 blocker: b1,
                 attacker: t1,
-            },
-            GameEvent::Blocked {
+            }),
+            GameEvent::Blocked(Blocked {
                 blocker: b2,
                 attacker: t2,
-            },
+            }),
         ]));
         let fired = state
             .agenda
@@ -2550,7 +2579,9 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 )
             })
             .count();
@@ -2582,18 +2613,18 @@ mod tests {
             by: Predicate::Any,
             source: None,
         };
-        let event = GameEvent::BecameTarget {
+        let event = GameEvent::BecameTarget(BecameTarget {
             target: bear,
             source: spell,
-        };
+        });
         assert!(
             state.event_matches(&pattern, &event, watcher_source),
             "the watcher's own became-target fact matches"
         );
-        let other_event = GameEvent::BecameTarget {
+        let other_event = GameEvent::BecameTarget(BecameTarget {
             target: spell,
             source: bear,
-        };
+        });
         assert!(
             !state.event_matches(&pattern, &other_event, watcher_source),
             "a fact targeting a different object fails the what-filter"
@@ -2621,10 +2652,10 @@ mod tests {
                 .objects
                 .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Stack))
         };
-        let own_event = GameEvent::BecameTarget {
+        let own_event = GameEvent::BecameTarget(BecameTarget {
             target: bear,
             source: own_spell,
-        };
+        });
         assert!(
             !state.event_matches(&by_opponent, &own_event, watcher_source),
             "the watcher's controller's own spell fails the by-filter"
@@ -2704,18 +2735,18 @@ mod tests {
             combat: None,
             amount: None,
         };
-        let own_damage = GameEvent::DamageDealt {
+        let own_damage = GameEvent::DamageDealt(DamageDealt {
             source: bear,
             target: other,
             amount: 2,
             combat: false,
-        };
-        let others_damage = GameEvent::DamageDealt {
+        });
+        let others_damage = GameEvent::DamageDealt(DamageDealt {
             source: other,
             target: bear,
             amount: 2,
             combat: false,
-        };
+        });
         assert!(
             state.event_matches(&pattern, &own_damage, watcher_source),
             "the watcher dealing damage matches source: Ref(This)"
@@ -2747,18 +2778,18 @@ mod tests {
             state.zones.battlefield.push(id);
             id
         };
-        let combat_damage = GameEvent::DamageDealt {
+        let combat_damage = GameEvent::DamageDealt(DamageDealt {
             source: bear,
             target: other,
             amount: 2,
             combat: true,
-        };
-        let noncombat_damage = GameEvent::DamageDealt {
+        });
+        let noncombat_damage = GameEvent::DamageDealt(DamageDealt {
             source: bear,
             target: other,
             amount: 2,
             combat: false,
-        };
+        });
 
         let wants_combat = EventFilter::Damage {
             source: Predicate::Any,
@@ -2890,14 +2921,14 @@ mod tests {
             of: Predicate::creature(),
             to: Predicate::Ref(Reference::You),
         };
-        let to_you = GameEvent::ControlChanged {
+        let to_you = GameEvent::ControlChanged(ControlChanged {
             object: other,
             to: PlayerId(0),
-        };
-        let to_them = GameEvent::ControlChanged {
+        });
+        let to_them = GameEvent::ControlChanged(ControlChanged {
             object: other,
             to: PlayerId(1),
-        };
+        });
         assert!(
             state.event_matches(&pattern, &to_you, watcher_source),
             "a creature coming under YOUR control matches to: Ref(You)"
@@ -2919,14 +2950,14 @@ mod tests {
     fn designation_changed_matches_game_scope_flip() {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
-        let to_night = GameEvent::DesignationChanged {
+        let to_night = GameEvent::DesignationChanged(DesignationChanged {
             name: "DayNight".into(),
             becomes: Some("Night".into()),
-        };
-        let to_day = GameEvent::DesignationChanged {
+        });
+        let to_day = GameEvent::DesignationChanged(DesignationChanged {
             name: "DayNight".into(),
             becomes: Some("Day".into()),
-        };
+        });
         assert!(state.event_matches(&EventFilter::BecameNight, &to_night, watcher_source));
         assert!(!state.event_matches(&EventFilter::BecameNight, &to_day, watcher_source));
         assert!(state.event_matches(&EventFilter::BecameDay, &to_day, watcher_source));
@@ -2951,10 +2982,10 @@ mod tests {
         assert!(state.event_matches(&named_any, &to_night, watcher_source));
         assert!(!state.event_matches(&named_narrowed, &to_night, watcher_source));
         assert!(!state.event_matches(&wrong_name, &to_night, watcher_source));
-        let got = GameEvent::GotDesignation {
+        let got = GameEvent::GotDesignation(GotDesignation {
             player: PlayerId(0),
             name: "Monarch".into(),
-        };
+        });
         let monarch_you = EventFilter::DesignationChanged {
             name: "Monarch".into(),
             of: Predicate::Ref(Reference::You),
@@ -2966,10 +2997,10 @@ mod tests {
         assert!(
             !state.event_matches(
                 &monarch_you,
-                &GameEvent::GotDesignation {
+                &GameEvent::GotDesignation(GotDesignation {
                     player: PlayerId(1),
                     name: "Monarch".into(),
-                },
+                }),
                 watcher_source
             ),
             "an opponent's gain fails of: Ref(You)"
@@ -3341,7 +3372,9 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 )
             })
             .collect();
@@ -3350,7 +3383,10 @@ mod tests {
             1,
             "beginning-of-combat trigger must fire on the controller's turn"
         );
-        let WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source, .. })) = fired[0]
+        let WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(TriggerFired {
+            source,
+            ..
+        }))) = fired[0]
         else {
             unreachable!()
         };
@@ -3383,7 +3419,9 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 )
             })
             .count();
@@ -3422,7 +3460,9 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 )
             })
             .count()
@@ -3486,9 +3526,10 @@ mod tests {
             .agenda
             .iter()
             .find_map(|w| match w {
-                WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { created, .. })) => {
-                    Some(created)
-                }
+                WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(TriggerFired {
+                    created,
+                    ..
+                }))) => Some(created),
                 _ => None,
             })
             .expect("a TriggerFired emit");
@@ -3543,10 +3584,12 @@ mod tests {
 
         // Now an event occurs earlier in the resolution, THEN the reflexive
         // ability is created: it fires immediately on that event.
-        state.resolution_events.push(GameEvent::LifeGained {
-            player: PlayerId(0),
-            amount: 3,
-        });
+        state
+            .resolution_events
+            .push(GameEvent::LifeGained(LifeGained {
+                player: PlayerId(0),
+                amount: 3,
+            }));
         state.run_effect(OneShotEffect::Reflexive(Box::new(ability)), &frame);
         assert_eq!(
             total_fired(&state),
@@ -3603,10 +3646,12 @@ mod tests {
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
         let frame = Frame::bare(src, PlayerId(0));
-        state.resolution_events.push(GameEvent::LifeGained {
-            player: PlayerId(0),
-            amount: 3,
-        });
+        state
+            .resolution_events
+            .push(GameEvent::LifeGained(LifeGained {
+                player: PlayerId(0),
+                amount: 3,
+            }));
         state.run_effect(OneShotEffect::Delayed(Box::new(ability)), &frame);
         assert_eq!(
             total_fired(&state),
@@ -3712,7 +3757,9 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 )
             })
             .collect();
@@ -3721,7 +3768,10 @@ mod tests {
             1,
             "only the graveyard-functioning trigger IN the graveyard fires"
         );
-        let WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source, .. })) = fired[0]
+        let WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(TriggerFired {
+            source,
+            ..
+        }))) = fired[0]
         else {
             unreachable!()
         };
@@ -3758,7 +3808,9 @@ mod tests {
                 .iter()
                 .filter(|w| matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 ))
                 .count(),
             0,
@@ -3774,7 +3826,9 @@ mod tests {
                 .iter()
                 .filter(|w| matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                        TriggerFired { .. }
+                    )))
                 ))
                 .count(),
             1,
@@ -4353,13 +4407,13 @@ mod tests {
         let found = state.history.scan(Lookback::ThisGame, turn).any(|e| {
             matches!(
                 e,
-                GameEvent::AbilityUsed { object, ability }
+                GameEvent::AbilityUsed(AbilityUsed { object, ability })
                     if *object == goblin && *ability == 0
             )
         });
         assert!(
             found,
-            "TriggerFired apply must record GameEvent::AbilityUsed {{ object: {goblin:?}, ability: 0 }} in history",
+            "TriggerFired apply must record GameEvent::AbilityUsed(AbilityUsed {{ object: {goblin:?}, ability: 0 }}) in history",
         );
     }
 
@@ -4523,12 +4577,12 @@ mod tests {
         // replacement fact the trigger scan sees.
         let source = state.players[1].object;
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source,
                 target: gainer,
                 amount: 3,
                 combat: false,
-            },
+            }),
         ))]);
         for _ in 0..10 {
             if state.agenda.is_empty() {
@@ -4691,19 +4745,21 @@ mod tests {
             who: Predicate::Ref(Reference::You),
             amount: None,
         };
-        let draw_fact = |state: &GameState, card| GameEvent::ZoneChange {
-            object: card,
-            snapshot: Some(Box::new(LkiSnapshot::capture(state, card))),
-            from: Some(Zone::Library),
-            to: Zone::Hand,
-            enters: None,
-            position: None,
-            face: None,
-            cause: Some(crate::event::Cause {
-                verb: "Draw".into(),
-                agency: deckmaste_core::Agency::EffectInstruction,
-                agent: None,
-            }),
+        let draw_fact = |state: &GameState, card| {
+            GameEvent::ZoneChange(ZoneChange {
+                object: card,
+                snapshot: Some(Box::new(LkiSnapshot::capture(state, card))),
+                from: Some(Zone::Library),
+                to: Zone::Hand,
+                enters: None,
+                position: None,
+                face: None,
+                cause: Some(crate::event::Cause {
+                    verb: "Draw".into(),
+                    agency: deckmaste_core::Agency::EffectInstruction,
+                    agent: None,
+                }),
+            })
         };
         let you_card = state.objects.mint(
             ObjectSource::Player(PlayerId(0)),
@@ -4737,14 +4793,14 @@ mod tests {
             who: Predicate::Ref(Reference::You),
             amount: None,
         };
-        let you_lose = GameEvent::LifeLost {
+        let you_lose = GameEvent::LifeLost(LifeLost {
             player: PlayerId(0),
             amount: 3,
-        };
-        let opp_lose = GameEvent::LifeLost {
+        });
+        let opp_lose = GameEvent::LifeLost(LifeLost {
             player: PlayerId(1),
             amount: 3,
-        };
+        });
         assert!(
             state.event_matches(&pattern, &you_lose, watcher_source),
             "your own life loss matches by: Ref(You)"
@@ -4765,14 +4821,14 @@ mod tests {
             who: Predicate::Ref(Reference::You),
             amount: None,
         };
-        let you_gain = GameEvent::LifeGained {
+        let you_gain = GameEvent::LifeGained(LifeGained {
             player: PlayerId(0),
             amount: 4,
-        };
-        let opp_gain = GameEvent::LifeGained {
+        });
+        let opp_gain = GameEvent::LifeGained(LifeGained {
             player: PlayerId(1),
             amount: 4,
-        };
+        });
         assert!(
             state.event_matches(&pattern, &you_gain, watcher_source),
             "your own life gain matches by: Ref(You)"
@@ -4815,7 +4871,7 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source: s, .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(TriggerFired { source: s, .. })))
                         if *s == source
                 )
             })
@@ -5081,9 +5137,9 @@ mod tests {
                 .filter(|w| {
                     matches!(
                         w,
-                        WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired {
+                        WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(TriggerFired {
                             source, ..
-                        })) if *source == watcher_source
+                        }))) if *source == watcher_source
                     )
                 })
                 .count();
@@ -5133,25 +5189,25 @@ mod tests {
                 // fact (the post-replacement shape a doubler leaves) — apply
                 // fills before/after, and the scan reads the occurred fact.
                 state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(vec![
-                    GameEvent::CounterPlaced {
+                    GameEvent::CounterPlaced(CounterPlaced {
                         object: saga,
                         kind: "LoreCounter".into(),
                         amount,
                         before: 0,
                         after: 0,
                         cause: None,
-                    },
+                    }),
                 ]))]);
                 let _ = state.step();
                 let fired: Vec<deckmaste_core::Uint> = state
                     .agenda
                     .iter()
                     .filter_map(|w| match w {
-                        WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired {
-                            source,
-                            ability,
-                            ..
-                        })) if *source == saga_source => Some(*ability),
+                        WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(
+                            TriggerFired {
+                                source, ability, ..
+                            },
+                        ))) if *source == saga_source => Some(*ability),
                         _ => None,
                     })
                     .collect();
@@ -5208,7 +5264,7 @@ mod tests {
             .filter(|w| {
                 matches!(
                     w,
-                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired { source, .. }))
+                    WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(TriggerFired { source, .. })))
                         if *source == watcher_source
                 )
             })
@@ -5234,10 +5290,10 @@ mod tests {
         state.record_history_fact(
             1,
             None,
-            GameEvent::AbilityUsed {
+            GameEvent::AbilityUsed(AbilityUsed {
                 object: bear,
                 ability: 0,
-            },
+            }),
         );
         assert!(
             state.condition_holds(&gate, &frame),

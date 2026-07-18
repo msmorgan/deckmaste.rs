@@ -500,9 +500,15 @@ use deckmaste_core::Zone;
 use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::derive;
+use crate::event::AbilityActivated;
 use crate::event::Cause;
+use crate::event::DamageDealt;
 use crate::event::GameEvent;
+use crate::event::ManaAdded;
 use crate::event::Occurrence;
+use crate::event::PlayerLost;
+use crate::event::Tapped;
+use crate::event::ZoneChange;
 use crate::state::GameState;
 
 impl GameState {
@@ -804,13 +810,13 @@ impl GameState {
             .expect("combat-damage in flight");
         for (target, amount) in amounts {
             if amount > 0 {
-                cd.buffer.push(GameEvent::DamageDealt {
+                cd.buffer.push(GameEvent::DamageDealt(DamageDealt {
                     source,
                     target,
                     amount,
                     // The combat-damage step's assignment ([CR#510.1]).
                     combat: true,
-                });
+                }));
             }
         }
         cd.queue.remove(0);
@@ -869,10 +875,10 @@ impl GameState {
             todo!("P0.W6: multiplayer leave-game cleanup ([CR#800.4a])");
         }
         self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::PlayerLost {
+            GameEvent::PlayerLost(PlayerLost {
                 player,
                 reason: crate::event::LossReason::Conceded,
-            },
+            }),
         ))]);
     }
 
@@ -925,16 +931,18 @@ impl GameState {
                 // effect putting a land onto the battlefield is NOT a play,
                 // [CR#701.18a]). `LandsPlayedThisTurn` counts those Play-caused
                 // battlefield entries in the history log.
-                let mut items = vec![WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
-                    snapshot: None,
-                    object: *object,
-                    from: Some(Zone::Hand),
-                    to: Zone::Battlefield,
-                    enters: None,
-                    position: None,
-                    face: None,
-                    cause: Some(Cause::play(Agency::SpecialAction, None)),
-                }))];
+                let mut items = vec![WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange(
+                    ZoneChange {
+                        snapshot: None,
+                        object: *object,
+                        from: Some(Zone::Hand),
+                        to: Zone::Battlefield,
+                        enters: None,
+                        position: None,
+                        face: None,
+                        cause: Some(Cause::play(Agency::SpecialAction, None)),
+                    },
+                )))];
                 items.extend(Self::priority_tail());
                 self.schedule_front(items);
             }
@@ -958,16 +966,16 @@ impl GameState {
                     // hotspot (the repo has prior `layers()` perf history).
                     let riders = self.snow_provenance(*object);
                     let mut items = vec![
-                        WorkItem::Emit(Occurrence::single(GameEvent::Tapped {
+                        WorkItem::Emit(Occurrence::single(GameEvent::Tapped(Tapped {
                             object: *object,
                             cause: Some(Cause::tap(Agency::CostPayment, None)),
-                        })),
-                        WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded {
+                        }))),
+                        WorkItem::Emit(Occurrence::single(GameEvent::ManaAdded(ManaAdded {
                             player,
                             mana,
                             amount,
                             riders,
-                        })),
+                        }))),
                     ];
                     items.extend(Self::priority_tail());
                     self.schedule_front(items);
@@ -978,10 +986,10 @@ impl GameState {
                             object: *object,
                             ability: *ability,
                         },
-                        GameEvent::AbilityActivated {
+                        GameEvent::AbilityActivated(AbilityActivated {
                             source: *object,
                             ability: *ability,
-                        },
+                        }),
                     );
                     self.schedule_front(items);
                 }

@@ -32,10 +32,12 @@ use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::CardId;
+use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
 use deckmaste_engine::Frame;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
+use deckmaste_engine::LifeGained;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
@@ -1118,10 +1120,10 @@ fn lifegain_replaced_by_draw() {
     state
         .agenda
         .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Single(
-            deckmaste_engine::GameEvent::LifeGained {
+            deckmaste_engine::GameEvent::LifeGained(LifeGained {
                 player: PlayerId(0),
                 amount: 3,
-            },
+            }),
         )));
 
     // Drive until stable.
@@ -1220,12 +1222,12 @@ fn double_damage_lineage_terminates() {
     state
         .agenda
         .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Single(
-            deckmaste_engine::GameEvent::DamageDealt {
+            deckmaste_engine::GameEvent::DamageDealt(DamageDealt {
                 source: id, // source = the creature itself (arbitrary for the test)
                 target: id,
                 amount: 2,
                 combat: false,
-            },
+            }),
         )));
 
     // Drive to stability — must terminate (no stack overflow / infinite loop).
@@ -1337,12 +1339,12 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
     state
         .agenda
         .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Single(
-            deckmaste_engine::GameEvent::DamageDealt {
+            deckmaste_engine::GameEvent::DamageDealt(DamageDealt {
                 source,
                 target,
                 amount,
                 combat: false,
-            },
+            }),
         )));
     drive(state);
 }
@@ -1413,18 +1415,18 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
     state
         .agenda
         .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Batch(vec![
-            deckmaste_engine::GameEvent::DamageDealt {
+            deckmaste_engine::GameEvent::DamageDealt(DamageDealt {
                 source,
                 target: t1,
                 amount: 4,
                 combat: false,
-            },
-            deckmaste_engine::GameEvent::DamageDealt {
+            }),
+            deckmaste_engine::GameEvent::DamageDealt(DamageDealt {
                 source,
                 target: t2,
                 amount: 4,
                 combat: false,
-            },
+            }),
         ])));
     drive(&mut state);
 

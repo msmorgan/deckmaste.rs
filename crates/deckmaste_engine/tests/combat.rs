@@ -19,6 +19,8 @@ use deckmaste_core::KeywordAbility;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
+use deckmaste_engine::Attacking;
+use deckmaste_engine::Blocked;
 use deckmaste_engine::Decision;
 use deckmaste_engine::DecisionError;
 use deckmaste_engine::GameConfig;
@@ -32,7 +34,10 @@ use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
+use deckmaste_engine::Tapped;
+use deckmaste_engine::TriggerFired;
 use deckmaste_engine::WorkItem;
+use deckmaste_engine::ZoneChange;
 use deckmaste_engine::has_keyword;
 use deckmaste_engine::has_keyword_named;
 use deckmaste_engine::legal_attack_targets;
@@ -382,7 +387,7 @@ fn declare_attackers_taps_records_and_fires_attacking() {
         trace.iter().any(|p| matches!(
             p,
             Progress::Applied(Occurrence::Batch(events))
-                if events.contains(&GameEvent::Attacking { attacker: bear, defending: opp_proxy })
+                if events.contains(&GameEvent::Attacking(Attacking { attacker: bear, defending: opp_proxy }))
         )),
         "an Attacking(bear) event appears in the step trace: {trace:?}"
     );
@@ -413,10 +418,10 @@ fn declare_attackers_emits_tapped_fact_with_attack_cause() {
     assert!(
         trace.iter().any(|p| matches!(
             p,
-            Progress::Applied(Occurrence::Single(GameEvent::Tapped {
+            Progress::Applied(Occurrence::Single(GameEvent::Tapped(Tapped {
                 object,
                 cause: Some(c),
-            })) if *object == bear
+            }))) if *object == bear
                 && c.agency == deckmaste_core::Agency::AttackDeclaration
         )),
         "the attack tap rides the trace as a cause-tagged Tapped fact: {trace:?}"
@@ -440,7 +445,7 @@ fn vigilant_attacker_emits_no_tapped_fact() {
     assert!(
         !trace.iter().any(|p| matches!(
             p,
-            Progress::Applied(Occurrence::Single(GameEvent::Tapped { object, .. }))
+            Progress::Applied(Occurrence::Single(GameEvent::Tapped(Tapped { object, .. })))
                 if *object == vigilant
         )),
         "no Tapped fact for a vigilance attacker: {trace:?}"
@@ -565,21 +570,21 @@ fn declare_blockers_records_blocks_and_fires_blocked() {
             _ => None,
         })
         .flatten()
-        .filter(|e| matches!(e, GameEvent::Blocked { .. }))
+        .filter(|e| matches!(e, GameEvent::Blocked(Blocked { .. })))
         .collect();
     assert_eq!(
         blocked_events.len(),
         2,
         "two Blocked events fire (one per pair): {trace:?}"
     );
-    assert!(blocked_events.contains(&&GameEvent::Blocked {
+    assert!(blocked_events.contains(&&GameEvent::Blocked(Blocked {
         blocker: b1,
         attacker
-    }));
-    assert!(blocked_events.contains(&&GameEvent::Blocked {
+    })));
+    assert!(blocked_events.contains(&&GameEvent::Blocked(Blocked {
         blocker: b2,
         attacker
-    }));
+    })));
 
     let blockers = state.combat.blockers_of(attacker);
     assert!(
@@ -1075,7 +1080,7 @@ fn attacks_trigger_fires_and_resolves() {
     let fired = trace.iter().any(|p| {
         matches!(
             p,
-            Progress::Applied(Occurrence::Single(GameEvent::TriggerFired { source, .. }))
+            Progress::Applied(Occurrence::Single(GameEvent::TriggerFired(TriggerFired { source, .. })))
                 if *source == state.objects.obj(attacker).source
         )
     });
@@ -1525,16 +1530,18 @@ fn trample_no_live_blockers_assigns_all_to_player() {
     state.agenda.push_front(WorkItem::CheckSbas);
     state
         .agenda
-        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
-            snapshot: None,
-            object: blocker,
-            from: Some(Zone::Battlefield),
-            to: Zone::Graveyard,
-            enters: None,
-            position: None,
-            face: None,
-            cause: None,
-        })));
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange(
+            ZoneChange {
+                snapshot: None,
+                object: blocker,
+                from: Some(Zone::Battlefield),
+                to: Zone::Graveyard,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))));
     // Drive on: the destroy applies and prunes combat, then play passes through
     // to the Combat Damage step where the trampler sees no live blockers.
     let (_t, _stop) = pass_to_stop(&mut state);
@@ -1910,16 +1917,18 @@ fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attackin
     state.agenda.push_front(WorkItem::CheckSbas);
     state
         .agenda
-        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
-            snapshot: None,
-            object: pw,
-            from: Some(Zone::Battlefield),
-            to: Zone::Graveyard,
-            enters: None,
-            position: None,
-            face: None,
-            cause: None,
-        })));
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange(
+            ZoneChange {
+                snapshot: None,
+                object: pw,
+                from: Some(Zone::Battlefield),
+                to: Zone::Graveyard,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))));
     let (_t, stop) = pass_to_stop(&mut state);
 
     assert!(
@@ -2645,7 +2654,7 @@ fn attacker_can_attack_opponents_planeswalker() {
         trace.iter().any(|p| matches!(
             p,
             Progress::Applied(Occurrence::Batch(events))
-                if events.contains(&GameEvent::Attacking { attacker: bear, defending: pw })
+                if events.contains(&GameEvent::Attacking(Attacking { attacker: bear, defending: pw }))
         )),
         "the Attacking event carries the planeswalker as `defending`: {trace:?}"
     );

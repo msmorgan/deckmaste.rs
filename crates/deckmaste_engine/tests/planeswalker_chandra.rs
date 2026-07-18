@@ -32,6 +32,7 @@ use deckmaste_engine::Progress;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
+use deckmaste_engine::ZoneChange;
 
 const CHANDRA: &str = "Chandra, Torch of Defiance";
 const BEARS: &str = "Grizzly Bears"; // {1}{G}, no targets — the impulse's castable
@@ -164,16 +165,18 @@ fn schedule_entry(state: &mut GameState, obj: ObjectId) {
     state.agenda.push_front(WorkItem::CheckSbas);
     state
         .agenda
-        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
-            snapshot: None,
-            object: obj,
-            from,
-            to: Zone::Battlefield,
-            enters: None,
-            position: None,
-            face: None,
-            cause: None,
-        })));
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange(
+            ZoneChange {
+                snapshot: None,
+                object: obj,
+                from,
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))));
 }
 
 fn step_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {

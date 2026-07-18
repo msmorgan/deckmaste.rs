@@ -10,8 +10,10 @@ use crate::decide::DecisionError;
 use crate::decide::DecisionHandler;
 use crate::decide::PendingDecision;
 use crate::decide::PreGameKind;
+use crate::event::CoinFlipped;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
+use crate::event::ZoneChange;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
 use crate::state::GameState;
@@ -86,11 +88,11 @@ impl DecisionHandler for CallFlip {
         };
         // [CR#705.2]: the flipper called; call == result → win.
         let heads: bool = g.rng.random();
-        events.push(GameEvent::CoinFlipped {
+        events.push(GameEvent::CoinFlipped(CoinFlipped {
             player,
             heads,
             won: Some(call == heads),
-        });
+        }));
         let remaining = remaining - 1;
         if remaining > 0 {
             g.pending = Some(PendingDecision::CallFlip(CallFlip { player }));
@@ -496,15 +498,17 @@ impl DecisionHandler for LegendRule {
             .iter()
             .copied()
             .filter(|id| *id != kept_one)
-            .map(|id| GameEvent::ZoneChange {
-                snapshot: None,
-                object: id,
-                from: Some(Zone::Battlefield),
-                to: Zone::Graveyard,
-                enters: None,
-                position: None,
-                face: None,
-                cause: None,
+            .map(|id| {
+                GameEvent::ZoneChange(ZoneChange {
+                    snapshot: None,
+                    object: id,
+                    from: Some(Zone::Battlefield),
+                    to: Zone::Graveyard,
+                    enters: None,
+                    position: None,
+                    face: None,
+                    cause: None,
+                })
             })
             .collect();
         g.pending = None;

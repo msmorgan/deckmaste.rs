@@ -16,8 +16,39 @@ use rand::seq::SliceRandom;
 use crate::agenda::FinalizeWatch;
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
+use crate::event::AbilityActivated;
+use crate::event::AbilityCountered;
+use crate::event::AbilityUsed;
+use crate::event::Attached;
+use crate::event::Attacking;
+use crate::event::BecameTarget;
+use crate::event::Blocked;
+use crate::event::CoinFlipped;
+use crate::event::ControlChanged;
+use crate::event::Copied;
+use crate::event::CounterPlaced;
+use crate::event::CounterRemoved;
+use crate::event::DamageDealt;
+use crate::event::DamageRemoved;
+use crate::event::DesignationChanged;
+use crate::event::DieRolled;
+use crate::event::EmblemCreated;
 use crate::event::GameEvent;
+use crate::event::GotDesignation;
+use crate::event::LifeGained;
+use crate::event::LifeLost;
+use crate::event::ManaAdded;
+use crate::event::ManaEmptied;
 use crate::event::Occurrence;
+use crate::event::PlayerLost;
+use crate::event::PlayerWon;
+use crate::event::Revealed;
+use crate::event::Tapped;
+use crate::event::TokenCreated;
+use crate::event::TriggerFired;
+use crate::event::TurnBegan;
+use crate::event::Unattached;
+use crate::event::ZoneChange;
 use crate::legal::legal_actions;
 use crate::legal::legal_attackers;
 use crate::legal::legal_blockers;
@@ -324,11 +355,13 @@ impl GameState {
         // (`apply_occurrence` counts the batch — "discard two cards, then
         // draw that many" reads the batch size, not 1).
         match &event {
-            GameEvent::DamageDealt { amount, .. }
-            | GameEvent::LifeLost { amount, .. }
-            | GameEvent::LifeGained { amount, .. }
-            | GameEvent::CounterPlaced { amount, .. }
-            | GameEvent::CounterRemoved { amount, .. } => self.that_much = Some(*amount),
+            GameEvent::DamageDealt(DamageDealt { amount, .. })
+            | GameEvent::LifeLost(LifeLost { amount, .. })
+            | GameEvent::LifeGained(LifeGained { amount, .. })
+            | GameEvent::CounterPlaced(CounterPlaced { amount, .. })
+            | GameEvent::CounterRemoved(CounterRemoved { amount, .. }) => {
+                self.that_much = Some(*amount);
+            }
             _ => {}
         }
         #[expect(
@@ -343,15 +376,17 @@ impl GameState {
             // `history.record` at the trigger-fire/activation apply sites
             // ([CR#608.2i]); it never enters the occurrence pipeline, so its
             // apply is inert here (defensive only).
-            GameEvent::TurnBegan { .. }
+            GameEvent::TurnBegan(TurnBegan { .. })
             | GameEvent::StepBegan(_)
-            | GameEvent::BecameTarget { .. }
-            | GameEvent::AbilityUsed { .. } => event,
+            | GameEvent::BecameTarget(BecameTarget { .. })
+            | GameEvent::AbilityUsed(AbilityUsed { .. }) => event,
             // Pure information facts ([CR#705.1,706.2]): the rng draw
             // happened in the scheduling work item / call submission —
             // nothing to mutate; recording (triggers/history) rides the
             // standard funnel.
-            GameEvent::CoinFlipped { .. } | GameEvent::DieRolled { .. } => event,
+            GameEvent::CoinFlipped(CoinFlipped { .. }) | GameEvent::DieRolled(DieRolled { .. }) => {
+                event
+            }
             // [CR#707.10]: put a copy of the referenced stack object onto
             // the stack — "a copy of a spell is itself a spell", so a spell
             // copy mints a fresh backing object (its own `StackObject::Spell`
@@ -359,11 +394,11 @@ impl GameState {
             // the SAME `StackObject::{Triggered,Activated}` source as the
             // original ([CR#707.10b]) and only its `StackEntry.id` is fresh.
             // All cast decisions ride the clone (targets, X, paid costs).
-            GameEvent::Copied {
+            GameEvent::Copied(Copied {
                 original,
                 controller,
                 ..
-            } => {
+            }) => {
                 let Some(entry) = self.stack.iter().find(|e| e.id == original).cloned() else {
                     // The original vanished before this applied — fizzle
                     // (authoring mistakes never crash the engine).
@@ -405,11 +440,11 @@ impl GameState {
                 self.stack.push(copied);
                 // The minted id rides the recorded event so history (and any
                 // reader of the occurrence) can see what got created.
-                GameEvent::Copied {
+                GameEvent::Copied(Copied {
                     original,
                     copy: Some(new),
                     controller,
-                }
+                })
             }
             // [CR#122.1]: counters live in the object's (or player proxy's)
             // counter map. Placement sums by kind; removal saturates at zero
@@ -418,13 +453,13 @@ impl GameState {
             // carries the carrier's before/after TOTALS, apply-computed —
             // the [CR#714.2b] `Crossed` reads run off the fact, never a
             // post-hoc map read.
-            GameEvent::CounterPlaced {
+            GameEvent::CounterPlaced(CounterPlaced {
                 object,
                 kind,
                 amount,
                 cause,
                 ..
-            } => {
+            }) => {
                 let entry = self
                     .objects
                     .obj_mut(object)
@@ -434,21 +469,21 @@ impl GameState {
                 let before = *entry;
                 *entry += amount;
                 let after = *entry;
-                GameEvent::CounterPlaced {
+                GameEvent::CounterPlaced(CounterPlaced {
                     object,
                     kind,
                     amount,
                     before,
                     after,
                     cause,
-                }
+                })
             }
-            GameEvent::CounterRemoved {
+            GameEvent::CounterRemoved(CounterRemoved {
                 object,
                 ref kind,
                 amount,
                 ..
-            } => {
+            }) => {
                 self.remove_counters_clamped(object, kind, amount);
                 event
             }
@@ -463,33 +498,33 @@ impl GameState {
                 self.player_mut(player).drew_from_empty = true;
                 event
             }
-            GameEvent::Tapped { object, .. } => {
+            GameEvent::Tapped(Tapped { object, .. }) => {
                 self.objects.obj_mut(object).tapped = true;
                 event
             }
-            GameEvent::ManaAdded {
+            GameEvent::ManaAdded(ManaAdded {
                 player,
                 mana,
                 amount,
                 ref riders,
-            } => {
+            }) => {
                 self.player_mut(player)
                     .mana_pool
                     .add_riders(mana, amount, riders);
                 event
             }
-            GameEvent::ManaEmptied { player, ending } => {
+            GameEvent::ManaEmptied(ManaEmptied { player, ending }) => {
                 self.player_mut(player).mana_pool.empty_after(ending);
                 event
             }
-            GameEvent::TokenCreated { player, ref token } => {
+            GameEvent::TokenCreated(TokenCreated { player, ref token }) => {
                 self.apply_token_created(player, token);
                 event
             }
-            GameEvent::EmblemCreated {
+            GameEvent::EmblemCreated(EmblemCreated {
                 player,
                 ref abilities,
-            } => {
+            }) => {
                 self.apply_emblem_created(player, abilities.clone());
                 event
             }
@@ -497,14 +532,14 @@ impl GameState {
                 self.apply_token_ceased(id);
                 event
             }
-            GameEvent::PlayerLost { player, .. } => {
+            GameEvent::PlayerLost(PlayerLost { player, .. }) => {
                 self.player_mut(player).lost = true;
                 event
             }
             // [CR#104.2b,104.1]: an effect-driven win ends the game outright —
             // this player wins, no one else wins or loses. Distinct from the
             // derived last-player-standing win `check_game_end` computes.
-            GameEvent::PlayerWon { player } => {
+            GameEvent::PlayerWon(PlayerWon { player }) => {
                 if self.outcome.is_none() {
                     self.outcome = Some(GameOutcome::Win(player));
                     self.agenda.clear();
@@ -524,7 +559,7 @@ impl GameState {
                 );
                 GameEvent::SpellCast(object)
             }
-            GameEvent::AbilityActivated { source, ability } => {
+            GameEvent::AbilityActivated(AbilityActivated { source, ability }) => {
                 // [CR#602.2a]: promote the staged activation onto the stack
                 // under the stack identity minted when the announce opened
                 // ([CR#405], `begin_activate`).
@@ -559,19 +594,19 @@ impl GameState {
                 self.record_history_fact(
                     self.turn.turn_number,
                     None,
-                    GameEvent::AbilityUsed {
+                    GameEvent::AbilityUsed(AbilityUsed {
                         object: used_object,
                         ability: Uint::try_from(ability).expect("ability index fits in Uint"),
-                    },
+                    }),
                 );
-                GameEvent::AbilityActivated { source, ability }
+                GameEvent::AbilityActivated(AbilityActivated { source, ability })
             }
-            GameEvent::DamageDealt {
+            GameEvent::DamageDealt(DamageDealt {
                 source,
                 target,
                 amount,
                 combat,
-            } => {
+            }) => {
                 // [CR#120.3]: damage to a player is life loss; to a creature it is
                 // marked damage. `Int` is `i32`; `Uint` is `u32` — `try_from`
                 // is required because u32 does not fit into i32 via `From`.
@@ -657,14 +692,14 @@ impl GameState {
                 // the mark's captured deal-time abilities (recorded above), and
                 // the lethal-damage SBA reads it via `Is(Source, Has(Deathtouch))`
                 // ([CR#704.5h]).
-                GameEvent::DamageDealt {
+                GameEvent::DamageDealt(DamageDealt {
                     source,
                     target,
                     amount,
                     combat,
-                }
+                })
             }
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
                 object,
                 from,
@@ -673,7 +708,7 @@ impl GameState {
                 position,
                 face,
                 cause,
-            } => {
+            }) => {
                 self.apply_zone_will_change(
                     object,
                     from,
@@ -683,7 +718,7 @@ impl GameState {
                     face,
                     cause.clone(),
                 );
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: None,
                     object,
                     from,
@@ -692,7 +727,7 @@ impl GameState {
                     position,
                     face,
                     cause,
-                }
+                })
             }
             // [CR#603.6]: the FACT — the move already happened at the
             // will-change apply. A no-op; triggers (a later task) match here.
@@ -702,48 +737,48 @@ impl GameState {
                 clippy::match_same_arms,
                 reason = "own arm carries its CR rationale and trigger seam"
             )]
-            GameEvent::ZoneChange {
+            GameEvent::ZoneChange(ZoneChange {
                 snapshot: Some(_), ..
-            } => event,
+            }) => event,
             // [CR#701.3a,701.3c]: commit the attachment→host relation — a new
             // timestamp is implicit (no remint; the relation edit IS the
             // transition). The verb builder (`Action::Attach`) already filtered
             // the no-ops; this fact is real, so set the link, then record it for
             // "becomes attached / equipped" triggers (breadth is a seam, §9).
-            GameEvent::Attached { attachment, host } => {
+            GameEvent::Attached(Attached { attachment, host }) => {
                 self.objects.obj_mut(attachment).attached_to = Some(host);
-                GameEvent::Attached { attachment, host }
+                GameEvent::Attached(Attached { attachment, host })
             }
             // [CR#701.3d]: commit the unattach — clear the link. The verb
             // builder filtered the not-attached no-op, so this fact is real.
-            GameEvent::Unattached {
+            GameEvent::Unattached(Unattached {
                 attachment,
                 former_host,
-            } => {
+            }) => {
                 self.objects.obj_mut(attachment).attached_to = None;
-                GameEvent::Unattached {
+                GameEvent::Unattached(Unattached {
                     attachment,
                     former_host,
-                }
+                })
             }
-            GameEvent::LifeLost { player, amount } => {
+            GameEvent::LifeLost(LifeLost { player, amount }) => {
                 self.player_mut(player).life -=
                     deckmaste_core::Int::try_from(amount).expect("life loss fits in i32");
-                GameEvent::LifeLost { player, amount }
+                GameEvent::LifeLost(LifeLost { player, amount })
             }
             // [CR#119.3]: a player gains life — the life total adjusts up.
-            GameEvent::LifeGained { player, amount } => {
+            GameEvent::LifeGained(LifeGained { player, amount }) => {
                 self.player_mut(player).life +=
                     deckmaste_core::Int::try_from(amount).expect("life gain fits in i32");
-                GameEvent::LifeGained { player, amount }
+                GameEvent::LifeGained(LifeGained { player, amount })
             }
             // [CR#508.1a]: record the attacker; [CR#508.1f]: declaring it as an
             // attacker taps it (not a cost — attacking simply taps).
             // [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
-            GameEvent::Attacking {
+            GameEvent::Attacking(Attacking {
                 attacker: o,
                 defending,
-            } => {
+            }) => {
                 self.combat.declare_attacker(o, defending);
                 if !crate::combat::has_keyword(&self.layers(), o, &KeywordAbility::Vigilance)
                     && !self.objects.obj(o).tapped
@@ -755,37 +790,37 @@ impl GameState {
                     // declaration's wake so becomes-tapped triggers see it.
                     // Re-applying it is an idempotent flip.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                        GameEvent::Tapped {
+                        GameEvent::Tapped(Tapped {
                             object: o,
                             cause: Some(crate::event::Cause::tap(
                                 deckmaste_core::Agency::AttackDeclaration,
                                 None,
                             )),
-                        },
+                        }),
                     ))]);
                 }
-                GameEvent::Attacking {
+                GameEvent::Attacking(Attacking {
                     attacker: o,
                     defending,
-                }
+                })
             }
             // [CR#509.1a]: record the block; [CR#509.1h]: the attacker becomes a
             // blocked creature (sticky). Declaring a blocker does NOT tap it. The
             // "becomes blocked" trigger seam matches on this fact.
-            GameEvent::Blocked { blocker, attacker } => {
+            GameEvent::Blocked(Blocked { blocker, attacker }) => {
                 self.combat.declare_block(blocker, attacker);
-                GameEvent::Blocked { blocker, attacker }
+                GameEvent::Blocked(Blocked { blocker, attacker })
             }
             // [CR#603.2]: applying a `TriggerFired` *notes* the trigger. It is
             // inert until the `PlaceTriggers` barrier (a later task) puts it on
             // the stack. Nothing else happens here.
-            GameEvent::TriggerFired {
+            GameEvent::TriggerFired(TriggerFired {
                 source,
                 ability,
                 controller,
                 ref created,
                 ref bindings,
-            } => {
+            }) => {
                 // A delayed/reflexive ([CR#603.7,603.12]) trigger carries its
                 // body by value: it has no printed index, so the use-limit gate
                 // and `AbilityUsed` history (both keyed by `object`+printed
@@ -860,10 +895,10 @@ impl GameState {
                 // Not routed through the occurrence pipeline — must not trigger
                 // anything and must not be re-recorded ([CR#608.2i]).
                 if let Some(this) = &bindings.this {
-                    let used = GameEvent::AbilityUsed {
+                    let used = GameEvent::AbilityUsed(AbilityUsed {
                         object: this.object,
                         ability,
-                    };
+                    });
                     self.record_history_fact(self.turn.turn_number, None, used);
                 }
                 event
@@ -873,7 +908,7 @@ impl GameState {
             // remove its stack entry and discard the (minted, for a spell
             // copy freshly minted) backing object. No zone move; the source
             // (already gone for a dies-trigger) is untouched.
-            GameEvent::AbilityCountered { id, .. } => {
+            GameEvent::AbilityCountered(AbilityCountered { id, .. }) => {
                 self.remove_stack_entry(id);
                 self.objects.remove(id);
                 event
@@ -887,7 +922,7 @@ impl GameState {
             // ControlChanged's will re-home the object ([CR#603.2e] delta,
             // never a zone move).
             // Revealing is a public information event, not a state mutation.
-            GameEvent::Revealed { .. } => event,
+            GameEvent::Revealed(Revealed { .. }) => event,
             // [CR#701,616.1]: a FUTURE keyword-action window that PASSED
             // (unreplaced, uncanted) — the apply unwraps its contents DIRECTLY,
             // opening NO second replacement window, per the verb's commit
@@ -976,15 +1011,17 @@ impl GameState {
                             .collect();
                         let mill_events: Vec<GameEvent> = slice
                             .into_iter()
-                            .map(|object| GameEvent::ZoneChange {
-                                snapshot: None,
-                                object,
-                                from: Some(Zone::Library),
-                                to: to_zone,
-                                enters: None,
-                                position: None,
-                                face: None,
-                                cause: cause.clone(),
+                            .map(|object| {
+                                GameEvent::ZoneChange(ZoneChange {
+                                    snapshot: None,
+                                    object,
+                                    from: Some(Zone::Library),
+                                    to: to_zone,
+                                    enters: None,
+                                    position: None,
+                                    face: None,
+                                    cause: cause.clone(),
+                                })
                             })
                             .collect();
                         let mark = self.resolution_events.len();
@@ -1049,7 +1086,7 @@ impl GameState {
                             ))
                         });
                         self.schedule_front(vec![
-                            WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
+                            WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange(ZoneChange {
                                 snapshot: None,
                                 object: top,
                                 from: Some(Zone::Library),
@@ -1058,7 +1095,7 @@ impl GameState {
                                 position: None,
                                 face: None,
                                 cause: draw_cause,
-                            })),
+                            }))),
                             WorkItem::FinalizeAct {
                                 act: rebuilt(),
                                 watch: crate::agenda::FinalizeWatch::Performer(player),
@@ -1170,16 +1207,16 @@ impl GameState {
             GameEvent::Act {
                 committed: true, ..
             } => event,
-            GameEvent::DesignationChanged { .. } => {
+            GameEvent::DesignationChanged(DesignationChanged { .. }) => {
                 todo!("P0.W6: game-scope designation flip apply ([CR#731.1a])")
             }
-            GameEvent::GotDesignation { player, name } => {
+            GameEvent::GotDesignation(GotDesignation { player, name }) => {
                 // [CR#702.131c]: set the player-scope flag once; never removed.
                 self.designations
                     .players
                     .entry((player, name))
                     .or_insert(crate::state::DesignationValue::Flag);
-                GameEvent::GotDesignation { player, name }
+                GameEvent::GotDesignation(GotDesignation { player, name })
             }
             // [CR#701.12b,613.1b]: a one-shot control TRANSITION — re-home
             // the object (a control change is never a zone move; the object
@@ -1188,7 +1225,7 @@ impl GameState {
             // controller has not controlled it continuously since their
             // last turn began, so it is summoning-sick for them
             // ([CR#302.6]).
-            GameEvent::ControlChanged { object, to } => {
+            GameEvent::ControlChanged(ControlChanged { object, to }) => {
                 if self.objects.get(object).is_some() {
                     self.objects.obj_mut(object).controller = to;
                     self.objects.obj_mut(object).summoning_sick = true;
@@ -1213,12 +1250,12 @@ impl GameState {
             // deathtouch provenance too ([CR#704.5h]) — a healed creature is no
             // longer "dealt damage by a deathtouch source", so a later SBA check
             // does not re-destroy it.
-            GameEvent::DamageRemoved { object } => {
+            GameEvent::DamageRemoved(DamageRemoved { object }) => {
                 if self.objects.get(object).is_some() {
                     self.objects.obj_mut(object).clear_damage();
                 }
                 self.combat.remove_object(object);
-                GameEvent::DamageRemoved { object }
+                GameEvent::DamageRemoved(DamageRemoved { object })
             }
         }
     }
@@ -1366,7 +1403,7 @@ impl GameState {
         // equipped" can match it (breadth is a seam, §9); it stays its own
         // occurrence — the flushed evolution batch is front-scheduled after
         // the member loop, landing AHEAD of it.
-        self.schedule_evolution(GameEvent::ZoneChange {
+        self.schedule_evolution(GameEvent::ZoneChange(ZoneChange {
             object,
             snapshot: Some(Box::new(snapshot)),
             from,
@@ -1375,13 +1412,13 @@ impl GameState {
             position,
             face,
             cause,
-        });
+        }));
         if let Some(host) = attached_host {
             self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-                GameEvent::Attached {
+                GameEvent::Attached(Attached {
                     attachment: new,
                     host,
-                },
+                }),
             ))]);
         }
     }
@@ -1408,7 +1445,7 @@ impl GameState {
         // The entry fact joins the batch collector when N tokens are minted
         // as one simultaneous instruction ([CR#701.7a] — "one instruction,
         // simultaneous"): their enter-triggers see ONE occurrence.
-        self.schedule_evolution(GameEvent::ZoneChange {
+        self.schedule_evolution(GameEvent::ZoneChange(ZoneChange {
             object: new,
             snapshot: Some(Box::new(snapshot)),
             from: None,
@@ -1417,7 +1454,7 @@ impl GameState {
             position: None,
             face: None,
             cause: None,
-        });
+        }));
     }
 
     /// Applies an `EmblemCreated` ([CR#114.1]): synthesizes an abilities-only
@@ -1486,17 +1523,17 @@ impl GameState {
         if let Occurrence::Batch(ref mut facts) = occ
             && facts
                 .iter()
-                .any(|e| matches!(e, GameEvent::PlayerWon { .. }))
+                .any(|e| matches!(e, GameEvent::PlayerWon(PlayerWon { .. })))
         {
             let losers: std::collections::HashSet<PlayerId> = facts
                 .iter()
                 .filter_map(|e| match e {
-                    GameEvent::PlayerLost { player, .. } => Some(*player),
+                    GameEvent::PlayerLost(PlayerLost { player, .. }) => Some(*player),
                     _ => None,
                 })
                 .collect();
             facts.retain(
-                |e| !matches!(e, GameEvent::PlayerWon { player } if losers.contains(player)),
+                |e| !matches!(e, GameEvent::PlayerWon(PlayerWon { player }) if losers.contains(player)),
             );
         }
         // Preserve whether the input was a Single or Batch — callers and tests
@@ -1646,15 +1683,15 @@ impl GameState {
             FinalizeWatch::Patients(ids) => self.resolution_events[mark..].iter().any(|e| {
                 matches!(
                     e,
-                    GameEvent::ZoneChange { snapshot: Some(_), object, .. } if ids.contains(object)
+                    GameEvent::ZoneChange(ZoneChange { snapshot: Some(_), object, .. }) if ids.contains(object)
                 )
             }),
             FinalizeWatch::Performer(player) => self.resolution_events[mark..].iter().any(|e| {
-                let GameEvent::ZoneChange {
+                let GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(snap),
                     cause: Some(c),
                     ..
-                } = e
+                }) = e
                 else {
                     return false;
                 };
@@ -1678,7 +1715,7 @@ impl GameState {
             FinalizeWatch::AnyContained(verb) => self.resolution_events[mark..].iter().any(|e| {
                 matches!(
                     e,
-                    GameEvent::ZoneChange { snapshot: Some(_), cause: Some(c), .. }
+                    GameEvent::ZoneChange(ZoneChange { snapshot: Some(_), cause: Some(c), .. })
                         if c.verb.as_str() == verb.as_str()
                 )
             }),
@@ -1742,11 +1779,11 @@ impl GameState {
         let moved = events
             .iter()
             .filter(|e| match e {
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(_),
                     cause: Some(c),
                     ..
-                } => crate::entail::entailment(c.verb.as_str()).is_some_and(|row| row.amount),
+                }) => crate::entail::entailment(c.verb.as_str()).is_some_and(|row| row.amount),
                 _ => false,
             })
             .count();
@@ -1761,13 +1798,13 @@ impl GameState {
         let mut rolled_sum: Uint = 0;
         for event in events {
             match event {
-                GameEvent::CoinFlipped { heads, won, .. } => {
+                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => {
                     coins += 1;
                     any_called |= won.is_some();
                     wins += Uint::from(*won == Some(true));
                     heads_up += Uint::from(*heads);
                 }
-                GameEvent::DieRolled { result, .. } => {
+                GameEvent::DieRolled(DieRolled { result, .. }) => {
                     dice += 1;
                     rolled_sum += *result;
                 }
@@ -1819,10 +1856,10 @@ impl GameState {
         };
         for event in events {
             match event {
-                GameEvent::TriggerFired { .. }
+                GameEvent::TriggerFired(TriggerFired { .. })
                 | GameEvent::AbilityResolved(_)
-                | GameEvent::TurnBegan { .. }
-                | GameEvent::ZoneChange { snapshot: None, .. }
+                | GameEvent::TurnBegan(TurnBegan { .. })
+                | GameEvent::ZoneChange(ZoneChange { snapshot: None, .. })
                 // The FUTURE keyword-action window is not a recorded fact — its
                 // committed PAST form (recorded by `FinalizeAct`) is what
                 // history/triggers read ([CR#603.6]); recording the future too
@@ -1872,10 +1909,10 @@ impl GameState {
         if self.noting.is_empty() {
             return;
         }
-        let GameEvent::ZoneChange {
+        let GameEvent::ZoneChange(ZoneChange {
             snapshot: Some(snapshot),
             ..
-        } = event
+        }) = event
         else {
             return;
         };
@@ -1949,10 +1986,10 @@ impl GameState {
         // [CR#611.2a]: "until your next turn" effects/shields whose controller
         // is the now-active player end as this turn begins.
         self.expire_your_next_turn(active);
-        GameEvent::TurnBegan {
+        GameEvent::TurnBegan(TurnBegan {
             player: self.turn.active_player,
             turn: self.turn.turn_number,
-        }
+        })
     }
 
     /// The turn-structure transition: schedules the step's whole shape.
@@ -2164,10 +2201,10 @@ impl GameState {
             // Lost players have left the game; nothing of theirs empties.
             .filter(|p| !p.lost && !p.mana_pool.is_empty())
             .map(|p| {
-                WorkItem::Emit(Occurrence::single(GameEvent::ManaEmptied {
+                WorkItem::Emit(Occurrence::single(GameEvent::ManaEmptied(ManaEmptied {
                     player: p.id,
                     ending: self.turn.current,
-                }))
+                })))
             })
             .collect();
         // [CR#511.3]: removal from combat happens as the End of Combat step ends
@@ -2587,10 +2624,12 @@ impl GameState {
             return Progress::CoinsFlipped { count };
         }
         let events: Vec<GameEvent> = (0..count)
-            .map(|_| GameEvent::CoinFlipped {
-                player,
-                heads: self.rng.random(),
-                won: None,
+            .map(|_| {
+                GameEvent::CoinFlipped(CoinFlipped {
+                    player,
+                    heads: self.rng.random(),
+                    won: None,
+                })
             })
             .collect();
         self.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
@@ -2603,12 +2642,12 @@ impl GameState {
         let events: Vec<GameEvent> = (0..count)
             .map(|_| {
                 let natural = self.rng.random_range(1..=sides);
-                GameEvent::DieRolled {
+                GameEvent::DieRolled(DieRolled {
                     player,
                     sides,
                     natural,
                     result: natural,
-                }
+                })
             })
             .collect();
         if !events.is_empty() {
@@ -2869,13 +2908,13 @@ impl GameState {
             return; // [CR#510.1a]: 0 power (or no recipient) assigns nothing.
         }
         if recipients.len() == 1 {
-            buffer.push(GameEvent::DamageDealt {
+            buffer.push(GameEvent::DamageDealt(DamageDealt {
                 source,
                 target: recipients[0],
                 amount: power,
                 // The combat-damage step's assignment ([CR#510.1]).
                 combat: true,
-            });
+            }));
         } else {
             queue.push(crate::state::PendingAssignment {
                 source,
@@ -2995,8 +3034,13 @@ mod tests {
     use deckmaste_core::Zone;
 
     use crate::agenda::WorkItem;
+    use crate::event::Copied;
+    use crate::event::CounterPlaced;
     use crate::event::GameEvent;
+    use crate::event::GotDesignation;
     use crate::event::Occurrence;
+    use crate::event::TurnBegan;
+    use crate::event::ZoneChange;
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
@@ -3056,10 +3100,10 @@ mod tests {
         );
 
         // A skipped (meta) fact is not.
-        state.record_history(&Occurrence::single(GameEvent::TurnBegan {
+        state.record_history(&Occurrence::single(GameEvent::TurnBegan(TurnBegan {
             player: PlayerId(0),
             turn: 1,
-        }));
+        })));
         assert_eq!(
             state
                 .history
@@ -3207,10 +3251,10 @@ mod tests {
         assert!(
             stage2.iter().all(|e| matches!(
                 e,
-                GameEvent::ZoneChange {
+                GameEvent::ZoneChange(ZoneChange {
                     snapshot: Some(_),
                     ..
-                }
+                })
             )),
             "stage 2 is the committed fact batch (no future-form ZoneChange), got {stage2:?}"
         );
@@ -3219,10 +3263,10 @@ mod tests {
         // entered the history for the destroy — the `Act` committed the move
         // itself.
         assert!(
-            !state
-                .history
-                .entries()
-                .any(|e| matches!(e.fact, GameEvent::ZoneChange { snapshot: None, .. })),
+            !state.history.entries().any(|e| matches!(
+                e.fact,
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, .. })
+            )),
             "a composite destroy emits NO separate replaceable future-form ZoneChange"
         );
 
@@ -3233,10 +3277,10 @@ mod tests {
             .filter(|e| {
                 matches!(
                     e.fact,
-                    GameEvent::ZoneChange {
+                    GameEvent::ZoneChange(ZoneChange {
                         snapshot: Some(_),
                         ..
-                    }
+                    })
                 )
             })
             .map(|e| e.batch)
@@ -3251,13 +3295,15 @@ mod tests {
     #[test]
     fn counter_placed_apply_fills_before_and_after_totals() {
         let (mut state, _view, id) = crate::replace_registry::tests_support::lone_creature();
-        let place = |n: deckmaste_core::Uint| GameEvent::CounterPlaced {
-            object: id,
-            kind: "P1P1Counter".into(),
-            amount: n,
-            before: 0,
-            after: 0,
-            cause: None,
+        let place = |n: deckmaste_core::Uint| {
+            GameEvent::CounterPlaced(CounterPlaced {
+                object: id,
+                kind: "P1P1Counter".into(),
+                amount: n,
+                before: 0,
+                after: 0,
+                cause: None,
+            })
         };
 
         state.schedule_front(vec![
@@ -3271,12 +3317,12 @@ mod tests {
         )> = (0..2)
             .map(|_| match state.step() {
                 crate::step::StepOutcome::Progress(crate::step::Progress::Applied(
-                    Occurrence::Single(GameEvent::CounterPlaced {
+                    Occurrence::Single(GameEvent::CounterPlaced(CounterPlaced {
                         amount,
                         before,
                         after,
                         ..
-                    }),
+                    })),
                 )) => (amount, before, after),
                 other => panic!("expected an applied CounterPlaced, got {other:?}"),
             })
@@ -3310,18 +3356,20 @@ mod tests {
         }
         let events: Vec<GameEvent> = in_hand
             .into_iter()
-            .map(|object| GameEvent::ZoneChange {
-                snapshot: None,
-                object,
-                from: Some(Zone::Hand),
-                to: Zone::Graveyard,
-                enters: None,
-                position: None,
-                face: None,
-                cause: Some(crate::event::Cause::discard(
-                    deckmaste_core::Agency::EffectInstruction,
-                    None,
-                )),
+            .map(|object| {
+                GameEvent::ZoneChange(ZoneChange {
+                    snapshot: None,
+                    object,
+                    from: Some(Zone::Hand),
+                    to: Zone::Graveyard,
+                    enters: None,
+                    position: None,
+                    face: None,
+                    cause: Some(crate::event::Cause::discard(
+                        deckmaste_core::Agency::EffectInstruction,
+                        None,
+                    )),
+                })
             })
             .collect();
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
@@ -3423,7 +3471,7 @@ mod tests {
         let p0 = crate::player::PlayerId(0);
 
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
-            GameEvent::GotDesignation { player: p0, name },
+            GameEvent::GotDesignation(GotDesignation { player: p0, name }),
         ))]);
         let _ = state.step();
         assert!(
@@ -3433,7 +3481,7 @@ mod tests {
 
         // A second apply does not panic and leaves the entry present.
         state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
-            GameEvent::GotDesignation { player: p0, name },
+            GameEvent::GotDesignation(GotDesignation { player: p0, name }),
         ))]);
         let _ = state.step();
         assert!(state.designations.players.contains_key(&(p0, name)));
@@ -3909,19 +3957,19 @@ mod tests {
         // ([CR#602.2a]: "It has the text of the ability that created it").
         state.objects.remove(source);
 
-        let event = state.apply(GameEvent::Copied {
+        let event = state.apply(GameEvent::Copied(Copied {
             original: entry_id,
             copy: None,
             controller: PlayerId(1),
-        });
+        }));
 
         assert_eq!(
             event,
-            GameEvent::Copied {
+            GameEvent::Copied(Copied {
                 original: entry_id,
                 copy: None,
                 controller: PlayerId(1),
-            },
+            }),
             "fizzles: the event comes back unchanged, no copy minted"
         );
         assert_eq!(

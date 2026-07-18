@@ -20,6 +20,10 @@ use deckmaste_core::Uint;
 use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
 
+#[cfg(test)]
+use crate::event::AbilityActivated;
+#[cfg(test)]
+use crate::event::AbilityUsed;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
@@ -1263,10 +1267,10 @@ mod tests {
         state.record_history_fact(
             state.turn.turn_number,
             None,
-            crate::event::GameEvent::AbilityUsed {
+            crate::event::GameEvent::AbilityUsed(AbilityUsed {
                 object: obj,
                 ability: 0,
-            },
+            }),
         );
 
         let ability = ActivatedAbility {
@@ -1305,10 +1309,10 @@ mod tests {
         state.record_history_fact(
             state.turn.turn_number,
             None,
-            crate::event::GameEvent::AbilityUsed {
+            crate::event::GameEvent::AbilityUsed(AbilityUsed {
                 object: obj,
                 ability: 0,
-            },
+            }),
         );
         // Advance to a new turn — the ThisGame window still sees the prior entry.
         state.turn.turn_number += 1;
@@ -1885,10 +1889,10 @@ mod tests {
                 object: obj,
                 ability: 0,
             },
-            crate::event::GameEvent::AbilityActivated {
+            crate::event::GameEvent::AbilityActivated(AbilityActivated {
                 source: obj,
                 ability: 0,
-            },
+            }),
         );
         state.schedule_front(items);
 
@@ -1898,7 +1902,7 @@ mod tests {
         for _ in 0..20 {
             match state.step() {
                 StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                    crate::event::GameEvent::AbilityActivated { .. },
+                    crate::event::GameEvent::AbilityActivated(AbilityActivated { .. }),
                 ))) => {
                     activated = true;
                     break;
@@ -1924,13 +1928,13 @@ mod tests {
         let found = state.history.scan(Lookback::ThisGame, turn).any(|e| {
             matches!(
                 e,
-                crate::event::GameEvent::AbilityUsed { object, ability }
+                crate::event::GameEvent::AbilityUsed(AbilityUsed { object, ability })
                     if *object == obj && *ability == 0
             )
         });
         assert!(
             found,
-            "AbilityActivated apply must record GameEvent::AbilityUsed {{ object: {obj:?}, ability: 0 }} in history",
+            "AbilityActivated apply must record GameEvent::AbilityUsed(AbilityUsed {{ object: {obj:?}, ability: 0 }}) in history",
         );
     }
 }

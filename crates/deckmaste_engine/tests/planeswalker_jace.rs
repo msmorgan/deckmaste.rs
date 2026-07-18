@@ -37,6 +37,7 @@ use deckmaste_engine::Progress;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
+use deckmaste_engine::ZoneChange;
 
 const JACE: &str = "Jace Beleren";
 const CENTAUR: &str = "Centaur Courser"; // a 3/3 — 3 combat damage = Jace's loyalty
@@ -165,16 +166,18 @@ fn schedule_entry(state: &mut GameState, obj: ObjectId) {
     state.agenda.push_front(WorkItem::CheckSbas);
     state
         .agenda
-        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange {
-            snapshot: None,
-            object: obj,
-            from,
-            to: Zone::Battlefield,
-            enters: None,
-            position: None,
-            face: None,
-            cause: None,
-        })));
+        .push_front(WorkItem::Emit(Occurrence::single(GameEvent::ZoneChange(
+            ZoneChange {
+                snapshot: None,
+                object: obj,
+                from,
+                to: Zone::Battlefield,
+                enters: None,
+                position: None,
+                face: None,
+                cause: None,
+            },
+        ))));
 }
 
 // --- stepping helpers (mirrors activate.rs / combat.rs)

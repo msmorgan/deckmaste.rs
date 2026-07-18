@@ -32,12 +32,15 @@ use deckmaste_core::StatePredicate;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use deckmaste_engine::AbilityActivated;
 use deckmaste_engine::Action;
 use deckmaste_engine::CostOptionChoices;
+use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
+use deckmaste_engine::LifeLost;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::Occurrence;
 use deckmaste_engine::PendingDecision;
@@ -380,7 +383,7 @@ fn tap_pinger_damages_target_through_stack() {
     assert!(
         trace.iter().any(|p| matches!(
             applied(p),
-            Some(GameEvent::DamageDealt { target, amount: 1, .. }) if *target == bear
+            Some(GameEvent::DamageDealt(DamageDealt { target, amount: 1, .. })) if *target == bear
         )),
         "1 damage dealt to the bear, trace: {trace:?}"
     );
@@ -1080,7 +1083,7 @@ fn pinger_fizzles_when_target_dies() {
     loop {
         match state.step() {
             StepOutcome::Progress(Progress::Applied(Occurrence::Single(
-                GameEvent::DamageDealt { target, amount, .. },
+                GameEvent::DamageDealt(DamageDealt { target, amount, .. }),
             ))) => damage.push((target, amount)),
             StepOutcome::Progress(_) => {}
             StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
@@ -1282,11 +1285,11 @@ fn activated_ability_pays_life_cost() {
     let life_idx = trace.iter().position(|p| {
         matches!(
             applied(p),
-            Some(GameEvent::LifeLost { player, amount: 2 }) if *player == PlayerId(0)
+            Some(GameEvent::LifeLost(LifeLost { player, amount: 2 })) if *player == PlayerId(0)
         )
     });
     let activated_idx = trace.iter().position(|p| {
-        matches!(applied(p), Some(GameEvent::AbilityActivated { source, .. }) if *source == obj)
+        matches!(applied(p), Some(GameEvent::AbilityActivated(AbilityActivated { source, .. })) if *source == obj)
     });
     let life_idx = life_idx.unwrap_or_else(|| panic!("a LifeLost(2) cost event, trace: {trace:?}"));
     let activated_idx =
@@ -1702,10 +1705,12 @@ fn schedule_activation(
         WorkItem::AnnounceTargets,
         WorkItem::ChooseCostOptions,
         WorkItem::PayCost,
-        WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated {
-            source: object,
-            ability: index,
-        })),
+        WorkItem::Emit(Occurrence::single(GameEvent::AbilityActivated(
+            AbilityActivated {
+                source: object,
+                ability: index,
+            },
+        ))),
         WorkItem::CheckSbas,
         WorkItem::PlaceTriggers,
         WorkItem::OpenPriority,
@@ -1829,11 +1834,11 @@ fn activated_ability_phyrexian_pays_life() {
     let life_idx = trace.iter().position(|p| {
         matches!(
             applied(p),
-            Some(GameEvent::LifeLost { player, amount: 2 }) if *player == PlayerId(0)
+            Some(GameEvent::LifeLost(LifeLost { player, amount: 2 })) if *player == PlayerId(0)
         )
     });
     let activated_idx = trace.iter().position(|p| {
-        matches!(applied(p), Some(GameEvent::AbilityActivated { source, .. }) if *source == obj)
+        matches!(applied(p), Some(GameEvent::AbilityActivated(AbilityActivated { source, .. })) if *source == obj)
     });
     assert!(
         !trace.iter().any(|p| matches!(p, Progress::CostPaid)

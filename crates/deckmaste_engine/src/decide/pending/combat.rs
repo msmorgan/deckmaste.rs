@@ -5,6 +5,8 @@ use crate::agenda::WorkItem;
 use crate::decide::Decision;
 use crate::decide::DecisionError;
 use crate::decide::DecisionHandler;
+use crate::event::Attacking;
+use crate::event::Blocked;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::object::ObjectId;
@@ -79,9 +81,11 @@ impl DecisionHandler for DeclareAttackers {
             g.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
                 chosen
                     .into_iter()
-                    .map(|(attacker, defending)| GameEvent::Attacking {
-                        attacker,
-                        defending,
+                    .map(|(attacker, defending)| {
+                        GameEvent::Attacking(Attacking {
+                            attacker,
+                            defending,
+                        })
                     })
                     .collect(),
             ))]);
@@ -221,7 +225,7 @@ impl DecisionHandler for DeclareBlockers {
             g.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(
                 pairs
                     .into_iter()
-                    .map(|(blocker, attacker)| GameEvent::Blocked { blocker, attacker })
+                    .map(|(blocker, attacker)| GameEvent::Blocked(Blocked { blocker, attacker }))
                     .collect(),
             ))]);
         }
