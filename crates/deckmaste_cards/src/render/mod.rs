@@ -148,6 +148,14 @@ fn rules(view: &CardView) -> Vec<String> {
     let mut body: Vec<String> = Vec::new();
     let mut idx = 0;
     while idx < view.abilities.len() {
+        // A saga chapter ([CR#714.2]) prints its Roman-numeral marker, not the
+        // generic trigger phrasing — intercept the remembered `Chapter`
+        // invocation before the structural peel below.
+        if let Some(line) = chapter_line(&view.abilities[idx], view) {
+            body.push(line);
+            idx += 1;
+            continue;
+        }
         let ability = peel_expanded(&view.abilities[idx]);
         // An adjacent can't-attack + can't-block pair, each its OWN
         // `Ability::Static` (one effect per `Static` now), over the same
@@ -278,17 +286,79 @@ fn rules(view: &CardView) -> Vec<String> {
 /// re-derive the rendering from the macro's own `template:` metadata.
 ///
 /// This peels ONLY `Expanded`, so it reaches a macro whose expansion is a
-/// directly-dispatched arm (`EntersWithCounters` → `Ability::Static`). It does
-/// NOT peel `Ability::Innate`: a macro like `Chapter(...)` expands to
-/// `Innate(Triggered(...))`, which has no arm in `rules()` and so still falls
-/// through the silent `_ => {}` catch-all. Rendering it as a bare triggered
-/// ability would drop the Saga chapter framing, so faithful Chapter/Saga
-/// rendering stays a separate task — no canon card invokes `Chapter` today.
+/// directly-dispatched arm (`EntersWithCounters` → `Ability::Static`). A saga
+/// `Chapter` (`Expanded(Triggered(...))`, [CR#714.2]) is intercepted by
+/// [`chapter_line`] BEFORE this peel, so it prints its Roman-numeral marker
+/// rather than the generic trigger phrasing its bare `Triggered` would yield.
 fn peel_expanded(ability: &Ability) -> &Ability {
     match ability {
         Ability::Expanded(exp) => peel_expanded(&exp.value),
         other => other,
     }
+}
+
+/// An integer as a Roman numeral ([CR#714.2a] — a chapter symbol's numeral:
+/// I, II, III, IV, …). `0` yields the empty string; chapters are always ≥ 1.
+fn roman(mut n: u32) -> String {
+    const TABLE: &[(u32, &str)] = &[
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ];
+    let mut out = String::new();
+    for &(value, symbol) in TABLE {
+        while n >= value {
+            out.push_str(symbol);
+            n -= value;
+        }
+    }
+    out
+}
+
+/// Render a saga chapter ability ([CR#714.2b]) as its printed line —
+/// "`<markers>` — `<effect>`" ("I — …", "II, III — …", [CR#714.2a..714.2c]) —
+/// from the remembered `Chapter` invocation: the markers are its `Crossed`
+/// gate's thresholds as Roman numerals, and the effect renders structurally
+/// like a spell's. Returns `None` for any non-`Chapter` ability (and for the
+/// unexpected non-literal threshold) so the general dispatch handles it.
+fn chapter_line(ability: &Ability, view: &CardView) -> Option<String> {
+    let Ability::Expanded(exp) = ability else {
+        return None;
+    };
+    if exp.name.as_str() != "Chapter" {
+        return None;
+    }
+    let Ability::Triggered(t) = exp.value.as_ref() else {
+        return None;
+    };
+    let Some(deckmaste_core::Condition::Crossed { thresholds, .. }) = &t.condition else {
+        return None;
+    };
+    let markers = thresholds
+        .iter()
+        .map(|c| match c {
+            deckmaste_core::Count::Literal(n) => Some(roman(*n)),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?
+        .join(", ");
+    let ctx = Ctx {
+        subject: view.name,
+        targets: &[],
+        that: None,
+        named: None,
+    };
+    Some(format!("{markers} — {}", effect::effect(&t.effect, &ctx)))
 }
 
 /// Prefix a rendered ability line with its printed ability word

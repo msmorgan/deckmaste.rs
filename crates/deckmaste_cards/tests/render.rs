@@ -1251,3 +1251,42 @@ fn renders_enters_with_counters_named_kind() {
         vec!["Test Permanent enters with three charge counters on it.".to_string()]
     );
 }
+
+/// A Saga's chapter abilities render with their Roman-numeral chapter markers
+/// ([CR#714.2a] — "I", "II", "III") and the em-dash lead, effect rendered
+/// structurally.
+#[test]
+fn renders_saga_chapter_roman_markers() {
+    let r = render_card_face(&testing_face("Test Saga"));
+    assert!(
+        r.rules.contains(&"I — You gain 1 life.".to_string()),
+        "chapter I renders its Roman marker: {:?}",
+        r.rules
+    );
+    assert!(
+        r.rules.contains(&"II — You gain 2 life.".to_string()),
+        "chapter II: {:?}",
+        r.rules
+    );
+    assert!(
+        r.rules.contains(&"III — You gain 3 life.".to_string()),
+        "chapter III: {:?}",
+        r.rules
+    );
+}
+
+/// A chapter RANGE ([CR#714.2c]) renders its numbers joined — "II, III —".
+#[test]
+fn renders_saga_chapter_range_marker() {
+    let r = render_card_face(&testing_face("Test Saga Range"));
+    assert!(
+        r.rules.contains(&"I — You gain 1 life.".to_string()),
+        "single chapter still renders: {:?}",
+        r.rules
+    );
+    assert!(
+        r.rules.contains(&"II, III — You gain 2 life.".to_string()),
+        "range renders both markers joined: {:?}",
+        r.rules
+    );
+}
