@@ -87,15 +87,20 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -194,7 +199,11 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
     // First decision after cast: PayMana for the REDUCED cost — convoke covered
     // the generic pip by tapping, so only {G} remains.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = &stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+        cost,
+        ..
+    })) = &stop
+    else {
         panic!("expected PayMana after convoke reduced the cost, got {stop:?}");
     };
     assert_eq!(
@@ -219,11 +228,15 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&spell) {
                     break;
                 }
@@ -298,7 +311,11 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
         .unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = &stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+        cost,
+        ..
+    })) = &stop
+    else {
         panic!("expected PayMana after delve reduced the cost, got {stop:?}");
     };
     assert_eq!(
@@ -325,11 +342,15 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&spell) {
                     break;
                 }
@@ -498,7 +519,11 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
     // First decision after cast: PayMana for the REDUCED cost — improvise covered
     // one generic pip by tapping the artifact, so only {1} remains.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = &stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+        cost,
+        ..
+    })) = &stop
+    else {
         panic!("expected PayMana after improvise reduced the cost, got {stop:?}");
     };
     assert_eq!(
@@ -523,11 +548,15 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&spell) {
                     break;
                 }

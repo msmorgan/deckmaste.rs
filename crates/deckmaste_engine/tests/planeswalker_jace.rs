@@ -196,7 +196,9 @@ fn pass_to_stop(state: &mut GameState) -> StepOutcome {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => return other,
@@ -211,15 +213,20 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -262,27 +269,38 @@ fn first_p0_priority_on_opponent_turn(state: &mut GameState) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal })
-                if player == PlayerId(0) && state.turn.active_player == PlayerId(1) =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player,
+                legal,
+            })) if player == PlayerId(0) && state.turn.active_player == PlayerId(1) => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize { player, count }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize(
+                deckmaste_engine::DiscardToHandSize { player, count },
+            )) => {
                 let hand = state.zones.hands[player.index()].clone();
                 let chosen: Vec<ObjectId> = hand.into_iter().take(count as usize).collect();
                 state.submit_decision(Decision::Discard(chosen)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+                deckmaste_engine::DeclareAttackers { .. },
+            )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+                deckmaste_engine::DeclareBlockers { .. },
+            )) => {
                 state.submit_decision(Decision::Blocks(vec![])).unwrap();
             }
             other => panic!("unexpected stop while advancing to P1's turn: {other:?}"),
@@ -397,7 +415,10 @@ fn jace_dies_to_combat_damage_via_zero_loyalty_sba() {
 
     // Pass the open P0 priority on into combat's Declare Attackers.
     let stop = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
@@ -405,8 +426,9 @@ fn jace_dies_to_combat_damage_via_zero_loyalty_sba() {
         .unwrap();
     // P1 has no creatures — declare no blocks, then drive priorities on through
     // the combat-damage step (which removes Jace's loyalty) and the SBA sweep.
-    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) =
-        pass_to_stop(&mut state)
+    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+        deckmaste_engine::DeclareBlockers { .. },
+    )) = pass_to_stop(&mut state)
     {
         state.submit_decision(Decision::Blocks(vec![])).unwrap();
         let _ = pass_to_stop(&mut state);

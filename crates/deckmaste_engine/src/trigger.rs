@@ -904,10 +904,12 @@ impl GameState {
 
         if mine.len() > 1 {
             // [CR#603.3b]: this player orders their simultaneous triggers.
-            self.pending = Some(PendingDecision::OrderTriggers {
-                player,
-                triggers: mine,
-            });
+            self.pending = Some(PendingDecision::OrderTriggers(
+                crate::decide::pending::OrderTriggers {
+                    player,
+                    triggers: mine,
+                },
+            ));
             return Progress::TriggersPlaced { placed: 0 };
         }
 
@@ -1021,7 +1023,7 @@ impl GameState {
         // minted-but-unused stack identity.
         let droppable = matches!(
             &self.pending,
-            Some(PendingDecision::ChooseTargets { spec, legal, .. })
+            Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets { spec, legal, .. }))
                 if !crate::resolve::announce_satisfiable(spec, legal)
         );
         if droppable {
@@ -3817,7 +3819,9 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    crate::decide::pending::Priority { .. },
+                )) => {
                     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
                 }
                 StepOutcome::NeedsDecision(other) => {
@@ -3913,7 +3917,12 @@ mod tests {
             crate::step::Progress::TriggersPlaced { placed: 0 },
             "a target choice surfaces instead of an immediate placement"
         );
-        let Some(PendingDecision::ChooseTargets { player, legal, .. }) = &state.pending else {
+        let Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+            player,
+            legal,
+            ..
+        })) = &state.pending
+        else {
             panic!("expected ChooseTargets, got {:?}", state.pending);
         };
         assert_eq!(*player, controller);
@@ -3960,7 +3969,11 @@ mod tests {
             crate::step::Progress::TriggersPlaced { placed: 0 },
             "a target choice surfaces instead of an immediate placement"
         );
-        let Some(PendingDecision::ChooseTargets { legal, .. }) = &state.pending else {
+        let Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+            legal,
+            ..
+        })) = &state.pending
+        else {
             panic!("expected ChooseTargets, got {:?}", state.pending);
         };
         assert!(
@@ -3997,7 +4010,11 @@ mod tests {
         });
 
         state.place_triggers();
-        let Some(PendingDecision::ChooseTargets { legal, .. }) = &state.pending else {
+        let Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+            legal,
+            ..
+        })) = &state.pending
+        else {
             panic!("expected ChooseTargets, got {:?}", state.pending);
         };
         assert!(
@@ -4138,7 +4155,11 @@ mod tests {
             crate::step::Progress::TriggersPlaced { placed: 0 },
             "ordering is needed first — nothing placed yet"
         );
-        let Some(PendingDecision::OrderTriggers { player, triggers }) = &state.pending else {
+        let Some(PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
+            player,
+            triggers,
+        })) = &state.pending
+        else {
             panic!("expected OrderTriggers, got {:?}", state.pending);
         };
         assert_eq!(*player, PlayerId(0));

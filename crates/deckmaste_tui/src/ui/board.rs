@@ -315,7 +315,9 @@ mod tests {
                 Stop::GameOver(_) | Stop::Budget => break,
                 Stop::Decision(p) => p.clone(),
             };
-            if let PendingDecision::DeclareBlockers { legal, .. } = &pending
+            if let PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers {
+                legal, ..
+            }) = &pending
                 && !legal.is_empty()
             {
                 let it = Interaction::for_decision(&pending).expect("interactive");
@@ -348,9 +350,10 @@ mod tests {
 
             let decision = match &pending {
                 // P1 holds creatures back so they can block P0's attacks.
-                PendingDecision::DeclareAttackers { player, .. } if player.0 == 1 => {
-                    Decision::Attackers(vec![])
-                }
+                PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
+                    player,
+                    ..
+                }) if player.0 == 1 => Decision::Attackers(vec![]),
                 // Everything else: let the demo strategy develop the board.
                 _ => strat.decide(&driver.state, &pending),
             };
@@ -385,7 +388,8 @@ mod tests {
                 Stop::GameOver(_) | Stop::Budget => break,
                 Stop::Decision(p) => p.clone(),
             };
-            if let PendingDecision::ChooseTargets { legal, .. } = &pending
+            if let PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. }) =
+                &pending
                 && legal.iter().any(|spec| !spec.is_empty())
             {
                 let mut it = Interaction::for_decision(&pending).expect("interactive");

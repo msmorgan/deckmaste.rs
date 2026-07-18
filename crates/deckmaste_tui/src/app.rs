@@ -380,8 +380,11 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
 fn interaction_for(stop: &Stop, state: &GameState) -> Option<Interaction> {
     match stop {
         Stop::Decision(
-            PendingDecision::DiscardToHandSize { player, count }
-            | PendingDecision::DiscardCards { player, count },
+            PendingDecision::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
+                player,
+                count,
+            })
+            | PendingDecision::DiscardCards(deckmaste_engine::DiscardCards { player, count }),
         ) => Some(Interaction::for_discard(
             &state.zones.hands[player.index()],
             *count as usize,
@@ -394,7 +397,9 @@ fn interaction_for(stop: &Stop, state: &GameState) -> Option<Interaction> {
 /// The legal priority action list, if the stop is a priority decision.
 fn priority_legal(stop: &Stop) -> Option<&[Action]> {
     match stop {
-        Stop::Decision(PendingDecision::Priority { legal, .. }) => Some(legal),
+        Stop::Decision(PendingDecision::Priority(deckmaste_engine::Priority { legal, .. })) => {
+            Some(legal)
+        }
         _ => None,
     }
 }
@@ -402,7 +407,9 @@ fn priority_legal(stop: &Stop) -> Option<&[Action]> {
 /// The player holding priority, if the stop is a priority decision.
 fn priority_player(stop: &Stop) -> Option<PlayerId> {
     match stop {
-        Stop::Decision(PendingDecision::Priority { player, .. }) => Some(*player),
+        Stop::Decision(PendingDecision::Priority(deckmaste_engine::Priority {
+            player, ..
+        })) => Some(*player),
         _ => None,
     }
 }

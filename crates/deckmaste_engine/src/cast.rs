@@ -1239,11 +1239,13 @@ impl GameState {
     ) -> Uint {
         let legal = self.legal_targets_for_specs(&specs, targeting_id);
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
-        self.pending = Some(PendingDecision::ChooseTargets {
-            player,
-            spec: specs,
-            legal,
-        });
+        self.pending = Some(PendingDecision::ChooseTargets(
+            crate::decide::pending::ChooseTargets {
+                player,
+                spec: specs,
+                legal,
+            },
+        ));
         count
     }
 
@@ -1312,7 +1314,9 @@ impl GameState {
             }
         };
         if has_x {
-            self.pending = Some(PendingDecision::ChooseXValue { player: controller });
+            self.pending = Some(PendingDecision::ChooseXValue(
+                crate::decide::pending::ChooseXValue { player: controller },
+            ));
         }
     }
 
@@ -1400,11 +1404,13 @@ impl GameState {
         );
         // [CR#601.2b]: the player announces each reading; the submission handler
         // concretizes and stashes.
-        self.pending = Some(PendingDecision::ChooseCostOptions {
-            player: controller,
-            cost,
-            options,
-        });
+        self.pending = Some(PendingDecision::ChooseCostOptions(
+            crate::decide::pending::ChooseCostOptions {
+                player: controller,
+                cost,
+                options,
+            },
+        ));
         true
     }
 
@@ -1429,7 +1435,9 @@ impl GameState {
         let Some(option) = rows.get(index) else {
             return false;
         };
-        self.pending = Some(crate::decide::PendingDecision::YesNo { player: controller });
+        self.pending = Some(crate::decide::PendingDecision::YesNo(
+            crate::decide::pending::YesNo { player: controller },
+        ));
         self.choice = Some(crate::state::ChoiceContinuation::OptionalCost {
             tag: option.tag,
             components: option.components.clone(),
@@ -1545,14 +1553,15 @@ impl GameState {
                 }
                 if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
-                    self.pending = Some(PendingDecision::PayMana {
-                        player: controller,
-                        cost: mana,
-                        pool,
-                        // [CR#106.6]: a spell's stack identity is its own id —
-                        // the object SpendOnly riders judge.
-                        subject: object,
-                    });
+                    self.pending =
+                        Some(PendingDecision::PayMana(crate::decide::pending::PayMana {
+                            player: controller,
+                            cost: mana,
+                            pool,
+                            // [CR#106.6]: a spell's stack identity is its own id —
+                            // the object SpendOnly riders judge.
+                            subject: object,
+                        }));
                 }
                 // Empty cost (no mana required): no decision surfaces, cast
                 // continues (the verbs above already front-scheduled).
@@ -1641,16 +1650,17 @@ impl GameState {
                 let mana = concretize_x(&mana, announced_x);
                 if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
-                    self.pending = Some(PendingDecision::PayMana {
-                        player: controller,
-                        // [CR#601.2b]: the concretized mana (hybrid/Phyrexian
-                        // resolved, {X} applied), not the printed cost.
-                        cost: mana,
-                        pool,
-                        // [CR#106.6]: an activated ability's mana is spent on
-                        // its source — that is the object SpendOnly judges.
-                        subject: source,
-                    });
+                    self.pending =
+                        Some(PendingDecision::PayMana(crate::decide::pending::PayMana {
+                            player: controller,
+                            // [CR#601.2b]: the concretized mana (hybrid/Phyrexian
+                            // resolved, {X} applied), not the printed cost.
+                            cost: mana,
+                            pool,
+                            // [CR#106.6]: an activated ability's mana is spent on
+                            // its source — that is the object SpendOnly judges.
+                            subject: source,
+                        }));
                 }
             }
             StackObject::Triggered { .. } => {
@@ -1978,12 +1988,12 @@ impl GameState {
     #[must_use]
     pub fn auto_pay_pending(&self) -> Payment {
         match &self.pending {
-            Some(PendingDecision::PayMana {
+            Some(PendingDecision::PayMana(crate::decide::pending::PayMana {
                 cost,
                 pool,
                 subject,
                 ..
-            }) => {
+            })) => {
                 let mask: Vec<bool> = pool
                     .units()
                     .iter()

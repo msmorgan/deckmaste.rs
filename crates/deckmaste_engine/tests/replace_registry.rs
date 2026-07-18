@@ -453,7 +453,10 @@ fn two_applicable_replacements_surface_choice() {
 
     // Drive to the ChooseReplacement decision.
     let dec = drive_to_decision(&mut state);
-    let PendingDecision::ChooseReplacement { applicable, .. } = dec else {
+    let PendingDecision::ChooseReplacement(deckmaste_engine::ChooseReplacement {
+        applicable, ..
+    }) = dec
+    else {
         panic!("expected ChooseReplacement, got {dec:?}");
     };
     assert!(!applicable.is_empty(), "at least one key in choice");
@@ -485,7 +488,10 @@ fn two_applicable_replacements_second_choice_also_survives() {
     state.objects.obj_mut(id).set_marked_damage(2);
 
     let dec = drive_to_decision(&mut state);
-    let PendingDecision::ChooseReplacement { applicable, .. } = dec else {
+    let PendingDecision::ChooseReplacement(deckmaste_engine::ChooseReplacement {
+        applicable, ..
+    }) = dec
+    else {
         panic!("expected ChooseReplacement, got {dec:?}");
     };
     let key1: ReplacementKey = applicable[0];

@@ -211,15 +211,20 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -242,15 +247,20 @@ fn run_to_priority_traced(
         let (t, stop) = step_to_stop(state);
         trace.extend(t);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return (trace, legal);
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -267,7 +277,10 @@ fn float_mana(state: &mut GameState, player: PlayerId, count: usize) {
         // Re-derive the legal list each iteration: tapping a land removes its
         // ability from the next list. The decision is idempotent, so stepping
         // re-surfaces it without mutating.
-        let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+            legal,
+            ..
+        })) = state.step()
         else {
             panic!("expected a priority decision to float mana");
         };
@@ -322,7 +335,10 @@ fn bolt_kills_grizzly_bears() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(
@@ -450,7 +466,10 @@ fn ward_counters_targeting_spell_via_that_object() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(
@@ -469,7 +488,9 @@ fn ward_counters_targeting_spell_via_that_object() {
     loop {
         let (_t, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) => {
+            StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo {
+                player,
+            })) => {
                 assert_eq!(
                     player,
                     PlayerId(0),
@@ -479,11 +500,15 @@ fn ward_counters_targeting_spell_via_that_object() {
                 declined = true;
                 state.submit_decision(Decision::Answer(false)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() {
                     break;
                 }
@@ -568,7 +593,9 @@ fn kicker_announce_records_and_paid_cost_reads() {
             .unwrap();
         // [CR#601.2b]: the optional-cost YesNo surfaces first.
         let (_, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { player })) =
+            stop
+        else {
             panic!("expected the kicker YesNo, got {stop:?}");
         };
         assert_eq!(player, PlayerId(0), "the caster announces the kicker");
@@ -576,7 +603,9 @@ fn kicker_announce_records_and_paid_cost_reads() {
         loop {
             let (_t, stop) = step_to_stop(&mut state);
             match stop {
-                StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::PayMana(
+                    deckmaste_engine::PayMana { cost, .. },
+                )) => {
                     if kick {
                         assert_eq!(
                             cost.mana_value(),
@@ -587,7 +616,9 @@ fn kicker_announce_records_and_paid_cost_reads() {
                     let pay = state.auto_pay_pending();
                     state.submit_decision(Decision::Pay(pay)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    deckmaste_engine::Priority { .. },
+                )) => {
                     if state.stack.is_empty() {
                         break;
                     }
@@ -621,7 +652,9 @@ fn multikicker_times_paid_counts_payments() {
     // each yes).
     for answer in [true, true, false] {
         let (_t, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { player })) =
+            stop
+        else {
             panic!("expected a multikicker YesNo, got {stop:?}");
         };
         assert_eq!(player, PlayerId(0));
@@ -630,7 +663,10 @@ fn multikicker_times_paid_counts_payments() {
     loop {
         let (_t, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                cost,
+                ..
+            })) => {
                 assert_eq!(
                     cost.mana_value(),
                     3,
@@ -639,7 +675,9 @@ fn multikicker_times_paid_counts_payments() {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() {
                     break;
                 }
@@ -675,7 +713,10 @@ fn ward_x_prices_where_x_at_toll_resolution() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
@@ -699,12 +740,18 @@ fn ward_x_prices_where_x_at_toll_resolution() {
     loop {
         let (_t, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) => {
+            StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo {
+                player,
+            })) => {
                 assert_eq!(player, PlayerId(0), "the toll bills the targeting player");
                 accepted = true;
                 state.submit_decision(Decision::Answer(true)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { player, cost, .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                player,
+                cost,
+                ..
+            })) => {
                 if !accepted {
                     // The Bolt's own cast payment ({R}) — auto-pay and move on.
                     let pay = state.auto_pay_pending();
@@ -722,7 +769,9 @@ fn ward_x_prices_where_x_at_toll_resolution() {
                 );
                 return; // the pricing is the point; payment mechanics are covered elsewhere
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => panic!("unexpected stop while resolving the ward-X toll: {other:?}"),
@@ -791,7 +840,10 @@ fn prowess_fires_and_pumps_on_own_noncreature_cast() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
@@ -854,7 +906,10 @@ fn becomes_target_trigger_sacrifices_phantasmal_bear_and_bolt_fizzles() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(legal[0].contains(&bear), "the bear is a legal target");
@@ -934,7 +989,10 @@ fn bolt_to_the_face_costs_three_life() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(legal[0].contains(&face), "P1's proxy is a legal target");
@@ -967,7 +1025,9 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     // PayMana must be answered: {G} takes one green pip (forced by color),
     // {1} takes the other green — the only legal allocation from G,G.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
+        stop
+    else {
         panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
     };
     let pay = state.auto_pay_pending();
@@ -1105,7 +1165,10 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
             .submit_decision(Decision::Act(Action::CastSpell { object: bolt0 }))
             .unwrap();
         let (_, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+            deckmaste_engine::ChooseTargets { .. },
+        )) = stop
+        else {
             panic!("expected ChooseTargets, got {stop:?}");
         };
         state
@@ -1139,13 +1202,15 @@ fn drive_to_off_turn_priority(state: &mut GameState) -> Vec<Action> {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal })
-                if player == PlayerId(0)
-                    && state.turn.active_player == PlayerId(1)
-                    && matches!(
-                        state.turn.current,
-                        PhaseStep::PrecombatMain | PhaseStep::PostcombatMain
-                    ) =>
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player,
+                legal,
+            })) if player == PlayerId(0)
+                && state.turn.active_player == PlayerId(1)
+                && matches!(
+                    state.turn.current,
+                    PhaseStep::PrecombatMain | PhaseStep::PostcombatMain
+                ) =>
             {
                 // Tap an untapped land if one remains; each tap re-opens P0's
                 // priority with a freshly-computed legal list.
@@ -1159,15 +1224,21 @@ fn drive_to_off_turn_priority(state: &mut GameState) -> Vec<Action> {
                     return legal;
                 }
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize { player, count }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize(
+                deckmaste_engine::DiscardToHandSize { player, count },
+            )) => {
                 let hand = state.zones.hands[player.index()].clone();
                 let chosen: Vec<ObjectId> = hand.into_iter().take(count as usize).collect();
                 state.submit_decision(Decision::Discard(chosen)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+                deckmaste_engine::DeclareAttackers { .. },
+            )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
             other => panic!("unexpected stop: {other:?}"),
@@ -1239,7 +1310,10 @@ fn paymana_surfaces_for_every_cast() {
             .unwrap();
         // ChooseTargets surfaces first (instant has targets).
         let (_, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+            deckmaste_engine::ChooseTargets { .. },
+        )) = stop
+        else {
             panic!("expected ChooseTargets, got {stop:?}");
         };
         state
@@ -1247,7 +1321,10 @@ fn paymana_surfaces_for_every_cast() {
             .unwrap();
         // PayMana MUST surface — the core never auto-pays, even for {R}.
         let (_, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            ..
+        })) = stop
+        else {
             panic!("expected PayMana for {{R}} (always explicit), got {stop:?}");
         };
         // {R} is all-colored: the lone Red unit is the only covering selection.
@@ -1275,7 +1352,11 @@ fn paymana_surfaces_for_every_cast() {
             .unwrap();
         // PayMana surfaces (Vanilla Creature has no targets, so we skip ChooseTargets).
         let (_, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            cost,
+            ..
+        })) = stop
+        else {
             panic!("expected PayMana for {{1}}{{G}} from G,G,R, got {stop:?}");
         };
         let _ = cost;
@@ -1342,7 +1423,9 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
                 damage_events += 1;
             }
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
@@ -1451,7 +1534,10 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
 
@@ -1473,7 +1559,9 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
     // State untouched: the decision still pends and no targets were recorded.
     assert!(matches!(
         state.pending,
-        Some(PendingDecision::ChooseTargets { .. })
+        Some(PendingDecision::ChooseTargets(
+            deckmaste_engine::ChooseTargets { .. }
+        ))
     ));
     assert!(
         state
@@ -1500,7 +1588,9 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
+        stop
+    else {
         panic!("expected PayMana, got {stop:?}");
     };
     let pool_before = state.player(PlayerId(0)).mana_pool.clone();
@@ -1522,7 +1612,7 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
     // State untouched: still pending, pool unchanged.
     assert!(matches!(
         state.pending,
-        Some(PendingDecision::PayMana { .. })
+        Some(PendingDecision::PayMana(deckmaste_engine::PayMana { .. }))
     ));
     assert_eq!(
         state.player(PlayerId(0)).mana_pool,
@@ -1603,7 +1693,10 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the bolt, got {stop:?}");
     };
     assert!(
@@ -1624,10 +1717,10 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
             // P1's priority over the (still empty) stack: pass it along.
-            StepOutcome::NeedsDecision(PendingDecision::Priority {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
                 player: PlayerId(1),
                 ..
-            }) => {
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => break (Vec::<Progress>::new(), other),
@@ -1635,7 +1728,9 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
     };
 
     // The trigger's target choice surfaces (placement, [CR#603.3d]).
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { player, legal, .. }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { player, legal, .. },
+    )) = stop
     else {
         panic!("expected the dies-trigger's ChooseTargets, got {stop:?}");
     };
@@ -1678,7 +1773,9 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
                 damage_source = Some(source);
             }
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
@@ -1781,7 +1878,9 @@ fn etb_trigger_draws_a_card() {
 
     // {1}{G}: one green pip + one generic (the other Forest's green covers {1}).
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
+        stop
+    else {
         panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
     };
     // Pay the {1} with the green mana floating.
@@ -1818,7 +1917,10 @@ fn etb_trigger_draws_a_card() {
                 card_drawn = true;
             }
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player,
+                ..
+            })) => {
                 // Once both the trigger has fired and the card was drawn, stop.
                 if card_drawn {
                     break;
@@ -1982,7 +2084,9 @@ fn occurrence_batch_and_apnap_ordering() {
 
     // {1}{R}: red covers {R}, generic takes the green.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
+        stop
+    else {
         panic!("expected PayMana for {{1}}{{R}}, got {stop:?}");
     };
     let pay = state.auto_pay_pending();
@@ -2048,10 +2152,12 @@ fn occurrence_batch_and_apnap_ordering() {
             // them ([CR#603.3b,101.4]); placement is one-at-a-time, so the
             // decision re-surfaces (n, n−1, …, 2) until one remains (which is
             // placed without a decision).
-            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers {
-                player,
-                ref triggers,
-            }) => {
+            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(
+                deckmaste_engine::OrderTriggers {
+                    player,
+                    ref triggers,
+                },
+            )) => {
                 let n = triggers.len();
                 if player == PlayerId(0) {
                     assert!(!p1_ordered, "APNAP: all of P0's orderings precede P1's");
@@ -2100,9 +2206,9 @@ fn occurrence_batch_and_apnap_ordering() {
             }
 
             // ChooseTargets for the dies-trigger's "any target" at placement.
-            StepOutcome::NeedsDecision(PendingDecision::ChooseTargets {
-                player, legal, ..
-            }) => {
+            StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+                deckmaste_engine::ChooseTargets { player, legal, .. },
+            )) => {
                 assert_eq!(
                     player,
                     PlayerId(0),
@@ -2120,7 +2226,9 @@ fn occurrence_batch_and_apnap_ordering() {
             }
 
             // Priority windows: pass them through to drive to resolution.
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 // Stop once all creatures are dead and the stack is clear (all
                 // triggers resolved).
                 if state.objects.get(fiend_obj).is_none()
@@ -2262,7 +2370,9 @@ fn simultaneous_loss_is_a_draw() {
     // The spell has no targets, so PayMana surfaces immediately. {1}{R}: the
     // Mountain's red covers {R}, the Forest's green pays the generic.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
+        stop
+    else {
         panic!("expected PayMana for {{1}}{{R}}, got {stop:?}");
     };
     let pay = state.auto_pay_pending();
@@ -2281,7 +2391,9 @@ fn simultaneous_loss_is_a_draw() {
         match state.step() {
             StepOutcome::GameOver(o) => break o,
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
@@ -2368,10 +2480,12 @@ fn two_triggers_same_player_order_triggers_surfaces() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers {
-                player,
-                ref triggers,
-            }) => {
+            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(
+                deckmaste_engine::OrderTriggers {
+                    player,
+                    ref triggers,
+                },
+            )) => {
                 order_triggers_player = Some(player);
                 order_triggers_count = triggers.len();
 
@@ -2390,7 +2504,9 @@ fn two_triggers_same_player_order_triggers_surfaces() {
                 state.submit_decision(Decision::Order(vec![1, 0])).unwrap();
                 order_accepted = true;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 // After ordering, let triggers resolve.
                 if order_accepted && state.pending_triggers.is_empty() && state.stack.is_empty() {
                     break;
@@ -2492,7 +2608,10 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             .unwrap();
         // {B} is all-colored: the lone Black unit is the only covering selection.
         let (_, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            ..
+        })) = stop
+        else {
             panic!("expected PayMana for {{B}}, got {stop:?}");
         };
         let pay = state.auto_pay_pending();
@@ -2538,7 +2657,10 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             .submit_decision(Decision::Act(Action::CastSpell { object: bears }))
             .unwrap();
         let (_, stop) = step_to_stop(&mut state);
-        let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+        let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            ..
+        })) = stop
+        else {
             panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
         };
         let pay = state.auto_pay_pending();
@@ -2624,7 +2746,10 @@ fn hexproof_excludes_it_from_opposing_targets() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(legal[0].contains(&bear), "the bear is targetable");
@@ -2698,7 +2823,9 @@ fn flash_creature_casts_at_instant_timing() {
         .submit_decision(Decision::Act(Action::CastSpell { object: cheetah }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
+        stop
+    else {
         panic!("expected PayMana for {{2}}{{G}}, got {stop:?}");
     };
     let pay = state.auto_pay_pending();
@@ -2771,7 +2898,10 @@ fn flagbearer_constrains_opposing_target_choice() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(
@@ -2830,7 +2960,10 @@ fn flagbearer_does_not_constrain_its_controllers_spells() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
@@ -2951,7 +3084,10 @@ fn blink_exiles_and_returns_the_target_in_one_resolution() {
         .submit_decision(Decision::Act(Action::CastSpell { object: blink }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(legal[0].contains(&before), "the creature is a legal target");
@@ -3083,7 +3219,10 @@ fn copied_bolt_shares_targets_and_controller() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     assert!(legal[0].contains(&copier), "the copier is a legal target");
@@ -3107,7 +3246,10 @@ fn copied_bolt_shares_targets_and_controller() {
     state.submit_decision(Decision::Act(activate)).unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the copy ability, got {stop:?}");
     };
     assert!(
@@ -3121,7 +3263,11 @@ fn copied_bolt_shares_targets_and_controller() {
     // A mana-free cost: the very next stop is P1's priority — the copy
     // ability sits on the stack above the still-unresolved Bolt.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
     };
     assert_eq!(player, PlayerId(1));
@@ -3230,7 +3376,10 @@ fn cast_and_copy_bolt_at_face(state: &mut GameState) -> (ObjectId, ObjectId, Obj
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
@@ -3248,7 +3397,10 @@ fn cast_and_copy_bolt_at_face(state: &mut GameState) -> (ObjectId, ObjectId, Obj
     state.submit_decision(Decision::Act(activate)).unwrap();
 
     let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the copy ability, got {stop:?}");
     };
     state
@@ -3294,7 +3446,9 @@ fn resolved_copy_vanishes_without_zone_move() {
         let (t, stop) = step_to_stop(&mut state);
         trace.extend(t);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => panic!("unexpected stop while draining the stack: {other:?}"),
@@ -3353,7 +3507,10 @@ fn countered_copy_vanishes() {
         .submit_decision(Decision::Act(Action::CastSpell { object: mana_leak }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for Mana Leak, got {stop:?}");
     };
     assert!(
@@ -3369,7 +3526,9 @@ fn countered_copy_vanishes() {
     loop {
         let (_t, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) => {
+            StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo {
+                player,
+            })) => {
                 assert_eq!(
                     player,
                     PlayerId(1),
@@ -3379,11 +3538,15 @@ fn countered_copy_vanishes() {
                 declined = true;
                 state.submit_decision(Decision::Answer(false)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if declined {
                     break;
                 }
@@ -3485,7 +3648,9 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
     // PayMana must be answered: {G} takes one green pip (forced by color),
     // {1} takes the other green — the only legal allocation from G,G.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana { .. })) =
+        stop
+    else {
         panic!("expected PayMana for {{1}}{{G}}, got {stop:?}");
     };
     let pay = state.auto_pay_pending();
@@ -3506,7 +3671,10 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
     state.submit_decision(Decision::Act(activate)).unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the copy ability, got {stop:?}");
     };
     assert!(
@@ -3520,7 +3688,11 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
     // A mana-free cost: the very next stop is P1's priority — the copy
     // ability sits on the stack above the still-unresolved Bears spell.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
     };
     assert_eq!(player, PlayerId(1));
@@ -3549,7 +3721,9 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
     while !state.stack.is_empty() {
         let (_t, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => panic!("unexpected stop while draining the stack: {other:?}"),
@@ -3672,7 +3846,10 @@ fn drive_to_choose_new_targets(state: &mut GameState) -> (ObjectId, ObjectId, Ob
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for Bolt, got {stop:?}");
     };
     assert!(legal[0].contains(&bear1), "bear1 is a legal Bolt target");
@@ -3701,7 +3878,10 @@ fn drive_to_choose_new_targets(state: &mut GameState) -> (ObjectId, ObjectId, Ob
     state.submit_decision(Decision::Act(activate)).unwrap();
 
     let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the retargeter's own ability, got {stop:?}");
     };
     assert!(
@@ -3715,7 +3895,11 @@ fn drive_to_choose_new_targets(state: &mut GameState) -> (ObjectId, ObjectId, Ob
     // A mana-free cost: the very next stop is P1's priority — the retargeter
     // ability sits on the stack above the still-unresolved Bolt.
     let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
     };
     assert_eq!(player, PlayerId(1));
@@ -3741,12 +3925,14 @@ fn choose_new_targets_keep_current_even_if_illegal() {
     let (bolt, bear1, bear2) = drive_to_choose_new_targets(&mut state);
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseNewTargets {
-        player,
-        entry,
-        spec,
-        legal,
-    }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseNewTargets(
+        deckmaste_engine::ChooseNewTargets {
+            player,
+            entry,
+            spec,
+            legal,
+        },
+    )) = stop
     else {
         panic!("expected ChooseNewTargets, got {stop:?}");
     };
@@ -3787,7 +3973,10 @@ fn choose_new_targets_change_must_be_legal() {
     let (bolt, _bear1, bear2) = drive_to_choose_new_targets(&mut state);
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseNewTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseNewTargets(
+        deckmaste_engine::ChooseNewTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseNewTargets, got {stop:?}");
     };
     assert!(
@@ -3841,7 +4030,10 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for Bolt, got {stop:?}");
     };
     state
@@ -3859,7 +4051,10 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
     state.submit_decision(Decision::Act(activate)).unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the retargeter's own ability, got {stop:?}");
     };
     state
@@ -3874,7 +4069,11 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
     state.stack.retain(|e| e.id != bolt);
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!("expected P1 priority with no PayMana for a mana-free cost, got {stop:?}");
     };
     assert_eq!(player, PlayerId(1));
@@ -3891,7 +4090,11 @@ fn choose_new_targets_fizzles_on_vanished_entry() {
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!(
             "expected resolution to continue past the fizzled retarget straight \
              to priority (no ChooseNewTargets, no panic), got {stop:?}"
@@ -3972,7 +4175,10 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
         .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for Bolt, got {stop:?}");
     };
     state
@@ -4027,7 +4233,10 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
         .expect("the copier's tap ability is offered");
     state.submit_decision(Decision::Act(activate)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the copy ability, got {stop:?}");
     };
     assert!(legal[0].contains(&bolt), "the Bolt is a legal target");
@@ -4084,7 +4293,9 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
     while !state.stack.is_empty() {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => panic!("unexpected stop while draining the stack: {other:?}"),
@@ -4161,7 +4372,10 @@ fn ability_copy_same_source_resolves_and_vanishes() {
         .submit_decision(Decision::Act(activate_pinger))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the pinger, got {stop:?}");
     };
     assert!(legal[0].contains(&face), "P1's face is a legal any-target");
@@ -4185,7 +4399,10 @@ fn ability_copy_same_source_resolves_and_vanishes() {
         .submit_decision(Decision::Act(activate_copier))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets for the copy ability, got {stop:?}");
     };
     assert!(
@@ -4239,7 +4456,9 @@ fn ability_copy_same_source_resolves_and_vanishes() {
         let (t, stop) = step_to_stop(&mut state);
         trace.extend(t);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => panic!("unexpected stop while draining the stack: {other:?}"),
@@ -4322,7 +4541,9 @@ fn fate_transfer_two_distinct_targets_cast_to_resolution() {
 
     // Announce ([CR#601.2c]): targets are chosen before the cost is paid.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { spec, legal, .. }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { spec, legal, .. },
+    )) = stop
     else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
@@ -4350,7 +4571,10 @@ fn fate_transfer_two_distinct_targets_cast_to_resolution() {
 
     // Concretize the {U/B} hybrid to blue ([CR#601.2f]), then auto-pay.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions(
+        deckmaste_engine::ChooseCostOptions { .. },
+    )) = stop
+    else {
         panic!("expected ChooseCostOptions for the {{U/B}} pip, got {stop:?}");
     };
     state
@@ -4434,7 +4658,9 @@ fn arc_lightning_announces_one_to_three_targets() {
         .unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { spec, legal, .. }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { spec, legal, .. },
+    )) = stop
     else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
@@ -4522,14 +4748,20 @@ fn fate_transfer_partial_fizzle_when_destination_dies() {
         .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     state
         .submit_decision(Decision::Targets(vec![vec![source], vec![dest]]))
         .unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseCostOptions(
+        deckmaste_engine::ChooseCostOptions { .. },
+    )) = stop
+    else {
         panic!("expected ChooseCostOptions, got {stop:?}");
     };
     state

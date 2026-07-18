@@ -2178,7 +2178,9 @@ mod tests {
         for _ in 0..500 {
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    crate::decide::pending::Priority { player, .. },
+                )) => {
                     let answer = if player == PlayerId(1) { Action::Concede } else { Action::Pass };
                     state.submit_decision(Decision::Act(answer)).unwrap();
                 }

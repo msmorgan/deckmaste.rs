@@ -249,7 +249,7 @@ mod tests {
                 Stop::Decision(p) => p.clone(),
             };
             let decision = match &pending {
-                PendingDecision::Priority { legal, .. } => {
+                PendingDecision::Priority(deckmaste_engine::Priority { legal, .. }) => {
                     let pick = legal
                         .iter()
                         .find(|a| matches!(a, Action::PlayLand { .. }))
@@ -258,7 +258,7 @@ mod tests {
                         .unwrap_or(Action::Pass);
                     Decision::Act(pick)
                 }
-                PendingDecision::ChooseTargets { .. } => {
+                PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { .. }) => {
                     let mut it = Interaction::for_decision(&pending).expect("interactive");
                     loop {
                         if let Some(&first) = it.candidates().first() {
@@ -270,8 +270,12 @@ mod tests {
                         }
                     }
                 }
-                PendingDecision::DeclareAttackers { .. } => Decision::Attackers(vec![]),
-                PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
+                PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
+                    ..
+                }) => Decision::Attackers(vec![]),
+                PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { .. }) => {
+                    Decision::Blocks(vec![])
+                }
                 other => panic!("unexpected surfaced kind: {other:?}"),
             };
             stop = driver.submit(decision).expect("legal decision");

@@ -208,15 +208,20 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -232,7 +237,10 @@ fn float_mana(state: &mut GameState, player: PlayerId, count: usize) {
     for _ in 0..count {
         // Re-derive the legal list each iteration: tapping a land removes its
         // ability from the next list.
-        let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+            legal,
+            ..
+        })) = state.step()
         else {
             panic!("expected a priority decision to float mana");
         };
@@ -291,7 +299,11 @@ fn abilities_index_matches_activate_ability_action() {
 
     // Find the offered ActivateAbility for the pinger and read its ability back
     // by the SAME index — that round-trip is the public indexing contract.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step() else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        legal,
+        ..
+    })) = state.step()
+    else {
         panic!("expected priority");
     };
     let idx = legal
@@ -343,7 +355,11 @@ fn mana_ability_identifies_a_mountains_tap_for_red() {
 fn decision_point_exposes_the_decider_player() {
     let mut state = activation_game(7, PINGER, 1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = state.step() else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = state.step()
+    else {
         panic!("expected priority");
     };
 
@@ -478,7 +494,11 @@ fn cast_spell_is_enumerated_once_its_cost_is_payable() {
 
     // Float {R} via the Mountain's mana ability, then it IS offered.
     float_mana(&mut state, PlayerId(0), 1);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step() else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        legal,
+        ..
+    })) = state.step()
+    else {
         panic!("expected priority");
     };
     assert!(
@@ -526,7 +546,11 @@ fn priority_enumerates_all_action_kinds_at_one_window() {
     // Float one red: taps the first untapped Mountain, leaving the other untapped.
     float_mana(&mut state, PlayerId(0), 1);
 
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = state.step() else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        legal,
+        ..
+    })) = state.step()
+    else {
         panic!("expected priority");
     };
 
@@ -580,7 +604,10 @@ fn choose_targets_candidates_resolve_to_names() {
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1);
     // Drain to the priority where Bolt is castable, then cast it.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = state.step() else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        ..
+    })) = state.step()
+    else {
         panic!("expected priority");
     };
     state
@@ -590,7 +617,10 @@ fn choose_targets_candidates_resolve_to_names() {
     // Step until ChooseTargets surfaces; its candidate ids include the bears,
     // and each id resolves to a renderable name.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets, got {stop:?}");
     };
     let candidates: Vec<ObjectId> = legal.into_iter().flatten().collect();

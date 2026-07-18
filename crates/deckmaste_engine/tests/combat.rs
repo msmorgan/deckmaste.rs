@@ -222,7 +222,9 @@ fn turn_start_clears_summoning_sickness_for_the_active_player_only() {
                 break;
             }
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
@@ -290,7 +292,9 @@ fn pass_to_stop(state: &mut GameState) -> (Vec<Progress>, StepOutcome) {
         let (chunk, stop) = step_to_stop(state);
         trace.extend(chunk);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => return (trace, other),
@@ -327,11 +331,13 @@ fn declare_attackers_taps_records_and_fires_attacking() {
 
     // Drive (passing priorities) to the Declare Attackers step's decision.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers {
-        player,
-        legal,
-        legal_targets,
-    }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers {
+            player,
+            legal,
+            legal_targets,
+        },
+    )) = stop
     else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
@@ -448,7 +454,9 @@ fn declare_attackers_with_no_legal_attacker_accepts_empty() {
     let mut state = two_player_with("Grizzly Bears", 7, 20);
     // No creature on the battlefield: an empty legal set.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal, .. }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { player, legal, .. },
+    )) = stop
     else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
@@ -473,14 +481,19 @@ fn drive_to_declare_blockers(
     attackers: &[ObjectId],
 ) -> (PlayerId, Vec<ObjectId>) {
     let (_trace, stop) = pass_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     state
         .submit_decision(attack_player(state, attackers))
         .unwrap();
     let (_trace, stop) = pass_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { player, legal }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+        deckmaste_engine::DeclareBlockers { player, legal },
+    )) = stop
     else {
         panic!("expected a DeclareBlockers decision, got {stop:?}");
     };
@@ -622,7 +635,10 @@ fn drive_through_blocks(
     blocks: Vec<(ObjectId, ObjectId)>,
 ) -> StepOutcome {
     let (_t, stop) = pass_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
@@ -631,7 +647,9 @@ fn drive_through_blocks(
     let (_t, stop) = pass_to_stop(state);
     // With attackers declared the blockers step surfaces; declare the blocks.
     match stop {
-        StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+        StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+            deckmaste_engine::DeclareBlockers { .. },
+        )) => {
             state.submit_decision(Decision::Blocks(blocks)).unwrap();
             let (_t, stop) = pass_to_stop(state);
             stop
@@ -654,7 +672,9 @@ fn combat_damage_one_block_trades() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "forced (one recipient each) → no assignment decision: {stop:?}"
     );
@@ -685,11 +705,13 @@ fn combat_damage_two_blockers_split_one_one() {
         &[attacker],
         vec![(b1, attacker), (b2, attacker)],
     );
-    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
-        player,
-        source,
-        recipients,
-    }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+        deckmaste_engine::AssignCombatDamage {
+            player,
+            source,
+            recipients,
+        },
+    )) = stop
     else {
         panic!(
             "expected an AssignCombatDamage decision for the multi-blocked attacker, got {stop:?}"
@@ -746,7 +768,10 @@ fn combat_damage_two_blockers_split_two_zero() {
         &[attacker],
         vec![(b1, attacker), (b2, attacker)],
     );
-    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+        deckmaste_engine::AssignCombatDamage { .. },
+    )) = stop
+    else {
         panic!("expected an AssignCombatDamage decision, got {stop:?}");
     };
 
@@ -784,13 +809,21 @@ fn greedy_demo_divides_a_multi_blocked_attacker() {
         &[attacker],
         vec![(b1, attacker), (b2, attacker)],
     );
-    let StepOutcome::NeedsDecision(pending @ PendingDecision::AssignCombatDamage { .. }) = stop
+    let StepOutcome::NeedsDecision(
+        pending @ PendingDecision::AssignCombatDamage(deckmaste_engine::AssignCombatDamage {
+            ..
+        }),
+    ) = stop
     else {
         panic!(
             "expected an AssignCombatDamage decision for the multi-blocked attacker, got {stop:?}"
         );
     };
-    let PendingDecision::AssignCombatDamage { recipients, .. } = &pending else {
+    let PendingDecision::AssignCombatDamage(deckmaste_engine::AssignCombatDamage {
+        recipients,
+        ..
+    }) = &pending
+    else {
         unreachable!()
     };
     let (first, second) = (recipients[0], recipients[1]);
@@ -825,7 +858,9 @@ fn combat_damage_unblocked_hits_defender() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "an unblocked attacker is forced (one recipient) → no decision: {stop:?}"
     );
@@ -855,10 +890,14 @@ fn pass_to_postcombat_main(state: &mut GameState) {
         match state.step() {
             StepOutcome::Progress(Progress::Advanced(PhaseStep::PostcombatMain)) => return,
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+                deckmaste_engine::DeclareBlockers { .. },
+            )) => {
                 state.submit_decision(Decision::Blocks(vec![])).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
@@ -879,7 +918,10 @@ fn drive_to_combat_damage_done(
     blocks: Vec<(ObjectId, ObjectId)>,
 ) {
     let (_t, stop) = pass_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
@@ -891,17 +933,24 @@ fn drive_to_combat_damage_done(
         // Stop at the first priority decision once we're in the Combat Damage
         // step — by then damage has been dealt but End of Combat hasn't run.
         if state.turn.current == PhaseStep::Combat(CombatStep::CombatDamage)
-            && matches!(state.pending, Some(PendingDecision::Priority { .. }))
+            && matches!(
+                state.pending,
+                Some(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
+            )
         {
             return;
         }
         match state.step() {
-            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+                deckmaste_engine::DeclareBlockers { .. },
+            )) => {
                 state
                     .submit_decision(Decision::Blocks(blocks.take().unwrap()))
                     .unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::Progress(_) => {}
@@ -1009,7 +1058,10 @@ fn attacks_trigger_fires_and_resolves() {
     // is captured at the decision, AFTER the turn's draw step has run, so the
     // only draw left to observe is the trigger's.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     let p0_hand_before = state.zones.hands[0].len();
@@ -1063,7 +1115,10 @@ fn exalted_lone_attacker_pumps_via_that_object() {
 
     // Drive to Declare Attackers and attack ALONE with the Exalted creature.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     state
@@ -1108,7 +1163,9 @@ fn becomes_tapped_trigger_fires_on_attack_tap() {
     // The cause-tagged Tapped fact fires the trigger; placement surfaces
     // its target choice.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { player, legal, .. }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { player, legal, .. },
+    )) = stop
     else {
         panic!("expected the trigger's ChooseTargets, got {stop:?}");
     };
@@ -1161,7 +1218,9 @@ fn vigilance_attacker_is_not_tapped() {
 
     // Drive (passing priorities) to the Declare Attackers step's decision.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { player, legal, .. }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { player, legal, .. },
+    )) = stop
     else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
@@ -1211,7 +1270,9 @@ fn lifelink_unblocked_attacker_gains_life_for_controller() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "unblocked attacker → forced (one recipient), no assignment decision: {stop:?}"
     );
@@ -1249,7 +1310,9 @@ fn deathtouch_one_damage_kills_five_five() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "forced (one recipient each) → no assignment decision: {stop:?}"
     );
@@ -1285,11 +1348,13 @@ fn trample_over_one_blocker_spills_excess_to_player() {
     let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
     // [CR#702.19b]: a single-blocked trampler is a real choice — the decision
     // surfaces with the blocker AND the defending player's proxy as recipients.
-    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
-        player,
-        source,
-        recipients,
-    }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+        deckmaste_engine::AssignCombatDamage {
+            player,
+            source,
+            recipients,
+        },
+    )) = stop
     else {
         panic!("expected an AssignCombatDamage decision for the blocked trampler, got {stop:?}");
     };
@@ -1342,7 +1407,10 @@ fn trample_all_to_blocker_is_legal_no_player_damage() {
     let player_proxy = state.players[1].object;
 
     let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
-    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+        deckmaste_engine::AssignCombatDamage { .. },
+    )) = stop
+    else {
         panic!("expected an AssignCombatDamage decision, got {stop:?}");
     };
 
@@ -1380,7 +1448,9 @@ fn deathtouch_trample_lethal_is_one_so_one_three_split_is_legal() {
     let player_proxy = state.players[1].object;
 
     let stop = drive_through_blocks(&mut state, &[attacker], vec![(blocker, attacker)]);
-    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { recipients, .. }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+        deckmaste_engine::AssignCombatDamage { recipients, .. },
+    )) = stop
     else {
         panic!("expected an AssignCombatDamage decision, got {stop:?}");
     };
@@ -1431,7 +1501,9 @@ fn trample_no_live_blockers_assigns_all_to_player() {
     // Blockers (before the Combat Damage step).
     loop {
         match state.step() {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => break,
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => break,
             StepOutcome::Progress(_) => {}
             other => panic!("unexpected stop before combat damage: {other:?}"),
         }
@@ -1565,13 +1637,18 @@ fn drive_through_blocks_at(
     blocks: Vec<(ObjectId, ObjectId)>,
 ) -> StepOutcome {
     let (_t, stop) = pass_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state.submit_decision(Decision::Attackers(attacks)).unwrap();
     let (_t, stop) = pass_to_stop(state);
     match stop {
-        StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+        StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+            deckmaste_engine::DeclareBlockers { .. },
+        )) => {
             state.submit_decision(Decision::Blocks(blocks)).unwrap();
             let (_t, stop) = pass_to_stop(state);
             stop
@@ -1605,7 +1682,9 @@ fn unblocked_attacker_removes_loyalty_from_attacked_planeswalker() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "unblocked → one recipient → forced, no decision: {stop:?}"
     );
@@ -1688,7 +1767,9 @@ fn blocked_attacker_deals_to_blocker_not_the_declared_planeswalker() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "one blocker, no trample → forced: {stop:?}"
     );
@@ -1725,7 +1806,10 @@ fn unblocked_attacker_whose_planeswalker_left_deals_no_damage() {
 
     // Declare the 3/3 attacking the planeswalker.
     let (_t, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
@@ -1740,7 +1824,10 @@ fn unblocked_attacker_whose_planeswalker_left_deals_no_damage() {
 
     // Drive through the (empty) blockers step to just past the damage step.
     let (_t, stop) = pass_to_stop(&mut state);
-    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) = stop {
+    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+        deckmaste_engine::DeclareBlockers { .. },
+    )) = stop
+    {
         state.submit_decision(Decision::Blocks(vec![])).unwrap();
         let _ = pass_to_stop(&mut state);
     }
@@ -1788,7 +1875,10 @@ fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attackin
 
     // Declare the 3/3 attacking the planeswalker.
     let (_t, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
@@ -1800,7 +1890,9 @@ fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attackin
     // Blockers step.
     loop {
         match state.step() {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => break,
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => break,
             StepOutcome::Progress(_) => {}
             other => panic!("unexpected stop before declare blockers: {other:?}"),
         }
@@ -1846,7 +1938,10 @@ fn planeswalker_leaving_battlefield_clears_its_attackers_target_not_its_attackin
 
     // Regression: driven on to combat damage, the now-targetless attacker
     // assigns no damage and the defending player's life is untouched.
-    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) = stop {
+    if let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+        deckmaste_engine::DeclareBlockers { .. },
+    )) = stop
+    {
         state.submit_decision(Decision::Blocks(vec![])).unwrap();
         let _ = pass_to_stop(&mut state);
     }
@@ -1885,7 +1980,9 @@ fn attacking_the_player_still_causes_life_loss_with_a_planeswalker_present() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "unblocked at the player → forced: {stop:?}"
     );
@@ -1930,9 +2027,11 @@ fn blocked_trampler_spills_excess_to_the_planeswalker_not_the_player() {
     );
 
     let stop = drive_through_blocks_at(&mut state, vec![(attacker, pw)], vec![(blocker, attacker)]);
-    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage {
-        source, recipients, ..
-    }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+        deckmaste_engine::AssignCombatDamage {
+            source, recipients, ..
+        },
+    )) = stop
     else {
         panic!("expected an AssignCombatDamage decision for the blocked trampler, got {stop:?}");
     };
@@ -2003,7 +2102,9 @@ fn first_strike_kills_before_taking_damage() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "forced (one recipient each) → no assignment decision: {stop:?}"
     );
@@ -2046,7 +2147,9 @@ fn double_strike_deals_twice() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage { .. })
+            StepOutcome::NeedsDecision(PendingDecision::AssignCombatDamage(
+                deckmaste_engine::AssignCombatDamage { .. }
+            ))
         ),
         "forced (one recipient each) → no assignment decision: {stop:?}"
     );
@@ -2076,14 +2179,20 @@ fn no_first_strike_elides_first_combat_damage_step() {
 
     // Accumulate the whole combat trace by driving past damage.
     let (trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     state
         .submit_decision(attack_player(&state, &[attacker]))
         .unwrap();
     let (trace2, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+        deckmaste_engine::DeclareBlockers { .. },
+    )) = stop
+    else {
         panic!("expected DeclareBlockers, got {stop:?}");
     };
     state
@@ -2148,7 +2257,10 @@ fn declare_blockers_skipped_when_no_attackers() {
     let mut state = two_player_with("Grizzly Bears", 7, 20);
     // Drive to Declare Attackers and declare none.
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     state.submit_decision(Decision::Attackers(vec![])).unwrap();
@@ -2158,7 +2270,9 @@ fn declare_blockers_skipped_when_no_attackers() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. })
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+                deckmaste_engine::DeclareBlockers { .. }
+            ))
         ),
         "no blockers step when nothing attacked ([CR#508.8]): {stop:?}"
     );
@@ -2285,7 +2399,10 @@ fn defender_cannot_be_declared_as_an_attacker() {
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
     // Shed summoning sickness: both entered before P0's turn begins.
     let (_, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { legal, .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     assert!(legal.contains(&bear), "the bear attacks freely");
@@ -2333,7 +2450,10 @@ fn must_attack_requires_the_able_creature() {
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
     let (_, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { legal, .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     assert!(legal.contains(&brigand) && legal.contains(&bear));
@@ -2382,13 +2502,19 @@ fn must_attack_waived_when_unable() {
     // Tap the carrier AFTER the untap step (at the first priority window),
     // so it is still tapped when attackers are declared.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        ..
+    })) = stop
+    else {
         panic!("expected a priority window before combat, got {stop:?}");
     };
     state.objects.obj_mut(brigand).tapped = true;
 
     let (_, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { legal, .. },
+    )) = stop
+    else {
         panic!("expected DeclareAttackers, got {stop:?}");
     };
     assert!(!legal.contains(&brigand), "tapped: not an able attacker");
@@ -2467,11 +2593,13 @@ fn attacker_can_attack_opponents_planeswalker() {
         .insert("LoyaltyCounter".into(), 5);
 
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers {
-        player,
-        legal,
-        legal_targets,
-    }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers {
+            player,
+            legal,
+            legal_targets,
+        },
+    )) = stop
     else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
@@ -2537,7 +2665,10 @@ fn attacker_attacking_the_player_records_the_player_proxy() {
         .insert("LoyaltyCounter".into(), 5);
 
     let (_trace, stop) = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        deckmaste_engine::DeclareAttackers { .. },
+    )) = stop
+    else {
         panic!("expected a DeclareAttackers decision, got {stop:?}");
     };
     let p1_proxy = state.player(PlayerId(1)).object;

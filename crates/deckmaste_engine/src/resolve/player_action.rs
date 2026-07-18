@@ -642,12 +642,14 @@ mod tests {
             &frame,
         );
         let _ = state.step(); // ManaColorOpened
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor {
-            player,
-            options,
-            amount,
-            ..
-        }) = state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(
+            crate::decide::pending::ChooseManaColor {
+                player,
+                options,
+                amount,
+                ..
+            },
+        )) = state.step()
         else {
             panic!("expected ChooseManaColor, got {:?}", state.pending);
         };
@@ -696,9 +698,11 @@ mod tests {
             &frame,
         );
         let _ = state.step(); // ManaModeOpened
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaMode {
-            player, options, ..
-        }) = state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaMode(
+            crate::decide::pending::ChooseManaMode {
+                player, options, ..
+            },
+        )) = state.step()
         else {
             panic!("expected ChooseManaMode, got {:?}", state.pending);
         };
@@ -814,9 +818,12 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects {
-            player, min, max, ..
-        } = pending
+        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            player,
+            min,
+            max,
+            ..
+        }) = pending
         else {
             panic!("expected ChooseObjects, got {pending:?}");
         };
@@ -849,7 +856,9 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects { max, .. } = pending else {
+        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects { max, .. }) =
+            pending
+        else {
             panic!("expected ChooseObjects, got {pending:?}");
         };
         assert_eq!(max as usize, hand_before - 2, "clamped to the hand size");
@@ -1248,7 +1257,12 @@ mod tests {
             }
         }
         assert!(
-            !matches!(state.pending, Some(PendingDecision::ChooseObjects { .. })),
+            !matches!(
+                state.pending,
+                Some(PendingDecision::ChooseObjects(
+                    crate::decide::pending::ChooseObjects { .. }
+                ))
+            ),
             "a random discard surfaces no ChooseObjects decision (no choice exists): {:?}",
             state.pending
         );
@@ -1334,7 +1348,9 @@ mod tests {
             &frame,
         );
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::CallFlip { player }) = state.pending.clone() else {
+        let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+            state.pending.clone()
+        else {
             panic!("expected a pending CallFlip, got {:?}", state.pending);
         };
         assert_eq!(player, p0);
@@ -1383,7 +1399,9 @@ mod tests {
         drain_progress(&mut state, 20);
 
         for (i, call) in [true, false, true].into_iter().enumerate() {
-            let Some(PendingDecision::CallFlip { player }) = state.pending.clone() else {
+            let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+                state.pending.clone()
+            else {
                 panic!(
                     "coin {i}: expected a pending CallFlip, got {:?}",
                     state.pending
@@ -1435,7 +1453,9 @@ mod tests {
         drain_progress(&mut state, 20);
         assert!(matches!(
             state.pending,
-            Some(PendingDecision::CallFlip { .. })
+            Some(PendingDecision::CallFlip(
+                crate::decide::pending::CallFlip { .. }
+            ))
         ));
 
         assert_eq!(
@@ -1443,7 +1463,12 @@ mod tests {
             Err(DecisionError::WrongKind)
         );
         assert!(
-            matches!(state.pending, Some(PendingDecision::CallFlip { .. })),
+            matches!(
+                state.pending,
+                Some(PendingDecision::CallFlip(
+                    crate::decide::pending::CallFlip { .. }
+                ))
+            ),
             "a rejected wrong-kind decision leaves the CallFlip pending"
         );
     }
@@ -1556,7 +1581,9 @@ mod tests {
             // Pop exactly the front-scheduled `FlipCoins` work item — it
             // sets `pending` directly; no decision surfaces on this step.
             step_n(&mut state, 1);
-            let Some(PendingDecision::CallFlip { player }) = state.pending.clone() else {
+            let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+                state.pending.clone()
+            else {
                 panic!(
                     "attempt {i}: expected a pending CallFlip, got {:?}",
                     state.pending
@@ -1751,7 +1778,9 @@ mod tests {
             step_n(&mut state, 1);
             assert!(matches!(
                 state.pending,
-                Some(PendingDecision::CallFlip { .. })
+                Some(PendingDecision::CallFlip(
+                    crate::decide::pending::CallFlip { .. }
+                ))
             ));
             state.submit_decision(Decision::Answer(true)).unwrap();
             step_n(&mut state, 1);

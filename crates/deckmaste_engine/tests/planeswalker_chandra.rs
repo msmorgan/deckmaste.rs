@@ -193,15 +193,20 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -231,15 +236,19 @@ fn activate_and_drive(state: &mut GameState, object: ObjectId, ability: usize) -
             // Pass priorities while the loyalty ability is still resolving; once
             // it (and any cast it put on the stack) has left, an empty-stack
             // priority means resolution settled with no YesNo — return it.
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
-                if state.stack.is_empty() =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) if state.stack.is_empty() => {
                 return stop;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -319,7 +328,9 @@ fn impulse_decline_deals_two_and_card_stays_exiled() {
     float(&mut state, PlayerId(0), Color::Green, 2);
 
     let stop = activate_and_drive(&mut state, chandra, 0);
-    let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { player })) =
+        stop
+    else {
         panic!("expected the impulse's may-cast YesNo, got {stop:?}");
     };
     assert_eq!(player, PlayerId(0), "the controller decides the cast");
@@ -348,7 +359,8 @@ fn impulse_accept_puts_card_on_stack_and_deals_no_damage() {
     float(&mut state, PlayerId(0), Color::Green, 2);
 
     let stop = activate_and_drive(&mut state, chandra, 0);
-    let StepOutcome::NeedsDecision(PendingDecision::YesNo { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { .. })) = stop
+    else {
         panic!("expected the impulse's may-cast YesNo, got {stop:?}");
     };
 
@@ -384,7 +396,11 @@ fn impulse_uncastable_runs_if_not_without_offering() {
 
     let stop = activate_and_drive(&mut state, chandra, 0);
     // Settles straight back to P0's main priority — no YesNo was ever surfaced.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!("expected a settled priority (no offer), got {stop:?}");
     };
     assert_eq!(player, PlayerId(0));
@@ -452,12 +468,15 @@ fn full_card_abilities_activate() {
     let legal = loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal })
-                if player == PlayerId(0) && state.stack.is_empty() =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player,
+                legal,
+            })) if player == PlayerId(0) && state.stack.is_empty() => {
                 break legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => panic!("unexpected stop resolving [+1] mana: {other:?}"),
@@ -512,17 +531,21 @@ fn minus_three_kills_a_creature() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+                deckmaste_engine::ChooseTargets { .. },
+            )) => {
                 state
                     .submit_decision(Decision::Targets(vec![vec![victim]]))
                     .unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
-                if state.stack.is_empty() =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) if state.stack.is_empty() => {
                 break;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             other => panic!("unexpected stop resolving −3: {other:?}"),
@@ -557,7 +580,9 @@ fn ultimate_mints_an_emblem() {
     assert!(
         matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
+            StepOutcome::NeedsDecision(PendingDecision::Priority(
+                deckmaste_engine::Priority { .. }
+            ))
         ),
         "the ultimate resolves to priority, got {stop:?}"
     );

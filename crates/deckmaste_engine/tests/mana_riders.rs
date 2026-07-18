@@ -146,15 +146,20 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -169,7 +174,10 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
 /// (The `pub` fields make this direct setup possible without widening the API.)
 fn resurface_priority(state: &mut GameState) {
     assert!(
-        matches!(state.pending, Some(PendingDecision::Priority { .. })),
+        matches!(
+            state.pending,
+            Some(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
+        ),
         "resurface_priority expects a Priority decision in flight"
     );
     state.pending = None;
@@ -220,22 +228,31 @@ fn run_to_priority_through_combat(
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+                deckmaste_engine::DeclareAttackers { .. },
+            )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+                deckmaste_engine::DeclareBlockers { .. },
+            )) => {
                 state.submit_decision(Decision::Blocks(vec![])).unwrap();
             }
             other => {

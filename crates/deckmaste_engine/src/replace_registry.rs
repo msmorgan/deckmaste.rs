@@ -834,10 +834,12 @@ pub(crate) fn surface_choice(
         applied,
         remaining: vec![], // batch remainders written by apply_occurrence after Suspend
     });
-    state.pending = Some(crate::decide::PendingDecision::ChooseReplacement {
-        chooser,
-        applicable: keys,
-    });
+    state.pending = Some(crate::decide::PendingDecision::ChooseReplacement(
+        crate::decide::pending::ChooseReplacement {
+            chooser,
+            applicable: keys,
+        },
+    ));
 }
 
 /// Resume the replacement loop after a `ChooseReplacement` decision. Called
@@ -1758,7 +1760,11 @@ mod tests {
             &two_applicable,
         );
 
-        let Some(PendingDecision::ChooseReplacement { chooser, .. }) = state.pending else {
+        let Some(PendingDecision::ChooseReplacement(crate::decide::pending::ChooseReplacement {
+            chooser,
+            ..
+        })) = state.pending
+        else {
             panic!("expected a surfaced ChooseReplacement decision");
         };
         assert_eq!(

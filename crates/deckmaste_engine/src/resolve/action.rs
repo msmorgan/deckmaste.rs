@@ -1283,12 +1283,14 @@ mod tests {
             &frame,
         );
 
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects {
-            player,
-            candidates,
-            min,
-            max,
-        }) = state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(
+            crate::decide::pending::ChooseObjects {
+                player,
+                candidates,
+                min,
+                max,
+            },
+        )) = state.step()
         else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };
@@ -2114,12 +2116,12 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects {
+        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             candidates,
             min,
             max,
-        } = pending
+        }) = pending
         else {
             panic!("expected the batched card choice, got {pending:?}");
         };
@@ -2229,7 +2231,8 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects { .. } = pending else {
+        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects { .. }) = pending
+        else {
             panic!("expected the batched card choice, got {pending:?}");
         };
         state
@@ -2365,16 +2368,22 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    crate::decide::pending::Priority { .. },
+                )) => {
                     if state.stack.is_empty() {
                         return; // triggers all resolved; don't advance the turn
                     }
                     state.submit_decision(Decision::Act(Act::Pass)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::YesNo { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::YesNo(
+                    crate::decide::pending::YesNo { .. },
+                )) => {
                     state.submit_decision(Decision::Answer(cast)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::PayMana { cost, .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::PayMana(
+                    crate::decide::pending::PayMana { cost, .. },
+                )) => {
                     // The pool only ever holds the {1}{R} madness cost (topped up
                     // above), never the four mana the printed {3}{R} would need —
                     // a successful pay here IS the alternative cost ([CR#118.9]).
@@ -2397,14 +2406,15 @@ mod tests {
                     let pay = state.auto_pay_pending();
                     state.submit_decision(Decision::Pay(pay)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers { triggers, .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(
+                    crate::decide::pending::OrderTriggers { triggers, .. },
+                )) => {
                     let order: Vec<usize> = (0..triggers.len()).collect();
                     state.submit_decision(Decision::Order(order)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::ChooseReplacement {
-                    applicable,
-                    ..
-                }) => {
+                StepOutcome::NeedsDecision(PendingDecision::ChooseReplacement(
+                    crate::decide::pending::ChooseReplacement { applicable, .. },
+                )) => {
                     // Apply madness first — its self-replacement is sourced from
                     // the discarded card, which is OFF the battlefield (the
                     // graveyard-hoser sibling is a battlefield permanent).
@@ -2516,7 +2526,7 @@ mod tests {
         assert!(
             matches!(
                 state.pending,
-                Some(crate::decide::PendingDecision::ChooseReplacement { chooser, .. })
+                Some(crate::decide::PendingDecision::ChooseReplacement(crate::decide::pending::ChooseReplacement { chooser, .. }))
                     if chooser == PlayerId(0)
             ),
             "the discarding player chooses the replacement order ([CR#616.1])"
@@ -2552,10 +2562,12 @@ mod tests {
             );
             run_injected(&mut state);
 
-            let Some(crate::decide::PendingDecision::ChooseReplacement {
-                chooser,
-                applicable,
-            }) = state.pending.clone()
+            let Some(crate::decide::PendingDecision::ChooseReplacement(
+                crate::decide::pending::ChooseReplacement {
+                    chooser,
+                    applicable,
+                },
+            )) = state.pending.clone()
             else {
                 panic!("two applicable replacements surface an order choice ([CR#616.1])");
             };
@@ -2610,8 +2622,9 @@ mod tests {
         );
         run_injected(&mut state);
 
-        let Some(crate::decide::PendingDecision::ChooseReplacement { applicable, .. }) =
-            state.pending.clone()
+        let Some(crate::decide::PendingDecision::ChooseReplacement(
+            crate::decide::pending::ChooseReplacement { applicable, .. },
+        )) = state.pending.clone()
         else {
             panic!("two madness self-replacements surface an order choice ([CR#616.1])");
         };
@@ -2667,17 +2680,23 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    crate::decide::pending::Priority { .. },
+                )) => {
                     if state.stack.is_empty() {
                         break;
                     }
                     state.submit_decision(Decision::Act(Act::Pass)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::YesNo { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::YesNo(
+                    crate::decide::pending::YesNo { .. },
+                )) => {
                     offers += 1;
                     state.submit_decision(Decision::Answer(false)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers { triggers, .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(
+                    crate::decide::pending::OrderTriggers { triggers, .. },
+                )) => {
                     let order: Vec<usize> = (0..triggers.len()).collect();
                     state.submit_decision(Decision::Order(order)).unwrap();
                 }
@@ -2759,15 +2778,16 @@ mod tests {
         let (mut state, _a) = bear_on_field();
         // "If a player would discard THIS card, exile it instead." — conferred,
         // not printed, onto a matching card that isn't on the battlefield.
-        let madness = Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
-            would: EventFilter::Act {
-                verb: VerbName::from("Discard"),
-                who: Predicate::Any,
-                on: Predicate::Ref(Reference::This),
-                cause: None,
-            },
-            instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
-        })));
+        let madness =
+            Ability::r#static(StaticEffect::Replacement(Box::new(Replacement::Instead {
+                would: EventFilter::Act {
+                    verb: VerbName::from("Discard"),
+                    who: Predicate::Any,
+                    on: Predicate::Ref(Reference::This),
+                    cause: None,
+                },
+                instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
+            })));
         state.conferral_rules = vec![ConferralRule {
             scope: Predicate::And(vec![
                 Predicate::Characteristic(CharacteristicPredicate::Named(
@@ -2982,10 +3002,12 @@ mod tests {
         // never actually exercised.) Both are sourced from the same
         // off-battlefield card, so whichever applies first exiles it and the
         // sibling then has nothing left to replace ([CR#616.1f]).
-        let Some(crate::decide::PendingDecision::ChooseReplacement {
-            chooser,
-            applicable,
-        }) = state.pending.clone()
+        let Some(crate::decide::PendingDecision::ChooseReplacement(
+            crate::decide::pending::ChooseReplacement {
+                chooser,
+                applicable,
+            },
+        )) = state.pending.clone()
         else {
             panic!("the printed + Gorger-granted madness both apply — a [CR#616.1] order choice")
         };
@@ -3342,9 +3364,11 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects {
-            candidates, min, ..
-        } = pending
+        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            candidates,
+            min,
+            ..
+        }) = pending
         else {
             panic!("expected the batched card choice, got {pending:?}");
         };
@@ -3368,7 +3392,9 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    crate::decide::pending::Priority { .. },
+                )) => {
                     state
                         .submit_decision(Decision::Act(crate::decide::Action::Pass))
                         .unwrap();
@@ -4653,7 +4679,12 @@ mod tests {
         state.run_effect(scry_effect(1), &frame);
         drain_events(&mut state, 60); // → the single Modal decision
         assert!(
-            matches!(state.pending, Some(PendingDecision::ChooseModes { .. })),
+            matches!(
+                state.pending,
+                Some(PendingDecision::ChooseModes(
+                    crate::decide::pending::ChooseModes { .. }
+                ))
+            ),
             "scry surfaces the per-card top/bottom pick, got {:?}",
             state.pending
         );
@@ -4752,7 +4783,11 @@ mod tests {
         drain_events(&mut state, 60);
         state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
         drain_events(&mut state, 60);
-        let Some(PendingDecision::ArrangePile { player, objects }) = state.pending.clone() else {
+        let Some(PendingDecision::ArrangePile(crate::decide::pending::ArrangePile {
+            player,
+            objects,
+        })) = state.pending.clone()
+        else {
             panic!("expected an ArrangePile decision, got {:?}", state.pending);
         };
         assert_eq!(player, p0, "the scrying player arranges");
@@ -4778,7 +4813,12 @@ mod tests {
         state.submit_decision(Decision::Modes(vec![1])).unwrap(); // b → bottom
         let events = drain_events(&mut state, 60);
         assert!(
-            !matches!(state.pending, Some(PendingDecision::ArrangePile { .. })),
+            !matches!(
+                state.pending,
+                Some(PendingDecision::ArrangePile(
+                    crate::decide::pending::ArrangePile { .. }
+                ))
+            ),
             "two singleton piles surface no arrange decision, got {:?}",
             state.pending
         );
@@ -4814,7 +4854,12 @@ mod tests {
         state.run_effect(scry_effect(1), &frame);
         drain_events(&mut state, 60);
         assert!(
-            matches!(state.pending, Some(PendingDecision::ChooseModes { .. })),
+            matches!(
+                state.pending,
+                Some(PendingDecision::ChooseModes(
+                    crate::decide::pending::ChooseModes { .. }
+                ))
+            ),
             "without the cant, scry runs and surfaces its pick, got {:?}",
             state.pending
         );
@@ -4844,7 +4889,12 @@ mod tests {
         state.run_effect(scry_effect(1), &frame);
         let events = drain_events(&mut state, 60);
         assert!(
-            !matches!(state.pending, Some(PendingDecision::ChooseModes { .. })),
+            !matches!(
+                state.pending,
+                Some(PendingDecision::ChooseModes(
+                    crate::decide::pending::ChooseModes { .. }
+                ))
+            ),
             "the canted Act suppresses the scry body — its per-card pick never surfaces, got {:?}",
             state.pending
         );
@@ -4919,7 +4969,11 @@ mod tests {
         });
         state.run_effect(effect, &frame);
         drain_events(&mut state, 60);
-        let Some(PendingDecision::ArrangePile { player, objects }) = state.pending.clone() else {
+        let Some(PendingDecision::ArrangePile(crate::decide::pending::ArrangePile {
+            player,
+            objects,
+        })) = state.pending.clone()
+        else {
             panic!("expected an ArrangePile decision, got {:?}", state.pending);
         };
         assert_eq!(player, p0, "the owner arranges an 'any order' group");

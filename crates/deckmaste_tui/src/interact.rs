@@ -88,16 +88,20 @@ pub fn actions_for(object: ObjectId, legal: &[Action]) -> Vec<Action> {
 #[must_use]
 pub fn is_interactive(pending: &PendingDecision) -> bool {
     match pending {
-        PendingDecision::Priority { .. }
-        | PendingDecision::ChooseTargets { .. }
-        | PendingDecision::ChooseNewTargets { .. } => true,
-        PendingDecision::DeclareAttackers { legal, .. }
-        | PendingDecision::DeclareBlockers { legal, .. } => !legal.is_empty(),
+        PendingDecision::Priority(deckmaste_engine::Priority { .. })
+        | PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { .. })
+        | PendingDecision::ChooseNewTargets(deckmaste_engine::ChooseNewTargets { .. }) => true,
+        PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers { legal, .. })
+        | PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { legal, .. }) => {
+            !legal.is_empty()
+        }
         // The human picks which cards to discard — cleanup hand-size and
         // effect-instructed discards alike. `count` is always > 0 when the
         // engine surfaces one; guard anyway so a degenerate 0 auto-resolves.
-        PendingDecision::DiscardToHandSize { count, .. }
-        | PendingDecision::DiscardCards { count, .. } => *count > 0,
+        PendingDecision::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
+            count, ..
+        })
+        | PendingDecision::DiscardCards(deckmaste_engine::DiscardCards { count, .. }) => *count > 0,
         _ => false,
     }
 }
@@ -110,22 +114,22 @@ impl Interaction {
     #[must_use]
     pub fn for_decision(pending: &PendingDecision) -> Option<Self> {
         Some(match pending {
-            PendingDecision::Priority { .. } => Interaction::Priority { sub: None },
-            PendingDecision::ChooseTargets { legal, .. }
+            PendingDecision::Priority(deckmaste_engine::Priority { .. }) => Interaction::Priority { sub: None },
+            PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. })
             // [CR#707.10c]: re-targeting a committed entry is the same
             // pick-one-per-spec interaction as an initial `ChooseTargets` —
             // `legal[i]` already includes the entry's current target, so
             // "leave it as-is" is always a candidate.
-            | PendingDecision::ChooseNewTargets { legal, .. } => Interaction::Targets {
+            | PendingDecision::ChooseNewTargets(deckmaste_engine::ChooseNewTargets { legal, .. }) => Interaction::Targets {
                 legal: legal.clone(),
                 chosen: vec![Vec::new(); legal.len()],
                 active: 0,
             },
-            PendingDecision::DeclareAttackers {
+            PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
                 legal,
                 legal_targets,
                 ..
-            } if !legal.is_empty() => Interaction::Attackers {
+            }) if !legal.is_empty() => Interaction::Attackers {
                 legal: legal.clone(),
                 chosen: Vec::new(),
                 // The defending player's proxy is always the first legal
@@ -134,7 +138,7 @@ impl Interaction {
                     .first()
                     .expect("the defending player's proxy is a legal target"),
             },
-            PendingDecision::DeclareBlockers { legal, .. } if !legal.is_empty() => {
+            PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { legal, .. }) if !legal.is_empty() => {
                 Interaction::Blockers {
                     legal: legal.clone(),
                     pairs: Vec::new(),
@@ -454,30 +458,30 @@ mod tests {
     )]
     fn partition_surfaces_priority_targets_and_nonempty_combat() {
         let v = ids();
-        let prio = PendingDecision::Priority {
+        let prio = PendingDecision::Priority(deckmaste_engine::Priority {
             player: PlayerId(0),
             legal: vec![Action::Pass],
-        };
+        });
         assert!(is_interactive(&prio));
-        let atk = PendingDecision::DeclareAttackers {
+        let atk = PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
             player: PlayerId(0),
             legal: vec![v[0]],
             legal_targets: vec![v[1]],
-        };
+        });
         assert!(is_interactive(&atk));
         // Empty combat = nothing to choose = auto-resolved.
-        let empty = PendingDecision::DeclareAttackers {
+        let empty = PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
             player: PlayerId(0),
             legal: vec![],
             legal_targets: vec![v[1]],
-        };
+        });
         assert!(!is_interactive(&empty));
         assert!(Interaction::for_decision(&empty).is_none());
         // Discards now surface to the human — the picker is built from the hand.
-        let discard = PendingDecision::DiscardCards {
+        let discard = PendingDecision::DiscardCards(deckmaste_engine::DiscardCards {
             player: PlayerId(0),
             count: 1,
-        };
+        });
         assert!(is_interactive(&discard));
     }
 
@@ -489,14 +493,18 @@ mod tests {
     fn discard_is_interactive_and_built_over_the_hand() {
         let v = ids();
         // Both the cleanup hand-size discard and an effect discard surface.
-        assert!(is_interactive(&PendingDecision::DiscardToHandSize {
-            player: PlayerId(0),
-            count: 1,
-        }));
-        assert!(is_interactive(&PendingDecision::DiscardCards {
-            player: PlayerId(0),
-            count: 2,
-        }));
+        assert!(is_interactive(&PendingDecision::DiscardToHandSize(
+            deckmaste_engine::DiscardToHandSize {
+                player: PlayerId(0),
+                count: 1,
+            }
+        )));
+        assert!(is_interactive(&PendingDecision::DiscardCards(
+            deckmaste_engine::DiscardCards {
+                player: PlayerId(0),
+                count: 2,
+            }
+        )));
         let it = Interaction::for_discard(&[v[0], v[1], v[2]], 2);
         assert_eq!(it.candidates(), vec![v[0], v[1], v[2]]);
         assert!(it.is_pick_mode());
@@ -548,11 +556,11 @@ mod tests {
     )]
     fn for_decision_builds_one_target_slot_per_spec() {
         let v = ids();
-        let pending = PendingDecision::ChooseTargets {
+        let pending = PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets {
             player: PlayerId(0),
             spec: vec![],
             legal: vec![vec![v[0], v[1]], vec![v[2]]],
-        };
+        });
         match Interaction::for_decision(&pending).expect("interactive") {
             Interaction::Targets {
                 legal,
@@ -575,11 +583,13 @@ mod tests {
     fn targets_toggle_adds_and_removes_within_a_slot() {
         let v = ids();
         let (a, b) = (v[0], v[1]);
-        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets {
-            player: PlayerId(0),
-            spec: vec![],
-            legal: vec![vec![a, b]],
-        })
+        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets(
+            deckmaste_engine::ChooseTargets {
+                player: PlayerId(0),
+                spec: vec![],
+                legal: vec![vec![a, b]],
+            },
+        ))
         .expect("interactive");
         assert!(it.confirm().is_none()); // nothing chosen yet
         it.toggle(a);
@@ -602,11 +612,13 @@ mod tests {
     fn targets_advance_walks_specs_and_confirms_in_order() {
         let v = ids();
         let (a, b, c) = (v[0], v[1], v[2]);
-        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets {
-            player: PlayerId(0),
-            spec: vec![],
-            legal: vec![vec![a, b], vec![c]],
-        })
+        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets(
+            deckmaste_engine::ChooseTargets {
+                player: PlayerId(0),
+                spec: vec![],
+                legal: vec![vec![a, b], vec![c]],
+            },
+        ))
         .expect("interactive");
         it.toggle(a); // spec 0 := a
         assert!(it.confirm().is_none()); // spec 1 still empty
@@ -626,11 +638,13 @@ mod tests {
     fn targets_ignores_non_candidates() {
         let v = ids();
         let (a, off) = (v[0], v[3]);
-        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets {
-            player: PlayerId(0),
-            spec: vec![],
-            legal: vec![vec![a]],
-        })
+        let mut it = Interaction::for_decision(&PendingDecision::ChooseTargets(
+            deckmaste_engine::ChooseTargets {
+                player: PlayerId(0),
+                spec: vec![],
+                legal: vec![vec![a]],
+            },
+        ))
         .expect("interactive");
         it.toggle(off); // not a candidate
         assert!(!it.is_chosen(off));
@@ -645,11 +659,13 @@ mod tests {
     fn attackers_toggle_is_a_free_subset_and_confirms_any_set() {
         let v = ids();
         let (a, b, off, def) = (v[0], v[1], v[3], v[2]);
-        let mut it = Interaction::for_decision(&PendingDecision::DeclareAttackers {
-            player: PlayerId(0),
-            legal: vec![a, b],
-            legal_targets: vec![def],
-        })
+        let mut it = Interaction::for_decision(&PendingDecision::DeclareAttackers(
+            deckmaste_engine::DeclareAttackers {
+                player: PlayerId(0),
+                legal: vec![a, b],
+                legal_targets: vec![def],
+            },
+        ))
         .expect("interactive");
         // Empty set is a legal answer ("no attacks").
         assert_eq!(it.confirm(), Some(Decision::Attackers(vec![])));
@@ -673,10 +689,12 @@ mod tests {
     fn blockers_pairing_records_blocker_attacker_pairs() {
         let v = ids();
         let (b0, b1, atk0, atk1) = (v[0], v[1], v[2], v[3]);
-        let mut it = Interaction::for_decision(&PendingDecision::DeclareBlockers {
-            player: PlayerId(1),
-            legal: vec![b0, b1],
-        })
+        let mut it = Interaction::for_decision(&PendingDecision::DeclareBlockers(
+            deckmaste_engine::DeclareBlockers {
+                player: PlayerId(1),
+                legal: vec![b0, b1],
+            },
+        ))
         .expect("interactive");
         // Empty = "no blocks" is a legal answer.
         assert_eq!(it.confirm(), Some(Decision::Blocks(vec![])));
@@ -700,10 +718,12 @@ mod tests {
     fn blockers_unpair_undoes_pending_then_pairs() {
         let v = ids();
         let (b0, atk0) = (v[0], v[2]);
-        let mut it = Interaction::for_decision(&PendingDecision::DeclareBlockers {
-            player: PlayerId(1),
-            legal: vec![b0],
-        })
+        let mut it = Interaction::for_decision(&PendingDecision::DeclareBlockers(
+            deckmaste_engine::DeclareBlockers {
+                player: PlayerId(1),
+                legal: vec![b0],
+            },
+        ))
         .expect("interactive");
         it.toggle(b0);
         it.pair_with(atk0);
@@ -740,7 +760,7 @@ mod tests {
             };
             let decision = match &pending {
                 // Priority: prefer playing a land, else casting, else pass.
-                PendingDecision::Priority { legal, .. } => {
+                PendingDecision::Priority(deckmaste_engine::Priority { legal, .. }) => {
                     let pick = legal
                         .iter()
                         .find(|a| matches!(a, deckmaste_engine::Action::PlayLand { .. }))
@@ -754,7 +774,7 @@ mod tests {
                     Decision::Act(pick)
                 }
                 // Targets: first candidate per spec, built through Interaction.
-                PendingDecision::ChooseTargets { .. } => {
+                PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { .. }) => {
                     let mut it = Interaction::for_decision(&pending).expect("interactive");
                     loop {
                         let cand = it.candidates();
@@ -768,7 +788,10 @@ mod tests {
                     }
                 }
                 // Attackers: swing with everything, built through Interaction.
-                PendingDecision::DeclareAttackers { legal, .. } => {
+                PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
+                    legal,
+                    ..
+                }) => {
                     let mut it = Interaction::for_decision(&pending).expect("interactive");
                     for &id in legal {
                         it.toggle(id);
@@ -776,13 +799,17 @@ mod tests {
                     it.confirm().expect("attackers confirm")
                 }
                 // Blockers: declare no blocks, built through Interaction.
-                PendingDecision::DeclareBlockers { .. } => {
+                PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { .. }) => {
                     let it = Interaction::for_decision(&pending).expect("interactive");
                     it.confirm().expect("blocks confirm")
                 }
                 // Discard: drop the first `count` cards, built through for_discard.
-                PendingDecision::DiscardToHandSize { player, count }
-                | PendingDecision::DiscardCards { player, count } => {
+                PendingDecision::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
+                    player,
+                    count,
+                })
+                | PendingDecision::DiscardCards(deckmaste_engine::DiscardCards { player, count }) =>
+                {
                     let hand: Vec<_> = driver.state.zones.hands[player.index()].clone();
                     let mut it = Interaction::for_discard(&hand, *count as usize);
                     for &id in hand.iter().take(*count as usize) {

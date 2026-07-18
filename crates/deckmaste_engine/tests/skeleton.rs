@@ -205,13 +205,17 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     ));
 
     // The decision surfaces on the NEXT call, idempotently, without mutating.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = state.step() else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = state.step()
+    else {
         panic!("expected priority");
     };
     assert_eq!(player, PlayerId(0));
     assert!(matches!(
         state.step(),
-        StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
+        StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
     ));
 }
 
@@ -223,10 +227,14 @@ fn pass_to_stop(state: &mut GameState) -> StepOutcome {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+                deckmaste_engine::DeclareAttackers { .. },
+            )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
             other => return other,
@@ -246,9 +254,14 @@ fn step_until(
         if pred(state, &outcome) {
             return outcome;
         }
-        if let StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) = outcome {
+        if let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+            ..
+        })) = outcome
+        {
             state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-        } else if let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) = outcome
+        } else if let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+            deckmaste_engine::DeclareAttackers { .. },
+        )) = outcome
         {
             state.submit_decision(Decision::Attackers(vec![])).unwrap();
         } else if matches!(
@@ -272,7 +285,7 @@ fn submission_errors() {
     let (_, stop) = step_to_stop(&mut state);
     assert!(matches!(
         stop,
-        StepOutcome::NeedsDecision(PendingDecision::Priority { .. })
+        StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
     ));
     assert_eq!(
         state.submit_decision(Decision::Discard(vec![])),
@@ -300,7 +313,11 @@ fn a_full_pass_around_advances_the_step() {
     // P0 passes; priority rotates to P1 (same step).
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!("expected P1 priority");
     };
     assert_eq!(player, PlayerId(1));
@@ -322,11 +339,15 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let mut state = two_player_plains(42, 20);
     // Drive to P0's precombat main.
     let stop = step_until(&mut state, |s, o| {
-        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. })
+        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { player, .. }))
             if *player == PlayerId(0))
             && s.turn.current == PhaseStep::PrecombatMain
     });
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        legal,
+        ..
+    })) = stop
+    else {
         unreachable!()
     };
     // Land drop is legal; take the first.
@@ -361,7 +382,11 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         "same CardId, reminted"
     );
     assert_eq!(state.lands_played_this_turn(PlayerId(0)), 1);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        legal,
+    })) = stop
+    else {
         panic!("expected priority back");
     };
     assert_eq!(player, PlayerId(0));
@@ -408,7 +433,9 @@ fn cleanup_discards_to_hand_size() {
     let mut state = two_player_plains(42, 20);
     // All-pass: P1 draws on turn 2 (8 cards) and must discard at cleanup.
     let stop = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize { player, count }) = stop
+    let StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize(
+        deckmaste_engine::DiscardToHandSize { player, count },
+    )) = stop
     else {
         panic!("expected a cleanup discard, got {stop:?}");
     };
@@ -500,10 +527,12 @@ fn runner_recovers_the_auto_stepping_ergonomics() {
     let (_, mut stop) = runner.run();
     loop {
         match stop {
-            RunStop::Decision(PendingDecision::Priority { .. }) => {
+            RunStop::Decision(PendingDecision::Priority(deckmaste_engine::Priority { .. })) => {
                 (_, stop) = runner.submit(Decision::Act(Action::Pass)).unwrap();
             }
-            RunStop::Decision(PendingDecision::DeclareAttackers { .. }) => {
+            RunStop::Decision(PendingDecision::DeclareAttackers(
+                deckmaste_engine::DeclareAttackers { .. },
+            )) => {
                 (_, stop) = runner.submit(Decision::Attackers(vec![])).unwrap();
             }
             RunStop::Decision(other) => panic!("unexpected decision: {other:?}"),
@@ -562,11 +591,16 @@ fn state_is_assertable_between_two_untap_events() {
                 break; // turn 5 has begun; its untap events are next.
             }
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                legal,
+                ..
+            })) => {
                 let action = script(&legal);
                 state.submit_decision(Decision::Act(action)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+                deckmaste_engine::DeclareAttackers { .. },
+            )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
             StepOutcome::NeedsDecision(other) => panic!("unexpected decision: {other:?}"),
@@ -653,7 +687,9 @@ fn replay_is_deterministic() {
         let mut state = two_player_plains(123, 20);
         for _ in 0..40 {
             match state.step() {
-                StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    deckmaste_engine::Priority { legal, .. },
+                )) => {
                     let action = legal
                         .iter()
                         .find(|a| !matches!(a, Action::Pass))
@@ -661,7 +697,9 @@ fn replay_is_deterministic() {
                         .clone();
                     state.submit_decision(Decision::Act(action)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers { .. }) => {
+                StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+                    deckmaste_engine::DeclareAttackers { .. },
+                )) => {
                     state.submit_decision(Decision::Attackers(vec![])).unwrap();
                 }
                 StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => break,
@@ -1143,7 +1181,10 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
         state.step(),
         StepOutcome::Progress(Progress::PriorityOpened(PlayerId(0)))
     ));
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = state.step()
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        legal,
+    })) = state.step()
     else {
         panic!("expected a Priority decision");
     };
@@ -1206,11 +1247,15 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
 fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
     let mut state = two_player_with("Kabira Crossroads", 42, 20);
     let stop = step_until(&mut state, |s, o| {
-        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. })
+        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { player, .. }))
             if *player == PlayerId(0))
             && s.turn.current == PhaseStep::PrecombatMain
     });
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        legal,
+        ..
+    })) = stop
+    else {
         unreachable!()
     };
     let land = legal
@@ -1260,7 +1305,11 @@ fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
 fn concession_ends_the_game() {
     let mut state = two_player_plains(42, 20);
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, legal }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        legal,
+    })) = stop
+    else {
         panic!("expected a priority decision, got {stop:?}");
     };
     assert!(

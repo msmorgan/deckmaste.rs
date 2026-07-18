@@ -153,13 +153,15 @@ pub struct GreedyCreatures;
 impl Strategy for GreedyCreatures {
     fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
         match pending {
-            PendingDecision::Priority { player, legal } => Decision::Act(greedy_priority(
-                state,
-                *player,
-                legal,
-                Type::Creature,
-                false,
-            )),
+            PendingDecision::Priority(crate::decide::pending::Priority { player, legal }) => {
+                Decision::Act(greedy_priority(
+                    state,
+                    *player,
+                    legal,
+                    Type::Creature,
+                    false,
+                ))
+            }
             other => mechanical(state, other),
         }
     }
@@ -174,12 +176,14 @@ pub struct GreedyRemoval;
 impl Strategy for GreedyRemoval {
     fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
         match pending {
-            PendingDecision::Priority { player, legal } => {
+            PendingDecision::Priority(crate::decide::pending::Priority { player, legal }) => {
                 Decision::Act(greedy_priority(state, *player, legal, Type::Instant, true))
             }
-            PendingDecision::ChooseTargets { player, legal, .. } => {
-                Decision::Targets(choose_targets(state, *player, legal))
-            }
+            PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+                player,
+                legal,
+                ..
+            }) => Decision::Targets(choose_targets(state, *player, legal)),
             other => mechanical(state, other),
         }
     }
@@ -207,26 +211,30 @@ pub struct GreedyDemo;
 impl Strategy for GreedyDemo {
     fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
         match pending {
-            PendingDecision::Priority { player, legal } => Decision::Act(greedy_priority(
-                state,
-                *player,
-                legal,
-                Type::Creature,
-                false,
-            )),
+            PendingDecision::Priority(crate::decide::pending::Priority { player, legal }) => {
+                Decision::Act(greedy_priority(
+                    state,
+                    *player,
+                    legal,
+                    Type::Creature,
+                    false,
+                ))
+            }
             // The demo's burn / sac-outlet pings ("any target") and any other
             // targeted effect: a legal candidate set per spec slot.
-            PendingDecision::ChooseTargets {
+            PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
                 player,
                 spec,
                 legal,
                 ..
-            } => Decision::Targets(choose_targets_any(state, *player, spec, legal)),
+            }) => Decision::Targets(choose_targets_any(state, *player, spec, legal)),
             // A multi-blocked attacker ([CR#510.1c]): any split summing to the
             // source's power is legal; dump it all on the first recipient.
-            PendingDecision::AssignCombatDamage {
-                source, recipients, ..
-            } => Decision::Assignment(assign_all_to_first(state, *source, recipients)),
+            PendingDecision::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
+                source,
+                recipients,
+                ..
+            }) => Decision::Assignment(assign_all_to_first(state, *source, recipients)),
             other => mechanical(state, other),
         }
     }
@@ -402,50 +410,65 @@ fn choose_discards(state: &GameState, player: PlayerId, count: Uint) -> Vec<Obje
 /// here, which also asserts that the creature seat never chooses targets.
 pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
     match pending {
-        PendingDecision::DiscardToHandSize { player, count }
-        | PendingDecision::DiscardCards { player, count } => {
+        PendingDecision::DiscardToHandSize(crate::decide::pending::DiscardToHandSize {
+            player,
+            count,
+        })
+        | PendingDecision::DiscardCards(crate::decide::pending::DiscardCards { player, count }) => {
             Decision::Discard(choose_discards(state, *player, *count))
         }
         // Greedy default: the first offered option (printed order).
-        PendingDecision::ChooseManaColor { options, .. } => {
-            Decision::ManaColor(*options.first().expect("a mana choice offers options"))
-        }
+        PendingDecision::ChooseManaColor(crate::decide::pending::ChooseManaColor {
+            options,
+            ..
+        }) => Decision::ManaColor(*options.first().expect("a mana choice offers options")),
         // Greedy default: the first offered run (printed order).
-        PendingDecision::ChooseManaMode { .. } => Decision::ManaMode(0),
+        PendingDecision::ChooseManaMode(crate::decide::pending::ChooseManaMode { .. }) => {
+            Decision::ManaMode(0)
+        }
         // Route through `auto_pay_pending` so the autotapper honors the
         // subject's `SpendOnly` restrictions ([CR#106.6]).
-        PendingDecision::PayMana { .. } => Decision::Pay(state.auto_pay_pending()),
-        PendingDecision::OrderTriggers { triggers, .. } => {
-            Decision::Order((0..triggers.len()).collect())
+        PendingDecision::PayMana(crate::decide::pending::PayMana { .. }) => {
+            Decision::Pay(state.auto_pay_pending())
         }
+        PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
+            triggers, ..
+        }) => Decision::Order((0..triggers.len()).collect()),
         // Attack with everything legal (the creature seat swings; the removal
         // seat has no creatures, so its set is always empty). Each attacker
         // attacks the defending player's proxy ([CR#508.1b]) — the sole
         // legal target when no planeswalkers are in play.
-        PendingDecision::DeclareAttackers {
+        PendingDecision::DeclareAttackers(crate::decide::pending::DeclareAttackers {
             legal,
             legal_targets,
             ..
-        } => {
+        }) => {
             let target = *legal_targets
                 .first()
                 .expect("the defending player's proxy is always a legal target");
             Decision::Attackers(legal.iter().map(|&a| (a, target)).collect())
         }
         // The defender never has a creature to block with.
-        PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
+        PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers { .. }) => {
+            Decision::Blocks(vec![])
+        }
         // Unblocked attackers are forced (one recipient); no multi-block arises.
-        PendingDecision::AssignCombatDamage {
-            source, recipients, ..
-        } => unreachable!(
+        PendingDecision::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
+            source,
+            recipients,
+            ..
+        }) => unreachable!(
             "no multi-block in this matchup (source {source:?}, recipients {recipients:?})"
         ),
-        PendingDecision::Priority { .. } | PendingDecision::ChooseTargets { .. } => {
+        PendingDecision::Priority(crate::decide::pending::Priority { .. })
+        | PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets { .. }) => {
             unreachable!("priority and targeting are a strategy's own concern")
         }
-        PendingDecision::ChooseObjects {
-            candidates, min, ..
-        } => Decision::Chosen(
+        PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            candidates,
+            min,
+            ..
+        }) => Decision::Chosen(
             candidates
                 .iter()
                 .copied()
@@ -457,10 +480,14 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         // number") — both answered through the `Decision::XValue` shape. A
         // smarter value is a follow-up; the note-number arm closes that slice
         // of the P0.W3 seam.
-        PendingDecision::ChooseXValue { .. } | PendingDecision::ChooseNoteNumber { .. } => {
+        PendingDecision::ChooseXValue(crate::decide::pending::ChooseXValue { .. })
+        | PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber { .. }) => {
             Decision::XValue(0)
         }
-        PendingDecision::ChooseNoteCardName { player, .. } => {
+        PendingDecision::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName {
+            player,
+            ..
+        }) => {
             let name = state.zones.hands[player.index()].first().map_or_else(
                 || "Mountain".to_owned(),
                 |&id| crate::derive::face(state.def(id)).name.clone(),
@@ -469,12 +496,17 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         }
         // [CR#705.2]: the call is strategically null (win is a fair coin
         // either way) — the headless strategy always calls heads.
-        PendingDecision::CallFlip { .. } => Decision::Answer(true),
+        PendingDecision::CallFlip(crate::decide::pending::CallFlip { .. }) => {
+            Decision::Answer(true)
+        }
         // [CR#707.10c]: keeping every current target is always legal (the
         // union rule) — the headless strategy re-targets nothing.
-        PendingDecision::ChooseNewTargets {
-            entry, spec, legal, ..
-        } => Decision::Targets(keep_current_targets(state, *entry, spec, legal)),
+        PendingDecision::ChooseNewTargets(crate::decide::pending::ChooseNewTargets {
+            entry,
+            spec,
+            legal,
+            ..
+        }) => Decision::Targets(keep_current_targets(state, *entry, spec, legal)),
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }
@@ -507,23 +539,53 @@ pub(crate) fn keep_current_targets(
 /// The seat a surfaced decision is waiting on — every variant names its player.
 pub(crate) fn pending_player(pending: &PendingDecision) -> PlayerId {
     match pending {
-        PendingDecision::Priority { player, .. }
-        | PendingDecision::DiscardToHandSize { player, .. }
-        | PendingDecision::DiscardCards { player, .. }
-        | PendingDecision::ChooseManaColor { player, .. }
-        | PendingDecision::ChooseManaMode { player, .. }
-        | PendingDecision::ChooseTargets { player, .. }
-        | PendingDecision::PayMana { player, .. }
-        | PendingDecision::OrderTriggers { player, .. }
-        | PendingDecision::DeclareAttackers { player, .. }
-        | PendingDecision::DeclareBlockers { player, .. }
-        | PendingDecision::AssignCombatDamage { player, .. }
-        | PendingDecision::ChooseXValue { player, .. }
-        | PendingDecision::ChooseNoteNumber { player, .. }
-        | PendingDecision::ChooseNoteCardName { player, .. }
-        | PendingDecision::ChooseNewTargets { player, .. }
-        | PendingDecision::LegendRule { player, .. }
-        | PendingDecision::CallFlip { player } => *player,
+        PendingDecision::Priority(crate::decide::pending::Priority { player, .. })
+        | PendingDecision::DiscardToHandSize(crate::decide::pending::DiscardToHandSize {
+            player,
+            ..
+        })
+        | PendingDecision::DiscardCards(crate::decide::pending::DiscardCards { player, .. })
+        | PendingDecision::ChooseManaColor(crate::decide::pending::ChooseManaColor {
+            player,
+            ..
+        })
+        | PendingDecision::ChooseManaMode(crate::decide::pending::ChooseManaMode {
+            player, ..
+        })
+        | PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+            player, ..
+        })
+        | PendingDecision::PayMana(crate::decide::pending::PayMana { player, .. })
+        | PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
+            player, ..
+        })
+        | PendingDecision::DeclareAttackers(crate::decide::pending::DeclareAttackers {
+            player,
+            ..
+        })
+        | PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers {
+            player,
+            ..
+        })
+        | PendingDecision::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
+            player,
+            ..
+        })
+        | PendingDecision::ChooseXValue(crate::decide::pending::ChooseXValue { player, .. })
+        | PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
+            player,
+            ..
+        })
+        | PendingDecision::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName {
+            player,
+            ..
+        })
+        | PendingDecision::ChooseNewTargets(crate::decide::pending::ChooseNewTargets {
+            player,
+            ..
+        })
+        | PendingDecision::LegendRule(crate::decide::pending::LegendRule { player, .. })
+        | PendingDecision::CallFlip(crate::decide::pending::CallFlip { player }) => *player,
         other => todo!("P0.W3: strategy for shell decision kind {other:?}"),
     }
 }

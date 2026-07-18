@@ -362,33 +362,53 @@ impl StrategyEvaluator {
     fn fallback(&self, state: &GameState, pending: &PendingDecision) -> Decision {
         match pending {
             // Stays total even though `decide` routes Priority itself.
-            PendingDecision::Priority { legal, .. } => {
+            PendingDecision::Priority(crate::decide::pending::Priority { legal, .. }) => {
                 Decision::Act(self.decide_priority(state, legal))
             }
-            PendingDecision::DiscardToHandSize { player, count }
-            | PendingDecision::DiscardCards { player, count } => {
+            PendingDecision::DiscardToHandSize(crate::decide::pending::DiscardToHandSize {
+                player,
+                count,
+            })
+            | PendingDecision::DiscardCards(crate::decide::pending::DiscardCards {
+                player,
+                count,
+            }) => {
                 let hand = &state.zones.hands[player.index()];
                 let n = (*count as usize).min(hand.len());
                 Decision::Discard(hand.iter().copied().take(n).collect())
             }
-            PendingDecision::ChooseManaColor { options, .. } => {
-                Decision::ManaColor(*options.first().expect("a mana choice offers options"))
-            }
+            PendingDecision::ChooseManaColor(crate::decide::pending::ChooseManaColor {
+                options,
+                ..
+            }) => Decision::ManaColor(*options.first().expect("a mana choice offers options")),
             // Greedy default: the first offered run (printed order).
-            PendingDecision::ChooseManaMode { .. } => Decision::ManaMode(0),
-            PendingDecision::PayMana { .. } => Decision::Pay(state.auto_pay_pending()),
-            PendingDecision::OrderTriggers { triggers, .. } => {
-                Decision::Order((0..triggers.len()).collect())
+            PendingDecision::ChooseManaMode(crate::decide::pending::ChooseManaMode { .. }) => {
+                Decision::ManaMode(0)
             }
-            PendingDecision::ChooseTargets { spec, legal, .. } => {
-                Decision::Targets(crate::sim::pick_target_set(spec, legal))
+            PendingDecision::PayMana(crate::decide::pending::PayMana { .. }) => {
+                Decision::Pay(state.auto_pay_pending())
             }
+            PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
+                triggers,
+                ..
+            }) => Decision::Order((0..triggers.len()).collect()),
+            PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+                spec,
+                legal,
+                ..
+            }) => Decision::Targets(crate::sim::pick_target_set(spec, legal)),
             // No-op defaults: declaring no attackers / no blocks is always legal.
-            PendingDecision::DeclareAttackers { .. } => Decision::Attackers(vec![]),
-            PendingDecision::DeclareBlockers { .. } => Decision::Blocks(vec![]),
-            PendingDecision::AssignCombatDamage {
-                source, recipients, ..
-            } => {
+            PendingDecision::DeclareAttackers(crate::decide::pending::DeclareAttackers {
+                ..
+            }) => Decision::Attackers(vec![]),
+            PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers {
+                ..
+            }) => Decision::Blocks(vec![]),
+            PendingDecision::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
+                source,
+                recipients,
+                ..
+            }) => {
                 let power = state
                     .combat_damage
                     .as_ref()
@@ -399,16 +419,22 @@ impl StrategyEvaluator {
                     .expect("a multi-blocked source has recipients");
                 Decision::Assignment(vec![(first, power)])
             }
-            PendingDecision::ChooseObjects {
-                candidates, min, ..
-            } => Decision::Chosen(candidates.iter().copied().take(*min as usize).collect()),
+            PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+                candidates,
+                min,
+                ..
+            }) => Decision::Chosen(candidates.iter().copied().take(*min as usize).collect()),
             // [CR#601.2b,608.2c]: the minimal always-legal default (0) — the
             // X-announce and a resolution note number ("choose a number") alike,
             // both answered through the `Decision::XValue` shape.
-            PendingDecision::ChooseXValue { .. } | PendingDecision::ChooseNoteNumber { .. } => {
-                Decision::XValue(0)
-            }
-            PendingDecision::ChooseNoteCardName { player, .. } => {
+            PendingDecision::ChooseXValue(crate::decide::pending::ChooseXValue { .. })
+            | PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
+                ..
+            }) => Decision::XValue(0),
+            PendingDecision::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName {
+                player,
+                ..
+            }) => {
                 let name = state.zones.hands[player.index()].first().map_or_else(
                     || "Mountain".to_owned(),
                     |&id| crate::derive::face(state.def(id)).name.clone(),
@@ -416,35 +442,53 @@ impl StrategyEvaluator {
                 Decision::CardName(name)
             }
             // Simple shells: a legal minimal default.
-            PendingDecision::ChooseModes { min, .. } => Decision::Modes((0..*min).collect()),
-            PendingDecision::Division { total, targets, .. } => {
+            PendingDecision::ChooseModes(crate::decide::pending::ChooseModes { min, .. }) => {
+                Decision::Modes((0..*min).collect())
+            }
+            PendingDecision::Division(crate::decide::pending::Division {
+                total, targets, ..
+            }) => {
                 let first = *targets.first().expect("a division has targets");
                 Decision::Divide(vec![(first, *total)])
             }
-            PendingDecision::Vote { .. } => Decision::VoteFor(0),
-            PendingDecision::YesNo { .. } => Decision::Answer(false),
+            PendingDecision::Vote(crate::decide::pending::Vote { .. }) => Decision::VoteFor(0),
+            PendingDecision::YesNo(crate::decide::pending::YesNo { .. }) => Decision::Answer(false),
             // A called flip is strategically null (a fair coin either way) —
             // always calling heads is a reasonable, always-legal default.
-            PendingDecision::CallFlip { .. } => Decision::Answer(true),
+            PendingDecision::CallFlip(crate::decide::pending::CallFlip { .. }) => {
+                Decision::Answer(true)
+            }
             // [CR#401.4]: any permutation of the pile is legal; keep the
             // offered order (a total, always-legal default).
-            PendingDecision::ArrangePile { objects, .. } => Decision::Arranged(objects.clone()),
-            PendingDecision::ChooseReplacement { applicable, .. } => Decision::ReplacementChoice(
+            PendingDecision::ArrangePile(crate::decide::pending::ArrangePile {
+                objects, ..
+            }) => Decision::Arranged(objects.clone()),
+            PendingDecision::ChooseReplacement(crate::decide::pending::ChooseReplacement {
+                applicable,
+                ..
+            }) => Decision::ReplacementChoice(
                 *applicable
                     .first()
                     .expect("a replacement choice offers options"),
             ),
             // [CR#707.10c]: re-target a committed entry by keeping every
             // current target (see `crate::sim::keep_current_targets`).
-            PendingDecision::ChooseNewTargets {
-                entry, spec, legal, ..
-            } => Decision::Targets(crate::sim::keep_current_targets(state, *entry, spec, legal)),
+            PendingDecision::ChooseNewTargets(crate::decide::pending::ChooseNewTargets {
+                entry,
+                spec,
+                legal,
+                ..
+            }) => Decision::Targets(crate::sim::keep_current_targets(state, *entry, spec, legal)),
             // Deep engine choices with no trivial legal default; none arise in
             // v1 decks. Later tickets handle these explicitly.
-            other @ (PendingDecision::ChooseCostOptions { .. }
-            | PendingDecision::OrderReplacements { .. }
-            | PendingDecision::PreGame { .. }
-            | PendingDecision::LegendRule { .. }) => {
+            other @ (PendingDecision::ChooseCostOptions(
+                crate::decide::pending::ChooseCostOptions { .. },
+            )
+            | PendingDecision::OrderReplacements(
+                crate::decide::pending::OrderReplacements { .. },
+            )
+            | PendingDecision::PreGame(crate::decide::pending::PreGame { .. })
+            | PendingDecision::LegendRule(crate::decide::pending::LegendRule { .. })) => {
                 todo!("strategy fallback for {other:?} (no v1 deck surfaces it)")
             }
         }
@@ -454,22 +498,30 @@ impl StrategyEvaluator {
 impl crate::sim::Strategy for StrategyEvaluator {
     fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
         match pending {
-            PendingDecision::Priority { legal, .. } => {
+            PendingDecision::Priority(crate::decide::pending::Priority { legal, .. }) => {
                 Decision::Act(self.decide_priority(state, legal))
             }
-            PendingDecision::ChooseTargets { spec, legal, .. } => {
-                Decision::Targets(self.decide_targets(state, spec, legal))
-            }
-            PendingDecision::DeclareAttackers { legal, .. } => {
-                Decision::Attackers(self.decide_attackers(state, legal))
-            }
-            PendingDecision::DeclareBlockers { legal, .. } => {
-                Decision::Blocks(self.decide_blocks(state, legal))
-            }
-            PendingDecision::DiscardToHandSize { player, count }
-            | PendingDecision::DiscardCards { player, count } => {
-                Decision::Discard(self.decide_discard(state, *player, *count))
-            }
+            PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+                spec,
+                legal,
+                ..
+            }) => Decision::Targets(self.decide_targets(state, spec, legal)),
+            PendingDecision::DeclareAttackers(crate::decide::pending::DeclareAttackers {
+                legal,
+                ..
+            }) => Decision::Attackers(self.decide_attackers(state, legal)),
+            PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers {
+                legal,
+                ..
+            }) => Decision::Blocks(self.decide_blocks(state, legal)),
+            PendingDecision::DiscardToHandSize(crate::decide::pending::DiscardToHandSize {
+                player,
+                count,
+            })
+            | PendingDecision::DiscardCards(crate::decide::pending::DiscardCards {
+                player,
+                count,
+            }) => Decision::Discard(self.decide_discard(state, *player, *count)),
             other => self.fallback(state, other),
         }
     }
@@ -699,10 +751,10 @@ mod tests {
         };
         let eval = StrategyEvaluator::new(strat, PlayerId(0));
         let state = empty_two_player();
-        let pending = PendingDecision::Priority {
+        let pending = PendingDecision::Priority(crate::decide::pending::Priority {
             player: PlayerId(0),
             legal: vec![Action::Pass],
-        };
+        });
         assert_eq!(eval.decide(&state, &pending), Decision::Act(Action::Pass));
     }
 
@@ -732,13 +784,13 @@ mod tests {
             }],
         };
         let eval = StrategyEvaluator::new(strat, PlayerId(0));
-        let pending = PendingDecision::Priority {
+        let pending = PendingDecision::Priority(crate::decide::pending::Priority {
             player: PlayerId(0),
             legal: vec![
                 Action::CastSpell { object: willow_id },
                 Action::CastSpell { object: bears_id },
             ],
-        };
+        });
         assert_eq!(
             eval.decide(&state, &pending),
             Decision::Act(Action::CastSpell { object: bears_id }),
@@ -755,10 +807,10 @@ mod tests {
         };
         let eval = StrategyEvaluator::new(strat, PlayerId(1));
         let state = empty_two_player();
-        let pending = PendingDecision::DeclareBlockers {
+        let pending = PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers {
             player: PlayerId(1),
             legal: vec![],
-        };
+        });
         assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
     }
 
@@ -787,11 +839,11 @@ mod tests {
             }),
             PlayerId(0),
         );
-        let pending = PendingDecision::ChooseTargets {
+        let pending = PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
             player: PlayerId(0),
             spec: one_creature_target(),
             legal: vec![vec![willow_id, bears_id]],
-        };
+        });
         assert_eq!(
             eval.decide(&state, &pending),
             Decision::Targets(vec![vec![bears_id]]),
@@ -807,11 +859,11 @@ mod tests {
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let a = put_creature(&mut state, &bears, PlayerId(1));
         let b = put_creature(&mut state, &bears, PlayerId(1));
-        let pending = PendingDecision::ChooseTargets {
+        let pending = PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
             player: PlayerId(0),
             spec: one_creature_target(),
             legal: vec![vec![a, b]],
-        };
+        });
         assert_eq!(
             eval.decide(&state, &pending),
             Decision::Targets(vec![vec![a]])
@@ -836,11 +888,11 @@ mod tests {
         let a = put_creature(&mut state, &bears, PlayerId(0));
         let b = put_creature(&mut state, &bears, PlayerId(0));
         let p1_proxy = state.player(PlayerId(1)).object;
-        let pending = PendingDecision::DeclareAttackers {
+        let pending = PendingDecision::DeclareAttackers(crate::decide::pending::DeclareAttackers {
             player: PlayerId(0),
             legal: vec![a, b],
             legal_targets: vec![p1_proxy],
-        };
+        });
 
         let attacker = StrategyEvaluator::new(
             always_prefer(Preference::Attack {
@@ -876,10 +928,10 @@ mod tests {
             always_prefer(Preference::Block(BlockPolicy::NoBlocks)),
             PlayerId(1),
         );
-        let pending = PendingDecision::DeclareBlockers {
+        let pending = PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers {
             player: PlayerId(1),
             legal: vec![blocker],
-        };
+        });
         assert_eq!(eval.decide(&state, &pending), Decision::Blocks(vec![]));
     }
 
@@ -904,10 +956,10 @@ mod tests {
             }),
             PlayerId(0),
         );
-        let pending = PendingDecision::DiscardCards {
+        let pending = PendingDecision::DiscardCards(crate::decide::pending::DiscardCards {
             player: PlayerId(0),
             count: 1,
-        };
+        });
         assert_eq!(
             eval.decide(&state, &pending),
             Decision::Discard(vec![willow_id]),

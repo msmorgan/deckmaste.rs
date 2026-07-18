@@ -53,7 +53,9 @@ impl Strategy for MatchupStrategy {
             // rule, which the full-proxied matchup surfaces (duplicate
             // legendaries). Keep the first same-name legendary — identical
             // copies here, so the pick is strategy-neutral.
-            PendingDecision::LegendRule { candidates, .. } => Decision::Chosen(vec![candidates[0]]),
+            PendingDecision::LegendRule(deckmaste_engine::LegendRule { candidates, .. }) => {
+                Decision::Chosen(vec![candidates[0]])
+            }
             // Burn targeting (aim at the opponent's face) is now pure RON: the
             // strategy `among` filter resolves `Ref(You)` from the acting seat,
             // so `AllOf([Kind(Player), Not(Ref(You))])` names the opponent.

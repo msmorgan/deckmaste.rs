@@ -947,8 +947,9 @@ mod tests {
             }),
             &frame,
         );
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects { player, .. }) =
-            state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(
+            crate::decide::pending::ChooseObjects { player, .. },
+        )) = state.step()
         else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };

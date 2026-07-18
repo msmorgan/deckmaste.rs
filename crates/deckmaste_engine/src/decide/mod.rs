@@ -12,6 +12,36 @@ use rand::RngExt;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
 
+pub(crate) mod pending;
+
+use pending::ArrangePile;
+use pending::AssignCombatDamage;
+use pending::CallFlip;
+use pending::ChooseCostOptions;
+use pending::ChooseManaColor;
+use pending::ChooseManaMode;
+use pending::ChooseModes;
+use pending::ChooseNewTargets;
+use pending::ChooseNoteCardName;
+use pending::ChooseNoteNumber;
+use pending::ChooseObjects;
+use pending::ChooseReplacement;
+use pending::ChooseTargets;
+use pending::ChooseXValue;
+use pending::DeclareAttackers;
+use pending::DeclareBlockers;
+use pending::DiscardCards;
+use pending::DiscardToHandSize;
+use pending::Division;
+use pending::LegendRule;
+use pending::OrderReplacements;
+use pending::OrderTriggers;
+use pending::PayMana;
+use pending::PreGame;
+use pending::Priority;
+use pending::Vote;
+use pending::YesNo;
+
 /// A pre-game decision ([CR#103]) — surfaced before turn one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PreGameKind {
@@ -78,10 +108,10 @@ impl PendingDecision {
     #[must_use]
     pub fn decider_spec(&self) -> DeciderSpec {
         match self {
-            PendingDecision::Priority { .. } => DeciderSpec::PriorityHolder,
-            PendingDecision::DeclareAttackers { .. } => DeciderSpec::ActivePlayer,
-            PendingDecision::DeclareBlockers { .. } => DeciderSpec::DefendingPlayer,
-            PendingDecision::Vote { .. } => DeciderSpec::EachInTurnOrder,
+            PendingDecision::Priority(_) => DeciderSpec::PriorityHolder,
+            PendingDecision::DeclareAttackers(_) => DeciderSpec::ActivePlayer,
+            PendingDecision::DeclareBlockers(_) => DeciderSpec::DefendingPlayer,
+            PendingDecision::Vote(_) => DeciderSpec::EachInTurnOrder,
             _ => DeciderSpec::Controller,
         }
     }
@@ -91,33 +121,33 @@ impl PendingDecision {
     #[must_use]
     pub fn decider_player(&self) -> PlayerId {
         match self {
-            PendingDecision::Priority { player, .. }
-            | PendingDecision::DiscardToHandSize { player, .. }
-            | PendingDecision::DiscardCards { player, .. }
-            | PendingDecision::CallFlip { player, .. }
-            | PendingDecision::ChooseManaColor { player, .. }
-            | PendingDecision::ChooseManaMode { player, .. }
-            | PendingDecision::ChooseTargets { player, .. }
-            | PendingDecision::ChooseNewTargets { player, .. }
-            | PendingDecision::PayMana { player, .. }
-            | PendingDecision::OrderTriggers { player, .. }
-            | PendingDecision::DeclareAttackers { player, .. }
-            | PendingDecision::DeclareBlockers { player, .. }
-            | PendingDecision::AssignCombatDamage { player, .. }
-            | PendingDecision::ChooseModes { player, .. }
-            | PendingDecision::Division { player, .. }
-            | PendingDecision::Vote { player, .. }
-            | PendingDecision::YesNo { player, .. }
-            | PendingDecision::OrderReplacements { player, .. }
-            | PendingDecision::ChooseCostOptions { player, .. }
-            | PendingDecision::ChooseXValue { player, .. }
-            | PendingDecision::ChooseNoteNumber { player, .. }
-            | PendingDecision::ChooseNoteCardName { player, .. }
-            | PendingDecision::ChooseObjects { player, .. }
-            | PendingDecision::PreGame { player, .. }
-            | PendingDecision::LegendRule { player, .. }
-            | PendingDecision::ArrangePile { player, .. } => *player,
-            PendingDecision::ChooseReplacement { chooser, .. } => *chooser,
+            PendingDecision::Priority(h) => h.player,
+            PendingDecision::DiscardToHandSize(h) => h.player,
+            PendingDecision::DiscardCards(h) => h.player,
+            PendingDecision::CallFlip(h) => h.player,
+            PendingDecision::ChooseManaColor(h) => h.player,
+            PendingDecision::ChooseManaMode(h) => h.player,
+            PendingDecision::ChooseTargets(h) => h.player,
+            PendingDecision::ChooseNewTargets(h) => h.player,
+            PendingDecision::PayMana(h) => h.player,
+            PendingDecision::OrderTriggers(h) => h.player,
+            PendingDecision::DeclareAttackers(h) => h.player,
+            PendingDecision::DeclareBlockers(h) => h.player,
+            PendingDecision::AssignCombatDamage(h) => h.player,
+            PendingDecision::ChooseModes(h) => h.player,
+            PendingDecision::Division(h) => h.player,
+            PendingDecision::Vote(h) => h.player,
+            PendingDecision::YesNo(h) => h.player,
+            PendingDecision::OrderReplacements(h) => h.player,
+            PendingDecision::ChooseCostOptions(h) => h.player,
+            PendingDecision::ChooseXValue(h) => h.player,
+            PendingDecision::ChooseNoteNumber(h) => h.player,
+            PendingDecision::ChooseNoteCardName(h) => h.player,
+            PendingDecision::ChooseObjects(h) => h.player,
+            PendingDecision::PreGame(h) => h.player,
+            PendingDecision::LegendRule(h) => h.player,
+            PendingDecision::ArrangePile(h) => h.player,
+            PendingDecision::ChooseReplacement(h) => h.chooser,
         }
     }
 
@@ -125,17 +155,17 @@ impl PendingDecision {
     #[must_use]
     pub fn lock(&self) -> LockPoint {
         match self {
-            PendingDecision::ChooseTargets { .. }
-            | PendingDecision::ChooseModes { .. }
-            | PendingDecision::ChooseCostOptions { .. }
-            | PendingDecision::ChooseXValue { .. }
-            | PendingDecision::Division { .. } => LockPoint::Announce,
-            PendingDecision::PayMana { .. } => LockPoint::Payment,
-            PendingDecision::OrderTriggers { .. } => LockPoint::StackPlacement,
-            PendingDecision::DeclareAttackers { .. }
-            | PendingDecision::DeclareBlockers { .. }
-            | PendingDecision::AssignCombatDamage { .. } => LockPoint::Declaration,
-            PendingDecision::PreGame { .. } => LockPoint::PreGame,
+            PendingDecision::ChooseTargets(_)
+            | PendingDecision::ChooseModes(_)
+            | PendingDecision::ChooseCostOptions(_)
+            | PendingDecision::ChooseXValue(_)
+            | PendingDecision::Division(_) => LockPoint::Announce,
+            PendingDecision::PayMana(_) => LockPoint::Payment,
+            PendingDecision::OrderTriggers(_) => LockPoint::StackPlacement,
+            PendingDecision::DeclareAttackers(_)
+            | PendingDecision::DeclareBlockers(_)
+            | PendingDecision::AssignCombatDamage(_) => LockPoint::Declaration,
+            PendingDecision::PreGame(_) => LockPoint::PreGame,
             // Priority actions and resolution-stage choices bind as applied.
             _ => LockPoint::Resolution,
         }
@@ -146,10 +176,10 @@ impl PendingDecision {
     #[must_use]
     pub fn visibility(&self) -> Visibility {
         match self {
-            PendingDecision::PreGame {
+            PendingDecision::PreGame(PreGame {
                 kind: PreGameKind::Mulligan,
                 ..
-            } => Visibility::CommittedHidden,
+            }) => Visibility::CommittedHidden,
             _ => Visibility::Open,
         }
     }
@@ -159,190 +189,33 @@ impl PendingDecision {
 /// mutating) until `submit_decision` answers it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PendingDecision {
-    /// [CR#117]: the holder may act or pass. `legal` is advisory UI data —
-    /// submission re-validates.
-    Priority {
-        player: PlayerId,
-        legal: Vec<Action>,
-    },
-    /// [CR#514.1]: discard down to maximum hand size.
-    DiscardToHandSize { player: PlayerId, count: Uint },
-    /// [CR#701.9b]: a resolving discard — `player` chooses which `count` cards
-    /// from their hand to discard (`count` already clamped to the hand size).
-    DiscardCards { player: PlayerId, count: Uint },
-    /// [CR#705.2]: a called coin flip — the flipper calls heads or tails
-    /// before the draw. Answered with `Decision::Answer` (`true` = heads).
-    CallFlip { player: PlayerId },
-    /// [CR#106.1b]: a resolving `AddMana` whose production is a choice ("any
-    /// color" offers the five colors per [CR#105.4]; "{W} or {U}" offers its
-    /// printed set) — `player` picks one of `options`.
-    ChooseManaColor {
-        player: PlayerId,
-        options: Vec<deckmaste_core::ColorOrColorless>,
-        amount: Uint,
-        riders: Vec<deckmaste_core::ManaRider>,
-    },
-    /// [CR#106.1b]: a resolving `AddMana` whose production is a choice among
-    /// multi-symbol runs (the filterland cycle "{W}{W}, {W}{U}, or {U}{U}") —
-    /// `player` picks one of `options` (each a run of mana), and the chosen
-    /// run's whole sequence lands. The answer ([`Decision::ManaMode`]) is the
-    /// chosen option index.
-    ChooseManaMode {
-        player: PlayerId,
-        options: Vec<Vec<deckmaste_core::ColorOrColorless>>,
-        amount: Uint,
-        riders: Vec<deckmaste_core::ManaRider>,
-    },
-    /// [CR#601.2c,115]: choose targets for the in-flight announce. `legal[i]`
-    /// is the candidate set for `spec[i]`; `submit_decision` re-validates.
-    ChooseTargets {
-        player: PlayerId,
-        spec: Vec<deckmaste_core::TargetSpec>,
-        legal: Vec<Vec<ObjectId>>,
-    },
-    /// [CR#707.10c,115.7d]: re-target a COMMITTED stack entry — surface a
-    /// `ChooseNewTargets` decision whose per-slot legal set is the fresh
-    /// legal candidates PLUS the current target (leaving a slot unchanged
-    /// is always allowed, even when the current target is illegal; a
-    /// CHANGED slot must be legal).
-    ChooseNewTargets {
-        player: PlayerId,
-        entry: ObjectId,
-        spec: Vec<deckmaste_core::TargetSpec>,
-        legal: Vec<Vec<ObjectId>>,
-    },
-    /// [CR#601.2g]: allocate pool mana to the in-flight cost. `subject` is the
-    /// object being paid for — the spell, or an activated ability's source
-    /// ([CR#106.6]) — so a `SpendOnly` rider can judge it at validation.
-    PayMana {
-        player: PlayerId,
-        cost: deckmaste_core::ManaCost,
-        pool: crate::player::ManaPool,
-        subject: ObjectId,
-    },
-    /// [CR#603.3b]: a player controlling several simultaneous triggers orders
-    /// them. The submitted `Order` is a permutation of `0..triggers.len()`.
-    OrderTriggers {
-        player: PlayerId,
-        triggers: Vec<crate::trigger::NotedTrigger>,
-    },
-    /// [CR#508.1a,508.1b]: the active player declares attackers, and what each
-    /// attacks. `legal` is the surfaced candidate attacker set; `legal_targets`
-    /// is what may be attacked — the defending player's proxy object plus every
-    /// planeswalker they control ([CR#506.3,508.1b]). `submit_decision`
-    /// re-validates each declared pair against both.
-    DeclareAttackers {
-        player: PlayerId,
-        legal: Vec<ObjectId>,
-        legal_targets: Vec<ObjectId>,
-    },
-    /// [CR#509.1a]: the **defending** player declares blockers. `player` is the
-    /// defender (the non-active player); `legal` is the surfaced candidate set
-    /// of legal blockers; `submit_decision` re-validates against it.
-    DeclareBlockers {
-        player: PlayerId,
-        legal: Vec<ObjectId>,
-    },
-    /// [CR#510.1c]: divide `source`'s combat damage among its `recipients`
-    /// (free division — any split summing to `source`'s power is legal).
-    /// Surfaced only for a multi-blocked attacker (≥ 2 recipients); forced
-    /// cases auto-resolve. `player` is the source's controller.
-    AssignCombatDamage {
-        player: PlayerId,
-        source: ObjectId,
-        recipients: Vec<ObjectId>,
-    },
-    /// Choose a modal spell/ability's modes ([CR#700.2a..700.2b]). `options` is
-    /// how many modes are offered; the answer ([`Decision::Modes`]) is a list
-    /// of option indices, `min..=max` entries long, distinct unless
-    /// `repeats` ([CR#700.2d]).
-    ChooseModes {
-        player: PlayerId,
-        options: Uint,
-        min: Uint,
-        max: Uint,
-        repeats: bool,
-    },
-    /// Divide damage/counters among targets ([CR#601.2d,608.2d]) — shell.
-    Division {
-        player: PlayerId,
-        total: Uint,
-        targets: Vec<ObjectId>,
-    },
-    /// Vote, each player in turn order ([CR#701.38a]) — shell.
-    Vote { player: PlayerId, options: Uint },
-    /// A fixed-window yes/no ("… unless you pay", [CR#608.2d]) — shell.
-    YesNo { player: PlayerId },
-    /// Announce-time cost intentions ([CR#601.2b]): the player announces the
-    /// nonhybrid equivalent of each hybrid symbol ([CR#107.4e]) and, for each
-    /// Phyrexian symbol, color-or-2-life ([CR#107.4f]). `options[i]` is the
-    /// legal readings of the i-th choosable symbol of `cost` (cost order); the
-    /// answer ([`Decision::CostOptions`]) supplies one pick per entry. Kicker
-    /// and alternative-cost selection will join this kind in a later task.
-    ChooseCostOptions {
-        player: PlayerId,
-        cost: deckmaste_core::ManaCost,
-        // pre-computed from choosable(&cost); redundancy is intentional so the
-        // player's answer can be validated without re-reading the cost.
-        options: crate::cost_options::ChoosableOptions,
-    },
-    /// [CR#601.2b]: announce the value of `{X}` in the in-flight cost. Any value
-    /// >= 0 is accepted; an unpayable announcement rewinds the cast ([CR#733]).
-    ChooseXValue { player: PlayerId },
-    /// [CR#608.2c,608.2d]: a resolution-time number choice for a
-    /// `ChooseAndNote(key, NotedKind::Number)` ("choose a number"). Any
-    /// nonnegative value is legal (unbounded, like `ChooseXValue`); the answer
-    /// — reusing the `Decision::XValue(Uint)` shape, which is exactly a chosen
-    /// nonnegative number — is stored in `resolution_notes[key]`.
-    ChooseNoteNumber {
-        player: PlayerId,
-        key: deckmaste_core::Ident,
-    },
-    /// Choose a card name and note it for this resolution.
-    ChooseNoteCardName {
-        player: PlayerId,
-        key: deckmaste_core::Ident,
-    },
-    /// Order the replacement/prevention effects applicable to one event,
-    /// affected player/controller choosing ([CR#616.1]) — shell.
-    OrderReplacements { player: PlayerId, count: Uint },
-    /// [CR#616.1]: two or more replacement effects are applicable to one event;
-    /// the affected player chooses which to apply first. The loop resumes after
-    /// the choice via `ReplaceState` in `GameState.replace_state`.
-    ChooseReplacement {
-        chooser: PlayerId,
-        /// The replacement keys the player may choose among (all applicable
-        /// and not yet in the [CR#614.5] lineage set for this event chain).
-        applicable: Vec<crate::replace_registry::ReplacementKey>,
-    },
-    /// A pre-game choice ([CR#103]) — shell.
-    PreGame { player: PlayerId, kind: PreGameKind },
-    /// [CR#608.2d]: choose objects at resolution. `candidates` is the matching
-    /// set; the answer picks between `min` and `max` of them (both clamped to
-    /// `candidates.len()` — "as many as able").
-    ChooseObjects {
-        player: PlayerId,
-        candidates: Vec<ObjectId>,
-        min: Uint,
-        max: Uint,
-    },
-    /// [CR#704.5j] the legend rule: `player` controls two or more legendary
-    /// permanents with the same name (`candidates`); they choose exactly one to
-    /// keep and the rest are put into their owners' graveyards. Surfaced by the
-    /// SBA driver, resolved in `submit_decision`.
-    LegendRule {
-        player: PlayerId,
-        candidates: Vec<ObjectId>,
-    },
-    /// [CR#401.4]: `player` orders a pile of more than one card that came to
-    /// rest at one end of a library — scry's "on top … in any order" and
-    /// Brainstorm's "in any order". `objects` is the pile in its current
-    /// library order; the answer ([`Decision::Arranged`]) is a permutation of
-    /// it (top → down).
-    ArrangePile {
-        player: PlayerId,
-        objects: Vec<ObjectId>,
-    },
+    Priority(Priority),
+    DiscardToHandSize(DiscardToHandSize),
+    DiscardCards(DiscardCards),
+    CallFlip(CallFlip),
+    ChooseManaColor(ChooseManaColor),
+    ChooseManaMode(ChooseManaMode),
+    ChooseTargets(ChooseTargets),
+    ChooseNewTargets(ChooseNewTargets),
+    PayMana(PayMana),
+    OrderTriggers(OrderTriggers),
+    DeclareAttackers(DeclareAttackers),
+    DeclareBlockers(DeclareBlockers),
+    AssignCombatDamage(AssignCombatDamage),
+    ChooseModes(ChooseModes),
+    Division(Division),
+    Vote(Vote),
+    YesNo(YesNo),
+    ChooseCostOptions(ChooseCostOptions),
+    ChooseXValue(ChooseXValue),
+    ChooseNoteNumber(ChooseNoteNumber),
+    ChooseNoteCardName(ChooseNoteCardName),
+    OrderReplacements(OrderReplacements),
+    ChooseReplacement(ChooseReplacement),
+    PreGame(PreGame),
+    ChooseObjects(ChooseObjects),
+    LegendRule(LegendRule),
+    ArrangePile(ArrangePile),
 }
 
 /// An answer to the pending decision.
@@ -656,7 +529,7 @@ impl GameState {
             return Ok(());
         }
         match (pending, decision) {
-            (PendingDecision::Priority { player, legal }, Decision::Act(action)) => {
+            (PendingDecision::Priority(Priority { player, legal }), Decision::Act(action)) => {
                 if !legal.contains(&action) {
                     return Err(DecisionError::Illegal {
                         reason: format!("{action:?} is not a legal action right now"),
@@ -668,20 +541,20 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::DiscardToHandSize { player, count }
-                | PendingDecision::DiscardCards { player, count },
+                PendingDecision::DiscardToHandSize(DiscardToHandSize { player, count })
+                | PendingDecision::DiscardCards(DiscardCards { player, count }),
                 Decision::Discard(objects),
             ) => {
                 let (player, count) = (*player, *count);
                 self.submit_discards(player, count, objects)
             }
             (
-                PendingDecision::ChooseManaColor {
+                PendingDecision::ChooseManaColor(ChooseManaColor {
                     player,
                     options,
                     amount,
                     riders,
-                },
+                }),
                 Decision::ManaColor(mana),
             ) => {
                 // [CR#106.1b]: the choice is drawn from the offered set.
@@ -703,12 +576,12 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::ChooseManaMode {
+                PendingDecision::ChooseManaMode(ChooseManaMode {
                     player,
                     options,
                     amount,
                     riders,
-                },
+                }),
                 Decision::ManaMode(choice),
             ) => {
                 // [CR#106.1b]: the chosen run is drawn from the offered set.
@@ -735,11 +608,11 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::ChooseTargets {
+                PendingDecision::ChooseTargets(ChooseTargets {
                     player: _,
                     spec,
                     legal,
-                },
+                }),
                 Decision::Targets(chosen),
             ) => {
                 // [CR#601.2c,115] / [CR#603.3d]: one chosen SET per spec, each
@@ -869,12 +742,12 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::ChooseNewTargets {
+                PendingDecision::ChooseNewTargets(ChooseNewTargets {
                     player: _,
                     entry,
                     spec,
                     legal,
-                },
+                }),
                 Decision::Targets(chosen),
             ) => {
                 // [CR#707.10c]: same length/membership validation as
@@ -910,12 +783,12 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::PayMana {
+                PendingDecision::PayMana(PayMana {
                     player,
                     cost,
                     pool: _,
                     subject,
-                },
+                }),
                 Decision::Pay(payment),
             ) => {
                 let player = *player;
@@ -933,16 +806,19 @@ impl GameState {
                 crate::cast::apply_payment(&mut self.player_mut(player).mana_pool, &payment);
                 Ok(())
             }
-            (PendingDecision::OrderTriggers { player, triggers }, Decision::Order(order)) => {
+            (
+                PendingDecision::OrderTriggers(OrderTriggers { player, triggers }),
+                Decision::Order(order),
+            ) => {
                 let (player, triggers) = (*player, triggers.clone());
                 self.submit_order_triggers(player, &triggers, &order)
             }
             (
-                PendingDecision::DeclareAttackers {
+                PendingDecision::DeclareAttackers(DeclareAttackers {
                     player,
                     legal,
                     legal_targets,
-                },
+                }),
                 Decision::Attackers(chosen),
             ) => {
                 // [CR#508.1a]: each chosen attacker must be in the surfaced
@@ -1007,7 +883,10 @@ impl GameState {
                 }
                 Ok(())
             }
-            (PendingDecision::DeclareBlockers { player: _, legal }, Decision::Blocks(pairs)) => {
+            (
+                PendingDecision::DeclareBlockers(DeclareBlockers { player: _, legal }),
+                Decision::Blocks(pairs),
+            ) => {
                 // [CR#509.1a]: each blocker is from the surfaced legal set, each
                 // blocked creature is an attacker, and no creature blocks twice
                 // (a creature blocks exactly one attacker).
@@ -1136,11 +1015,11 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::AssignCombatDamage {
+                PendingDecision::AssignCombatDamage(AssignCombatDamage {
                     player: _,
                     source,
                     recipients,
-                },
+                }),
                 Decision::Assignment(amounts),
             ) => {
                 let source = *source;
@@ -1148,12 +1027,12 @@ impl GameState {
                 self.submit_assign_combat_damage(source, &recipients, amounts)
             }
             (
-                PendingDecision::ChooseObjects {
+                PendingDecision::ChooseObjects(ChooseObjects {
                     candidates,
                     min,
                     max,
                     ..
-                },
+                }),
                 Decision::Chosen(chosen),
             ) => {
                 // [CR#608.2d]: distinct, all from the offered set, count in range.
@@ -1209,7 +1088,7 @@ impl GameState {
                 }
                 Ok(())
             }
-            (PendingDecision::ChooseXValue { player }, Decision::XValue(x)) => {
+            (PendingDecision::ChooseXValue(ChooseXValue { player }), Decision::XValue(x)) => {
                 let player = *player;
                 // [CR#601.2b]: record the announced value in the open slot.
                 self.announcing
@@ -1267,7 +1146,10 @@ impl GameState {
                 }
                 Ok(())
             }
-            (PendingDecision::ChooseNoteNumber { key, .. }, Decision::XValue(n)) => {
+            (
+                PendingDecision::ChooseNoteNumber(ChooseNoteNumber { key, .. }),
+                Decision::XValue(n),
+            ) => {
                 // [CR#608.2c,607.2]: record the chosen number in the
                 // resolution note slot; `Count::Noted(key)` reads it back
                 // within THIS resolution. Any value >= 0 is legal (unbounded,
@@ -1280,7 +1162,10 @@ impl GameState {
                     .insert(key, crate::state::NotedValue::Number(n));
                 Ok(())
             }
-            (PendingDecision::ChooseNoteCardName { key, .. }, Decision::CardName(name)) => {
+            (
+                PendingDecision::ChooseNoteCardName(ChooseNoteCardName { key, .. }),
+                Decision::CardName(name),
+            ) => {
                 if name.is_empty() {
                     return Err(DecisionError::Illegal {
                         reason: "a card name can't be empty".to_owned(),
@@ -1292,7 +1177,10 @@ impl GameState {
                     .insert(key, crate::state::NotedValue::CardName(name));
                 Ok(())
             }
-            (PendingDecision::ChooseCostOptions { cost, .. }, Decision::CostOptions(choices)) => {
+            (
+                PendingDecision::ChooseCostOptions(ChooseCostOptions { cost, .. }),
+                Decision::CostOptions(choices),
+            ) => {
                 // [CR#601.2b]: apply the announced readings to the printed cost.
                 // An illegal announce (wrong pick count, or a reading the symbol
                 // doesn't offer) is rejected — the decision stays pending.
@@ -1314,7 +1202,7 @@ impl GameState {
                 self.pending = None;
                 Ok(())
             }
-            (PendingDecision::YesNo { .. }, Decision::Answer(yes)) => {
+            (PendingDecision::YesNo(YesNo { .. }), Decision::Answer(yes)) => {
                 self.pending = None;
                 let cont = self
                     .choice
@@ -1420,7 +1308,7 @@ impl GameState {
                 }
                 Ok(())
             }
-            (PendingDecision::CallFlip { .. }, Decision::Answer(call)) => {
+            (PendingDecision::CallFlip(CallFlip { .. }), Decision::Answer(call)) => {
                 self.pending = None;
                 let cont = self
                     .choice
@@ -1445,7 +1333,7 @@ impl GameState {
                 });
                 let remaining = remaining - 1;
                 if remaining > 0 {
-                    self.pending = Some(PendingDecision::CallFlip { player });
+                    self.pending = Some(PendingDecision::CallFlip(CallFlip { player }));
                     self.choice = Some(crate::state::ChoiceContinuation::CallFlip {
                         player,
                         remaining,
@@ -1459,13 +1347,13 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::ChooseModes {
+                PendingDecision::ChooseModes(ChooseModes {
                     options,
                     min,
                     max,
                     repeats,
                     ..
-                },
+                }),
                 Decision::Modes(picks),
             ) => {
                 let (options, min, max, repeats) = (*options, *min, *max, *repeats);
@@ -1502,7 +1390,7 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::ChooseReplacement { applicable, .. },
+                PendingDecision::ChooseReplacement(ChooseReplacement { applicable, .. }),
                 Decision::ReplacementChoice(key),
             ) => {
                 // [CR#616.1]: validate the chosen key is in the offered set.
@@ -1522,10 +1410,10 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::LegendRule {
+                PendingDecision::LegendRule(LegendRule {
                     player: _,
                     candidates,
-                },
+                }),
                 Decision::Chosen(kept),
             ) => {
                 // [CR#704.5j]: the player keeps exactly one of the candidate
@@ -1562,7 +1450,10 @@ impl GameState {
                 ]);
                 Ok(())
             }
-            (PendingDecision::ArrangePile { player, .. }, Decision::Arranged(order)) => {
+            (
+                PendingDecision::ArrangePile(ArrangePile { player, .. }),
+                Decision::Arranged(order),
+            ) => {
                 // [CR#401.4]: the order must be a permutation of the offered
                 // pile. Take the walk state, reorder that pile, then surface the
                 // next pending pile (or finish).
@@ -1591,10 +1482,10 @@ impl GameState {
                 Ok(())
             }
             (
-                PendingDecision::Division { .. }
-                | PendingDecision::Vote { .. }
-                | PendingDecision::PreGame { .. }
-                | PendingDecision::OrderReplacements { .. },
+                PendingDecision::Division(_)
+                | PendingDecision::Vote(_)
+                | PendingDecision::PreGame(_)
+                | PendingDecision::OrderReplacements(_),
                 _,
             ) => todo!("P0.W4/W7: submission handling for shell decision kinds"),
             _ => Err(DecisionError::WrongKind),

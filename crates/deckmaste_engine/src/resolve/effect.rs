@@ -643,12 +643,14 @@ impl GameState {
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&each.binder, frame)
                 {
-                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
-                        player: chooser,
-                        candidates,
-                        min,
-                        max,
-                    });
+                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
+                        crate::decide::pending::ChooseObjects {
+                            player: chooser,
+                            candidates,
+                            min,
+                            max,
+                        },
+                    ));
                     self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
                         effect: Box::new(OneShotEffect::Each(each)),
                         frame: frame.clone(),
@@ -808,12 +810,14 @@ impl GameState {
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&with.binder, frame)
                 {
-                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
-                        player: chooser,
-                        candidates,
-                        min,
-                        max,
-                    });
+                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
+                        crate::decide::pending::ChooseObjects {
+                            player: chooser,
+                            candidates,
+                            min,
+                            max,
+                        },
+                    ));
                     self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
                         effect: Box::new(OneShotEffect::With(with)),
                         frame: frame.clone(),
@@ -854,12 +858,14 @@ impl GameState {
                 if let Some((chooser, candidates, min, max)) =
                     self.binder_choice(&divide.binder, frame)
                 {
-                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects {
-                        player: chooser,
-                        candidates,
-                        min,
-                        max,
-                    });
+                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
+                        crate::decide::pending::ChooseObjects {
+                            player: chooser,
+                            candidates,
+                            min,
+                            max,
+                        },
+                    ));
                     self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
                         effect: Box::new(OneShotEffect::Distribute(divide)),
                         frame: frame.clone(),
@@ -914,9 +920,11 @@ impl GameState {
                     self.schedule_front(items);
                     return;
                 }
-                self.pending = Some(crate::decide::PendingDecision::YesNo {
-                    player: frame.controller,
-                });
+                self.pending = Some(crate::decide::PendingDecision::YesNo(
+                    crate::decide::pending::YesNo {
+                        player: frame.controller,
+                    },
+                ));
                 self.choice = Some(crate::state::ChoiceContinuation::May {
                     may,
                     frame: frame.clone(),
@@ -957,13 +965,15 @@ impl GameState {
                 let hi = hi.map_or(options, |c| self.eval_count(c, frame));
                 let max = if modal.choose.repeats { hi } else { hi.min(options) };
                 let min = if modal.choose.up_to { 0 } else { lo.min(max) };
-                self.pending = Some(crate::decide::PendingDecision::ChooseModes {
-                    player: frame.controller,
-                    options,
-                    min,
-                    max,
-                    repeats: modal.choose.repeats,
-                });
+                self.pending = Some(crate::decide::PendingDecision::ChooseModes(
+                    crate::decide::pending::ChooseModes {
+                        player: frame.controller,
+                        options,
+                        min,
+                        max,
+                        repeats: modal.choose.repeats,
+                    },
+                ));
                 self.choice = Some(crate::state::ChoiceContinuation::Modal {
                     modes: modal.modes,
                     frame: frame.clone(),
@@ -981,7 +991,9 @@ impl GameState {
             // ([CR#702.21b] — at resolution, never locked in at trigger).
             OneShotEffect::MustPay(m) => {
                 let payer = self.acting_player(&m.actor, frame);
-                self.pending = Some(crate::decide::PendingDecision::YesNo { player: payer });
+                self.pending = Some(crate::decide::PendingDecision::YesNo(
+                    crate::decide::pending::YesNo { player: payer },
+                ));
                 // Normalize the authored cost at this boundary: read is
                 // faithful, so a macro-spliced cost arrives lumpy (a nested
                 // `CostComponent::Cost`); splice it flat before the payment
@@ -1001,7 +1013,9 @@ impl GameState {
             // continuation.
             OneShotEffect::MayPay(m) => {
                 let payer = self.acting_player(&m.actor, frame);
-                self.pending = Some(crate::decide::PendingDecision::YesNo { player: payer });
+                self.pending = Some(crate::decide::PendingDecision::YesNo(
+                    crate::decide::pending::YesNo { player: payer },
+                ));
                 self.choice = Some(crate::state::ChoiceContinuation::MayPay {
                     actor: m.actor,
                     cost: m.cost.normalize().0,
@@ -2044,12 +2058,14 @@ mod tests {
                 break;
             }
             if let crate::step::StepOutcome::NeedsDecision(
-                crate::decide::PendingDecision::ChooseObjects {
-                    candidates,
-                    min,
-                    max,
-                    ..
-                },
+                crate::decide::PendingDecision::ChooseObjects(
+                    crate::decide::pending::ChooseObjects {
+                        candidates,
+                        min,
+                        max,
+                        ..
+                    },
+                ),
             ) = state.step()
             {
                 decisions += 1;
@@ -2165,7 +2181,9 @@ mod tests {
         );
 
         // First iteration's decision.
-        let PendingDecision::YesNo { player } = step_to_decision(&mut state) else {
+        let PendingDecision::YesNo(crate::decide::pending::YesNo { player }) =
+            step_to_decision(&mut state)
+        else {
             panic!("expected the first iteration's YesNo");
         };
         assert_eq!(player, p0);
@@ -2178,7 +2196,9 @@ mod tests {
         );
 
         // Second iteration's OWN decision — not skipped, not pre-answered.
-        let PendingDecision::YesNo { player } = step_to_decision(&mut state) else {
+        let PendingDecision::YesNo(crate::decide::pending::YesNo { player }) =
+            step_to_decision(&mut state)
+        else {
             panic!("expected the second iteration's own YesNo");
         };
         assert_eq!(player, p0);
@@ -2661,7 +2681,10 @@ mod tests {
         run_injected(&mut state);
 
         // The first child surfaced the number choice.
-        let Some(PendingDecision::ChooseNoteNumber { player, key: pk }) = state.pending.clone()
+        let Some(PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
+            player,
+            key: pk,
+        })) = state.pending.clone()
         else {
             panic!("expected ChooseNoteNumber, got {:?}", state.pending);
         };
@@ -2764,12 +2787,12 @@ mod tests {
         state.run_effect(effect, &frame);
         run_injected(&mut state);
 
-        let Some(PendingDecision::ChooseObjects {
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             candidates,
             min,
             max,
-        }) = state.pending.clone()
+        })) = state.pending.clone()
         else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };
@@ -2835,12 +2858,12 @@ mod tests {
         let frame = frame_src(a);
         state.run_effect(effect, &frame);
 
-        let Some(PendingDecision::ChooseObjects {
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             candidates,
             min,
             max,
-        }) = state.pending.clone()
+        })) = state.pending.clone()
         else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };
@@ -2904,7 +2927,7 @@ mod tests {
         run_injected(&mut state);
         assert!(matches!(
             state.pending,
-            Some(PendingDecision::ChooseNoteCardName { key: pending, .. }) if pending == key
+            Some(PendingDecision::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName { key: pending, .. })) if pending == key
         ));
         state
             .submit_decision(Decision::CardName("Grizzly Bears".to_owned()))
@@ -2940,10 +2963,10 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let (state, _a) = bear_on_field();
-        let pending = PendingDecision::ChooseNoteNumber {
+        let pending = PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
             player: PlayerId(1),
             key: deckmaste_core::Ident::from("n"),
-        };
+        });
         assert_eq!(
             crate::sim::mechanical(&state, &pending),
             Decision::XValue(0)
@@ -3802,12 +3825,14 @@ mod tests {
             &frame,
         );
         // The many-binder surfaces a choice for the WHOLE group before iterating.
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects {
-            min,
-            max,
-            candidates,
-            ..
-        }) = state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(
+            crate::decide::pending::ChooseObjects {
+                min,
+                max,
+                candidates,
+                ..
+            },
+        )) = state.step()
         else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };
@@ -4031,7 +4056,10 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may()), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
+            player,
+        })) = state.step()
+        else {
             panic!("expected YesNo, got {:?}", state.pending);
         };
         assert_eq!(player, p0, "the controller decides");
@@ -4109,13 +4137,15 @@ mod tests {
             }),
             &frame,
         );
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseModes {
-            player,
-            options,
-            min,
-            max,
-            repeats,
-        }) = state.step()
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseModes(
+            crate::decide::pending::ChooseModes {
+                player,
+                options,
+                min,
+                max,
+                repeats,
+            },
+        )) = state.step()
         else {
             panic!("expected ChooseModes, got {:?}", state.pending);
         };
@@ -4182,7 +4212,10 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::MustPay(must_pay()), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
+            player,
+        })) = state.step()
+        else {
             panic!("expected YesNo, got {:?}", state.pending);
         };
         assert_eq!(player, p0, "the payer decides");
@@ -4237,7 +4270,10 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::MayPay(may_pay()), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo { player }) = state.step() else {
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
+            player,
+        })) = state.step()
+        else {
             panic!("expected YesNo, got {:?}", state.pending);
         };
         assert_eq!(player, p0, "the payer decides");

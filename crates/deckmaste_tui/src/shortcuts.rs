@@ -37,10 +37,12 @@ pub fn auto_answer(pending: &PendingDecision) -> Option<Decision> {
         // [CR#707.10c]: a `ChooseNewTargets` slot is force-single exactly like
         // a `ChooseTargets` one when its unioned `legal` set collapses to one
         // candidate (e.g. the current target is the only object in play).
-        PendingDecision::ChooseTargets { legal, .. }
-        | PendingDecision::ChooseNewTargets { legal, .. } => single_each(legal)
+        PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. })
+        | PendingDecision::ChooseNewTargets(deckmaste_engine::ChooseNewTargets { legal, .. }) => {
+            single_each(legal)
             // Each forced slot becomes a singleton chosen set ([CR#601.2c]).
-            .map(|picks| Decision::Targets(picks.into_iter().map(|p| vec![p]).collect())),
+            .map(|picks| Decision::Targets(picks.into_iter().map(|p| vec![p]).collect()))
+        }
         _ => None,
     }
 }
@@ -199,19 +201,19 @@ mod tests {
 
     #[test]
     fn auto_answer_never_resolves_priority() {
-        let p = PendingDecision::Priority {
+        let p = PendingDecision::Priority(deckmaste_engine::Priority {
             player: PlayerId(0),
             legal: vec![],
-        };
+        });
         assert_eq!(auto_answer(&p), None);
     }
 
     #[test]
     fn auto_answer_ignores_non_target_kinds() {
-        let p = PendingDecision::DiscardToHandSize {
+        let p = PendingDecision::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
             player: PlayerId(0),
             count: 1,
-        };
+        });
         assert_eq!(auto_answer(&p), None);
     }
 

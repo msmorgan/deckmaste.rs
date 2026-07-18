@@ -80,15 +80,20 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority { player: p, legal })
-                if p == player && state.turn.current == phase =>
-            {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                player: p,
+                legal,
+            })) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
@@ -103,7 +108,10 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
 /// (The `pub` fields make this direct setup possible without widening the API.)
 fn resurface_priority(state: &mut GameState) {
     assert!(
-        matches!(state.pending, Some(PendingDecision::Priority { .. })),
+        matches!(
+            state.pending,
+            Some(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
+        ),
         "resurface_priority expects a Priority decision in flight"
     );
     state.pending = None;
@@ -169,7 +177,10 @@ fn cast_x_draw_announces_pays_and_draws_x() {
 
     // [CR#601.2b]: X is announced first.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { player }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
+        player,
+    })) = stop
+    else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
     assert_eq!(player, PlayerId(0));
@@ -179,11 +190,15 @@ fn cast_x_draw_announces_pays_and_draws_x() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&xdraw) {
                     break;
                 }
@@ -215,7 +230,10 @@ fn unpayable_x_rewinds_the_cast() {
         .unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
+        ..
+    })) = stop
+    else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
     state.submit_decision(Decision::XValue(5)).unwrap();
@@ -223,7 +241,11 @@ fn unpayable_x_rewinds_the_cast() {
     // [CR#733.1]: the spell returned to hand; [CR#733.2]: priority is back with
     // the caster; the pool is untouched.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority { player, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        player,
+        ..
+    })) = stop
+    else {
         panic!("expected Priority after rewind, got {stop:?}");
     };
     assert_eq!(player, PlayerId(0));
@@ -263,7 +285,10 @@ fn x_zero_draws_nothing_and_resolves() {
         .unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
+        ..
+    })) = stop
+    else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
     state.submit_decision(Decision::XValue(0)).unwrap();
@@ -271,11 +296,15 @@ fn x_zero_draws_nothing_and_resolves() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&xdraw) {
                     break;
                 }
@@ -332,7 +361,9 @@ fn non_x_cast_surfaces_no_choose_x() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { .. })
+            StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(
+                deckmaste_engine::ChooseXValue { .. }
+            ))
         ),
         "a non-X cast must not surface ChooseXValue, got {stop:?}"
     );
@@ -394,7 +425,10 @@ fn activate_x_draw_announces_pays_and_draws_x() {
 
     // [CR#601.2b]: X is announced first — on the activation slot too.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { player }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
+        player,
+    })) = stop
+    else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
     assert_eq!(player, PlayerId(0));
@@ -404,11 +438,15 @@ fn activate_x_draw_announces_pays_and_draws_x() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() {
                     break;
                 }
@@ -467,7 +505,10 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
 
     // [CR#601.2b]: X is announced FIRST...
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue { player }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
+        player,
+    })) = stop
+    else {
         panic!("expected ChooseXValue first, got {stop:?}");
     };
     assert_eq!(player, PlayerId(0));
@@ -477,7 +518,10 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
     // `AnyTarget` candidate.
     let opp = state.players[1].object;
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets { legal, .. }) = stop else {
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
         panic!("expected ChooseTargets after X, got {stop:?}");
     };
     assert!(
@@ -493,11 +537,15 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+                ..
+            })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority { .. }) => {
+            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&burn) {
                     break;
                 }
