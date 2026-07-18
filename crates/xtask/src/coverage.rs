@@ -62,7 +62,11 @@ pub fn extract_attr_rules(text: &str) -> Vec<String> {
 }
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::path::Path;
+
+use serde::Deserialize;
+use serde::Serialize;
 
 /// Binding strength of a citation site. Ordered `Mentioned < Bound < Tested`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -155,6 +159,54 @@ fn starts_with_prefix(rel: &str, prefix: &str) -> bool {
     rel == p || rel.starts_with(&format!("{p}/"))
 }
 
+/// The committed coverage floor. Sets, not counts — each named rule is pinned
+/// at its tier and may not regress.
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct Lock {
+    pub tested: Vec<String>,
+    pub strong: Vec<String>,
+}
+
+/// Split a scan into the ratcheted tiers (`strong` = Tested ∪ Bound).
+#[must_use]
+pub fn lock_from_scan(scan: &BTreeMap<String, Tier>) -> Lock {
+    let mut tested: Vec<String> = scan
+        .iter()
+        .filter(|(_, t)| **t == Tier::Tested)
+        .map(|(r, _)| r.clone())
+        .collect();
+    let mut strong: Vec<String> = scan
+        .iter()
+        .filter(|(_, t)| **t >= Tier::Bound)
+        .map(|(r, _)| r.clone())
+        .collect();
+    tested.sort();
+    tested.dedup();
+    strong.sort();
+    strong.dedup();
+    Lock { tested, strong }
+}
+
+/// Rules in `baseline` that `current` no longer covers at their tier.
+/// Empty result = the ratchet passes.
+#[must_use]
+pub fn check_ratchet(current: &Lock, baseline: &Lock) -> Vec<String> {
+    let cur_tested: BTreeSet<&String> = current.tested.iter().collect();
+    let cur_strong: BTreeSet<&String> = current.strong.iter().collect();
+    let mut out = Vec::new();
+    for rule in &baseline.tested {
+        if !cur_tested.contains(rule) {
+            out.push(format!("{rule}: lost Tested coverage"));
+        }
+    }
+    for rule in &baseline.strong {
+        if !cur_strong.contains(rule) {
+            out.push(format!("{rule}: lost Strong coverage"));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,6 +290,54 @@ mod tests {
         assert_eq!(scan.get("100.1"), Some(&Tier::Tested)); // test beats src
         assert_eq!(scan.get("200.2"), Some(&Tier::Mentioned));
         assert_eq!(scan.get("300.3"), Some(&Tier::Tested)); // attribute counts
+    }
+
+    #[test]
+    fn lock_from_scan_partitions_tiers() {
+        let mut scan = BTreeMap::new();
+        scan.insert("100.1".to_string(), Tier::Tested);
+        scan.insert("200.2".to_string(), Tier::Bound);
+        scan.insert("300.3".to_string(), Tier::Mentioned);
+        let lock = lock_from_scan(&scan);
+        assert_eq!(lock.tested, vec!["100.1"]);
+        assert_eq!(lock.strong, vec!["100.1", "200.2"]); // sorted, Mentioned excluded
+    }
+
+    #[test]
+    fn ratchet_passes_on_superset() {
+        let base = Lock {
+            tested: vec!["100.1".into()],
+            strong: vec!["100.1".into(), "200.2".into()],
+        };
+        let cur = Lock {
+            tested: vec!["100.1".into(), "400.4".into()],
+            strong: vec!["100.1".into(), "200.2".into(), "400.4".into()],
+        };
+        assert!(check_ratchet(&cur, &base).is_empty());
+    }
+
+    #[test]
+    fn ratchet_fails_and_names_regression() {
+        let base = Lock {
+            tested: vec!["100.1".into()],
+            strong: vec!["100.1".into(), "200.2".into()],
+        };
+        let cur = Lock {
+            tested: vec![],
+            strong: vec!["100.1".into()],
+        };
+        let regressions = check_ratchet(&cur, &base);
+        assert_eq!(regressions.len(), 2); // 100.1 lost Tested, 200.2 lost Strong
+        assert!(
+            regressions
+                .iter()
+                .any(|r| r.contains("100.1") && r.contains("Tested"))
+        );
+        assert!(
+            regressions
+                .iter()
+                .any(|r| r.contains("200.2") && r.contains("Strong"))
+        );
     }
 
     fn tempdir_with(files: &[(&str, &str)]) -> TempDir {
