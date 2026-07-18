@@ -3,9 +3,7 @@ use std::process::ExitCode;
 use anyhow::Result;
 use clap::Parser;
 use deckmaste_engine::Action;
-use deckmaste_engine::Decision;
 use deckmaste_engine::GameState;
-use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::sim::GreedyDemo;
@@ -19,10 +17,9 @@ use crate::driver::Driver;
 use crate::driver::HEADLESS_BUDGET;
 use crate::driver::Stop;
 use crate::game;
-use crate::interact;
-use crate::interact::AbilityPick;
 use crate::interact::Interaction;
-use crate::shortcuts::PassMode;
+use crate::interact::KeyCtx;
+use crate::interact::KeyOutcome;
 use crate::shortcuts::PassState;
 use crate::ui;
 use crate::ui::BoardState;
@@ -98,11 +95,6 @@ fn entropy_seed() -> u64 {
         .unwrap_or(0)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "event loop + key-dispatch match; extracting key handling \
-              tracked in refactor-oversized-fns"
-)]
 fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Result<()> {
     let mut board = BoardState::new();
     let mut pass = PassState::new();
@@ -207,138 +199,33 @@ fn interactive_loop(terminal: &mut DefaultTerminal, driver: &mut Driver) -> Resu
             _ => {}
         }
 
-        // Main dispatch. Own `current` for the duration so arms may mutate it
-        // through the bound `&mut` without aliasing; `submit`/`replace` are
-        // applied AFTER the match (see the borrow-safety contract above).
+        // Main dispatch: delegate to the current interaction's own key
+        // semantics ([`Interaction::on_key`]). Own `current` for the duration
+        // so the call may mutate it through the bound `&mut` without
+        // aliasing; `submit`/`replace` are applied AFTER the call (see the
+        // borrow-safety contract above).
         let mut cur = current.take();
-        let mut submit: Option<Decision> = None;
-        let mut replace: Option<Interaction> = None;
+        let outcome = match cur.as_mut() {
+            Some(it) => it.on_key(
+                key,
+                &mut KeyCtx {
+                    board: &mut board,
+                    pass: &mut pass,
+                    state: &driver.state,
+                    view: &view,
+                    cursor,
+                    legal: priority_legal(&stop),
+                },
+            ),
+            None => KeyOutcome::default(),
+        };
+        let submit = outcome.submit;
+        let replace = outcome.replace;
         // A hand card the player tried to cast with no mana floated: attempt an
         // auto-tap-then-cast after the match (multi-submit, so not `submit`).
-        let mut autotap_cast: Option<ObjectId> = None;
-        match cur.as_mut() {
-            // ---- Priority, ability popup open ----
-            Some(Interaction::Priority { sub: Some(pick) }) => match key.code {
-                KeyCode::Enter => submit = Some(Decision::Act(pick.actions[pick.sel].clone())),
-                KeyCode::Esc => replace = Some(Interaction::Priority { sub: None }),
-                _ => {}
-            },
-            // ---- Priority, object-first ----
-            // Pass is `a`, not Space — Space is the giant easy-to-fat-finger key
-            // and still toggles selections in the pick modes below, so binding
-            // priority-pass off it stops accidental advances.
-            Some(Interaction::Priority { sub: None }) => match key.code {
-                KeyCode::Char('a') | KeyCode::F(2) => submit = Some(Decision::Act(Action::Pass)),
-                KeyCode::Char('y') | KeyCode::F(4) => {
-                    pass.arm(board.perspective, PassMode::Yield, &driver.state);
-                    submit = Some(Decision::Act(Action::Pass));
-                }
-                KeyCode::Char('P') | KeyCode::F(6) => {
-                    pass.arm(board.perspective, PassMode::Turn, &driver.state);
-                    submit = Some(Decision::Act(Action::Pass));
-                }
-                KeyCode::Enter => match (cursor, priority_legal(&stop)) {
-                    (Some(id), Some(legal)) => {
-                        let acts = interact::actions_for(id, legal);
-                        match acts.len() {
-                            // No legal action right now — but a spell may be
-                            // castable if its mana were floated. Defer to the
-                            // autotapper (run after the match); it no-ops back
-                            // to the error message when it can't cover the cost.
-                            0 => autotap_cast = Some(id),
-                            1 => submit = Some(Decision::Act(acts[0].clone())),
-                            _ => {
-                                replace = Some(Interaction::Priority {
-                                    sub: Some(AbilityPick {
-                                        object: id,
-                                        actions: acts,
-                                        sel: 0,
-                                    }),
-                                });
-                            }
-                        }
-                    }
-                    _ => error = Some("select a card or permanent first".to_string()),
-                },
-                _ => {}
-            },
-            // ---- Targets ----
-            Some(it @ Interaction::Targets { .. }) => match key.code {
-                KeyCode::Char(' ') => {
-                    if let Some(id) = cursor {
-                        it.toggle(id);
-                    }
-                }
-                KeyCode::Enter => {
-                    if let Some(d) = it.confirm() {
-                        submit = Some(d);
-                    } else {
-                        it.advance();
-                    }
-                }
-                KeyCode::Esc => it.cancel(),
-                _ => {}
-            },
-            // ---- Attackers / Discard (toggle a subset of the dimmed board,
-            //      then submit; the cursor's object is the one toggled) ----
-            Some(it @ (Interaction::Attackers { .. } | Interaction::Discard { .. })) => {
-                match key.code {
-                    KeyCode::Char(' ') => {
-                        if let Some(id) = cursor {
-                            it.toggle(id);
-                        }
-                    }
-                    KeyCode::Enter => submit = it.confirm(),
-                    KeyCode::Esc => it.cancel(),
-                    _ => {}
-                }
-            }
-            // ---- Blockers ----
-            Some(it @ Interaction::Blockers { .. }) => {
-                let pairing = matches!(
-                    it,
-                    Interaction::Blockers {
-                        pending: Some(_),
-                        ..
-                    }
-                );
-                match key.code {
-                    KeyCode::Char(' ') if !pairing => {
-                        if let Some(id) = cursor {
-                            it.toggle(id);
-                            // Pairing just started: steer to the live attackers
-                            // (which aren't in `candidates()`).
-                            if matches!(
-                                it,
-                                Interaction::Blockers {
-                                    pending: Some(_),
-                                    ..
-                                }
-                            ) && let Some(&atk) = driver.state.combat.attackers().first()
-                            {
-                                board.steer_to(atk, &driver.state, &view);
-                            }
-                        }
-                    }
-                    KeyCode::Enter => {
-                        if pairing {
-                            if let Some(id) = cursor {
-                                it.pair_with(id);
-                                // Back to the defender's remaining blockers.
-                                if let Some(&next) = it.candidates().first() {
-                                    board.steer_to(next, &driver.state, &view);
-                                }
-                            }
-                        } else if let Some(d) = it.confirm() {
-                            submit = Some(d);
-                        }
-                    }
-                    KeyCode::Backspace => it.unpair_last(),
-                    KeyCode::Esc => it.cancel(),
-                    _ => {}
-                }
-            }
-            None => {}
+        let autotap_cast = outcome.autotap_cast;
+        if let Some(e) = outcome.error {
+            error = Some(e);
         }
         // Borrow of `cur` from `as_mut()` has ended here.
         current = replace.or(cur);

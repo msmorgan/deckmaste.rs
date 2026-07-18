@@ -4,8 +4,16 @@
 //! uses [`is_interactive`] to decide what to surface vs auto-resolve.
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::GameState;
+use deckmaste_engine::LayeredView;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::PendingDecision;
+use ratatui::crossterm::event::KeyCode;
+use ratatui::crossterm::event::KeyEvent;
+
+use crate::shortcuts::PassMode;
+use crate::shortcuts::PassState;
+use crate::ui::BoardState;
 
 /// The in-progress selection for the decision currently shown to the human.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,6 +66,41 @@ pub struct AbilityPick {
     pub object: ObjectId,
     pub actions: Vec<Action>,
     pub sel: usize,
+}
+
+/// Borrowed context [`Interaction::on_key`] needs beyond `self`: the mutable
+/// board/pass state a few arms act on (e.g. the Blockers arm's steering),
+/// plus read-only snapshots of the live game state, view, board cursor, and
+/// (for object-first priority) the legal action list. Deliberately narrower
+/// than `interactive_loop`'s full local set — only what the per-variant arms
+/// actually touch; `app` still owns the shared-navigation and global-key
+/// handling around the call.
+pub struct KeyCtx<'a> {
+    pub board: &'a mut BoardState,
+    pub pass: &'a mut PassState,
+    pub state: &'a GameState,
+    pub view: &'a LayeredView,
+    /// The cursor's object, if the focused board selection is one.
+    pub cursor: Option<ObjectId>,
+    /// The legal priority actions for the current stop, present iff it's a
+    /// `Priority` decision — needed to resolve object-first Enter.
+    pub legal: Option<&'a [Action]>,
+}
+
+/// What handling a key produced for the decision currently shown: at most one
+/// submitted [`Decision`], a replacement [`Interaction`] (e.g. opening the
+/// ability popup), an auto-tap-then-cast request, or an error message —
+/// mirroring the loop locals `interactive_loop`'s dispatch match used to set
+/// directly before this logic moved onto `Interaction`.
+#[derive(Debug, Default)]
+pub struct KeyOutcome {
+    pub submit: Option<Decision>,
+    pub replace: Option<Interaction>,
+    pub autotap_cast: Option<ObjectId>,
+    pub error: Option<String>,
+    /// False when the current variant does not recognize `key` at all — the
+    /// caller falls through to global-key handling in that case.
+    pub handled: bool,
 }
 
 /// The object an action concerns, if any (`None` for Pass/Concede/Special).
@@ -389,6 +432,147 @@ impl Interaction {
                 pairs.pop();
             }
         }
+    }
+
+    /// Map a key event to an outcome for the decision currently shown. Owns
+    /// the per-variant key semantics that lived in `interactive_loop`'s
+    /// dispatch match: `Enter`/`Esc`/`Space`/`Backspace` act on the variant's
+    /// own selection state, everything else reports `handled: false` so the
+    /// caller can fall through to global-key handling.
+    #[must_use]
+    pub fn on_key(&mut self, key: KeyEvent, ctx: &mut KeyCtx) -> KeyOutcome {
+        let mut outcome = KeyOutcome {
+            handled: true,
+            ..KeyOutcome::default()
+        };
+        match self {
+            // ---- Priority, ability popup open ----
+            Interaction::Priority { sub: Some(pick) } => match key.code {
+                KeyCode::Enter => {
+                    outcome.submit = Some(Decision::Act(pick.actions[pick.sel].clone()));
+                }
+                KeyCode::Esc => outcome.replace = Some(Interaction::Priority { sub: None }),
+                _ => outcome.handled = false,
+            },
+            // ---- Priority, object-first ----
+            // Pass is `a`, not Space — Space is the giant easy-to-fat-finger key
+            // and still toggles selections in the pick modes below, so binding
+            // priority-pass off it stops accidental advances.
+            Interaction::Priority { sub: None } => match key.code {
+                KeyCode::Char('a') | KeyCode::F(2) => {
+                    outcome.submit = Some(Decision::Act(Action::Pass));
+                }
+                KeyCode::Char('y') | KeyCode::F(4) => {
+                    ctx.pass
+                        .arm(ctx.board.perspective, PassMode::Yield, ctx.state);
+                    outcome.submit = Some(Decision::Act(Action::Pass));
+                }
+                KeyCode::Char('P') | KeyCode::F(6) => {
+                    ctx.pass
+                        .arm(ctx.board.perspective, PassMode::Turn, ctx.state);
+                    outcome.submit = Some(Decision::Act(Action::Pass));
+                }
+                KeyCode::Enter => match (ctx.cursor, ctx.legal) {
+                    (Some(id), Some(legal)) => {
+                        let acts = actions_for(id, legal);
+                        match acts.len() {
+                            // No legal action right now — but a spell may be
+                            // castable if its mana were floated. Defer to the
+                            // autotapper (run after the match); it no-ops back
+                            // to the error message when it can't cover the cost.
+                            0 => outcome.autotap_cast = Some(id),
+                            1 => outcome.submit = Some(Decision::Act(acts[0].clone())),
+                            _ => {
+                                outcome.replace = Some(Interaction::Priority {
+                                    sub: Some(AbilityPick {
+                                        object: id,
+                                        actions: acts,
+                                        sel: 0,
+                                    }),
+                                });
+                            }
+                        }
+                    }
+                    _ => outcome.error = Some("select a card or permanent first".to_string()),
+                },
+                _ => outcome.handled = false,
+            },
+            // ---- Targets ----
+            it @ Interaction::Targets { .. } => match key.code {
+                KeyCode::Char(' ') => {
+                    if let Some(id) = ctx.cursor {
+                        it.toggle(id);
+                    }
+                }
+                KeyCode::Enter => {
+                    if let Some(d) = it.confirm() {
+                        outcome.submit = Some(d);
+                    } else {
+                        it.advance();
+                    }
+                }
+                KeyCode::Esc => it.cancel(),
+                _ => outcome.handled = false,
+            },
+            // ---- Attackers / Discard (toggle a subset of the dimmed board,
+            //      then submit; the cursor's object is the one toggled) ----
+            it @ (Interaction::Attackers { .. } | Interaction::Discard { .. }) => match key.code {
+                KeyCode::Char(' ') => {
+                    if let Some(id) = ctx.cursor {
+                        it.toggle(id);
+                    }
+                }
+                KeyCode::Enter => outcome.submit = it.confirm(),
+                KeyCode::Esc => it.cancel(),
+                _ => outcome.handled = false,
+            },
+            // ---- Blockers ----
+            it @ Interaction::Blockers { .. } => {
+                let pairing = matches!(
+                    it,
+                    Interaction::Blockers {
+                        pending: Some(_),
+                        ..
+                    }
+                );
+                match key.code {
+                    KeyCode::Char(' ') if !pairing => {
+                        if let Some(id) = ctx.cursor {
+                            it.toggle(id);
+                            // Pairing just started: steer to the live attackers
+                            // (which aren't in `candidates()`).
+                            if matches!(
+                                it,
+                                Interaction::Blockers {
+                                    pending: Some(_),
+                                    ..
+                                }
+                            ) && let Some(&atk) = ctx.state.combat.attackers().first()
+                            {
+                                ctx.board.steer_to(atk, ctx.state, ctx.view);
+                            }
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if pairing {
+                            if let Some(id) = ctx.cursor {
+                                it.pair_with(id);
+                                // Back to the defender's remaining blockers.
+                                if let Some(&next) = it.candidates().first() {
+                                    ctx.board.steer_to(next, ctx.state, ctx.view);
+                                }
+                            }
+                        } else if let Some(d) = it.confirm() {
+                            outcome.submit = Some(d);
+                        }
+                    }
+                    KeyCode::Backspace => it.unpair_last(),
+                    KeyCode::Esc => it.cancel(),
+                    _ => outcome.handled = false,
+                }
+            }
+        }
+        outcome
     }
 }
 
