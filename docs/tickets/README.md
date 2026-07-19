@@ -140,9 +140,9 @@ several at once with `claim <slug-a> <slug-b> --into <name>`. Notes:
   was rewritten). That is routine: in `../<name>`, run `jj workspace
   update-stale` (commit your work first) before your next commit.
 - `integrate <name>` then finishes **every** todo the claim owns — each moves
-  `wip/ → done/`, all in one completion commit — and `abandon <name>` reverts them
-  all back to triage. (The set is read off the claim commit's own diff, so it is
-  always exactly the todos that claim brought into `wip/`.)
+  `wip/ → done/`, all in one completion commit — and `drop --force <name>` reverts
+  them all back to triage. (The set is read off the claim commit's own diff, so it
+  is always exactly the todos that claim brought into `wip/`.)
 
 Census tables for card shapes, keyword abilities, keyword actions, and ability
 words live in `census.md` alongside this file.
