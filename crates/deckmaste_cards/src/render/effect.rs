@@ -7,8 +7,12 @@ use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Arrangement;
 use deckmaste_core::Binder;
+use deckmaste_core::Characteristic;
 use deckmaste_core::CharacteristicPredicate;
+use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
+use deckmaste_core::CopyException;
+use deckmaste_core::CopySource;
 use deckmaste_core::Count;
 use deckmaste_core::CounterSpec;
 use deckmaste_core::Deontic;
@@ -17,6 +21,7 @@ use deckmaste_core::Destination;
 use deckmaste_core::Duration;
 use deckmaste_core::EnterRider;
 use deckmaste_core::Modification;
+use deckmaste_core::NumericOp;
 use deckmaste_core::ObjectKind;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PlayerAction;
@@ -1610,12 +1615,16 @@ fn enter_rider_phrase(riders: &[EnterRider], ctx: &Ctx) -> String {
             EnterRider::Tapped => parts.push("tapped".to_string()),
             EnterRider::FaceDown => parts.push("face down".to_string()),
             EnterRider::Attacking(_) => parts.push("attacking".to_string()),
-            // "enters as a copy of [source]" ([CR#707.5]) — core-copy-grammar
-            // Task 6's grammar-only seam; the render arm (like `TokenSpec::
-            // Copy`'s "[unrendered: Create(...)]" above) is a later task in
-            // the campaign. Decline structurally rather than guess at the
-            // "as a copy of ..." phrase.
-            EnterRider::AsCopy(spec) => parts.push(format!("[unrendered: AsCopy({spec:?})]")),
+            // "enters as a copy of [source]" ([CR#707.5]) — the rider phrase
+            // itself; the surrounding "You may have ~ enter …" framing is a
+            // separate ETB-replacement seam this rider list doesn't build
+            // (no caller wraps it that way yet). Exceptions ([CR#707.9])
+            // append the shared ", except …" clause.
+            EnterRider::AsCopy(spec) => parts.push(format!(
+                "enters as a copy of {}{}",
+                copy_source_phrase(&spec.source, ctx),
+                copy_exceptions_clause(&spec.exceptions)
+            )),
         }
     }
     if parts.is_empty() { String::new() } else { format!(" {}", parts.join(" ")) }
@@ -1955,7 +1964,9 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
         PlayerAction::AddMana(count, production) => add_mana_text(count, production),
         // Rider-carrying token creation ("tapped and attacking") falls back
         // to the structural form until its surface lands (macro-first-wave).
-        PlayerAction::Create(count, spec, riders) if riders.is_empty() => create_text(count, spec),
+        PlayerAction::Create(count, spec, riders) if riders.is_empty() => {
+            create_text(count, spec, ctx)
+        }
         PlayerAction::Tap(r) => format!("Tap {}.", fragment::reference(r, ctx)),
         PlayerAction::Untap(r) => format!("Untap {}.", fragment::reference(r, ctx)),
         // A sacrifice ([CR#701.21]) — the patient is a single reference. A
@@ -2027,6 +2038,16 @@ fn player_action(pa: &PlayerAction, ctx: &Ctx) -> String {
             Some(cost) => format!("Cast {} by paying {cost}.", fragment::reference(what, ctx)),
             None => format!("Cast {}.", fragment::reference(what, ctx)),
         },
+        // [CR#707.12]: "cast a copy of [source]" — the resolution-time
+        // cast-a-copy delivery site (Wrenn and Realmbreaker, Reflection of
+        // Kiki-Jiki, Ral, Storm Conduit's "you may cast a copy of it").
+        // Exceptions ([CR#707.9]) append the shared ", except …" clause the
+        // other three copy delivery sites carry.
+        PlayerAction::CastCopy(spec) => format!(
+            "Cast a copy of {}{}.",
+            copy_source_phrase(&spec.source, ctx),
+            copy_exceptions_clause(&spec.exceptions)
+        ),
         // [CR#104.2b]: "You win the game." — immediate on resolution; the
         // `CantWin` suppression is engine-side, not part of the sentence.
         PlayerAction::WinGame => "You win the game.".to_string(),
@@ -2132,7 +2153,7 @@ fn add_mana_text(count: &Count, production: &deckmaste_core::ManaProduction) -> 
 // ── Token creation
 // ────────────────────────────────────────────────────────────
 
-fn create_text(count: &Count, spec: &TokenSpec) -> String {
+fn create_text(count: &Count, spec: &TokenSpec, ctx: &Ctx) -> String {
     match spec {
         TokenSpec::Token(t) => {
             let plural = count.literal_value() != Some(1);
@@ -2151,11 +2172,249 @@ fn create_text(count: &Count, spec: &TokenSpec) -> String {
             let noun = if plural { "tokens" } else { "token" };
             format!("Create {count_word} {} {noun}.", name.as_str())
         }
-        // A token copy ([CR#707.1]) is core-copy-grammar Task 3's runtime
-        // seam only — the render arm is a later task in the campaign.
-        // Decline structurally rather than guess at the "a copy of ..."
-        // phrase.
-        TokenSpec::Copy(spec) => format!("[unrendered: Create({count:?}, {spec:?})]."),
+        // A token copy ([CR#707.1]): "Create a token that's a copy of X." /
+        // "Create N tokens that are copies of X." — plural swaps the copula
+        // AND the noun ("copies", not "copy"), matching the corpus (Rite of
+        // Replication's overload, planeswalker ultimates that make several
+        // token copies at once). Exceptions ([CR#707.9]) append the shared
+        // ", except …" clause every copy delivery site carries.
+        TokenSpec::Copy(spec) => {
+            let plural = count.literal_value() != Some(1);
+            let count_word = token_count_word(count);
+            let noun = if plural { "tokens" } else { "token" };
+            let source = copy_source_phrase(&spec.source, ctx);
+            let exceptions = copy_exceptions_clause(&spec.exceptions);
+            if plural {
+                format!("Create {count_word} {noun} that are copies of {source}{exceptions}.")
+            } else {
+                format!("Create {count_word} {noun} that's a copy of {source}{exceptions}.")
+            }
+        }
+    }
+}
+
+// ── Copy effects ([CR#707]) ─────────────────────────────────────────────────
+//
+// The shared `CopySpec` rendering every one of the four copy delivery sites
+// (`TokenSpec::Copy` above, `EnterRider::AsCopy` in `enter_rider_phrase`,
+// `PlayerAction::CastCopy` in `player_action`, and `StaticEffect::BecomesCopy`
+// in `render/ability.rs`, which calls back into this section via
+// `effect::copy_source_phrase`/`effect::copy_exceptions_clause`) prints after
+// its own family verb — "create a token that's ~", "cast ~", "becomes ~",
+// "enters as ~".
+
+/// A copy effect's source ([CR#707.1]) as a noun phrase: a referenced object
+/// reads through the ordinary reference grammar ("target creature", "that
+/// creature", …); the copying object's OWN card — the graveyard/exile
+/// self-copy keywords (Embalm/Eternalize copy the exiled card) — reads as the
+/// plain anaphor "it", matching the real corpus ("Create a token that's a
+/// copy of it.", Embalm's reminder text).
+pub(super) fn copy_source_phrase(source: &CopySource, ctx: &Ctx) -> String {
+    match source {
+        CopySource::Object(r) => fragment::reference(r, ctx),
+        CopySource::SelfCard => "it".to_string(),
+    }
+}
+
+/// The ", except …" clause a copy effect's exceptions render as ([CR#707.9]),
+/// appended directly after the source phrase every copy delivery site prints
+/// ("a copy of target creature, except it's 7/7."). Empty for no exceptions.
+pub(super) fn copy_exceptions_clause(exceptions: &[CopyException]) -> String {
+    if exceptions.is_empty() {
+        return String::new();
+    }
+    format!(
+        ", except {}",
+        join_and_list(&copy_exception_clauses(exceptions))
+    )
+}
+
+/// One clause per `CopyException`, in list order — except a `Power(Set)` +
+/// `Toughness(Set)` pair anywhere in the list collapses into ONE "n/m" clause
+/// at the position of its first occurrence ([CR#707.9d]'s "except it's 7/7"),
+/// mirroring `modifications_predicate`'s identical P/T-pair grouping for the
+/// ordinary `Modify` static.
+fn copy_exception_clauses(exceptions: &[CopyException]) -> Vec<String> {
+    let pt = copy_pt_set_clause(exceptions);
+    let mut pt_emitted = false;
+    let mut clauses = Vec::new();
+    for e in exceptions {
+        match e {
+            CopyException::Modify(m) => match peel_modification(m) {
+                Modification::Power(NumericOp::Set(_))
+                | Modification::Toughness(NumericOp::Set(_)) => {
+                    if !pt_emitted {
+                        if let Some(ref clause) = pt {
+                            clauses.push(clause.clone());
+                        }
+                        pt_emitted = true;
+                    }
+                }
+                other => clauses.push(copy_modify_clause(other)),
+            },
+            CopyException::Retain(c) => clauses.push(copy_retain_clause(*c)),
+            CopyException::AdditionalEffect(r) => clauses.push(copy_additional_effect_clause(r)),
+        }
+    }
+    clauses
+}
+
+/// See through a `Modification`'s macro-provenance wrapper — the
+/// `Modification` twin of `fragment::strip_expanded`'s `Predicate` treatment.
+fn peel_modification(m: &Modification) -> &Modification {
+    match m {
+        Modification::Expanded(e) => peel_modification(&e.value),
+        other => other,
+    }
+}
+
+/// "it's n/m" from a `Power(Set)` + `Toughness(Set)` pair among a copy
+/// exception list ([CR#707.9d]) — Quicksilver Gargantuan's "except it's
+/// 7/7.", Volrath's "except it's 7/5 and it has this ability.". `None` if
+/// neither axis is set; a lone axis still renders (unverified against a real
+/// card, but a valid `CopySpec` value the total renderer must not decline).
+fn copy_pt_set_clause(exceptions: &[CopyException]) -> Option<String> {
+    let mut p: Option<i64> = None;
+    let mut t: Option<i64> = None;
+    for e in exceptions {
+        let CopyException::Modify(m) = e else { continue };
+        match peel_modification(m) {
+            Modification::Power(NumericOp::Set(Count::Literal(n))) => p = Some(i64::from(*n)),
+            Modification::Toughness(NumericOp::Set(Count::Literal(n))) => t = Some(i64::from(*n)),
+            _ => {}
+        }
+    }
+    match (p, t) {
+        (Some(p), Some(t)) => Some(format!("it's {p}/{t}")),
+        (Some(p), None) => Some(format!("it's power {p}")),
+        (None, Some(t)) => Some(format!("it's toughness {t}")),
+        (None, None) => None,
+    }
+}
+
+/// One `Modify` copy-exception's clause, excluding the P/T-`Set` pair
+/// `copy_exception_clauses` already peeled off.
+fn copy_modify_clause(m: &Modification) -> String {
+    match m {
+        // "in addition to its other types" ([CR#707.9b,707.9d]) — a card
+        // type/supertype/subtype ADDED as part of the copy (Copy Artifact's
+        // "except it's an enchantment in addition to its other types.",
+        // Sakashima's Student's "except it's a Ninja in addition to its
+        // other [creature] types."). Card types and supertypes print
+        // lowercase; a subtype prints its proper-cased printed name.
+        Modification::CardTypes(CollectionOp::Add(ident)) => {
+            copy_type_add_clause(&ident.to_lowercase())
+        }
+        Modification::Supertypes(CollectionOp::Add(s)) => {
+            copy_type_add_clause(&super::card::supertype_str(*s).to_lowercase())
+        }
+        Modification::Subtypes(CollectionOp::Add(ident)) => copy_type_add_clause(ident.as_str()),
+        // "it has [ability]" ([CR#707.9a]) — Progenitor Mimic's "except it
+        // has "At the beginning of your upkeep, …"", Quicksilver Gargantuan
+        // sibling cards' "except it has flying."
+        Modification::GainAbility(a) => format!("it has {}", copy_gained_ability_phrase(a)),
+        other => format!("[unrendered: {other:?}]"),
+    }
+}
+
+/// "artifact"/"Spirit" + "in addition to its other types" — the shared tail
+/// of every type-add copy exception.
+fn copy_type_add_clause(word: &str) -> String {
+    format!(
+        "it's {} {word} in addition to its other types",
+        article_for(word)
+    )
+}
+
+/// A gained ability's phrase: a keyword prints its bare lowercase name ("it
+/// has flying"); any other ability prints its rendered rules text in quotes
+/// ("it has \"At the beginning of your upkeep, …\""), reusing the same
+/// nameless/typeless `CardView` trick `PlayerAction::GetEmblem` renders an
+/// emblem's abilities through.
+fn copy_gained_ability_phrase(a: &Ability) -> String {
+    if let Ability::Keyword(k) = a {
+        return super::keyword::keyword_name(k).to_lowercase();
+    }
+    let view = super::CardView {
+        name: "",
+        mana_cost: None,
+        supertypes: &[],
+        types: &[],
+        subtypes: &[],
+        power: None,
+        toughness: None,
+        abilities: std::slice::from_ref(a),
+    };
+    format!("\"{}\"", super::rules(&view).join(" "))
+}
+
+/// "it doesn't copy its {characteristic}" ([CR#707.9c,707.9d]) — the
+/// axis-retention exception (Vesuvan Doppelganger's "except it doesn't copy
+/// that creature's color", generalized to the flat "its" possessive so the
+/// clause reads the same regardless of how the source phrase itself renders).
+fn copy_retain_clause(c: Characteristic) -> String {
+    match characteristic_word(c) {
+        Some(word) => format!("it doesn't copy its {word}"),
+        None => format!("[unrendered: Retain({c:?})]"),
+    }
+}
+
+/// The printed noun for a `Characteristic` axis, as it reads in "it doesn't
+/// copy its {word}". `BasicLandTypes` is a derived/aggregate axis no copy
+/// effect actually retains, so it has no established word and declines
+/// structurally rather than guessing.
+fn characteristic_word(c: Characteristic) -> Option<&'static str> {
+    match c {
+        Characteristic::Colors => Some("color"),
+        Characteristic::Power => Some("power"),
+        Characteristic::Toughness => Some("toughness"),
+        Characteristic::Defense => Some("defense"),
+        Characteristic::Name => Some("name"),
+        Characteristic::ManaCost => Some("mana cost"),
+        Characteristic::Types => Some("types"),
+        Characteristic::Subtypes => Some("subtypes"),
+        Characteristic::Supertypes => Some("supertypes"),
+        Characteristic::BasicLandTypes => None,
+    }
+}
+
+/// "it enters with N [kind] counters on it" ([CR#707.9e]) — Altered Ego's
+/// "except it enters with X additional +1/+1 counters on it." (the
+/// "additional" qualifier is the surrounding ETB-replacement framing's, not
+/// this clause's — see the `EnterRider::AsCopy` doc). The only `EnterRider`
+/// shape a real copy exception's additional effect uses; any other rider
+/// declines structurally.
+fn copy_additional_effect_clause(r: &EnterRider) -> String {
+    match r {
+        EnterRider::WithCounters(kind, count) => {
+            format!("it enters with {} on it", counter_phrase(kind, count))
+        }
+        other => format!("[unrendered: AdditionalEffect({other:?})]"),
+    }
+}
+
+/// "a" or "an" for `word` by its leading sound (vowel-letter heuristic) — the
+/// `render/ability.rs` twin of this file's own copy-exception type-add
+/// clause (that module's `article_for` is private to it).
+fn article_for(word: &str) -> &'static str {
+    match word.chars().next() {
+        Some(c) if "aeiou".contains(c.to_ascii_lowercase()) => "an",
+        _ => "a",
+    }
+}
+
+/// "A" / "A and B" / "A, B, and C" — the Oxford-comma join a copy effect's
+/// exception clauses use ([CR#707.9]), matching the corpus ("except it's
+/// 1/1, it's a Spirit in addition to its other types, and it has flying.").
+fn join_and_list(items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [a] => a.clone(),
+        [a, b] => format!("{a} and {b}"),
+        _ => {
+            let (last, rest) = items.split_last().expect("non-empty");
+            format!("{}, and {last}", rest.join(", "))
+        }
     }
 }
 
@@ -2271,11 +2530,13 @@ fn ensure_period(s: &str) -> String {
 mod tests {
     use std::sync::Arc;
 
+    use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::Binder;
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
     use deckmaste_core::Each;
+    use deckmaste_core::Modification;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
@@ -2287,7 +2548,11 @@ mod tests {
 
     use super::Ctx;
     use super::action;
+    use super::copy_exceptions_clause;
+    use super::create_text;
     use super::effect;
+    use super::enter_rider_phrase;
+    use super::player_action;
 
     /// The builtin plugin, loaded once — verb keyword actions now render via
     /// their macro TEMPLATE (the `Expanded` provenance the corpus carries),
@@ -3518,6 +3783,279 @@ mod tests {
         assert_eq!(
             action(&Action::Transform(Reference::This), &ctx),
             "Transform ~."
+        );
+    }
+
+    // ── Copy effects ([CR#707], core-copy-grammar Task 7) ───────────────────
+
+    fn target_creature_ctx(target: &TargetSpec) -> Ctx<'_> {
+        Ctx {
+            subject: "it",
+            targets: std::slice::from_ref(target),
+            that: None,
+            named: None,
+        }
+    }
+
+    /// `TokenSpec::Copy` ([CR#707.1]): "Create a token that's a copy of
+    /// target creature." — the singular token-copy delivery site, no
+    /// exceptions.
+    #[test]
+    fn token_copy_renders_create_a_token_thats_a_copy() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::TokenSpec;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = target_creature_ctx(&target);
+        let spec = TokenSpec::Copy(CopySpec {
+            source: CopySource::Object(Reference::Target(0)),
+            exceptions: vec![],
+        });
+        assert_eq!(
+            create_text(&Count::Literal(1), &spec, &ctx),
+            "Create a token that's a copy of target creature.",
+            "singular token copy"
+        );
+    }
+
+    /// The plural token-copy family swaps the copula AND the noun ("tokens
+    /// that ARE COPIES of", never "tokens that's a copy of") — Rite of
+    /// Replication's overload shape.
+    #[test]
+    fn token_copy_plural_renders_tokens_that_are_copies() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::TokenSpec;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = target_creature_ctx(&target);
+        let spec = TokenSpec::Copy(CopySpec {
+            source: CopySource::Object(Reference::Target(0)),
+            exceptions: vec![],
+        });
+        assert_eq!(
+            create_text(&Count::Literal(5), &spec, &ctx),
+            "Create five tokens that are copies of target creature.",
+            "plural token copy"
+        );
+    }
+
+    /// `PlayerAction::CastCopy` ([CR#707.12]): "Cast a copy of [source]." —
+    /// the resolution-time cast-a-copy delivery site.
+    #[test]
+    fn cast_copy_renders_cast_a_copy_of_source() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::PlayerAction;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = target_creature_ctx(&target);
+        let pa = PlayerAction::CastCopy(CopySpec {
+            source: CopySource::Object(Reference::Target(0)),
+            exceptions: vec![],
+        });
+        assert_eq!(player_action(&pa, &ctx), "Cast a copy of target creature.",);
+    }
+
+    /// `EnterRider::AsCopy` ([CR#707.5]): the rider phrase itself renders
+    /// "enters as a copy of [source]" — the surrounding "You may have ~
+    /// enter …" ETB-replacement framing is a separate, not-yet-built seam
+    /// (see the rider's own doc comment), so this exercises the rider
+    /// fragment directly rather than a full authored ability sentence.
+    #[test]
+    fn enter_rider_as_copy_renders_enters_as_a_copy_of_source() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::EnterRider;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = target_creature_ctx(&target);
+        let riders = [EnterRider::AsCopy(CopySpec {
+            source: CopySource::Object(Reference::Target(0)),
+            exceptions: vec![],
+        })];
+        assert_eq!(
+            enter_rider_phrase(&riders, &ctx),
+            " enters as a copy of target creature",
+        );
+    }
+
+    /// `CopySource::SelfCard` reads as the plain anaphor "it" — the
+    /// graveyard/exile self-copy register Embalm/Eternalize use ("Create a
+    /// token that's a copy of it.").
+    #[test]
+    fn copy_source_self_card_renders_it() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::TokenSpec;
+
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+            named: None,
+        };
+        let spec = TokenSpec::Copy(CopySpec {
+            source: CopySource::SelfCard,
+            exceptions: vec![],
+        });
+        assert_eq!(
+            create_text(&Count::Literal(1), &spec, &ctx),
+            "Create a token that's a copy of it."
+        );
+    }
+
+    /// A `Power(Set)` + `Toughness(Set)` exception pair collapses into ONE
+    /// "n/m" clause ([CR#707.9d]) — Quicksilver Gargantuan's "except it's
+    /// 7/7."
+    #[test]
+    fn copy_exception_pt_set_pair_renders_slash_pt() {
+        use deckmaste_core::CopyException;
+        use deckmaste_core::NumericOp;
+
+        let exceptions = vec![
+            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(7)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(7)))),
+        ];
+        assert_eq!(copy_exceptions_clause(&exceptions), ", except it's 7/7");
+    }
+
+    /// A card-type addition renders "except it's a[n] [type] in addition to
+    /// its other types" ([CR#707.9b], Copy Artifact/Phyrexian Metamorph); a
+    /// subtype addition prints its proper-cased name (Sakashima's Student).
+    #[test]
+    fn copy_exception_type_add_renders_in_addition_to_its_other_types() {
+        use deckmaste_core::CollectionOp;
+        use deckmaste_core::CopyException;
+
+        let card_type = vec![CopyException::Modify(Modification::CardTypes(
+            CollectionOp::Add("Artifact".into()),
+        ))];
+        assert_eq!(
+            copy_exceptions_clause(&card_type),
+            ", except it's an artifact in addition to its other types"
+        );
+
+        let subtype = vec![CopyException::Modify(Modification::Subtypes(
+            CollectionOp::Add("Spirit".into()),
+        ))];
+        assert_eq!(
+            copy_exceptions_clause(&subtype),
+            ", except it's a Spirit in addition to its other types"
+        );
+    }
+
+    /// `GainAbility` with a keyword prints the bare lowercase keyword name
+    /// ([CR#707.9a]) — "except it has flying."-style sibling cards.
+    #[test]
+    fn copy_exception_gain_ability_keyword_renders_it_has_keyword() {
+        use deckmaste_core::CopyException;
+        use deckmaste_core::KeywordAbility;
+
+        let exceptions = vec![CopyException::Modify(Modification::GainAbility(Arc::new(
+            Ability::Keyword(KeywordAbility::Trample),
+        )))];
+        assert_eq!(
+            copy_exceptions_clause(&exceptions),
+            ", except it has trample"
+        );
+    }
+
+    /// `Retain(Colors)` ([CR#707.9c,707.9d]) — Vesuvan Doppelganger's "except
+    /// it doesn't copy that creature's color", generalized to the flat "its"
+    /// possessive this grammar's exceptions clause uses.
+    #[test]
+    fn copy_exception_retain_colors_renders_doesnt_copy_its_color() {
+        use deckmaste_core::Characteristic;
+        use deckmaste_core::CopyException;
+
+        let exceptions = vec![CopyException::Retain(Characteristic::Colors)];
+        assert_eq!(
+            copy_exceptions_clause(&exceptions),
+            ", except it doesn't copy its color"
+        );
+    }
+
+    /// `AdditionalEffect(EnterRider::WithCounters)` ([CR#707.9e]) — Altered
+    /// Ego's "except it enters with X additional +1/+1 counters on it."
+    /// (this clause itself carries no "additional" — that qualifier belongs
+    /// to the surrounding ETB-replacement framing, not the rider payload).
+    #[test]
+    fn copy_exception_additional_effect_with_counters_renders() {
+        use deckmaste_core::CopyException;
+        use deckmaste_core::EnterRider;
+
+        let exceptions = vec![CopyException::AdditionalEffect(EnterRider::WithCounters(
+            "P1P1Counter".into(),
+            Count::Literal(2),
+        ))];
+        assert_eq!(
+            copy_exceptions_clause(&exceptions),
+            ", except it enters with two +1/+1 counters on it"
+        );
+    }
+
+    /// Multiple exceptions join as an Oxford-comma list — the corpus's
+    /// "except it's 1/1, it's a Spirit in addition to its other types, and
+    /// it has flying." shape (a token-copy `except` with a P/T-Set pair, a
+    /// subtype add, and a keyword grant).
+    #[test]
+    fn copy_exceptions_multiple_join_with_oxford_comma() {
+        use deckmaste_core::CollectionOp;
+        use deckmaste_core::CopyException;
+        use deckmaste_core::KeywordAbility;
+        use deckmaste_core::NumericOp;
+
+        let exceptions = vec![
+            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(1)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(1)))),
+            CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Spirit".into()))),
+            CopyException::Modify(Modification::GainAbility(Arc::new(Ability::Keyword(
+                KeywordAbility::Trample,
+            )))),
+        ];
+        assert_eq!(
+            copy_exceptions_clause(&exceptions),
+            ", except it's 1/1, it's a Spirit in addition to its other types, and it has trample"
+        );
+    }
+
+    /// `StaticEffect::BecomesCopy` ([CR#707.4]) round-trips through the full
+    /// `effect()` entry — a `Continuously`/`Until`-wrapped becomes-a-copy
+    /// static, Volrath's "becomes a copy of target creature, except it's
+    /// 7/5 and it has this ability."-family shape (minus the ability
+    /// exception, which the `Ability` render family covers separately).
+    #[test]
+    fn becomes_copy_renders_via_static_effect() {
+        use deckmaste_core::CopyException;
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::StaticEffect;
+
+        let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
+        let ctx = Ctx {
+            subject: "Volrath",
+            targets: std::slice::from_ref(&target),
+            that: None,
+            named: None,
+        };
+        let e = StaticEffect::BecomesCopy(
+            Reference::This,
+            CopySpec {
+                source: CopySource::Object(Reference::Target(0)),
+                exceptions: vec![
+                    CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(7)))),
+                    CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(
+                        5,
+                    )))),
+                ],
+            },
+        );
+        assert_eq!(
+            super::super::ability::static_effect(&e, &ctx),
+            Some("Volrath becomes a copy of target creature, except it's 7/5.".to_string()),
         );
     }
 }

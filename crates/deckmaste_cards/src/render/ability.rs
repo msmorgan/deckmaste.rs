@@ -853,6 +853,21 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
             let text = static_effect_kind(inner, ctx, one_shot)?;
             Some(conditionally_qualified(cond, ctx, text))
         }
+        // "X becomes a copy of Y[, except …]" ([CR#707.4,707.9]) — the
+        // becomes-a-copy static (Volrath's "becomes a copy of target
+        // creature with a counter on it, except it's 7/5 and it has this
+        // ability."). Subject agreement mirrors `Modify`'s bare-`Reference`
+        // reading; the source/exceptions phrase is the same one every other
+        // copy delivery site shares (`render/effect.rs`'s copy-effects
+        // section).
+        StaticEffect::BecomesCopy(who, spec) => {
+            let subj = super::fragment::modify_subject(who, ctx);
+            Some(format!(
+                "{subj} becomes a copy of {}{}.",
+                effect::copy_source_phrase(&spec.source, ctx),
+                effect::copy_exceptions_clause(&spec.exceptions)
+            ))
+        }
         StaticEffect::ModifyPlayer(who, m) => Some(modify_player(who, m)),
         StaticEffect::TriggerMultiplier {
             cause,
