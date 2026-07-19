@@ -24,7 +24,7 @@ Per-subject committed facts, uniform slot mapping (spec §"Approved design"):
   `EventObject` today (Foe-Razer Regent's "counters on **it**" is currently unbindable).
 - Drop the dead second slot from the filter twin (`Fight(pred)`, `"${0} fights"`) — folds fork
   option (b) in.
-- Variant **3b**: widen engine-internal `GameEvent::Act.on` `Option → SmallVec<[ObjectId; 2]>`
+- Variant **3b**: widen engine-internal `GameEvent::Act.on` `Option → Vec<ObjectId>`
   so the cant/replace lane ("creatures you control can't fight") is symmetric too.
 
 Net: `verb == "Fight"` gone from the matcher (−1 branch, 0 added); every other verb
