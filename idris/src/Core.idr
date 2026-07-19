@@ -2372,7 +2372,12 @@ mutual
       -- the token's full characteristics (P/T may be a `Count b`); `enteringAttacking` ([CR#508.4], default
       -- `Nothing`) = create it ATTACKING the named player (Myriad/Encore's "attacking that [opponent]").
       CreateToken : Count b -> (c : Characteristics b) -> {auto 0 wf : CharacteristicsOk c} -> {default Nothing enteringAttacking : Maybe (Reference b APlayer)} -> Action b
-      Copy : Reference b AnObject -> Action b                        -- "copy [r]" — a spell/ability copy on the stack ([CR#707.10]) or a token copy of a permanent ([CR#707.2]); a permanent BECOMING a copy is `BecomeCopyOf`. Copies carry the original's modes/targets/X; "you may choose new targets" is a separate `ChooseNewTargets`
+      -- "copy [r], except <mods>" — a spell/ability copy on the stack ([CR#707.10]) or a token copy of a permanent
+      -- ([CR#707.2]). The `List (Modification b)` carries the copiable-value alterations ([CR#707.9] — "a copy, except it's
+      -- a 4/4"), each a SIBLING higher-layer mod (never bundled INTO the copy, same doctrine as `BecomeCopyOf` below); it is
+      -- `[]` for a bare copy (`Copy r []`). A permanent BECOMING a copy is `BecomeCopyOf`. Copies carry the original's
+      -- modes/targets/X; "you may choose new targets" is a separate `ChooseNewTargets`
+      Copy : Reference b AnObject -> List (Modification b) -> Action b
       ChangeTarget : (of_ : Reference b AnObject) -> (to : Reference b AnObject) -> Action b  -- redirect [of_]'s target to the NAMED [to] (Spellskite → `This`); engine leaves it unchanged if [to] isn't a legal target ([CR#115.7a])
       ChooseNewTargets : (of_ : Reference b AnObject) -> {default You by : Reference b APlayer} -> Action b  -- [by] PICKS new legal targets for [of_], bound by the original targetspec (Bolt Bend, Redirect, copy-with-new-targets) ([CR#115.7d])
       -- "add mana" (a mana-ability effect; pool/paying is engine) ([CR#106.1,106.4]). ONE verb (merges the
@@ -2439,7 +2444,7 @@ mutual
   actionEventCaps Action.ExtraTurn            = NoCaps
   actionEventCaps (Action.ControlPlayer _)    = NoCaps
   actionEventCaps (Action.CreateToken _ _)    = NoCaps
-  actionEventCaps (Action.Copy _)             = NoCaps
+  actionEventCaps (Action.Copy _ _)           = NoCaps
   actionEventCaps (Action.ChangeTarget _ _)   = NoCaps
   actionEventCaps (Action.ChooseNewTargets _) = NoCaps
   actionEventCaps (Action.AddMana _ _)        = NoCaps
@@ -2704,7 +2709,7 @@ mutual
   actionIntro (Action.Attach w t) = refIntro w ++ refIntro t
   actionIntro (Action.Unattach r) = refIntro r
   actionIntro (Action.Reveal r) = refIntro r
-  actionIntro (Action.Copy r) = refIntro r
+  actionIntro (Action.Copy r _) = refIntro r
   actionIntro (Action.ChangeTarget o t) = refIntro o ++ refIntro t
   actionIntro (Action.ChooseNewTargets o) = refIntro o
   actionIntro (Action.PutCounters _ _ r) = refIntro r

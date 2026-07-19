@@ -1185,7 +1185,7 @@ card_CacklingCounterpart = Normal $ ^:
   , types := [Instant]
   , abilities :=
       [ Spell (Targeted [Target (^1) (And [creature, ControlledBy you])]
-          (Act (Copy (Target 0)))) ]
+          (Act (Copy (Target 0) []))) ]
   }
 
 -- Tarmogoyf — the canonical CDA: "*/1+*, where * is the number of card types among cards in all

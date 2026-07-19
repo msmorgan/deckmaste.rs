@@ -480,7 +480,28 @@ tBecomeCopy : Modification CtxCreatureTarget
 tBecomeCopy = BecomeCopyOf (Target 0)
 
 tCopy : OneShotEffect Base
-tCopy = Targeted [Target (^1) (IsKind Spell)] (Act (Copy (Target 0)))
+tCopy = Targeted [Target (^1) (IsKind Spell)] (Act (Copy (Target 0) []))
+
+-- TOKEN copy of a permanent ([CR#707.2]) — the shapes the Rust `TokenSpec::Copy` emitter (`idris_emit.rs`)
+-- lowers to. Bare (`Copy r []`), and "a copy, except it's a 4/4" ([CR#707.9d]): the copiable-value
+-- alterations ride `Copy`'s OWN modification list as sibling higher-layer mods, never bundled into the copy.
+tCopyTokenBare : OneShotEffect Base
+tCopyTokenBare = Targeted [Target (^1) creature] (Act (Copy (Target 0) []))
+
+tCopyToken44 : OneShotEffect Base
+tCopyToken44 = Targeted [Target (^1) creature]
+  (Act (Copy (Target 0) [Alter Power (Set (Literal 4)), Alter Toughness (Set (Literal 4))]))
+
+-- becomes-a-copy as the StaticEffect the Rust `BecomesCopy` emitter lowers to ([CR#707.4], layer 1) — and,
+-- with `This`, the same body an enters-as-a-copy `AsCopy` rider ([CR#707.5]) applies as its object arrives.
+-- Bare = `Modify <who> (BecomeCopyOf <src>)`; with "except" mods = `ApplyAll [BecomeCopyOf <src>, <mods>]`,
+-- each exception a SIBLING higher-layer mod ([CR#707.9]), never bundled into `BecomeCopyOf`.
+tBecomesCopyStatic : StaticEffect CtxCreatureTarget
+tBecomesCopyStatic = Modify This (BecomeCopyOf (Target 0))
+
+tBecomesCopy44 : StaticEffect CtxCreatureTarget
+tBecomesCopy44 = Modify This
+  (ApplyAll [BecomeCopyOf (Target 0), Alter Power (Set (Literal 4)), Alter Toughness (Set (Literal 4))])
 
 -- stack-object redirection. `ChangeTarget … This` is Spellskite (named new target);
 -- `ChooseNewTargets` is Bolt Bend / Redirect (a player picks). Both ride the original targetspec.
@@ -626,7 +647,7 @@ tVerbs =
   [ scry (Literal 2)
   , Act (CreateToken (Literal 2) (^: { name := Just "Soldier", types := [Creature], colors := [White], power := Just 1, toughness := Just 1 }))
   , With (SearchOne {from = [Library, Graveyard]} (HasName "Forest")) (Act (Move (That Card) (ToZone Hand)))  -- tutor across two zones; the found card is a whiffable Product, noun `Card`
-  , Act (Copy (Only (IsKind Spell))) ]
+  , Act (Copy (Only (IsKind Spell)) []) ]
 
 -- a token whose P/T is a `Count b` known at creation — "an X/X where X = creatures you control".
 -- This is the payoff of parameterizing `Characteristics` by `b`: a card `Face` is `Characteristics

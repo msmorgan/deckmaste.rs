@@ -58,6 +58,9 @@ use deckmaste_core::Cmp;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Condition;
+use deckmaste_core::CopyException;
+use deckmaste_core::CopySource;
+use deckmaste_core::CopySpec;
 use deckmaste_core::Cost;
 use deckmaste_core::CostChange;
 use deckmaste_core::CostComponent;
@@ -1484,6 +1487,19 @@ fn enter_riders_as_attacking(riders: &[EnterRider]) -> Result<Option<String>, Ga
     match riders {
         [] => Ok(None),
         [EnterRider::Attacking(Some(who))] => Ok(Some(format!("(Just {})", emit_reference(who)?))),
+        // enters-as-a-copy ([CR#707.5]): the copy self-modification lowers to
+        // `Modify This (BecomeCopyOf <src>)` (`emit_copy_modification`), but it
+        // is NOT an attacking `Maybe` — `moveAttacking`/`createTokenAttacking`
+        // have no slot for it. Its real Idris carrier is the "as ~ enters, …"
+        // ETB-replacement seam, which no Rust card wraps `AsCopy` through yet
+        // (see `render::effect`), so this stays a gap pending that carrier
+        // (idris-copy-asenters-carrier). The payload mapping is exercised by a
+        // direct unit test (`as_copy_lowers_to_become_copy_of`).
+        [EnterRider::AsCopy(_)] => Err(gap(
+            "EnterRider::AsCopy ([CR#707.5]) lowers to `Modify This (BecomeCopyOf …)` but has no \
+             moveAttacking/createTokenAttacking slot; its ETB-replacement carrier is not yet \
+             emitted (idris-copy-asenters-carrier)",
+        )),
         _ => Err(gap(
             "EnterRider list has no Idris Move/MoveArranged counterpart beyond a lone Attacking(Some(_))",
         )),
@@ -1769,6 +1785,12 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             if !matches!(actor, Reference::You) {
                 return Err(gap("Create has no Idris actor slot"));
             }
+            // A token copy is the `Copy` Action, not `createTokenAttacking` —
+            // `emit_create_token_copy` builds the per-unit copy; the `count`
+            // rides a `Batch` in `emit_effect`, not this arm.
+            if let TokenSpec::Copy(cs) = spec {
+                return emit_create_token_copy(cs, riders);
+            }
             Ok(app(
                 "createTokenAttacking",
                 vec![
@@ -1857,7 +1879,12 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             }
             Ok("RollPlanarDie".to_string())
         }
-        PlayerAction::CopySpell(what) => Ok(app("Copy", vec![emit_reference(what)?])),
+        // A stack copy ([CR#707.10]) carries no copiable-value alterations —
+        // the modification list is empty (`Copy r []`). Exception-bearing
+        // copies are the token/becomes/enters sites, not `CopySpell`.
+        PlayerAction::CopySpell(what) => {
+            Ok(app("Copy", vec![emit_reference(what)?, "[]".to_string()]))
+        }
         // [CR#608.2g]: casting a referenced card as a resolution effect. The
         // Idris north-star `Core.idr` has no resolution-time `Cast` effect verb
         // (casting there rides the 601 deontic-permission pipeline, `Enact
@@ -1866,6 +1893,18 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         PlayerAction::Cast(..) => Err(gap(
             "PlayerAction::Cast (resolution-time cast-as-effect, [CR#608.2g]) has no Idris \
              OneShotEffect counterpart — Idris casts via the 601 permission pipeline",
+        )),
+        // [CR#707.12]: casting a COPY of an object as a resolution effect — the
+        // same class of gap as `PlayerAction::Cast` above. Idris has no
+        // resolution-time cast verb (casting rides the 601 deontic-permission
+        // pipeline, `Enact Cast`), so the copy-cast has no `OneShotEffect`
+        // counterpart either; the `CopySpec` it carries has no cast verb to
+        // attach to. Its own arm (not the generic catch-all) so the reason is
+        // explicit.
+        PlayerAction::CastCopy(_) => Err(gap(
+            "PlayerAction::CastCopy (cast-a-copy-as-effect, [CR#707.12]) has no Idris \
+             OneShotEffect counterpart — Idris casts via the 601 permission pipeline, with no \
+             resolution-time cast verb (same class as PlayerAction::Cast)",
         )),
         // `{default You by}` on the Idris side: the terse positional form
         // when `by` is the default `You` (mirrors the `Tap`/`Untap`-style
@@ -1886,10 +1925,7 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         | PlayerAction::GetEmblem(_)
         | PlayerAction::GetDesignation(_)
         | PlayerAction::ChooseAndNote(..)
-        | PlayerAction::RestartGame
-        // [CR#707.12] cast a copy of an object — core-copy-grammar Task 6's
-        // grammar-only seam; the Idris mapping is Task 8's.
-        | PlayerAction::CastCopy(_) => Err(gap(format!(
+        | PlayerAction::RestartGame => Err(gap(format!(
             "{pa:?} not yet mapped (no Idris counterpart or not implemented)"
         ))),
         PlayerAction::Expanded(_) => Err(gap(
@@ -1961,11 +1997,17 @@ fn emit_token_spec(spec: &TokenSpec) -> R {
                 name.as_str()
             ))
         })?,
-        // A token copy ([CR#707.1]) is core-copy-grammar Task 3's runtime
-        // seam only — no idris probe over its characteristics exists yet
-        // (deferred to a later task in the campaign). Decline structurally
-        // rather than guess.
-        TokenSpec::Copy(_) => return Err(gap("TokenSpec::Copy is not yet idris-emittable")),
+        // A token copy ([CR#707.2]) does NOT go through this characteristics
+        // emitter: the `PlayerAction::Create` arm intercepts `TokenSpec::Copy`
+        // upstream and emits the `Copy` Action (source + copiable-value
+        // exceptions) instead of `createTokenAttacking`. This arm is thus
+        // unreachable in the Create path; kept for match exhaustiveness.
+        TokenSpec::Copy(_) => {
+            return Err(gap(
+                "TokenSpec::Copy is emitted as the `Copy` Action by the Create arm, \
+                 not through emit_token_spec",
+            ));
+        }
     };
     emit_token_characteristics(&token)
 }
@@ -2117,6 +2159,84 @@ fn emit_modification(m: &Modification) -> R {
         1 => Ok(ops.into_iter().next().expect("len checked")),
         _ => Ok(app("ApplyAll", vec![ilist(ops)])),
     }
+}
+
+// ===========================================================================
+// Copy grammar ([CR#707]) — the shared source/exception lowering the token
+// copy (`Copy`'s mod list), becomes-a-copy (`Modify … BecomeCopyOf`), and
+// enters-as-a-copy carriers reuse. Exceptions are SEPARATE higher-layer mods,
+// never bundled into the copy constructor's own args (Idris doctrine).
+// ===========================================================================
+
+/// The copied object ([CR#707.1]): a referenced object, or — for the
+/// graveyard/exile self-copy keywords (Embalm/Eternalize copy the exiled
+/// card) — the copying card itself, the Idris self reference `This`.
+fn emit_copy_source(src: &CopySource) -> R {
+    match src {
+        CopySource::Object(r) => emit_reference(r),
+        CopySource::SelfCard => Ok("This".to_string()),
+    }
+}
+
+/// The "…, except …" characteristic changes on a copy ([CR#707.9]) as sibling
+/// Idris `Modification`s (flattened via `emit_modification_ops`, so a Rust
+/// `Several` splices its members in). Only `CopyException::Modify` has an Idris
+/// analog; `Retain`/`AdditionalEffect` ([CR#707.9c..707.9e]) are deferred.
+fn emit_copy_exception_mods(exceptions: &[CopyException]) -> Result<Vec<String>, Gap> {
+    let mut mods = Vec::new();
+    for exc in exceptions {
+        match exc {
+            CopyException::Modify(m) => emit_modification_ops(m, &mut mods)?,
+            CopyException::Retain(_) | CopyException::AdditionalEffect(_) => {
+                return Err(gap(
+                    "CopyException::Retain/AdditionalEffect ([CR#707.9c..707.9e]) has no Idris \
+                     analog — deferred (idris-copy-retain-additionaleffect)",
+                ));
+            }
+        }
+    }
+    Ok(mods)
+}
+
+/// The copiable-value `Modification` a becomes-a-copy / enters-as-a-copy effect
+/// installs ([CR#707.2], layer 1): `BecomeCopyOf <src>` bare, or — with
+/// "except" characteristic changes ([CR#707.9]) — `ApplyAll [BecomeCopyOf
+/// <src>, <exc mods…>]`, each exception a SIBLING higher-layer mod, never
+/// bundled into `BecomeCopyOf` (Core.idr's documented stance). The token-copy
+/// `Copy` Action does NOT go through here — its own modification-list arg
+/// carries the exceptions directly (no `BecomeCopyOf`, since the `Copy` verb
+/// itself is the copy).
+fn emit_copy_modification(cs: &CopySpec) -> R {
+    let become_copy = app("BecomeCopyOf", vec![emit_copy_source(&cs.source)?]);
+    let exc_mods = emit_copy_exception_mods(&cs.exceptions)?;
+    if exc_mods.is_empty() {
+        return Ok(become_copy);
+    }
+    let mut mods = Vec::with_capacity(1 + exc_mods.len());
+    mods.push(become_copy);
+    mods.extend(exc_mods);
+    Ok(app("ApplyAll", vec![ilist(mods)]))
+}
+
+/// A token copy ([CR#707.2]) inside `PlayerAction::Create`: the `Copy` Action
+/// carrying the source plus its "except …" copiable-value changes ([CR#707.9])
+/// in its own modification-list arg — NOT `createTokenAttacking`, and NO
+/// `BecomeCopyOf` wrapper (the `Copy` verb itself is the copy). It has no count
+/// slot (multiplicity rides a `Batch` owned by `emit_effect`) and no
+/// attacking-rider slot, so a non-empty rider list gaps.
+fn emit_create_token_copy(cs: &CopySpec, riders: &[EnterRider]) -> R {
+    if !riders.is_empty() {
+        return Err(gap(
+            "token-copy Create with enter riders has no Idris Copy slot",
+        ));
+    }
+    Ok(app(
+        "Copy",
+        vec![
+            emit_copy_source(&cs.source)?,
+            ilist(emit_copy_exception_mods(&cs.exceptions)?),
+        ],
+    ))
 }
 
 fn emit_player_mod(m: &PlayerMod) -> R {
@@ -2363,9 +2483,15 @@ fn emit_static_effect(se: &StaticEffect) -> R {
         }
         // [CR#707.4] "becomes a copy of" — core-copy-grammar Task 6's
         // grammar-only seam; the Idris mapping is Task 8's.
-        StaticEffect::BecomesCopy(..) => {
-            return Err(gap("StaticEffect::BecomesCopy is not yet idris-emittable"));
-        }
+        // becomes-a-copy ([CR#707.4], layer 1) — `Modify <who> (BecomeCopyOf
+        // <src>)`, or `Modify <who> (ApplyAll [BecomeCopyOf <src>, <except
+        // mods…>])` when the copy carries "except …" characteristic changes
+        // ([CR#707.9]) as sibling higher-layer mods. NO new Idris constructor:
+        // composed from the existing `Modify`/`BecomeCopyOf`/`ApplyAll`/`Alter`.
+        StaticEffect::BecomesCopy(who, cs) => app(
+            "Modify",
+            vec![emit_reference(who)?, emit_copy_modification(cs)?],
+        ),
         StaticEffect::Expanded(_) => {
             return Err(gap(
                 "unexpanded StaticEffect macro invocation remained after expand_all",
@@ -3043,6 +3169,21 @@ fn emit_effect(e: &OneShotEffect) -> R {
         // re-wrap that in `Act`.
         OneShotEffect::Act(a @ Action::By(_, PlayerAction::WinGame | PlayerAction::LoseGame)) => {
             emit_action(a)?
+        }
+        // Token copy ([CR#707.2]): the `Copy` Action carries no multiplicity of
+        // its own (unlike `createTokenAttacking`'s count arg), so "create N
+        // copies" wraps the single-copy `Act` in a `Batch` — the Mill/Draw
+        // per-unit precedent. `emit_player_action` (via `emit_action`) builds
+        // the bare `(Copy src mods)`; count == 1 needs no `Batch`.
+        OneShotEffect::Act(
+            a @ Action::By(_, PlayerAction::Create(count, TokenSpec::Copy(_), _)),
+        ) => {
+            let single = app("Act", vec![emit_action(a)?]);
+            if count.literal_value() == Some(1) {
+                single
+            } else {
+                app("Batch", vec![emit_count(count)?, single])
+            }
         }
         OneShotEffect::Act(a) => app("Act", vec![emit_action(a)?]),
         OneShotEffect::Sequentially(es) => app("Sequentially", vec![map_list(es, emit_effect)?]),
@@ -3762,5 +3903,187 @@ mod tests {
     fn novel_type_name_gaps_not_panics() {
         assert!(emit_type_name("Contraption").is_err(), "unknown type gaps");
         assert!(emit_type_name("Creature").is_ok());
+    }
+
+    // ---- core-copy-grammar Task 8: copy grammar ([CR#707]) → Idris parity ----
+
+    fn copy_spec(source: CopySource, exceptions: Vec<CopyException>) -> CopySpec {
+        CopySpec { source, exceptions }
+    }
+
+    /// The "except it's a 4/4" exception pair ([CR#707.9d]): a P and a T set,
+    /// each a `CopyException::Modify` — shared by the token-copy and
+    /// becomes-a-copy assertions.
+    fn four_four_exceptions() -> Vec<CopyException> {
+        vec![
+            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(4)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(4)))),
+        ]
+    }
+
+    fn token_copy_effect(count: Count, cs: CopySpec) -> OneShotEffect {
+        OneShotEffect::Act(Action::By(
+            Reference::You,
+            PlayerAction::Create(count, TokenSpec::Copy(cs), Vec::new()),
+        ))
+    }
+
+    /// [CR#707.2]: a bare single token copy is the `Copy` Action with an empty
+    /// modification list — NOT `createTokenAttacking` — and no `Batch` (count
+    /// == 1 needs no multiplicity wrapper).
+    #[test]
+    fn token_copy_bare_emits_copy_action() {
+        let out = emit_effect(&token_copy_effect(
+            Count::Literal(1),
+            copy_spec(CopySource::Object(Reference::Target(0)), Vec::new()),
+        ))
+        .expect("a bare token copy should emit");
+        assert_eq!(out, "(Act (Copy (Target 0) []))");
+    }
+
+    /// [CR#707.1]: a self-card token copy (Embalm/Eternalize copy the exiled
+    /// card) reads its source as the Idris self reference `This`.
+    #[test]
+    fn token_copy_selfcard_emits_this_source() {
+        let out = emit_effect(&token_copy_effect(
+            Count::Literal(1),
+            copy_spec(CopySource::SelfCard, Vec::new()),
+        ))
+        .expect("a self-card token copy should emit");
+        assert_eq!(out, "(Act (Copy This []))");
+    }
+
+    /// [CR#707.2]: "create N copies" has no count slot on `Copy`, so it rides a
+    /// `Batch` wrapper — the Mill/Draw per-unit precedent.
+    #[test]
+    fn token_copy_count_gt_one_wraps_in_batch() {
+        let out = emit_effect(&token_copy_effect(
+            Count::Literal(2),
+            copy_spec(CopySource::Object(Reference::Target(0)), Vec::new()),
+        ))
+        .expect("a 2x token copy should emit");
+        assert_eq!(out, "(Batch (Literal 2) (Act (Copy (Target 0) [])))");
+    }
+
+    /// [CR#707.9d]: "a copy, except it's a 4/4" — the copiable-value
+    /// alterations ride `Copy`'s own modification list as sibling `Alter`s, not
+    /// a `BecomeCopyOf` wrapper (the `Copy` verb itself IS the copy).
+    #[test]
+    fn token_copy_with_exception_carries_alters_in_the_list() {
+        let out = emit_effect(&token_copy_effect(
+            Count::Literal(1),
+            copy_spec(
+                CopySource::Object(Reference::Target(0)),
+                four_four_exceptions(),
+            ),
+        ))
+        .expect("a 4/4 token copy should emit");
+        assert_eq!(
+            out,
+            "(Act (Copy (Target 0) [(Alter Power (Set (Literal 4))), (Alter Toughness (Set (Literal 4)))]))"
+        );
+    }
+
+    /// [CR#707.9c..707.9e]: `Retain`/`AdditionalEffect` exceptions have no Idris
+    /// analog — a deferred gap, never a guess.
+    #[test]
+    fn token_copy_with_retain_exception_gaps() {
+        let err = emit_effect(&token_copy_effect(
+            Count::Literal(1),
+            copy_spec(
+                CopySource::Object(Reference::Target(0)),
+                vec![CopyException::Retain(
+                    deckmaste_core::Characteristic::Colors,
+                )],
+            ),
+        ))
+        .expect_err("a Retain exception should gap");
+        assert!(
+            err.to_string()
+                .contains("idris-copy-retain-additionaleffect"),
+            "expected the deferred-follow-up marker, got: {err}"
+        );
+    }
+
+    /// [CR#707.4]: "X becomes a copy of Y" composes from the existing
+    /// `Modify`/`BecomeCopyOf` — no new Idris constructor.
+    #[test]
+    fn becomes_copy_bare_emits_modify_become_copy_of() {
+        let out = emit_static_effect(&StaticEffect::BecomesCopy(
+            Reference::This,
+            copy_spec(CopySource::Object(Reference::Target(0)), Vec::new()),
+        ))
+        .expect("a bare becomes-a-copy should emit");
+        assert_eq!(out, "(Modify This (BecomeCopyOf (Target 0)))");
+    }
+
+    /// [CR#707.4,707.9]: a becomes-a-copy with "except" mods bundles the
+    /// alterations as SIBLING higher-layer mods under `ApplyAll` — the copy
+    /// (`BecomeCopyOf`) and each `Alter` are peers, never nested.
+    #[test]
+    fn becomes_copy_with_exception_wraps_apply_all() {
+        let out = emit_static_effect(&StaticEffect::BecomesCopy(
+            Reference::This,
+            copy_spec(
+                CopySource::Object(Reference::Target(0)),
+                four_four_exceptions(),
+            ),
+        ))
+        .expect("a 4/4 becomes-a-copy should emit");
+        assert_eq!(
+            out,
+            "(Modify This (ApplyAll [(BecomeCopyOf (Target 0)), (Alter Power (Set (Literal 4))), (Alter Toughness (Set (Literal 4)))]))"
+        );
+    }
+
+    /// [CR#707.5]: an `EnterRider::AsCopy` payload lowers to `BecomeCopyOf
+    /// <src>` (the same self-modification a becomes-a-copy installs); as the
+    /// arrival body it is `Modify This (BecomeCopyOf <src>)`. The
+    /// ETB-replacement carrier that would host it is not yet emitted, so the
+    /// rider-list path gaps pointing at that deferred carrier.
+    #[test]
+    fn as_copy_lowers_to_become_copy_of() {
+        let cs = copy_spec(CopySource::Object(Reference::Target(0)), Vec::new());
+        let rider = EnterRider::AsCopy(cs.clone());
+
+        // The payload mapping (shared with becomes-a-copy).
+        let mapping = emit_copy_modification(&cs).expect("AsCopy payload should lower");
+        assert_eq!(mapping, "(BecomeCopyOf (Target 0))");
+        // ...as an arrival self-modification body.
+        assert_eq!(
+            format!("(Modify This {mapping})"),
+            "(Modify This (BecomeCopyOf (Target 0)))"
+        );
+
+        // The rider-list carrier is still a (documented) gap.
+        let err = enter_riders_as_attacking(std::slice::from_ref(&rider))
+            .expect_err("AsCopy has no attacking-Maybe carrier yet");
+        assert!(
+            err.to_string().contains("idris-copy-asenters-carrier"),
+            "expected the deferred-carrier marker, got: {err}"
+        );
+    }
+
+    /// [CR#707.12]: casting a copy has no Idris resolution-time cast verb — its
+    /// own gap arm (not the generic catch-all), citing the reason.
+    #[test]
+    fn cast_copy_gaps_with_its_own_reason() {
+        let err = emit_player_action(
+            &PlayerAction::CastCopy(copy_spec(
+                CopySource::Object(Reference::Target(0)),
+                Vec::new(),
+            )),
+            &Reference::You,
+        )
+        .expect_err("CastCopy should gap");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("[CR#707.12]"),
+            "expected the [CR#707.12] cite, got: {msg}"
+        );
+        assert!(
+            msg.contains("601 permission pipeline"),
+            "expected the 601-pipeline reasoning, got: {msg}"
+        );
     }
 }
