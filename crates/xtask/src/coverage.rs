@@ -88,6 +88,7 @@ const SKIP_DIRS: &[&str] = &[
     "_data",
     ".claude",
     "plugins/wizards",
+    "docs/superpowers",
 ];
 const EXTENSIONS: &[&str] = &["rs", "md", "ron", "idr"];
 
@@ -99,7 +100,7 @@ const EXTENSIONS: &[&str] = &["rs", "md", "ron", "idr"];
               round-trip would only add allocation for the same answer"
 )]
 pub fn tier_for_path(rel: &str) -> Tier {
-    if rel.ends_with(".md") {
+    if rel.starts_with("docs/") || rel.ends_with(".md") {
         return Tier::Mentioned;
     }
     let is_test = rel.contains("/tests/") || rel.starts_with("plugins/testing/");
@@ -512,6 +513,15 @@ mod tests {
         assert_eq!(tier_for_path("docs/tickets/done/foo.md"), Tier::Mentioned);
         // any markdown is prose regardless of dir
         assert_eq!(tier_for_path("README.md"), Tier::Mentioned);
+    }
+
+    #[test]
+    fn tier_docs_nonmd_is_mentioned() {
+        assert_eq!(
+            tier_for_path("docs/superpowers/reviews/x/Attack.idr"),
+            Tier::Mentioned
+        );
+        assert_eq!(tier_for_path("docs/tickets/done/foo.md"), Tier::Mentioned);
     }
 
     #[test]
