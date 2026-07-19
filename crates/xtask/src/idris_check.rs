@@ -46,6 +46,10 @@ pub struct IdrisCheckArgs {
 /// mode) any card fails to typecheck.
 pub fn run(args: &IdrisCheckArgs) -> anyhow::Result<()> {
     let idris_dir = idris_root()?;
+    // Guard BOTH modes with a one-shot dependency typecheck: if the shared
+    // imports don't compile, fail fast here instead of rediscovering the same
+    // build error once per card (see `preflight_deps`).
+    preflight_deps(&idris_dir)?;
     let plugin = Plugin::load_with_sibling_prelude(&args.plugin_dir)
         .with_context(|| format!("loading plugin {}", args.plugin_dir.display()))?;
     match &args.card_name {
@@ -60,6 +64,35 @@ fn idris_root() -> anyhow::Result<PathBuf> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../idris");
     anyhow::ensure!(dir.is_dir(), "expected an idris/ dir at {}", dir.display());
     Ok(dir)
+}
+
+/// One-shot pre-flight typecheck of ONLY the shared dependency surface that
+/// every batch imports — `render_module("IdrisCheckDeps", &[])` is exactly
+/// `module IdrisCheckDeps\nimport Core\n\n`, no card defs.
+///
+/// Without this, a `Core.idr` that doesn't compile makes *every* batch fail,
+/// and the per-card isolation fallback (meant for one genuinely-unsound card)
+/// re-checks *every* card, each failing identically for the same dependency
+/// error — ~72 × 101 ≈ 7200 `idris2` invocations for the wizards corpus, all
+/// burying the one real cause. A broken dependency is O(1) to detect up front;
+/// left to the failure path it is *rediscovered* N times.
+///
+/// It also warms `Core.ttc` (built once here) so the real batches — and every
+/// isolation re-check — reuse it instead of rebuilding Core from source.
+///
+/// On failure this bails framed as a dependency/build error, deterministically
+/// (no parsing of idris2 diagnostics): a broken import surface is never any
+/// card's fault.
+fn preflight_deps(idris_dir: &Path) -> anyhow::Result<()> {
+    let source = render_module("IdrisCheckDeps", &[]);
+    match typecheck_module(idris_dir, "IdrisCheckDeps", &source)? {
+        TypecheckOutcome::Pass => Ok(()),
+        TypecheckOutcome::Fail(output) => anyhow::bail!(
+            "idris-check pre-flight: the shared Idris dependencies do not compile \
+             (Core.idr and whatever the probe module imports). No card is at fault — \
+             fix the dependency build first.\n\nidris2 said:\n{output}"
+        ),
+    }
 }
 
 fn run_single(plugin: &Plugin, card_name: &str, idris_dir: &Path) -> anyhow::Result<()> {
@@ -81,7 +114,6 @@ fn run_single(plugin: &Plugin, card_name: &str, idris_dir: &Path) -> anyhow::Res
 
     let source = render_module(&module_name, &[(ident.clone(), expr)]);
     let outcome = typecheck_module(idris_dir, &module_name, &source)?;
-    cleanup_module(idris_dir, &module_name);
 
     match outcome {
         TypecheckOutcome::Pass => {
@@ -143,7 +175,6 @@ fn run_batch(
         let module_name = format!("IdrisCheckBatch_{batch_idx}");
         let source = render_module(&module_name, chunk);
         let outcome = typecheck_module(idris_dir, &module_name, &source)?;
-        cleanup_module(idris_dir, &module_name);
         match outcome {
             TypecheckOutcome::Pass => passed += chunk.len(),
             TypecheckOutcome::Fail(output) => {
@@ -162,7 +193,6 @@ fn run_batch(
                     );
                     let single_outcome =
                         typecheck_module(idris_dir, &single_module, &single_source)?;
-                    cleanup_module(idris_dir, &single_module);
                     match single_outcome {
                         TypecheckOutcome::Pass => passed += 1,
                         TypecheckOutcome::Fail(single_output) => {
@@ -222,11 +252,38 @@ enum TypecheckOutcome {
     Fail(String),
 }
 
+/// RAII owner of a scratch module's on-disk footprint: dropping it removes the
+/// `idris/src/<module>.idr` source and its compiled `.ttc`/`.ttm` artifacts.
+///
+/// Cleanup used to be an explicit `cleanup_module` call *after* the typecheck,
+/// which any interruption skipped — a `?`-early-return, a panic, or a kill mid
+/// batch left `IdrisCheck*.idr` litter in the *tracked* `idris/src/` tree (a
+/// killed run really did leave an added `IdrisCheckIsolate_*.idr`). A `Drop`
+/// guard removes the file on every one of those paths, so cleanup no longer
+/// leans on the `.gitignore` stopgap to keep the leak out of a commit.
+struct ScratchModule<'a> {
+    idris_dir: &'a Path,
+    module_name: String,
+}
+
+impl Drop for ScratchModule<'_> {
+    fn drop(&mut self) {
+        cleanup_module(self.idris_dir, &self.module_name);
+    }
+}
+
 fn typecheck_module(
     idris_dir: &Path,
     module_name: &str,
     source: &str,
 ) -> anyhow::Result<TypecheckOutcome> {
+    // Own the scratch footprint up front so it is cleaned up on EVERY exit from
+    // this function — the `?` below, a panic, or normal return alike.
+    let _scratch = ScratchModule {
+        idris_dir,
+        module_name: module_name.to_owned(),
+    };
+
     let rel_path = format!("src/{module_name}.idr");
     let abs_path = idris_dir.join(&rel_path);
     fs::write(&abs_path, source).with_context(|| format!("writing {}", abs_path.display()))?;
