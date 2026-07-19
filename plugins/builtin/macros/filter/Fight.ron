@@ -1,14 +1,13 @@
-// "Fight(a, b)" ([CR#701.14a]) — the bare-verb pattern TWIN: "whenever `a`
-// fights `b`". Both combatants are patients: `a` rides the master form's `who`
-// slot and `b` its `on` slot, bound to the fact's two patient coordinates
-// (`object`/`patient`) — Fight has no performer. NOTE: the emitter currently
-// populates only the FIRST fighter (`patient` stays empty), so a narrowed `b`
-// slot cannot match yet — the open engine-act-fight-patient ticket. Expands to
-// the `Act` master form.
+// "Fight(a)" ([CR#701.14a]) — the bare-verb pattern TWIN: "whenever `a`
+// fights". Fires per COMBATANT: the committed fact is per-subject, so `a`
+// (the master form's `on` slot) matches whichever fighter's fact it names —
+// either combatant, once each ([CR#701.14c]: a self-fight is one subject).
+// Fight has no performer (`who` stays the defaulted Any). No second slot:
+// no printed card narrows the OTHER fighter (no dead grammar).
 (
     name: "Fight",
-    template: "${0} fights ${1}",
+    template: "${0} fights",
     kinds: [EventFilter],
-    params: [Predicate, Predicate],
-    body: Act(verb: Fight, who: Param(0), on: Param(1)),
+    params: [Predicate],
+    body: Act(verb: Fight, on: Param(0)),
 )

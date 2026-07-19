@@ -342,7 +342,12 @@ pub enum EventFilter {
     /// [CR#702.12b]); `cause` narrows the cause triple (a discard narrowed to
     /// cycling-cost agency fires once per cycle). Omitted `who`/`on` default to
     /// match-anything; the COUNT is never carried — a keyword-action pattern
-    /// matches any amount.
+    /// matches any amount. A verb with more than one SUBJECT commits one
+    /// NAME-fact per subject ([CR#701.14a]'s Fight, two combatants — a
+    /// self-fight is still one subject, [CR#701.14c]), so `on` matches
+    /// PER-SUBJECT — `Fight(pred)` fires once for whichever combatant `pred`
+    /// names, either fighter, independently — never both slots at once (Fight
+    /// has no performer, and no printed card narrows "the other fighter").
     ///
     /// Authored through the bare-verb pattern TWINS at the `EventFilter`
     /// position — `Destroy(Ref(This))`, `Discard(Ref(You), Any)`, `Scry(You)`,
@@ -734,7 +739,7 @@ mod tests {
         );
         for source in [
             "Act(verb: Destroy, on: Ref(This))",
-            "Act(verb: Fight, who: Ref(This), on: Any)",
+            "Act(verb: Fight, on: Ref(This))",
             "Act(verb: Mill, who: Ref(You))",
         ] {
             let parsed = read(source);
