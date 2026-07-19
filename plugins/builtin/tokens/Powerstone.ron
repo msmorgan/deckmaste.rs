@@ -1,0 +1,17 @@
+// [CR#111.10h] — a colorless Powerstone artifact token with "{T}: Add {C}. This
+// mana can't be spent to cast a nonartifact spell." The mana rider ([CR#106.6])
+// admits everything EXCEPT a nonartifact spell, so abilities and artifact spells
+// stay payable.
+Token(
+    types: [Artifact],
+    subtypes: [Powerstone],
+    abilities: [
+        Activated(
+            cost: [Tap],
+            effect: AddMana(1, WithRiders(
+                mana: Colorless,
+                riders: [SpendOnly(Not(And([Kind(Spell), Not(Type(Artifact))])))],
+            )),
+        ),
+    ],
+)
