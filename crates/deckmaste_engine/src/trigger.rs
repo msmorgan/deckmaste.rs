@@ -3642,6 +3642,182 @@ mod tests {
         );
     }
 
+    /// Delver of Secrets' REAL front ability ([CR#701.27a]) driven end-to-end
+    /// through the whole conditional resolve path — the behavior the canon
+    /// `Delver of Secrets.ron` encodes. The effect mirrors the blessed Idris
+    /// model (Cards.idr `card_DelverOfSecrets`):
+    /// `If(Matches(Single(TopOfLibrary 1), Or([Instant, Sorcery])),
+    ///     May(Sequentially([Reveal(Single(TopOfLibrary 1)),
+    /// Transform(This)])))` — the top card is read DIRECTLY
+    /// (`Single(TopOfLibrary(1))`), no binder, so this also proves the
+    /// engine resolves that reference in BOTH `Matches` and `Reveal`.
+    /// Unlike `delver_transforms_end_to_end` (a bare `Act(Transform)`), the
+    /// top card's card TYPE decides whether the optional transform even
+    /// offers:
+    ///  1. an INSTANT on top → the condition holds, the reveal is accepted, and
+    ///     ~ transforms to the 3/2 back ([CR#712.18]);
+    ///  2. a CREATURE on top → the condition fails, nothing offers, and ~ stays
+    ///     the 1/1 front.
+    #[test]
+    fn delver_upkeep_reveals_instant_and_transforms() {
+        use deckmaste_core::Action;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Count;
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::If;
+        use deckmaste_core::May;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PlayerAction;
+        use deckmaste_core::Selection;
+        use deckmaste_core::StatValue;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::object::Side;
+        use crate::step::StepOutcome;
+
+        // Delver as a real TwoFaced permanent (front 1/1, back 3/2 Flying) so
+        // `Transform(This)` has a back face to flip to. The ability under test
+        // is supplied to `run_effect` directly — the trigger-fire path is
+        // covered by `delver_transforms_end_to_end` and the StepBegins tests.
+        fn delver() -> Card {
+            Card::TwoFaced {
+                layout: FaceLayout::Transforming,
+                front: CardFace {
+                    name: "Delver of Secrets".into(),
+                    types: vec![Type::Creature.def()],
+                    power: Some(StatValue::Number(1)),
+                    toughness: Some(StatValue::Number(1)),
+                    ..CardFace::default()
+                },
+                back: CardFace {
+                    name: "Insectile Aberration".into(),
+                    types: vec![Type::Creature.def()],
+                    power: Some(StatValue::Number(3)),
+                    toughness: Some(StatValue::Number(2)),
+                    ..CardFace::default()
+                },
+            }
+        }
+
+        // `Single(TopOfLibrary(1))` — the sole top card of your library, read
+        // directly (both by the condition and by the reveal), no binder.
+        let top_ref = || {
+            Reference::Single(Arc::new(Selection::TopOfLibrary {
+                count: Count::Literal(1),
+                whose: Reference::You,
+            }))
+        };
+        let upkeep_effect = || {
+            OneShotEffect::If(If {
+                condition: Condition::Matches(
+                    top_ref(),
+                    Predicate::Or(vec![
+                        Predicate::Characteristic(CharacteristicPredicate::Type(
+                            Type::Instant.name(),
+                        )),
+                        Predicate::Characteristic(CharacteristicPredicate::Type(
+                            Type::Sorcery.name(),
+                        )),
+                    ]),
+                ),
+                then: Arc::new(OneShotEffect::May(May {
+                    effect: Arc::new(OneShotEffect::Sequentially(vec![
+                        OneShotEffect::act_by_you(PlayerAction::Reveal {
+                            what: top_ref(),
+                            to: None,
+                        }),
+                        OneShotEffect::Act(Action::Transform(Reference::This)),
+                    ])),
+                    if_did: None,
+                    if_not: None,
+                })),
+                otherwise: None,
+            })
+        };
+
+        // Mint a card of type `ty` onto the TOP (front) of P0's library.
+        fn put_on_top(state: &mut GameState, name: &str, ty: Type) {
+            let cid = state.cards.push(
+                Arc::new(Card::Normal(CardFace {
+                    name: name.into(),
+                    types: vec![ty.def()],
+                    ..CardFace::default()
+                })),
+                PlayerId(0),
+            );
+            let id = state
+                .objects
+                .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Library));
+            state.zones.libraries[0].push_front(id);
+        }
+
+        // 1. Instant on top → the reveal is accepted → ~ transforms.
+        {
+            let mut state = empty_game();
+            let d = put_synthetic_on_field(&mut state, delver(), PlayerId(0));
+            put_on_top(&mut state, "Opt", Type::Instant);
+            assert_eq!(
+                state.objects.obj(d).side,
+                Side::Front,
+                "enters front-up [CR#712.14]"
+            );
+            assert_eq!(state.layers().power(d), Some(1), "the front face is 1/1");
+
+            state.run_effect(upkeep_effect(), &crate::test_support::frame_src(d));
+            // Drive resolution, saying "yes" to the optional reveal; break the
+            // instant the flip lands (NOT on an empty agenda — that would drain
+            // into `empty_game`'s ambient turn cascade, [CR#712.18]).
+            for _ in 0..40 {
+                if state.objects.obj(d).side == Side::Back {
+                    break;
+                }
+                if let StepOutcome::NeedsDecision(PendingDecision::YesNo(_)) = state.step() {
+                    state.submit_decision(Decision::Answer(true)).unwrap();
+                }
+            }
+            assert_eq!(
+                state.objects.obj(d).side,
+                Side::Back,
+                "an instant on top → the condition holds, reveal accepted → ~ transforms \
+                 [CR#701.27a]"
+            );
+            assert_eq!(
+                state.layers().power(d),
+                Some(3),
+                "the back face reads 3/2 through the layered view [CR#712.18]"
+            );
+        }
+
+        // 2. Creature on top → the condition fails → nothing offers, ~ stays front. A
+        //    YesNo surfacing here would mean the type gate wrongly passed.
+        {
+            let mut state = empty_game();
+            let d = put_synthetic_on_field(&mut state, delver(), PlayerId(0));
+            put_on_top(&mut state, "Grizzly Bears", Type::Creature);
+
+            state.run_effect(upkeep_effect(), &crate::test_support::frame_src(d));
+            for _ in 0..40 {
+                match state.step() {
+                    StepOutcome::NeedsDecision(PendingDecision::YesNo(_)) => {
+                        panic!("a non-instant/sorcery top card must NOT offer a may-reveal");
+                    }
+                    // Any other decision is `empty_game`'s ambient turn cascade
+                    // (priority, etc.) — the Delver effect has already drained.
+                    StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => break,
+                    StepOutcome::Progress(_) => {}
+                }
+            }
+            assert_eq!(
+                state.objects.obj(d).side,
+                Side::Front,
+                "a creature on top → the condition fails → ~ stays the 1/1 front [CR#701.27a]"
+            );
+            assert_eq!(state.layers().power(d), Some(1), "still the 1/1 front");
+        }
+    }
+
     // -------------------------------------------------------------------------
     // StepBegins — step/phase-entry triggers ([CR#603.2b])
     // -------------------------------------------------------------------------
