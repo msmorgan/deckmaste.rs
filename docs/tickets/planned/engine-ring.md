@@ -2,4 +2,36 @@
 needs: [core-emblems]
 ---
 The Ring emblem and tempts-you progression (50 cards). The Ring is an emblem
-with a level-style progression; needs emblem minting from core-emblems.
+with a level-style progression.
+
+## Current state (2026-07-18 deep-dive)
+
+`Action::TheRingTempts(Reference)` is a loud seam (`resolve/action.rs`
+`todo!("engine seam: the Ring tempts")`), no parse/render arm, no idris
+constructor, zero live corpus cards. Closer to buildable than the other
+footing verbs: emblem minting is real (`GetEmblem` → command zone,
+`core-emblems` done) and the designation machinery fits — your-Ring-bearer
+uniqueness is exactly `DesignationUniqueness::PerPlayer`, and the Monarch
+macro is the precedent for a designation as pure RON data.
+
+## Shape
+
+Composite body per [CR#701.54a..701.54c]: emit the tempted fact; if you have
+no Ring emblem, get it; the emblem gains the next tier (the four tiers as
+`Conditionally(tempt-count >= N)` clauses reading a per-player count, not
+emblem mutation); choose a creature you control — it becomes your Ring-bearer
+until another does or you lose control of it. Not a copiable value
+[CR#701.54b].
+
+## Blocking seams (three)
+
+1. Object-scope, single-holder-with-eviction designation grant —
+   `GetDesignation` v1 covers player-scope flags only (author-flagged seam;
+   designation registry has no loader wiring yet). Ring-bearer needs
+   `Stored{scope: Object, uniqueness: PerPlayer, …}` with prior-holder
+   eviction.
+2. Per-player Ring-temptation count feeding the tier conditions.
+3. The unconditional tempted fact: [CR#701.54d] — the "whenever the Ring
+   tempts you" trigger fires even if some or all of the [CR#701.54a] actions
+   were impossible, so the verb must emit the fact before/regardless of the
+   choice resolving.
