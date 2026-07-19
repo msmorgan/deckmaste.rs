@@ -1649,6 +1649,11 @@ fn emit_action(a: &Action) -> R {
         // below (`Composite (Destroy r) (Act (moveAttacking r Graveyard))`).
         Action::Counter(r) => app("Counter", vec![emit_reference(r)?]),
         Action::Transform(r) => app("Transform", vec![emit_reference(r)?]),
+        // core-copy-grammar Task 5: the cease-to-exist verb the copy-cease
+        // SBA now speaks through (`sba.rs`) — engine-internal only, never
+        // authored on a card face, so it has no Idris counterpart, same
+        // deferred-gap shape as `ExtraPhase`/`CreateReplacement` below.
+        Action::Cease(_) => return Err(gap("Action::Cease has no Idris counterpart")),
         Action::Attach { what, to } => {
             app("Attach", vec![emit_reference(what)?, emit_reference(to)?])
         }

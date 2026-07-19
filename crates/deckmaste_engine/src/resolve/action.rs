@@ -145,6 +145,30 @@ impl GameState {
                 }
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
+            // [CR#704.5d,707.10a]: the referenced object ceases to exist — no
+            // zone move, no card. Written generically over any stack entry
+            // (mirrors `Counter`'s ability-vanish arm above), though today
+            // only the copy-cease SBA (`sba.rs`) reaches it, resolving
+            // `This` to a stranded stack-copy entry. A reference that isn't
+            // on the stack (bad authoring, state drift) fizzles silently —
+            // never a panic.
+            Action::Cease(sel) => {
+                let events: Vec<GameEvent> = self
+                    .eval_reference_set(sel, frame)
+                    .into_iter()
+                    .filter(|&object| self.stack.iter().any(|e| e.id == object))
+                    .map(|object| {
+                        GameEvent::AbilityCountered(AbilityCountered {
+                            id: object,
+                            cause: Cause::cease(
+                                Agency::EffectInstruction,
+                                Some((frame.source, frame.controller)),
+                            ),
+                        })
+                    })
+                    .collect();
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
             // [CR#701.3a]: attach `what` to each resolved host. This builder is
             // pure (like every `action_items` arm — `Destroy`, `Tap`): it emits
             // the `Attached` fact, and the relation mutation (`attached_to`)

@@ -85,6 +85,16 @@ impl Cause {
         Self::verb("Counter", agency, agent)
     }
 
+    /// "Cease" ([CR#704.5d,707.10a]) — an object ceasing to exist, distinct
+    /// from being countered even though both currently share
+    /// `AbilityCountered`'s removal apply (remove the stack entry, remove
+    /// the object, no zone move): the copy-cease SBA's `Action::Cease`
+    /// resolve names its own verb here rather than borrowing "Counter"'s.
+    #[must_use]
+    pub fn cease(agency: deckmaste_core::Agency, agent: Option<(ObjectId, PlayerId)>) -> Self {
+        Self::verb("Cease", agency, agent)
+    }
+
     /// "Tap" — distinguishable from the others only by `agency` ([CR#107.5]
     /// cost vs [CR#508.1f] attack vs [CR#701.26a] effect vs [CR#106.12] mana).
     #[must_use]

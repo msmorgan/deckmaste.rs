@@ -286,6 +286,16 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             fixture lands, no transforming-DFC real card can graduate to cover this grammar.",
         ),
         (
+            n("Action", "Cease"),
+            "ENGINE-INTERNAL: the cease-to-exist verb the copy-cease SBA \
+            ([CR#704.5d,707.10a], sba.rs) speaks through — no card will ever spell it \
+            directly (it has no Idris counterpart either, same gap() shape as ExtraPhase/\
+            TheRingTempts above); it exists purely so the SBA's removal routes through the \
+            data-usable Action grammar (unit-testable, reusable) instead of building its \
+            GameEvent inline. Not a DEFERRED buildable-someday gap — see the \
+            core-copy-grammar Task 5 report.",
+        ),
+        (
             n("PlayerAction", "VentureIntoDungeon"),
             "DEFERRED: no dungeon-venture real card in this \
             batch.",
