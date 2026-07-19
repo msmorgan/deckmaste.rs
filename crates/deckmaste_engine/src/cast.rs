@@ -894,7 +894,9 @@ impl GameState {
             // `Cant(Activate(cost: IncludesTapSymbol))` forbids the {T} mana
             // ability — the summoning-sickness tap gate a `Creature` type
             // confers (lands aren't creatures, so this rarely bites).
-            if crate::legal::cant_activate(self, &view, land, player, true) {
+            // `blanket_applies: false` — this is the mana-ability tap arm,
+            // exempt from a blanket split-second-style row ([CR#702.61b]).
+            if crate::legal::cant_activate(self, &view, land, player, true, false) {
                 continue;
             }
             for (ability, a) in crate::derive::usable_abilities(self, land)

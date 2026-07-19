@@ -189,7 +189,10 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         // conferred `Cant(Activate(cost: IncludesTapSymbol))` rows permit it —
         // the summoning-sickness tap gate a `Creature` type confers (haste-
         // exempt). Keyed on the capability, not a `Type::Creature` literal.
-        let tap_forbidden = cant_activate(state, &view, object, player, true);
+        // `blanket_applies: false` — a blanket split-second-style row must
+        // NOT block a mana ability ([CR#702.61b]); only a cost-scoped row
+        // (the sickness tap gate) can forbid it here.
+        let tap_forbidden = cant_activate(state, &view, object, player, true, false);
         // Index the SAME Innate-PEELED list resolution reads ([CR#113.12]):
         // `begin_activate`, `decide`'s `ActivateAbility` arm, and `render`'s
         // `activated_ability`/`mana_ability` all index
@@ -606,11 +609,32 @@ pub(crate) fn untap_forbidden_by(
         .any(|(carrier, what)| state.filter_matches_live(what, id, *carrier))
 }
 
-/// Every `Cant(Activate)` row in the derived view ([CR#602.5a]: the
-/// summoning-sickness tap gate a card's `Creature` type confers, and any other
-/// "can't activate" effect). Each row is its carrier plus the ability's patient
-/// filter `what`, the agent filter `by`, and the optional `cost` predicate that
-/// scopes the row to a subset of activations (a `{T}`/`{Q}` cost). Mirrors
+/// Object ids of the spells currently on the stack — the sources that can
+/// carry a stack-functioning `Cant(...)` static (split second, [CR#702.61a]).
+/// Restricted to `StackObject::Spell` (its entry id IS the spell's own
+/// object id); `Triggered`/`Activated` entries are stand-ins minted from the
+/// firing permanent's source and must not be read as if the card were on the
+/// stack (see `cant_cast_rows`'s doc for the full misattribution hazard).
+/// Shared by [`cant_cast_rows`] (the Cast half) and [`cant_activate_rows`]
+/// (the Activate half, [CR#702.61b]).
+fn spell_stack_ids(state: &GameState) -> impl Iterator<Item = ObjectId> + '_ {
+    state
+        .stack
+        .iter()
+        .filter_map(|e| matches!(e.object, StackObject::Spell(_)).then_some(e.id))
+}
+
+/// Every `Cant(Activate)` row visible to an activation: [CR#602.5a]'s
+/// summoning-sickness tap gate a card's `Creature` type confers, split
+/// second's activate half ([CR#702.61a] — a spell functions this static
+/// while on the stack, via [`spell_stack_ids`]), and any other "can't
+/// activate" effect (Linvala, Damping Matrix). Rows come from battlefield
+/// permanents PLUS every `StackObject::Spell` entry, same scan
+/// `cant_cast_rows` runs for its Cast half. Each row is its carrier plus the
+/// ability's patient filter `what`, the agent filter `by`, and the optional
+/// `cost` predicate that scopes the row to a subset of activations (a
+/// `{T}`/`{Q}` cost, or `None` for a blanket row that [`cant_activate`]'s
+/// `blanket_applies` flag gates separately, [CR#702.61b]). Mirrors
 /// [`cant_untap_rows`] on the `Activate` action.
 #[must_use]
 fn cant_activate_rows(
@@ -623,7 +647,13 @@ fn cant_activate_rows(
     Option<deckmaste_core::CostPredicate>,
 )> {
     let mut rows = Vec::new();
-    for &id in &state.zones.battlefield {
+    let ids = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .chain(spell_stack_ids(state));
+    for id in ids {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
             if let StaticEffect::Deontic(d) = e
@@ -650,15 +680,27 @@ fn cost_predicate_holds(
     }
 }
 
-/// [CR#602.5a,602.1]: whether some conferred `Cant(Activate)` row forbids
-/// `activator` activating an ability of `object` whose cost matches
-/// `includes_tap_symbol`. A row applies when `object` matches its `what`, the
-/// `activator`'s player proxy matches its `by`, AND its `cost` predicate holds
-/// for the activation (`IncludesTapSymbol` only when `includes_tap_symbol`).
-/// The summoning-sickness tap gate rides this: a card's `Creature` type confers
-/// `Conditionally(SummoningSick & !Haste, Cant(Activate(cost:
-/// IncludesTapSymbol)))`, so a sick creature can't pay a `{T}`/`{Q}` cost but
-/// can pay a non-tap one.
+/// [CR#602.5a,602.1,702.61a,702.61b,101.2]: whether some conferred/stack
+/// `Cant(Activate)` row forbids `activator` activating an ability of
+/// `object` whose cost matches `includes_tap_symbol`. A row applies when
+/// `object` matches its `what`, the `activator`'s player proxy matches its
+/// `by`, its `cost` predicate holds for the activation (`IncludesTapSymbol`
+/// only when `includes_tap_symbol`), AND — for a BLANKET row (`cost: None`,
+/// scoping to every activation, not just a tap subset) — `blanket_applies`
+/// is set.
+///
+/// The summoning-sickness tap gate rides the cost-scoped shape: a card's
+/// `Creature` type confers `Conditionally(SummoningSick & !Haste,
+/// Cant(Activate(cost: IncludesTapSymbol)))`, so a sick creature can't pay a
+/// `{T}`/`{Q}` cost but can pay a non-tap one — unaffected by
+/// `blanket_applies` since `cost.is_some()` there.
+///
+/// Split second confers a BLANKET row (`cost: None`) that locks out non-mana
+/// activation but exempts mana abilities ([CR#702.61b]): the non-mana gate
+/// ([CR#602.5], `activate.rs`) passes `blanket_applies: true`, while the
+/// mana-ability tap gate (the stackless arm, `legal.rs`'s `legal_actions`
+/// and `cast.rs`'s `autotap_for_cast`) passes `false` so a blanket row never
+/// blocks a mana ability.
 #[must_use]
 pub(crate) fn cant_activate(
     state: &GameState,
@@ -666,12 +708,17 @@ pub(crate) fn cant_activate(
     object: ObjectId,
     activator: PlayerId,
     includes_tap_symbol: bool,
+    blanket_applies: bool,
 ) -> bool {
     let proxy = state.player(activator).object;
     cant_activate_rows(state, view)
         .iter()
         .any(|(carrier, what, by, cost)| {
-            cost_predicate_holds(cost.as_ref(), includes_tap_symbol)
+            // Blanket (cost: None) rows — split second / Linvala / Damping
+            // Matrix — apply only where mana abilities are NOT exempt: the
+            // non-mana activation gate, never the mana-tap gate ([CR#702.61b]).
+            (blanket_applies || cost.is_some())
+                && cost_predicate_holds(cost.as_ref(), includes_tap_symbol)
                 && state.filter_matches_live(what, object, *carrier)
                 && state.filter_matches_live(by, proxy, *carrier)
         })
@@ -1258,12 +1305,12 @@ fn cant_cast_rows(
     view: &LayeredView,
 ) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
     let mut rows = Vec::new();
-    let ids = state.zones.battlefield.iter().copied().chain(
-        state
-            .stack
-            .iter()
-            .filter_map(|e| matches!(e.object, StackObject::Spell(_)).then_some(e.id)),
-    );
+    let ids = state
+        .zones
+        .battlefield
+        .iter()
+        .copied()
+        .chain(spell_stack_ids(state));
     for id in ids {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
@@ -2587,18 +2634,21 @@ mod tests {
     /// Cant(Activate(cost: IncludesTapSymbol)))` confer forbids it — but a
     /// NON-tap ability is free (the `cost` predicate doesn't match). Granting
     /// the same creature `Haste` lifts the `Cant` (the `Not(Has(Haste))`
-    /// fails).
+    /// fails). Regression for the blanket-vs-cost-scoped split
+    /// ([CR#702.61a,702.61b]): `blanket_applies: false` throughout (mirroring
+    /// the real mana-arm call site) proves this cost-scoped row is unaffected
+    /// by the flag — it always applies once its cost predicate holds.
     #[test]
-    fn sick_creature_tap_gate_but_free_non_tap() {
+    fn cant_activate_sick_creature_tap_gate_but_free_non_tap() {
         let mut state = game();
         let sick = conferred_creature_on_field(&mut state, "Sick Bear", true);
         let view = state.layers();
         assert!(
-            super::cant_activate(&state, &view, sick, PlayerId(0), true),
+            super::cant_activate(&state, &view, sick, PlayerId(0), true, false),
             "a summoning-sick creature can't pay a {{T}} cost ([CR#602.5a])"
         );
         assert!(
-            !super::cant_activate(&state, &view, sick, PlayerId(0), false),
+            !super::cant_activate(&state, &view, sick, PlayerId(0), false, false),
             "a non-tap ability is not gated by summoning sickness ([CR#602.5a])"
         );
 
@@ -2608,7 +2658,7 @@ mod tests {
         let ready = conferred_creature_on_field(&mut ready_state, "Ready Bear", false);
         let ready_view = ready_state.layers();
         assert!(
-            !super::cant_activate(&ready_state, &ready_view, ready, PlayerId(0), true),
+            !super::cant_activate(&ready_state, &ready_view, ready, PlayerId(0), true, false),
             "a non-sick creature freely taps ([CR#602.5a])"
         );
 
@@ -2626,8 +2676,177 @@ mod tests {
         );
         let hasty_view = hasty_state.layers();
         assert!(
-            !super::cant_activate(&hasty_state, &hasty_view, hasty, PlayerId(0), true),
+            !super::cant_activate(&hasty_state, &hasty_view, hasty, PlayerId(0), true, false),
             "Haste lifts summoning sickness — a hasty sick creature taps ([CR#702.10c])"
+        );
+    }
+
+    // --- cant_activate (split-second-style stack lockout, blanket-vs-cost-scoped)
+    // ---
+
+    /// A non-mana activated ability with the given `cost` and a plain
+    /// gain-life effect — deliberately NOT `AddMana`, so
+    /// `derive::tap_mana_ability` never classifies it as a mana ability
+    /// ([CR#605.1a]) and it always takes the full [CR#602.5] non-mana gate,
+    /// never the stackless mana-ability path.
+    fn non_mana_ability(cost: Vec<deckmaste_core::CostComponent>) -> Ability {
+        use deckmaste_core::Action;
+        use deckmaste_core::ActivatedAbility;
+        use deckmaste_core::Count;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PlayerAction;
+        Ability::activated(ActivatedAbility {
+            ability_word: None,
+            from: None,
+            cost: cost.into(),
+            window: None,
+            condition: None,
+            limits: vec![],
+            effect: OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::GainLife(Count::Literal(1)),
+            )),
+        })
+    }
+
+    /// Mint a card-backed "spell" straight onto the stack, carrying its OWN
+    /// `Static(Cant(Activate(what, by, cost)))` row — split second's
+    /// activate half ([CR#702.61a]): a spell functions this static while on
+    /// the stack, gathered by `cant_activate_rows` the same way
+    /// `cant_cast_rows` gathers its Cast-side lockout from a stack spell
+    /// (both share the `spell_stack_ids` scan).
+    fn activate_lockout_on_stack(
+        state: &mut GameState,
+        name: &str,
+        controller: PlayerId,
+        what: Predicate,
+        by: Predicate,
+        cost: Option<deckmaste_core::CostPredicate>,
+    ) -> ObjectId {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Activate { what, by, cost },
+            )))],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card_id), controller, Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id,
+            object: StackObject::Spell(id),
+            controller,
+            targets: vec![],
+            x: None,
+            paid_costs: Vec::new(),
+            copy: false,
+        });
+        id
+    }
+
+    /// Collect the `ability` indices `legal_actions` offers for
+    /// `Action::ActivateAbility` on `object`, in list order.
+    fn offered_ability_indices(
+        state: &GameState,
+        player: PlayerId,
+        object: ObjectId,
+    ) -> Vec<usize> {
+        super::legal_actions(state, player)
+            .iter()
+            .filter_map(|a| match a {
+                crate::decide::Action::ActivateAbility { object: o, ability } if *o == object => {
+                    Some(*ability)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// [CR#702.61a,702.61b,101.2]: a split-second-style blanket
+    /// `Cant(Activate(what: Any, by: Any, cost: None))` row on the stack
+    /// forbids activating a non-mana ability — whether it has no tap cost
+    /// [0] or a `{T}` cost [1] — while the SAME object's mana ability
+    /// (`{T}: add {C}`) [2] stays legal: mana abilities are exempt from a
+    /// blanket row ([CR#702.61b]), because the mana-arm call site passes
+    /// `blanket_applies: false` while the non-mana gate passes `true`.
+    #[test]
+    fn cant_activate_split_second_stack_lockout_blocks_nonmana_leaves_mana_legal() {
+        let mut state = game();
+        let object = obj_on_field(
+            &mut state,
+            "Utility Creature",
+            vec![Type::Creature],
+            vec![
+                non_mana_ability(vec![]),
+                non_mana_ability(vec![deckmaste_core::CostComponent::Tap]),
+                tap_for_colorless(),
+            ],
+        );
+        let player = PlayerId(0);
+
+        assert_eq!(
+            offered_ability_indices(&state, player, object),
+            vec![0, 1, 2],
+            "sanity: all three abilities are offered with no lockout in play"
+        );
+
+        activate_lockout_on_stack(
+            &mut state,
+            "Split Seconder",
+            PlayerId(1),
+            Predicate::Any,
+            Predicate::Any,
+            None,
+        );
+
+        assert_eq!(
+            offered_ability_indices(&state, player, object),
+            vec![2],
+            "the blanket split-second lockout blocks both non-mana abilities \
+             (no-tap [0] and {{T}} [1]) but leaves the mana ability [2] legal \
+             ([CR#702.61b])"
+        );
+    }
+
+    /// Linvala-shape regression: a BATTLEFIELD blanket `Cant(Activate(what:
+    /// Any, by: Any, cost: None))` grant is gathered from
+    /// `state.zones.battlefield` (not the stack) and behaves identically —
+    /// it blocks non-mana activation but exempts mana abilities
+    /// ([CR#702.61b]).
+    #[test]
+    fn cant_activate_battlefield_blanket_grant_blocks_nonmana_allows_mana() {
+        let mut state = game();
+        let _linvala_ish = obj_on_field(
+            &mut state,
+            "Linvala-ish",
+            vec![Type::Creature],
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Activate {
+                    what: Predicate::Any,
+                    by: Predicate::Any,
+                    cost: None,
+                },
+            )))],
+        );
+        let object = obj_on_field(
+            &mut state,
+            "Utility Creature",
+            vec![Type::Creature],
+            vec![non_mana_ability(vec![]), tap_for_colorless()],
+        );
+        let player = PlayerId(0);
+
+        assert_eq!(
+            offered_ability_indices(&state, player, object),
+            vec![1],
+            "a battlefield blanket Cant(Activate(cost: None)) grant (Linvala \
+             shape) blocks the non-mana ability [0] but leaves the mana \
+             ability [1] legal ([CR#702.61b])"
         );
     }
 }

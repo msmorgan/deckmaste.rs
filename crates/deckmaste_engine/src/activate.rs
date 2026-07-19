@@ -316,11 +316,22 @@ impl GameState {
             return false;
         }
 
-        // [CR#602.5a]: a conferred `Cant(Activate(cost: IncludesTapSymbol))`
-        // forbids paying a {T}/{Q} cost — the summoning-sickness tap gate a
-        // `Creature` type confers (haste-exempt). Keyed on the capability, not a
-        // `Type::Creature` literal; a non-tap cost is never gated here.
-        if crate::legal::cant_activate(self, view, object, player, summary.tap || summary.untap) {
+        // [CR#602.5a,702.61a,702.61b]: a conferred/stack `Cant(Activate)` row
+        // forbids this activation — a cost-scoped `Cant(Activate(cost:
+        // IncludesTapSymbol))` (the summoning-sickness tap gate a `Creature`
+        // type confers, haste-exempt) as well as a BLANKET row (split
+        // second, Linvala): this is the full [CR#602.5] non-mana gate, so
+        // `blanket_applies: true` — mana abilities never reach this method
+        // (they take the stackless arm), so a blanket row is safe to apply
+        // here.
+        if crate::legal::cant_activate(
+            self,
+            view,
+            object,
+            player,
+            summary.tap || summary.untap,
+            true,
+        ) {
             return false;
         }
 
