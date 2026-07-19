@@ -3337,6 +3337,103 @@ mod tests {
         );
     }
 
+    /// A transforming DFC whose "when ~ transforms" watcher (draw a card) is
+    /// printed IDENTICALLY on both faces, so it's visible to the scan
+    /// regardless of which face is showing when the fact fires — isolating
+    /// the bare `StateBecame(Transformed)` trigger from the destination-
+    /// narrowed "transforms into X" reading ([CR#701.27e]), which is out of
+    /// scope here.
+    fn transform_watcher_dfc() -> deckmaste_core::Card {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Count;
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::StateChange;
+        use deckmaste_core::TriggeredAbility;
+
+        let watch = Ability::triggered(TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            from: None,
+            event: EventFilter::StateBecame {
+                of: Predicate::Ref(Reference::This),
+                becomes: StateChange::Transformed,
+            },
+            condition: None,
+            limits: Vec::new(),
+            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+        });
+        let face = |name: &str| CardFace {
+            name: name.into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(1)),
+            toughness: Some(StatValue::Number(1)),
+            abilities: vec![watch.clone()],
+            ..CardFace::default()
+        };
+        Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front: face("Front Watcher"),
+            back: face("Back Watcher"),
+        }
+    }
+
+    /// [CR#701.27a,603.2e]: resolving a real `Action::Transform` emits the
+    /// `GameEvent::Transformed` fact (Task 4), which the DFC's own bare
+    /// "when ~ transforms" watcher fires off — noting its ability into
+    /// `pending_triggers` exactly once. Drives the real Transform action
+    /// (not a synthetic fact) so the event reaches the scan through the
+    /// ordinary agenda pipeline, mirroring
+    /// `dies_trigger_notes_into_pending_triggers`'s NOTE-step assertion
+    /// shape.
+    #[test]
+    fn transform_fires_when_transforms_trigger() {
+        use deckmaste_core::Action;
+        use deckmaste_core::OneShotEffect;
+
+        use crate::object::Side;
+
+        let mut state = empty_game();
+        let dfc = put_synthetic_on_field(&mut state, transform_watcher_dfc(), PlayerId(0));
+        let frame = crate::test_support::frame_src(dfc);
+        state.run_effect(
+            OneShotEffect::Act(Action::Transform(Reference::This)),
+            &frame,
+        );
+
+        for _ in 0..30 {
+            if !state.pending_triggers.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        assert_eq!(
+            state.pending_triggers.len(),
+            1,
+            "the when-~-transforms watcher must fire exactly once off the real Transformed event"
+        );
+        let noted = &state.pending_triggers[0];
+        assert_eq!(noted.controller, PlayerId(0));
+        assert_eq!(
+            noted.bindings.this.as_ref().map(|s| s.object),
+            Some(dfc),
+            "the transformed DFC's own snapshot binds as `this`"
+        );
+        assert!(
+            state.objects.get(dfc).is_some(),
+            "unlike a dies-trigger, transform does not remove the permanent from the battlefield"
+        );
+        assert_eq!(
+            state.objects.obj(dfc).side,
+            Side::Back,
+            "the DFC actually flipped [CR#712.18]"
+        );
+    }
+
     // -------------------------------------------------------------------------
     // StepBegins — step/phase-entry triggers ([CR#603.2b])
     // -------------------------------------------------------------------------
