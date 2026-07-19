@@ -1866,12 +1866,13 @@ fn do_action_phrase(act: &Action, ctx: &Ctx) -> String {
 }
 
 /// An activated ability's printed cost line ([CR#602.1] — cost components
-/// separated by commas, e.g. "{G}, Sacrifice a creature:"). A run of
-/// symbol-only components (mana/tap/…) renders as ONE glued group via the
-/// shared `render_cost` glyph renderer (so `{1}{T}` stays adjacent, never
-/// comma-split mid-symbol-run); a verb component (`Do`/`With`) renders its
-/// lowercased clause, exactly like [`additional_payment`]'s reader — the two
-/// kinds of segment then join with ", ". No existing corpus card mixes a
+/// separated by commas, e.g. "{G}, {T}, Sacrifice a creature:"). Each
+/// symbol-only component (mana/tap/…) renders through the shared `render_cost`
+/// glyph renderer; the symbols within ONE mana component remain glued
+/// (`{1}{W}`), while distinct components are comma-separated (`{1}{W}, {T}`).
+/// A verb component (`Do`/`With`) renders its lowercased clause, exactly like
+/// [`additional_payment`]'s reader — all segments then join with ", ". No
+/// existing corpus card mixes a
 /// symbol run with a verb component in an ACTIVATION cost yet (only
 /// `AdditionalCost`'s printed-additional-cost clause did, which is why this
 /// is a distinct function rather than a reuse of `additional_payment`: that
@@ -1915,27 +1916,22 @@ fn loyalty_cost_prefix(action: &Action) -> Option<String> {
 pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) -> String {
     use deckmaste_core::CostComponent;
 
-    fn flush_symbol_run(run: &mut Vec<deckmaste_core::CostComponent>, parts: &mut Vec<String>) {
-        if run.is_empty() {
-            return;
-        }
+    fn push_symbol(component: &deckmaste_core::CostComponent, parts: &mut Vec<String>) {
         parts.push(
-            super::template::render_cost(run).unwrap_or_else(|| format!("[unrendered: {run:?}]")),
+            super::template::render_cost(std::slice::from_ref(component))
+                .unwrap_or_else(|| format!("[unrendered: {component:?}]")),
         );
-        run.clear();
     }
 
     let mut parts = Vec::new();
-    let mut symbol_run = Vec::new();
     for component in cost {
         match component {
             CostComponent::Mana(_)
             | CostComponent::Tap
             | CostComponent::Untap
             | CostComponent::ManaCostOf(_)
-            | CostComponent::TapTotal { .. } => symbol_run.push(component.clone()),
+            | CostComponent::TapTotal { .. } => push_symbol(component, &mut parts),
             CostComponent::Do(pa) => {
-                flush_symbol_run(&mut symbol_run, &mut parts);
                 // A planeswalker loyalty ability's cost is a `PutCounters`/
                 // `RemoveCounters` of the `LoyaltyCounter` on `This`
                 // ([CR#606.4]); it prints as the bracketed `[+N]`/`[−N]`/`[0]`
@@ -1955,7 +1951,6 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
             // anaphor, then render the body's `Do` verbs — "Sacrifice a
             // creature".
             CostComponent::With { binder, body } => {
-                flush_symbol_run(&mut symbol_run, &mut parts);
                 let phrase = binder_phrase(binder, ctx);
                 let inner = ctx.with_that(&phrase);
                 for inner_comp in body {
@@ -1974,20 +1969,15 @@ pub(super) fn activated_cost(cost: &[deckmaste_core::CostComponent], ctx: &Ctx) 
             // `value` ([CR#602.1]). The template already carries the segment's
             // capitalized verb ("Pay …"), so it is pushed verbatim; only a
             // template-less / unrenderable macro falls back.
-            CostComponent::Expanded(e) => {
-                flush_symbol_run(&mut symbol_run, &mut parts);
-                match super::template::expanded(e, ctx.subject) {
-                    Some(s) => parts.push(s),
-                    None => parts.push(format!("[unrendered: {:?}]", e.value)),
-                }
-            }
+            CostComponent::Expanded(e) => match super::template::expanded(e, ctx.subject) {
+                Some(s) => parts.push(s),
+                None => parts.push(format!("[unrendered: {:?}]", e.value)),
+            },
             other @ CostComponent::Cost(_) => {
-                flush_symbol_run(&mut symbol_run, &mut parts);
                 parts.push(format!("[unrendered: {other:?}]"));
             }
         }
     }
-    flush_symbol_run(&mut symbol_run, &mut parts);
     parts.join(", ")
 }
 
@@ -2776,6 +2766,31 @@ mod tests {
         assert!(
             rendered.contains("unless that player pays {1}"),
             "third-person MustPay: {rendered}"
+        );
+    }
+
+    /// Activated costs separate distinct components with `, ` while preserving
+    /// the contiguous glyphs within a single mana component ([CR#602.1]).
+    #[test]
+    fn activated_cost_separates_components_but_not_mana_symbols() {
+        use deckmaste_core::CostComponent;
+
+        let ctx = Ctx {
+            subject: "it",
+            targets: &[],
+            that: None,
+            named: None,
+        };
+        let mana = |symbols: &str| CostComponent::Mana(symbols.parse().unwrap());
+
+        assert_eq!(super::activated_cost(&[mana("{1}{W}")], &ctx), "{1}{W}",);
+        assert_eq!(
+            super::activated_cost(&[mana("{S}"), CostComponent::Tap], &ctx),
+            "{S}, {T}",
+        );
+        assert_eq!(
+            super::activated_cost(&[mana("{2}{W}"), mana("{U}"), CostComponent::Tap], &ctx),
+            "{2}{W}, {U}, {T}",
         );
     }
 
