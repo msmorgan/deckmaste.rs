@@ -166,20 +166,30 @@ fn parse_grant(subj: &str, pred: &str, _ctx: &ResolveCtx) -> Option<String> {
 /// The subject is a bare `Predicate` (Deontic actions carry a `Predicate`). The
 /// active verbs ("attack"/"block") anchor the subject on the
 /// actor side (`by`); the passive "be blocked …" evasion forms anchor it on
-/// the blocked side (`on`) and read a blocker-quality clause. Any action
-/// outside the known set declines the whole.
+/// the blocked side (`on`) and read a blocker-quality clause. The passive "be
+/// countered" form likewise anchors on `on`, but its subject may be a spell
+/// grant ("Creature spells") rather than a permanent — see
+/// [`parse_cant_be_countered`]. Any action outside the known set declines the
+/// whole.
 fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
+    let low = pred.to_ascii_lowercase();
+    // Passive "can't be countered" ([CR#701.6a,113.6g]): the subject is the
+    // countered object (`on`). Self "~" resolves via subject_to_filter
+    // (Ref(This)); a spell-subject grant ("Creature spells") isn't a permanent
+    // filter, so fall back to spell_subject. Handled before the actor-subject
+    // filter below.
+    if low.starts_with("be countered") {
+        let on = modify::subject_to_filter(subj)
+            .or_else(|| crate::parsers::filter::spell_subject(subj))?;
+        let row = parse_cant_be_countered(&on, &low)?;
+        return Some(format!("Static({row})"));
+    }
     let filter = modify::subject_to_filter(subj)?;
     // The passive "be blocked …" evasion clause is a single clause whose tail
     // ("by creatures with power 2 or less") contains its own "or" — handle it
     // BEFORE the active-verb list split, which would shred that tail.
-    let low = pred.to_ascii_lowercase();
     if low.starts_with("be blocked") {
         let row = parse_cant_be_blocked(&filter, &low)?;
-        return Some(format!("Static({row})"));
-    }
-    if low.starts_with("be countered") {
-        let row = parse_cant_be_countered(&filter, &low)?;
         return Some(format!("Static({row})"));
     }
     let effects: Option<Vec<String>> = modify::split_list(pred)
@@ -748,6 +758,24 @@ mod tests {
     fn cant_be_countered_declines_agent_tail() {
         // "by …" agent/duration tails are deferred — stay Unparsed.
         assert_eq!(stat("~ can't be countered by blue spells."), None);
+    }
+
+    #[test]
+    fn cant_be_countered_grant_creature_spells() {
+        // Gaea's Herald. Capture the EXACT string spell_subject("Creature spells")
+        // produces (run once, read the assert's left value) and put it here.
+        assert_eq!(
+            stat("Creature spells can't be countered.").as_deref(),
+            Some("Static(Cant(Counter(on: And([Kind(Spell), Type(\"Creature\")]))))"),
+        );
+    }
+
+    #[test]
+    fn cant_be_countered_grant_declines_bare_spells_you_control() {
+        // "Spells you control" has no adjective and uses "you control" (not "you
+        // cast"); spell_subject declines it, so the line stays Unparsed. Out of
+        // scope for this ticket (those cards are multi-Unparsed).
+        assert_eq!(stat("Spells you control can't be countered."), None);
     }
 
     #[test]
