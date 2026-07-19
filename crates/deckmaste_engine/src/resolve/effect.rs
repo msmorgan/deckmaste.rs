@@ -1212,26 +1212,19 @@ impl GameState {
             // cards off the top of `whose`'s library one at a time until one
             // matches, binding the found card as `It` and the passed-over
             // prefix as `They` (the Idris `bindFound`/`bindIt`+`bindThat`),
-            // then run `body`. GENUINELY ABSENT SUBSYSTEM — the identical
-            // seam the sibling `engine-explore` ticket
-            // (`docs/tickets/planned/engine-explore.md`, itself split out of
-            // `engine-scry-surveil-explore` for exactly this reason) is
-            // blocked on: `PlayerAction::Reveal` / `GameEvent::Revealed` are
-            // SHAPED but unbuilt (`todo!("P0.W6: reveal apply")` at
-            // `step.rs`'s `GameEvent::Revealed` apply arm;
-            // `todo!("P0.W6: reveal/look")` at this file's own
-            // `PlayerAction::Reveal` arm) — the reveal WINDOW lifetime
-            // machinery ([CR#701.20a]) they need does not exist. The
-            // predicate-match (`target::matches`) and `It`/`They`
-            // anaphora-binding machinery this needs ARE built and reusable,
-            // but walking the library and binding anaphora WITHOUT ever
-            // emitting a reveal fact would silently skip the one thing that
-            // makes "reveal" a real game action (a future "whenever a card
-            // is revealed"/"as long as it's revealed" consumer would see
-            // nothing happen) — a convenient-but-wrong shortcut, not a fix.
-            // Building the seam is a real subsystem, out of scope for a
-            // grammar-mirror task; this arm fizzles to a graceful no-op
-            // instead (nothing revealed, `body` never runs) — never a
+            // then run `body`. GENUINELY ABSENT SUBSYSTEM — but NOT the
+            // single-reveal seam, which is now built: `PlayerAction::Reveal` /
+            // `GameEvent::Revealed` are live (the `Explore` keyword action
+            // [CR#701.44a] reveals its top card through them), and the
+            // predicate-match (`target::matches`) plus `It`/`They`
+            // anaphora-binding machinery are built and reusable. What has no
+            // engine home yet is the VARIABLE-LENGTH reveal-until-match LOOP:
+            // minting and closing a reveal window per card ([CR#701.20a]) as
+            // it walks the top of the library, accumulating the passed-over
+            // prefix as `They`, and degrading gracefully when nothing matches.
+            // That bounded iteration is a real subsystem of its own (cascade /
+            // discover), out of scope here; this arm fizzles to a graceful
+            // no-op instead (nothing revealed, `body` never runs) — never a
             // panic, matching the CRITICAL never-crash ruling.
             OneShotEffect::RevealUntil(_) => {}
             OneShotEffect::AdditionalCost(ac) => {
@@ -4822,6 +4815,114 @@ mod tests {
         for _ in 0..10 {
             state.step();
         }
+    }
+
+    /// Mint a single card of type `ty` onto the (empty) top of `owner`'s
+    /// library and return it. `game()` starts with empty libraries, so the
+    /// lone `push_back` object is the top card.
+    fn mint_library_top(state: &mut GameState, owner: PlayerId, name: &str, ty: Type) -> ObjectId {
+        let cid = state.cards.push(
+            Arc::new(Card::Normal(deckmaste_core::CardFace {
+                name: name.into(),
+                types: vec![ty.def()],
+                ..deckmaste_core::CardFace::default()
+            })),
+            owner,
+        );
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), owner, Some(Zone::Library));
+        state.zones.libraries[owner.index()].push_back(id);
+        id
+    }
+
+    /// A bare creature permanent for `p0` to be the "exploring permanent".
+    fn explorer_on_field(state: &mut GameState) -> ObjectId {
+        mint_on_field(
+            state,
+            Card::Normal(deckmaste_core::CardFace {
+                name: "Explorer".into(),
+                types: vec![Type::Creature.def()],
+                ..deckmaste_core::CardFace::default()
+            }),
+        )
+    }
+
+    /// Explore [CR#701.44a]: the controller reveals the top card of their
+    /// library; a revealed LAND goes to hand — no +1/+1 counter, no
+    /// may-to-graveyard. The reveal is public ([CR#701.20a]).
+    #[test]
+    fn explore_reveals_land_into_hand() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let source = explorer_on_field(&mut state);
+        let land = mint_library_top(&mut state, p0, "Forest", Type::Land);
+
+        let effect: OneShotEffect = builtin().macros.read_str("Explore").unwrap();
+        state.run_effect(effect, &frame_src(source));
+        let _ = drain_progress(&mut state, 80);
+
+        assert!(
+            logged(&state, |e| matches!(e, GameEvent::Revealed(_))),
+            "explore reveals the top card to all players ([CR#701.20a])"
+        );
+        // A zone change remints the object under a fresh id, so match the moved
+        // card by identity, not the pre-move `land` id.
+        assert!(
+            state.zones.hands[p0.index()]
+                .iter()
+                .any(|&o| matches!(state.def(o), Card::Normal(f) if f.name == "Forest")),
+            "a revealed land card is put into hand ([CR#701.44a])"
+        );
+        assert!(
+            !state.zones.libraries[p0.index()].contains(&land),
+            "the revealed land left the top of the library for the hand"
+        );
+        assert!(
+            !logged(
+                &state,
+                |e| matches!(e, GameEvent::CounterPlaced(cp) if cp.object == source)
+            ),
+            "the land branch places no +1/+1 counter ([CR#701.44a])"
+        );
+    }
+
+    /// Explore [CR#701.44a]: a revealed NON-land puts a +1/+1 counter on the
+    /// exploring permanent and offers a may-put-into-graveyard. The revealed
+    /// card stays on top until decided ([CR#701.20b] — revealing never moves
+    /// it).
+    #[test]
+    fn explore_reveals_nonland_counter_then_may_graveyard() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let source = explorer_on_field(&mut state);
+        let spell = mint_library_top(&mut state, p0, "Shock", Type::Instant);
+
+        let effect: OneShotEffect = builtin().macros.read_str("Explore").unwrap();
+        state.run_effect(effect, &frame_src(source));
+        // Drains through the reveal + counter and STOPS at the may-to-graveyard
+        // decision ([CR#701.44a]).
+        let _ = drain_progress(&mut state, 80);
+
+        assert!(
+            logged(&state, |e| matches!(e, GameEvent::Revealed(_))),
+            "explore reveals the top card ([CR#701.20a])"
+        );
+        assert!(
+            logged(
+                &state,
+                |e| matches!(e, GameEvent::CounterPlaced(cp) if cp.object == source)
+            ),
+            "a non-land puts a +1/+1 counter on the exploring permanent ([CR#701.44a])"
+        );
+        assert!(
+            state.pending.is_some(),
+            "and then offers a may-put-into-graveyard decision ([CR#701.44a])"
+        );
+        assert!(
+            state.zones.libraries[p0.index()].contains(&spell),
+            "the revealed non-land stays on top pending the may ([CR#701.20b])"
+        );
     }
 
     /// `BottomOfLibrary` mirrors `TopOfLibrary` from the other end (bottom→up

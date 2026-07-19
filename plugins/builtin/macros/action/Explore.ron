@@ -1,0 +1,34 @@
+// "Explore" [CR#701.44a]: the exploring permanent's controller reveals the top
+// card of their library. If a land card is revealed, that player puts it into
+// their hand; otherwise they put a +1/+1 counter on the exploring permanent and
+// MAY put the revealed card into their graveyard.
+//
+// No dedicated Explore atom — composed from primitives (the house style, cf.
+// `Amass.ron`/`Investigate.ron`): bind the top card (`Each` over `TopOfLibrary`
+// 1 -> `It`), publicly `Reveal` it (`to` defaults to None = all players
+// [CR#701.20a]), then branch on its type. `This` stays the exploring permanent
+// (never rebinds inside `Each`), so the counter lands on the creature while the
+// hand/graveyard moves act on the revealed card `It`. Revealing never moves the
+// card ([CR#701.20b]); a non-land the player keeps stays on top.
+(
+    name: "Explore",
+    template: "explore",
+    kinds: [OneShotEffect, KeywordAction],
+    body: Composite(
+        name: Explore,
+        body: Each(
+            binder: Existing(TopOfLibrary(count: 1)),
+            effect: Sequentially([
+                Reveal(what: It),
+                If(
+                    condition: Matches(It, Type("Land")),
+                    then: Move(It, Hand),
+                    otherwise: Sequentially([
+                        PutCounters(This, P1P1Counter, 1),
+                        May(effect: Move(It, Graveyard)),
+                    ]),
+                ),
+            ]),
+        ),
+    ),
+)

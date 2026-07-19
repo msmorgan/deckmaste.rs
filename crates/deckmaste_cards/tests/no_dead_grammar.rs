@@ -355,11 +355,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             Liberated's -14) in this batch.",
         ),
         (
-            n("PlayerAction", "Reveal"),
-            "DEFERRED: no bare Reveal-only real card in this batch \
-            (canon's reveal-adjacent cards fold revealing into SeparatePiles).",
-        ),
-        (
             n("Duration", "UntilEvent"),
             "DEFERRED: no 'until (event) happens' one-shot-duration real \
             card in this batch.",

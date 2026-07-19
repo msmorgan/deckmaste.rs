@@ -775,6 +775,27 @@ impl GameState {
                 let act = future(verb, Some(player), vec![], None, None, None, true);
                 vec![WorkItem::Emit(Occurrence::single(act))]
             }
+            // ── Explore: reveal-the-top-card then branch on its type
+            // ([CR#701.44a]). Unlike the reorder verbs' scry-0 fizzle, the
+            // permanent explores even when some or all of the actions are
+            // impossible ([CR#701.44b]) — an empty library still yields the
+            // +1/+1 counter — so the window always opens (no
+            // `composite_body_would_act` guard). Like the reorder verbs it
+            // carries its body: the reveal → (land ? hand : +1/+1 counter +
+            // may-to-graveyard) runs from the apply via the generic
+            // body-run lane, and `FinalizeAct{BodyRan}` records the past
+            // `Act(Explore)` name-fact a "whenever a permanent explores"
+            // trigger reads ([CR#701.44]). ──
+            "Explore" => {
+                let Some(who) = composite_body_whose(body) else {
+                    return vec![];
+                };
+                let Some(player) = self.eval_player_ref(who, frame) else {
+                    return vec![]; // unresolvable performer — fizzle
+                };
+                let act = future("Explore", Some(player), vec![], None, None, None, true);
+                vec![WorkItem::Emit(Occurrence::single(act))]
+            }
             // ── Fight: If-guarded reciprocal damage ([CR#701.14a]) ──
             "Fight" => {
                 let Some((a, b)) = deckmaste_core::fight_body_fighters(body) else {
