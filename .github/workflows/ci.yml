@@ -81,6 +81,11 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
         run: cargo test --workspace
+      # CR coverage ratchet. Unlike `cite check`, this needs no skill and no
+      # cr.json — it self-scans committed sources and compares to the committed
+      # cr-coverage.lock, so it is green on a clean runner.
+      - name: cr coverage ratchet
+        run: cargo xtask cite coverage --check
       # NOTE: `cargo xtask cite check` is intentionally not run yet — it shells
       # out to the mtg-rules skill and needs the CR snapshot under data/, neither
       # of which a clean runner has. Wiring it in (install the skill + fetch just
