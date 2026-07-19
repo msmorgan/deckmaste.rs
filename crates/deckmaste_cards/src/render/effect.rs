@@ -94,22 +94,10 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // phrase ("target creature you control"), so `${0} fights ${1}` reads
         // back to oracle; other args keep the context-free `render_slot`. The
         // sentence is capitalized (a reference-leading template starts lower).
-        OneShotEffect::Expanded(e) => {
-            let filled = e.template.as_deref().and_then(|tmpl| {
-                super::template::fill_with(tmpl, ctx.subject, &e.args, |raw, modifier| {
-                    if modifier.is_none()
-                        && let Ok(r) = deckmaste_core::ron::options().from_str::<Reference>(raw)
-                    {
-                        return Some(fragment::reference(&r, ctx));
-                    }
-                    super::template::render_slot(raw, modifier)
-                })
-            });
-            match filled {
-                Some(s) => ensure_period(&capitalize_first(&s)),
-                None => effect(&e.value, ctx),
-            }
-        }
+        OneShotEffect::Expanded(e) => match expanded_effect(e, ctx) {
+            Some(s) => ensure_period(&capitalize_first(&s)),
+            None => effect(&e.value, ctx),
+        },
         OneShotEffect::Continuously(c) => {
             let clause = super::ability::static_effect_one_shot(&c.effect, ctx).map_or_else(
                 || format!("[unrendered: {:?}]", c.effect),
@@ -320,6 +308,32 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
 /// never silently drops the clause).
 fn unrendered(e: &OneShotEffect) -> String {
     format!("[unrendered: {e:?}].")
+}
+
+/// Render a macro invocation through its own rules-text `template`, resolving
+/// args CONTEXT-aware (the template layer is context-free and can't reach
+/// `fragment`): a `Reference` arg — a fight's `Target(n)` — renders as its
+/// phrase ("target creature you control"), so `${0} fights ${1}` reads back to
+/// oracle; a `${n:pro}` slot renders the number-aware PRONOMINAL re-mention
+/// ("it"/"they") English uses for an immediate next-sentence back-reference
+/// ("… It can't be regenerated."); every other arg keeps the context-free
+/// `render_slot`. `None` when there's no template or a slot declines — the
+/// caller then falls back to structural rendering of `e.value`.
+fn expanded_effect(e: &deckmaste_core::Expansion<OneShotEffect>, ctx: &Ctx) -> Option<String> {
+    let tmpl = e.template.as_deref()?;
+    super::template::fill_with(tmpl, ctx.subject, &e.args, |raw, modifier| {
+        if modifier.is_none()
+            && let Ok(r) = deckmaste_core::ron::options().from_str::<Reference>(raw)
+        {
+            return Some(fragment::reference(&r, ctx));
+        }
+        // A `${n:pro}` slot needs `ctx` for the referent's number, so it is
+        // resolved here (the context-free `render_slot` declines it).
+        if modifier == Some("pro") {
+            return fragment::reference_pronoun(raw, ctx);
+        }
+        super::template::render_slot(raw, modifier)
+    })
 }
 
 /// The Delver-of-Secrets front ability ([CR#701.27a]): "Look at the top card
@@ -2681,6 +2695,28 @@ mod tests {
             .macros
             .read_str(src)
             .unwrap_or_else(|e| panic!("expanding keyword action {src:?}: {e}"))
+    }
+
+    /// `DestroyNoRegen`'s rider pronoun is a number-aware PRONOMINAL re-mention
+    /// (`${0:pro}`), not a hardcoded literal: a singular target renders the
+    /// capitalized "It" ([CR#608.2d]) that opens the second sentence, yielding
+    /// the exact oracle string the parser round-trips. Regression against the
+    /// old baked-capital "It" literal — same output, principled machinery.
+    #[test]
+    fn destroy_no_regen_renders_capitalized_it_pronoun() {
+        let e = kw("DestroyNoRegen(Target(0))");
+        let targets = [TargetSpec::Target(Quantity::one(), Predicate::creature())];
+        let named = std::cell::Cell::new(0);
+        let ctx = Ctx {
+            subject: "Doom Blade",
+            targets: &targets,
+            that: None,
+            named: Some(&named),
+        };
+        assert_eq!(
+            effect(&e, &ctx),
+            "Destroy target creature. It can't be regenerated."
+        );
     }
 
     /// `MayPay`/`MustPay` agree the payer's verb with its grammatical person

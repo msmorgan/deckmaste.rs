@@ -13,7 +13,11 @@
 // a `Targeted` shell.
 (
     name: "DestroyNoRegen",
-    template: "destroy ${0}. It can't be regenerated",
+    // The rider's pronoun is a PRONOMINAL re-mention of the destroyed thing
+    // (`${0:pro}`), number-aware: a single target renders "It", a plural/mass
+    // one "They" ([CR#608.2d]). It opens a new sentence, so the filler
+    // capitalizes it — the pronoun is not hardcoded here.
+    template: "destroy ${0}. ${0:pro} can't be regenerated",
     kinds: [OneShotEffect],
     params: [Reference],
     body: Sequentially([

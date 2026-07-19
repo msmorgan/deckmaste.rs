@@ -450,6 +450,92 @@ fn target_rementioned(i: usize, ctx: &Ctx) -> String {
     noun.map_or_else(|| "it".to_string(), |n| format!("that {n}"))
 }
 
+/// The number-aware nominative PRONOUN for a re-mention of `raw` (a `Reference`
+/// or `Selection` arg) — the render of a `${n:pro}` template slot. "it" for a
+/// single object, "they" for a plural group.
+///
+/// This is the *pronominal* re-mention, distinct from [`target_rementioned`]'s
+/// *demonstrative* one ("that creature"): English uses the bare pronoun for an
+/// immediate next-sentence back-reference ("Destroy target creature. **It**
+/// can't be regenerated."; "Destroy all creatures. **They** can't be
+/// regenerated.") and reserves "that <noun>" for a distal or disambiguating
+/// mention. Both are the same indexed slot in the model — the register is the
+/// renderer's to supply ([CR#608.2d]).
+///
+/// Number is a property of the arg's KIND, not the slot: a `Reference` names a
+/// single object ([CR#115.4] — a target is one object; a plural target is read
+/// as `Selection::Targets`) → "it"; a plural `Selection` group → "they". The
+/// lowercase pronoun is returned; sentence-initial capitalization is the
+/// template filler's job ([`super::template::fill_with`]), not this layer's.
+/// A shape this layer does not classify (a player reference, whose pronoun is
+/// "they" not "it"; a count-bearing or singleton `Selection`) declines
+/// (`None`) — the caller falls back to structural rendering, never a wrong
+/// pronoun.
+pub(super) fn reference_pronoun(raw: &str, ctx: &Ctx) -> Option<String> {
+    let opts = deckmaste_core::ron::options();
+    if let Ok(r) = opts.from_str::<Reference>(raw) {
+        return reference_object_pronoun(&r, ctx);
+    }
+    if let Ok(sel) = opts.from_str::<Selection>(raw) {
+        return selection_is_plural(&sel).map(|plural| pronoun_word(plural).to_string());
+    }
+    None
+}
+
+/// "they" for a plural referent, "it" for a singular one — the nominative
+/// pronoun by number.
+fn pronoun_word(plural: bool) -> &'static str {
+    if plural { "they" } else { "it" }
+}
+
+/// A singular `Reference`'s nominative pronoun for a re-mention: "it" for an
+/// OBJECT reference. A player reference (a responsible player, a derived
+/// controller/owner) has no object pronoun — its re-mention is "they", handled
+/// when a card needs it — so it declines (`None`) rather than mis-render "it".
+fn reference_object_pronoun(r: &Reference, ctx: &Ctx) -> Option<String> {
+    match r {
+        // A target slot: "it" for an object slot; a player slot declines (its
+        // pronoun is "they", a follow-up). A slot index past the announce list
+        // has no filter to inspect and reads as an object re-mention.
+        Reference::Target(n) => match ctx
+            .targets
+            .get(*n)
+            .and_then(target_spec_filter)
+            .and_then(slot_noun)
+        {
+            Some(noun) if noun == "player" => None,
+            _ => Some("it".to_string()),
+        },
+        // The source object, the stack/element anaphor, a triggering event's
+        // object/patient — all single objects → "it".
+        Reference::This | Reference::It | Reference::EventObject | Reference::EventPatient => {
+            Some("it".to_string())
+        }
+        // Player references (responsible player, defending player, derived
+        // controller/owner, coalesced toll-payer, `You`) have no object pronoun
+        // yet — decline.
+        _ => None,
+    }
+}
+
+/// Whether a [`Selection`] group reads as grammatically plural ("they") or
+/// singular ("it") for a pronominal re-mention. `None` for a shape whose number
+/// this layer does not yet classify — the caller declines rather than guess.
+/// Only the plural GROUP reads a mass re-mention uses today are classified; the
+/// count-bearing and singleton selections graduate with the paths that need
+/// them.
+fn selection_is_plural(sel: &Selection) -> Option<bool> {
+    match sel {
+        Selection::They
+        | Selection::Them(_)
+        | Selection::SelectAll(_)
+        | Selection::Union(_)
+        | Selection::PilesOf { .. } => Some(true),
+        Selection::Expanded(e) => selection_is_plural(&e.value),
+        _ => None,
+    }
+}
+
 /// The head noun of an announced slot's filter, for a re-mention's "that
 /// <noun>": a card type ("creature", "artifact"), or the player kind.
 fn slot_noun(filter: &Predicate) -> Option<String> {
@@ -1327,6 +1413,47 @@ mod tests {
             named: None,
         };
         assert_eq!(reference(&Reference::It, &scoped), "each creature");
+    }
+
+    /// `reference_pronoun` is the PRONOMINAL re-mention ("it"/"they"), distinct
+    /// from `target_rementioned`'s demonstrative "that creature". Number comes
+    /// from the arg's kind: an object `Reference` → "it"; a plural `Selection`
+    /// group → "they"; a player reference (pronoun "they", a follow-up) and an
+    /// unclassified selection decline. The pronoun is lowercase — sentence-
+    /// initial casing is the filler's job.
+    #[test]
+    fn reference_pronoun_is_number_aware() {
+        use deckmaste_core::Quantity;
+        use deckmaste_core::TargetSpec;
+
+        let creature = [TargetSpec::Target(Quantity::one(), Predicate::creature())];
+        let c = Ctx {
+            subject: "Bolt",
+            targets: &creature,
+            that: None,
+            named: None,
+        };
+        // An object target slot, the source object, and an event object all
+        // re-mention as the singular "it".
+        assert_eq!(reference_pronoun("Target(0)", &c).as_deref(), Some("it"));
+        assert_eq!(reference_pronoun("This", &c).as_deref(), Some("it"));
+        assert_eq!(reference_pronoun("EventObject", &c).as_deref(), Some("it"));
+        // A plural `Selection` group re-mentions as "they".
+        assert_eq!(reference_pronoun("They", &c).as_deref(), Some("they"));
+        // A player target slot has no object pronoun yet — declines.
+        let player = [TargetSpec::Target(
+            Quantity::one(),
+            Predicate::Kind(ObjectKind::Player),
+        )];
+        let pc = Ctx {
+            subject: "x",
+            targets: &player,
+            that: None,
+            named: None,
+        };
+        assert_eq!(reference_pronoun("Target(0)", &pc), None);
+        // A bare player reference declines too.
+        assert_eq!(reference_pronoun("You", &c), None);
     }
 
     /// The new filter nouns: an ability on the stack, and the team-relative

@@ -101,13 +101,47 @@ pub(super) fn fill_with(
                     }
                 } else {
                     let (key, modifier) = split_modifier(content.trim());
-                    out.push_str(&resolve(lookup_arg(args, key)?, modifier)?);
+                    let val = resolve(lookup_arg(args, key)?, modifier)?;
+                    // Sentence-initial capitalization: a slot that opens a new
+                    // sentence (its render directly follows ". ") is capitalized,
+                    // the way a baked-capital literal ("It can't be regenerated")
+                    // used to carry it. This is what lets a multi-sentence
+                    // template pronominalize an earlier mention through a slot
+                    // (`${0:pro}` → "It"/"They") instead of a hardcoded pronoun,
+                    // while a mid-sentence slot stays lowercase.
+                    if at_sentence_start(&out) {
+                        out.push_str(&capitalize_first(&val));
+                    } else {
+                        out.push_str(&val);
+                    }
                 }
             }
             other => out.push(other),
         }
     }
     Some(out)
+}
+
+/// Whether `out` currently sits at the start of a new sentence: the emitted
+/// text ends with a sentence terminator followed by whitespace (". "). Used to
+/// capitalize a slot that opens an interior sentence of a multi-sentence
+/// template. The leading sentence is capitalized by the caller
+/// (`capitalize_first` over the whole filled string), so an empty `out` is not
+/// a sentence start here.
+fn at_sentence_start(out: &str) -> bool {
+    let trimmed = out.trim_end_matches(char::is_whitespace);
+    trimmed.len() < out.len() && trimmed.ends_with('.')
+}
+
+/// Uppercase the first character of `s` (the rest verbatim). Local twin of the
+/// effect renderer's private `capitalize_first`, kept here so the template
+/// filler needn't reach across modules for a two-line helper.
+fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    }
 }
 
 /// Split a slot spec `key:modifier` into its key and optional modifier codec
@@ -704,5 +738,26 @@ mod tests {
 
         let absent = fill("hexproof${ from #from#}", "ignored", &ExpansionArgs::none());
         assert_eq!(absent.as_deref(), Some("hexproof"));
+    }
+
+    /// A slot that opens an interior sentence (its render directly follows ".
+    /// ") is capitalized — the general form of the baked-capital pronoun a
+    /// multi-sentence template used to hardcode. A mid-sentence slot stays as
+    /// rendered.
+    #[test]
+    fn slot_opening_an_interior_sentence_is_capitalized() {
+        let opener = fill(
+            "done. ${0} attacks",
+            "x",
+            &ExpansionArgs::Positional(vec!["Type(Creature)".into()]),
+        );
+        assert_eq!(opener.as_deref(), Some("done. Creature attacks"));
+
+        let mid = fill(
+            "tap ${0}",
+            "x",
+            &ExpansionArgs::Positional(vec!["Type(Creature)".into()]),
+        );
+        assert_eq!(mid.as_deref(), Some("tap creature"));
     }
 }

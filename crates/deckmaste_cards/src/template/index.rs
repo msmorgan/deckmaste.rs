@@ -217,6 +217,31 @@ where
     }
 }
 
+/// Consume an anaphoric pronoun ("it"/"they", case-folded, word-bounded) at
+/// `cursor` — the parse twin of a `${n:pro}` slot's number-aware render.
+/// Returns the cursor past the pronoun, or `None` if none is present. Binds
+/// nothing: the slot it re-mentions is already captured, so parse need only
+/// accept whichever pronoun the render side emitted (the render guarantees the
+/// right number).
+fn match_anaphor(input: &str, cursor: usize) -> Option<usize> {
+    // Longer pronoun first, though the two share no prefix. The trailing
+    // word-boundary check stops "it" from eating the start of "items".
+    for pronoun in ["they", "it"] {
+        let end = cursor + pronoun.len();
+        if input
+            .get(cursor..end)
+            .is_some_and(|s| s.eq_ignore_ascii_case(pronoun))
+            && !input[end..]
+                .chars()
+                .next()
+                .is_some_and(char::is_alphanumeric)
+        {
+            return Some(end);
+        }
+    }
+    None
+}
+
 /// Try to match an optional fragment (`prefix` literal, typed `slot`, `suffix`
 /// literal) at `cursor`. Returns the slot's raw arg and the new cursor on a
 /// full match, or `None` (the fragment is absent — caller leaves the cursor).
@@ -273,6 +298,18 @@ where
                     return None;
                 }
                 cursor += 1;
+            }
+            Segment::Slot(slot) if slot.modifier.as_deref() == Some("pro") => {
+                // An anaphoric `${n:pro}` slot: a PRONOMINAL re-mention that
+                // consumes the pronoun ("it"/"they") but binds NOTHING — it
+                // re-points at slot n, already captured by that slot's own
+                // `${n}`. So the pronoun is matched and skipped, no arg pushed;
+                // the invocation's args come only from the primary slots. This
+                // is what lets a multi-sentence template ("destroy ${0}.
+                // ${0:pro} can't be regenerated") parse back to a single-arg
+                // invocation, the reverse of the render side's number-aware
+                // pronoun.
+                cursor = match_anaphor(input, cursor)?;
             }
             Segment::Slot(slot) => {
                 let (arg, new_cursor) = read_slot(slot, input, cursor, slot_reader)?;
@@ -422,6 +459,42 @@ mod tests {
             .expect("protection from <x> matches");
         assert_eq!(m.invocation, "Protection(ColorIs(black))");
         assert_eq!(m.consumed, "protection from black".len());
+    }
+
+    /// A `${n:pro}` anaphoric slot consumes the pronoun ("It") but binds
+    /// nothing: `DestroyNoRegen`'s "destroy ${0}. ${0:pro} can't be
+    /// regenerated" parses back to a single-arg invocation, the reverse of
+    /// the render side's number-aware pronoun.
+    #[test]
+    fn anaphoric_pro_slot_binds_nothing_and_round_trips() {
+        let m = builtin()
+            .match_with(
+                "OneShotEffect",
+                "destroy target creature. It can't be regenerated",
+                |_ty, rest| {
+                    // The target reader stops at the sentence break; the
+                    // `${0:pro}` slot then matches "It" and captures nothing.
+                    let end = rest.find(". ").unwrap_or(rest.len());
+                    Some(("Target(0)".to_string(), end))
+                },
+            )
+            .unwrap()
+            .expect("destroy-no-regen matches");
+        assert_eq!(m.invocation, "DestroyNoRegen(Target(0))");
+        assert_eq!(
+            m.consumed,
+            "destroy target creature. It can't be regenerated".len()
+        );
+    }
+
+    /// `match_anaphor` accepts either nominative pronoun (case-folded) and
+    /// respects a word boundary — "it" must not eat the start of "items".
+    #[test]
+    fn match_anaphor_accepts_it_and_they_word_bounded() {
+        assert_eq!(match_anaphor("it can't", 0), Some(2));
+        assert_eq!(match_anaphor("They can't", 0), Some(4));
+        assert_eq!(match_anaphor("items", 0), None);
+        assert_eq!(match_anaphor("that creature", 0), None);
     }
 
     #[test]
