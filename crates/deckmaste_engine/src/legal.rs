@@ -227,17 +227,20 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // EVALUATED at target-candidate computation, Must(Target) requirements
     // (the Flagbearer class) at target-choice submission, the flash
     // shape — May(Cast(window: InstantSpeed)) with no from/cost slot — is
-    // EVALUATED as a timing lift in can_cast ([CR#702.8a]), every
+    // EVALUATED as a timing lift in can_cast ([CR#702.8a]), every SLOTLESS
     // Cant(Cast) row (split second on the stack, or a battlefield "can't
-    // cast" grant, [CR#702.61a]) is EVALUATED by `cant_cast`, and the
-    // land-play marker — May(Play) with no `from` slot, which a card's Land
-    // type confers — is EVALUATED as land-play legality via
-    // `confers_may_play` (offered as PlayLand in the hand-scan above,
-    // [CR#116.2a,305.9,701.18]). The guard keeps the unevaluated rest: every
-    // other Cast row shape (zone permissions, alternative costs, the
-    // remaining May(Cast) shapes carrying `from`/`cost`, Must/Gate(Cast)),
-    // the from-zone / non-May Play shapes, non-Cant/non-May Attach rows, and
-    // the May/Gate Target polarities.
+    // cast" grant, [CR#702.61a]) is EVALUATED by `cant_cast`/`cant_cast_rows`
+    // — which pattern-match `Cast { what, by, .. }` and so only ever see the
+    // `from`/`window`/`cost`-less shape — and the land-play marker —
+    // May(Play) with no `from` slot, which a card's Land type confers — is
+    // EVALUATED as land-play legality via `confers_may_play` (offered as
+    // PlayLand in the hand-scan above, [CR#116.2a,305.9,701.18]). The guard
+    // keeps the unevaluated rest: every other Cast row shape (zone
+    // permissions, alternative costs, the remaining May(Cast) shapes
+    // carrying `from`/`cost`, Must/Gate(Cast), and a SLOTTED Cant(Cast) —
+    // e.g. a future "can't cast from graveyard" — which `cant_cast` does not
+    // evaluate), the from-zone / non-May Play shapes, non-Cant/non-May
+    // Attach rows, and the May/Gate Target polarities.
     guard_deontic_seam(
         state,
         &view,
@@ -245,7 +248,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
             DeonticAction::Cast {
                 from, window, cost, ..
             } => {
-                !(is_cant(d)
+                !((is_cant(d) && from.is_none() && window.is_none() && cost.is_none())
                     || (is_may(d)
                         && *window == Some(deckmaste_core::Timing::InstantSpeed)
                         && from.is_none()
@@ -267,7 +270,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
             DeonticAction::Target { .. } => !is_cant(d) && !is_must(d),
             _ => false,
         },
-        "cast (flash May + Cant evaluated) + from-zone/non-May play + non-Cant attach + May/Gate target",
+        "cast (flash May + slotless-Cant evaluated) + from-zone/non-May play + non-Cant attach + May/Gate target",
     );
     // The former P0.W2 `CostModifier` presence guard converted to the real
     // [CR#601.2f] pipeline: `GameState::mana_cost` applies the rows (see
@@ -2280,6 +2283,36 @@ mod tests {
         let _ = super::legal_actions(&state, PlayerId(0));
     }
 
+    /// M1 regression: `cant_cast`/`cant_cast_rows` pattern-match
+    /// `DeonticAction::Cast { what, by, .. }` and so only ever evaluate the
+    /// SLOTLESS shape — `from`/`window`/`cost` are ignored by the `..`. A
+    /// SLOTTED `Cant(Cast)` row (e.g. a future "can't cast from graveyard",
+    /// `from: Some(Graveyard)`) is therefore NOT evaluated by `cant_cast`,
+    /// so the `guard_deontic_seam`'s Cast arm must keep tripping LOUDLY on
+    /// it rather than silently treating it as an all-zones prohibition
+    /// (which would be an over-application, not the authored restriction).
+    #[test]
+    #[should_panic(expected = "P0.W1")]
+    fn cant_cast_guard_still_trips_on_a_slotted_cant_cast_row() {
+        let mut state = game();
+        let _grave_lockout = obj_on_field(
+            &mut state,
+            "Grim Lockdown",
+            vec![Type::Enchantment],
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Cast {
+                    what: Predicate::Any,
+                    by: Predicate::Any,
+                    from: Some(Zone::Graveyard),
+                    window: None,
+                    cost: None,
+                    tag: None,
+                },
+            )))],
+        );
+        let _ = super::legal_actions(&state, PlayerId(0));
+    }
+
     // --- land-play (May(Play) capability) -----------------------------------
 
     /// A Land `TypeDef` carrying the conferred `May(Play(what: Ref(This)))`
@@ -2847,6 +2880,177 @@ mod tests {
             "a battlefield blanket Cant(Activate(cost: None)) grant (Linvala \
              shape) blocks the non-mana ability [0] but leaves the mana \
              ability [1] legal ([CR#702.61b])"
+        );
+    }
+
+    // --- M2: split-second-style lockout exemptions ([CR#702.61b]) ----------
+
+    /// Mint a land card (via the conferred `May(Play)` row from
+    /// `land_typedef()`) into `controller`'s HAND — mirrors
+    /// `conferred_land_on_field`, but the PlayLand-during-lockout regression
+    /// below needs the land offered as a hand candidate, not already on the
+    /// battlefield.
+    fn land_in_hand(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types: vec![land_typedef()],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card_id), controller, Some(Zone::Hand));
+        state.zones.hands[controller.index()].push(id);
+        id
+    }
+
+    /// [CR#702.61b]: playing a land is a SPECIAL ACTION, not a spell cast or
+    /// an activated ability — a blanket split-second-style lockout
+    /// (slotless `Cant(Cast)` + `Cant(Activate)`, the shape `cant_cast` /
+    /// `cant_activate` actually evaluate) must not suppress it.
+    ///
+    /// Modeled as a BATTLEFIELD blanket grant (the Grand-Abolisher/Linvala
+    /// shape the sibling tests above use) rather than the genuine on-stack
+    /// split-second shape
+    /// (`cast_lockout_on_stack`/`activate_lockout_on_stack`):
+    /// `sorcery_speed_ok` itself requires an EMPTY stack ([CR#116.2a]),
+    /// so putting the lockout object ON the stack would make `PlayLand`
+    /// illegal for an unrelated reason (stack non-emptiness), confounding
+    /// the very thing this test isolates. This is a deliberate narrowing:
+    /// it still exercises the real `Cant(Cast)`/`Cant(Activate)` evaluation
+    /// paths (`cant_cast` via `can_cast`, `cant_activate` via the
+    /// battlefield loop), just anchored off-stack.
+    #[test]
+    fn play_land_still_offered_during_a_blanket_cast_and_activate_lockout() {
+        let mut state = game();
+        state.turn.current = deckmaste_core::PhaseStep::PrecombatMain;
+        // `game()` already sets `turn.active_player = PlayerId(0)` with an
+        // empty stack — sorcery timing holds absent the lockout.
+
+        let _lockdown = obj_on_field(
+            &mut state,
+            "Blanket Lockdown",
+            vec![Type::Enchantment],
+            vec![
+                Ability::r#static(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Cast {
+                    what: Predicate::Any,
+                    by: Predicate::Any,
+                    from: None,
+                    window: None,
+                    cost: None,
+                    tag: None,
+                }))),
+                Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Activate {
+                        what: Predicate::Any,
+                        by: Predicate::Any,
+                        cost: None,
+                    },
+                ))),
+            ],
+        );
+
+        let land = land_in_hand(&mut state, "Mountain", PlayerId(0));
+        // A sanity spell proving the lockout is genuinely live in this
+        // fixture — otherwise a broken/no-op lockout would make the
+        // PlayLand assertion below vacuous.
+        let grounded_spell = flash_spell_in_hand(&mut state, "Bolt", PlayerId(0));
+
+        let legal = super::legal_actions(&state, PlayerId(0));
+        assert!(
+            legal.contains(&crate::decide::Action::PlayLand { object: land }),
+            "a land in hand is still offered as PlayLand during a blanket \
+             Cant(Cast)+Cant(Activate) lockout — special actions are exempt \
+             ([CR#702.61b])"
+        );
+        assert!(
+            !legal.contains(&crate::decide::Action::CastSpell {
+                object: grounded_spell
+            }),
+            "sanity: the SAME lockout genuinely forbids casting — proves the \
+             PlayLand pass above is not vacuous"
+        );
+    }
+
+    /// [CR#603.3,702.61b]: trigger placement is not gated by casting/
+    /// activation legality at all — a split-second-style lockout SITTING ON
+    /// THE STACK (the genuine on-stack shape, via `cast_lockout_on_stack` /
+    /// `activate_lockout_on_stack`) must not prevent a noted trigger from
+    /// being placed as a `Triggered` stack object. Mirrors `trigger.rs`'s
+    /// `non_targeting_trigger_places_directly`: note the trigger by hand and
+    /// call `place_triggers()` directly — the same real placement barrier
+    /// ([CR#603.3]) production code calls, never touching
+    /// `cant_cast`/`cant_activate`.
+    #[test]
+    fn triggered_ability_still_places_on_stack_during_split_second_lockout() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::TriggeredAbility;
+
+        let mut state = game();
+        let source_obj = obj_on_field(
+            &mut state,
+            "Ticking Permanent",
+            vec![Type::Artifact],
+            vec![Ability::triggered(TriggeredAbility {
+                ability_word: None,
+                from: None,
+                event: EventFilter::OneOf(Vec::new()),
+                condition: None,
+                limits: Vec::new(),
+                where_x: None,
+                effect: OneShotEffect::Sequentially(Vec::new()),
+            })],
+        );
+        let source = state.objects.obj(source_obj).source;
+        let controller = state.objects.obj(source_obj).controller;
+
+        // The split-second lockout itself: stack objects carrying their OWN
+        // Cant(Cast) and Cant(Activate) rows (the genuine on-stack shape the
+        // `cant_cast`/`cant_activate` split-second tests above use).
+        cast_lockout_on_stack(
+            &mut state,
+            "Split Seconder (cast)",
+            PlayerId(1),
+            Predicate::Any,
+            Predicate::Any,
+        );
+        activate_lockout_on_stack(
+            &mut state,
+            "Split Seconder (activate)",
+            PlayerId(1),
+            Predicate::Any,
+            Predicate::Any,
+            None,
+        );
+
+        // Note the trigger by hand, exactly as `trigger.rs` unit tests do,
+        // then run the real placement barrier.
+        state.pending_triggers.push(crate::trigger::NotedTrigger {
+            source,
+            ability: 0,
+            created: None,
+            controller,
+            bindings: crate::trigger::TriggerBindings::default(),
+        });
+
+        let progress = state.place_triggers();
+        assert_eq!(
+            progress,
+            crate::step::Progress::TriggersPlaced { placed: 1 },
+            "the trigger places despite the split-second lockout sitting on \
+             the stack"
+        );
+        assert!(
+            state
+                .stack
+                .iter()
+                .any(|e| matches!(e.object, StackObject::Triggered { ability: 0, .. })),
+            "the Triggered stack object lands even while a split-second-style \
+             Cant(Cast)/Cant(Activate) lockout sits on the stack — trigger \
+             placement never consults cant_cast/cant_activate ([CR#702.61b])"
         );
     }
 }
