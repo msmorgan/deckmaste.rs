@@ -178,6 +178,10 @@ fn parse_restriction(subj: &str, pred: &str) -> Option<String> {
         let row = parse_cant_be_blocked(&filter, &low)?;
         return Some(format!("Static({row})"));
     }
+    if low.starts_with("be countered") {
+        let row = parse_cant_be_countered(&filter, &low)?;
+        return Some(format!("Static({row})"));
+    }
     let effects: Option<Vec<String>> = modify::split_list(pred)
         .iter()
         .map(|act| match act.to_ascii_lowercase().as_str() {
@@ -228,6 +232,20 @@ fn parse_cant_be_blocked(on: &str, clause: &str) -> Option<String> {
         .strip_prefix("by ")
         .and_then(crate::parsers::filter::parse_phrase)?;
     Some(format!("Cant(Block(on: {on}, by: {by}))"))
+}
+
+/// "<subject> can't be countered." — the passive counter prohibition
+/// ([CR#701.6a,113.6g]). `on` is the subject filter; `clause` is the
+/// lowercased predicate after "can't " (e.g. "be countered", "be countered by
+/// blue spells"). A bare tail is the unconditional row; any agent/duration
+/// tail ("by …") is deferred, so this declines rather than guess a Cant shape
+/// that doesn't exist yet.
+fn parse_cant_be_countered(on: &str, clause: &str) -> Option<String> {
+    let tail = clause.strip_prefix("be countered")?.trim();
+    if tail.is_empty() {
+        return Some(format!("Cant(Counter(on: {on}))"));
+    }
+    None
 }
 
 /// "<subject> can block <predicate>" → a blocking restriction/permission.
@@ -716,6 +734,20 @@ mod tests {
         // resolve) declines — no wrong Block row.
         assert!(stat("~ can't be blocked by creatures wearing hats.").is_none());
         assert!(stat("~ can block only creatures wearing hats.").is_none());
+    }
+
+    #[test]
+    fn cant_be_countered_self() {
+        assert_eq!(
+            stat("~ can't be countered.").as_deref(),
+            Some("Static(Cant(Counter(on: Ref(This))))"),
+        );
+    }
+
+    #[test]
+    fn cant_be_countered_declines_agent_tail() {
+        // "by …" agent/duration tails are deferred — stay Unparsed.
+        assert_eq!(stat("~ can't be countered by blue spells."), None);
     }
 
     #[test]
