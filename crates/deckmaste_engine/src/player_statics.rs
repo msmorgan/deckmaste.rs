@@ -51,10 +51,12 @@ fn resolve_player_ref(reference: &Reference, controller: PlayerId) -> Option<Pla
 impl GameState {
     /// Visit every battlefield `ModifyPlayer` static as `(affected, mod)`
     /// ([CR#611.3b] — statics function only on the battlefield). Effect sources
-    /// are read from PRINTED abilities (cycle-safe; a `ModifyPlayer` granted by
-    /// a layer-6 effect is a rare seam), flattened the same way the trigger and
-    /// object-layer scans flatten composites (so a keyword-composite static is
-    /// visited).
+    /// are read from the CURRENT face's printed abilities — a back-up two-faced
+    /// permanent sources its player-static from its BACK face
+    /// ([CR#712.8e]) — flattened the same way the trigger and object-layer
+    /// scans flatten composites (so a keyword-composite static is visited).
+    /// Reading printed (not layer-derived) abilities keeps this cycle-safe;
+    /// a `ModifyPlayer` granted by a layer-6 effect is a rare seam.
     fn for_each_player_mod(&self, mut visit: impl FnMut(PlayerId, &PlayerMod)) {
         for obj in self.objects.iter() {
             if obj.card_id().is_none() {
@@ -64,7 +66,7 @@ impl GameState {
                 continue;
             }
             let mut sources = Vec::new();
-            for ability in crate::derive::printed_abilities(self, obj.id) {
+            for ability in &crate::derive::face_of(self, obj.id).abilities {
                 crate::derive::flatten_composites(ability, &mut sources);
             }
             for ability in &sources {
@@ -239,6 +241,66 @@ mod tests {
         );
         assert_eq!(state.effective_max_hand_size(PlayerId(0)), None);
         assert_eq!(state.effective_max_hand_size(PlayerId(1)), Some(7));
+    }
+
+    /// [Task 5b][CR#712.8e]: a battlefield permanent showing its BACK face
+    /// sources its `ModifyPlayer` player-static from the back face. A
+    /// transforming DFC whose FRONT carries no player-static and whose BACK
+    /// raises land plays is inert front-up ([CR#712.8d]) and lifts its
+    /// controller to two land plays once back-up ([CR#712.8e]).
+    #[test]
+    fn back_up_permanent_sources_player_static_from_back_face() {
+        use deckmaste_core::Card;
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::Zone;
+
+        use crate::object::Side;
+
+        let front = CardFace {
+            name: "Quiet Front".into(),
+            types: vec![Type::Enchantment.def()],
+            ..CardFace::default()
+        };
+        let back = CardFace {
+            name: "Exploring Back".into(),
+            types: vec![Type::Enchantment.def()],
+            abilities: vec![Ability::r#static(StaticEffect::ModifyPlayer(
+                Reference::You,
+                PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, Count::Literal(1)),
+            ))],
+            ..CardFace::default()
+        };
+        let card = Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front,
+            back,
+        };
+        let mut state = game();
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+
+        // Front-up: the front face carries no player-static — the base one land
+        // play ([CR#712.8d]).
+        assert_eq!(
+            state.effective_land_plays_per_turn(PlayerId(0)),
+            1,
+            "front-up permanent contributes no ModifyPlayer static"
+        );
+
+        state.objects.obj_mut(id).side = Side::Back;
+
+        // Back-up: the back face's Exploration-style static now applies
+        // ([CR#712.8e]).
+        assert_eq!(
+            state.effective_land_plays_per_turn(PlayerId(0)),
+            2,
+            "back-up permanent sources its back face's ModifyPlayer static"
+        );
     }
 
     /// Two Explorations stack additively ([CR#611] — independent continuous

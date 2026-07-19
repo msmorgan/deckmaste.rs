@@ -186,7 +186,27 @@ pub fn abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>
 pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Ability> {
     match source {
         ObjectSource::Card(card) => {
-            let printed = &face(&state.cards.get(card).def).abilities;
+            // A BATTLEFIELD permanent showing its back sources its printed
+            // abilities from the current (back) face ([CR#712.8e]); off the
+            // battlefield — any other zone, an LKI/reminted source with no live
+            // battlefield object — a DFC has only its front characteristics
+            // ([CR#712.8a]). Resolve the source to its live battlefield object
+            // (the canonical `ob.source == source` lookup) to read the CURRENT
+            // face; else front. Reading the same face on BOTH the placement scan
+            // (via [`derived_abilities_of`]) and the resolution-time re-read keeps
+            // the fired trigger/replacement `(source, index)` self-consistent.
+            let live = state
+                .objects
+                .iter()
+                .find(|ob| {
+                    ob.source == source && ob.zone == Some(deckmaste_core::Zone::Battlefield)
+                })
+                .map(|ob| ob.id);
+            let current = match live {
+                Some(id) => face_of(state, id),
+                None => face(&state.cards.get(card).def),
+            };
+            let printed = &current.abilities;
             let mut out = Vec::with_capacity(printed.len());
             for ability in printed {
                 flatten_composites(ability, &mut out);
@@ -277,15 +297,19 @@ pub(crate) fn derived_abilities_of(
 
 /// The count of a live object's UNFLATTENED printed abilities — the length of
 /// the prefix `layer::base_values` seeds the derived ability list from
-/// (`instance.printed`) before any layer op appends. [`derived_abilities_of`]
-/// skips exactly this many entries of the layer view to isolate the
-/// layer-granted tail. A non-card-backed / absent id contributes 0.
+/// (`instance.face_cache(side).printed`) before any layer op appends.
+/// [`derived_abilities_of`] skips exactly this many entries of the layer view
+/// to isolate the layer-granted tail, so this MUST count the object's CURRENT
+/// face: a back-up two-faced permanent seeds from its BACK face ([CR#712.8e]),
+/// and a stale front-length skip would mis-slice the tail when the faces differ
+/// in printed length. A non-card-backed / absent id contributes 0.
 fn printed_base_len(state: &GameState, id: ObjectId) -> usize {
-    state
-        .objects
-        .get(id)
-        .and_then(crate::object::GameObject::card_id)
-        .map_or(0, |card| state.cards.get(card).front.printed.len())
+    let Some(obj) = state.objects.get(id) else {
+        return 0;
+    };
+    obj.card_id().map_or(0, |card| {
+        state.cards.get(card).face_cache(obj.side).printed.len()
+    })
 }
 
 /// Splice a composite keyword's members into `out` (recursively — a
@@ -498,6 +522,117 @@ mod tests {
                 .iter()
                 .any(|a| matches!(a, Ability::Keyword(KeywordAbility::Trample))),
             "a non-planeswalker does not gain the type-scoped conferred ability"
+        );
+    }
+
+    /// [Task 5b][CR#712.8e]: a BATTLEFIELD permanent showing its back sources
+    /// its PRINTED triggered abilities — the trigger-scan spine
+    /// `abilities_of_source` — from the BACK face; a front-up (or
+    /// off-battlefield) permanent sources them from the front ([CR#712.8a]).
+    /// The two faces carry DIFFERENT printed lengths (0 vs 1), so the
+    /// derived skip-count (`printed_base_len`, section 3 of
+    /// `derived_abilities_of`) is exercised too: the back trigger must land
+    /// in the index-stable section-1 prefix (`printed_len == 1`) and appear
+    /// EXACTLY once — a stale front-length skip of 0 would fold the layer
+    /// view's back trigger a SECOND time.
+    #[test]
+    fn back_up_permanent_sources_triggers_from_back_face() {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::Type;
+        use deckmaste_core::Zone;
+
+        use crate::object::Side;
+
+        let back_trigger = TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            from: None,
+            event: EventFilter::ZoneChange {
+                what: deckmaste_core::Predicate::Ref(Reference::This),
+                from: None,
+                to: Some(Zone::Graveyard),
+                cause: None,
+            },
+            condition: None,
+            limits: vec![],
+            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)),
+        };
+        // Front: vanilla 1/1, ZERO printed abilities. Back: 3/2 with ONE
+        // triggered ability the front lacks — distinct printed lengths (0 vs 1).
+        let front = CardFace {
+            name: "Front Vanilla".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(1)),
+            toughness: Some(StatValue::Number(1)),
+            ..CardFace::default()
+        };
+        let back = CardFace {
+            name: "Back Triggerer".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(3)),
+            toughness: Some(StatValue::Number(2)),
+            abilities: vec![Ability::triggered(back_trigger.clone())],
+            ..CardFace::default()
+        };
+        let card = Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front,
+            back,
+        };
+        let mut state = game();
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let source = ObjectSource::Card(card_id);
+        let id = state
+            .objects
+            .mint(source, PlayerId(0), Some(Zone::Battlefield));
+        state.zones.battlefield.push(id);
+
+        // Front-up: the trigger scan sees the front face — no triggered ability.
+        assert!(
+            !super::abilities_of_source(&state, source)
+                .iter()
+                .any(|a| matches!(a, Ability::Triggered(_))),
+            "front-up permanent sources no triggered ability from its vanilla \
+             front face [CR#712.8d]"
+        );
+
+        // Flip to the back face (Task 5 wires `Transform` to set this; driven
+        // directly here, mirroring the layer-view test harness).
+        state.objects.obj_mut(id).side = Side::Back;
+
+        // Back-up: the trigger scan sources the back face's trigger [CR#712.8e].
+        let triggers: Vec<_> = super::abilities_of_source(&state, source)
+            .into_iter()
+            .filter(|a| matches!(a, Ability::Triggered(_)))
+            .collect();
+        assert_eq!(
+            triggers,
+            vec![Ability::triggered(back_trigger.clone())],
+            "back-up permanent sources its back face's triggered ability \
+             [CR#712.8e]"
+        );
+
+        // Skip-count regression: `derived_abilities_of` is the exact enumeration
+        // the trigger scan reads. Section 1 (the index-stable printed prefix)
+        // must be the BACK face's (`printed_len == 1`), and the back trigger must
+        // appear EXACTLY once — a front-length skip (0) would duplicate the layer
+        // view's back trigger into section 3.
+        let (derived, printed_len) = super::derived_abilities_of(&state, Some(id), source);
+        assert_eq!(
+            printed_len, 1,
+            "section-1 printed length is the back face's"
+        );
+        assert_eq!(
+            derived
+                .iter()
+                .filter(|a| matches!(a, Ability::Triggered(_)))
+                .count(),
+            1,
+            "the back trigger is enumerated exactly once — neither dropped nor \
+             duplicated by the section-3 skip-count"
         );
     }
 }
