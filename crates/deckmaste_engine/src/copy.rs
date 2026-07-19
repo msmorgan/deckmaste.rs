@@ -143,6 +143,24 @@ pub fn additional_riders(exceptions: &[CopyException]) -> Vec<EnterRider> {
         .collect()
 }
 
+/// Whether an [`EnterRider`] list holds anything the ETB-rider machinery
+/// (the `core-action-riders-cost-modes` seam guarding `Action::Move`/
+/// `Action::MoveGroup`/`PlayerAction::Move`/`PlayerAction::Create`) still
+/// needs built. [`EnterRider::AsCopy`] is deliberately EXCLUDED from this
+/// check: it's a layer-1a copy INPUT ([CR#707.5]), and applying it —
+/// deriving and installing the copiable values — is
+/// `engine-layers-1-copy-facedown-text`'s seam (`layer::base_values`), not
+/// this one's. So a rider list holding only `AsCopy` entries never trips the
+/// `core-action-riders-cost-modes` `todo!()`: the move/create proceeds as a
+/// documented fizzle — the object still relocates/is created, just without
+/// the copy installed yet — never a panic. A list that mixes `AsCopy` with
+/// an actually-unbuilt rider (`Tapped`, `Attacking`, …) still trips the
+/// `todo!()` for THAT rider, unrelated to this seam.
+#[must_use]
+pub fn has_unbuilt_enter_rider(riders: &[EnterRider]) -> bool {
+    riders.iter().any(|r| !matches!(r, EnterRider::AsCopy(_)))
+}
+
 /// Map a copy's resolved [`CopiableValues`] to a [`Token`] for minting
 /// ([CR#707.1], Task 3's runtime seam) — `None` if the token doesn't come
 /// into being at all.
@@ -829,6 +847,47 @@ mod tests {
             resolve_source(&state, &frame, &CopySource::Object(Reference::Target(0))),
             None,
             "a departed target resolves to None, never a panic"
+        );
+    }
+
+    /// `has_unbuilt_enter_rider` is the seam every rider-consuming
+    /// `todo!()` (`resolve/action.rs`, `resolve/player_action.rs`) gates on:
+    /// a rider list holding ONLY `AsCopy` entries — any count — never trips
+    /// it (the layer-1a copy input fizzles here, applied downstream by
+    /// `engine-layers-1-copy-facedown-text`), an empty list never trips it
+    /// (the existing no-op case), but a list mixing `AsCopy` with an
+    /// actually-unbuilt rider (`Tapped`) still does — that combination is
+    /// unrelated to copy grammar and stays the `core-action-riders-cost-modes`
+    /// seam's problem.
+    #[test]
+    fn has_unbuilt_enter_rider_excludes_as_copy_only() {
+        let spec = deckmaste_core::CopySpec {
+            source: CopySource::Object(Reference::Target(0)),
+            exceptions: vec![],
+        };
+
+        assert!(
+            !has_unbuilt_enter_rider(&[]),
+            "an empty rider list never trips the seam"
+        );
+        assert!(
+            !has_unbuilt_enter_rider(&[EnterRider::AsCopy(spec.clone())]),
+            "a lone AsCopy rider fizzles rather than tripping the ETB-rider seam"
+        );
+        assert!(
+            !has_unbuilt_enter_rider(&[
+                EnterRider::AsCopy(spec.clone()),
+                EnterRider::AsCopy(spec.clone()),
+            ]),
+            "multiple AsCopy riders still fizzle"
+        );
+        assert!(
+            has_unbuilt_enter_rider(&[EnterRider::Tapped]),
+            "a genuinely-unbuilt rider still trips the seam"
+        );
+        assert!(
+            has_unbuilt_enter_rider(&[EnterRider::AsCopy(spec), EnterRider::Tapped]),
+            "AsCopy mixed with an unbuilt rider still trips the seam for that rider"
         );
     }
 }

@@ -1886,7 +1886,10 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         | PlayerAction::GetEmblem(_)
         | PlayerAction::GetDesignation(_)
         | PlayerAction::ChooseAndNote(..)
-        | PlayerAction::RestartGame => Err(gap(format!(
+        | PlayerAction::RestartGame
+        // [CR#707.12] cast a copy of an object — core-copy-grammar Task 6's
+        // grammar-only seam; the Idris mapping is Task 8's.
+        | PlayerAction::CastCopy(_) => Err(gap(format!(
             "{pa:?} not yet mapped (no Idris counterpart or not implemented)"
         ))),
         PlayerAction::Expanded(_) => Err(gap(
@@ -2357,6 +2360,11 @@ fn emit_static_effect(se: &StaticEffect) -> R {
                 deckmaste_core::PayAct::ExileToPay(f) => app("ExileToPay", vec![emit_filter(f)?]),
             };
             app("PayPips", vec![class_s, act_s])
+        }
+        // [CR#707.4] "becomes a copy of" — core-copy-grammar Task 6's
+        // grammar-only seam; the Idris mapping is Task 8's.
+        StaticEffect::BecomesCopy(..) => {
+            return Err(gap("StaticEffect::BecomesCopy is not yet idris-emittable"));
         }
         StaticEffect::Expanded(_) => {
             return Err(gap(

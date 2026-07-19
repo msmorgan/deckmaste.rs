@@ -278,6 +278,34 @@ pub enum StaticEffect {
     /// [`Selection`]. Mirrors Idris `Modify : Reference AnObject ->
     /// Modification -> StaticEffect`.
     Modify(Reference, Modification),
+    /// "[object] becomes a copy of [source]" ([CR#707.4]) — a CONTINUOUS
+    /// layer-1a copy effect: the object stays on the battlefield (no
+    /// leaves-/enters-the-battlefield triggers fire, [CR#707.4]) and keeps
+    /// any non-copy effects presently affecting it, while its copiable
+    /// values are replaced for as long as this effect lasts. Positional,
+    /// mirroring [`Modify`](StaticEffect::Modify) — a single affected
+    /// [`Reference`] and the shared [`crate::CopySpec`] payload (the same
+    /// source + "except" exceptions [CR#707.9] the other three copy
+    /// delivery sites carry: [`crate::TokenSpec::Copy`],
+    /// [`crate::action::EnterRider::AsCopy`],
+    /// [`crate::action::PlayerAction::CastCopy`]).
+    ///
+    /// NOT a [`Modification`]: [`Layer`](crate::layer) — see
+    /// `deckmaste_engine::layer::Layer` — has no L1 variant, since layer 1
+    /// reshapes the *base* copiable values
+    /// (`deckmaste_engine::layer::base_values`) rather than applying a
+    /// per-op characteristic change; a `BecomesCopy` static is therefore a
+    /// distinct `StaticEffect` variant, not a `Modify(_, Modification::…)`
+    /// op. Authored via the shared one-shot-continuous machinery —
+    /// `Continuously(effect: BecomesCopy(...), duration: ...)` for a single
+    /// part, `Until(duration, [BecomesCopy(...), ...])` alongside other
+    /// parts — exactly like [`Modify`](StaticEffect::Modify) is. Its
+    /// layer-1a APPLICATION (deriving and installing the copiable values
+    /// from the gathered `BecomesCopy` statics) is the
+    /// `engine-layers-1-copy-facedown-text` seam in `base_values`; gathering
+    /// this variant into a no-op here is a documented fizzle, never a
+    /// panic.
+    BecomesCopy(Reference, crate::CopySpec),
     /// Distribute an inner static effect over a [`Selection`] — "for each
     /// object in the selection, bind it as [`Reference::It`](crate::Reference)
     /// and apply the inner effect." The ONLY way a static reaches many
@@ -863,6 +891,48 @@ mod tests {
             "compartment tag leaked: {written}"
         );
         assert_eq!(read(&written), parsed);
+    }
+
+    /// `StaticEffect::BecomesCopy(Reference, CopySpec)` ([CR#707.4]) — "X
+    /// becomes a copy of Y" — carries the shared `CopySpec` payload
+    /// (mirroring `Modify(Reference, Modification)`'s shape) and round-trips
+    /// bare, and wrapped in `Until` — the shape a becomes-a-copy effect
+    /// actually gets authored through ([CR#611.2]).
+    #[test]
+    fn becomes_copy_round_trips() {
+        use crate::CopySource;
+        use crate::CopySpec;
+        use crate::OneShotEffect;
+
+        let parsed = read("BecomesCopy(This, (source: Object(Target(0))))");
+        assert_eq!(
+            parsed,
+            StaticEffect::BecomesCopy(
+                Reference::This,
+                CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                },
+            ),
+        );
+        let written = crate::ron::options().to_string(&parsed).unwrap();
+        assert_eq!(read(&written), parsed, "BecomesCopy round-trips: {written}");
+
+        // The shape a card actually authors: wrapped in `Until` alongside
+        // the shared one-shot-continuous machinery ([CR#611.2]).
+        let until = OneShotEffect::Until(
+            Duration::EndOfGame,
+            vec![StaticEffect::BecomesCopy(
+                Reference::This,
+                CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                },
+            )],
+        );
+        let written = crate::ron::options().to_string(&until).unwrap();
+        let back: OneShotEffect = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(back, until, "Until(..., [BecomesCopy(...)]) round-trips");
     }
 
     /// `Duration::ForThisEvent` — the instruction-scoped rider duration

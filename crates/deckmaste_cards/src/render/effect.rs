@@ -1610,6 +1610,12 @@ fn enter_rider_phrase(riders: &[EnterRider], ctx: &Ctx) -> String {
             EnterRider::Tapped => parts.push("tapped".to_string()),
             EnterRider::FaceDown => parts.push("face down".to_string()),
             EnterRider::Attacking(_) => parts.push("attacking".to_string()),
+            // "enters as a copy of [source]" ([CR#707.5]) — core-copy-grammar
+            // Task 6's grammar-only seam; the render arm (like `TokenSpec::
+            // Copy`'s "[unrendered: Create(...)]" above) is a later task in
+            // the campaign. Decline structurally rather than guess at the
+            // "as a copy of ..." phrase.
+            EnterRider::AsCopy(spec) => parts.push(format!("[unrendered: AsCopy({spec:?})]")),
         }
     }
     if parts.is_empty() { String::new() } else { format!(" {}", parts.join(" ")) }

@@ -271,12 +271,19 @@ pub(crate) fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
 ///
 /// SEAM — layer 1 ([CR#613.2]): the copiable values are the printed face
 /// *as modified by* copy effects (layer 1a, [CR#707.2]) and face-down status
-/// (layer 1b, [CR#708.2]). Neither input exists yet (`core-copy-grammar` /
-/// `engine-face-down` own them), so this reads the printed face. When a copy
-/// source or face-down spec is present on the object, branch here to derive the
-/// copiable values from it instead — that is the entirety of layer 1's effect
-/// on `Characteristics`, since after layer 1 the characteristics *are* the
-/// copiable values ([CR#613.2c]).
+/// (layer 1b, [CR#708.2]). The layer-1a GRAMMAR now exists
+/// (`core-copy-grammar` Task 6): [`deckmaste_core::EnterRider::AsCopy`]
+/// ([CR#707.5], an enter-riding copy input on `Move`/`Create`) and
+/// [`deckmaste_core::StaticEffect::BecomesCopy`] ([CR#707.4], a continuous
+/// copy static gathered like [`deckmaste_core::StaticEffect::Modify`]) both
+/// carry the shared [`deckmaste_core::CopySpec`] — but neither is CONSUMED
+/// yet; this still reads the printed face unconditionally.
+/// `engine-layers-1-copy-facedown-text` owns the application: when an object
+/// carries a gathered `AsCopy`/`BecomesCopy` input (or a face-down spec,
+/// `engine-face-down`'s), branch here to derive the copiable values from it
+/// instead — that is the entirety of layer 1's effect on `Characteristics`,
+/// since after layer 1 the characteristics *are* the copiable values
+/// ([CR#613.2c]).
 fn base_values(state: &GameState, id: ObjectId) -> DerivedObject {
     let obj = state.objects.obj(id);
     let card = obj.card_id().expect("card-backed object");

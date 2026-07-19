@@ -143,7 +143,10 @@ impl GameState {
                 vec![WorkItem::Emit(occurrence_of(events))]
             }
             PlayerAction::Move(reference, destination, riders) => {
-                if !riders.is_empty() {
+                // `AsCopy` riders are a layer-1a copy input consumed by
+                // `engine-layers-1-copy-facedown-text`, not this seam — see
+                // `crate::copy::has_unbuilt_enter_rider`.
+                if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: enter riders (tapped/attacking/\
                          with-counters) execute with the ETB machinery"
@@ -305,6 +308,16 @@ impl GameState {
                     vec![]
                 }
             }
+            // [CR#707.12]: "cast a copy of [source]" — NOT `CopySpell`'s
+            // stack-copy above; this runs the full [CR#601.2a..601.2h]
+            // casting pipeline in the source's own zone. That pipeline
+            // (legality, cost payment, targeting) needs the shared
+            // announce/cast machinery `cast_as_effect_items` above already
+            // drives for `PlayerAction::Cast`, wired for a COPY object
+            // rather than a live card — grammar-only here, so this arm
+            // fizzles (no events) rather than running it.
+            // execution: engine-copy-permanent-spells
+            PlayerAction::CastCopy(_spec) => vec![],
             // [CR#608.2g]: cast the referenced card DURING resolution — the
             // actor follows the [CR#601.2a..601.2i] steps (reusing the shared
             // announce chain), except no player receives priority after it's
@@ -545,7 +558,12 @@ impl GameState {
                 }
             }
             PlayerAction::Create(qty, spec, riders) => {
-                if !riders.is_empty() {
+                // `AsCopy` riders fizzle here too — see
+                // `crate::copy::has_unbuilt_enter_rider`. (The dedicated
+                // token-copy spelling is `TokenSpec::Copy` below, already
+                // fully wired; an `AsCopy` rider alongside it would be a
+                // redundant, never-crash-safe authoring.)
+                if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: token enter riders \
                          (tapped/attacking) execute with the ETB machinery"
@@ -677,6 +695,52 @@ mod tests {
     use crate::test_support::frame_for;
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
+
+    /// `EnterRider::AsCopy` fizzles instead of tripping the
+    /// `core-action-riders-cost-modes` `todo!()` ([CR#707.5]) — moving a
+    /// hand card onto the battlefield with an `AsCopy` rider completes the
+    /// move (the copy itself isn't installed yet; that's
+    /// `engine-layers-1-copy-facedown-text`'s job, `crate::copy::
+    /// has_unbuilt_enter_rider`'s seam) rather than panicking, proving the
+    /// fizzle is genuinely safe on this card-reachable path.
+    #[test]
+    fn move_as_copy_rider_fizzles_without_panicking() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::Destination;
+        use deckmaste_core::EnterRider;
+
+        let (mut state, _bear) = bear_on_field();
+        let second = *state.zones.hands[0]
+            .iter()
+            .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
+            .expect("a second Grizzly Bears in the opening hand");
+        let before = state.zones.battlefield.len();
+        let frame = frame_src(second);
+        let spec = CopySpec {
+            source: CopySource::Object(Reference::This),
+            exceptions: vec![],
+        };
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Move(
+                Reference::This,
+                Destination::Zone(Zone::Battlefield),
+                vec![EnterRider::AsCopy(spec)],
+            )),
+            &frame,
+        );
+        // Never panics — drain the agenda like the other Move tests
+        // (future-form ZoneChange -> past-form ZoneChange).
+        for _ in 0..3 {
+            let _ = state.step();
+        }
+        assert_eq!(
+            state.zones.battlefield.len(),
+            before + 1,
+            "the move completes: a second permanent lands on the battlefield \
+             even though the AsCopy rider isn't applied yet"
+        );
+    }
 
     /// `AddMana(2, Green)` needs no choice and lands in the pool ([CR#106.4]);
     /// `AddMana(1, AnyColor)` surfaces `ChooseManaColor` with the five colors

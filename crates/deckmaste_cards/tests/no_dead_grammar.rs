@@ -236,6 +236,14 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             real card in this batch (Otherworldly Journey covers UnderOwnersControl).",
         ),
         (
+            n("EnterRider", "AsCopy"),
+            "DEFERRED: core-copy-grammar Task 6 lands the grammar (an \
+            EnterRider carrying the shared CopySpec, [CR#707.5]) and a documented never-panic \
+            fizzle seam at every rider-consuming site; the layer-1a APPLICATION that would make \
+            a real Clone-style card graduatable is engine-layers-1-copy-facedown-text's, not \
+            built yet.",
+        ),
+        (
             n("Arrangement", "ChosenOrder"),
             "DEFERRED: Action::MoveGroup itself has no accept \
             fixture yet (see below); one real simultaneous-group-move card would cover its \
@@ -365,6 +373,14 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             Liberated's -14) in this batch.",
         ),
         (
+            n("PlayerAction", "CastCopy"),
+            "DEFERRED: core-copy-grammar Task 6 lands the grammar \
+            ([CR#707.12], sibling to CopySpell) with a documented never-panic fizzle resolve arm \
+            (`// execution: engine-copy-permanent-spells`); the [CR#601.2] cast-a-copy pipeline that \
+            would make a real 'cast a copy of [source]' card graduatable is \
+            engine-copy-permanent-spells's, not built yet.",
+        ),
+        (
             n("Duration", "UntilEvent"),
             "DEFERRED: no 'until (event) happens' one-shot-duration real \
             card in this batch.",
@@ -437,6 +453,15 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("StaticEffect", "AsThough"),
             "DEFERRED: no AsThough-shaped counterfactual real card in \
             this batch.",
+        ),
+        (
+            n("StaticEffect", "BecomesCopy"),
+            "DEFERRED: core-copy-grammar Task 6 lands the grammar \
+            ([CR#707.4] — a continuous layer-1a copy effect, carrying the shared CopySpec like \
+            Modify carries a Modification) with a documented never-panic fizzle seam citing \
+            engine-layers-1-copy-facedown-text (the same downstream owner as EnterRider::AsCopy \
+            above); the layer-1a application that would make a real 'becomes a copy of' card \
+            graduatable is not built yet.",
         ),
         (
             n("PlayerAttr", "Life"),

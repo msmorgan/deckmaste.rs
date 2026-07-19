@@ -82,6 +82,20 @@ pub enum EnterRider {
     /// "with N [kind] counters on it" ([CR#614.12,122.1]) — the reanimation/
     /// Otherworldly-Journey "+1/+1 counter on it" arrival.
     WithCounters(CounterRef, Count),
+    /// "enters as a copy of [source]" ([CR#707.5]) — a Clone-style arrival:
+    /// the object becomes a copy of `source` AS it enters, never entering
+    /// first and copying a beat later ([CR#707.5]). Carries the shared
+    /// [`crate::CopySpec`] payload (source + "except" exceptions,
+    /// [CR#707.9]) like the other three copy delivery sites
+    /// ([`crate::TokenSpec::Copy`], [`PlayerAction::CastCopy`], and the
+    /// becomes-a-copy [`crate::continuous::StaticEffect::BecomesCopy`]).
+    /// This rider is a layer-1a copy INPUT only ([CR#613.2]): applying it —
+    /// deriving and installing the copiable values — is the
+    /// `engine-layers-1-copy-facedown-text` seam in
+    /// `deckmaste_engine::layer::base_values`; consuming it here (the
+    /// rider-application step on `Move`/`Create`) is a documented fizzle,
+    /// never a panic.
+    AsCopy(crate::CopySpec),
 }
 
 /// How a GROUP landing in an ordered position is arranged ([CR#401.4] — the
@@ -343,6 +357,18 @@ pub enum PlayerAction {
     /// copy on the stack, NOT casting one; [CR#707.12] casting rides the
     /// 601 pipeline).
     CopySpell(Reference),
+    /// "Cast a copy of [source]" ([CR#707.12]) — NOT `CopySpell`'s
+    /// stack-copy: this follows the full [CR#601.2a..601.2h] casting
+    /// pipeline, created in `source`'s own zone and cast while another spell
+    /// or ability resolves ([CR#707.12]), so it passes through legality,
+    /// costs, and targeting like any other cast rather than skipping
+    /// straight to the stack. Carries the shared [`crate::CopySpec`] payload
+    /// like [`EnterRider::AsCopy`] and the becomes-a-copy
+    /// [`crate::continuous::StaticEffect::BecomesCopy`]. The [CR#601.2]
+    /// pipeline run itself is the `engine-copy-permanent-spells` seam
+    /// (`deckmaste_engine`'s resolve arm fizzles — no events — until that
+    /// ticket wires it; never a panic).
+    CastCopy(crate::CopySpec),
     /// "[Player] may cast [the referenced card]" as an effect ([CR#608.2g]) —
     /// the resolution-time cast primitive. The named player casts the
     /// referenced object by following the [CR#601.2a..601.2i] casting steps
@@ -1287,6 +1313,44 @@ mod tests {
             None,
         );
         assert_eq!(read(&write(&countered)), countered);
+    }
+
+    /// `EnterRider::AsCopy(CopySpec)` ([CR#707.5]) — "enters as a copy of
+    /// [source]" — carries the shared `CopySpec` payload and round-trips as
+    /// a `Move` rider, mirroring `copyspec_round_trips_all_exception_kinds`
+    /// (`copy.rs`).
+    #[test]
+    fn enter_rider_as_copy_round_trips() {
+        use crate::CopySource;
+        use crate::CopySpec;
+        use crate::Zone;
+
+        let mv = Action::Move(
+            Reference::That(crate::Sort::Card),
+            Destination::Zone(Zone::Battlefield),
+            vec![EnterRider::AsCopy(CopySpec {
+                source: CopySource::Object(Reference::Target(0)),
+                exceptions: vec![],
+            })],
+            None,
+        );
+        assert_eq!(read(&write(&mv)), mv, "EnterRider::AsCopy round-trips");
+    }
+
+    /// `PlayerAction::CastCopy(CopySpec)` ([CR#707.12]) — "cast a copy of
+    /// [source]" — sits beside `CopySpell` and round-trips.
+    #[test]
+    fn cast_copy_round_trips() {
+        use crate::CopySource;
+        use crate::CopySpec;
+
+        let cast = PlayerAction::CastCopy(CopySpec {
+            source: CopySource::Object(Reference::Target(0)),
+            exceptions: vec![],
+        });
+        let ron = crate::ron::options().to_string(&cast).unwrap();
+        let back: PlayerAction = crate::ron::options().from_str(&ron).unwrap();
+        assert_eq!(back, cast, "PlayerAction::CastCopy round-trips: {ron}");
     }
 
     /// `MoveGroup` — the group relocation with an [`Arrangement`]

@@ -237,7 +237,10 @@ impl GameState {
             Action::Move(sel, destination, riders, from) => {
                 // Enter riders ([CR#614.12]) await the enters-the-battlefield
                 // machinery — a loud seam, like the other unbuilt verbs.
-                if !riders.is_empty() {
+                // `AsCopy` is excluded: it's a layer-1a copy input consumed
+                // by `engine-layers-1-copy-facedown-text`, not this seam —
+                // see `crate::copy::has_unbuilt_enter_rider`.
+                if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: enter riders (tapped/attacking/\
                          with-counters) execute with the ETB machinery"
@@ -329,7 +332,9 @@ impl GameState {
                 to,
                 riders,
             } => {
-                if !riders.is_empty() {
+                // `AsCopy` is excluded — see
+                // `crate::copy::has_unbuilt_enter_rider`.
+                if crate::copy::has_unbuilt_enter_rider(riders) {
                     todo!(
                         "core-action-riders-cost-modes seam: MoveGroup enter riders execute \
                          with the ETB machinery"
