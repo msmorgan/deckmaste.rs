@@ -1603,6 +1603,93 @@ mod tests {
     }
 
     // ====================================================================
+    // core-copy-grammar Task 4 — `Filter::CardCopy` object-kind
+    // classification ([CR#109.1])
+    // ====================================================================
+
+    /// Pins the [CR#109.1] distinction directly, not just "copies are
+    /// CardCopy": [CR#109.1] lists "a copy of a card" and "a token" as
+    /// DISTINCT object kinds; [CR#111.1] defines a token as "a marker used
+    /// to represent any permanent that isn't represented by a card" with no
+    /// carve-out for a copy-token; and [CR#707.10a]'s copy-cease SBA targets
+    /// a copy of a spell/card, never a token — a token (copy or not) ceases
+    /// under its OWN rule instead ([CR#111.7]). So BOTH a minted token copy
+    /// (`TokenSpec::Copy`) and a plain token (`TokenSpec::Token`) classify
+    /// `Token` and do NOT match `Filter::CardCopy`. (The genuinely
+    /// `CardCopy`-classifying case — a card-less spell copy stranded off
+    /// the stack, [CR#707.10a] — is `off_stack_copy_classifies_as_card_copy`
+    /// in `tests/stack.rs`, since it needs the stack-copy harness, not this
+    /// token-mint one.) Both classifications go through the SAME
+    /// `object_kind` / `Predicate::Kind` path an SBA `scope` predicate
+    /// evaluates (`sba.rs`'s `if !crate::matches(state, id, &rule.scope)`
+    /// calls the exact `crate::matches` used here).
+    #[test]
+    fn token_copy_and_plain_token_both_classify_as_token_not_card_copy() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::Token;
+
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![b]);
+
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                deckmaste_core::TokenSpec::Copy(CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                }),
+                vec![],
+            )),
+            &frame,
+        );
+        let _ = state.step(); // the copy-token TokenCreated batch applies
+
+        let plain_token = Token {
+            name: None,
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![Type::Artifact.def()],
+            subtypes: vec![],
+            abilities: vec![],
+            power: None,
+            toughness: None,
+        };
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                plain_token.into(),
+                vec![],
+            )),
+            &frame,
+        );
+        let _ = state.step(); // the plain-token TokenCreated batch applies
+
+        let created: Vec<ObjectId> = state
+            .zones
+            .battlefield
+            .iter()
+            .copied()
+            .filter(|&id| id != a && id != b)
+            .collect();
+        assert_eq!(created.len(), 2, "both tokens minted");
+
+        for &t in &created {
+            assert_eq!(
+                crate::target::object_kind(&state, t),
+                ObjectKind::Token,
+                "[CR#109.1,111.1]: every minted token — copy or not — \
+                 classifies as Token, never CardCopy"
+            );
+            assert!(
+                !obj_matches(&state, t, &Predicate::Kind(ObjectKind::CardCopy)),
+                "[CR#707.10a]: Filter::CardCopy must not match a token — a \
+                 token's cease rule is [CR#111.7], not the copy-cease SBA"
+            );
+        }
+    }
+
+    // ====================================================================
     // Task 4.6 — end-to-end (Enchant + Equip + Fortify + Reconfigure)
     // ====================================================================
     //

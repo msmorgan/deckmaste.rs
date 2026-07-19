@@ -118,9 +118,13 @@ impl Cards {
     /// its creator) and returns its id. The `Token`'s characteristics become a
     /// one-faced card definition, so tokens ride the same derivation / layer /
     /// LKI machinery as cards; only the `is_token` flag tells them apart
-    /// ([CR#111.6]). The name honors an explicit `token.name` (set by a copy
-    /// token per [CR#707.2]) when present; otherwise it defaults to the
-    /// subtypes plus the word "Token" ([CR#111.4]).
+    /// ([CR#111.6]) — including a token that's a copy ([CR#707.1]): its
+    /// copiable values are already baked into the `Token` passed here, so
+    /// no separate copy marker is needed ([CR#109.1] treats "a token" and
+    /// "a copy of a card" as distinct kinds; a token copy is the former).
+    /// The name honors an explicit `token.name` (set by a copy token per
+    /// [CR#707.2]) when present; otherwise it defaults to the subtypes plus
+    /// the word "Token" ([CR#111.4]).
     pub(crate) fn push_token(&mut self, token: &Token, owner: PlayerId) -> CardId {
         let name = token.name.clone().unwrap_or_else(|| {
             token

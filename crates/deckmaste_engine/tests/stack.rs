@@ -3742,6 +3742,48 @@ fn off_stack_copy_ceases_via_sba() {
     );
 }
 
+/// core-copy-grammar Task 4: [CR#109.1] a card-less spell copy classifies
+/// through `object_kind`/`Predicate::Kind` — the SAME predicate-evaluation
+/// path an SBA `scope` uses (`sba.rs`'s `crate::matches(state, id,
+/// &rule.scope)`) — as `Spell` while genuinely on the stack ([CR#707.10]:
+/// "a copy of a spell is itself a spell"), and as `CardCopy` once stranded
+/// off it (the same stranded state `off_stack_copy_ceases_via_sba`'s native
+/// safety net sweeps). This is the classification the copy-cease SBA's
+/// planned `scope` predicate (core-copy-grammar Task 5) will select over.
+#[test]
+fn off_stack_copy_classifies_as_card_copy() {
+    use deckmaste_core::ObjectKind;
+    use deckmaste_core::Predicate;
+
+    let mut state = copy_game(1, 2);
+    let (_bolt, copy, _face) = cast_and_copy_bolt_at_face(&mut state);
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+
+    assert_eq!(
+        deckmaste_engine::object_kind(&state, copy),
+        ObjectKind::Spell,
+        "[CR#707.10]: still genuinely on the stack, the copy is a Spell"
+    );
+
+    // Force-move the copy off the stack, exactly as `off_stack_copy_ceases_via_sba`
+    // does: mutate its backing object's zone directly (simulating an
+    // as-yet-unbuilt generic mover leaving it mid-transition). `state.stack`
+    // still carries the copy's entry.
+    state.objects.obj_mut(copy).zone = Some(Zone::Graveyard);
+
+    assert_eq!(
+        deckmaste_engine::object_kind(&state, copy),
+        ObjectKind::CardCopy,
+        "[CR#109.1,707.10a]: stranded off the stack, the card-less copy \
+         entry classifies as CardCopy"
+    );
+    assert!(
+        deckmaste_engine::matches(&state, copy, &Predicate::Kind(ObjectKind::CardCopy)),
+        "Filter::CardCopy matches through the same predicate path an SBA \
+         scope evaluates"
+    );
+}
+
 /// [CR#707.10a,707.10f]: a copy of a PERMANENT spell vanishes on resolution
 /// too — it does NOT take the [CR#608.3] battlefield zone move. (The
 /// CR-correct outcome, a resolving permanent-spell copy becoming a token

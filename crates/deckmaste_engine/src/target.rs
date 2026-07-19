@@ -18,8 +18,15 @@ use crate::state::GameState;
 
 /// The object's kind ([CR#109.1]) as the corpus needs it: an activated/
 /// triggered ability on the stack is an `Ability`; a player proxy is a
-/// `Player`; a card on the stack is a `Spell`; a created token is a `Token`
-/// ([CR#111.6] — not a card); otherwise a `Card`.
+/// `Player`; a card on the stack is a `Spell` (a copy of a spell is itself a
+/// spell — [CR#707.10] — so this holds for a card-less stack copy too, see
+/// `StackEntry.copy`) — but a card-less copy stranded OFF the stack
+/// ([CR#707.10a]) is a `CardCopy`; a created token is a `Token`
+/// ([CR#111.6] — not a card) EVEN when it's a copy ([CR#707.1]): [CR#109.1]
+/// lists "a copy of a card" and "a token" as distinct kinds, [CR#111.1]
+/// carves out no exception for a copy-token, and [CR#707.10a]'s copy-cease
+/// SBA targets a copy of a spell/card, never a token — a token (copy or
+/// not) ceases under its OWN rule ([CR#111.7]) instead; otherwise a `Card`.
 ///
 /// The ability check outranks all the source-based ones: an ability on the
 /// stack ([CR#602.2a,603.3]) carries a freshly minted `StackEntry.id` that
@@ -43,9 +50,31 @@ pub fn object_kind(state: &GameState, id: ObjectId) -> ObjectKind {
     match obj.source {
         ObjectSource::Player(_) => ObjectKind::Player,
         ObjectSource::Card(_) if obj.zone == Some(Zone::Stack) => ObjectKind::Spell,
+        // [CR#109.1,707.10a]: a card-less spell copy (`StackEntry.copy`)
+        // that's been stranded off the stack — its entry lingers pending
+        // the copy-cease SBA sweep (the `sba.rs` safety net, or its planned
+        // data-driven successor) — reads `CardCopy` here. "A copy of a
+        // spell is itself a spell" ([CR#707.10]) only holds while it's
+        // genuinely on the stack (the arm above); this entry can't be
+        // classified via `CardInstance` the way a copy TOKEN is — its
+        // `ObjectSource::Card` aliases the ORIGINAL's `CardId` (`Copied`'s
+        // apply reuses `source`), so marking that shared `CardInstance`
+        // would misclassify the original too. `state.stack` (already
+        // consulted for the ability check above) is the only per-object,
+        // non-aliased signal available.
+        ObjectSource::Card(_) if state.stack.iter().any(|e| e.id == id && e.copy) => {
+            ObjectKind::CardCopy
+        }
         // [CR#114.5]: an emblem is neither a card nor a permanent — check it
         // before the token/card arms so every card/type filter excludes it.
         ObjectSource::Card(c) if state.cards.get(c).is_emblem => ObjectKind::Emblem,
+        // [CR#111.6]: a token isn't a card — including a token that's a
+        // COPY ([CR#707.1]). [CR#109.1] lists "a copy of a card" and "a
+        // token" as distinct kinds; a token copy is a `Token`, never
+        // `CardCopy` — its copiable values are already baked into its
+        // definition at mint, and its cease rule is [CR#111.7], not
+        // [CR#707.10a]'s copy-cease SBA (which targets a card-less copy
+        // only, the arm above).
         ObjectSource::Card(c) if state.cards.get(c).is_token => ObjectKind::Token,
         ObjectSource::Card(_) => ObjectKind::Card,
     }
