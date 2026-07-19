@@ -2473,7 +2473,11 @@ fn emit_static_effect(se: &StaticEffect) -> R {
         StaticEffect::PayPips(class, act) => {
             let class_s = match class {
                 deckmaste_core::PipClass::Generic => "Generic".to_string(),
-                deckmaste_core::PipClass::Colored(c) => app("Colored", vec![emit_color(*c)]),
+                // Idris `PipClass.Colored` is nullary: it marks "a colored pip,
+                // matched via the pay predicate" — the specific color is carried
+                // by the `TapToPay`/`ExileToPay` filter (`HasChar Colors <c>`),
+                // so the Rust-side `Color` payload is intentionally not forwarded.
+                deckmaste_core::PipClass::Colored(_) => "Colored".to_string(),
             };
             let act_s = match act {
                 deckmaste_core::PayAct::TapToPay(f) => app("TapToPay", vec![emit_filter(f)?]),
