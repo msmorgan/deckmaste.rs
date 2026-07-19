@@ -223,14 +223,17 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
     // EVALUATED at target-candidate computation, Must(Target) requirements
     // (the Flagbearer class) at target-choice submission, the flash
     // shape — May(Cast(window: InstantSpeed)) with no from/cost slot — is
-    // EVALUATED as a timing lift in can_cast ([CR#702.8a]), and the land-play
-    // marker — May(Play) with no `from` slot, which a card's Land type
-    // confers — is EVALUATED as land-play legality via `confers_may_play`
-    // (offered as PlayLand in the hand-scan above, [CR#116.2a,305.9,701.18]).
-    // The guard keeps the unevaluated rest: every other Cast row shape (zone
-    // permissions, alternative costs, non-May polarities), the from-zone /
-    // non-May Play shapes, non-Cant/non-May Attach rows, and the May/Gate
-    // Target polarities.
+    // EVALUATED as a timing lift in can_cast ([CR#702.8a]), every
+    // Cant(Cast) row (split second on the stack, or a battlefield "can't
+    // cast" grant, [CR#702.61a]) is EVALUATED by `cant_cast`, and the
+    // land-play marker — May(Play) with no `from` slot, which a card's Land
+    // type confers — is EVALUATED as land-play legality via
+    // `confers_may_play` (offered as PlayLand in the hand-scan above,
+    // [CR#116.2a,305.9,701.18]). The guard keeps the unevaluated rest: every
+    // other Cast row shape (zone permissions, alternative costs, the
+    // remaining May(Cast) shapes carrying `from`/`cost`, Must/Gate(Cast)),
+    // the from-zone / non-May Play shapes, non-Cant/non-May Attach rows, and
+    // the May/Gate Target polarities.
     guard_deontic_seam(
         state,
         &view,
@@ -238,10 +241,11 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
             DeonticAction::Cast {
                 from, window, cost, ..
             } => {
-                !(is_may(d)
-                    && *window == Some(deckmaste_core::Timing::InstantSpeed)
-                    && from.is_none()
-                    && cost.is_none())
+                !(is_cant(d)
+                    || (is_may(d)
+                        && *window == Some(deckmaste_core::Timing::InstantSpeed)
+                        && from.is_none()
+                        && cost.is_none()))
             }
             // `May(Play(from: None))` — the land-play marker a card's Land
             // type CONFERS — is EVALUATED as land-play legality (offered as
@@ -259,7 +263,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
             DeonticAction::Target { .. } => !is_cant(d) && !is_must(d),
             _ => false,
         },
-        "cast + from-zone/non-May play + non-Cant attach + May/Gate target",
+        "cast (flash May + Cant evaluated) + from-zone/non-May play + non-Cant attach + May/Gate target",
     );
     // The former P0.W2 `CostModifier` presence guard converted to the real
     // [CR#601.2f] pipeline: `GameState::mana_cost` applies the rows (see
@@ -1227,6 +1231,66 @@ pub(crate) fn counter_legal(state: &GameState, by: ObjectId, target: ObjectId) -
     })
 }
 
+/// Every `Cant(Cast)` row visible to a cast of `candidate`, with its
+/// carrier: `(carrier source, what, by)`. Rows come from battlefield
+/// permanents (Grand Abolisher / Silence-style grants — "players can't cast
+/// spells") PLUS every card-backed stack object's OWN statics: split second
+/// is a static a spell carries while on the stack ([CR#702.61a]).
+/// Unlike `cant_counter_rows` (which only adds the counter's own target),
+/// EVERY stack object is scanned here — a split-second spell locks out
+/// casting for everyone, not just casts of itself. A bare stack ability
+/// carries no characteristics in the layered view, so `card_id().is_some()`
+/// skips it, mirroring `cant_counter_rows`'s `self_row` gate (`view.get`
+/// would otherwise panic on a non-card-backed id). `from`/`window`/`cost`
+/// slots on a `Cant(Cast)` row are ignored here — split second carries none
+/// of them.
+#[must_use]
+fn cant_cast_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
+    let mut rows = Vec::new();
+    let ids = state.zones.battlefield.iter().copied().chain(
+        state
+            .stack
+            .iter()
+            .map(|e| e.id)
+            .filter(|&id| state.objects.obj(id).card_id().is_some()),
+    );
+    for id in ids {
+        let source = state.objects.obj(id).source;
+        for_each_static(state, view, id, |e| {
+            if let StaticEffect::Deontic(d) = e
+                && let Some(DeonticAction::Cast { what, by, .. }) = cant_action(d)
+            {
+                rows.push((source, what.clone(), by.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// [CR#702.61a,101.2]: whether `caster` may legally cast `candidate` w.r.t.
+/// `Cant(Cast)` rows — `true` means FORBIDDEN. Cant beats May: even a flash
+/// `May(Cast(window: InstantSpeed))` grant that lifts timing ([CR#702.8a])
+/// doesn't survive a matching `Cant(Cast)` row (split second, or a
+/// battlefield "can't cast" grant).
+#[must_use]
+pub(crate) fn cant_cast(
+    state: &GameState,
+    view: &LayeredView,
+    candidate: ObjectId,
+    caster: PlayerId,
+) -> bool {
+    let proxy = state.player(caster).object;
+    cant_cast_rows(state, view)
+        .iter()
+        .any(|(carrier, what, by)| {
+            state.filter_matches_live(what, candidate, *carrier)
+                && state.filter_matches_live(by, proxy, *carrier)
+        })
+}
+
 /// One `May(Cast)` row from the derived view: the carrier it sits on and
 /// the permission's slots. `window` is the timing lift ([CR#702.8a]
 /// flash); `from`/`cost` are the cast-from-zones / alternative-cost
@@ -1297,7 +1361,9 @@ mod tests {
     use deckmaste_core::OutcomeGateKind;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
+    use deckmaste_core::RelationPredicate;
     use deckmaste_core::StaticEffect;
+    use deckmaste_core::Timing;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -1306,6 +1372,8 @@ mod tests {
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
+    use crate::stack::StackEntry;
+    use crate::stack::StackObject;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -1883,6 +1951,209 @@ mod tests {
             counter_legal(&state, source, plain),
             "an object with no can't-be-countered row can be countered"
         );
+    }
+
+    // --- cant_cast (split-second-style stack lockout) -----------------------
+
+    /// The plugin-loaded Instant `TypeDef`, inline (mirrors `cast::tests::
+    /// instant_typedef` — a synthetic card never passes through the plugin
+    /// macro expansion that would attach the confer): its conferred
+    /// `May(Cast(window: InstantSpeed))` row ([CR#307.1,117.1a,702.8a]) is the
+    /// flash grant a `Cant(Cast)` lockout must still beat ([CR#101.2]).
+    fn cant_cast_instant_typedef() -> deckmaste_core::TypeDef {
+        deckmaste_core::TypeDef {
+            name: "Instant".into(),
+            permanent: false,
+            confers: vec![deckmaste_core::Property::Ability(Arc::new(
+                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Cast {
+                    what: Predicate::Ref(Reference::This),
+                    by: Predicate::Any,
+                    from: None,
+                    window: Some(Timing::InstantSpeed),
+                    cost: None,
+                    tag: None,
+                }))),
+            ))],
+        }
+    }
+
+    /// Mint an instant-speed spell (via the conferred flash row above, its
+    /// ONLY timing permission) into `controller`'s hand.
+    fn flash_spell_in_hand(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            mana_cost: "{1}".parse().unwrap(),
+            types: vec![cant_cast_instant_typedef()],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card_id), controller, Some(Zone::Hand));
+        state.zones.hands[controller.index()].push(id);
+        id
+    }
+
+    /// Mint a card-backed "spell" straight onto the stack, carrying its OWN
+    /// `Static(Cant(Cast(what, by)))` row — the split-second lockout shape
+    /// ([CR#702.61a]): a spell functions this static while on the
+    /// stack, gathered by `cant_cast_rows` the same way `cant_counter_rows`
+    /// gathers a can't-be-countered row from its own target.
+    fn cast_lockout_on_stack(
+        state: &mut GameState,
+        name: &str,
+        controller: PlayerId,
+        what: Predicate,
+        by: Predicate,
+    ) -> ObjectId {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Cast {
+                    what,
+                    by,
+                    from: None,
+                    window: None,
+                    cost: None,
+                    tag: None,
+                },
+            )))],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), controller);
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(card_id), controller, Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id,
+            object: StackObject::Spell(id),
+            controller,
+            targets: vec![],
+            x: None,
+            paid_costs: Vec::new(),
+            copy: false,
+        });
+        id
+    }
+
+    /// [CR#702.61a,101.2]: a card-backed stack object's OWN `Cant(Cast)` row
+    /// (split second) forbids casting a matching spell while it sits on the
+    /// stack — including one whose only timing permission is a flash
+    /// `May(Cast(InstantSpeed))` grant (Cant beats May, [CR#101.2]). The
+    /// lockout lifts the moment the carrying object leaves the stack.
+    #[test]
+    fn cant_cast_locks_out_casting_while_on_stack_and_lifts_when_gone() {
+        let mut state = game();
+        let spell = flash_spell_in_hand(&mut state, "Bolt", PlayerId(0));
+        let view = state.layers();
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), spell)
+                .is_some(),
+            "sanity: castable via its own flash grant before any lockout"
+        );
+
+        cast_lockout_on_stack(
+            &mut state,
+            "Split Seconder",
+            PlayerId(1),
+            Predicate::Any,
+            Predicate::Any,
+        );
+        let view = state.layers();
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), spell)
+                .is_none(),
+            "a stack object's own Cant(Cast) row forbids the cast even though \
+             the spell's own May(Cast(InstantSpeed)) grant lifts the timing — \
+             Cant beats May ([CR#101.2])"
+        );
+
+        state.stack.clear();
+        let view = state.layers();
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), spell)
+                .is_some(),
+            "the lockout lifts once the carrying object leaves the stack"
+        );
+    }
+
+    /// Grand-Abolisher shape ([CR#101.2]): a battlefield `Cant(Cast(by:
+    /// OpponentOf(You)))` grant blocks an opponent's cast but not the
+    /// controller's own — `by` is evaluated against the caster's player-proxy
+    /// object, anchored on the grant's own carrier so `Ref(You)` resolves to
+    /// the permanent's controller.
+    #[test]
+    fn cant_cast_battlefield_grant_blocks_opponents_not_controller() {
+        let mut state = game();
+        // `obj_on_field` mints for player 0 — the Abolisher's controller.
+        let _abolisher = obj_on_field(
+            &mut state,
+            "Grand Abolisher",
+            vec![Type::Creature],
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Cast {
+                    what: Predicate::Any,
+                    by: Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(
+                        Predicate::Ref(Reference::You),
+                    ))),
+                    from: None,
+                    window: None,
+                    cost: None,
+                    tag: None,
+                },
+            )))],
+        );
+        let controllers_spell = flash_spell_in_hand(&mut state, "Bolt", PlayerId(0));
+        let opponents_spell = flash_spell_in_hand(&mut state, "Shock", PlayerId(1));
+
+        let view = state.layers();
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), controllers_spell)
+                .is_some(),
+            "the grant's own controller is unaffected by their Cant(Cast(by: opponent)) row"
+        );
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(1), opponents_spell)
+                .is_none(),
+            "an opponent of the grant's controller can't cast"
+        );
+    }
+
+    /// Guard-intact regression: after `Cant(Cast)` is carved out and
+    /// EVALUATED by `cant_cast`, the `guard_deontic_seam`'s Cast arm must
+    /// still trip LOUDLY on the shapes it doesn't evaluate — a
+    /// `Must(Cast(...))` row ("you must cast this spell") is one such shape,
+    /// never silently ignored.
+    #[test]
+    #[should_panic(expected = "P0.W1")]
+    fn cant_cast_guard_still_trips_on_a_must_cast_row() {
+        let mut state = game();
+        let _herald = obj_on_field(
+            &mut state,
+            "Herald",
+            vec![Type::Enchantment],
+            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Must(
+                DeonticAction::Cast {
+                    what: Predicate::Any,
+                    by: Predicate::Any,
+                    from: None,
+                    window: None,
+                    cost: None,
+                    tag: None,
+                },
+            )))],
+        );
+        let _ = super::legal_actions(&state, PlayerId(0));
     }
 
     // --- land-play (May(Play) capability) -----------------------------------

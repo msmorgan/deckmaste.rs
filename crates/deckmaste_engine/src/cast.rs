@@ -811,6 +811,13 @@ impl GameState {
         if !timing_ok {
             return None;
         }
+        // [CR#702.61a,101.2]: a Cant(Cast) row (split second on the stack, or
+        // a battlefield "can't cast" grant) forbids this cast — Cant beats
+        // the flash May, so this is checked after the timing lift, not
+        // folded into it.
+        if crate::legal::cant_cast(self, view, object, player) {
+            return None;
+        }
         // [CR#118.6]: an EMPTY mana cost is "no mana cost" — an unpayable
         // base. Attempting the cast is legal in the CR but pointless to
         // offer; an alternative cost ([CR#118.6a], May(Cast(cost: …)) rows)
