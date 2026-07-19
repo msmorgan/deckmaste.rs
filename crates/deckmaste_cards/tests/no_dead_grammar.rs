@@ -280,10 +280,10 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Action", "Transform"),
-            "DEFERRED: the grammar (core variant, render, idris emit) is built and \
-            unit-tested ([CR#701.27a]), but the engine resolve arm is a deliberate Task 5 stub \
-            (`Action::Transform(_) => todo!(\"resolve arm: Task 5\")` in resolve/action.rs) — no \
-            transforming-DFC real card can graduate until that lands.",
+            "DEFERRED: the grammar (core variant, render, idris emit) and the engine resolve \
+            arm + legality helper are built and unit-tested ([CR#701.27a,701.27d]), but no canon \
+            transform-layout card is extracted yet (pipeline-layout-extraction) — until such a \
+            fixture lands, no transforming-DFC real card can graduate to cover this grammar.",
         ),
         (
             n("PlayerAction", "VentureIntoDungeon"),
@@ -514,6 +514,13 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("StateChange", "TurnedFace"),
             "DEFERRED: no turned-face-up/down-triggered real card in \
             this batch.",
+        ),
+        (
+            n("StateChange", "Transformed"),
+            "DEFERRED: the Transformed fact is emitted by the transform resolve \
+            arm + apply, but no canon transform-layout card is extracted yet \
+            (pipeline-layout-extraction) — until such a fixture lands, no \
+            transforming-DFC real card can graduate to cover this node.",
         ),
         (
             n("Agency", "CostPayment"),

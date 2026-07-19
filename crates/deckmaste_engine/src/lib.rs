@@ -172,6 +172,8 @@ pub use target::candidates;
 pub use target::matches;
 pub use target::object_kind;
 
+mod transform;
+
 mod trigger;
 pub use trigger::NotedTrigger;
 pub use trigger::PendingTrigger;

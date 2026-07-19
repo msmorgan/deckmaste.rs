@@ -401,7 +401,21 @@ impl GameState {
             Action::TheRingTempts(_) => {
                 todo!("engine seam: the Ring tempts you ([CR#701.54a]) — Ring machinery unbuilt")
             }
-            Action::Transform(_) => todo!("resolve arm: Task 5"),
+            // [CR#701.27a]: flip each targeted transforming DFC. No-op (fizzle,
+            // never panic) on a non-transforming-DFC permanent — the check is on
+            // the CARD, not copied characteristics ([CR#701.27c,712.9]) — or when
+            // the destination face is an instant/sorcery ([CR#701.27d]). Identity
+            // is preserved by the apply, which toggles `side` without reminting
+            // ([CR#712.18]).
+            Action::Transform(sel) => {
+                let mut events = Vec::new();
+                for object in self.eval_reference_set(sel, frame) {
+                    if crate::transform::transform_legal(self, object) {
+                        events.push(GameEvent::Transformed(object));
+                    }
+                }
+                vec![WorkItem::Emit(occurrence_of(events))]
+            }
         }
     }
 
@@ -5268,6 +5282,181 @@ mod tests {
             state.zones.libraries[p0.index()].iter().copied().nth(2),
             Some(lib),
             "the pre-existing card is untouched beneath the pile"
+        );
+    }
+
+    /// Mint (on the battlefield, player 0) a transforming DFC whose front and
+    /// back are creature faces with the given P/T, its `side` starting `Front`
+    /// ([CR#712.14]). Mirrors the layer-test DFC setup.
+    fn transforming_dfc_on_field(
+        state: &mut GameState,
+        front_pt: (deckmaste_core::Int, deckmaste_core::Int),
+        back_pt: (deckmaste_core::Int, deckmaste_core::Int),
+    ) -> ObjectId {
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::StatValue;
+
+        let face = |name: &str, (p, t): (deckmaste_core::Int, deckmaste_core::Int)| CardFace {
+            name: name.into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(p)),
+            toughness: Some(StatValue::Number(t)),
+            ..CardFace::default()
+        };
+        let card = Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front: face("Front Face", front_pt),
+            back: face("Back Face", back_pt),
+        };
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// [CR#701.27a]: resolving `Transform(This)` on a transforming DFC flips it
+    /// to its other face — the layered view then shows the back face's
+    /// characteristics ([CR#712.8e]) and `side` is `Back`. [CR#701.27c,712.9]:
+    /// the same instruction on a `Normal` card (no other face) does nothing —
+    /// no `Transformed` fact, characteristics unchanged.
+    #[test]
+    fn transform_flips_dfc_and_noops_on_normal() {
+        use deckmaste_core::StatValue;
+
+        use crate::object::Side;
+
+        let mut state = game();
+        let dfc = transforming_dfc_on_field(&mut state, (1, 1), (3, 2));
+        // A plain 2/2 with no other face.
+        let normal_card = Card::Normal(CardFace {
+            name: "Just A Bear".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            ..CardFace::default()
+        });
+        let normal_id = state.cards.push(Arc::new(normal_card), PlayerId(0));
+        let normal = state.objects.mint(
+            ObjectSource::Card(normal_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(normal);
+
+        assert_eq!(state.layers().power(dfc), Some(1), "front-up before flip");
+
+        let frame = frame_src(dfc);
+        state.run_effect(
+            OneShotEffect::Act(Action::Transform(Reference::This)),
+            &frame,
+        );
+        drain(&mut state);
+
+        assert_eq!(
+            state.layers().power(dfc),
+            Some(3),
+            "the DFC now shows its back face's power [CR#712.8e]"
+        );
+        assert_eq!(
+            state.objects.obj(dfc).side,
+            Side::Back,
+            "side flipped to Back [CR#712.18]"
+        );
+        assert!(
+            logged(
+                &state,
+                |e| matches!(e, GameEvent::Transformed(o) if *o == dfc)
+            ),
+            "Transformed fact recorded for the DFC"
+        );
+
+        // The Normal card: transforming it does nothing.
+        let frame = frame_src(normal);
+        state.run_effect(
+            OneShotEffect::Act(Action::Transform(Reference::This)),
+            &frame,
+        );
+        drain(&mut state);
+        assert_eq!(
+            state.layers().power(normal),
+            Some(2),
+            "a Normal card's characteristics are unchanged [CR#701.27c,712.9]"
+        );
+        assert_eq!(
+            state.objects.obj(normal).side,
+            Side::Front,
+            "a Normal card never leaves its front face"
+        );
+        assert!(
+            !logged(
+                &state,
+                |e| matches!(e, GameEvent::Transformed(o) if *o == normal)
+            ),
+            "no Transformed fact for a Normal card"
+        );
+    }
+
+    /// [CR#701.27d]: resolving `Transform(This)` when the destination face is an
+    /// instant/sorcery does nothing — the front stays up, characteristics
+    /// unchanged, no `Transformed` fact.
+    #[test]
+    fn transform_into_sorcery_face_is_a_noop() {
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::StatValue;
+
+        use crate::object::Side;
+
+        let card = Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front: CardFace {
+                name: "Creature Front".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..CardFace::default()
+            },
+            back: CardFace {
+                name: "Sorcery Back".into(),
+                types: vec![Type::Sorcery.def()],
+                ..CardFace::default()
+            },
+        };
+        let mut state = game();
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+
+        let frame = frame_src(id);
+        state.run_effect(
+            OneShotEffect::Act(Action::Transform(Reference::This)),
+            &frame,
+        );
+        drain(&mut state);
+
+        assert_eq!(
+            state.layers().power(id),
+            Some(2),
+            "front face stays up — no flip into an instant/sorcery [CR#701.27d]"
+        );
+        assert_eq!(
+            state.objects.obj(id).side,
+            Side::Front,
+            "side is still Front [CR#701.27d]"
+        );
+        assert!(
+            !logged(
+                &state,
+                |e| matches!(e, GameEvent::Transformed(o) if *o == id)
+            ),
+            "no Transformed fact when the destination face is a sorcery"
         );
     }
 }
