@@ -594,6 +594,13 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
         Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
             super::effect::color_word(*c).to_string()
         }
+        // A bare supertype standing alone as a card descriptor ([CR#205.4a]):
+        // "snow" / "legendary" — the type-gated look-at-top peek's `${0}`
+        // classifies "a snow card" to `Supertype(Snow)`, which renders back to
+        // the lowercase supertype word (no accompanying type noun).
+        Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
+            super::card::supertype_str(*s).to_lowercase()
+        }
         Predicate::Kind(ObjectKind::Player) => "player".to_string(),
         // An ability on the stack ([CR#602.2a,603.3]): "counter target ability".
         Predicate::Kind(ObjectKind::Ability) => "ability".to_string(),

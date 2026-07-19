@@ -364,6 +364,24 @@ pub(super) fn type_code(word: &str) -> Option<&'static str> {
     })
 }
 
+/// A supertype word ([CR#205.4a]) -> its `Supertype` enum ident, else `None`.
+/// Case-insensitive, mirroring [`type_code`]/[`color_ident`]. The type-gated
+/// look-at-top slot reader (`macro_slot_reader`, [`crate::parsers::effect`])
+/// uses this for a bare supertype standing alone as a card descriptor ("a snow
+/// card"), where the supertype atom IS the whole filter (no accompanying
+/// `Type`) — the fallback for the words `search_card_descriptor` doesn't take
+/// standalone.
+pub(super) fn supertype_ident(word: &str) -> Option<&'static str> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "basic" => "Basic",
+        "legendary" => "Legendary",
+        "ongoing" => "Ongoing",
+        "snow" => "Snow",
+        "world" => "World",
+        _ => return None,
+    })
+}
+
 /// A leading color/color-count adjective ("black", "colorless",
 /// "multicolored") -> its atom (`ColorIs(<C>)`, or the bare `Colorless`/
 /// `Multicolored`), plus the remaining head. `pub(crate)` beyond

@@ -90,6 +90,13 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::OneShotEffect>("OneShotEffect");
     param_types.add_typed::<dc::EventFilter>("EventFilter");
     param_types.add_typed::<dc::Predicate>("Predicate");
+    // A card-type-descriptor `Predicate` — the same `Predicate` value, but a
+    // distinct param NAME so the `OneShotEffect`-macro slot reader
+    // (`macro_slot_reader`, migrations effect.rs) routes it through the card
+    // classifier (`search_card_descriptor`: "snow" -> `Supertype(Snow)`,
+    // "land"/"creature" -> `Type(_)`) rather than the general filter grammar,
+    // and no other `Predicate` slot is affected.
+    param_types.add_typed::<dc::Predicate>("CardTypePredicate");
     param_types.add_typed::<dc::KeywordAbility>("KeywordAbility");
     param_types.add_typed::<dc::ManaRider>("ManaRider");
     param_types.add_typed::<dc::Modification>("Modification");

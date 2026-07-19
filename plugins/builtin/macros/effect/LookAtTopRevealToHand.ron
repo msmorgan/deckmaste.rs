@@ -1,0 +1,39 @@
+// "Look at the top card of your library. If it's a <TYPE> card, you may reveal
+// it and put it into your hand." — the type-gated single-card peek-to-hand
+// shape (Frost Augur "snow", Dryad Greenseeker "land", Domri Rade "creature").
+//
+// No dedicated "look at" atom — composed from primitives like `Explore.ron`
+// and `ExileTop.ron`: bind the single top card (`Each` over `TopOfLibrary` 1 ->
+// the per-iteration anaphor `It`); looking is the private inspection the peek
+// itself grants (the card stays on top, unmoved). The `If` reads the peeked
+// card's card type ([CR#300.1]); on a match, a single `May` covers BOTH the
+// public reveal ([CR#701.20a] — revealing never moves the card, [CR#701.20b])
+// AND the library -> hand move, so "you may reveal it and put it into your
+// hand" is one optional two-step sequence, not two independent options.
+//
+// The `${0}` slot is the card-type word between "a" and "card"; its declared
+// `CardTypePredicate` param routes the word through the shared library-search
+// classifier (`search_card_descriptor`, migrations effect.rs), which emits the
+// CR-correct atom — `Type("Land")`/`Type("Creature")` for a card TYPE, a bare
+// `Supertype(Snow)` for a SUPERTYPE ([CR#205.4a]) — so "snow" and "land"
+// classify differently rather than blindly wrapping in `Type`.
+//
+// Renders template-first: `${0}` renders back to the bare word via
+// `filter_noun` (`Type(_)` -> its type noun, `Supertype(Snow)` -> "snow"), so
+// "If it's a snow card" round-trips.
+(
+    name: "LookAtTopRevealToHand",
+    template: "look at the top card of your library. If it's a ${0} card, you may reveal it and put it into your hand",
+    kinds: [OneShotEffect],
+    params: [CardTypePredicate],
+    body: Each(
+        binder: Existing(TopOfLibrary(count: 1)),
+        effect: If(
+            condition: Matches(It, Param(0)),
+            then: May(effect: Sequentially([
+                Reveal(what: It),
+                Move(It, Hand),
+            ])),
+        ),
+    ),
+)

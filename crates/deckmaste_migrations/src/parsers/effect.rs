@@ -328,6 +328,25 @@ fn macro_slot_reader(ty: &str, input: &str) -> Option<(String, usize)> {
         // onto the frame, which a slot reader can't do (it returns only `(arg,
         // consumed)`); those decline, leaving the clause for a later production.
         "Reference" => self_reference(input.trim()).map(|r| (r, input.len())),
+        // A card-type-descriptor slot ("… if it's a ${0} card …"): the
+        // descriptor word(s) between "a" and "card", classified into the
+        // CR-correct atom. A card TYPE / color-adjective / subtype descriptor
+        // reuses the shared library-search reader (`search_card_descriptor` —
+        // "land"/"creature" -> `Type(_)`); a bare SUPERTYPE the search reader
+        // doesn't take standalone ("snow" -> `Supertype(Snow)`, [CR#205.4a])
+        // is handled here so the search grammar (which never sees a bare "a
+        // snow card" filter) is not widened. Unlike the tail-anchored
+        // `Count`/`Reference` slots, this one is FOLLOWED by the literal
+        // " card", so it consumes only up to that boundary (never the whole
+        // clause), leaving " card …" for the pattern's trailing literal.
+        "CardTypePredicate" => {
+            let end = input.find(" card")?;
+            let descriptor = input[..end].trim();
+            let predicate = search_card_descriptor(descriptor).or_else(|| {
+                filter::supertype_ident(descriptor).map(|s| format!("Supertype({s})"))
+            })?;
+            Some((predicate, end))
+        }
         _ => None,
     }
 }
