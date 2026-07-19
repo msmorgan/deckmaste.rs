@@ -3693,6 +3693,22 @@ mod tests {
             }
         }
 
+        // Mint a card of type `ty` onto the TOP (front) of P0's library.
+        fn put_on_top(state: &mut GameState, name: &str, ty: Type) {
+            let cid = state.cards.push(
+                Arc::new(Card::Normal(CardFace {
+                    name: name.into(),
+                    types: vec![ty.def()],
+                    ..CardFace::default()
+                })),
+                PlayerId(0),
+            );
+            let id = state
+                .objects
+                .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Library));
+            state.zones.libraries[0].push_front(id);
+        }
+
         // `Single(TopOfLibrary(1))` — the sole top card of your library, read
         // directly (both by the condition and by the reveal), no binder.
         let top_ref = || {
@@ -3707,10 +3723,10 @@ mod tests {
                     top_ref(),
                     Predicate::Or(vec![
                         Predicate::Characteristic(CharacteristicPredicate::Type(
-                            Type::Instant.name(),
+                            Type::Instant.into(),
                         )),
                         Predicate::Characteristic(CharacteristicPredicate::Type(
-                            Type::Sorcery.name(),
+                            Type::Sorcery.into(),
                         )),
                     ]),
                 ),
@@ -3728,22 +3744,6 @@ mod tests {
                 otherwise: None,
             })
         };
-
-        // Mint a card of type `ty` onto the TOP (front) of P0's library.
-        fn put_on_top(state: &mut GameState, name: &str, ty: Type) {
-            let cid = state.cards.push(
-                Arc::new(Card::Normal(CardFace {
-                    name: name.into(),
-                    types: vec![ty.def()],
-                    ..CardFace::default()
-                })),
-                PlayerId(0),
-            );
-            let id = state
-                .objects
-                .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Library));
-            state.zones.libraries[0].push_front(id);
-        }
 
         // 1. Instant on top → the reveal is accepted → ~ transforms.
         {

@@ -185,6 +185,13 @@ impl TypeRef {
         self.0.name
     }
 
+    /// The referenced type's name as a string — the match key as `&str` (see
+    /// [`TypeRef::name`]), mirroring [`SubtypeRef::as_str`].
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        self.0.name.as_str()
+    }
+
     /// A NAME-ONLY ref (`permanent: false`, empty `confers`) for render/engine
     /// code that constructs a filter ref from a bare [`Ident`] — identity is
     /// by-name, so the fabricated `permanent`/`confers` never participate in a
