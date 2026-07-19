@@ -553,6 +553,21 @@ eventKindCaps CreateToken       = MkEventCaps True  True  True  Nothing       Fa
 eventKindCaps PutCounters       = MkEventCaps True  True  True  Nothing       False False
 eventKindCaps RemoveCounters    = MkEventCaps True  True  True  Nothing       False False
 eventKindCaps Destroy           = MkEventCaps True  False False Nothing       False False
+-- the slice-family / fight keyword-action kinds (their `KeywordActionSpec` args ARE these caps):
+-- mill ([CR#701.17a]) is the graveyard twin of Draw — a slice verb whose PERFORMER rides the actor
+-- ("whenever an opponent mills"), per-fact amount ONE card (multi-card forms ride the Batch tier), no
+-- distinguished object.
+eventKindCaps Mill              = MkEventCaps False True  True  Nothing       False False
+-- scry/surveil ([CR#701.22a,701.25a]) act on YOUR library by definition, so they carry ONLY the count —
+-- no performer (actor) and no bound object (the reordered / graveyard'd cards aren't distinguished).
+eventKindCaps Scry              = MkEventCaps False False True  Nothing       False False
+eventKindCaps Surveil           = MkEventCaps False False True  Nothing       False False
+-- fateseal ([CR#701.29a]) names the fatesealed player (an opponent — the actor "that player") plus the
+-- count; no bound object (that library's cards aren't distinguished).
+eventKindCaps Fateseal          = MkEventCaps False True  True  Nothing       False False
+-- fight ([CR#701.14a]): two fighter creatures — one rides the object (agent), the other the patient
+-- (`Just AnObject`). No player actor, no amount, and the damage dealt isn't combat damage ([CR#701.14d]).
+eventKindCaps Fight             = MkEventCaps True  False False (Just AnObject) False False
 eventKindCaps (ZoneChanged _ _) = MkEventCaps True  False False Nothing       False False
 eventKindCaps (BeginStep _)     = MkEventCaps False False False Nothing       False False
 eventKindCaps (Becomes _)       = MkEventCaps True  False False Nothing       False False
@@ -1016,6 +1031,11 @@ eventKindObjectSort CreateToken = Token                    -- [CR#701.7]
 eventKindObjectSort PutCounters = Permanent                -- the "on" carrier
 eventKindObjectSort RemoveCounters = Permanent
 eventKindObjectSort Destroy = Card                         -- [CR#701.8a] battlefield -> graveyard
+eventKindObjectSort Mill = Card                            -- [CR#701.17a] library -> graveyard (no object cap; unused)
+eventKindObjectSort Scry = Card                            -- [CR#701.22a] library cards, reordered (no object cap; unused)
+eventKindObjectSort Surveil = Card                         -- [CR#701.25a] library -> graveyard/top (no object cap; unused)
+eventKindObjectSort Fateseal = Card                        -- [CR#701.29a] an opponent's library cards (no object cap; unused)
+eventKindObjectSort Fight = Permanent                      -- [CR#701.14a] the fighter creature (a battlefield permanent)
 eventKindObjectSort (ZoneChanged _ (Just z)) = zoneSort z  -- the NEW zone's noun
 eventKindObjectSort (ZoneChanged _ Nothing) = Card         -- left; destination unfixed
 eventKindObjectSort (BeginStep _) = Permanent              -- (no object cap; unused)
