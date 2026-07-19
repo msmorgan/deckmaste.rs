@@ -42,6 +42,7 @@ type ClauseParser = fn(&str, &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>
 /// DISTINCT productions is unchanged — only a same-kind macro tie inside the
 /// index is an error.
 const CLAUSE_PARSERS: &[ClauseParser] = &[
+    parse_may_reflexive,
     parse_if,
     parse_may,
     parse_player_taps_per_counter,
@@ -56,6 +57,7 @@ const CLAUSE_PARSERS: &[ClauseParser] = &[
     |l, _| Ok(parse_deal_damage(l, 0)),
     |l, _| Ok(parse_draw_then_discard(l)),
     |l, _| Ok(parse_draw(l)),
+    |l, _| Ok(parse_discard(l)),
     |l, _| Ok(parse_lose_life(l)),
     |l, _| Ok(parse_gain_life(l)),
     |l, _| Ok(parse_counter(l)),
@@ -608,6 +610,135 @@ fn parse_may(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect
     }))
 }
 
+/// The reflexive-optional clause family ([CR#603,608]): `you may <offer>. If
+/// you do, <did>` (with the `If you don't, <not>` complement), where the "if
+/// you do"/"if you don't" continuation sentence(s) bind to the offer — they are
+/// NOT independent clauses (each fails to parse alone). This production folds
+/// the tail into ONE node so the offer's optional-with-consequence reading is
+/// recovered; today both sentences fail and the whole line stays `Unparsed`.
+///
+/// Two node shapes, chosen by the offer:
+/// - `you may pay <cost>. If you do, <did>` -> `MayPay { cost, and_then }` (the
+///   dominant form; `actor` defaults to `You`, omitted from RON). The [`Cost`]
+///   is read off the BARE post-`pay ` symbol string, so an energy `pay {E}{E}`
+///   — whose cost renders WITH a leading `Pay` word, which would double in the
+///   `may pay …` render frame — declines here rather than mis-round-tripping.
+///   v1 emits no `or_else`: the `MayPay` render spells the negative branch with
+///   a `"; if you don't"` semicolon, which cannot round-trip the oracle `". If
+///   you don't"`, so a pay offer carrying a negative tail declines.
+/// - `you may <verb-phrase>. If you do/don't, <branch>` -> `May { effect,
+///   if_did, if_not }`; the verb phrase and each present branch re-enter
+///   [`parse_clause`]. The `May` render is period-separated, so BOTH branches
+///   round-trip.
+///
+/// The "if you do" branch consumes GREEDILY to the line end (or the "if you
+/// don't" boundary), so a trailing delayed-trigger sentence ("… create a token.
+/// Exile that token at the beginning of the next end step.") folds into the
+/// branch as a nested [`parse_sequence`] rather than leaking as an
+/// unconditional sibling.
+///
+/// Targets: like [`parse_may`], the offer's announce list carries through (the
+/// branches read it anaphorically). A BRANCH that declares its OWN targets has
+/// no shared announce list to bind against, so the production declines — the
+/// same v1 stance [`parse_if`] takes, awaiting a later hoisted-`Targeted`
+/// wrapper pass. Engages only when a `. If you do,`/`. If you don't,` boundary
+/// is present; a bare `you may <x>` is [`parse_may`]'s job.
+fn parse_may_reflexive(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedEffect>> {
+    const DID_SEP: &str = ". if you do, ";
+    const NOT_SEP: &str = ". if you don't, ";
+
+    let Some(rest) = strip_prefix_ci(line, "you may ") else {
+        return Ok(None);
+    };
+    // Locate the reflexive boundaries case-insensitively. ASCII-lowercasing
+    // preserves byte length, so offsets in `lower` map straight onto `rest`.
+    let lower = rest.to_ascii_lowercase();
+    let did_at = lower.find(DID_SEP);
+    let not_at = lower.find(NOT_SEP);
+    // A bare "you may <x>" (no continuation) is parse_may's job.
+    let boundary = match (did_at, not_at) {
+        (Some(d), Some(n)) => d.min(n),
+        (Some(d), None) => d,
+        (None, Some(n)) => n,
+        (None, None) => return Ok(None),
+    };
+    let offer = &rest[..boundary];
+
+    // The "if you do" text runs to the "if you don't" boundary (when it opens
+    // AFTER it) or the line end; the "if you don't" text runs to the end. Each
+    // is a clause with its terminal period restored for re-parsing.
+    let did_text = did_at.map(|d| {
+        let start = d + DID_SEP.len();
+        let end = not_at.filter(|&n| n > d).unwrap_or(rest.len());
+        rest[start..end].trim_end_matches('.')
+    });
+    let not_text = not_at.map(|n| rest[n + NOT_SEP.len()..].trim_end_matches('.'));
+
+    let (targets, effect) = if let Some(cost_body) = strip_prefix_ci(offer, "pay ") {
+        // MayPay path. `and_then` is required (a pay offer with only a negative
+        // branch declines above via not-without-did); the cost is read bare, so
+        // energy (`Pay {E}…`) and any other "Pay"-worded macro cost declines.
+        let Some(did_text) = did_text else {
+            return Ok(None);
+        };
+        let Some(cost) = crate::parsers::cost::parse_cost(
+            cost_body,
+            crate::parsers::cost::VariableMana::Allow,
+            Some(ctx.index),
+        )?
+        else {
+            return Ok(None);
+        };
+        let Some(and_then) = parse_clause(&format!("{did_text}."), ctx)? else {
+            return Ok(None);
+        };
+        // A branch announce list has nowhere to bind; a negative tail can't
+        // round-trip the semicolon render. Both decline for v1.
+        if !and_then.targets.is_empty() || not_text.is_some() {
+            return Ok(None);
+        }
+        (
+            Vec::new(),
+            format!(
+                "MayPay(cost: [{}], and_then: {})",
+                cost.join(", "),
+                and_then.effect
+            ),
+        )
+    } else {
+        // May path. Offer targets carry through; a branch's own targets decline.
+        let Some(offer_parsed) = parse_clause(&format!("{offer}."), ctx)? else {
+            return Ok(None);
+        };
+        // Parse an optional branch into its `, <field>: <effect>` RON fragment
+        // (empty when the branch is absent). `Ok(None)` declines the whole
+        // production: the branch didn't parse, or it declared its own targets,
+        // which have no shared announce list to bind against.
+        let branch = |text: Option<&str>, field: &str| -> anyhow::Result<Option<String>> {
+            let Some(text) = text else {
+                return Ok(Some(String::new()));
+            };
+            let Some(parsed) = parse_clause(&format!("{text}."), ctx)? else {
+                return Ok(None);
+            };
+            if !parsed.targets.is_empty() {
+                return Ok(None);
+            }
+            Ok(Some(format!(", {field}: {}", parsed.effect)))
+        };
+        let (Some(did_frag), Some(not_frag)) =
+            (branch(did_text, "if_did")?, branch(not_text, "if_not")?)
+        else {
+            return Ok(None);
+        };
+        (
+            offer_parsed.targets,
+            format!("May(effect: {}{did_frag}{not_frag})", offer_parsed.effect),
+        )
+    };
+    Ok(Some(ParsedEffect { targets, effect }))
+}
+
 /// `<subject> gets ±N/±N [and gain(s) <kw…>] until end of turn.` (and the
 /// keyword-only `<subject> gain(s)/have/has <kw…> until end of turn.`) -> a
 /// one-shot continuous effect ([CR#611.2]): `Continuously(effect:
@@ -860,6 +991,16 @@ fn parse_sequence(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<ParsedE
     let Some(sentences) = split_sentences(line) else {
         return Ok(None);
     };
+    // Fold a mid-sequence `you may … . If you do/don't, …` run back into one
+    // sentence so [`parse_may_reflexive`] sees the offer and its continuation
+    // whole. A fully-coalesced single clause was already offered to every
+    // production (reflexive included) at the top level, so there is nothing
+    // left for a SEQUENCE to add — bow out (this also stops the coalesce ->
+    // parse_clause -> parse_sequence recursion from looping).
+    let sentences = coalesce_reflexive(&sentences);
+    if sentences.len() < 2 {
+        return Ok(None);
+    }
     let mut parts: Vec<ParsedEffect> = Vec::with_capacity(sentences.len());
     for sentence in &sentences {
         let Some(parsed) = parse_clause(sentence, ctx)? else {
@@ -894,6 +1035,32 @@ fn split_sentences(line: &str) -> Option<Vec<&str>> {
     }
     sentences.push(rest);
     (sentences.len() >= 2).then_some(sentences)
+}
+
+/// Merge the FIRST `you may …` sentence that is immediately followed by an
+/// `If you do,`/`If you don't,` continuation — together with every sentence
+/// after it — into ONE combined sentence, so a reflexive fold buried
+/// mid-sequence (e.g. `mill three cards. You may put …. If you don't, …`)
+/// reaches [`parse_may_reflexive`] as a single clause. Sentences BEFORE the
+/// fold stay separate; the greedy tail lets the reflexive parser own the
+/// branch extent (a trailing delayed-trigger sentence folds into the branch).
+/// Returns owned strings (the join allocates); a line with no such fold is
+/// returned verbatim, so the common multi-sentence sequence is unaffected.
+fn coalesce_reflexive(sentences: &[&str]) -> Vec<String> {
+    let fold_at = (0..sentences.len()).find(|&i| {
+        strip_prefix_ci(sentences[i], "you may ").is_some() && i + 1 < sentences.len() && {
+            let next = sentences[i + 1].to_ascii_lowercase();
+            next.starts_with("if you do,") || next.starts_with("if you don't,")
+        }
+    });
+    match fold_at {
+        Some(i) => {
+            let mut out: Vec<String> = sentences[..i].iter().map(|s| (*s).to_owned()).collect();
+            out.push(sentences[i..].join(" "));
+            out
+        }
+        None => sentences.iter().map(|s| (*s).to_owned()).collect(),
+    }
 }
 
 /// The delayed-trigger template ([CR#603.7]): "At the beginning of the next
@@ -2484,6 +2651,121 @@ mod tests {
         parse_clause(line, &ctx)
             .unwrap()
             .map(|p| (p.targets.join(", "), p.effect))
+    }
+
+    /// `you may pay {cost}. If you do, <effect>` folds the offer and its "if
+    /// you do" continuation into one [`MayPay`] node — the dominant reflexive
+    /// form. `actor` defaults to `You` (omitted); no `or_else` (positive form).
+    #[test]
+    fn may_pay_reflexive_folds_to_may_pay() {
+        assert_eq!(
+            parsed_with_macros("you may pay {2}. If you do, draw a card."),
+            Some((
+                String::new(),
+                "MayPay(cost: [Mana([Generic(2)])], and_then: Draw(1))".to_owned(),
+            ))
+        );
+    }
+
+    /// A non-`pay` offer folds to [`May`] with the verb phrase and the branch
+    /// each re-parsed by `parse_clause`; `if_did` carries the "if you do" tail.
+    #[test]
+    fn may_verb_reflexive_folds_to_may_if_did() {
+        assert_eq!(
+            parsed_with_macros("you may draw a card. If you do, discard a card."),
+            Some((
+                String::new(),
+                "May(effect: Draw(1), if_did: Discard(1))".to_owned(),
+            ))
+        );
+    }
+
+    /// The negative-only `If you don't, …` complement populates `if_not` with
+    /// no `if_did` (the milled-Plains shape family).
+    #[test]
+    fn may_verb_reflexive_negative_only_tail() {
+        assert_eq!(
+            parsed_with_macros("you may discard a card. If you don't, put a +1/+1 counter on ~."),
+            Some((
+                String::new(),
+                "May(effect: Discard(1), if_not: PutCounters(This, P1P1Counter, 1))".to_owned(),
+            ))
+        );
+    }
+
+    /// Both branches present -> both `if_did` and `if_not`, in field order.
+    #[test]
+    fn may_verb_reflexive_both_branches() {
+        assert_eq!(
+            parsed_with_macros(
+                "you may draw a card. If you do, discard a card. If you don't, put a +1/+1 counter on ~."
+            ),
+            Some((
+                String::new(),
+                "May(effect: Draw(1), if_did: Discard(1), if_not: PutCounters(This, P1P1Counter, 1))"
+                    .to_owned(),
+            ))
+        );
+    }
+
+    /// A reflexive fold buried mid-sequence: `parse_sequence` coalesces the
+    /// `you may …`/`If you don't, …` run so it reaches the reflexive parser
+    /// whole, while the leading sentence stays a `Sequentially` sibling.
+    #[test]
+    fn may_reflexive_mid_sequence_coalesces() {
+        assert_eq!(
+            parsed_with_macros(
+                "put a +1/+1 counter on ~. You may draw a card. If you don't, draw two cards."
+            ),
+            Some((
+                String::new(),
+                "Sequentially([PutCounters(This, P1P1Counter, 1), \
+                 May(effect: Draw(1), if_not: Draw(2))])"
+                    .to_owned(),
+            ))
+        );
+    }
+
+    /// The "if you do" branch consumes GREEDILY to the line end, folding a
+    /// trailing sentence into `and_then` (a nested `Sequentially`) rather than
+    /// leaking it as an unconditional sibling.
+    #[test]
+    fn may_pay_reflexive_branch_is_greedy() {
+        assert_eq!(
+            parsed_with_macros("you may pay {2}. If you do, draw a card. Draw two cards."),
+            Some((
+                String::new(),
+                "MayPay(cost: [Mana([Generic(2)])], \
+                 and_then: Sequentially([Draw(1), Draw(2)]))"
+                    .to_owned(),
+            ))
+        );
+    }
+
+    /// v1 declines the cases whose render cannot round-trip the oracle: an
+    /// energy `pay {E}{E}` (cost renders WITH a "Pay" word, doubling in the
+    /// "may pay" frame) and a pay offer carrying a negative `If you don't`
+    /// branch (MayPay renders that branch with a "; if you don't" semicolon).
+    #[test]
+    fn may_pay_reflexive_declines_unroundtrippable() {
+        assert!(parsed_with_macros("you may pay {E}{E}. If you do, draw a card.").is_none());
+        assert!(
+            parsed_with_macros(
+                "you may pay {2}. If you do, draw a card. If you don't, lose 1 life."
+            )
+            .is_none()
+        );
+    }
+
+    /// A bare `you may <x>` with no continuation is left to [`parse_may`] — the
+    /// reflexive parser engages only on a `. If you do,`/`. If you don't,`
+    /// boundary.
+    #[test]
+    fn may_reflexive_ignores_bare_may() {
+        assert_eq!(
+            parsed_with_macros("you may draw a card."),
+            Some((String::new(), "May(effect: Draw(1))".to_owned()))
+        );
     }
 
     #[test]
