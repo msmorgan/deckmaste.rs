@@ -1,1 +1,7 @@
 build/
+
+# Scratch modules written into the tracked src/ tree by `cargo xtask idris-check`
+# (crates/xtask/src/idris_check.rs). cleanup_module() removes them on a clean run,
+# but a killed/panicked run leaks them — ignore so they can never be committed.
+# The matching .ttc/.ttm live under build/, already covered above.
+/src/IdrisCheck*.idr
