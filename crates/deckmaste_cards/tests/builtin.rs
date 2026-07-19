@@ -656,8 +656,10 @@ fn amass_decomposes_into_core_primitives() {
     use deckmaste_core::Continuously;
     use deckmaste_core::CounterRef;
     use deckmaste_core::Modification;
+    use deckmaste_core::Sort;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::TokenSpec;
+    use deckmaste_core::Type;
 
     let plugin = builtin();
     let effect: OneShotEffect = plugin.macros.read_str("Amass(\"Orc\", 1)").unwrap();
@@ -724,12 +726,12 @@ fn amass_decomposes_into_core_primitives() {
         OneShotEffect::Act(Action::By(
             Reference::You,
             PlayerAction::PutCounters(
-                Reference::It,
+                Reference::That(Sort::OfType(Type::Creature)),
                 CounterRef::from("P1P1Counter"),
                 Count::Literal(1),
             ),
         )),
-        "N +1/+1 counters on the chosen Army",
+        "N +1/+1 counters on the chosen Army (bound as That, not It)",
     );
 
     // Step 4: "If it isn't a [subtype], it becomes a [subtype] in addition to
@@ -738,8 +740,8 @@ fn amass_decomposes_into_core_primitives() {
         panic!("step 4 is an If, got {:?}", body[1]);
     };
     assert!(
-        matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Matches(Reference::It, _))),
-        "guarded on `Not(Matches(It, Orc))`, got {:?}",
+        matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Matches(Reference::That(Sort::OfType(Type::Creature)), _))),
+        "guarded on `Not(Matches(That, Orc))`, got {:?}",
         becomes.condition,
     );
     let OneShotEffect::Continuously(Continuously { effect, duration }) = becomes.then.as_ref()
@@ -754,8 +756,10 @@ fn amass_decomposes_into_core_primitives() {
         Duration::EndOfGame,
         "no stated duration ([CR#611.2a])"
     );
-    let StaticEffect::Modify(Reference::It, Modification::Subtypes(CollectionOp::Add(added))) =
-        effect.as_ref()
+    let StaticEffect::Modify(
+        Reference::That(Sort::OfType(Type::Creature)),
+        Modification::Subtypes(CollectionOp::Add(added)),
+    ) = effect.as_ref()
     else {
         panic!("it ADDS the subtype to the chosen Army, got {effect:?}");
     };

@@ -1636,6 +1636,118 @@ mod tests {
         );
     }
 
+    /// Amass ([CR#701.47a]): drives the FULL `Amass` macro expansion —
+    /// `With(ChooseOne(Army creature you control), Sequentially([PutCounters(
+    /// That, +1/+1, N), If(Not(Matches(That, subtype)), Continuously(Modify(
+    /// That, Add subtype), EndOfGame))]))` — end to end. Mints an Army
+    /// creature, answers the surfaced `ChooseObjects` with it, and asserts
+    /// the chosen creature ends with the N +1/+1 counters AND gains the
+    /// amassed subtype.
+    ///
+    /// This proves the macro RESOLVES, catching a bug the expansion-only test
+    /// (`deckmaste_cards::builtin::amass_decomposes_into_core_primitives`)
+    /// can't see: a `With` one-binder binds its pick as `Reference::That`,
+    /// never `It` (the engine sets only `anaphora.that` for a `With` — see
+    /// `run_effect`'s `With` arm), so all three body clauses must read
+    /// `That`; `It` would fizzle unbound, placing no counters and adding no
+    /// subtype. It also proves the one-shot `Continuously(Modify(That,
+    /// ...))` captures the resolved object id at CREATION (a `Locked` scope
+    /// stamped by `eval_reference`), so the subtype lands through the layer
+    /// pass even though the creating effect is long gone.
+    #[test]
+    fn amass_grows_and_subtypes_the_chosen_army() {
+        use deckmaste_core::CardFace;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::Subtype;
+
+        use crate::decide::Decision;
+        use crate::step::StepOutcome;
+
+        let (mut state, src) = bear_on_field();
+        // An Army creature you (player 0) control — the amass target. A 2/2 base
+        // so the pre-growth object never risks an SBA before the counters land;
+        // the amass grows it to 4/4.
+        let army = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Zombie Army".into(),
+                types: vec![Type::Creature.def()],
+                subtypes: vec![Subtype {
+                    name: "Army".into(),
+                    types: vec![Type::Creature],
+                    confers: vec![],
+                }],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..CardFace::default()
+            }),
+        );
+
+        // Drive the ACTUAL macro expansion: amass Orcs 2.
+        let amass: OneShotEffect = builtin().macros.read_str("Amass(\"Orc\", 2)").unwrap();
+        state.run_effect(amass, &frame_src(src));
+
+        // Step 1's guard (`Not(Exists(Army creature you control))`) is FALSE —
+        // the Army above already exists — so no guard token is created; step to
+        // the `With(ChooseOne(...))` that surfaces the pick.
+        let mut choose = None;
+        for _ in 0..30 {
+            match state.step() {
+                StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(c)) => {
+                    choose = Some(c);
+                    break;
+                }
+                StepOutcome::NeedsDecision(other) => panic!("unexpected decision {other:?}"),
+                StepOutcome::Progress(_) => {}
+                StepOutcome::GameOver(_) => panic!("game ended before the amass choice"),
+            }
+        }
+        let choose = choose.expect("amass surfaces a ChooseObjects for the Army creature");
+        assert!(
+            choose.candidates.contains(&army),
+            "[CR#701.47a]: the Army creature you control is an amass candidate"
+        );
+        assert!(
+            !choose.candidates.contains(&src),
+            "[CR#701.47a]: a non-Army creature (the source Grizzly Bears) is NOT an amass candidate"
+        );
+        state
+            .submit_decision(Decision::Chosen(vec![army]))
+            .expect("choosing the Army creature is legal");
+
+        // Pump the growth + becomes to completion.
+        for _ in 0..30 {
+            let _ = state.step();
+            if state.pending.is_some() {
+                break;
+            }
+        }
+
+        // "Put N +1/+1 counters on that creature." — the `That`-bound growth
+        // landed (an unbound `It` would have placed none).
+        let p1p1: deckmaste_core::Ident = "P1P1Counter".into();
+        assert_eq!(
+            state.objects.obj(army).counters.get(&p1p1).copied(),
+            Some(2),
+            "[CR#701.47a]: N=2 +1/+1 counters on the chosen Army"
+        );
+
+        // "If it isn't a [subtype], it becomes a [subtype] in addition to its
+        // other types." — the one-shot `Continuously(Modify(That, Add Orc))`
+        // locked the chosen id at creation, so the layer pass adds Orc while
+        // retaining Army ([CR#701.47a], [CR#611.2a] no stated duration).
+        let view = state.layers();
+        let subtypes = &view.get(army).subtypes;
+        assert!(
+            subtypes.iter().any(|s| s.name == "Orc"),
+            "[CR#701.47a]: the chosen Army becomes an Orc in addition; got {subtypes:?}"
+        );
+        assert!(
+            subtypes.iter().any(|s| s.name == "Army"),
+            "[CR#701.47a]: 'in addition to its other types' — Army is retained; got {subtypes:?}"
+        );
+    }
+
     /// [CR#707.5]: "any enters-the-battlefield triggered abilities of the
     /// copy will have a chance to trigger" (the Wall of Omens example) — a
     /// token copy of a "when this enters, draw a card" creature fires that

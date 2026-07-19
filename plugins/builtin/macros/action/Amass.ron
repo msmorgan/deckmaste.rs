@@ -11,11 +11,15 @@
 //      `${0}` PLUS `Army` (spelled inline so the macro needs no pre-registered
 //      subtype for `${0}`).
 //   2. `With(ChooseOne(Army creature you control), …)` — bind the chosen Army as
-//      `It` for the two clauses that follow. (After step 1 the token, if made,
-//      is itself an Army creature you control, so the choice is always
-//      satisfiable.)
-//   3. `PutCounters(It, P1P1Counter, ${1})` — the growth.
-//   4. `If(Not(Matches(It, ${0})), Continuously(Modify(It, add ${0}), EndOfGame))`
+//      `That` for the two clauses that follow. A `With` one-binder
+//      (`ChooseOne`) binds its pick as `Reference::That`, never `It` (the
+//      engine sets only `anaphora.that` for a `With`; `It` is the ITERATION
+//      anaphor of a divide/`Each`, a different slot, and would fizzle unbound
+//      here). The chosen "Army creature" spells `That(Creature)`. (After step 1
+//      the token, if made, is itself an Army creature you control, so the
+//      choice is always satisfiable.)
+//   3. `PutCounters(That, P1P1Counter, ${1})` — the growth.
+//   4. `If(Not(Matches(That, ${0})), Continuously(Modify(That, add ${0}), EndOfGame))`
 //      — "becomes a [subtype] in addition": a one-shot-created continuous effect
 //      with no stated duration ([CR#611.2a]) that adds the subtype, guarded so a
 //      creature that is already that subtype is untouched.
@@ -54,11 +58,11 @@
                 ControlledBy(Ref(You)),
             ])),
             body: Sequentially([
-                PutCounters(It, P1P1Counter, Param(1)),
+                PutCounters(That(Creature), P1P1Counter, Param(1)),
                 If(
-                    condition: Not(Matches(It, Subtype(Param(0)))),
+                    condition: Not(Matches(That(Creature), Subtype(Param(0)))),
                     then: Continuously(
-                        effect: Modify(It, Subtypes(Add(Param(0)))),
+                        effect: Modify(That(Creature), Subtypes(Add(Param(0)))),
                         duration: EndOfGame,
                     ),
                 ),
