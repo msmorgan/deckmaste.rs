@@ -33,6 +33,24 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::Predicate::kind());
     kinds.add(crate::KeywordAbility::kind());
     kinds.add(crate::ManaRider::kind());
+    // Mana specs and the production wrapper embed their inner value untagged
+    // (a bare `White`/`AnyColor` reads as `ManaSpec`; a bare spec at a
+    // production slot reads as `ManaProduction::Bare`) — registered so the
+    // macro layer takes the embed fall-through and a macro nested in a rider
+    // stays on the macro-aware path.
+    kinds.add(crate::ManaProduction::kind());
+    kinds.add(crate::ManaSpec::kind());
+    // The mana-symbol leaves embed their inner value untagged too, so a bare
+    // `White`/`Generic(2)` reads at a symbol slot: `ColorOrColorless` embeds
+    // `Color`, `SimpleManaSymbol` embeds `ColorOrColorless`, `ManaSymbol` embeds
+    // `SimpleManaSymbol`. `Color` itself is the terminal payload (no embed), so
+    // it needs no registration.
+    kinds.add(crate::ColorOrColorless::kind());
+    kinds.add(crate::SimpleManaSymbol::kind());
+    kinds.add(crate::ManaSymbol::kind());
+    // `StatValue::Number` is a bare-integer `literal` (like `Count::Literal`) —
+    // registered so the literal reader splices a bare numeral at a stat slot.
+    kinds.add(crate::StatValue::kind());
     // Change-bundling macros (`PowerAndToughnessUp`/`Down`, …) expand at
     // `changes: [...]` positions to a `Several` bundle, flattened away before
     // the engine.

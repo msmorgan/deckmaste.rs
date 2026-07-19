@@ -1,10 +1,12 @@
-use serde::Deserialize;
-use serde::Serialize;
-
-use crate::Expand;
+use crate::SupportsMacros;
 
 /// One of the five colors of Magic ([CR#105.1]). Colorless is not a color.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+///
+/// `SupportsMacros` (all-unit, no embed/expanded/literal markers, so it behaves
+/// exactly like the plain serde derive) because it is the terminal embed
+/// payload of [`ColorOrColorless::Color`] — a `#[macro_ron(embed)]` payload
+/// must itself be macro-aware.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Color {
     White,
     Blue,
@@ -42,10 +44,13 @@ impl Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// The `#[macro_ron(embed)]` Color variant serializes transparently, so the RON
+/// stays flat: `White`, not `Color(White)`. A bare ident that isn't `Colorless`
+/// falls through to the embedded [`Color`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ColorOrColorless {
     Colorless,
-    #[serde(untagged)]
+    #[macro_ron(embed)]
     Color(Color),
 }
 

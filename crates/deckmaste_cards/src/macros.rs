@@ -143,6 +143,7 @@ mod tests {
     use deckmaste_core::AsThough;
     use deckmaste_core::CardFace;
     use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::ColorOrColorless;
     use deckmaste_core::Condition;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Count;
@@ -150,7 +151,10 @@ mod tests {
     use deckmaste_core::Destination;
     use deckmaste_core::EventFilter;
     use deckmaste_core::KeywordAbility;
+    use deckmaste_core::ManaProduction;
     use deckmaste_core::ManaRider;
+    use deckmaste_core::ManaSpec;
+    use deckmaste_core::ManaSymbol;
     use deckmaste_core::Modification;
     use deckmaste_core::ObjectKind;
     use deckmaste_core::OneShotEffect;
@@ -160,6 +164,8 @@ mod tests {
     use deckmaste_core::Reference;
     use deckmaste_core::Replacement;
     use deckmaste_core::Selection;
+    use deckmaste_core::SimpleManaSymbol;
+    use deckmaste_core::StatValue;
     use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::Subtype;
@@ -204,6 +210,16 @@ mod tests {
             name_of::<Predicate>(),
             name_of::<KeywordAbility>(),
             name_of::<ManaRider>(),
+            // The mana specs / production wrapper and the symbol leaves embed
+            // their inner value untagged (`#[macro_ron(embed)]`); `StatValue`
+            // reads a bare-integer `literal` — all registered so those spellings
+            // stay flat and macro-aware.
+            name_of::<ManaProduction>(),
+            name_of::<ManaSpec>(),
+            name_of::<ColorOrColorless>(),
+            name_of::<SimpleManaSymbol>(),
+            name_of::<ManaSymbol>(),
+            name_of::<StatValue>(),
             name_of::<Modification>(),
             name_of::<PlayerAction>(),
             name_of::<Preference>(),

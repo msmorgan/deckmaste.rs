@@ -153,7 +153,10 @@ mod tests {
     use super::*;
 
     fn read(source: &str) -> TodoCard {
-        crate::ron_output::ron_options().from_str(source).unwrap()
+        // The literal-aware facade (as graduation reads a `Card`): a bare
+        // `power: 1` is a `StatValue::Number` `#[macro_ron(literal)]`, spliced
+        // by the literal reader — raw `ron` can't read it.
+        deckmaste_core::ron::options().from_str(source).unwrap()
     }
 
     /// An `Unparsed("…")` ability reads as the placeholder; a bare structured

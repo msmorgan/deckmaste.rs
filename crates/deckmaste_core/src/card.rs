@@ -6,6 +6,7 @@ use crate::Expand;
 use crate::ManaCost;
 use crate::Subtype;
 use crate::Supertype;
+use crate::SupportsMacros;
 use crate::TypeDef;
 use crate::ability::Ability;
 
@@ -86,7 +87,11 @@ pub enum Card {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// The `#[macro_ron(literal)]` Number variant reads/writes a bare integer —
+/// `3`, not `Number(3)` — mirroring [`Count::Literal`](crate::Count). A literal
+/// payload is a bare scalar, so (unlike an embed) it needs no `SupportsMacros`
+/// on `Int`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum StatValue {
     // Power or toughness set by a characteristic-defining ability.
     // Any power or toughness containing * is essentially reminder text.
@@ -95,6 +100,6 @@ pub enum StatValue {
     // Loyalty set to X from casting cost.
     Variable,
 
-    #[serde(untagged)]
+    #[macro_ron(literal)]
     Number(crate::Int),
 }

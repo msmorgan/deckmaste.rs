@@ -31,14 +31,15 @@ pub enum PlanarFace {
 /// Produced-mana spec ([CR#106]): what colors or types a mana-adding effect
 /// may produce. Variants accrete — `AnyType`, riders later.
 ///
-/// The untagged Specific variant serializes transparently, so the RON stays
-/// flat: `AddMana(Literal(1), White)`, not `…Specific(White)`. Tagged
-/// variants (`AnyColor`, `OneOf`, `OneOfRuns`, future `AnyType`, riders) must
-/// stay above the `#[serde(untagged)]` line — the untagged arm is tried last.
+/// The `#[macro_ron(embed)]` Specific variant serializes transparently, so the
+/// RON stays flat: `AddMana(Literal(1), White)`, not `…Specific(White)`. Tagged
+/// variants (`AnyColor`, `OneOf`, `OneOfRuns`, future `AnyType`, riders) read
+/// by name; anything that isn't one of them falls through to the embedded
+/// `ColorOrColorless`.
 ///
 /// Not `Copy`: `OneOf`/`OneOfRuns` carry a `Vec`. Nothing `Copy` holds a
 /// `ManaSpec` (`Action`/`Token` are `Clone`), so the spec stays `Clone`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ManaSpec {
     AnyColor,
     /// One mana of a color the controller chooses from a fixed set on
@@ -73,7 +74,7 @@ pub enum ManaSpec {
     /// `deckmaste_engine::resolve`). Mirrors the Idris
     /// `ProducedMana.ProducedByEvent`.
     ProducedByEvent,
-    #[serde(untagged)]
+    #[macro_ron(embed)]
     Specific(ColorOrColorless),
 }
 
@@ -92,12 +93,13 @@ impl From<Color> for ManaSpec {
 /// The component symbols hybrid/phyrexian symbols are built from: a generic
 /// amount, one of the five colors, or colorless ({C}, which is not a color).
 ///
-/// The untagged Color variant serializes transparently, so the RON stays
-/// flat: `White`, not `Color(White)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// The `#[macro_ron(embed)]` Specific variant serializes transparently, so the
+/// RON stays flat: `White`, not `Specific(White)`; a bare colored/colorless
+/// ident falls through to the embedded [`ColorOrColorless`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum SimpleManaSymbol {
     Generic(crate::Uint),
-    #[serde(untagged)]
+    #[macro_ron(embed)]
     Specific(ColorOrColorless),
 }
 
@@ -152,15 +154,16 @@ impl From<crate::Uint> for SimpleManaSymbol {
 /// the type is a load-time/proof concern, not a structural one. Printed
 /// symbols and PRODUCED mana ([`ManaSpec`]) stay separate types.
 ///
-/// The untagged Simple variant serializes transparently, so the RON stays
-/// flat: `Generic(2)`, not `Simple(Generic(2))`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// The `#[macro_ron(embed)]` Simple variant serializes transparently, so the
+/// RON stays flat: `Generic(2)`, not `Simple(Generic(2))`; a bare
+/// `SimpleManaSymbol` spelling falls through to the embedded type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ManaSymbol {
     Variable,
     Snow,
     Hybrid(SimpleManaSymbol, Color), // Slightly more permissive than [CR#107.4].
     Phyrexian(Color, Option<Color>),
-    #[serde(untagged)]
+    #[macro_ron(embed)]
     Simple(SimpleManaSymbol),
 }
 
@@ -290,16 +293,20 @@ pub enum ManaRider {
 }
 
 /// What a production effect adds: the mana spec, optionally with riders.
-/// The untagged `Bare` variant keeps existing spellings flat —
+/// The `#[macro_ron(embed)]` `Bare` variant keeps existing spellings flat —
 /// `AddMana(Literal(1), AnyColor)` — while riders read tagged:
-/// `AddMana(Literal(1), WithRiders(mana: Red, riders: [SpendOnly(…)]))`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// `AddMana(Literal(1), WithRiders(mana: Red, riders: [SpendOnly(…)]))`. The
+/// embed is the macro-aware replacement for `#[serde(untagged)]`, which buffers
+/// through serde's private `Content` and replays past the macro layer — so a
+/// macro nested in a rider (`SpendOnly(Not(… Type(Artifact) …))`) would fail to
+/// expand; the embed keeps the whole value on the macro-aware path.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ManaProduction {
     WithRiders {
         mana: ManaSpec,
         riders: Vec<ManaRider>,
     },
-    #[serde(untagged)]
+    #[macro_ron(embed)]
     Bare(ManaSpec),
 }
 
@@ -710,5 +717,57 @@ mod tests {
             SymbolPred::Not(Arc::new(SymbolPred::IsGeneric))
                 .matches(&ManaSymbol::from(Color::Green))
         );
+    }
+
+    /// A `ManaProduction` round-trips through the `#[macro_ron(embed)]` `Bare`
+    /// variant: a bare spec reads/writes flat (name-erased), while tagged
+    /// `WithRiders` keeps its tag.
+    #[test]
+    fn mana_production_embed_round_trips() {
+        let read = |s: &str| crate::ron::options().from_str::<ManaProduction>(s).unwrap();
+        let write = |m: &ManaProduction| crate::ron::options().to_string(m).unwrap();
+        assert_eq!(read("AnyColor"), ManaProduction::Bare(ManaSpec::AnyColor));
+        assert_eq!(
+            read("White"),
+            ManaProduction::Bare(ManaSpec::Specific(White.into()))
+        );
+        assert_eq!(write(&ManaProduction::Bare(ManaSpec::AnyColor)), "AnyColor");
+        assert_eq!(
+            write(&ManaProduction::Bare(ManaSpec::Specific(Colorless))),
+            "Colorless"
+        );
+        let wr = read("WithRiders(mana: Colorless, riders: [Snow])");
+        assert_eq!(
+            wr,
+            ManaProduction::WithRiders {
+                mana: ManaSpec::Specific(Colorless),
+                riders: vec![ManaRider::Snow],
+            }
+        );
+        assert_eq!(write(&wr), "WithRiders(mana:Colorless,riders:[Snow])");
+    }
+
+    /// Regression: a MACRO nested inside a `WithRiders` rider expands. The old
+    /// `#[serde(untagged)]` `Bare` variant buffered the whole `ManaProduction`
+    /// through serde's private `Content` and replayed it past the macro layer,
+    /// so `SpendOnly(<macro>)` failed with "data did not match any variant of
+    /// untagged enum `ManaProduction`"; the `#[macro_ron(embed)]` variant keeps
+    /// the value on the macro-aware path.
+    #[test]
+    fn macro_nested_in_rider_expands_through_embed() {
+        let def: macro_ron::MacroDef = crate::ron::raw_options()
+            .from_str(r#"(name: "CreaturePred", kinds: [Predicate], body: Kind(Spell))"#)
+            .expect("macro def parses");
+        let mut macros =
+            macro_ron::MacroSet::new(crate::ron::kinds()).with_options(crate::ron::raw_options());
+        macros.insert(&def).expect("macro inserts");
+        let prod: ManaProduction = macros
+            .read_str("WithRiders(mana: Colorless, riders: [SpendOnly(CreaturePred)])")
+            .expect("rider macro expands through the embed");
+        let ManaProduction::WithRiders { riders, mana } = prod else {
+            panic!("expected WithRiders");
+        };
+        assert_eq!(mana, ManaSpec::Specific(Colorless));
+        assert!(matches!(riders.as_slice(), [ManaRider::SpendOnly(_)]));
     }
 }
