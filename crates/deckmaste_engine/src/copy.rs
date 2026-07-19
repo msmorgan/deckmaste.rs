@@ -1,0 +1,780 @@
+//! Copy-effect value machinery ([CR#707]): deriving a source's copiable
+//! characteristics ([CR#707.2]) and folding a `CopySpec`'s exceptions
+//! ([CR#707.9]) into them. Pure value transforms — no card grammar, no token
+//! minting (Task 3's job).
+//!
+//! `apply_exceptions` deliberately takes no `&GameState`: it is a plain fold
+//! over `CopiableValues`, matching Task 3's contract. Two consequences,
+//! documented at their call sites below:
+//! - A `Modify` whose provided value is a DYNAMIC `Count` (not
+//!   `Count::Literal`) can't be evaluated here — it needs game state — and is a
+//!   TRUE no-op: neither the value NOR the source's characteristic-defining
+//!   ability (see [CR#707.9d] below) is touched, since nothing was actually
+//!   provided to replace either with. `apply_pt` shares the exact same
+//!   `literal_value().is_some()` condition for both, so the two can't drift
+//!   apart (a bug fixed in review — a literal-only value write paired with an
+//!   unconditional ability drop would strip a P/T-defining CDA while leaving
+//!   `power`/`toughness` orphaned at `StatValue::DefinedByAbility`, which
+//!   [CR#208.2a] reads as 0 — worse than doing nothing).
+//! - `CardTypes`/`Subtypes` carry bare `Ident`s that the live layer engine
+//!   resolves through `state.types`/`state.subtypes` (`layer::resolve_type`/
+//!   `resolve_subtype`) so a granted type/subtype's `confers` rides along; with
+//!   no registry reachable here, an added type/subtype degrades to the SAME
+//!   name-only shape those functions already fall back to when a name is absent
+//!   from the registry (built-in card types get their structural `TypeDef` via
+//!   `Type::def()`, which needs no registry). PARTIAL: a plugin-declared
+//!   type/subtype's `confers` is lost this way.
+//!
+//! The [CR#707.9d] "drop the source's characteristic-defining ability"
+//! clause is a PARTIAL implementation, covering the Power/Toughness axes
+//! only, via a SHAPE heuristic (`defines_pt`) rather than a formal CDA flag —
+//! the engine has none today (`ContinuousEffect::is_cda` is plumbed but never
+//! set to `true` anywhere; see `layer.rs`'s `creature_count_cda` test
+//! comment: "0 cards use it"). The other seven `Characteristic` axes
+//! (`Retain` only — `Modify` has no analogous defining-ability concept for
+//! them) are a documented no-op below. Generalizing the drop to those axes is
+//! `engine-copy-cda-generalize`.
+
+use deckmaste_core::Ability;
+use deckmaste_core::Characteristic;
+use deckmaste_core::CollectionOp;
+use deckmaste_core::CopiableValues;
+use deckmaste_core::CopyException;
+use deckmaste_core::CopySource;
+use deckmaste_core::EnterRider;
+use deckmaste_core::Ident;
+use deckmaste_core::Int;
+use deckmaste_core::Modification;
+use deckmaste_core::NumericOp;
+use deckmaste_core::Reference;
+use deckmaste_core::StatValue;
+use deckmaste_core::StaticEffect;
+use deckmaste_core::Type;
+use deckmaste_core::TypeDef;
+
+use crate::Frame;
+use crate::GameState;
+use crate::ObjectId;
+
+/// Resolve a `CopySpec`'s source ([CR#707.1]) to a concrete object, or `None`
+/// if it no longer exists (a target/self-card that has since left — the
+/// caller's copy attempt fizzles on that source, [CR#608.2b]).
+///
+/// `CopySource::Object` reuses the resolve layer's own `Reference`
+/// evaluation (`GameState::eval_reference`, the engine's single-object read —
+/// see `resolve/query.rs`, consumed throughout `resolve/player_action.rs`).
+/// `CopySource::SelfCard` reads "the card doing the copying... from its own
+/// zone" (its doc comment) — exactly `frame.source`, the exophoric binding
+/// `Reference::This` itself falls back to in a spell frame.
+#[must_use]
+pub fn resolve_source(state: &GameState, frame: &Frame, source: &CopySource) -> Option<ObjectId> {
+    let id = match source {
+        CopySource::Object(reference) => state.eval_reference(reference, frame),
+        CopySource::SelfCard => frame.source,
+    };
+    state.objects.get(id).map(|_| id)
+}
+
+/// The copiable characteristics ([CR#707.2]) of `source` — `None` if it has
+/// none to copy (a player proxy, or a stale/nonexistent id).
+///
+/// Reads `source`'s printed face, the `base_values` pattern (`layer.rs`):
+/// `state.objects.obj(id).card_id()` → `state.cards.get(card).def` →
+/// `derive::face`. A minted TOKEN is card-backed too — `TokenCreated`
+/// synthesizes its `Token` definition into the card table as a one-faced
+/// `Card::Normal(CardFace)` before minting the object (`Cards::push_token`,
+/// `step/mod.rs::apply_token_created`; the `ObjectSource` doc comment says so
+/// directly: "A created token is `Card`-backed too"), so this ONE path
+/// already covers both a real card and a token source — no separate
+/// Token-shaped branch exists to write. Already-copied / face-down /
+/// as-enters-P/T-modified sources degrade to the printed face for now
+/// (`layer.rs:280`'s SEAM comment; downstream
+/// `engine-layers-1-copy-facedown-text`).
+#[must_use]
+pub fn copiable_values(state: &GameState, source: ObjectId) -> Option<CopiableValues> {
+    let obj = state.objects.get(source)?;
+    let card = obj.card_id()?;
+    let face = crate::derive::face(&state.cards.get(card).def);
+    Some(CopiableValues {
+        name: face.name.clone(),
+        mana_cost: face.mana_cost.clone(),
+        color_indicator: face.color_indicator.clone(),
+        supertypes: face.supertypes.clone(),
+        types: face.types.clone(),
+        subtypes: face.subtypes.clone(),
+        abilities: face.abilities.clone(),
+        power: face.power.clone(),
+        toughness: face.toughness.clone(),
+        loyalty: face.loyalty.clone(),
+        defense: face.defense.clone(),
+    })
+}
+
+/// Fold a `CopySpec`'s exceptions ([CR#707.9]) into `base` (the source's
+/// `copiable_values`), in order. `AdditionalEffect` exceptions are NOT a
+/// characteristic change — they contribute nothing here; collect them via
+/// [`additional_riders`] instead.
+#[must_use]
+pub fn apply_exceptions(base: CopiableValues, exceptions: &[CopyException]) -> CopiableValues {
+    let mut result = base;
+    for exception in exceptions {
+        match exception {
+            CopyException::Modify(m) => apply_modification(&mut result, m),
+            CopyException::Retain(ch) => retain_characteristic(&mut result, *ch),
+            CopyException::AdditionalEffect(_) => {}
+        }
+    }
+    result
+}
+
+/// The `AdditionalEffect` exceptions ("except it enters with N counters"),
+/// for Task 3's token/copy entry to apply as enter-riders — the ONLY
+/// `CopyException` kind `apply_exceptions` does not fold into
+/// `CopiableValues` ([CR#707.9e]).
+#[must_use]
+pub fn additional_riders(exceptions: &[CopyException]) -> Vec<EnterRider> {
+    exceptions
+        .iter()
+        .filter_map(|exception| match exception {
+            CopyException::AdditionalEffect(rider) => Some(rider.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
+// `Modify` folding
+// ---------------------------------------------------------------------------
+
+fn apply_modification(result: &mut CopiableValues, m: &Modification) {
+    match m {
+        Modification::Power(op) => apply_pt(result, PtAxis::Power, op),
+        Modification::Toughness(op) => apply_pt(result, PtAxis::Toughness, op),
+        // [CR#613.4d] on a copiable snapshot: swap the two fields outright.
+        Modification::SwitchPowerToughness => {
+            std::mem::swap(&mut result.power, &mut result.toughness);
+        }
+        // Loyalty/defense have no 613 layer in the live engine (`layer.rs`
+        // stubs `BaseLoyalty`/`BaseDefense` for that reason), but
+        // `CopiableValues` mirrors `CardFace` directly, so "except it enters
+        // with base loyalty N"/defense N is a plain field write — no CDA-drop
+        // (loyalty/defense CDAs are outside `defines_pt`'s scope; see the
+        // module doc).
+        Modification::BaseLoyalty(op) => apply_numeric_field(&mut result.loyalty, op),
+        Modification::BaseDefense(op) => apply_numeric_field(&mut result.defense, op),
+        Modification::Colors(op) => apply_collection(&mut result.color_indicator, op),
+        Modification::Supertypes(op) => apply_collection(&mut result.supertypes, op),
+        Modification::CardTypes(op) => apply_type_op(&mut result.types, op),
+        Modification::Subtypes(op) => apply_subtype_op(&mut result.subtypes, op),
+        Modification::GainAbility(ability) => result.abilities.push((**ability).clone()),
+        // [CR#113.12]: an `Innate` (rule-of-the-object) ability is immune,
+        // mirroring the live layer-6 `LoseAbility`/`LoseAllAbilities` arms
+        // (`layer.rs`).
+        Modification::LoseAbility(name) => result
+            .abilities
+            .retain(|a| a.is_innate() || !crate::layer::ability_is_named(a, name)),
+        Modification::LoseAllAbilities => result.abilities.retain(Ability::is_innate),
+        // `Several`/`Expanded` are normally flattened away before the engine
+        // ever sees them (`Modification::flatten`, `continuous.rs`), but
+        // `apply_exceptions` gets no such guarantee from its caller — recurse
+        // rather than assume, so a not-yet-flattened exception still folds
+        // correctly instead of silently dropping ops (never-crash).
+        Modification::Several(changes) => {
+            for change in changes {
+                apply_modification(result, change);
+            }
+        }
+        Modification::Expanded(expansion) => apply_modification(result, &expansion.value),
+        // Not meaningful for a copiable-characteristics SNAPSHOT
+        // ([CR#707.2]): `CantHaveAbility` is a standing restriction (no
+        // field on `CopiableValues` to carry it), `SetController`/`SetText`
+        // are non-characteristic layers 2/3 with no snapshot field either,
+        // and `AllCreatureTypes`/`BecomeBasicLandType` are themselves
+        // deferred no-op stubs in the LIVE layer engine today (`layer.rs`).
+        // Documented no-ops.
+        Modification::CantHaveAbility(_)
+        | Modification::SetController(_)
+        | Modification::SetText(_)
+        | Modification::AllCreatureTypes
+        | Modification::BecomeBasicLandType(_) => {}
+    }
+}
+
+/// Which P/T axis a `Modify`/`Retain` targets — the two axes
+/// [`defines_pt`]'s CDA-drop heuristic covers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PtAxis {
+    Power,
+    Toughness,
+}
+
+fn apply_pt(result: &mut CopiableValues, axis: PtAxis, op: &NumericOp) {
+    // [CR#707.9d]: the source's P/T-defining ability is dropped only when
+    // this op actually PROVIDES a value for the axis — a `Set` whose `Count`
+    // is literal (the ONE case `apply_numeric_field` below also writes a
+    // value for). A non-literal `Set` provides nothing (this pure fold has
+    // no `&GameState` to evaluate a dynamic `Count` against, see the module
+    // doc), so it must drop NOTHING either: stripping the ability while
+    // leaving `power`/`toughness` at `StatValue::DefinedByAbility` would
+    // orphan the value (no ability left to derive it from — [CR#208.2a]
+    // reads that as 0, worse than a true no-op). Sharing this exact
+    // condition with `apply_numeric_field`'s own `Set` + `literal_value()`
+    // check keeps the two in lockstep instead of drifting apart.
+    if let NumericOp::Set(count) = op
+        && count.literal_value().is_some()
+    {
+        result.abilities.retain(|a| !defines_pt(a, axis));
+    }
+    let field = match axis {
+        PtAxis::Power => &mut result.power,
+        PtAxis::Toughness => &mut result.toughness,
+    };
+    apply_numeric_field(field, op);
+}
+
+/// Apply a `NumericOp` to a single `Option<StatValue>` field. `Set` writes a
+/// literal value outright; a non-literal `Set` (a dynamic `Count` — this pure
+/// fold has no `&GameState` to evaluate it against) is a documented no-op,
+/// same for `Up`/`Down` against a non-`Number` base or a non-literal delta.
+/// `Up`/`Down` are not expected on a copy exception (its exceptions read
+/// "except it's ...", not "+N/+N", [CR#707.9]) but are handled anyway —
+/// never-crash over never-reached.
+fn apply_numeric_field(field: &mut Option<StatValue>, op: &NumericOp) {
+    match op {
+        NumericOp::Set(count) => {
+            if let Some(n) = count.literal_value() {
+                *field = Some(StatValue::Number(
+                    Int::try_from(n).expect("printed characteristic value fits Int"),
+                ));
+            }
+        }
+        NumericOp::Up(count) | NumericOp::Down(count) => {
+            if let (Some(StatValue::Number(base)), Some(n)) = (field.clone(), count.literal_value())
+            {
+                let delta = Int::try_from(n).expect("modifier magnitude fits Int");
+                let signed = if matches!(op, NumericOp::Up(_)) { delta } else { -delta };
+                *field = Some(StatValue::Number(base + signed));
+            }
+        }
+    }
+}
+
+fn apply_collection<T: Clone + PartialEq>(field: &mut Vec<T>, op: &CollectionOp<T>) {
+    match op {
+        CollectionOp::Set(values) => field.clone_from(values),
+        CollectionOp::Add(value) => {
+            if !field.contains(value) {
+                field.push(value.clone());
+            }
+        }
+        CollectionOp::Remove(value) => field.retain(|existing| existing != value),
+    }
+}
+
+fn apply_type_op(types: &mut Vec<TypeDef>, op: &CollectionOp<Ident>) {
+    match op {
+        CollectionOp::Set(names) => *types = names.iter().map(minimal_type_def).collect(),
+        CollectionOp::Add(name) => {
+            let resolved = minimal_type_def(name);
+            if !types.iter().any(|t| t.name == resolved.name) {
+                types.push(resolved);
+            }
+        }
+        CollectionOp::Remove(name) => types.retain(|t| t.name != *name),
+    }
+}
+
+/// A registry-less `TypeDef` for a copy exception's added card type. The live
+/// layer engine's `resolve_type` (`layer.rs`) looks names up in
+/// `state.types` so a granted type's `confers` rides along; no `&GameState`
+/// reaches `apply_exceptions` (module doc), so this can't do that lookup. It
+/// falls back to the SAME registry-absent shape `resolve_type` itself uses
+/// (name-only, `permanent: false`, no `confers`) — except for the six
+/// built-in card types, which have a registry-free structural `TypeDef`
+/// already (`Type::def()`, "fixtures use it so structure-only tests need no
+/// plugin load"). A plugin-declared custom type's `confers` is lost either
+/// way — flagged, `engine-copy-cda-generalize`.
+fn minimal_type_def(name: &Ident) -> TypeDef {
+    const BUILTIN: [Type; 10] = [
+        Type::Artifact,
+        Type::Battle,
+        Type::Creature,
+        Type::Dungeon,
+        Type::Enchantment,
+        Type::Instant,
+        Type::Kindred,
+        Type::Land,
+        Type::Planeswalker,
+        Type::Sorcery,
+    ];
+    BUILTIN.into_iter().find(|t| t.name() == *name).map_or(
+        TypeDef {
+            name: *name,
+            permanent: false,
+            confers: Vec::new(),
+        },
+        Type::def,
+    )
+}
+
+fn apply_subtype_op(subtypes: &mut Vec<deckmaste_core::Subtype>, op: &CollectionOp<Ident>) {
+    match op {
+        CollectionOp::Set(names) => *subtypes = names.iter().map(minimal_subtype).collect(),
+        CollectionOp::Add(name) => {
+            if !subtypes.iter().any(|s| s.name == *name) {
+                subtypes.push(minimal_subtype(name));
+            }
+        }
+        CollectionOp::Remove(name) => subtypes.retain(|s| s.name != *name),
+    }
+}
+
+/// A registry-less `Subtype` for a copy exception's added subtype — see
+/// [`minimal_type_def`]'s doc. Unlike card types, NO subtype has a built-in
+/// structural shape (`types`/`confers` are entirely plugin data, e.g. a
+/// basic land type's mana ability, [CR#305.6]), so this always degrades to a
+/// name-only `Subtype`. Flagged, `engine-copy-cda-generalize`.
+fn minimal_subtype(name: &Ident) -> deckmaste_core::Subtype {
+    deckmaste_core::Subtype {
+        name: *name,
+        types: Vec::new(),
+        confers: Vec::new(),
+    }
+}
+
+/// Whether `ability` is the P/T-DEFINING characteristic-defining ability
+/// ([CR#604.3]) for `axis` — dropped by a copy exception that PROVIDES that
+/// axis's value ([CR#707.9d]), so the copy doesn't ALSO carry an ability
+/// that re-derives a value it isn't using.
+///
+/// HEURISTIC, not a formal signal: the engine has no working CDA flag today
+/// — `ContinuousEffect::is_cda` is plumbed through the layer pipeline but
+/// never set to `true` anywhere (`layer.rs`'s `creature_count_cda` test:
+/// "The 7a/CDA layer distinction is deferred (0 cards use it...)"). This
+/// instead recognizes the SHAPE a P/T CDA takes on a card today — a
+/// `This`-scoped static `Modify` whose op (directly, or bundled in a
+/// `Several`, the Tarmogoyf pattern: `Modify(This, Several([Power(Set(...)),
+/// Toughness(Set(...))]))`) `Set`s the axis. It does NOT look inside
+/// `Conditionally` (the engine doesn't gather those yet either — see
+/// `StaticEffect::Conditionally`'s own doc comment) or `Each`. Covers only
+/// Power/Toughness; see `retain_characteristic` for the other axes.
+/// Follow-up: `engine-copy-cda-generalize`.
+fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
+    match ability {
+        Ability::Expanded(e) => defines_pt(&e.value, axis),
+        Ability::Innate(inner) => defines_pt(inner, axis),
+        Ability::Static(effect) => static_defines_pt(effect, axis),
+        Ability::Activated(_) | Ability::Triggered(_) | Ability::Spell(_) | Ability::Keyword(_) => {
+            false
+        }
+    }
+}
+
+fn static_defines_pt(effect: &StaticEffect, axis: PtAxis) -> bool {
+    match effect {
+        StaticEffect::Modify(Reference::This, modification) => {
+            modification_defines_pt(modification, axis)
+        }
+        _ => false,
+    }
+}
+
+fn modification_defines_pt(m: &Modification, axis: PtAxis) -> bool {
+    match m {
+        Modification::Power(NumericOp::Set(_)) => axis == PtAxis::Power,
+        Modification::Toughness(NumericOp::Set(_)) => axis == PtAxis::Toughness,
+        Modification::Several(list) => list.iter().any(|m| modification_defines_pt(m, axis)),
+        Modification::Expanded(e) => modification_defines_pt(&e.value, axis),
+        _ => false,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// `Retain` folding
+// ---------------------------------------------------------------------------
+
+/// "Except it doesn't copy its [ch]" ([CR#707.9c,707.9d]). The VALUE swap —
+/// substituting the copy's own natural value for `base`'s copied one — is
+/// the entering/existing object's own data, which this pure fold never sees
+/// (Task 3's job, at token-entry/copy-application time, the same way
+/// `AdditionalEffect` rides through `additional_riders` instead of here); a
+/// `Retain` therefore leaves `base`'s value untouched and only strips the
+/// source's characteristic-DEFINING ability for the axis, so a dropped
+/// characteristic doesn't drag along an ability that would re-derive it.
+fn retain_characteristic(result: &mut CopiableValues, ch: Characteristic) {
+    match ch {
+        Characteristic::Power => result.abilities.retain(|a| !defines_pt(a, PtAxis::Power)),
+        Characteristic::Toughness => result
+            .abilities
+            .retain(|a| !defines_pt(a, PtAxis::Toughness)),
+        // PARTIAL, matching `Modify`'s CDA-drop above (`defines_pt`'s doc):
+        // the defining-ability drop for every other axis is a documented
+        // no-op — no shape/flag to find a
+        // name/type/subtype/supertype/color/mana-cost/loyalty/defense-defining
+        // ability by. Follow-up: `engine-copy-cda-generalize`.
+        Characteristic::Colors
+        | Characteristic::Types
+        | Characteristic::Subtypes
+        | Characteristic::BasicLandTypes
+        | Characteristic::Supertypes
+        | Characteristic::Defense
+        | Characteristic::ManaCost
+        | Characteristic::Name => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_core::Card;
+    use deckmaste_core::CardFace;
+    use deckmaste_core::CollectionOp;
+    use deckmaste_core::CopiableValues;
+    use deckmaste_core::CopyException;
+    use deckmaste_core::CopySource;
+    use deckmaste_core::Count;
+    use deckmaste_core::EnterRider;
+    use deckmaste_core::Modification;
+    use deckmaste_core::NumericOp;
+    use deckmaste_core::Reference;
+    use deckmaste_core::StatValue;
+    use deckmaste_core::Token;
+    use deckmaste_core::Type;
+    use deckmaste_core::Zone;
+
+    use super::*;
+    use crate::Anaphora;
+    use crate::ObjectSource;
+    use crate::player::PlayerId;
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
+
+    fn base_bear() -> CopiableValues {
+        CopiableValues {
+            name: "Bear".into(),
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            ..CopiableValues::default()
+        }
+    }
+
+    #[test]
+    fn modify_set_pt_overrides() {
+        let out = apply_exceptions(
+            base_bear(),
+            &[CopyException::Modify(Modification::Power(NumericOp::Set(
+                Count::Literal(7),
+            )))],
+        );
+        assert_eq!(
+            out.power,
+            Some(StatValue::Number(7)),
+            "Modify(Power Set 7) overrides copied power [CR#707.9d]"
+        );
+    }
+
+    #[test]
+    fn additional_effect_leaves_characteristics_untouched() {
+        let before = base_bear();
+        let out = apply_exceptions(
+            before.clone(),
+            &[CopyException::AdditionalEffect(EnterRider::WithCounters(
+                "P1P1Counter".into(),
+                Count::Literal(1),
+            ))],
+        );
+        assert_eq!(
+            out, before,
+            "AdditionalEffect is not a characteristic change [CR#707.9e]"
+        );
+    }
+
+    /// A Tarmogoyf-shaped P/T CDA (`Modify(This, Several([Power(Set(...)),
+    /// Toughness(Set(...))]))`) is dropped when a `Modify` exception
+    /// overrides power — the CDA would otherwise ride along on the copy and
+    /// try to re-derive a value it no longer supplies [CR#707.9d].
+    #[test]
+    fn modify_set_power_drops_pt_defining_cda() {
+        let cda = Ability::r#static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Set(Count::CountOf(
+                    deckmaste_core::Countable::Objects(std::sync::Arc::new(
+                        deckmaste_core::Predicate::creature(),
+                    )),
+                ))),
+                Modification::Toughness(NumericOp::Set(Count::CountOf(
+                    deckmaste_core::Countable::Objects(std::sync::Arc::new(
+                        deckmaste_core::Predicate::creature(),
+                    )),
+                ))),
+            ]),
+        ));
+        let base = CopiableValues {
+            name: "Tarmogoyf".into(),
+            power: Some(StatValue::DefinedByAbility),
+            toughness: Some(StatValue::DefinedByAbility),
+            abilities: vec![cda],
+            ..CopiableValues::default()
+        };
+        let out = apply_exceptions(
+            base,
+            &[CopyException::Modify(Modification::Power(NumericOp::Set(
+                Count::Literal(3),
+            )))],
+        );
+        assert_eq!(out.power, Some(StatValue::Number(3)), "power overridden");
+        assert!(
+            out.abilities.is_empty(),
+            "the P/T-defining CDA is dropped, not copied alongside the override"
+        );
+    }
+
+    /// Regression for a review fix: a `Modify(Power(Set(dynamic Count)))`
+    /// can't actually provide a value here (no `&GameState` to evaluate the
+    /// `Count` against), so it must be a TRUE no-op — neither the value NOR
+    /// the P/T-defining ability moves. Before the fix, the ability drop ran
+    /// unconditionally on any `Set` while the value write stayed
+    /// literal-only, so this exact case stripped the CDA but left `power`
+    /// stuck at `DefinedByAbility` with nothing left to derive it —
+    /// [CR#208.2a] reads that as 0, worse than doing nothing.
+    #[test]
+    fn modify_set_power_non_literal_count_is_true_noop() {
+        let cda = Ability::r#static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Power(NumericOp::Set(Count::Literal(0))),
+        ));
+        let base = CopiableValues {
+            power: Some(StatValue::DefinedByAbility),
+            abilities: vec![cda.clone()],
+            ..CopiableValues::default()
+        };
+        let dynamic = Count::CountOf(deckmaste_core::Countable::Objects(std::sync::Arc::new(
+            deckmaste_core::Predicate::creature(),
+        )));
+        let out = apply_exceptions(
+            base,
+            &[CopyException::Modify(Modification::Power(NumericOp::Set(
+                dynamic,
+            )))],
+        );
+        assert_eq!(
+            out.power,
+            Some(StatValue::DefinedByAbility),
+            "a non-literal Set can't provide a value — the copied value rides through unchanged"
+        );
+        assert_eq!(
+            out.abilities,
+            vec![cda],
+            "and the P/T-defining ability is NOT dropped, since nothing replaced its value [CR#707.9d]"
+        );
+    }
+
+    /// `Retain(Power)` leaves the copied power VALUE untouched (Task 3
+    /// substitutes the copy's own value) but still drops the source's
+    /// P/T-defining ability so it doesn't ride along unused.
+    #[test]
+    fn retain_power_keeps_value_drops_defining_ability() {
+        let cda = Ability::r#static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Power(NumericOp::Set(Count::Literal(0))),
+        ));
+        let base = CopiableValues {
+            power: Some(StatValue::DefinedByAbility),
+            abilities: vec![cda],
+            ..CopiableValues::default()
+        };
+        let out = apply_exceptions(
+            base,
+            &[CopyException::Retain(deckmaste_core::Characteristic::Power)],
+        );
+        assert_eq!(
+            out.power,
+            Some(StatValue::DefinedByAbility),
+            "Retain doesn't touch the copied value itself"
+        );
+        assert!(
+            out.abilities.is_empty(),
+            "Retain still drops the source's defining ability [CR#707.9d]"
+        );
+    }
+
+    #[test]
+    fn card_types_add_builtin_gets_structural_typedef() {
+        let out = apply_exceptions(
+            CopiableValues::default(),
+            &[CopyException::Modify(Modification::CardTypes(
+                CollectionOp::Add("Artifact".into()),
+            ))],
+        );
+        assert_eq!(
+            out.types,
+            vec![Type::Artifact.def()],
+            "a built-in type name resolves to its structural TypeDef with no registry"
+        );
+    }
+
+    #[test]
+    fn power_up_applies_to_numeric_base() {
+        let out = apply_exceptions(
+            base_bear(),
+            &[CopyException::Modify(Modification::Power(NumericOp::Up(
+                Count::Literal(1),
+            )))],
+        );
+        // 2 -> 3, toughness untouched at 2.
+        assert_eq!(out.power, Some(StatValue::Number(3)));
+        assert_eq!(out.toughness, Some(StatValue::Number(2)));
+    }
+
+    fn bare_game() -> GameState {
+        GameState::new(GameConfig {
+            players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
+            seed: 1,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        })
+    }
+
+    fn mint_card(state: &mut GameState, face: CardFace) -> ObjectId {
+        let card = state
+            .cards
+            .push(std::sync::Arc::new(Card::Normal(face)), PlayerId(0));
+        state.objects.mint(
+            ObjectSource::Card(card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        )
+    }
+
+    fn mint_token(state: &mut GameState, token: &Token) -> ObjectId {
+        let card = state.cards.push_token(token, PlayerId(0));
+        state.objects.mint(
+            ObjectSource::Card(card),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        )
+    }
+
+    #[test]
+    fn copiable_values_reads_the_printed_face() {
+        let mut state = bare_game();
+        let id = mint_card(
+            &mut state,
+            CardFace {
+                name: "Grizzly Bears".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..CardFace::default()
+            },
+        );
+        let values = copiable_values(&state, id).expect("card-backed object has copiable values");
+        assert_eq!(values.name, "Grizzly Bears");
+        assert_eq!(values.power, Some(StatValue::Number(2)));
+        assert_eq!(values.toughness, Some(StatValue::Number(2)));
+    }
+
+    /// The token-source branch investigated in the task brief: a minted
+    /// token is `Card`-backed (`Cards::push_token` synthesizes a
+    /// `Card::Normal(CardFace)`), so `copiable_values` reads it through the
+    /// SAME path as a real card — no separate Token variant to branch on.
+    #[test]
+    fn copiable_values_reads_a_minted_token() {
+        let mut state = bare_game();
+        let token = Token {
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![Type::Creature.def()],
+            subtypes: vec![deckmaste_core::Subtype {
+                name: "Bear".into(),
+                types: vec![Type::Creature],
+                confers: vec![],
+            }],
+            abilities: vec![],
+            power: Some(StatValue::Number(3)),
+            toughness: Some(StatValue::Number(3)),
+        };
+        let id = mint_token(&mut state, &token);
+        let values = copiable_values(&state, id).expect("token-backed object has copiable values");
+        assert_eq!(
+            values.name, "Bear Token",
+            "a token's synthesized name is subtypes + \"Token\" [CR#111.4]"
+        );
+        assert_eq!(values.power, Some(StatValue::Number(3)));
+        assert_eq!(values.toughness, Some(StatValue::Number(3)));
+    }
+
+    #[test]
+    fn resolve_source_self_card_is_the_frame_source() {
+        let mut state = bare_game();
+        let id = mint_card(&mut state, CardFace::default());
+        let frame = Frame::bare(id, PlayerId(0));
+        assert_eq!(
+            resolve_source(&state, &frame, &CopySource::SelfCard),
+            Some(id)
+        );
+    }
+
+    #[test]
+    fn resolve_source_nonexistent_object_is_none() {
+        let state = bare_game();
+        let dead = ObjectId::from_raw(999);
+        let frame = Frame::bare(dead, PlayerId(0));
+        assert_eq!(resolve_source(&state, &frame, &CopySource::SelfCard), None);
+    }
+
+    /// `CopySource::Object(reference)` — the "a copy of target creature"
+    /// shape (Clone, Populate) — resolves a LIVE announced target to its
+    /// `ObjectId` through the resolve layer's own `eval_reference`.
+    #[test]
+    fn resolve_source_object_reference_resolves_live_target() {
+        let mut state = bare_game();
+        let source = mint_card(&mut state, CardFace::default());
+        let target = mint_card(&mut state, CardFace::default());
+        let frame = Frame {
+            anaphora: Anaphora {
+                targets: vec![vec![target]],
+                ..Anaphora::empty()
+            },
+            ..Frame::bare(source, PlayerId(0))
+        };
+        assert_eq!(
+            resolve_source(&state, &frame, &CopySource::Object(Reference::Target(0))),
+            Some(target),
+            "CopySource::Object resolves a live announced target to its id"
+        );
+    }
+
+    /// An unresolvable `CopySource::Object` reference — its announced target
+    /// has since left play — is `None`, never a panic. `eval_reference`'s
+    /// `Reference::Target` arm gracefully falls back to the stale id for a
+    /// departed slot member ([CR#608.2b] partial fizzle) rather than
+    /// panicking; `resolve_source`'s own liveness check then turns that
+    /// stale id into `None`.
+    #[test]
+    fn resolve_source_object_reference_departed_target_is_none_not_panic() {
+        let mut state = bare_game();
+        let source = mint_card(&mut state, CardFace::default());
+        let dead = ObjectId::from_raw(999);
+        let frame = Frame {
+            anaphora: Anaphora {
+                targets: vec![vec![dead]],
+                ..Anaphora::empty()
+            },
+            ..Frame::bare(source, PlayerId(0))
+        };
+        assert_eq!(
+            resolve_source(&state, &frame, &CopySource::Object(Reference::Target(0))),
+            None,
+            "a departed target resolves to None, never a panic"
+        );
+    }
+}

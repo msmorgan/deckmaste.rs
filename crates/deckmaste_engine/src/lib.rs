@@ -15,6 +15,8 @@ pub use cast::Payment;
 
 mod condition;
 
+pub mod copy;
+
 mod cost_options;
 pub use cost_options::ChoosableOptions;
 pub use cost_options::ConcretizeError;
