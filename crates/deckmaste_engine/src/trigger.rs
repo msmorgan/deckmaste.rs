@@ -3434,6 +3434,214 @@ mod tests {
         );
     }
 
+    /// A hand-authored "Delverish ↔ Aberration" transforming DFC — front a
+    /// vanilla 1/1 Creature, back a 3/2 Creature carrying Trample, a static
+    /// keyword the front face lacks. Unlike `transform_watcher_dfc`, it has
+    /// NO abilities of its own — `delver_transforms_end_to_end` drives the
+    /// flip directly via a real `Action::Transform`, not a card-granted
+    /// trigger/activated ability, and the asymmetric Trample isolates the
+    /// face-aware layered-view read from the P/T flip.
+    fn delverish_aberration() -> deckmaste_core::Card {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::KeywordAbility;
+        use deckmaste_core::StatValue;
+
+        let front = CardFace {
+            name: "Delverish".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(1)),
+            toughness: Some(StatValue::Number(1)),
+            ..CardFace::default()
+        };
+        let back = CardFace {
+            name: "Aberration".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(3)),
+            toughness: Some(StatValue::Number(2)),
+            abilities: vec![Ability::Keyword(KeywordAbility::Trample)],
+            ..CardFace::default()
+        };
+        Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front,
+            back,
+        }
+    }
+
+    /// Delver-style end-to-end integration test ([CR#712]): a hand-authored
+    /// transforming DFC driven through the REAL `Action::Transform` path
+    /// (Task 5/6), asserting the full contract in one pass rather than
+    /// piecemeal:
+    ///  1. It enters FRONT-up ([CR#712.14]) — 1/1 "Delverish", no Trample.
+    ///  2. An until-end-of-turn +2/+2 applied BEFORE transforming survives the
+    ///     flip on the SAME `ObjectId` ([CR#712.18]): back base 3/2 + 2/2 =
+    ///     5/4, and the back face's Trample (absent on the front) becomes
+    ///     visible through the layered view — exercising the face-aware read
+    ///     end-to-end through a genuine transform, not a hand-set `side`.
+    ///  3. A genuine zone change (dies to the graveyard, then returns to the
+    ///     battlefield as a NEW object, [CR#400.7]) resets to FRONT-up
+    ///     ([CR#712.14]): back to 1/1 "Delverish", no Trample.
+    ///
+    /// If Tasks 1-6 are complete this needs no new production code; a
+    /// failing assertion here points at a real gap (e.g. a direct
+    /// front/back read that bypasses `face_of`/the layered view).
+    #[test]
+    fn delver_transforms_end_to_end() {
+        use deckmaste_core::Action;
+        use deckmaste_core::Count;
+        use deckmaste_core::Duration;
+        use deckmaste_core::KeywordAbility;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::TurnMarker;
+
+        use crate::combat::has_keyword;
+        use crate::layer::ContinuousEffect;
+        use crate::layer::ScopeResolved;
+        use crate::object::Side;
+        use crate::object::Timestamp;
+
+        let mut state = empty_game();
+        let delver = put_synthetic_on_field(&mut state, delverish_aberration(), PlayerId(0));
+
+        // 1. Enters front-up [CR#712.14].
+        let view = state.layers();
+        assert_eq!(view.power(delver), Some(1), "front-up shows front power 1");
+        assert_eq!(
+            view.toughness(delver),
+            Some(1),
+            "front-up shows front toughness 1"
+        );
+        assert!(
+            !has_keyword(&view, delver, &KeywordAbility::Trample),
+            "the front face carries no Trample"
+        );
+
+        // 2. Apply an until-end-of-turn +2/+2, then transform via the REAL
+        // Action::Transform path — not a synthetic `side` write.
+        state.continuous.push(ContinuousEffect {
+            timestamp: Timestamp(1_000),
+            controller: PlayerId(0),
+            scope: ScopeResolved::Locked(vec![delver]),
+            changes: vec![
+                Modification::Power(NumericOp::Up(Count::Literal(2))),
+                Modification::Toughness(NumericOp::Up(Count::Literal(2))),
+            ],
+            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+            rows: vec![],
+            origin: None,
+            is_cda: false,
+        });
+        assert_eq!(
+            state.layers().power(delver),
+            Some(3),
+            "1/1 front + 2/2 UEOT = 3/3 pre-transform"
+        );
+
+        let frame = crate::test_support::frame_src(delver);
+        state.run_effect(
+            OneShotEffect::Act(Action::Transform(Reference::This)),
+            &frame,
+        );
+        // Break the instant the flip lands — NOT on `agenda.is_empty()`,
+        // which would over-drain past this one-shot effect and into
+        // `empty_game()`'s ambient turn-structure cascade (eventually
+        // opening an unanswered `Priority` decision that then blocks every
+        // later `step()` in this test).
+        for _ in 0..30 {
+            if state.objects.obj(delver).side == Side::Back {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        assert_eq!(
+            state.objects.obj(delver).side,
+            Side::Back,
+            "the permanent actually flipped [CR#701.27a]"
+        );
+        assert!(
+            state.objects.get(delver).is_some(),
+            "transform preserves the SAME ObjectId — no remint [CR#712.18]"
+        );
+
+        let view = state.layers();
+        assert_eq!(
+            view.power(delver),
+            Some(5),
+            "back base power 3 + 2/2 UEOT (survived the flip) = 5 [CR#712.18]"
+        );
+        assert_eq!(
+            view.toughness(delver),
+            Some(4),
+            "back base toughness 2 + 2/2 UEOT (survived the flip) = 4 [CR#712.18]"
+        );
+        assert!(
+            has_keyword(&view, delver, &KeywordAbility::Trample),
+            "the back face's Trample is now visible through the layered view"
+        );
+
+        // 3. A genuine zone change resets to front-up [CR#712.14]: dies to
+        // the graveyard (a real remint, [CR#400.7]) then returns to the
+        // battlefield as yet another new object.
+        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
+        for _ in 0..30 {
+            if state.objects.get(delver).is_none() {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert!(
+            state.objects.get(delver).is_none(),
+            "the back-up object is gone — destroyed into the graveyard [CR#400.7]"
+        );
+        let in_graveyard = *state.zones.graveyards[0]
+            .last()
+            .expect("the destroyed DFC reminted into P0's graveyard");
+
+        let gy_frame = crate::test_support::frame_src(in_graveyard);
+        state.run_effect(
+            OneShotEffect::Act(Action::move_to(Reference::This, Zone::Battlefield)),
+            &gy_frame,
+        );
+        for _ in 0..30 {
+            if !state.zones.battlefield.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        let reentered = *state
+            .zones
+            .battlefield
+            .last()
+            .expect("the DFC returned to the battlefield as a new object");
+        assert_ne!(
+            reentered, delver,
+            "returning from the graveyard mints a NEW ObjectId [CR#400.7]"
+        );
+        assert_eq!(
+            state.objects.obj(reentered).side,
+            Side::Front,
+            "re-entering the battlefield resets to front-up [CR#712.14]"
+        );
+        let view = state.layers();
+        assert_eq!(
+            view.power(reentered),
+            Some(1),
+            "back on the battlefield, front-up shows front power 1 again"
+        );
+        assert_eq!(view.toughness(reentered), Some(1), "…and front toughness 1");
+        assert!(
+            !has_keyword(&view, reentered, &KeywordAbility::Trample),
+            "the reset front face carries no Trample"
+        );
+    }
+
     // -------------------------------------------------------------------------
     // StepBegins — step/phase-entry triggers ([CR#603.2b])
     // -------------------------------------------------------------------------
