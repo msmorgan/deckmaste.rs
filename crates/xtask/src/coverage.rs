@@ -281,18 +281,171 @@ fn load_source_excludes(root: &Path) -> anyhow::Result<Vec<String>> {
         .unwrap_or_default())
 }
 
-/// Placeholder for the human-readable coverage table (Task 5).
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "stub always succeeds; Task 5's real report can fail on IO"
-)]
-fn report(_root: &Path, scan: &BTreeMap<String, Tier>) -> anyhow::Result<()> {
-    let lock = lock_from_scan(scan);
+/// The leading integer of a rule number (its "section"), e.g. `704.5f -> 704`.
+fn section_of(rule: &str) -> Option<u32> {
+    let digits: String = rule.chars().take_while(char::is_ascii_digit).collect();
+    digits.parse().ok()
+}
+
+/// The CR chapter's title, e.g. `1 -> "Game Concepts"`. `None` for any
+/// chapter number the CR doesn't currently define a name for (still printed,
+/// just without a title).
+fn chapter_name(chapter: u32) -> Option<&'static str> {
+    Some(match chapter {
+        1 => "Game Concepts",
+        2 => "Parts of a Card",
+        3 => "Card Types",
+        4 => "Zones",
+        5 => "Turn Structure",
+        6 => "Spells, Abilities, and Effects",
+        7 => "Additional Rules",
+        8 => "Multiplayer Rules",
+        9 => "Casual Variants",
+        _ => return None,
+    })
+}
+
+/// Per-chapter tallies of in-scope rules for the report table.
+#[derive(Default)]
+struct ChapterCounts {
+    extant: usize,
+    strong: usize,
+    tested: usize,
+}
+
+/// Expand `coverage.out_of_scope` to the concrete set of excluded rules.
+///
+/// Key shapes: bare integer `123` (whole section), `N..M` (section range),
+/// or a rule/prefix `103.4` (the rule and its lettered subrules).
+///
+/// # Errors
+/// A key that matches no extant rule, or an empty reason.
+pub fn parse_out_of_scope(
+    cfg: &serde_json::Value,
+    extant: &BTreeSet<String>,
+) -> anyhow::Result<BTreeSet<String>> {
+    let mut out = BTreeSet::new();
+    let Some(map) = cfg["coverage"]["out_of_scope"].as_object() else {
+        return Ok(out);
+    };
+    for (key, reason) in map {
+        anyhow::ensure!(
+            reason.as_str().is_some_and(|r| !r.trim().is_empty()),
+            "coverage.out_of_scope[{key}] needs a non-empty reason"
+        );
+        let matched: Vec<&String> = if let Some((a, b)) = key.split_once("..") {
+            let (lo, hi): (u32, u32) = (a.trim().parse()?, b.trim().parse()?);
+            extant
+                .iter()
+                .filter(|r| section_of(r).is_some_and(|s| (lo..=hi).contains(&s)))
+                .collect()
+        } else if key.chars().all(|c| c.is_ascii_digit()) {
+            let sec: u32 = key.parse()?;
+            extant
+                .iter()
+                .filter(|r| section_of(r) == Some(sec))
+                .collect()
+        } else {
+            // rule or prefix: exact match, plus lettered subrules `key + [a-z]+`
+            extant
+                .iter()
+                .filter(|r| {
+                    *r == key
+                        || r.strip_prefix(key.as_str()).is_some_and(|suf| {
+                            !suf.is_empty() && suf.chars().all(|c| c.is_ascii_lowercase())
+                        })
+                })
+                .collect()
+        };
+        anyhow::ensure!(
+            !matched.is_empty(),
+            "coverage.out_of_scope[{key}] matches no extant rule"
+        );
+        out.extend(matched.into_iter().cloned());
+    }
+    Ok(out)
+}
+
+fn load_extant(root: &Path) -> anyhow::Result<BTreeSet<String>> {
+    let path = root.join("data/rules/cr.json");
+    let text = std::fs::read_to_string(&path).with_context(|| {
+        format!(
+            "reading {} — the report needs the CR snapshot (local-only)",
+            path.display()
+        )
+    })?;
+    let map: BTreeMap<String, serde_json::Value> = serde_json::from_str(&text)?;
+    Ok(map.into_keys().collect())
+}
+
+/// The human-readable coverage table: overall tiered summary against
+/// in-scope (extant, non-out-of-scope) rules, plus a per-chapter breakdown.
+///
+/// # Errors
+/// Missing/unparseable `data/rules/cr.json` or `cite-config.json`, or an
+/// invalid `coverage.out_of_scope` entry.
+fn report(root: &Path, scan: &BTreeMap<String, Tier>) -> anyhow::Result<()> {
+    let extant = load_extant(root)?;
+    let cfg_text = std::fs::read_to_string(root.join("cite-config.json"))?;
+    let cfg: serde_json::Value = serde_json::from_str(&cfg_text)?;
+    let oos = parse_out_of_scope(&cfg, &extant)?;
+
+    let in_scope: Vec<&String> = extant.iter().filter(|r| !oos.contains(*r)).collect();
+    let denom = in_scope.len().max(1);
+    let tested = in_scope
+        .iter()
+        .filter(|r| scan.get(**r) == Some(&Tier::Tested))
+        .count();
+    let strong = in_scope
+        .iter()
+        .filter(|r| matches!(scan.get(**r), Some(Tier::Tested | Tier::Bound)))
+        .count();
+
     println!(
-        "{} tested, {} strong (report table lands in Task 5)",
-        lock.tested.len(),
-        lock.strong.len()
+        "CR coverage (in-scope leaves: {denom}, out-of-scope excluded: {})",
+        oos.len()
     );
+    println!(
+        "  Strong (Tested ∪ Bound): {strong:>5}  {:>3}%",
+        100 * strong / denom
+    );
+    println!(
+        "  Tested (gold):           {tested:>5}  {:>3}%",
+        100 * tested / denom
+    );
+
+    // Group in-scope rules by chapter (leading section / 100); BTreeMap keeps
+    // chapters sorted ascending for free.
+    let mut chapters: BTreeMap<u32, ChapterCounts> = BTreeMap::new();
+    for rule in in_scope.iter().copied() {
+        let Some(chapter) = section_of(rule).map(|section| section / 100) else {
+            continue;
+        };
+        let counts = chapters.entry(chapter).or_default();
+        counts.extant += 1;
+        match scan.get(rule) {
+            Some(Tier::Tested) => {
+                counts.strong += 1;
+                counts.tested += 1;
+            }
+            Some(Tier::Bound) => counts.strong += 1,
+            _ => {}
+        }
+    }
+
+    println!("Per chapter:");
+    for (chapter, counts) in &chapters {
+        let label = chapter_name(*chapter)
+            .map_or_else(|| chapter.to_string(), |name| format!("{chapter} {name}"));
+        let chapter_denom = counts.extant.max(1);
+        let strong_ratio = format!("{}/{}", counts.strong, counts.extant);
+        println!(
+            "  {label:<32} {strong_ratio:>9} ({:>3}%)   {:>5} ({:>3}%)",
+            100 * counts.strong / chapter_denom,
+            counts.tested,
+            100 * counts.tested / chapter_denom
+        );
+    }
     Ok(())
 }
 
@@ -449,6 +602,47 @@ mod tests {
                 .iter()
                 .any(|r| r.contains("100.1") && r.contains("Tested"))
         );
+    }
+
+    fn extant_set(rules: &[&str]) -> BTreeSet<String> {
+        rules.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn out_of_scope_expands_three_shapes() {
+        let extant = extant_set(&[
+            "100.1", "123.1", "123.1a", "800.1", "999.9", "103.4", "103.4a", "500.1",
+        ]);
+        let cfg: serde_json::Value = serde_json::from_str(
+            r#"{ "coverage": { "out_of_scope": {
+                "123": "stickers",
+                "800..999": "multiplayer",
+                "103.4": "mulligans"
+            } } }"#,
+        )
+        .unwrap();
+        let oos = parse_out_of_scope(&cfg, &extant).unwrap();
+        assert!(oos.contains("123.1") && oos.contains("123.1a")); // section
+        assert!(oos.contains("800.1") && oos.contains("999.9")); // section range
+        assert!(oos.contains("103.4") && oos.contains("103.4a")); // rule + subrule
+        assert!(!oos.contains("100.1") && !oos.contains("500.1")); // untouched
+    }
+
+    #[test]
+    fn out_of_scope_rejects_unknown_rule() {
+        let extant = extant_set(&["100.1"]);
+        let cfg: serde_json::Value =
+            serde_json::from_str(r#"{ "coverage": { "out_of_scope": { "404": "nope" } } }"#)
+                .unwrap();
+        assert!(parse_out_of_scope(&cfg, &extant).is_err());
+    }
+
+    #[test]
+    fn out_of_scope_rejects_empty_reason() {
+        let extant = extant_set(&["100.1"]);
+        let cfg: serde_json::Value =
+            serde_json::from_str(r#"{ "coverage": { "out_of_scope": { "100": "" } } }"#).unwrap();
+        assert!(parse_out_of_scope(&cfg, &extant).is_err());
     }
 
     fn tempdir_with(files: &[(&str, &str)]) -> TempDir {
