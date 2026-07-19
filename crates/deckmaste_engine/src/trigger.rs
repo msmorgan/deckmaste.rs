@@ -610,6 +610,20 @@ impl GameState {
                 let (agent, _) = self.event_agent(*object);
                 (agent, Some(*to), None)
             }
+            // [CR#701]: a committed keyword-action fact — its object SUBJECT
+            // (a per-subject fact carries at most one) binds as the agent
+            // ("it": Foe-Razer's counters land on THAT fighting creature),
+            // the performer (or the subject's controller, the event_agent
+            // precedent above) as the actor. Uniform for every verb: scry/
+            // draw newly bind their performer, a destroy fact's usually-gone
+            // subject yields no agent (event_agent's stale-id rule).
+            GameEvent::Act(Act { on, who, .. }) => {
+                let (agent, actor) = match on.first() {
+                    Some(&subject) => self.event_agent(subject),
+                    None => (None, None),
+                };
+                (agent, (*who).or(actor), None)
+            }
             _ => (None, None, None),
         };
         // The combat DEFENDING player of an attack-declaration fact

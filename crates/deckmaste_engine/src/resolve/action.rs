@@ -3400,6 +3400,171 @@ mod tests {
         );
     }
 
+    /// "Whenever a creature you control fights, put two +1/+1 counters on
+    /// it" (Foe-Razer Regent's trigger shape, [CR#701.14a] — "it" is the
+    /// fighting creature, bound per firing).
+    fn foe_razer_fixture(state: &mut GameState) {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::VerbName;
+        mint_on_field(
+            state,
+            Card::Normal(CardFace {
+                name: "Foe-Razer Fixture".into(),
+                types: vec![Type::Enchantment.def()],
+                abilities: vec![Ability::triggered(TriggeredAbility {
+                    ability_word: None,
+                    where_x: None,
+                    from: None,
+                    event: EventFilter::Act {
+                        verb: VerbName::from("Fight"),
+                        who: Predicate::Any,
+                        // "a creature you control": And([creature,
+                        // ControlledBy(Ref(You))]) — the relation spelling of
+                        // deckmaste_core/src/filter.rs / layer.rs:2550.
+                        on: Predicate::And(vec![
+                            Predicate::creature(),
+                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                Predicate::Ref(Reference::You),
+                            ))),
+                        ]),
+                        cause: None,
+                    },
+                    condition: None,
+                    limits: Vec::new(),
+                    effect: OneShotEffect::act_by_you(PlayerAction::PutCounters(
+                        Reference::EventObject,
+                        deckmaste_core::CounterRef::from("P1P1Counter"),
+                        Count::Literal(2),
+                    )),
+                })],
+                ..CardFace::default()
+            }),
+        );
+    }
+
+    /// Mint a 2/2 creature controlled by `controller` onto the battlefield —
+    /// the opponent-side variant of `mint_on_field` (which is P0-only), so a
+    /// symmetric fight can pit a creature the trigger's "you" controls against
+    /// one it does not.
+    fn foe_razer_creature(state: &mut GameState, controller: PlayerId) -> ObjectId {
+        use deckmaste_core::StatValue;
+        let cid = state.cards.push(
+            Arc::new(Card::Normal(CardFace {
+                name: "Foe-Razer Bear".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..CardFace::default()
+            })),
+            controller,
+        );
+        let id = state
+            .objects
+            .mint(ObjectSource::Card(cid), controller, Some(Zone::Battlefield));
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// The count of `P1P1Counter`s on `id`, or `None` if it carries none —
+    /// the Foe-Razer assertion probe.
+    fn p1p1_on(state: &GameState, id: ObjectId) -> Option<Uint> {
+        let p1p1: deckmaste_core::Ident = "P1P1Counter".into();
+        state.objects.obj(id).counters.get(&p1p1).copied()
+    }
+
+    /// Run a Foe-Razer fight to completion: inject the fight, then drive the
+    /// fired triggers to resolution (declining any cast offer — there is none
+    /// here).
+    fn run_foe_razer_fight(state: &mut GameState, x: ObjectId, y: ObjectId, src: ObjectId) {
+        let frame = frame_src_targets(src, vec![x, y]);
+        state.run_effect(
+            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            &frame,
+        );
+        run_injected(state);
+        drive_declining_or_casting(state, false);
+    }
+
+    /// [CR#701.14a] symmetry, first-named: yours fights an opponent's
+    /// creature, yours named FIRST. The `Act(Fight)` fact is per-subject, and
+    /// "a creature you control" matches only YOUR fighter — so yours gets two
+    /// +1/+1 counters ("it" bound to it) and the opponent's fighter gets none.
+    #[test]
+    fn foe_razer_yours_first_named_gets_counters_opponent_none() {
+        let (mut state, yours) = bear_on_field();
+        foe_razer_fixture(&mut state);
+        let opponent = foe_razer_creature(&mut state, PlayerId(1));
+        run_foe_razer_fight(&mut state, yours, opponent, yours);
+        assert_eq!(
+            p1p1_on(&state, yours),
+            Some(2),
+            "your fighting creature gets two +1/+1 counters ('it' bound per firing)"
+        );
+        assert_eq!(
+            p1p1_on(&state, opponent),
+            None,
+            "the opponent's fighter is not a creature you control — no counters"
+        );
+    }
+
+    /// [CR#701.14a] symmetry pin, second-named: same setup with yours named
+    /// SECOND. The trigger fires for EITHER combatant, so the result is
+    /// identical — yours Some(2), opponent None.
+    #[test]
+    fn foe_razer_yours_second_named_gets_counters_opponent_none() {
+        let (mut state, yours) = bear_on_field();
+        foe_razer_fixture(&mut state);
+        let opponent = foe_razer_creature(&mut state, PlayerId(1));
+        run_foe_razer_fight(&mut state, opponent, yours, yours);
+        assert_eq!(
+            p1p1_on(&state, yours),
+            Some(2),
+            "second-named symmetry: your fighter still gets two counters"
+        );
+        assert_eq!(
+            p1p1_on(&state, opponent),
+            None,
+            "the opponent's fighter still gets none"
+        );
+    }
+
+    /// [CR#701.14a] per-participant: two creatures YOU control fight each
+    /// other — the trigger fires once per fighter, "it" bound per firing, so
+    /// EACH gets two +1/+1 counters.
+    #[test]
+    fn foe_razer_two_of_yours_each_get_counters() {
+        let (mut state, a, b) = two_permanents_on_field();
+        foe_razer_fixture(&mut state);
+        run_foe_razer_fight(&mut state, a, b, a);
+        assert_eq!(
+            p1p1_on(&state, a),
+            Some(2),
+            "first fighter gets counters (fired for it)"
+        );
+        assert_eq!(
+            p1p1_on(&state, b),
+            Some(2),
+            "second fighter gets counters (fired for it — per-participant)"
+        );
+    }
+
+    /// [CR#701.14c] self-fight: a creature that fights itself is ONE subject
+    /// (the emit arm dedups), so the trigger fires ONCE — the creature gets
+    /// two counters, not four.
+    #[test]
+    fn foe_razer_self_fight_fires_once() {
+        let (mut state, a) = bear_on_field();
+        foe_razer_fixture(&mut state);
+        run_foe_razer_fight(&mut state, a, a, a);
+        assert_eq!(
+            p1p1_on(&state, a),
+            Some(2),
+            "a self-fight is one subject — fires once, two counters not four"
+        );
+    }
+
     /// Cost-position discard ("Discard a card:", e.g. Blood token's
     /// activation cost, [CR#111.10g,701.9,601.2b]) rides the SAME
     /// `OneShotEffect::Act(Action::discard(..))` shape `verb_payment_items`
