@@ -1283,7 +1283,17 @@ impl GameState {
                 self.legal_targets(s, carrier)
                     .into_iter()
                     .filter(|&t| {
+                        // Forbidden by a Cant(Target) row ([CR#702.11b] hexproof),
+                        // UNLESS an AsThough overlay sees through that specific
+                        // obstacle for this agent ([CR#609.4] Glaring Spotlight).
                         crate::legal::target_forbidden_by(self, &rows, targeting_id, t).is_none()
+                            || crate::legal::asthough_sees_through_target(
+                                self,
+                                &view,
+                                &rows,
+                                targeting_id,
+                                t,
+                            )
                     })
                     .collect()
             })

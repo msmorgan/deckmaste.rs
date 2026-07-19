@@ -1,0 +1,37 @@
+// waiver: renderer-phrasing seams (semantics correct, no unrendered markers) —
+// the AsThough subject omits the "with hexproof" keyword qualifier
+// (`filter_subject` drops `Has(K)`), and the sac ability's multi-clause
+// until-grant repeats the subject and reads "until end of turn" rather than the
+// oracle's per-clause "this turn".
+Normal(
+    name: "Glaring Spotlight",
+    mana_cost: [Generic(1)],
+    types: [Artifact],
+    abilities: [
+        // "Creatures your opponents control with hexproof can be the targets
+        // of spells and abilities you control as though they didn't have
+        // hexproof." A per-checker counterfactual overlay ([CR#609.4,702.11d]):
+        // for YOUR targeting, treat the object as though it lacked Hexproof —
+        // the Hexproof keyword's own Cant(Target) row is suppressed for that
+        // check only, never removed.
+        Static(AsThough(Counterfactual(
+            premise: Not(Has(Hexproof)),
+            then: May(Target(
+                by: (stack_object: ControlledBy(Ref(You))),
+                on: And([Type("Creature"), ControlledBy(OpponentOf(Ref(You))), Has(Hexproof)]),
+            )),
+        ))),
+        // "{3}, Sacrifice this artifact: Creatures you control gain hexproof
+        // until end of turn and can't be blocked this turn."
+        Activated(
+            cost: [Mana([Generic(3)]), Do(Sacrifice(This))],
+            effect: Until(FixedUntil(EndOfTurn), [
+                Each(
+                    SelectAll(And([Type("Creature"), ControlledBy(Ref(You))])),
+                    Modify(It, GainAbility(Keyword(Hexproof()))),
+                ),
+                Cant(Block(on: And([Type("Creature"), ControlledBy(Ref(You))]))),
+            ]),
+        ),
+    ],
+)

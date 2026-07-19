@@ -3,6 +3,8 @@
 //! over events are replacement-family, never deontic; outcome "can't"s
 //! ([CR#104]) are SBA-override machinery, also not here.
 
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -40,14 +42,35 @@ pub enum CostPredicate {
 }
 
 /// A scoped counterfactual premise ([CR#609.4]): "treat the game as if
-/// [premise] were true, for purposes of that effect only." Carried by
-/// `StaticEffect::AsThough`. Many as-though cards compile to deontic rows
-/// instead (cast-as-though-flash = `May(Cast(window: InstantSpeed))`), and
-/// the mana counterfactual has its own channel
-/// (`StaticEffect::SpendAsThough`, [CR#609.4b]); the variants here are the
-/// residue. Premises accrete as cards demand them.
+/// [premise] were true, for purposes of the named action's legality only."
+/// Carried by `StaticEffect::AsThough`. The mana counterfactual has its own
+/// channel (`StaticEffect::SpendAsThough`, [CR#609.4b]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum AsThough {
+    /// A per-checker counterfactual overlay. When the engine checks the
+    /// legality of the action named by `then` (a `May` selector: its action +
+    /// `by` agent + `on` object-scope), each candidate object is evaluated *as
+    /// though it satisfied `premise`* — realized by adding/removing the KEYWORD
+    /// named in `premise` on that candidate, for that check only, then running
+    /// the UNCHANGED legality check so the keyword's OWN row does the work. No
+    /// real characteristic change (unlike a lose-ability layer effect), and the
+    /// counterfactual is invisible to every other check.
+    ///
+    /// * `premise = Not(Has(Hexproof))` — remove the keyword: its
+    ///   `Cant(Target)` obstacle vanishes, so the object becomes targetable by
+    ///   `then`'s agent (Glaring Spotlight, [CR#702.11d] seen through).
+    /// * `premise = Has(Flash)` — add the keyword: *Flash's own*
+    ///   `May(Cast(InstantSpeed))` row appears, lifting cast timing (Leyline of
+    ///   Anticipation). The keyword is INVOKED, never inlined.
+    ///
+    /// Mirrors Idris `AsThough : Condition -> StaticEffect -> StaticEffect`:
+    /// `AsThough (Matches This premise) then`. `then` is `Arc`-boxed to keep
+    /// this variant small (a `Deontic` dwarfs `Expanded`, `clippy::
+    /// large_enum_variant`).
+    Counterfactual {
+        premise: Predicate,
+        then: Arc<Deontic>,
+    },
     /// A remembered `AsThough` macro invocation. Serialized as the
     /// invocation, not the struct.
     #[macro_ron(expanded)]

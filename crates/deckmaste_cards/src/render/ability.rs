@@ -2,12 +2,16 @@
 //! effect).
 
 use deckmaste_core::Ability;
+use deckmaste_core::AsThough;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::Cmp;
 use deckmaste_core::CollectionOp;
 use deckmaste_core::Color;
 use deckmaste_core::Condition;
 use deckmaste_core::Count;
+use deckmaste_core::DeedAgent;
+use deckmaste_core::Deontic;
+use deckmaste_core::DeonticAction;
 use deckmaste_core::EventFilter;
 use deckmaste_core::IgnoreRule;
 use deckmaste_core::Modification;
@@ -876,8 +880,87 @@ fn static_effect_kind(e: &StaticEffect, ctx: &Ctx, one_shot: bool) -> Option<Str
                 format!("[unrendered: OutcomeGate {{ who: {who:?}, gate: {gate:?} }}].")
             }),
         ),
+        // "[objects] can be the targets of [agent] as though they didn't have
+        // [keyword]" — the counterfactual overlay ([CR#609.4], Glaring
+        // Spotlight): the game is evaluated as though the object didn't satisfy
+        // `premise`, for the action named by `then` only.
+        StaticEffect::AsThough(AsThough::Counterfactual { premise, then }) => {
+            Some(asthough_counterfactual(premise, then))
+        }
         other => Some(format!("[unrendered: {other:?}].")),
     }
+}
+
+/// The counterfactual overlay as a sentence. Renders the one shape with a real
+/// card today — a `May(Target)` selector seen through a `Not(Has(keyword))`
+/// premise (Glaring Spotlight) — and falls back to the structural marker for
+/// any other inner/premise, which has no established phrasing yet.
+fn asthough_counterfactual(premise: &Predicate, then: &Deontic) -> String {
+    if let Deontic::May(DeonticAction::Target { by, on }) = peel_deontic(then)
+        && let Some(seen_through) = premise_seen_through(premise)
+    {
+        let subject = super::fragment::capitalize(&super::fragment::filter_subject(on));
+        return format!(
+            "{subject} can be the targets of {} {seen_through}.",
+            deed_agent_noun(by),
+        );
+    }
+    format!("[unrendered: AsThough({premise:?}, {then:?})].")
+}
+
+fn peel_deontic(d: &Deontic) -> &Deontic {
+    match d {
+        Deontic::Expanded(e) => peel_deontic(&e.value),
+        other => other,
+    }
+}
+
+/// A two-slot targeting agent as a noun phrase — "spells and abilities you
+/// control" ([CR#702.11d]'s two-armed agent read as a single subject).
+fn deed_agent_noun(by: &DeedAgent) -> String {
+    let control = by
+        .stack_object
+        .as_ref()
+        .map(control_qualifier)
+        .unwrap_or_default();
+    format!("spells and abilities{control}")
+}
+
+/// The " you control" / " an opponent controls" qualifier of a `ControlledBy`
+/// agent filter (empty for any other shape — falls back to a bare agent noun).
+fn control_qualifier(f: &Predicate) -> String {
+    if let Predicate::Relation(RelationPredicate::ControlledBy(inner)) =
+        super::fragment::strip_expanded(f)
+    {
+        let inner = super::fragment::strip_expanded(inner);
+        if matches!(inner, Predicate::Ref(Reference::You)) {
+            return " you control".to_string();
+        }
+        if let Predicate::Relation(RelationPredicate::OpponentOf(who)) = inner
+            && matches!(
+                super::fragment::strip_expanded(who),
+                Predicate::Ref(Reference::You)
+            )
+        {
+            return " an opponent controls".to_string();
+        }
+    }
+    String::new()
+}
+
+/// "as though they didn't have [keyword]" from a `Not(Has(K))` premise — the
+/// counterfactual read as a trailing clause. `None` for a premise shape with no
+/// established phrasing.
+fn premise_seen_through(premise: &Predicate) -> Option<String> {
+    if let Predicate::Not(inner) = premise
+        && let Predicate::Characteristic(CharacteristicPredicate::Has(kw)) = inner.as_ref()
+    {
+        return Some(format!(
+            "as though they didn't have {}",
+            kw.as_str().to_lowercase()
+        ));
+    }
+    None
 }
 
 /// The predicate half of an `Each`'s inner effect — everything after the

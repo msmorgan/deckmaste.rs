@@ -186,8 +186,11 @@ fn find_subtype_noun(f: &Predicate) -> Option<String> {
 /// creature") at a single-slot announce root, `AttachHostOf(This)` ->
 /// "Enchanted creature", etc.
 fn deontic_subject(f: &Predicate, ctx: &Ctx) -> String {
-    match f {
+    match fragment::strip_expanded(f) {
         Predicate::Ref(r) => fragment::modify_subject(r, ctx),
-        other => format!("[unrendered: {other:?}]"),
+        // A set-scoped subject ("Creatures you control can't be blocked.") — a
+        // full predicate rather than an anaphoric `Ref`. Reads through the same
+        // sentence-start-capitalized noun phrase the anthem subject uses.
+        other => fragment::capitalize(&fragment::filter_subject(other)),
     }
 }

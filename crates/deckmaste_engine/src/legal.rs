@@ -7,6 +7,8 @@ use std::cell::Cell;
 use std::ops::ControlFlow;
 
 use deckmaste_core::Ability;
+use deckmaste_core::AsThough;
+use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::DeedAgent;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
@@ -1029,6 +1031,149 @@ pub(crate) fn target_forbidden_by(
                 && state.filter_matches_live(on, target, *carrier)
         })
         .map(|(carrier, ..)| *carrier)
+}
+
+/// Every `AsThough(Counterfactual)` overlay whose inner selector is a
+/// `May(Target)`, with its carrier: `(carrier, premise, by, on)`. `by`/`on`
+/// scope which targeting the overlay covers (the acting agent + the object made
+/// targetable); `premise` is the counterfactual re-checked against each
+/// candidate ([CR#609.4] Glaring Spotlight — "as though it didn't have
+/// hexproof").
+#[must_use]
+pub(crate) fn astough_target_rows(
+    state: &GameState,
+    view: &LayeredView,
+) -> Vec<(crate::object::ObjectSource, Predicate, DeedAgent, Predicate)> {
+    let mut rows = Vec::new();
+    for &id in &state.zones.battlefield {
+        let source = state.objects.obj(id).source;
+        for_each_static(state, view, id, |e| {
+            if let StaticEffect::AsThough(AsThough::Counterfactual { premise, then }) = e
+                && let Deontic::May(DeonticAction::Target { by, on }) = then.as_ref()
+            {
+                rows.push((source, premise.clone(), by.clone(), on.clone()));
+            }
+        });
+    }
+    rows
+}
+
+/// Whether an active `AsThough` overlay lets `spell` target `target` past a
+/// `Cant(Target)` row that would otherwise forbid it ([CR#609.4]). The overlay
+/// applies when its `by` agent matches `spell` and its `on` scope matches
+/// `target`; it then re-checks the forbidding *as though* `target` did not
+/// satisfy the overlay's `premise`. Realized by masking the named keyword's
+/// abilities on `target` (a per-checker counterfactual, never a real
+/// characteristic change), so an UNRELATED self obstacle (shroud, protection)
+/// that survives the premise — or any external row — still forbids.
+#[must_use]
+pub(crate) fn asthough_sees_through_target(
+    state: &GameState,
+    view: &LayeredView,
+    cant_rows: &[(crate::object::ObjectSource, DeedAgent, Predicate)],
+    spell: ObjectId,
+    target: ObjectId,
+) -> bool {
+    astough_target_rows(state, view)
+        .into_iter()
+        .any(|(carrier, premise, by, on)| {
+            deed_agent_matches(state, &by, spell, carrier)
+                && state.filter_matches_live(&on, target, carrier)
+                && !forbidden_ignoring_keyword(state, view, cant_rows, spell, target, &premise)
+        })
+}
+
+/// Re-run the `Cant(Target)` forbidding for (`spell`, `target`) as though
+/// `target` lacked the keyword named by `premise` (a `Not(Has(K))`
+/// counterfactual). `target`'s OWN self-carried rows are recomputed with `K`'s
+/// abilities masked; every other row (carried by a different object, or a
+/// different keyword on `target`) is judged unchanged — so removing hexproof
+/// leaves shroud/protection intact. A premise shape the overlay can't realize
+/// leaves the target forbidden (no suppression).
+fn forbidden_ignoring_keyword(
+    state: &GameState,
+    view: &LayeredView,
+    cant_rows: &[(crate::object::ObjectSource, DeedAgent, Predicate)],
+    spell: ObjectId,
+    target: ObjectId,
+    premise: &Predicate,
+) -> bool {
+    let Some(keyword) = premise_removes_keyword(premise) else {
+        return true;
+    };
+    let target_source = state.objects.obj(target).source;
+    // Rows carried by any OTHER object are untouched by removing `target`'s
+    // keyword — if one still forbids, the overlay does not see through it.
+    let external_forbids = cant_rows.iter().any(|(carrier, by, on)| {
+        *carrier != target_source
+            && deed_agent_matches(state, by, spell, *carrier)
+            && state.filter_matches_live(on, target, *carrier)
+    });
+    external_forbids || masked_self_rows_forbid(state, view, spell, target, keyword)
+}
+
+/// Collect `target`'s own `Cant(Target)` rows with the keyword named `keyword`
+/// masked out of its ability list, and report whether any still forbids
+/// `spell`. Walks the derived abilities directly (view-free
+/// [`walk_abilities`]), gating `Conditionally` the same way [`for_each_static`]
+/// does — the counterfactual's obstacle recomputation.
+fn masked_self_rows_forbid(
+    state: &GameState,
+    view: &LayeredView,
+    spell: ObjectId,
+    target: ObjectId,
+    keyword: &str,
+) -> bool {
+    let source = state.objects.obj(target).source;
+    let abilities: Vec<Ability> = view
+        .get(target)
+        .abilities
+        .iter()
+        .filter(|a| !ability_names_keyword(a, keyword))
+        .cloned()
+        .collect();
+    let controller = state.objects.obj(target).controller;
+    let frame = crate::stack::Frame::bare(target, controller);
+    let mut enter = |cond: &deckmaste_core::Condition| state.condition_holds(cond, &frame);
+    let hit = walk_abilities(&abilities, &mut enter, &mut |e: &StaticEffect| {
+        if let StaticEffect::Deontic(d) = e
+            && let Some(DeonticAction::Target { by, on }) = cant_action(d)
+            && deed_agent_matches(state, by, spell, source)
+            && state.filter_matches_live(on, target, source)
+        {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        }
+    });
+    hit.is_break()
+}
+
+/// The keyword a `Not(Has(K))` counterfactual premise removes, by name — the
+/// only premise shape the targeting overlay realizes today (Glaring Spotlight's
+/// `Not(Has(Hexproof))`). Anything else yields `None` (no suppression).
+fn premise_removes_keyword(premise: &Predicate) -> Option<&'static str> {
+    if let Predicate::Not(inner) = premise
+        && let Predicate::Characteristic(CharacteristicPredicate::Has(kw)) = inner.as_ref()
+    {
+        Some(kw.as_str())
+    } else {
+        None
+    }
+}
+
+/// Whether `a` is (or wraps, through `Expanded`/`Innate`) the keyword ability
+/// named `name` — the mask predicate the counterfactual uses to drop a
+/// candidate's keyword. Matches by name via
+/// [`KeywordAbility::as_str`](deckmaste_core::KeywordAbility::as_str), the same
+/// name bridge `Has(K)` matches through.
+fn ability_names_keyword(a: &Ability, name: &str) -> bool {
+    match a {
+        Ability::Keyword(k) => k.as_str() == name,
+        Ability::Expanded(e) => ability_names_keyword(&e.value, name),
+        Ability::Innate(inner) => ability_names_keyword(inner, name),
+        _ => false,
+    }
 }
 
 /// Every `Cant(Attach)` row in the derived view, with its carrier:

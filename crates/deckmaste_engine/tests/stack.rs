@@ -190,6 +190,122 @@ fn bears_game(seed: u64, forests: usize) -> GameState {
     state
 }
 
+/// A three-seat game for the Glaring Spotlight "as though it didn't have
+/// hexproof" overlay. Seat 0 (A) controls Glaring Spotlight and casts; seat 1
+/// (V) is the victim who OWNS the hexproof Gladecover Scout — hexproof only
+/// stops opponents ([CR#702.11b]), so the protected creature must belong to a
+/// non-caster for "A can, a third player can't" to be a clean assertion. Seat 2
+/// (T) is a third player who also casts. A non-hexproof Grizzly Bears (V's)
+/// keeps every Bolt cast legal so `ChooseTargets` always surfaces.
+fn spotlight_game(seed: u64) -> GameState {
+    let bolt = card("Lightning Bolt");
+    let mountain = Arc::new(builtin().card("Mountain").unwrap());
+    let spotlight = card("Glaring Spotlight");
+    let scout = card("Gladecover Scout");
+    let bears = card("Grizzly Bears");
+    let caster_deck = || {
+        let mut d = vec![Arc::clone(&bolt); 5];
+        d.extend(vec![Arc::clone(&mountain); 5]);
+        d
+    };
+    let mut a = caster_deck();
+    a.push(Arc::clone(&spotlight));
+    let mut v = vec![Arc::clone(&mountain); 8];
+    v.push(Arc::clone(&scout));
+    v.push(Arc::clone(&bears));
+    let t = caster_deck();
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: a },
+            PlayerConfig { deck: v },
+            PlayerConfig { deck: t },
+        ],
+        seed,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    force_into_play(&mut state, PlayerId(0), "Glaring Spotlight");
+    force_into_play(&mut state, PlayerId(1), "Gladecover Scout");
+    force_into_play(&mut state, PlayerId(1), "Grizzly Bears");
+    // Mana for the two casters (Bolt is {R}).
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    force_into_play(&mut state, PlayerId(2), "Mountain");
+    force_into_play(&mut state, PlayerId(2), "Mountain");
+    state
+}
+
+/// The battlefield object with face name `name`.
+fn battlefield_named(state: &GameState, name: &str) -> ObjectId {
+    *state
+        .zones
+        .battlefield
+        .iter()
+        .find(|&&o| is_card(state, o, name))
+        .unwrap_or_else(|| panic!("a {name} on the battlefield"))
+}
+
+/// Casts a Lightning Bolt from `caster` in a fresh Spotlight game and returns
+/// (state, the legal candidate set for the single target slot).
+fn bolt_legal_targets_from(caster: PlayerId) -> (GameState, Vec<ObjectId>) {
+    let mut state = spotlight_game(7);
+    let _ = run_to_priority(&mut state, caster, PhaseStep::PrecombatMain);
+    float_mana(&mut state, caster, 1);
+    let bolt = find_in_hand(&state, caster, "Lightning Bolt");
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: bolt }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { player, legal, .. },
+    )) = stop
+    else {
+        panic!("expected ChooseTargets, got {stop:?}")
+    };
+    assert_eq!(player, caster);
+    (state, legal.into_iter().next().expect("one target slot"))
+}
+
+/// Glaring Spotlight lets ITS controller target an opponent's hexproof creature
+/// as though it lacked hexproof, while a third player — an opponent of the
+/// creature's controller with no Spotlight — still can't ([CR#609.4,702.11d]).
+#[test]
+fn spotlight_sees_through_hexproof_only_for_its_controller() {
+    // A (seat 0) controls Glaring Spotlight.
+    let (st, legal) = bolt_legal_targets_from(PlayerId(0));
+    let scout = battlefield_named(&st, "Gladecover Scout");
+    let bears = battlefield_named(&st, "Grizzly Bears");
+    assert!(
+        legal.contains(&bears),
+        "a non-hexproof creature is always targetable"
+    );
+    assert!(
+        legal.contains(&scout),
+        "Spotlight's controller targets the hexproof creature as though it had none"
+    );
+
+    // T (seat 2) has no Spotlight and is the Scout controller's opponent — the
+    // baseline "normally illegal" case, and the ticket's "third player".
+    let (st2, legal2) = bolt_legal_targets_from(PlayerId(2));
+    let scout2 = battlefield_named(&st2, "Gladecover Scout");
+    let bears2 = battlefield_named(&st2, "Grizzly Bears");
+    assert!(
+        legal2.contains(&bears2),
+        "a non-hexproof creature is always targetable"
+    );
+    assert!(
+        !legal2.contains(&scout2),
+        "a third player still can't target the hexproof creature"
+    );
+}
+
 // --- stepping helpers
 // ---------------------------------------------------------
 

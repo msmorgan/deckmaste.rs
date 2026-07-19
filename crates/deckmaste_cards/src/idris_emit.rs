@@ -2288,9 +2288,24 @@ fn emit_static_effect(se: &StaticEffect) -> R {
         StaticEffect::SpendAsThough { .. } => {
             return Err(gap("StaticEffect::SpendAsThough has no Idris counterpart"));
         }
-        StaticEffect::AsThough(_) => {
+        // Idris `AsThough : Condition -> StaticEffect -> StaticEffect`
+        // ([CR#609.4]): the Rust `Counterfactual { premise, then }` re-emits as
+        // `AsThough (Matches This premise) <then>` — the premise is the
+        // counterfactual `Matches This (Not (Has Hexproof))`, wrapping the inner
+        // permission `then` as its `Can` clause (Glaring Spotlight).
+        StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual { premise, then }) => {
+            let premise_cond = app(
+                "Matches",
+                vec![
+                    emit_reference(&deckmaste_core::Reference::This)?,
+                    emit_filter(premise)?,
+                ],
+            );
+            app("AsThough", vec![premise_cond, emit_deontic(then)?])
+        }
+        StaticEffect::AsThough(deckmaste_core::AsThough::Expanded(_)) => {
             return Err(gap(
-                "StaticEffect::AsThough has no concrete Rust variants yet",
+                "StaticEffect::AsThough macro provenance (Expanded) is not re-emitted",
             ));
         }
         StaticEffect::Sba { when, then } => {
@@ -3691,6 +3706,35 @@ mod tests {
         let out = emit_condition(&Condition::CastWith(CostTag::from("Flashback")))
             .expect("CastWith(Flashback) should emit");
         assert_eq!(out, "(Matches This (WasCastWith Flashback))");
+    }
+
+    /// The `AsThough` counterfactual overlay re-emits as Idris
+    /// `AsThough (Matches This premise) <then>` ([CR#609.4], Glaring
+    /// Spotlight): the premise becomes a `Matches This …` condition
+    /// wrapping the inner permission emitted as its `Can (Enact …)` clause.
+    /// Guards the closed emitter gap without needing the (toolchain-gated)
+    /// `idris2 --check`.
+    #[test]
+    fn as_though_counterfactual_wraps_premise_as_matches_this() {
+        let effect = StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual {
+            premise: Predicate::Not(std::sync::Arc::new(Predicate::Characteristic(
+                CharacteristicPredicate::Has(deckmaste_core::KeywordRef::from("Hexproof")),
+            ))),
+            then: std::sync::Arc::new(Deontic::May(DeonticAction::Target {
+                by: deckmaste_core::DeedAgent::default(),
+                on: Predicate::Characteristic(CharacteristicPredicate::Type("Creature".into())),
+            })),
+        });
+        let out = emit_static_effect(&effect).expect("AsThough Counterfactual should emit");
+        assert!(
+            out.starts_with("(AsThough (Matches This"),
+            "premise wraps as `Matches This …`, got: {out}"
+        );
+        assert!(out.contains("Hexproof"), "keyword survives, got: {out}");
+        assert!(
+            out.contains("Enact Target"),
+            "inner permission is a Target deed, got: {out}"
+        );
     }
 
     /// A novel open type name with no `Type_` counterpart gaps (never
