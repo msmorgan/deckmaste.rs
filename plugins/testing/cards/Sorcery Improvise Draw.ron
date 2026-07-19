@@ -1,16 +1,5 @@
-// {2} sorcery: "draw a card. Improvise." Pins the ARTIFACT arm of the per-pip
-// alternative-payment hook (PayPips): improvise lets a generic pip be paid by
-// tapping an untapped artifact you control ([CR#702.126a]) — "rather than pay
-// that mana", without lowering the {2} mana value ([CR#202.3,702.51b]). Convoke
-// and delve exercise the creature-tap and graveyard-exile arms; this minimal
-// {2} twin isolates the artifact-tap arm for a small, deterministic engine
-// test. No real improvise spell whose non-cost effect ("draw a card") is this
-// minimal is canonized yet. Per plugins/testing/README.md, canonize a real
-// improvise spell and delete this once one lands.
-//
-// The improvise static is spelled DIRECTLY as a `PayPips` row (the keyword
-// macro sugar is exercised on the keyword layer) so the engine test does not
-// depend on the keyword layer.
+// [CR#202.3,702.126a]: a direct `PayPips` row isolates Improvise's
+// artifact-tap payment path without changing mana value.
 Normal(
     name: "Sorcery Improvise Draw",
     mana_cost: [Generic(2)],

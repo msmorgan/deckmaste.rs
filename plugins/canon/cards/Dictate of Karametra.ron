@@ -1,10 +1,5 @@
-// Dictate of Karametra — "Whenever a player taps a land for mana, that
-// player adds one mana of any type that land produced." [CR#106.12,106.12a]
-// — exercises `EventFilter::TapForMana` (new; `what` left `Any`, the event
-// kind is already land-scoped) and `ManaSpec::ProducedByEvent` (new).
-// Chosen over the ticket's suggested Vorinclex, Voice of Hunger: same
-// TapForMana/ProducedByEvent shape, one clean ability instead of two
-// (Vorinclex's second ability is an unrelated "doesn't untap" tax effect).
+// [CR#106.12,106.12a]: `TapForMana` supplies the event whose produced mana
+// type is read by `ProducedByEvent`.
 Normal(
     name: "Dictate of Karametra",
     mana_cost: [Generic(3), Green, Green],

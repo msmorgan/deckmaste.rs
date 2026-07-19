@@ -2225,19 +2225,13 @@ fn add_mana_text(count: &Count, production: &deckmaste_core::ManaProduction) -> 
             };
             format!("Add {list}.")
         }
-        // [CR#106.12a]: "add one mana of any type that land produced"
-        // (Dictate of Karametra, Vorinclex) — only the sound amount=1 shape
-        // is rendered; the corpus has no multi-copy `ProducedByEvent` card
-        // yet, so a larger count declines structurally rather than guessing
-        // plural wording.
+        // [CR#106.12a]: only the sound amount=1 shape is rendered; a larger
+        // count declines structurally rather than guessing plural wording.
         ManaSpec::ProducedByEvent if n == 1 => {
             "Add one mana of any type that land produced.".to_string()
         }
-        // `AmongColorsOf` needs the referenced object's own phrase (Chrome
-        // Mox's "the exiled card", Katilda's "this creature") — no fixture
-        // in this corpus exercises it yet (both real candidates hit an
-        // unbuilt gap, see the ticket's completion notes), so it declines
-        // structurally rather than guessing a phrase.
+        // `AmongColorsOf` needs the referenced object's own phrase, which is
+        // unavailable here, so it declines structurally rather than guessing.
         ManaSpec::AmongColorsOf(_) | ManaSpec::ProducedByEvent => {
             format!("[unrendered: AddMana({count:?}, {production:?})].")
         }
@@ -3064,18 +3058,8 @@ mod tests {
         );
     }
 
-    /// Bounce-to-library — the migrations `parse_bounce_to_library`
-    /// production's TARGETED `Move(Target(0), Library(anchor))` shape
-    /// round-trips through the generic library-destination arm, reading the
-    /// announced target's phrase via `Reference::Target`.
-    ///
-    /// A targeted permanent could be an opponent's, so the destination reads
-    /// "its owner's library" ([CR#400.3]) —
-    /// `fragment::move_possessive` keys off the reference SHAPE (a
-    /// non-graveyard `Target` slot is possibly-foreign). This is the render
-    /// that unblocks the ~118-card bounce-to-library family (Excommunicate,
-    /// Temporal Spring, …) from the byte-exact fidelity gate —
-    /// `bounce-followups` ticket §1.
+    /// [CR#400.3]: a non-graveyard target may be owned by another player, so
+    /// its library destination uses "its owner's library."
     #[test]
     fn move_to_library_renders_targeted_top_and_bottom() {
         use deckmaste_core::Anchor;
@@ -3113,10 +3097,8 @@ mod tests {
     /// "your X" only when the moved object is provably the controller's — a
     /// self-bounce (`This`) or a target scoped to a graveyard (cards in a
     /// graveyard are owned by that graveyard's player) — and "its owner's X"
-    /// for a targeted permanent that could be an opponent's (the Unsummon
-    /// family). Covers the Hand arm and the graveyard-scoped-stays-"your" case
-    /// that the targeted-library test above does NOT (it uses a battlefield
-    /// filter).
+    /// for a targeted permanent that could be an opponent's. Covers self,
+    /// battlefield-target, and graveyard-target ownership cases.
     #[test]
     fn bounce_possessive_your_vs_owners() {
         use deckmaste_core::Anchor;
@@ -3932,7 +3914,7 @@ mod tests {
         );
     }
 
-    // ── Copy effects ([CR#707], core-copy-grammar Task 7) ───────────────────
+    // ── Copy effects ([CR#707]) ─────────────────────────────────────────────
 
     fn target_creature_ctx(target: &TargetSpec) -> Ctx<'_> {
         Ctx {

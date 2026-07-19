@@ -594,11 +594,8 @@ fn body_forwards_params_into_nested_named_macro() {
     assert_eq!(options().to_string(&m).unwrap(), "Power(Up(5))");
 }
 
-/// A body forwards its own `Param` as the WHOLE, bare argument of a nested
-/// positional macro invocation (`Boost(Param(0))`), rather than nested inside
-/// an argument as `body_forwards_params_into_nested_macro`'s
-/// `Pair(Up(Param(0)), …)` does. This is the `macro-param-forwarding` ticket's
-/// `CastFromGraveyard(Param(0))` shape at the machinery level.
+/// A body forwards its own `Param` as the whole, bare argument of a nested
+/// positional macro invocation (`Boost(Param(0))`).
 #[test]
 fn body_forwards_whole_value_param_into_positional_macro() {
     let mut set = macros();
@@ -620,11 +617,9 @@ fn body_forwards_whole_value_param_into_positional_macro() {
     assert_eq!(options().to_string(&m).unwrap(), "Power(Up(5))");
 }
 
-/// The forwarded whole-value param is LIST-typed (`Vec`), landing at a nested
-/// SEQUENCE position (`Several(Param(0))`) — the ticket's `cost:
-/// Components(Param(0))` shape, where the deckmaste `Cost` param type is a
-/// `Vec<CostComponent>`. The list path (`deserialize_seq`) must resolve a
-/// whole-value hole that arrives already forwarded from the caller's frame.
+/// A list-typed whole-value parameter reaches a nested sequence position.
+/// The `deserialize_seq` path must resolve a hole forwarded from the caller's
+/// frame.
 #[test]
 fn body_forwards_list_typed_whole_value_param_into_seq_position() {
     let mut param_types = ParamTypeSet::default();

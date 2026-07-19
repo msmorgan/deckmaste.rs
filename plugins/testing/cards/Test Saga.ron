@@ -1,11 +1,5 @@
-// A minimal Saga ([CR#714]) carrying three `Chapter` abilities — the
-// [CR#714.2b] was-less-than/became-at-least chapter shape as data — plus
-// the card-side final-chapter sacrifice SBA ([CR#714.4]; the final chapter
-// number is THIS card's own greatest threshold, [CR#714.2d], so it can't
-// live on the generic Saga registry row). The Saga subtype row confers the
-// enters-with-lore-counter Also ([CR#714.3a]) and the turn-based lore
-// increment ([CR#714.3c]); no canon-slice card is a Saga, so this carrier
-// isolates the chapter machinery.
+// [CR#714.2b,714.2d,714.4]: chapter thresholds belong to the card, and the
+// final threshold determines its sacrifice SBA rather than the Saga subtype.
 Normal(
     name: "Test Saga",
     mana_cost: [Generic(1), White],

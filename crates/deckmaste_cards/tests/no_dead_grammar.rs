@@ -1,5 +1,4 @@
-//! The G12 "no dead grammar" coverage sweep
-//! ([[cards-no-dead-grammar-sweep]]): every core grammar node — an enum
+//! The "no dead grammar" coverage sweep: every core grammar node — an enum
 //! variant defined in one of the seven grammar family files (effects,
 //! actions, statics, events, counts, conditions, references) — must carry at
 //! least one loading ACCEPTANCE card (`plugins/{canon,testing,builtin}`,
@@ -39,7 +38,7 @@ use std::path::PathBuf;
 use regex::Regex;
 
 /// The seven grammar-family source files this sweep walks, relative to
-/// `deckmaste_core/src/`. Matches the ticket's own family list verbatim
+/// `deckmaste_core/src/`.
 /// (effects/actions/statics/events/counts/conditions/references).
 const GRAMMAR_FILES: &[&str] = &[
     "effect.rs",
@@ -169,11 +168,10 @@ fn structurally_untagged() -> BTreeSet<Node> {
 ///
 /// Two different kinds of entry, and this list is NOT pretending they're
 /// the same kind: a `BLOCKED` note means a real card is named but its
-/// grammar has a genuine, confirmed gap (findings for the coordinator, not
-/// invented fixtures — see the ticket's completion notes). A `DEFERRED`
+/// grammar has a genuine, confirmed gap. A `DEFERRED`
 /// note is a plain, honest backlog item: the node is buildable with a real
 /// or `testing`-mock card (a candidate is usually named), nothing structural
-/// blocks it, it simply wasn't reached in this session's batch. Treat every
+/// blocks it, but it does not yet have fixture coverage. Treat every
 /// `DEFERRED` entry as a to-do, not a soundness claim.
 #[expect(
     clippy::too_many_lines,
@@ -183,13 +181,13 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
     vec![
         (
             n("OneShotEffect", "Label"),
-            "BLOCKED: Label's only real use-case in this batch (Blood Money's \
+            "BLOCKED: Label's real use-case (Blood Money's \
             'destroyed this way' product-group read-back) is the same confirmed grammar gap as \
-            Noting/AmongNoted below — see the ticket's completion notes.",
+            Noting/AmongNoted below.",
         ),
         (
             n("OneShotEffect", "MayPay"),
-            "DEFERRED: no real card in this batch uses the resolution-time \
+            "DEFERRED: no covered real card uses the resolution-time \
             optional-cost-kicker shape (canon's Mana Leak uses the punisher MustPay instead); a \
             real candidate (e.g. a 'you may pay {2}; if you do, ...' spell) is buildable.",
         ),
@@ -199,45 +197,43 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             Money) needs a way to re-read a noted PRODUCT group filtered further; \
             Selection::AmongNoted is a CHOICE primitive (wrong shape for an unconditional \
             'for each'), and no Count/Predicate combinator reads a noted object set at all — a \
-            genuine missing-grammar finding, not built. See the ticket's completion notes.",
+            genuine missing-grammar finding.",
         ),
         (
             n("OneShotEffect", "Reflexive"),
-            "DEFERRED: no real 'when you do' reflexive-trigger card in this \
-            batch; render support for Reflexive is also unbuilt (same family as Delayed).",
+            "DEFERRED: no covered real 'when you do' reflexive-trigger card; \
+            render support for Reflexive is also unbuilt (same family as Delayed).",
         ),
         (
             n("OneShotEffect", "Batch"),
-            "SHELL: `Batch` (engine-act-facet-contract Task 2) is a deliberate \
+            "SHELL: `Batch` is a deliberate \
             scaffold, semantically identical to `Repeat` for now — no card needs it yet \
-            because there is no observable difference from `Repeat` to author toward. A \
-            later task in the same plan upgrades it to the true aggregate-count tier \
-            ([CR#616.1g] 'twice that many' replacements, aggregate triggers) and wires the \
-            first real card that needs the distinction.",
+            because there is no observable difference from `Repeat` to author toward. Its \
+            true aggregate-count tier ([CR#616.1g] 'twice that many' replacements and aggregate \
+            triggers) remains unimplemented.",
         ),
         (
             n("PileSource", "Noted"),
             "DEFERRED: the per-player noted-piles shape (Whims of the \
-            Fates: SeparatePiles.note + ChoosePile(from: Noted(..))) is designed (see the ticket's \
-            completion notes) but not built this session.",
+            Fates: SeparatePiles.note + ChoosePile(from: Noted(..))) is designed but not built.",
         ),
         (
             n("Anchor", "FromBottom"),
-            "DEFERRED: no real card in this batch targets the BOTTOM of a \
+            "DEFERRED: no covered real card targets the BOTTOM of a \
             library by anchor (canon's library moves are all top-anchored); buildable.",
         ),
         (
             n("EnterRider", "FaceDown"),
-            "DEFERRED: no morph/manifest real card in this batch.",
+            "DEFERRED: no covered morph/manifest real card.",
         ),
         (
             n("EnterRider", "UnderControlOf"),
             "DEFERRED: no 'enters under a NAMED player's control' \
-            real card in this batch (Otherworldly Journey covers UnderOwnersControl).",
+            covered real card (Otherworldly Journey covers UnderOwnersControl).",
         ),
         (
             n("EnterRider", "AsCopy"),
-            "DEFERRED: core-copy-grammar Task 6 lands the grammar (an \
+            "DEFERRED: the grammar is present (an \
             EnterRider carrying the shared CopySpec, [CR#707.5]) and a documented never-panic \
             fizzle seam at every rider-consuming site; the layer-1a APPLICATION that would make \
             a real Clone-style card graduatable is engine-layers-1-copy-facedown-text's, not \
@@ -264,18 +260,18 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("Action", "MoveGroup"),
             "DEFERRED: no real simultaneous-group-relocation card (e.g. \
-            'return all creatures to hand') in this batch — Brainstorm's own group-move uses \
+            'return all creatures to hand') has coverage — Brainstorm's own group-move uses \
             Each+Move per element, not MoveGroup.",
         ),
         (
             n("Action", "ExtraPhase"),
             "DEFERRED: no extra-combat/extra-phase real card (e.g. \
-            Relentless Assault) in this batch.",
+            Relentless Assault) has coverage.",
         ),
         (
             n("Action", "BecomeDay"),
             "DEFERRED: no day/night real card (e.g. Alrund's Epiphany) in \
-            this batch.",
+            covered.",
         ),
         (
             n("Action", "BecomeNight"),
@@ -294,7 +290,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             TheRingTempts above); it exists purely so the SBA's removal routes through the \
             data-usable Action grammar (unit-testable, reusable) instead of building its \
             GameEvent inline. Not a DEFERRED buildable-someday gap — see the \
-            core-copy-grammar Task 5 report.",
+            copy-grammar report.",
         ),
         (
             n("PlayerAction", "VentureIntoDungeon"),
@@ -304,27 +300,27 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("PlayerAction", "Untap"),
             "DEFERRED: no untap-a-permanent-as-an-effect real card \
-            (distinct from a cost's {Q}) in this batch.",
+            (distinct from a cost's {Q}) has coverage.",
         ),
         (
             n("PlayerAction", "GetEmblem"),
             "DEFERRED: the engine (command-zone mint + static/triggered sourcing) and the \
             parse/render grammar arm now exist and are covered by unit tests, but no \
-            emblem-granting real card is graduatable in this batch: every canon emblem-granter \
+            emblem-granting real card is graduatable: every canon emblem-granter \
             (Garruk Cursed Huntsman, Daretti, Kiora, Ob Nixilis of the Black Oath, Dovin Baan, \
             Teferi's Talent, The Capitoline Triad, Professor Dellian Fel) is a fully-Unparsed \
             multi-ability planeswalker/permanent whose OTHER abilities need unimplemented \
             machinery (loyalty-ability activation, animation, prevention, token creation, \
             variable exile costs) — graduating one would drag in all of it. See the \
-            core-emblems ticket's completion notes.",
+            the documented emblem limitations.",
         ),
         (
             n("PlayerAction", "ChooseAndNote"),
             "BLOCKED: reader-gated engine runtime now exists for the note kinds that HAVE a reader \
             (Number → Count::Noted; Objects → the noted group / AmongNoted; Color/CardName/Piles \
-            stay loud — no reader grammar), but no simple real single-effect card in this batch \
-            spells ChooseAndNote (Three Tree City, the ticket's suggested card, needs a \
-            Color+creature-type domain NotedKind doesn't have) — see the ticket's completion notes.",
+            stay loud — no reader grammar), but no covered simple real single-effect card \
+            spells ChooseAndNote (Three Tree City needs a Color+creature-type domain \
+            NotedKind doesn't have).",
         ),
         (
             n("PlayerAction", "FlipCoins"),
@@ -363,11 +359,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("PlayerAction", "RestartGame"),
             "DEFERRED: no restart-the-game real card (e.g. Karn \
-            Liberated's -14) in this batch.",
+            Liberated's -14) has coverage.",
         ),
         (
             n("PlayerAction", "CastCopy"),
-            "DEFERRED: core-copy-grammar Task 6 lands the grammar \
+            "DEFERRED: the grammar is present \
             ([CR#707.12], sibling to CopySpell) with a documented never-panic fizzle resolve arm \
             (`// execution: engine-copy-permanent-spells`); the [CR#601.2] cast-a-copy pipeline that \
             would make a real 'cast a copy of [source]' card graduatable is \
@@ -376,22 +372,22 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("Duration", "UntilEvent"),
             "DEFERRED: no 'until (event) happens' one-shot-duration real \
-            card in this batch.",
+            covered card.",
         ),
         (
             n("Duration", "ForAsLongAs"),
             "DEFERRED: no 'for as long as (condition)' one-shot-duration \
-            real card in this batch.",
+            covered real card.",
         ),
         (
             n("CollectionOp", "Remove"),
             "DEFERRED: no single-element 'loses a color/type/subtype' \
-            real card in this batch.",
+            covered real card.",
         ),
         (
             n("Modification", "SwitchPowerToughness"),
             "DEFERRED: no P/T-switch real card (e.g. \
-            Twisted Image) in this batch.",
+            Twisted Image) has coverage.",
         ),
         (
             n("Modification", "Supertypes"),
@@ -401,18 +397,18 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("Modification", "CantHaveAbility"),
             "DEFERRED: no \"can't have or gain abilities\" real \
-            card in this batch.",
+            covered card.",
         ),
         (
             n("Modification", "SetText"),
             "DEFERRED: no text-changing real card (e.g. Volrath's \
-            Shapeshifter) in this batch.",
+            Shapeshifter) has coverage.",
         ),
         (
             n("Modification", "BaseLoyalty"),
             "BLOCKED: no loyalty-ability cost grammar exists at all \
             yet (confirmed while scoping Liliana of the Veil for the SeparatePiles backfill) — a \
-            planeswalker card is out of reach until that lands; see the ticket's completion notes.",
+            planeswalker card is out of reach until that capability exists.",
         ),
         (
             n("Modification", "BaseDefense"),
@@ -421,21 +417,21 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("Modification", "BecomeBasicLandType"),
             "DEFERRED: no Blood-Moon-shaped real card in \
-            this batch.",
+            covered.",
         ),
         (
             n("StaticEffect", "Conditionally"),
             "DEFERRED: the \"as long as [condition], [effect]\" wrapper \
-            ([CR#611.3a]) is elaborated and rendered this session, but the engine gather is a \
-            documented unwired seam (`static_effect_scope` skips it) and no real card in this \
-            batch needs the qualifier over the graveyard/hand `from`-zone shape it replaces \
+            ([CR#611.3a]) is elaborated and rendered, but the engine gather is a \
+            documented unwired seam (`static_effect_scope` skips it) and no covered real card \
+            needs the qualifier over the graveyard/hand `from`-zone shape it replaces \
             (see `renders_graveyard_static_from_zone` for a synthetic exercise); buildable once \
             the gather seam is wired.",
         ),
         (
             n("StaticEffect", "CantPrevent"),
             "DEFERRED: no damage-can't-be-prevented real card in \
-            this batch.",
+            covered.",
         ),
         (
             n("StaticEffect", "SpendAsThough"),
@@ -445,11 +441,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("StaticEffect", "AsThough"),
             "DEFERRED: no AsThough-shaped counterfactual real card in \
-            this batch.",
+            covered.",
         ),
         (
             n("StaticEffect", "BecomesCopy"),
-            "DEFERRED: core-copy-grammar Task 6 lands the grammar \
+            "DEFERRED: the grammar is present \
             ([CR#707.4] — a continuous layer-1a copy effect, carrying the shared CopySpec like \
             Modify carries a Modification) with a documented never-panic fizzle seam citing \
             engine-layers-1-copy-facedown-text (the same downstream owner as EnterRider::AsCopy \
@@ -459,7 +455,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("PlayerAttr", "Life"),
             "DEFERRED: no life-total player-attribute real card beyond \
-            Exploration/Reliquary Tower's LandPlaysPerTurn/HandSizeLimit in this batch.",
+            Exploration/Reliquary Tower's LandPlaysPerTurn/HandSizeLimit.",
         ),
         (
             n("PlayerAttr", "HandSize"),
@@ -472,12 +468,12 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("PlayerMod", "Lower"),
-            "DEFERRED: no hand-size-LOWER real card in this batch.",
+            "DEFERRED: no covered hand-size-LOWER real card.",
         ),
         (
             n("PhaseKind", "Combat"),
             "DEFERRED: no combat-phase-scoped real card beyond canon's \
-            existing main-phase ones in this batch.",
+            existing main-phase ones.",
         ),
         (
             n("PhaseKind", "PostcombatMain"),
@@ -490,12 +486,12 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("BeginningStep", "Untap"),
-            "DEFERRED: no untap-step-triggered real card in this batch.",
+            "DEFERRED: no covered untap-step-triggered real card.",
         ),
         (
             n("CombatStep", "BeginningOfCombat"),
             "DEFERRED: no combat-step-triggered real card in \
-            this batch (canon has no upkeep/combat-step-triggered permanent yet) — a real \
+            coverage (canon has no upkeep/combat-step-triggered permanent yet) — a real \
             'at the beginning of combat on each opponent's turn' card would close this whole \
             family at once.",
         ),
@@ -521,12 +517,12 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("EndingStep", "Cleanup"),
-            "DEFERRED: no cleanup-step-triggered real card in this batch.",
+            "DEFERRED: no covered cleanup-step-triggered real card.",
         ),
         (
             n("WhoseTurn", "AnOpponents"),
             "DEFERRED: no opponents'-turn-scoped triggered real card in \
-            this batch.",
+            coverage.",
         ),
         (
             n("StateChange", "Phased"),
@@ -536,7 +532,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("StateChange", "TurnedFace"),
             "DEFERRED: no turned-face-up/down-triggered real card in \
-            this batch.",
+            coverage.",
         ),
         (
             n("StateChange", "Transformed"),
@@ -549,7 +545,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Agency", "CostPayment"),
-            "DEFERRED: no card in this batch explicitly narrows a Cause \
+            "DEFERRED: no covered card explicitly narrows a Cause \
             pattern by `agency` (real cards distinguish by `verb` alone, e.g. 'whenever you \
             sacrifice'); the whole Agency family needs one narrowly agency-scoped trigger.",
         ),
@@ -579,7 +575,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("EventFilter", "LifeLost"),
-            "DEFERRED: no life-LOSS-triggered real card in this batch \
+            "DEFERRED: no covered life-LOSS-triggered real card \
             (life GAIN — EventFilter::LifeGained, the `GainsLife` macro — is covered by \
             the misc-event-trigger wave's 'you gain life'/'an opponent gains life' \
             productions; `Drawn`, the `Draws` macro's expansion, is covered by the same \
@@ -646,7 +642,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("RoundMode", "RoundUp"),
             "DEFERRED: no Count::Half-using real card (e.g. 'half its \
-            power, rounded up') in this batch.",
+            power, rounded up') has coverage.",
         ),
         (
             n("RoundMode", "RoundDown"),
@@ -655,7 +651,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("Characteristic", "Types"),
             "DEFERRED: no CountDistinct-over-card-types real card in \
-            this batch (Domain covers Subtypes/BasicLandTypes).",
+            coverage (Domain covers Subtypes/BasicLandTypes).",
         ),
         (
             n("Characteristic", "Supertypes"),
@@ -667,45 +663,45 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Count", "Max"),
-            "DEFERRED: no 'the greater of X and Y' real card in this batch.",
+            "DEFERRED: no covered 'the greater of X and Y' real card.",
         ),
         (
             n("Count", "Plus"),
-            "DEFERRED: no 'X plus Y' arithmetic real card in this batch.",
+            "DEFERRED: no covered 'X plus Y' arithmetic real card.",
         ),
         (
             n("Count", "Minus"),
-            "DEFERRED: no 'X minus Y' arithmetic real card in this batch.",
+            "DEFERRED: no covered 'X minus Y' arithmetic real card.",
         ),
         (
             n("Count", "Times"),
-            "DEFERRED: no 'twice X' arithmetic real card in this batch.",
+            "DEFERRED: no covered 'twice X' arithmetic real card.",
         ),
         (
             n("Count", "Half"),
-            "DEFERRED: no 'half its power' real card in this batch.",
+            "DEFERRED: no covered 'half its power' real card.",
         ),
         (
             n("Count", "ThatMany"),
-            "DEFERRED: no 'that many' amount-anaphor real card in this batch \
+            "DEFERRED: no covered 'that many' amount-anaphor real card \
             (Collective Defiance would have needed it; Collective Resistance, the card actually \
             built, doesn't).",
         ),
         (
             n("Count", "EventCount"),
             "DEFERRED: no history-fact-count real card (morbid/raid-shaped) \
-            in this batch.",
+            has coverage.",
         ),
         (
             n("Count", "EventSum"),
             "DEFERRED: no history-fact-sum real card (e.g. total life lost \
-            this turn) in this batch.",
+            this turn) has coverage.",
         ),
         (
             n("Count", "Noted"),
             "BLOCKED: the noted-number read is engine-wired (it reads the resolution note store), \
             but its writer PlayerAction::ChooseAndNote(Number) has no simple real single-effect \
-            card in this batch — see that node.",
+            covered card — see that node.",
         ),
         (
             n("Count", "ManaAvailable"),
@@ -731,17 +727,17 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("Condition", "Exists"),
             "DEFERRED: no 'if you control a ...' conditional real card in \
-            this batch.",
+            coverage.",
         ),
         (
             n("Condition", "YourTurn"),
             "DEFERRED: no 'during your turn' conditional real card in \
-            this batch.",
+            coverage.",
         ),
         (
             n("Condition", "TurnOf"),
             "DEFERRED: no 'during an opponent's turn' conditional real card \
-            in this batch.",
+            has coverage.",
         ),
         (
             n("Condition", "DuringPhase"),
@@ -750,13 +746,13 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("Reference", "EventPatient"),
-            "DEFERRED: no real card in this batch reads the two-object \
+            "DEFERRED: no covered real card reads the two-object \
             event's acted-upon side (EventActor/EventObject are exercised via Fling/Do or Die).",
         ),
         (
             n("Reference", "DefendingPlayer"),
             "DEFERRED: no landwalk/Annihilator-shaped real card in \
-            this batch.",
+            coverage.",
         ),
         (
             n("Reference", "Bound"),
@@ -768,78 +764,78 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             "BLOCKED: the linked-ability value read ([CR#607]) stays an unbound-ref fizzle — it \
             needs a per-(ObjectId, Ident) association store (engine-linked-abilities), distinct \
             from the resolution note store that now serves ChooseAndNote/Count::Noted; and no \
-            real card in this batch spells it regardless.",
+            covered real card spells it regardless.",
         ),
         (
             n("Reference", "OwnerOf"),
-            "DEFERRED: no real card in this batch reads an object's OWNER \
+            "DEFERRED: no covered real card reads an object's OWNER \
             as distinct from its controller (Otherworldly Journey uses UnderOwnersControl, a \
             different EnterRider node, not this Reference).",
         ),
         (
             n("CostChange", "Increase"),
             "DEFERRED: no taxing effect (e.g. 'spells your opponents \
-            cast cost {1} more') real card in this batch (Reduce is covered by an existing \
+            cast cost {1} more') covered real card (Reduce is covered by an existing \
             affinity-shaped card).",
         ),
         (
             n("CostChange", "Additional"),
             "DEFERRED: no MANDATORY continuous cost-modifier real \
-            card ('spells of type X cost an additional {R} to cast') in this batch — distinct \
+            covered card ('spells of type X cost an additional {R} to cast') — distinct \
             from Fling's `OneShotEffect::AdditionalCost`, which is the per-spell PRINTED clause, not a \
             `StaticEffect::CostModifier`.",
         ),
         (
             n("Count", "Divide"),
             "DEFERRED: no general integer-division real card (`Half`'s \
-            dedicated /2 twin) in this batch.",
+            dedicated /2 twin).",
         ),
         (
             n("Count", "Mod"),
             "DEFERRED: no remainder/parity-check real card ('if X is even') \
-            in this batch.",
+            has coverage.",
         ),
         (
             n("Count", "TargetsOf"),
             "DEFERRED: no Strive-style 'for each target beyond the first' \
-            real card in this batch.",
+            covered real card.",
         ),
         (
             n("Countable", "ManaSpentMatching"),
             "DEFERRED: no Adamant-style filtered-mana-spent real card in \
-            this batch (the plain, unfiltered mana-spent domain has no Rust \
+            coverage (the plain, unfiltered mana-spent domain has no Rust \
             constructor yet either).",
         ),
         (
             n("IgnoreRule", "IgnoreLowest"),
             "DEFERRED: Krark's Thumb (StaticEffect::ReplaceRoll's only \
             fixture) uses IgnoreChosen(1) — the flipper's choice, per [CR#706.6] — not an \
-            automatic ignore-the-lower rule; no real card in this batch needs the forced-lowest \
+            automatic ignore-the-lower rule; no covered real card needs the forced-lowest \
             reading. Buildable once one does.",
         ),
         // --- selection.rs (Selection) ---
         (
             n("Selection", "Union"),
-            "DEFERRED: no real card in this batch groups two selections as ONE \
+            "DEFERRED: no covered real card groups two selections as ONE \
             set ('each X and each Y' — the Idris Union); canon's multi-group effects iterate each \
             group separately. Buildable.",
         ),
         (
             n("Selection", "Random"),
             "DEFERRED: no random-selection real card ('a creature at random') \
-            in this batch. Buildable.",
+            has coverage. Buildable.",
         ),
         (
             n("Selection", "AmongNoted"),
             "BLOCKED: the among-a-noted-set choice is engine-wired (both the full-group read and \
             the constrained-quantity chooser over the noted group's live members), but no real \
-            card in this batch spells a bare AmongNoted; its 'destroyed this way' anaphor use-case \
+            covered card spells a bare AmongNoted; its 'destroyed this way' anaphor use-case \
             (Blood Money) needs the FURTHER-filtered product read — the OneShotEffect::Noting / \
             Label grammar gap above — not built.",
         ),
         (
             n("Selection", "BottomOfLibrary"),
-            "DEFERRED: no real card in this batch reads the BOTTOM \
+            "DEFERRED: no covered real card reads the BOTTOM \
             of a library as an ordered set (canon's library reads are all top-anchored — \
             TopOfLibrary is covered), mirroring Anchor::FromBottom above. Buildable.",
         ),
@@ -847,7 +843,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("Selection", "PilesOf"),
             "DEFERRED: the labeled per-player noted-piles read (Whims of the \
             Fates: SeparatePiles.note + PilesOf) is the same unbuilt shape as PileSource::Noted \
-            above — designed, not built this session.",
+            above — designed, not built.",
         ),
         (
             n("Selection", "Pick"),
@@ -859,12 +855,12 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("ObjectKind", "CardCopy"),
             "DEFERRED: the card-copy object kind ([CR#707.12]) is grammar \
-            footing for when the copy-creating grammar lands; no real card in this batch produces \
+            footing for copy-creating grammar; no covered real card produces \
             or filters a non-stack card copy. Buildable once copy grammar exists.",
         ),
         (
             n("ObjectKind", "Emblem"),
-            "DEFERRED: no real card in this batch FILTERS over emblems. The emblem object kind \
+            "DEFERRED: no covered real card FILTERS over emblems. The emblem object kind \
             is now live in the engine (`object_kind` reports `Emblem` for a command-zone emblem) \
             and the emblem-granting verb PlayerAction::GetEmblem is implemented + grammar-covered, \
             but no canon card targets/counts emblems, and no emblem-granting card is graduatable \
@@ -872,28 +868,28 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         ),
         (
             n("CharacteristicPredicate", "Named"),
-            "DEFERRED: no real card in this batch filters by object \
+            "DEFERRED: no covered real card filters by object \
             NAME ('a creature named ~'); buildable.",
         ),
         (
             n("CharacteristicPredicate", "Multicolored"),
             "DEFERRED: no multicolored-matters real card ('a \
-            multicolored creature') in this batch (Colorless is covered); buildable.",
+            multicolored creature') has coverage (Colorless is covered); buildable.",
         ),
         (
             n("StatePredicate", "Status"),
-            "DEFERRED: no real card in this batch filters by object STATUS \
+            "DEFERRED: no covered real card filters by object STATUS \
             ('a tapped creature' — Status(Tapped)); canon's tapped-matters effects are all \
             costs/actions, not filters. Buildable.",
         ),
         (
             n("StatePredicate", "RelatedBy"),
             "DEFERRED: no soulbond/paired real card ('the creature ~ is \
-            paired with') in this batch; buildable.",
+            paired with') has coverage; buildable.",
         ),
         (
             n("StatePredicate", "Blocking"),
-            "DEFERRED: no 'a blocking creature' real card in this batch \
+            "DEFERRED: no covered 'a blocking creature' real card \
             (Attacking is covered); buildable.",
         ),
         (
@@ -904,11 +900,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("StatePredicate", "TargetCount"),
             "DEFERRED: no 'a spell with a single target' real card \
-            ([CR#115.9a]) in this batch; buildable.",
+            ([CR#115.9a]) has coverage; buildable.",
         ),
         (
             n("StatePredicate", "WasCastWith"),
-            "DEFERRED: no real card in this batch filters by an \
+            "DEFERRED: no covered real card filters by an \
             alternative-base-cost tag ('a spell cast with flashback/for its overload cost' — the \
             filter-language twin of the now-covered WasPaidWith); the alt-cost cast linkage \
             (Cast.tag / WasCastWith) landed with core-alt-costs but no canon card yet reads it as \
@@ -918,30 +914,30 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("StatePredicate", "WasPutFrom"),
             "DEFERRED: the move-provenance filter ('milled' = \
             WasPutFrom(Library), 'discarded' = WasPutFrom(Hand), [CR#701.17a,701.9a]) is emit-wired \
-            and unit-tested (filter::tests::new_atoms_read_flat) but no canon card in this batch \
+            and unit-tested (filter::tests::new_atoms_read_flat) but no covered canon card \
             filters on it — the engine fizzles gracefully absent turn-scoped provenance. Buildable \
             with a milled/discarded-matters card.",
         ),
         (
             n("RelationPredicate", "TeammateOf"),
             "DEFERRED: no Two-Headed-Giant / multiplayer real card \
-            ('a creature a teammate controls', [CR#102.3,810.1]) in this batch; unit-tested \
+            ('a creature a teammate controls', [CR#102.3,810.1]) has coverage; unit-tested \
             (filter::tests::teammate_of_reads_and_round_trips) but no canon fixture. Buildable.",
         ),
         (
             n("RelationPredicate", "Attachment"),
             "DEFERRED: no 'a creature with an Aura/Equipment attached \
-            to it' real card in this batch (the inverse, AttachedTo, is covered); buildable.",
+            to it' covered real card (the inverse, AttachedTo, is covered); buildable.",
         ),
         (
             n("Adjacency", "Below"),
             "DEFERRED: Death Spark ('a creature card directly ABOVE it', \
-            Predicate::Adjacent) covers Adjacency::Above; no real card in this batch reads directly \
+            Predicate::Adjacent) covers Adjacency::Above; no covered real card reads directly \
             BELOW. Buildable.",
         ),
         (
             n("Predicate", "FromSource"),
-            "DEFERRED: no real card in this batch lifts a quality to a \
+            "DEFERRED: no covered real card lifts a quality to a \
             stack ability's SOURCE ('abilities from red sources', the hexproof-from-red agent \
             shape, [CR#702.11d]); unit-tested (filter::tests::from_source_reads_and_round_trips) \
             but no canon fixture. Buildable.",
@@ -970,52 +966,52 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("ManaSpec", "OneOfRuns"),
             "DEFERRED: no filterland real card ('{W}{W}, {W}{U}, or {U}{U}', \
-            [CR#106.1b]) in this batch (the single-mana OneOf is covered); buildable.",
+            [CR#106.1b]) has no fixture coverage (the single-mana OneOf is covered); buildable.",
         ),
         (
             n("ManaSpec", "AmongColorsOf"),
             "BLOCKED: 'add one mana of any of the exiled card's colors' \
             (Chrome Mox's imprint, [CR#105.2]) needs the imprint/exile-linked-mana subsystem, which \
-            is blocked; no real card in this batch reaches it. (ManaSpec::ProducedByEvent, the \
+            is blocked; no covered real card reaches it. (ManaSpec::ProducedByEvent, the \
             sibling, IS now covered by Dictate of Karametra.)",
         ),
         (
             n("SymbolPred", "AnyType"),
             "DEFERRED: no 'as though it were mana of any type' \
-            spend-as-though / any-type-devotion real card in this batch (AnyColor is covered); \
+            spend-as-though / any-type-devotion covered real card (AnyColor is covered); \
             buildable.",
         ),
         (
             n("SymbolPred", "IsGeneric"),
-            "DEFERRED: no real card in this batch matches a GENERIC pip via \
+            "DEFERRED: no covered real card matches a GENERIC pip via \
             SymbolPred (devotion/spend filters in canon count colored pips, CountsAs); buildable.",
         ),
         (
             n("ManaSymbol", "Snow"),
             "DEFERRED: no snow real card — none with a {S} symbol in a cost \
-            ([CR#107.4h]) — in this batch; buildable once a snow card lands.",
+            ([CR#107.4h]); buildable once a snow card lands.",
         ),
         (
             n("ManaRider", "GrantOnSpend"),
             "DEFERRED: no 'if that mana is spent on a creature spell, it \
-            gains X' real card ([CR#106.6]) in this batch (ManaRider::SpendOnly, the restriction \
+            gains X' covered real card ([CR#106.6]) (ManaRider::SpendOnly, the restriction \
             rider, is covered); buildable.",
         ),
         (
             n("ManaRider", "TriggerOnSpend"),
             "DEFERRED: no 'when that mana is spent to cast …, …' \
-            delayed-trigger mana rider ([CR#603.7a]) real card in this batch; buildable.",
+            delayed-trigger mana rider ([CR#603.7a]) covered real card; buildable.",
         ),
         (
             n("ManaRider", "Persistent"),
             "DEFERRED: no 'you don't lose this mana as steps and phases \
-            end' persistence-override rider ([CR#106.4]) real card in this batch; buildable.",
+            end' persistence-override rider ([CR#106.4]) covered real card; buildable.",
         ),
         (
             n("ManaRider", "Snow"),
             "DEFERRED: the snow-provenance rider is set at the production emit \
             site from the source's supertypes, so it only appears via a snow permanent — none in \
-            this batch (see ManaSymbol::Snow); buildable once a snow source lands.",
+            fixture coverage (see ManaSymbol::Snow); buildable once a snow source lands.",
         ),
         (
             n("StatePredicate", "SummoningSick"),
@@ -1063,7 +1059,7 @@ fn collect_ron_texts(dir: &Path, out: &mut Vec<String>) {
 
 /// The accept corpus: every `.ron` file (cards AND macro bodies — a macro's
 /// `body:` field spells real primitive nodes) under the three loading
-/// plugins the ticket names.
+/// plugins under test.
 fn accept_corpus() -> Vec<String> {
     let plugins = plugins_root();
     ["canon", "testing", "builtin"]
@@ -1147,8 +1143,7 @@ fn synthetic_gap_is_caught() {
 
 /// Every allowlist/exemption entry must still name a REAL node in the
 /// current inventory — otherwise it's stale cruft the reviewer can no
-/// longer connect to anything (the ticket's "reviewed, not a dumping
-/// ground" bar).
+/// longer connect to anything.
 #[test]
 fn allowlists_name_only_real_nodes() {
     let inventory: BTreeSet<Node> = grammar_inventory().into_iter().collect();
@@ -1212,7 +1207,7 @@ fn no_dead_grammar_nodes() {
     }
 }
 
-/// The cause-verb TYPO GATE ([[engine-keyword-action-intent]] Stage 2a): with
+/// The cause-verb typo gate: with
 /// the closed `CauseVerb` enum retired into the bareword [`VerbName`] newtype,
 /// the type no longer rejects an unknown verb (any bareword parses) — so this
 /// gate does, by MEMBERSHIP against the closed vocabulary the Idris model emits

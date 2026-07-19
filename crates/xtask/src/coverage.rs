@@ -254,7 +254,7 @@ pub fn run(args: &[String]) -> anyhow::Result<()> {
         );
     }
 
-    // No gate flag: the report (Task 5).
+    // No gate flag: this command only reports coverage.
     report(&root, &scan)
 }
 

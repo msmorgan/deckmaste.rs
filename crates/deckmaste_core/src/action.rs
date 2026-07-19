@@ -362,12 +362,8 @@ pub enum PlayerAction {
     /// pipeline, created in `source`'s own zone and cast while another spell
     /// or ability resolves ([CR#707.12]), so it passes through legality,
     /// costs, and targeting like any other cast rather than skipping
-    /// straight to the stack. Carries the shared [`crate::CopySpec`] payload
-    /// like [`EnterRider::AsCopy`] and the becomes-a-copy
-    /// [`crate::continuous::StaticEffect::BecomesCopy`]. The [CR#601.2]
-    /// pipeline run itself is the `engine-copy-permanent-spells` seam
-    /// (`deckmaste_engine`'s resolve arm fizzles — no events — until that
-    /// ticket wires it; never a panic).
+    /// straight to the stack. The engine's resolve arm currently fizzles
+    /// without producing events; it never panics.
     CastCopy(crate::CopySpec),
     /// "[Player] may cast [the referenced card]" as an effect ([CR#608.2g]) —
     /// the resolution-time cast primitive. The named player casts the
@@ -379,11 +375,9 @@ pub enum PlayerAction {
     /// ([CR#608.2g] — "specifically instructs or allows"), so this cast
     /// bypasses the normal timing/zone [`DeonticAction::Cast`] gate for the
     /// referenced card; the card is moved to the stack "from where it is"
-    /// ([CR#601.2a]), exile for Chandra. The referenced card is bound by
-    /// the surrounding effect (Chandra's just-exiled "that card" =
-    /// [`Reference::That`]/ [`Reference::It`]); "you may cast that card. If
-    /// you don't, …" is `May { effect: Cast(<that card>), if_not: <else>
-    /// }`, whose "yes" branch is offered only when a legal, payable cast
+    /// ([CR#601.2a]). The referenced card is bound by the surrounding effect;
+    /// `May { effect: Cast(<that card>), if_not: <else> }` offers its "yes"
+    /// branch only when a legal, payable cast
     /// exists ([CR#608.2g] — the offer is empty otherwise, so the `if_not`
     /// branch runs). A reference that resolves to no castable object
     /// fizzles (authoring mistakes never crash the engine).
@@ -391,15 +385,10 @@ pub enum PlayerAction {
     /// The trailing slot is an optional ALTERNATIVE COST ([CR#118.9,702.35a]):
     /// when present, the cast pays this cost RATHER THAN the card's mana cost —
     /// madness's "cast it by paying its madness cost" is `Cast(That(Card),
-    /// [Mana(…)])`. A TRAILING-DEFAULT TUPLE slot (like the
-    /// [`Move`](Action::Move) `from`-guard) so the bare `Cast(That(Card))`
-    /// (mana-cost) spelling — the one Chandra and the doc above prescribe —
-    /// reads unchanged with the slot defaulted to `None`, omitted on write.
-    /// (Ruled 2026-07-16 during implementation, per Task 1's tuple/struct
-    /// process: a struct variant would force `Cast(what: …)`, breaking the bare
-    /// spelling a canon card already uses; the tuple keeps it, and the derive's
-    /// `SinglePlusDefault` runtime visitor backs the 1-required + 1-default
-    /// arity-2 read the newtype/tuple spellings would otherwise collide on.)
+    /// [Mana(…)])`. A trailing-default tuple slot preserves bare
+    /// `Cast(That(Card))` serialization, with `SinglePlusDefault`
+    /// distinguishing the one-required-plus-one-default tuple from a
+    /// newtype.
     Cast(
         Reference,
         #[macro_ron(default = "None")] Option<crate::Cost>,

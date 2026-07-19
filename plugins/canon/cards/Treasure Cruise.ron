@@ -1,9 +1,5 @@
-// Treasure Cruise — {7}{U} Sorcery, "Draw three cards." with Delve
-// ([CR#702.66a]). The non-cost effect (draw three) is plain `Draw(3)`; delve
-// rides the `Keyword(Delve)` macro, which confers a `PayPips` static letting
-// each generic pip of the locked-in {7} be paid by exiling a graveyard card
-// "rather than pay that mana" — without lowering the spell's mana value
-// ([CR#202.3,702.51b]).
+// [CR#202.3,702.66a]: Delve's `PayPips` alternative pays generic pips without
+// changing the spell's mana value.
 Normal(
   name: "Treasure Cruise",
   mana_cost: [

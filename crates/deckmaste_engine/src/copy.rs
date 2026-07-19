@@ -1,10 +1,10 @@
 //! Copy-effect value machinery ([CR#707]): deriving a source's copiable
 //! characteristics ([CR#707.2]) and folding a `CopySpec`'s exceptions
 //! ([CR#707.9]) into them. Pure value transforms — no card grammar, no token
-//! minting (Task 3's job).
+//! minting.
 //!
 //! `apply_exceptions` deliberately takes no `&GameState`: it is a plain fold
-//! over `CopiableValues`, matching Task 3's contract. Two consequences,
+//! over `CopiableValues`. Two consequences,
 //! documented at their call sites below:
 //! - A `Modify` whose provided value is a DYNAMIC `Count` (not
 //!   `Count::Literal`) can't be evaluated here — it needs game state — and is a
@@ -12,10 +12,10 @@
 //!   ability (see [CR#707.9d] below) is touched, since nothing was actually
 //!   provided to replace either with. `apply_pt` shares the exact same
 //!   `literal_value().is_some()` condition for both, so the two can't drift
-//!   apart (a bug fixed in review — a literal-only value write paired with an
-//!   unconditional ability drop would strip a P/T-defining CDA while leaving
-//!   `power`/`toughness` orphaned at `StatValue::DefinedByAbility`, which
-//!   [CR#208.2a] reads as 0 — worse than doing nothing).
+//!   apart: a literal-only value write paired with an unconditional ability
+//!   drop would strip a P/T-defining CDA while leaving `power`/`toughness`
+//!   orphaned at `StatValue::DefinedByAbility`, which [CR#208.2a] reads as 0 —
+//!   worse than doing nothing).
 //! - `CardTypes` carries bare `Ident`s and `Subtypes` a name-keyed `SubtypeRef`
 //!   (the engine reads `SubtypeRef::name`) that the live layer engine resolves
 //!   through `state.types`/`state.subtypes`
@@ -35,7 +35,7 @@
 //! comment: "0 cards use it"). The other seven `Characteristic` axes
 //! (`Retain` only — `Modify` has no analogous defining-ability concept for
 //! them) are a documented no-op below. Generalizing the drop to those axes is
-//! `engine-copy-cda-generalize`.
+//! not implemented.
 
 use deckmaste_core::Ability;
 use deckmaste_core::Characteristic;
@@ -93,7 +93,7 @@ pub fn resolve_source(state: &GameState, frame: &Frame, source: &CopySource) -> 
 /// Token-shaped branch exists to write. Already-copied / face-down /
 /// as-enters-P/T-modified sources degrade to the printed face for now
 /// (`layer.rs:280`'s SEAM comment; downstream
-/// `engine-layers-1-copy-facedown-text`).
+/// (see `layer.rs:280`'s SEAM comment).
 #[must_use]
 pub fn copiable_values(state: &GameState, source: ObjectId) -> Option<CopiableValues> {
     let obj = state.objects.get(source)?;
@@ -132,7 +132,7 @@ pub fn apply_exceptions(base: CopiableValues, exceptions: &[CopyException]) -> C
 }
 
 /// The `AdditionalEffect` exceptions ("except it enters with N counters"),
-/// for Task 3's token/copy entry to apply as enter-riders — the ONLY
+/// for token/copy entry to apply as enter-riders — the ONLY
 /// `CopyException` kind `apply_exceptions` does not fold into
 /// `CopiableValues` ([CR#707.9e]).
 #[must_use]
@@ -147,25 +147,24 @@ pub fn additional_riders(exceptions: &[CopyException]) -> Vec<EnterRider> {
 }
 
 /// Whether an [`EnterRider`] list holds anything the ETB-rider machinery
-/// (the `core-action-riders-cost-modes` seam guarding `Action::Move`/
+/// (the seam guarding `Action::Move`/
 /// `Action::MoveGroup`/`PlayerAction::Move`/`PlayerAction::Create`) still
 /// needs built. [`EnterRider::AsCopy`] is deliberately EXCLUDED from this
 /// check: it's a layer-1a copy INPUT ([CR#707.5]), and applying it —
 /// deriving and installing the copiable values — is
-/// `engine-layers-1-copy-facedown-text`'s seam (`layer::base_values`), not
-/// this one's. So a rider list holding only `AsCopy` entries never trips the
-/// `core-action-riders-cost-modes` `todo!()`: the move/create proceeds as a
-/// documented fizzle — the object still relocates/is created, just without
-/// the copy installed yet — never a panic. A list that mixes `AsCopy` with
-/// an actually-unbuilt rider (`Tapped`, `Attacking`, …) still trips the
-/// `todo!()` for THAT rider, unrelated to this seam.
+/// handled by `layer::base_values`, not this function. So a rider list holding
+/// only `AsCopy` entries never trips the other riders' `todo!()`: the
+/// move/create proceeds as a documented fizzle — the object still relocates/is
+/// created, just without the copy installed yet — never a panic. A list that
+/// mixes `AsCopy` with an actually-unbuilt rider (`Tapped`, `Attacking`, …)
+/// still trips the `todo!()` for THAT rider, unrelated to this seam.
 #[must_use]
 pub fn has_unbuilt_enter_rider(riders: &[EnterRider]) -> bool {
     riders.iter().any(|r| !matches!(r, EnterRider::AsCopy(_)))
 }
 
 /// Map a copy's resolved [`CopiableValues`] to a [`Token`] for minting
-/// ([CR#707.1], Task 3's runtime seam) — `None` if the token doesn't come
+/// ([CR#707.1]) — `None` if the token doesn't come
 /// into being at all.
 ///
 /// `name` is carried through explicitly — [CR#707.2]: "the copiable values
@@ -182,7 +181,7 @@ pub fn has_unbuilt_enter_rider(riders: &[EnterRider]) -> bool {
 ///
 /// `Token` has no `mana_cost`/`loyalty`/`defense` slot (color rides
 /// `color_indicator` per [CR#202.2e]; a token this grammar mints is never a
-/// planeswalker/battle in the corpus this task covers) — those
+/// planeswalker/battle) — those
 /// `CopiableValues` fields are dropped here, not carried anywhere else.
 /// Every other field maps straight across.
 ///

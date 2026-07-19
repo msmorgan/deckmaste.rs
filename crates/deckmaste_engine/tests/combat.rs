@@ -1216,9 +1216,7 @@ fn becomes_blocked_trigger_fires_once_for_double_block() {
 }
 
 /// [CR#702.20]: a creature with vigilance is NOT tapped when it attacks.
-/// Contrast: the `declare_attackers_taps_records_and_fires_attacking` test
-/// above shows that a normal creature IS tapped — this test covers only the
-/// vigilance exception to keep concerns separate.
+/// This test covers only the vigilance exception.
 #[test]
 fn vigilance_attacker_is_not_tapped() {
     let mut state = two_player_decks("Alaborn Grenadier", "Grizzly Bears", 7, 20);

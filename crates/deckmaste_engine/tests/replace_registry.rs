@@ -1351,8 +1351,7 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
     drive(state);
 }
 
-/// The wither batch interaction (`engine-fact-record-batch` fixture (c)):
-/// a wither source damaging TWO creatures as ONE simultaneous batch — each
+/// A wither source damaging two creatures as one simultaneous batch: each
 /// member is replaced independently ([CR#616.1]) into -1/-1 counters
 /// ([CR#702.80a]), the counters land in the batch's wake with NO SBA
 /// between members, and the SBA sweep runs only AFTER the whole batch —

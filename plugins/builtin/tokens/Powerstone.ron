@@ -1,7 +1,5 @@
-// [CR#111.10h] — a colorless Powerstone artifact token with "{T}: Add {C}. This
-// mana can't be spent to cast a nonartifact spell." The mana rider ([CR#106.6])
-// admits everything EXCEPT a nonartifact spell, so abilities and artifact spells
-// stay payable.
+// [CR#111.10h,106.6]: the spend restriction is encoded as the negation of
+// "spell and not artifact."
 Token(
     types: [Artifact],
     subtypes: [Powerstone],

@@ -1497,9 +1497,9 @@ mod tests {
         );
     }
 
-    // ── engine-act-facet-contract ticket-item behaviors ──────────────────────
+    // ── Keyword-action facet behaviors ───────────────────────────────────────
 
-    /// Ticket item 2 ([CR#701.8a]): a degenerate keyword action — destroy a
+    /// [CR#701.8a]: a degenerate keyword action — destroy a
     /// card that is ALREADY in the graveyard, so its body move would be a
     /// same-zone `Graveyard → Graveyard` no-op — FIZZLES entirely: no
     /// `Act(Destroy)` fact, no `ZoneChange`, no panic.
@@ -1537,7 +1537,7 @@ mod tests {
         );
     }
 
-    /// Ticket item 4 ([CR#614.17,701.17a]): a `CantHappen(ZoneChange(from:
+    /// [CR#614.17,701.17a]: a `CantHappen(ZoneChange(from:
     /// Library))` static suppresses the whole mill — the mill `Act` carries the
     /// Library → Graveyard body facet, so the cant window matches it and zero
     /// cards move: no `Act(Mill)` fact, no `ZoneChange`, no "you milled"
@@ -1590,7 +1590,7 @@ mod tests {
         );
     }
 
-    /// Ticket item 5 ([CR#701.8a]): a keyword action whose performer reference
+    /// [CR#701.8a]: a keyword action whose performer reference
     /// resolves to nobody (`Draw(It)` with no `It` bound) FIZZLES — no
     /// `Act(Draw)` fact, no `DrewFromEmpty`, no panic.
     #[test]
@@ -1618,7 +1618,7 @@ mod tests {
         );
     }
 
-    /// Ticket item 1 ([CR#616.1]): the mill `Act` is a genuine pre-commit
+    /// [CR#616.1]: the mill `Act` is a genuine pre-commit
     /// replacement window — `Instead(Act(Mill) → GainLife(3))` replaces the
     /// mill BEFORE any card moves: the library is untouched, no `Act(Mill)`
     /// fact records, and life is gained instead.
@@ -1752,7 +1752,7 @@ mod tests {
         );
     }
 
-    /// Ticket item 6 ([CR#701.22d]): the "whenever you scry" trigger fact —
+    /// [CR#701.22d]: the "whenever you scry" trigger fact —
     /// the `Act(Scry)` — is recorded only AFTER the arrange commits. The
     /// `Act(Scry)` applied fact must come after the last library reposition in
     /// the resolution trace.

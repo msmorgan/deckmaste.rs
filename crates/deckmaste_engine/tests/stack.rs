@@ -291,8 +291,7 @@ fn spotlight_sees_through_hexproof_only_for_its_controller() {
         "Spotlight's controller targets the hexproof creature as though it had none"
     );
 
-    // T (seat 2) has no Spotlight and is the Scout controller's opponent — the
-    // baseline "normally illegal" case, and the ticket's "third player".
+    // T (seat 2) has no Spotlight and is the Scout controller's opponent.
     let (st2, legal2) = bolt_legal_targets_from(PlayerId(2));
     let scout2 = battlefield_named(&st2, "Gladecover Scout");
     let bears2 = battlefield_named(&st2, "Grizzly Bears");

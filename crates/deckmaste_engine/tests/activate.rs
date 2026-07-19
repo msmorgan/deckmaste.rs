@@ -2125,7 +2125,7 @@ fn plain_cost_gate_unchanged() {
     );
 }
 
-/// Composition with engine-x-costs: a cost bearing BOTH `{X}` and a hybrid
+/// A cost bearing both `{X}` and a hybrid
 /// (`{X}{W/U}`) is still gated on the non-X part — `{X}` reduces to 0 (X never
 /// blocks, [CR#107.3a]), and the hybrid's affordable reading decides. Offered
 /// with one blue; not offered with an empty pool.
@@ -2151,9 +2151,8 @@ fn x_plus_hybrid_gated_on_hybrid() {
     );
 }
 
-/// MERGE-COMPOSITION ([CR#107.3a,107.4e,601.2b]): a cost bearing BOTH `{X}` and
-/// a hybrid (`{X}{W/U}`) drives the full announce flow `engine-x-costs` and the
-/// hybrid concretization compose through. The two concretizers run at different
+/// [CR#107.3a,107.4e,601.2b]: a cost bearing both `{X}` and a hybrid drives
+/// the full announce flow. The two concretizers run at different
 /// steps — `AnnounceX` records X, `ChooseCostOptions` picks the hybrid reading
 /// (passing `{X}` through untouched), then `PayCost` applies `concretize_x` to
 /// the residual `{X}`. With X=2 and the blue reading picked, the `PayMana` cost

@@ -197,8 +197,8 @@ fn bears_vs_bolts_50k_game_stats() {
 /// P0 "Bears": in a main phase, develop a land, tap out, and cast every
 /// creature it can afford; swing with everything each combat; shed cheapest
 /// (lands first) to hand size. A deliberately simple tap-out aggro line — all
-/// expressible in the strategy language today (the careful Rust ramp needs a
-/// not-yet-available "mana available" `Count`; see the ticket).
+/// expressible in the strategy language today. The more careful Rust ramp
+/// requires a "mana available" `Count`, which is not yet available.
 const RON_BEARS: &str = r#"(
     name: "Bears (tap-out aggro)",
     rules: [

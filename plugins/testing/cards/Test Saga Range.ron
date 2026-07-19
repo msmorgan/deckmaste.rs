@@ -1,7 +1,5 @@
-// A Saga ([CR#714]) whose second chapter is a RANGE ([CR#714.2c]:
-// "{rN1}, {rN2}—[Effect]" fires the same effect at each listed chapter) —
-// exercises the multi-threshold `Chapter` atom and its "II, III —" render.
-// Made-up card (no oracle entry), like `Test Saga`.
+// [CR#714.2c]: one `Chapter` atom carries multiple literal thresholds so the
+// shared effect renders with each chapter marker.
 Normal(
     name: "Test Saga Range",
     mana_cost: [Generic(2), White],

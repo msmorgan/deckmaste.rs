@@ -1,12 +1,5 @@
-// CreaturesOpponentControls = "creatures your opponents control" — the
-// plural-collective oracle wording, the symmetric-anthem counterpart to
-// `OtherCreaturesYouControl` (a debuff over the opposing team rather than a
-// boost over your own). Matched by exact case-insensitive subject text (no
-// singularize/pluralize normalization). A Selection-kind macro: the whole
-// `SelectAll(...)` IS the macro body, so a card spells it as
-// `Each(CreaturesOpponentControls, Modify(It, <change>))` directly. Nests the
-// reusable `CreatureOpponentControls` Predicate atom rather than repeating
-// its `And([...])` filter inline.
+// Exact case-insensitive matching; the selection reuses the
+// `CreatureOpponentControls` predicate.
 (
     name: "CreaturesOpponentControls",
     template: "creatures your opponents control",

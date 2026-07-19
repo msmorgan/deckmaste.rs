@@ -1,7 +1,4 @@
-// {X} sorcery: "draw X cards." No graduated real X card exists yet (every X card
-// in plugins/wizards is still `.ron.todo` — Count::X resolution was a todo!), so
-// this mock stands in. Per plugins/testing/README.md, canonize a real X draw
-// spell and delete this once graduation catches up.
+// Minimal fixture for resolving `Count::X` in a spell effect.
 Normal(
     name: "Sorcery X Draw",
     mana_cost: [Variable],

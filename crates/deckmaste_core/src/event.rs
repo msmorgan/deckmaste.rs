@@ -262,7 +262,7 @@ pub enum Cause {
 /// field-atom normal form over the single engine fact record `{kind, object,
 /// patient, actor, source, from, to, cause, amount, counter, batch, before,
 /// after, time}`, evaluated by the engine's ONE lane-parameterized
-/// evaluator (`engine-one-evaluator`, `deckmaste_engine`'s `eval.rs`).
+/// evaluator (`deckmaste_engine`'s `eval.rs`).
 /// Declared event names (`Dies`, `Enters`, `Sacrificed`) are macros over
 /// these forms. Omitted filter fields default to match-anything; omitted
 /// `Option` refinements are unconstrained.
