@@ -20,6 +20,7 @@ use crate::derive;
 use crate::layer::LayeredView;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
+use crate::stack::StackObject;
 use crate::state::GameState;
 
 /// The proposed-action pattern inside a deontic row, looking through the
@@ -1234,16 +1235,23 @@ pub(crate) fn counter_legal(state: &GameState, by: ObjectId, target: ObjectId) -
 /// Every `Cant(Cast)` row visible to a cast of `candidate`, with its
 /// carrier: `(carrier source, what, by)`. Rows come from battlefield
 /// permanents (Grand Abolisher / Silence-style grants — "players can't cast
-/// spells") PLUS every card-backed stack object's OWN statics: split second
+/// spells") PLUS every `StackObject::Spell` entry's OWN statics: split second
 /// is a static a spell carries while on the stack ([CR#702.61a]).
 /// Unlike `cant_counter_rows` (which only adds the counter's own target),
-/// EVERY stack object is scanned here — a split-second spell locks out
-/// casting for everyone, not just casts of itself. A bare stack ability
-/// carries no characteristics in the layered view, so `card_id().is_some()`
-/// skips it, mirroring `cant_counter_rows`'s `self_row` gate (`view.get`
-/// would otherwise panic on a non-card-backed id). `from`/`window`/`cost`
-/// slots on a `Cant(Cast)` row are ignored here — split second carries none
-/// of them.
+/// EVERY spell on the stack is scanned here — a split-second spell locks out
+/// casting for everyone, not just casts of itself. The stack scan is
+/// restricted to `StackObject::Spell` entries: split second lives only on a
+/// spell ([CR#702.61a]), never on a `Triggered`/`Activated` entry. That
+/// restriction matters beyond filtering out abilities that carry no
+/// statics — a `Triggered`/`Activated` entry's `StackEntry.id` is a freshly
+/// minted token, but its underlying `ObjectSource` (used to look up printed
+/// statics) is the FIRING permanent's card source, which `card_id().is_some()`
+/// would pass. Scanning it would read that permanent's printed statics as if
+/// the card itself were on the stack — wrong when the permanent has since
+/// left the battlefield. Restricting to `Spell` (whose entry id IS the
+/// spell's own object id) avoids that misattribution entirely. `from`/
+/// `window`/`cost` slots on a `Cant(Cast)` row are ignored here — split
+/// second carries none of them.
 #[must_use]
 fn cant_cast_rows(
     state: &GameState,
@@ -1254,8 +1262,7 @@ fn cant_cast_rows(
         state
             .stack
             .iter()
-            .map(|e| e.id)
-            .filter(|&id| state.objects.obj(id).card_id().is_some()),
+            .filter_map(|e| matches!(e.object, StackObject::Spell(_)).then_some(e.id)),
     );
     for id in ids {
         let source = state.objects.obj(id).source;
@@ -1275,6 +1282,9 @@ fn cant_cast_rows(
 /// `May(Cast(window: InstantSpeed))` grant that lifts timing ([CR#702.8a])
 /// doesn't survive a matching `Cant(Cast)` row (split second, or a
 /// battlefield "can't cast" grant).
+///
+/// Polarity note: `true` here means FORBIDDEN — the opposite of its twin
+/// `counter_legal`, whose `true` means LEGAL.
 #[must_use]
 pub(crate) fn cant_cast(
     state: &GameState,
@@ -2082,6 +2092,73 @@ mod tests {
                 .castable_cost_ignoring_mana(&view, PlayerId(0), spell)
                 .is_some(),
             "the lockout lifts once the carrying object leaves the stack"
+        );
+    }
+
+    /// [CR#702.61a]: regression for the stack-scan restriction to
+    /// `StackObject::Spell`. A `Triggered` (or `Activated`) entry's stand-in
+    /// id is minted from the FIRING permanent's own `ObjectSource::Card(..)`
+    /// (mirrors `place_one_trigger`'s `self.objects.mint(noted.source, ...)`),
+    /// so its `card_id()` resolves `Some`, same as a real spell's — a naive
+    /// `card_id().is_some()` filter would mistake it for one and read the
+    /// source card's printed statics as though the card itself sat on the
+    /// stack, wrong once the permanent has left the battlefield (as here: it
+    /// is nowhere on the battlefield, only its trigger's stand-in is on the
+    /// stack). The source card prints its own `Cant(Cast)` static — the same
+    /// shape a split-second SPELL would carry — but because this entry is
+    /// `Triggered`, not `Spell`, it must NOT lock out casting.
+    #[test]
+    fn cant_cast_ignores_triggered_stack_stand_ins_source_statics() {
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+
+        let mut state = game();
+        let spell = flash_spell_in_hand(&mut state, "Bolt", PlayerId(0));
+
+        let card = Card::Normal(CardFace {
+            name: "Departed Permanent".into(),
+            types: vec![Type::Creature.def()],
+            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                DeonticAction::Cast {
+                    what: Predicate::Any,
+                    by: Predicate::Any,
+                    from: None,
+                    window: None,
+                    cost: None,
+                    tag: None,
+                },
+            )))],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(1));
+        let source = ObjectSource::Card(card_id);
+
+        // Note: the source permanent is NOT on the battlefield — only its
+        // fired ability's stand-in sits on the stack, e.g. a dies-trigger.
+        let stand_in = state.objects.mint(source, PlayerId(1), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            id: stand_in,
+            object: StackObject::Triggered {
+                source,
+                ability: 0,
+                created: None,
+                bindings: crate::trigger::TriggerBindings::default(),
+            },
+            controller: PlayerId(1),
+            targets: vec![],
+            x: None,
+            paid_costs: Vec::new(),
+            copy: false,
+        });
+
+        let view = state.layers();
+        assert!(
+            state
+                .castable_cost_ignoring_mana(&view, PlayerId(0), spell)
+                .is_some(),
+            "a Triggered stand-in's source-card statics must NOT lock out \
+             casting — only an actual StackObject::Spell entry's own \
+             Cant(Cast) static does ([CR#702.61a])"
         );
     }
 
