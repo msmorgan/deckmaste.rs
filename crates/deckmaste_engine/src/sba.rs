@@ -499,15 +499,7 @@ mod tests {
         // Force a Grizzly Bears from player 0's hand onto the battlefield.
         let bear = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    &state,
-                    o,
-                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature.name(),
-                    )),
-                )
-            })
+            .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
             .expect("a Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
         state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
@@ -540,15 +532,7 @@ mod tests {
         });
         let m = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    &state,
-                    o,
-                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature.name(),
-                    )),
-                )
-            })
+            .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
             .expect("a Darksteel Myr in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
         state.objects.obj_mut(m).zone = Some(Zone::Battlefield);
@@ -1079,7 +1063,6 @@ mod tests {
 
     use deckmaste_core::Ability;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Condition;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
@@ -1145,7 +1128,7 @@ mod tests {
         Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::This),
-                to: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                to: Predicate::r#type(Type::Creature),
             }),
         ))))
     }

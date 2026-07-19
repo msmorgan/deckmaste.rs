@@ -117,8 +117,8 @@ fn parse_player_taps_per_counter(
         targets: vec![],
         effect: format!(
             "Each(binder: Choose(quantity: Exactly(CounterCount(This, {counter})), \
-             filter: And([Permanent, Or([Type(\"Artifact\"), Type(\"Creature\"), \
-             Type(\"Land\")]), ControlledBy(Ref(EventActor)), Not(Status(Tapped))]), \
+             filter: And([Permanent, Or([Type(Artifact), Type(Creature), \
+             Type(Land)]), ControlledBy(Ref(EventActor)), Not(Status(Tapped))]), \
              by: EventActor), effect: By(EventActor, Tap(It)))"
         ),
     }))
@@ -203,7 +203,7 @@ fn parse_becomes_creature(line: &str) -> Option<ParsedEffect> {
         modifications.push("CardTypes(Add(\"Artifact\"))".to_owned());
     }
     modifications.extend([
-        format!("Subtypes(Add(\"{subtype}\"))"),
+        format!("Subtypes(Add({subtype}))"),
         format!("Colors(Set([{}]))", colors.join(", ")),
         format!("Power(Set({power}))"),
         format!("Toughness(Set({toughness}))"),
@@ -1752,7 +1752,7 @@ fn search_card_descriptor(d: &str) -> Option<String> {
     }
     if let Some(rest) = strip_prefix_ci(d, "basic ") {
         if rest.eq_ignore_ascii_case("land") {
-            return Some("And([Type(\"Land\"), Supertype(Basic)])".to_owned());
+            return Some("And([Type(Land), Supertype(Basic)])".to_owned());
         }
         // `category` VALIDATES the word(s) (a real land subtype, and — for a
         // list — every member sharing one category); it is NOT emitted — see
@@ -1766,7 +1766,7 @@ fn search_card_descriptor(d: &str) -> Option<String> {
     if let Some(rest) = strip_prefix_ci(d, "snow ") {
         return rest
             .eq_ignore_ascii_case("land")
-            .then(|| "And([Type(\"Land\"), Supertype(Snow)])".to_owned());
+            .then(|| "And([Type(Land), Supertype(Snow)])".to_owned());
     }
     // A color/color-count adjective ("a green creature card", "a colorless
     // artifact card", "a multicolored creature card").
@@ -1817,10 +1817,7 @@ fn subtype_list_predicate(text: &str) -> Option<(&'static str, String)> {
             Some(c) if c != cat => return None,
             _ => category = Some(cat),
         }
-        atoms.push(format!(
-            "Subtype(\"{}\")",
-            crate::ident::to_rust_ident(member)
-        ));
+        atoms.push(format!("Subtype({})", crate::ident::to_rust_ident(member)));
     }
     let expr = if atoms.len() == 1 {
         atoms.into_iter().next().unwrap()
@@ -2764,7 +2761,7 @@ mod tests {
     /// v1 declines the cases whose render cannot round-trip the oracle: an
     /// energy `pay {E}{E}` (cost renders WITH a "Pay" word, doubling in the
     /// "may pay" frame) and a pay offer carrying a negative `If you don't`
-    /// branch (MayPay renders that branch with a "; if you don't" semicolon).
+    /// branch (`MayPay` renders that branch with a "; if you don't" semicolon).
     #[test]
     fn may_pay_reflexive_declines_unroundtrippable() {
         assert!(parsed_with_macros("you may pay {E}{E}. If you do, draw a card.").is_none());
@@ -2797,7 +2794,7 @@ mod tests {
             parsed("~ becomes a 2/1 red Warrior creature with first strike until end of turn. It's still a land."),
             Some((
                 String::new(),
-                "Until(FixedUntil(EndOfTurn), [Modify(This, Several([CardTypes(Add(\"Creature\")), Subtypes(Add(\"Warrior\")), Colors(Set([Red])), Power(Set(2)), Toughness(Set(1)), GainAbility(Keyword(FirstStrike))]))])".to_owned(),
+                "Until(FixedUntil(EndOfTurn), [Modify(This, Several([CardTypes(Add(\"Creature\")), Subtypes(Add(Warrior)), Colors(Set([Red])), Power(Set(2)), Toughness(Set(1)), GainAbility(Keyword(FirstStrike))]))])".to_owned(),
             ))
         );
     }
@@ -2985,7 +2982,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, P1P1ForEach(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))), \
+                 Modify(It, P1P1ForEach(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))])))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -3165,14 +3162,14 @@ mod tests {
         assert_eq!(
             parsed("Destroy target artifact."),
             Some((
-                "TargetOne(Type(\"Artifact\"))".to_owned(),
+                "TargetOne(Type(Artifact))".to_owned(),
                 "Destroy(Target(0))".to_owned()
             ))
         );
         assert_eq!(
             parsed("Destroy target nonland permanent."),
             Some((
-                "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
                 "Destroy(Target(0))".to_owned()
             ))
         );
@@ -3181,7 +3178,7 @@ mod tests {
         assert_eq!(
             parsed("destroy target Goblin."),
             Some((
-                "TargetOne(And([Permanent, Subtype(\"Goblin\")]))".to_owned(),
+                "TargetOne(And([Permanent, Subtype(Goblin)]))".to_owned(),
                 "Destroy(Target(0))".to_owned()
             ))
         );
@@ -3672,7 +3669,7 @@ mod tests {
             parsed("Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                "Create(CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -3688,7 +3685,7 @@ mod tests {
             parsed("Create a 1/1 red Goblin creature token for each Goblin you control."),
             Some((
                 String::new(),
-                "Create(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), \
+                "Create(CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), \
                  Token(color_indicator: [Red], types: [Creature], subtypes: [Goblin], power: 1, toughness: 1))".to_owned()
             ))
         );
@@ -3731,7 +3728,7 @@ mod tests {
             parsed("~ deals damage to any target equal to the number of Goblins you control."),
             Some((
                 "AnyTarget".to_owned(),
-                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), Target(0))".to_owned()
+                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), Target(0))".to_owned()
             ))
         );
     }
@@ -3746,7 +3743,7 @@ mod tests {
             parsed("~ deals X damage to target player, where X is the number of Goblins you control."),
             Some((
                 "TargetOne(Player)".to_owned(),
-                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))), Target(0))".to_owned()
+                "DealDamage(This, CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))), Target(0))".to_owned()
             ))
         );
     }
@@ -3831,8 +3828,8 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
-                 Toughness(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))]))), \
+                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))))), \
+                 Toughness(Up(CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))])))))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -3850,7 +3847,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))), \
+                 Modify(It, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))))), \
                  Toughness(Up(0))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
@@ -3869,8 +3866,8 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))), \
-                 Toughness(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))))]))), \
+                 Modify(It, Several([Power(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))])))))), \
+                 Toughness(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))]))))))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
         );
@@ -3889,7 +3886,7 @@ mod tests {
             Some((
                 String::new(),
                 "Continuously(effect: Each(SelectAll(And([Creature, ControlledBy(Ref(You))])), \
-                 Modify(It, Several([Power(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])))))), \
+                 Modify(It, Several([Power(Up(Times(Literal(2), CountOf(Objects(And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))])))))), \
                  Toughness(Up(0))]))), \
                  duration: FixedUntil(EndOfTurn))".to_owned()
             ))
@@ -3922,7 +3919,7 @@ mod tests {
             parsed("you gain 1 life for each attacking Elf you control."),
             Some((
                 String::new(),
-                "GainLife(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), Attacking, ControlledBy(Ref(You))]))))"
+                "GainLife(CountOf(Objects(And([Permanent, Subtype(Elf), Attacking, ControlledBy(Ref(You))]))))"
                     .to_owned()
             ))
         );
@@ -4395,7 +4392,7 @@ mod tests {
         assert_eq!(
             parsed("Return target nonland permanent to its owner's hand."),
             Some((
-                "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
                 "Move(Target(0), Hand)".to_owned()
             ))
         );
@@ -4410,7 +4407,7 @@ mod tests {
             parsed("Return a land you control to its owner's hand."),
             Some((
                 String::new(),
-                "With(binder: ChooseOne(filter: And([Type(\"Land\"), ControlledBy(Ref(You))])), body: Move(That(Permanent), Hand))".to_owned()
+                "With(binder: ChooseOne(filter: And([Type(Land), ControlledBy(Ref(You))])), body: Move(That(Permanent), Hand))".to_owned()
             ))
         );
         // The determiner stays in the phrase so "another" reads as
@@ -4467,8 +4464,7 @@ mod tests {
         assert_eq!(
             parsed("Return target creature card from your graveyard to your hand."),
             Some((
-                "TargetOne(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))"
-                    .to_owned(),
+                "TargetOne(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
                 "Move(Target(0), Hand)".to_owned()
             ))
         );
@@ -4484,7 +4480,7 @@ mod tests {
         assert_eq!(
             parsed("Return target instant or sorcery card from your graveyard to your hand."),
             Some((
-                "TargetOne(And([Or([Type(\"Instant\"), Type(\"Sorcery\")]), InZone(Graveyard), \
+                "TargetOne(And([Or([Type(Instant), Type(Sorcery)]), InZone(Graveyard), \
                  Owner(Ref(You))]))"
                     .to_owned(),
                 "Move(Target(0), Hand)".to_owned()
@@ -4500,8 +4496,7 @@ mod tests {
         assert_eq!(
             parsed("Return target creature card from your graveyard to the battlefield."),
             Some((
-                "TargetOne(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))"
-                    .to_owned(),
+                "TargetOne(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))".to_owned(),
                 "Move(Target(0), Battlefield)".to_owned()
             ))
         );
@@ -4627,7 +4622,7 @@ mod tests {
         assert_eq!(
             parsed("Put target nonland permanent on top of its owner's library."),
             Some((
-                "TargetOne(And([Permanent, Not(Type(\"Land\"))]))".to_owned(),
+                "TargetOne(And([Permanent, Not(Type(Land))]))".to_owned(),
                 "Move(Target(0), Library(FromTop(0)))".to_owned()
             ))
         );
@@ -4661,7 +4656,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic)])), body: \
+                "With(binder: SearchOne(filter: And([Type(Land), Supertype(Basic)])), body: \
                  Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
                     .to_owned()
             ))
@@ -4698,7 +4693,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic)])), body: \
+                "With(binder: SearchOne(filter: And([Type(Land), Supertype(Basic)])), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4709,7 +4704,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Basic)])), body: \
+                "With(binder: SearchOne(filter: And([Type(Land), Supertype(Basic)])), body: \
                  Sequentially([Move(That(Card), Battlefield, []), Shuffle]))"
                     .to_owned()
             ))
@@ -4750,7 +4745,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: Type(\"Creature\")), body: \
+                "With(binder: SearchOne(filter: Type(Creature)), body: \
                  Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
                     .to_owned()
             ))
@@ -4761,7 +4756,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: Type(\"Land\")), body: \
+                "With(binder: SearchOne(filter: Type(Land)), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4773,7 +4768,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Creature\"), ColorIs(Green)])), body: \
+                "With(binder: SearchOne(filter: And([Type(Creature), ColorIs(Green)])), body: \
                  Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
                     .to_owned()
             ))
@@ -4787,7 +4782,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Creature\"), Colorless])), body: \
+                "With(binder: SearchOne(filter: And([Type(Creature), Colorless])), body: \
                  Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), Shuffle]))"
                     .to_owned()
             ))
@@ -4812,7 +4807,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: Subtype(\"Forest\")), body: \
+                "With(binder: SearchOne(filter: Subtype(Forest)), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4824,7 +4819,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: Subtype(\"Equipment\")), \
+                "With(binder: SearchOne(filter: Subtype(Equipment)), \
                  body: Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), \
                  Shuffle]))"
                     .to_owned()
@@ -4839,7 +4834,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: Subtype(\"Goblin\")), \
+                "With(binder: SearchOne(filter: Subtype(Goblin)), \
                  body: Sequentially([Reveal(what: That(Card)), Move(That(Card), Hand, []), \
                  Shuffle]))"
                     .to_owned()
@@ -4853,8 +4848,8 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: Or([Subtype(\"Swamp\"), \
-                 Subtype(\"Mountain\")])), body: Sequentially([Move(That(Card), Battlefield, \
+                "With(binder: SearchOne(filter: Or([Subtype(Swamp), \
+                 Subtype(Mountain)])), body: Sequentially([Move(That(Card), Battlefield, \
                  [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4896,7 +4891,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Supertype(Basic), \
-                 Subtype(\"Plains\")])), body: Sequentially([Move(That(Card), Battlefield, \
+                 Subtype(Plains)])), body: Sequentially([Move(That(Card), Battlefield, \
                  [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4910,7 +4905,7 @@ mod tests {
             Some((
                 String::new(),
                 "With(binder: SearchOne(filter: And([Supertype(Basic), \
-                 Or([Subtype(\"Plains\"), Subtype(\"Swamp\"), Subtype(\"Forest\")])])), body: \
+                 Or([Subtype(Plains), Subtype(Swamp), Subtype(Forest)])])), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4923,7 +4918,7 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: And([Type(\"Land\"), Supertype(Snow)])), body: \
+                "With(binder: SearchOne(filter: And([Type(Land), Supertype(Snow)])), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4946,8 +4941,8 @@ mod tests {
             ),
             Some((
                 String::new(),
-                "With(binder: SearchOne(filter: Or([And([Type(\"Land\"), Supertype(Basic)]), \
-                 Subtype(\"Desert\")])), body: \
+                "With(binder: SearchOne(filter: Or([And([Type(Land), Supertype(Basic)]), \
+                 Subtype(Desert)])), body: \
                  Sequentially([Move(That(Card), Battlefield, [Tapped]), Shuffle]))"
                     .to_owned()
             ))
@@ -4994,7 +4989,7 @@ mod tests {
         assert_eq!(
             parsed("Exile target creature card from a graveyard."),
             Some((
-                "TargetOne(And([Type(\"Creature\"), InZone(Graveyard)]))".to_owned(),
+                "TargetOne(And([Type(Creature), InZone(Graveyard)]))".to_owned(),
                 "Move(Target(0), Exile)".to_owned()
             ))
         );
@@ -5012,7 +5007,7 @@ mod tests {
         assert_eq!(
             parsed("Exile target instant or sorcery card from a graveyard."),
             Some((
-                "TargetOne(And([Or([Type(\"Instant\"), Type(\"Sorcery\")]), InZone(Graveyard)]))"
+                "TargetOne(And([Or([Type(Instant), Type(Sorcery)]), InZone(Graveyard)]))"
                     .to_owned(),
                 "Move(Target(0), Exile)".to_owned()
             ))
@@ -5064,7 +5059,7 @@ mod tests {
         assert_eq!(
             parsed("Untap target land."),
             Some((
-                "TargetOne(Type(\"Land\"))".to_owned(),
+                "TargetOne(Type(Land))".to_owned(),
                 "Untap(Target(0))".to_owned()
             ))
         );
@@ -5080,7 +5075,7 @@ mod tests {
         assert_eq!(
             parsed("Destroy target artifact or enchantment."),
             Some((
-                "TargetOne(Or([Type(\"Artifact\"), Type(\"Enchantment\")]))".to_owned(),
+                "TargetOne(Or([Type(Artifact), Type(Enchantment)]))".to_owned(),
                 "Destroy(Target(0))".to_owned()
             ))
         );
@@ -5095,7 +5090,7 @@ mod tests {
         assert_eq!(
             parsed("Destroy target artifact or land. It can't be regenerated."),
             Some((
-                "TargetOne(Or([Type(\"Artifact\"), Type(\"Land\")]))".to_owned(),
+                "TargetOne(Or([Type(Artifact), Type(Land)]))".to_owned(),
                 "DestroyNoRegen(Target(0))".to_owned(),
             ))
         );
@@ -5109,7 +5104,7 @@ mod tests {
         assert_eq!(
             parsed("Destroy target artifact or land."),
             Some((
-                "TargetOne(Or([Type(\"Artifact\"), Type(\"Land\")]))".to_owned(),
+                "TargetOne(Or([Type(Artifact), Type(Land)]))".to_owned(),
                 "Destroy(Target(0))".to_owned()
             ))
         );

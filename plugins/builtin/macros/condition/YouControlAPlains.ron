@@ -5,5 +5,5 @@
     name: "YouControlAPlains",
     template: "you control a Plains",
     kinds: [Condition],
-    body: Exists(And([InZone(Battlefield), Subtype("Plains"), ControlledBy(Ref(You))])),
+    body: Exists(And([InZone(Battlefield), Subtype(Plains), ControlledBy(Ref(You))])),
 )

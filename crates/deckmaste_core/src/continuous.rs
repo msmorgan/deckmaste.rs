@@ -141,8 +141,12 @@ pub enum Modification {
     /// along.
     CardTypes(CollectionOp<Ident>),
     /// Subtypes by name (the class is derivable from the values — each card
-    /// type has its own closed subtype set, [CR#205.3b]); layer 4.
-    Subtypes(CollectionOp<Ident>),
+    /// type has its own closed subtype set, [CR#205.3b]); layer 4. The element
+    /// is a [`SubtypeRef`] (a resolved-def ref that SERIALIZES bare and reads
+    /// via the subtype-macro channel), so an authored `Subtypes(Add(Zombie))`
+    /// validates the name against the declared subtypes; the engine keys the
+    /// layer-4 op off `SubtypeRef::name`.
+    Subtypes(CollectionOp<crate::SubtypeRef>),
     /// Supertypes ([CR#613.1d], layer 4).
     Supertypes(CollectionOp<Supertype>),
     /// Gain an ability ([CR#613.1f]). Boxed: `Ability` is the enum's largest
@@ -558,7 +562,7 @@ pub enum PlayerMod {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Type;
+    use crate::Supertype;
 
     fn read(source: &str) -> StaticEffect {
         crate::ron::options().from_str(source).unwrap()
@@ -570,13 +574,13 @@ mod tests {
     #[test]
     fn modify_reads_flat() {
         let parsed = read(
-            "Each(SelectAll(Type(\"Creature\")), Modify(It, Several([Power(Up(Literal(1))), Toughness(Up(Literal(1)))])))",
+            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Power(Up(Literal(1))), Toughness(Up(Literal(1)))])))",
         );
         assert_eq!(
             parsed,
             StaticEffect::Each(
                 crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Type(Type::Creature.name())
+                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
                 )),
                 Arc::new(StaticEffect::Modify(
                     Reference::It,
@@ -595,13 +599,13 @@ mod tests {
     #[test]
     fn subtract_modify_round_trips() {
         let parsed = read(
-            "Each(SelectAll(Type(\"Creature\")), Modify(It, Several([Power(Down(Literal(1))), Toughness(Down(Literal(1)))])))",
+            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Power(Down(Literal(1))), Toughness(Down(Literal(1)))])))",
         );
         assert_eq!(
             parsed,
             StaticEffect::Each(
                 crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Type(Type::Creature.name())
+                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
                 )),
                 Arc::new(StaticEffect::Modify(
                     Reference::It,
@@ -617,30 +621,49 @@ mod tests {
     }
 
     /// A collection-axis op reads flat and round-trips: `Colors(Set([...]))`
-    /// (layer 5) and the single-element `Add`/`Remove` forms ([CR#613.1d]).
+    /// (layer 5) and the `Ident`-keyed `CardTypes` `Add`/`Remove` forms
+    /// ([CR#613.1d]). The `Subtypes` axis carries a [`SubtypeRef`] (bare-write
+    /// / resolved-read) and is covered separately by
+    /// [`subtypes_modification_writes_bare_reads_resolved`].
     #[test]
     fn collection_op_round_trips() {
         let parsed = read(
-            "Each(SelectAll(Type(\"Creature\")), Modify(It, Several([Colors(Set([Black])), CardTypes(Add(\"Artifact\")), Subtypes(Remove(\"Goblin\"))])))",
+            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Colors(Set([Black])), CardTypes(Add(\"Artifact\"))])))",
         );
         assert_eq!(
             parsed,
             StaticEffect::Each(
                 crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Type(Type::Creature.name())
+                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
                 )),
                 Arc::new(StaticEffect::Modify(
                     Reference::It,
                     Modification::Several(vec![
                         Modification::Colors(CollectionOp::Set(vec![Color::Black])),
                         Modification::CardTypes(CollectionOp::Add("Artifact".into())),
-                        Modification::Subtypes(CollectionOp::Remove("Goblin".into())),
                     ]),
                 )),
             ),
         );
         let written = crate::ron::options().to_string(&parsed).unwrap();
         assert_eq!(read(&written), parsed);
+    }
+
+    /// A `Subtypes(...)` layer-4 op carries a [`SubtypeRef`]: it WRITES the
+    /// bare name (the compact filter/wizards form) and READS the resolved
+    /// fused struct — or a subtype-macro name, in a macro-aware reader.
+    /// By-name identity ([`SubtypeRef`]) makes the fused read equal a
+    /// name-only build, so the bare write and the resolved read agree
+    /// ([CR#613.1d]).
+    #[test]
+    fn subtypes_modification_writes_bare_reads_resolved() {
+        let m = Modification::Subtypes(CollectionOp::Add("Zombie".into()));
+        let written = crate::ron::options().to_string(&m).unwrap();
+        assert_eq!(written, "Subtypes(Add(Zombie))");
+        let read_back: Modification = crate::ron::options()
+            .from_str("Subtypes(Add(name:\"Zombie\",types:[Creature]))")
+            .unwrap();
+        assert_eq!(read_back, m, "SubtypeRef identity is by-name");
     }
 
     /// The `Sba` state-based-action primitive round-trips: the Aura
@@ -761,7 +784,7 @@ mod tests {
     #[test]
     fn trigger_multiplier_round_trips() {
         let parsed = read(
-            "TriggerMultiplier(cause: ZoneChange(what: Or([Type(\"Artifact\"), Type(\"Creature\")]), to: Battlefield), extra: 1)",
+            "TriggerMultiplier(cause: ZoneChange(what: Or([Supertype(Basic), Supertype(Legendary)]), to: Battlefield), extra: 1)",
         );
         let StaticEffect::TriggerMultiplier {
             extra, affected, ..
@@ -780,7 +803,7 @@ mod tests {
 
         // An explicit non-default affected (an opponent doubler) is preserved.
         let opp = read(
-            "TriggerMultiplier(cause: ZoneChange(what: Type(\"Creature\"), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
+            "TriggerMultiplier(cause: ZoneChange(what: Supertype(Basic), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
         );
         let written = crate::ron::options().to_string(&opp).unwrap();
         assert!(written.contains("affected"), "non-default affected kept");
@@ -801,14 +824,14 @@ mod tests {
         // Convoke's colored clause: tap a white creature you control rather
         // than pay a {W} pip.
         let convoke = read(
-            "PayPips(Colored(White), TapToPay(And([Type(\"Creature\"), ColorIs(White), ControlledBy(Ref(You))])))",
+            "PayPips(Colored(White), TapToPay(And([Supertype(Basic), ColorIs(White), ControlledBy(Ref(You))])))",
         );
         assert_eq!(
             convoke,
             StaticEffect::PayPips(
                 PipClass::Colored(Color::White),
                 PayAct::TapToPay(Predicate::And(vec![
-                    Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                    Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
                     Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You

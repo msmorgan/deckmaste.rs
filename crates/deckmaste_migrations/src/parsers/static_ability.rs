@@ -523,7 +523,7 @@ mod tests {
         assert_eq!(
             stat("~ gets +1/+0 for each artifact you control.").as_deref(),
             Some(
-                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Type(\"Artifact\"), ControlledBy(Ref(You))]))))), Toughness(Up(0))])))"
+                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Type(Artifact), ControlledBy(Ref(You))]))))), Toughness(Up(0))])))"
             )
         );
     }
@@ -550,7 +550,7 @@ mod tests {
         assert_eq!(
             stat("~ gets +1/+1 for each creature card in your graveyard.").as_deref(),
             Some(
-                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Type(\"Creature\"), InZone(Graveyard), Owner(Ref(You))])))))])))"
+                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Type(Creature), InZone(Graveyard), Owner(Ref(You))])))))])))"
             )
         );
     }
@@ -566,7 +566,7 @@ mod tests {
         assert_eq!(
             stat("~ gets +1/+1 for each Elf you control.").as_deref(),
             Some(
-                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), ControlledBy(Ref(You))])))))])))"
+                "Static(Modify(This, Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(Elf), ControlledBy(Ref(You))]))))), Toughness(Up(CountOf(Objects(And([Permanent, Subtype(Elf), ControlledBy(Ref(You))])))))])))"
             )
         );
     }
@@ -595,7 +595,7 @@ mod tests {
         );
         assert_eq!(
             ron,
-            "Static(Modify(AttachHostOf(This), P1P1ForEach(And([Permanent, Subtype(\"Forest\"), ControlledBy(Ref(You))]))))"
+            "Static(Modify(AttachHostOf(This), P1P1ForEach(And([Permanent, Subtype(Forest), ControlledBy(Ref(You))]))))"
         );
     }
 
@@ -619,7 +619,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins have haste.").as_deref(),
             Some(
-                "Static(Each(SelectAll(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, GainAbility(Keyword(Haste)))))"
+                "Static(Each(SelectAll(And([Permanent, Subtype(Goblin), Not(Ref(This))])), Modify(It, GainAbility(Keyword(Haste)))))"
             )
         );
         assert_eq!(
@@ -804,7 +804,7 @@ mod tests {
         // produces (run once, read the assert's left value) and put it here.
         assert_eq!(
             stat("Creature spells can't be countered.").as_deref(),
-            Some("Static(Cant(Counter(on: And([Kind(Spell), Type(\"Creature\")]))))"),
+            Some("Static(Cant(Counter(on: And([Kind(Spell), Type(Creature)]))))"),
         );
     }
 
@@ -827,7 +827,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblin creatures you control attack each combat if able.").as_deref(),
             Some(
-                "Static(Must(Attack(by: And([Creature, Not(Ref(This)), Subtype(\"Goblin\"), ControlledBy(Ref(You))]))))"
+                "Static(Must(Attack(by: And([Creature, Not(Ref(This)), Subtype(Goblin), ControlledBy(Ref(You))]))))"
             )
         );
         // A self-ref subject ("~ attacks each combat if able") → Must over This.
@@ -857,7 +857,7 @@ mod tests {
         assert_eq!(
             stat("Other Elf creatures you control get +1/+1.").as_deref(),
             Some(
-                "Static(Each(SelectAll(And([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])), Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))))"
+                "Static(Each(SelectAll(And([Creature, Not(Ref(This)), Subtype(Elf), ControlledBy(Ref(You))])), Modify(It, Several([Power(Up(1)), Toughness(Up(1))]))))"
             )
         );
     }
@@ -874,7 +874,7 @@ mod tests {
         assert_eq!(
             stat("Goblin spells you cast cost {1} less to cast.").as_deref(),
             Some(
-                "Static(CostModifier(of: And([Kind(Spell), Subtype(\"Goblin\"), ControlledBy(Ref(You))]), change: Reduce([Mana([Generic(1)])])))"
+                "Static(CostModifier(of: And([Kind(Spell), Subtype(Goblin), ControlledBy(Ref(You))]), change: Reduce([Mana([Generic(1)])])))"
             )
         );
     }
@@ -886,7 +886,7 @@ mod tests {
         assert_eq!(
             stat("Creature spells you cast cost {2} more to cast.").as_deref(),
             Some(
-                "Static(CostModifier(of: And([Kind(Spell), Type(\"Creature\"), ControlledBy(Ref(You))]), change: Increase([Mana([Generic(2)])])))"
+                "Static(CostModifier(of: And([Kind(Spell), Type(Creature), ControlledBy(Ref(You))]), change: Increase([Mana([Generic(2)])])))"
             )
         );
         // A color adjective and no "you cast" scope (affects all such spells).
@@ -926,7 +926,7 @@ mod tests {
         assert_eq!(
             stat("Other Goblins get +1/+1 and have mountainwalk.").as_deref(),
             Some(
-                "Static(Each(SelectAll(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])), Modify(It, Several([Power(Up(1)), Toughness(Up(1)), GainAbility(Keyword(Mountainwalk))]))))"
+                "Static(Each(SelectAll(And([Permanent, Subtype(Goblin), Not(Ref(This))])), Modify(It, Several([Power(Up(1)), Toughness(Up(1)), GainAbility(Keyword(Mountainwalk))]))))"
             )
         );
     }
@@ -957,7 +957,7 @@ mod tests {
         assert_eq!(
             stat_with_macros("As long as you control an artifact, ~ gets +1/+0.").as_deref(),
             Some(
-                "Static(Conditionally(YouControl(Type(\"Artifact\")), Modify(This, PowerAndToughnessUp(1, 0))))"
+                "Static(Conditionally(YouControl(Type(Artifact)), Modify(This, PowerAndToughnessUp(1, 0))))"
             )
         );
     }

@@ -3,7 +3,7 @@
 // ([CR#122.1a]) on the creature ([CR#120.3d]). It is a SOURCE ability: the
 // replacement keys on `source: Ref(This)` ("damage dealt BY this") so it fires
 // only for damage from the very object carrying wither, and only when the
-// recipient is a creature (`to: Type("Creature")`); damage to anything else is
+// recipient is a creature (`to: Type(Creature)`); damage to anything else is
 // unaffected.
 //
 // The body replaces the `Damage` event with `PutCounters(EventObject,
@@ -17,7 +17,7 @@ KeywordAbility(
     name: "Wither",
     template: "wither",
     abilities: [Static(Replacement(Instead(
-            would: Damage(source: Ref(This), to: Type("Creature")),
+            would: Damage(source: Ref(This), to: Type(Creature)),
             instead: PutCounters(EventObject, M1M1Counter, ThatMuch),
         )))],
 )

@@ -1,0 +1,10 @@
+// A permanent of a given card type [CR#109.2]: the on-the-battlefield type
+// filter, parameterized over the type. The card-type filter twins (Creature,
+// Battle, Planeswalker) are its nullary specializations.
+(
+    name: "PermanentOfType",
+    template: "${0}",
+    kinds: [Predicate],
+    params: [TypeDef],
+    body: And([Permanent, Type(Param(0))]),
+)

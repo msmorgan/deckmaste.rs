@@ -13,8 +13,8 @@
 // hand-written render arm on the CORE `Exists` variant, not the macro
 // template).
 //
-// Usage: YouControl(Type("Artifact")) / YouControl(And([Permanent,
-// Subtype("Human")])).
+// Usage: YouControl(Type(Artifact)) / YouControl(And([Permanent,
+// Subtype(Human)])).
 (
     name: "YouControl",
     template: "you control ${0}",

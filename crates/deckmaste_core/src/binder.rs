@@ -156,7 +156,7 @@ mod tests {
     use super::*;
     use crate::CharacteristicPredicate;
     use crate::Destination;
-    use crate::Type;
+    use crate::Supertype;
 
     fn read(source: &str) -> Binder {
         crate::ron::options().from_str(source).unwrap()
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn binder_variants_round_trip() {
         let one_filter =
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic));
         for v in [
             Binder::TheRef(Reference::This),
             Binder::ChooseOne {
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn choose_binders_omit_default_by() {
         let creature =
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic));
         let one = Binder::ChooseOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn search_one_omits_default_resolver_inputs() {
         let creature =
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic));
         let bare = Binder::SearchOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -306,7 +306,7 @@ mod tests {
         use crate::PlayerAction;
 
         let creature =
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic));
         let bare = Binder::SearchOne {
             filter: creature.clone(),
             by: Reference::You,
@@ -330,7 +330,7 @@ mod tests {
         };
         assert_eq!(read(&to_string(&whiff)), whiff);
         assert_eq!(
-            read("SearchOne(filter: Type(\"Creature\"), if_none: LoseLife(1))"),
+            read("SearchOne(filter: Supertype(Basic), if_none: LoseLife(1))"),
             whiff,
         );
     }

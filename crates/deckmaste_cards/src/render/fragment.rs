@@ -736,7 +736,7 @@ fn subtype_exclusion_prefix(filter: &Predicate) -> Option<String> {
             && let Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) =
                 strip_expanded(negated)
         {
-            return Some(format!("non-{name}"));
+            return Some(format!("non-{}", name.name()));
         }
     }
     None
@@ -754,7 +754,7 @@ fn type_exclusion_prefix(filter: &Predicate) -> Option<String> {
             && let Predicate::Characteristic(CharacteristicPredicate::Type(t)) =
                 strip_expanded(negated)
         {
-            return Some(format!("non{}", t.as_str().to_lowercase()));
+            return Some(format!("non{}", t.name().as_str().to_lowercase()));
         }
     }
     None
@@ -894,7 +894,7 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
     for p in parts {
         match strip_expanded(p) {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-                base = Some(t.as_str().to_string());
+                base = Some(t.name().as_str().to_string());
             }
             Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
                 color = Some(*c);
@@ -984,7 +984,7 @@ pub(super) fn filter_subject(f: &Predicate) -> String {
 /// filter.
 pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Ident> {
     match strip_expanded(f) {
-        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(*t),
+        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => Some(t.name()),
         Predicate::And(vs) => vs.iter().find_map(find_card_type),
         _ => None,
     }
@@ -1012,7 +1012,7 @@ pub(super) fn find_card_type(f: &Predicate) -> Option<deckmaste_core::Ident> {
 fn find_bare_subtype_noun(f: &Predicate) -> Option<String> {
     match strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
-            Some(name.as_str().to_string())
+            Some(name.name().as_str().to_string())
         }
         Predicate::And(vs) => vs.iter().find_map(find_bare_subtype_noun),
         _ => None,
@@ -1372,7 +1372,9 @@ mod tests {
     #[test]
     fn filter_noun_renders_attacking_and_untapped_adjuncts() {
         let goblin_piledriver = Predicate::And(vec![
-            Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
+            Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                deckmaste_core::SubtypeRef::named("Goblin".into()),
+            )),
             Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
             Predicate::State(StatePredicate::Attacking),
         ]);
@@ -1504,9 +1506,7 @@ mod tests {
     #[test]
     fn filter_subject_renders_teammate_controller_phrase() {
         let f = Predicate::And(vec![
-            Predicate::Characteristic(CharacteristicPredicate::Type(
-                deckmaste_core::Type::Creature.name(),
-            )),
+            Predicate::r#type(deckmaste_core::Type::Creature),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
                 Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
                     Reference::You,
@@ -1575,9 +1575,7 @@ mod tests {
             Projection {
                 of: Countable::Objects(Arc::new(Predicate::And(vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Characteristic(CharacteristicPredicate::Type(
-                        deckmaste_core::Type::Creature.name(),
-                    )),
+                    Predicate::r#type(deckmaste_core::Type::Creature),
                 ]))),
                 by: Arc::new(Count::StatOf(Reference::It, Stat::Power)),
             },

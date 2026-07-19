@@ -646,11 +646,11 @@ mod tests {
     fn zone_change_cause_named_and_never_bare() {
         assert_eq!(
             read(
-                "ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy))"
+                "ZoneChange(what: Type(name:\"Creature\",permanent:true), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy))"
             ),
             EventFilter::ZoneChange {
                 what: Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.name()
+                    Type::Creature.into()
                 )),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
@@ -664,7 +664,7 @@ mod tests {
         assert!(
             crate::ron::options()
                 .from_str::<EventFilter>(
-                    "ZoneChange(what: Type(\"Creature\"), cause: (verb: Destroy))"
+                    "ZoneChange(what: Type(name:\"Creature\",permanent:true), cause: (verb: Destroy))"
                 )
                 .is_err(),
             "a bare cause tuple must not parse — the variant name is mandatory"
@@ -674,10 +674,12 @@ mod tests {
     #[test]
     fn zone_change_options_default_none() {
         assert_eq!(
-            read("ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard)"),
+            read(
+                "ZoneChange(what: Type(name:\"Creature\",permanent:true), from: Battlefield, to: Graveyard)"
+            ),
             EventFilter::ZoneChange {
                 what: Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.name()
+                    Type::Creature.into()
                 )),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
@@ -685,10 +687,10 @@ mod tests {
             },
         );
         assert_eq!(
-            read("ZoneChange(what: Type(\"Creature\"))"),
+            read("ZoneChange(what: Type(name:\"Creature\",permanent:true))"),
             EventFilter::ZoneChange {
                 what: Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.name()
+                    Type::Creature.into()
                 )),
                 from: None,
                 to: None,
@@ -807,9 +809,9 @@ mod tests {
             "Within(LifeGained(who: Ref(You)), ThisTurn)",
             "Before(This)",
             "AllOf([Cast(who: Any, what: Any), Before(This)])",
-            "OneOrMore(ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard))",
+            "OneOrMore(ZoneChange(what: Supertype(Basic), from: Battlefield, to: Graveyard))",
             "Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play)))",
-            "AllOf([ZoneChange(what: Any, to: Battlefield), ZoneChange(what: Type(\"Land\"))])",
+            "AllOf([ZoneChange(what: Any, to: Battlefield), ZoneChange(what: Supertype(Basic))])",
             "When(StepBegins(at: Ending(End), whose: EachPlayers), YourTurn)",
             "BecameDay",
             "BecameNight",

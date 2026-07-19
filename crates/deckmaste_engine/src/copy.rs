@@ -16,14 +16,16 @@
 //!   unconditional ability drop would strip a P/T-defining CDA while leaving
 //!   `power`/`toughness` orphaned at `StatValue::DefinedByAbility`, which
 //!   [CR#208.2a] reads as 0 — worse than doing nothing).
-//! - `CardTypes`/`Subtypes` carry bare `Ident`s that the live layer engine
-//!   resolves through `state.types`/`state.subtypes` (`layer::resolve_type`/
-//!   `resolve_subtype`) so a granted type/subtype's `confers` rides along; with
-//!   no registry reachable here, an added type/subtype degrades to the SAME
-//!   name-only shape those functions already fall back to when a name is absent
-//!   from the registry (built-in card types get their structural `TypeDef` via
-//!   `Type::def()`, which needs no registry). PARTIAL: a plugin-declared
-//!   type/subtype's `confers` is lost this way.
+//! - `CardTypes` carries bare `Ident`s and `Subtypes` a name-keyed `SubtypeRef`
+//!   (the engine reads `SubtypeRef::name`) that the live layer engine resolves
+//!   through `state.types`/`state.subtypes`
+//!   (`layer::resolve_type`/`resolve_subtype`) so a granted type/subtype's
+//!   `confers` rides along; with no registry reachable here, an added
+//!   type/subtype degrades to the SAME name-only shape those functions already
+//!   fall back to when a name is absent from the registry (built-in card types
+//!   get their structural `TypeDef` via `Type::def()`, which needs no
+//!   registry). PARTIAL: a plugin-declared type/subtype's `confers` is lost
+//!   this way.
 //!
 //! The [CR#707.9d] "drop the source's characteristic-defining ability"
 //! clause is a PARTIAL implementation, covering the Power/Toughness axes
@@ -49,6 +51,7 @@ use deckmaste_core::NumericOp;
 use deckmaste_core::Reference;
 use deckmaste_core::StatValue;
 use deckmaste_core::StaticEffect;
+use deckmaste_core::SubtypeRef;
 use deckmaste_core::Token;
 use deckmaste_core::Type;
 use deckmaste_core::TypeDef;
@@ -388,15 +391,17 @@ fn minimal_type_def(name: &Ident) -> TypeDef {
     )
 }
 
-fn apply_subtype_op(subtypes: &mut Vec<deckmaste_core::Subtype>, op: &CollectionOp<Ident>) {
+fn apply_subtype_op(subtypes: &mut Vec<deckmaste_core::Subtype>, op: &CollectionOp<SubtypeRef>) {
     match op {
-        CollectionOp::Set(names) => *subtypes = names.iter().map(minimal_subtype).collect(),
+        CollectionOp::Set(names) => {
+            *subtypes = names.iter().map(|n| minimal_subtype(&n.name())).collect();
+        }
         CollectionOp::Add(name) => {
-            if !subtypes.iter().any(|s| s.name == *name) {
-                subtypes.push(minimal_subtype(name));
+            if !subtypes.iter().any(|s| s.name == name.name()) {
+                subtypes.push(minimal_subtype(&name.name()));
             }
         }
-        CollectionOp::Remove(name) => subtypes.retain(|s| s.name != *name),
+        CollectionOp::Remove(name) => subtypes.retain(|s| s.name != name.name()),
     }
 }
 

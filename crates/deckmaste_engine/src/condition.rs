@@ -469,7 +469,7 @@ mod tests {
         };
 
         let creature = Predicate::creature();
-        let land = Predicate::type_(Type::Land);
+        let land = Predicate::r#type(Type::Land);
 
         // Is(This, …): the bear is a creature …
         assert!(
@@ -514,7 +514,6 @@ mod tests {
         use deckmaste_core::Ability;
         use deckmaste_core::Card;
         use deckmaste_core::CardFace;
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::EventFilter;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::TriggeredAbility;
@@ -541,9 +540,7 @@ mod tests {
                     where_x: None,
                     from: None,
                     event: EventFilter::OneOf(Vec::new()),
-                    condition: Some(Condition::Exists(Predicate::Characteristic(
-                        CharacteristicPredicate::Type(Type::Creature.name()),
-                    ))),
+                    condition: Some(Condition::Exists(Predicate::r#type(Type::Creature))),
                     limits: Vec::new(),
                     effect: OneShotEffect::Sequentially(Vec::new()),
                 })],
@@ -837,8 +834,6 @@ mod tests {
     /// then the only creature.
     #[test]
     fn compare_counts_nonstack_filter() {
-        use deckmaste_core::CharacteristicPredicate;
-
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap());
         let forest = Arc::new(builtin().card("Forest").unwrap());
         let mut state = GameState::new(GameConfig {
@@ -869,7 +864,7 @@ mod tests {
         state.zones.battlefield.push(bear);
 
         let creatures = Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+            Predicate::r#type(Type::Creature),
         )));
         assert!(
             state.condition_holds(
@@ -1092,7 +1087,6 @@ mod tests {
     /// answers correctly.
     #[test]
     fn happened_damage_to_a_departed_creature_reads_its_snapshot() {
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Predicate;
 
         use crate::event::GameEvent;
@@ -1140,18 +1134,14 @@ mod tests {
         };
         assert!(
             state.condition_holds(
-                &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.name()
-                ))),
+                &damaged(Predicate::r#type(Type::Creature)),
                 &frame_for(&state, PlayerId(0)),
             ),
             "the departed recipient WAS a creature — read through its snapshot, no panic"
         );
         assert!(
             !state.condition_holds(
-                &damaged(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Land.name()
-                ))),
+                &damaged(Predicate::r#type(Type::Land)),
                 &frame_for(&state, PlayerId(0)),
             ),
             "the snapshot still discriminates — the recipient was never a land"

@@ -2736,15 +2736,7 @@ mod tests {
             });
             let m = *state.zones.hands[0]
                 .iter()
-                .find(|&&o| {
-                    obj_matches(
-                        &state,
-                        o,
-                        &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                            Type::Creature.name(),
-                        )),
-                    )
-                })
+                .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
                 .expect("a Darksteel Myr in the opening hand");
             state.zones.hands[PlayerId(0).index()].retain(|&o| o != m);
             state.objects.obj_mut(m).zone = Some(Zone::Battlefield);

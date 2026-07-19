@@ -644,10 +644,10 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
 
 /// Amass [subtype] N ([CR#701.47a]) — the canonical *composite* keyword action:
 /// it decomposes into core primitives, never a new engine verb. Expanding
-/// `Amass("Orc", 1)` (Orcish Bowmasters' "amass Orcs 1") must yield the four
-/// CR sentences as data: (1) the guard-token `Create`, (2) the `ChooseOne`
-/// bind, (3) the `PutCounters` growth, (4) the "becomes a [subtype]" continuous
-/// add.
+/// `Amass(Zombie, 1)` (the subtype is a declared `Subtype` param) must yield
+/// the four CR sentences as data: (1) the guard-token `Create`, (2) the
+/// `ChooseOne` bind, (3) the `PutCounters` growth, (4) the "becomes a
+/// [subtype]" continuous add.
 #[test]
 fn amass_decomposes_into_core_primitives() {
     use deckmaste_core::Binder;
@@ -662,7 +662,7 @@ fn amass_decomposes_into_core_primitives() {
     use deckmaste_core::Type;
 
     let plugin = builtin();
-    let effect: OneShotEffect = plugin.macros.read_str("Amass(\"Orc\", 1)").unwrap();
+    let effect: OneShotEffect = plugin.macros.read_str("Amass(Zombie, 1)").unwrap();
     // The invocation is remembered (so it can render back through the template).
     let OneShotEffect::Expanded(exp) = effect else {
         panic!("expected a remembered Amass expansion");
@@ -702,7 +702,11 @@ fn amass_decomposes_into_core_primitives() {
     let creature_type: deckmaste_core::TypeDef = plugin.macros.read_str("Creature").unwrap();
     assert_eq!(tok.types, vec![creature_type]);
     let names: Vec<&str> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
-    assert_eq!(names, vec!["Orc", "Army"], "the amassed subtype PLUS Army");
+    assert_eq!(
+        names,
+        vec!["Zombie", "Army"],
+        "the amassed subtype PLUS Army"
+    );
     assert_eq!(tok.power, Some(deckmaste_core::StatValue::Number(0)));
     assert_eq!(tok.toughness, Some(deckmaste_core::StatValue::Number(0)));
 
@@ -741,7 +745,7 @@ fn amass_decomposes_into_core_primitives() {
     };
     assert!(
         matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Matches(Reference::That(Sort::OfType(Type::Creature)), _))),
-        "guarded on `Not(Matches(That, Orc))`, got {:?}",
+        "guarded on `Not(Matches(That, Zombie))`, got {:?}",
         becomes.condition,
     );
     let OneShotEffect::Continuously(Continuously { effect, duration }) = becomes.then.as_ref()
@@ -763,5 +767,5 @@ fn amass_decomposes_into_core_primitives() {
     else {
         panic!("it ADDS the subtype to the chosen Army, got {effect:?}");
     };
-    assert_eq!(added.as_str(), "Orc", "becomes an Orc in addition");
+    assert_eq!(added.as_str(), "Zombie", "becomes a Zombie in addition");
 }

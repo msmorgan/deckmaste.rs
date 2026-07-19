@@ -142,6 +142,7 @@ mod tests {
     use crate::Count;
     use crate::ObjectKind;
     use crate::Quantity;
+    use crate::Supertype;
     use crate::Type;
 
     fn read(source: &str) -> Selection {
@@ -162,7 +163,7 @@ mod tests {
     fn random_round_trips() {
         let v = Selection::Random(
             Quantity::one(),
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
         );
         assert_eq!(read(&to_string(&v)), v);
     }
@@ -214,9 +215,9 @@ mod tests {
     #[test]
     fn union_round_trips() {
         let v = Selection::Union(vec![
-            Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Creature.name(),
-            ))),
+            Selection::SelectAll(Predicate::Characteristic(
+                CharacteristicPredicate::Supertype(Supertype::Basic),
+            )),
             Selection::SelectAll(Predicate::Kind(ObjectKind::Player)),
         ]);
         assert_eq!(read(&to_string(&v)), v);
@@ -257,7 +258,7 @@ mod tests {
             op: crate::AggregateOp::MaxOf,
             proj: crate::Projection {
                 of: crate::Countable::Objects(Arc::new(Predicate::Characteristic(
-                    CharacteristicPredicate::Type(Type::Creature.name()),
+                    CharacteristicPredicate::Supertype(Supertype::Basic),
                 ))),
                 by: Arc::new(Count::StatOf(crate::Reference::It, crate::Stat::Power)),
             },
@@ -266,7 +267,7 @@ mod tests {
         assert_eq!(crate::ron::options().from_str::<Selection>(&s).unwrap(), v);
         assert!(matches!(
             read(
-                "Pick(op: MinOf, proj: (of: Objects(Type(\"Creature\")), by: StatOf(It, Toughness)))"
+                "Pick(op: MinOf, proj: (of: Objects(Type(name:\"Creature\",permanent:true)), by: StatOf(It, Toughness)))"
             ),
             Selection::Pick {
                 op: crate::AggregateOp::MinOf,

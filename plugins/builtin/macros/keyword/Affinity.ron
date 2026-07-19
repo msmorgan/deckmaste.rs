@@ -2,7 +2,7 @@
 // "this spell costs {1} less to cast for each [text] you control" — a
 // CostModifier whose change is Scaled(Reduce, times: CountOf(...)),
 // applied in the [CR#601.2f] total-cost pipeline. The quality param is
-// the counted filter: `Affinity(Type("Artifact"))`.
+// the counted filter: `Affinity(Type(Artifact))`.
 (
     name: "Affinity",
     template: "affinity for ${0}",

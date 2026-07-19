@@ -1,0 +1,4 @@
+// [CR#205.3i] the Desert land subtype — the Desertwalk evasion filter keys on
+// it. Declared in builtin because a builtin keyword macro (Desertwalk)
+// references it by bare name.
+LandType(name: "Desert")

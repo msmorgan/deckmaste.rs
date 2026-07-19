@@ -18,7 +18,7 @@ Normal(
             premise: Not(Has(Hexproof)),
             then: May(Target(
                 by: (stack_object: ControlledBy(Ref(You))),
-                on: And([Type("Creature"), ControlledBy(OpponentOf(Ref(You))), Has(Hexproof)]),
+                on: And([Type(Creature), ControlledBy(OpponentOf(Ref(You))), Has(Hexproof)]),
             )),
         ))),
         // "{3}, Sacrifice this artifact: Creatures you control gain hexproof
@@ -27,10 +27,10 @@ Normal(
             cost: [Mana([Generic(3)]), Do(Sacrifice(This))],
             effect: Until(FixedUntil(EndOfTurn), [
                 Each(
-                    SelectAll(And([Type("Creature"), ControlledBy(Ref(You))])),
+                    SelectAll(And([Type(Creature), ControlledBy(Ref(You))])),
                     Modify(It, GainAbility(Keyword(Hexproof()))),
                 ),
-                Cant(Block(on: And([Type("Creature"), ControlledBy(Ref(You))]))),
+                Cant(Block(on: And([Type(Creature), ControlledBy(Ref(You))]))),
             ]),
         ),
     ],

@@ -4580,7 +4580,7 @@ mod tests {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment.def()],
             subtypes: vec![subtype("Aura")],
-            abilities: vec![keyword("Enchant(Type(\"Creature\"))"), host_pump(2)],
+            abilities: vec![keyword("Enchant(Type(Creature))"), host_pump(2)],
             ..CardFace::default()
         });
         // Stand the Aura up as a spell on the stack, target = the host.

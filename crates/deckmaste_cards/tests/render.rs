@@ -1089,7 +1089,7 @@ fn renders_graveyard_static_from_zone() {
             ),
             Arc::new(StaticEffect::Each(
                 Selection::SelectAll(Predicate::And(vec![
-                    Predicate::type_(Type::Creature),
+                    Predicate::r#type(Type::Creature),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                         Reference::You,
                     )))),
@@ -1141,7 +1141,7 @@ fn renders_trigger_with_turnof_intervening_if() {
             ability_word: None,
             where_x: None,
             event: EventFilter::ZoneChange {
-                what: Predicate::type_(Type::Creature),
+                what: Predicate::r#type(Type::Creature),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,

@@ -7,7 +7,7 @@
 // ControlledBy/Controls dual ([CR#109.5]).
 //
 // `quality` defaults to any Land (bare `Landwalk`); the typed variants pass a
-// concrete subtype, e.g. Swampwalk → Landwalk(quality: Subtype("Swamp")).
+// concrete subtype, e.g. Swampwalk → Landwalk(quality: Subtype(Swamp)).
 // Enforcement rides engine-combat-restrictions (the Cant(Block) row) and
 // engine-filter-breadth (the Controls eval) — the macro authors the rule; the
 // engine doesn't apply it yet.
@@ -15,7 +15,7 @@
     name: "Landwalk",
     template: "landwalk",
     kinds: [KeywordAbility],
-    params: { "quality": Default(Predicate, Type("Land")) },
+    params: { "quality": Default(Predicate, Type(Land)) },
     body: Composite(
         name: "Landwalk",
         abilities: [Static(Cant(Block(

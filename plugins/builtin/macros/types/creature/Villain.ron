@@ -1,0 +1,4 @@
+// [CR#205.3m] the Villain creature subtype — the "Worthy" filter (creatures
+// that aren't Villains) keys on it. Declared in builtin because a builtin
+// filter macro (Worthy) references it by bare name.
+CreatureType(name: "Villain")

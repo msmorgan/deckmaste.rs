@@ -326,7 +326,6 @@ fn distinct_reps_exist(
 mod target_set_tests {
     use std::sync::Arc;
 
-    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Count;
     use deckmaste_core::Predicate;
     use deckmaste_core::Quantity;
@@ -341,7 +340,7 @@ mod target_set_tests {
     use crate::object::ObjectId;
 
     fn creature() -> Predicate {
-        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()))
+        Predicate::r#type(Type::Creature)
     }
 
     fn t_one() -> TargetSpec {

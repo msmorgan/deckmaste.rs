@@ -316,7 +316,12 @@ fn lint_card_subtypes(
 ) {
     for subtype in subtypes {
         match declared_subtypes.get(&subtype.name) {
-            Some(declared) if declared == subtype => {}
+            // Compare the FIELDS explicitly, not via `PartialEq` — `Subtype`'s
+            // eq is by-name (a declared name always resolves to its one macro),
+            // so a same-name value carrying drifted `types`/`confers` compares
+            // equal and only a field check catches the drift this lint exists for.
+            Some(declared)
+                if declared.types == subtype.types && declared.confers == subtype.confers => {}
             Some(declared) => out.push((
                 path.to_owned(),
                 format!(

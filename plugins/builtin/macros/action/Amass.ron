@@ -8,8 +8,8 @@
 // The four sentences map one-for-one onto core:
 //   1. `If(Not(Exists(Army creature you control)), Create(... token ...))` — the
 //      guard token, a 0/0 black creature whose subtypes are the amassed
-//      `${0}` PLUS `Army` (spelled inline so the macro needs no pre-registered
-//      subtype for `${0}`).
+//      `${0}` (forwarded whole as the declared subtype's expansion) PLUS
+//      `Army`.
 //   2. `With(ChooseOne(Army creature you control), …)` — bind the chosen Army as
 //      `That` for the two clauses that follow. A `With` one-binder
 //      (`ChooseOne`) binds its pick as `Reference::That`, never `It` (the
@@ -24,28 +24,31 @@
 //      with no stated duration ([CR#611.2a]) that adds the subtype, guarded so a
 //      creature that is already that subtype is untouched.
 //
-// `${0}` is the amassed subtype NAME (a quoted `String`, e.g. "Orc"); `${1}` is
-// N (a `Count`). An `OneShotEffect`-kind macro, so `Amass("Orc", 1)` (Orcish
-// Bowmasters' "amass Orcs 1") stands as the effect body of any shell — an ETB
+// `${0}` is the amassed subtype (a declared `Subtype`, e.g. `Zombie`), which
+// macro-expands to the full declared def — a `Subtype` struct in the token
+// type-line, a bare-name `SubtypeRef` in the `Matches` filter and the layer-4
+// `Subtypes(Add(...))`. An undeclared name has no subtype macro and fails to
+// parse (validation for free). `${1}` is N (a `Count`). An `OneShotEffect`-kind
+// macro, so `Amass(Zombie, 1)` stands as the effect body of any shell — an ETB
 // trigger, an activated ability, or a spell.
 (
     name: "Amass",
     template: "amass ${0} ${1}",
     kinds: [OneShotEffect],
-    params: [String, Count],
+    params: [Subtype, Count],
     body: Sequentially([
         If(
             condition: Not(Exists(And([
-                Type("Creature"),
-                Subtype("Army"),
+                Type(Creature),
+                Subtype(Army),
                 ControlledBy(Ref(You)),
             ]))),
             then: Create(1, Token(
                 color_indicator: [Black],
                 types: [Creature],
                 subtypes: [
-                    Subtype(name: Param(0), types: [Creature, Kindred]),
-                    Subtype(name: "Army", types: [Creature, Kindred]),
+                    Param(0),
+                    Army,
                 ],
                 power: 0,
                 toughness: 0,
@@ -53,8 +56,8 @@
         ),
         With(
             binder: ChooseOne(filter: And([
-                Type("Creature"),
-                Subtype("Army"),
+                Type(Creature),
+                Subtype(Army),
                 ControlledBy(Ref(You)),
             ])),
             body: Sequentially([

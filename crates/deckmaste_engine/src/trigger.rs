@@ -279,7 +279,7 @@ impl GameState {
 
             // "a creature" — check the snapshot's printed card types.
             Predicate::Characteristic(CharacteristicPredicate::Type(ty)) => {
-                snapshot_has_type(self, snapshot, *ty)
+                snapshot_has_type(self, snapshot, ty.name())
             }
 
             // "on the battlefield" (the `Permanent` macro and friends): the
@@ -1897,9 +1897,7 @@ mod tests {
     #[test]
     fn condition_holds_exists_creature_true_when_creature_present() {
         let (state, _bear) = bear_on_field();
-        let cond = Condition::Exists(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        )));
+        let cond = Condition::Exists(Predicate::r#type(Type::Creature));
         assert!(
             state.condition_holds(&cond, &gate_frame(&state, PlayerId(0))),
             "Exists(Type(\"Creature\")) should hold when a creature is on the battlefield"
@@ -1928,9 +1926,7 @@ mod tests {
             subtypes: std::collections::HashMap::new(),
             types: std::collections::HashMap::new(),
         });
-        let cond = Condition::Exists(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        )));
+        let cond = Condition::Exists(Predicate::r#type(Type::Creature));
         assert!(
             !state.condition_holds(&cond, &gate_frame(&state, PlayerId(0))),
             "Exists(Type(\"Creature\")) should NOT hold when no creatures are present"
@@ -2061,7 +2057,7 @@ mod tests {
     fn dies_macro_expands_to_zone_move() {
         use deckmaste_core::EventFilter;
 
-        let event: EventFilter = canon().macros.read_str("Dies(Type(\"Creature\"))").unwrap();
+        let event: EventFilter = canon().macros.read_str("Dies(Type(Creature))").unwrap();
         let EventFilter::Expanded(expanded) = &event else {
             panic!("expected EventFilter::Expanded, got {event:?}");
         };
@@ -2111,7 +2107,7 @@ mod tests {
 
         let event: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(\"Creature\"))")
+            .read_str("Destroyed(Type(Creature))")
             .unwrap();
         let EventFilter::Expanded(expanded) = &event else {
             panic!("expected EventFilter::Expanded, got {event:?}");
@@ -2187,7 +2183,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(\"Creature\"))")
+            .read_str("Destroyed(Type(Creature))")
             .unwrap();
         let event = zone_changed_with_cause(
             &state,
@@ -2210,7 +2206,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(\"Creature\"))")
+            .read_str("Destroyed(Type(Creature))")
             .unwrap();
         let event = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
         assert!(
@@ -2227,7 +2223,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern: EventFilter = canon()
             .macros
-            .read_str("Destroyed(Type(\"Creature\"))")
+            .read_str("Destroyed(Type(Creature))")
             .unwrap();
         let event = zone_changed_with_cause(
             &state,
@@ -2339,9 +2335,7 @@ mod tests {
             cause: Some(deckmaste_core::Cause::Cause(CausePattern {
                 verb: Some(deckmaste_core::VerbName::from("Destroy")),
                 agency: None,
-                agent: Some(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.name(),
-                ))),
+                agent: Some(Predicate::r#type(Type::Creature)),
             })),
             what: Predicate::Any,
             from: Some(Zone::Battlefield),
@@ -2768,9 +2762,7 @@ mod tests {
             who: Predicate::Ref(Reference::You),
             what: Predicate::And(vec![
                 Predicate::Kind(ObjectKind::Spell),
-                Predicate::Not(Arc::new(Predicate::Characteristic(
-                    CharacteristicPredicate::Type(Type::Creature.name()),
-                ))),
+                Predicate::Not(Arc::new(Predicate::r#type(Type::Creature))),
             ]),
         };
         let mut spell_on_stack = |name: &str, controller: PlayerId| {
@@ -5625,7 +5617,7 @@ mod tests {
         let (_watcher, watcher_source) = scan_watcher(
             &mut state,
             PlayerId(0),
-            "Nth(n: 2, of: ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard), \
+            "Nth(n: 2, of: ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard), \
              within: ThisTurn)",
         );
         let turn = state.turn.turn_number;
@@ -5660,7 +5652,7 @@ mod tests {
             let (_watcher, watcher_source) = scan_watcher(
                 &mut state,
                 controller,
-                "When(ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard), \
+                "When(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard), \
                  YourTurn)",
             );
             let died = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
@@ -5684,7 +5676,7 @@ mod tests {
         let (_watcher, watcher_source) = scan_watcher(
             &mut state,
             PlayerId(0),
-            "ZoneChange(what: And([Type(\"Creature\"), Where(Matches(It, Named(\"Grizzly Bears\")))]), \
+            "ZoneChange(what: And([Type(Creature), Where(Matches(It, Named(\"Grizzly Bears\")))]), \
              from: Battlefield, to: Graveyard)",
         );
 
@@ -5782,7 +5774,7 @@ mod tests {
     fn emblem_triggered_ability_fires_from_command_zone() {
         let (mut state, bear) = bear_on_field();
         let abilities = emblem_abilities(
-            "Triggered(event: ZoneChange(what: Type(\"Creature\"), from: Battlefield, \
+            "Triggered(event: ZoneChange(what: Type(Creature), from: Battlefield, \
              to: Graveyard), effect: GainLife(1))",
         );
         state.apply_emblem_created(PlayerId(0), abilities);
@@ -5830,9 +5822,9 @@ mod tests {
     fn one_or_more_trigger_fires_once_per_batch() {
         let watcher_card = |quantified: bool| {
             let event = if quantified {
-                "OneOrMore(ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard))"
+                "OneOrMore(ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard))"
             } else {
-                "ZoneChange(what: Type(\"Creature\"), from: Battlefield, to: Graveyard)"
+                "ZoneChange(what: Type(Creature), from: Battlefield, to: Graveyard)"
             };
             let source = format!(
                 "Normal(name: \"Batch Watcher\", types: [Enchantment], abilities: [\
@@ -5974,7 +5966,7 @@ mod tests {
     #[test]
     fn dies_trigger_fires_on_a_sacrifice() {
         let source = "Normal(name: \"Death Watcher\", types: [Enchantment], abilities: [\
-             Triggered(event: Dies(Type(\"Creature\")), effect: GainLife(1)),\
+             Triggered(event: Dies(Type(Creature)), effect: GainLife(1)),\
          ])";
         let card = Arc::new(
             canon()

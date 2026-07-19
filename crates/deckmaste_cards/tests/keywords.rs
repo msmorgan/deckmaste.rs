@@ -40,10 +40,10 @@ fn every_builtin_keyword_macro_expands() {
         ("Equip([Tap])", "Equip"),
         ("Fortify([Tap])", "Fortify"),
         ("Reconfigure([Tap])", "Reconfigure"),
-        ("Enchant(Type(\"Creature\"))", "Enchant"),
+        ("Enchant(Type(Creature))", "Enchant"),
         ("Protection(ColorIs(Red))", "Protection"),
         ("Crew(2)", "Crew"),
-        ("Affinity(Type(\"Artifact\"))", "Affinity"),
+        ("Affinity(Type(Artifact))", "Affinity"),
         ("Cycling([Mana([Generic(2)])])", "Cycling"),
         ("Reinforce(1, [Mana([Generic(1),Green])])", "Reinforce"),
         ("Echo([Mana([Generic(1),Green])])", "Echo"),
@@ -227,7 +227,7 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
     let plugin = builtin();
     let kw: KeywordAbility = plugin
         .macros
-        .read_str("Enchant(Type(\"Creature\"))")
+        .read_str("Enchant(Type(Creature))")
         .expect("Enchant expands");
     let KeywordAbility::Expanded(expanded) = &kw else {
         panic!("expected Expanded, got {kw:?}");
@@ -644,9 +644,7 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     };
     assert_eq!(
         filter,
-        &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature.name()
-        )),
+        &Predicate::r#type(Type::Creature),
         "reinforce targets a creature; got {filter:?}"
     );
     // Inner effect places N (= Param(0) = 2) +1/+1 counters on the target.
@@ -856,7 +854,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     assert!(
         clauses
             .iter()
-            .any(|f| matches!(f, Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) if s.as_str() == "Spirit")),
+            .any(|f| matches!(f, Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) if s.name().as_str() == "Spirit")),
         "soulshift target filters Spirit ([CR#702.46a]); got {clauses:?}"
     );
     assert!(

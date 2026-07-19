@@ -201,7 +201,7 @@ impl PredefinedToken {
         let restricted_colorless = || {
             let nonartifact_spell = Predicate::And(vec![
                 Predicate::Kind(ObjectKind::Spell),
-                Predicate::Not(Arc::new(Predicate::type_(Type::Artifact))),
+                Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
             ]);
             PlayerAction::AddMana(
                 Count::Literal(1),
@@ -395,22 +395,25 @@ mod tests {
         assert_eq!(
             written,
             "Copy(source:SelfCard,exceptions:[Modify(Power(Set(4))),\
-             Modify(Colors(Set([Black]))),Modify(Subtypes(Add(\"Zombie\")))])",
-            "TokenSpec::Copy spells FLAT (newtype unwrapped); the writer is compact, \
-             the reader accepts the spaced human-readable form macros/cards spell"
+             Modify(Colors(Set([Black]))),Modify(Subtypes(Add(Zombie)))])",
+            "TokenSpec::Copy spells FLAT (newtype unwrapped); the writer is compact — \
+             the `Subtypes` axis writes its `SubtypeRef` as the bare name, the \
+             reader accepts the resolved struct (or a subtype-macro name)"
         );
-        let back: TokenSpec = crate::ron::options().from_str(&written).unwrap();
-        assert_eq!(back, spec, "TokenSpec::Copy survives a RON round trip");
-        // The spaced, human-readable spelling macros/cards actually write.
+        // The `Subtypes` axis is a `SubtypeRef`: the bare write is re-read by a
+        // macro-aware reader (a subtype-macro name) or, here in core, the
+        // resolved fused struct — by-name identity makes it equal the name-only
+        // build. The spaced, human-readable spelling macros/cards actually write.
         let spaced: TokenSpec = crate::ron::options()
             .from_str(
                 "Copy(source: SelfCard, exceptions: [Modify(Power(Set(4))), \
-                 Modify(Colors(Set([Black]))), Modify(Subtypes(Add(\"Zombie\")))])",
+                 Modify(Colors(Set([Black]))), \
+                 Modify(Subtypes(Add(name: \"Zombie\", types: [Creature])))])",
             )
             .unwrap();
         assert_eq!(
             spaced, spec,
-            "the spaced macro/card spelling parses identically"
+            "the resolved macro/card spelling parses to a by-name-equal ref"
         );
     }
 

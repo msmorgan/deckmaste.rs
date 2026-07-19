@@ -1360,9 +1360,7 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
 #[test]
 fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
     let wither = damage_as_counters_static(
-        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        )),
+        Predicate::r#type(Type::Creature),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1467,9 +1465,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
 #[test]
 fn wither_source_puts_minus_counters_not_marked_damage() {
     let wither = damage_as_counters_static(
-        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        )),
+        Predicate::r#type(Type::Creature),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1495,9 +1491,7 @@ fn wither_source_puts_minus_counters_not_marked_damage() {
 #[test]
 fn infect_source_puts_minus_counters_on_a_creature() {
     let infect_creature = damage_as_counters_static(
-        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        )),
+        Predicate::r#type(Type::Creature),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1595,9 +1589,7 @@ fn ten_poison_counters_lose_the_game() {
 #[test]
 fn by_matcher_fires_only_for_damage_from_its_own_source() {
     let wither = damage_as_counters_static(
-        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        )),
+        Predicate::r#type(Type::Creature),
         Reference::EventObject,
         "M1M1Counter",
     );
@@ -1644,9 +1636,7 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
 #[test]
 fn event_patient_object_reads_the_damage_recipient_creature() {
     let wither = damage_as_counters_static(
-        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        )),
+        Predicate::r#type(Type::Creature),
         Reference::EventPatient,
         "M1M1Counter",
     );

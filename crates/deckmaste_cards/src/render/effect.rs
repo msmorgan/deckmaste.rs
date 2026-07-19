@@ -645,7 +645,7 @@ fn search_filter_phrase(filter: &Predicate) -> Option<String> {
     // A bare subtype atom alone ("a Forest card", "an Equipment card") — no
     // wrapping `And`/`Type` [CR#205.3m].
     if let Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) = filter {
-        return Some(a_an(&format!("{} card", s.as_str())));
+        return Some(a_an(&format!("{} card", s.name().as_str())));
     }
     let mut ty: Option<&str> = None;
     let mut supertype: Option<Supertype> = None;
@@ -653,7 +653,9 @@ fn search_filter_phrase(filter: &Predicate) -> Option<String> {
     let mut subtypes: Vec<&str> = Vec::new();
     for atom in flatten_and(filter) {
         match atom {
-            Predicate::Characteristic(CharacteristicPredicate::Type(t)) => ty = Some(t.as_str()),
+            Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
+                ty = Some(t.name().as_str());
+            }
             Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
                 supertype = Some(*s);
             }
@@ -667,14 +669,14 @@ fn search_filter_phrase(filter: &Predicate) -> Option<String> {
                 color = Some("multicolored");
             }
             Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) => {
-                subtypes.push(s.as_str());
+                subtypes.push(s.name().as_str());
             }
             Predicate::Or(members) => {
                 for m in members {
                     let Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) = m else {
                         return None;
                     };
-                    subtypes.push(s.as_str());
+                    subtypes.push(s.name().as_str());
                 }
             }
             _ => return None,
@@ -714,7 +716,9 @@ fn bare_subtype_list(members: &[Predicate]) -> Option<Vec<&str>> {
     members
         .iter()
         .map(|m| match m {
-            Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) => Some(s.as_str()),
+            Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) => {
+                Some(s.name().as_str())
+            }
             _ => None,
         })
         .collect()
@@ -861,7 +865,7 @@ fn plural_group_noun(f: &deckmaste_core::Predicate, ctx: &Ctx) -> String {
     for part in parts {
         match part {
             Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
-                noun = Some(format!("{}s", t.as_str().to_lowercase()));
+                noun = Some(format!("{}s", t.name().as_str().to_lowercase()));
             }
             Predicate::Relation(RelationPredicate::ControlledBy(who)) => {
                 if let Predicate::Ref(r) = who.as_ref() {
@@ -3166,7 +3170,6 @@ mod tests {
     /// "an other"). Distinct from the targeted bounce.
     #[test]
     fn chosen_subject_bounce_renders_its_owners_hand() {
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::Sort;
 
@@ -3193,9 +3196,7 @@ mod tests {
         };
 
         let land_you_control = Predicate::And(vec![
-            Predicate::Characteristic(CharacteristicPredicate::Type(deckmaste_core::Ident::new(
-                "Land",
-            ))),
+            Predicate::r#type(deckmaste_core::Type::Land),
             Predicate::Relation(RelationPredicate::ControlledBy(you())),
         ]);
         assert_eq!(
@@ -3487,9 +3488,7 @@ mod tests {
         };
         let basic_land = || {
             Predicate::And(vec![
-                Predicate::Characteristic(CharacteristicPredicate::Type(
-                    deckmaste_core::Ident::new("Land"),
-                )),
+                Predicate::r#type(deckmaste_core::Type::Land),
                 Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
             ])
         };
@@ -3566,7 +3565,7 @@ mod tests {
         };
         let subtype = |name: &'static str| {
             Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::Ident::new(name),
+                deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::new(name)),
             ))
         };
         let goblin = OneShotEffect::With(With {

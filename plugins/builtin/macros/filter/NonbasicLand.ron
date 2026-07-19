@@ -4,5 +4,5 @@
     name: "NonbasicLand",
     template: "nonbasic land",
     kinds: [Predicate],
-    body: And([Type("Land"), Nonbasic]),
+    body: And([Type(Land), Nonbasic]),
 )

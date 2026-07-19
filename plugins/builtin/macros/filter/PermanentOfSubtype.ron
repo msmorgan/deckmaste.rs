@@ -1,0 +1,9 @@
+// A permanent of a given subtype [CR#109.2]: the on-the-battlefield subtype
+// filter, parameterized over the subtype.
+(
+    name: "PermanentOfSubtype",
+    template: "${0}",
+    kinds: [Predicate],
+    params: [Subtype],
+    body: And([Permanent, Subtype(Param(0))]),
+)

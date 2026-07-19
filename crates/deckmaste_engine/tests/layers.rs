@@ -822,7 +822,6 @@ fn stolen_creature_attacks_for_new_controller() {
 /// A) would miss.
 #[test]
 fn dependency_orders_dependent_effect_after_its_dependency() {
-    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Duration;
     use deckmaste_core::Modification;
     use deckmaste_core::Predicate;
@@ -838,9 +837,7 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(2_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        ))),
+        scope: ScopeResolved::Floating(Predicate::r#type(Type::Creature)),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Enchantment.name(),
         ))],
@@ -853,9 +850,7 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Enchantment.name(),
-        ))),
+        scope: ScopeResolved::Floating(Predicate::r#type(Type::Enchantment)),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Artifact.name(),
         ))],
@@ -933,7 +928,6 @@ fn independent_effects_keep_timestamp_order() {
 /// enchantment (and the now-enchantment creature).
 #[test]
 fn dependency_loop_falls_back_to_timestamp() {
-    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Duration;
     use deckmaste_core::Modification;
     use deckmaste_core::Predicate;
@@ -950,9 +944,7 @@ fn dependency_loop_falls_back_to_timestamp() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Creature.name(),
-        ))),
+        scope: ScopeResolved::Floating(Predicate::r#type(Type::Creature)),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Enchantment.name(),
         ))],
@@ -965,9 +957,7 @@ fn dependency_loop_falls_back_to_timestamp() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(2_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Enchantment.name(),
-        ))),
+        scope: ScopeResolved::Floating(Predicate::r#type(Type::Enchantment)),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Creature.name(),
         ))],

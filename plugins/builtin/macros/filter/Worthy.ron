@@ -8,7 +8,7 @@
     kinds: [Predicate],
     body: And([
         Supertype(Legendary),
-        Not(Subtype("Villain")),
+        Not(Subtype(Villain)),
         Or([ColorIs(Red), ColorIs(White)]),
     ]),
 )

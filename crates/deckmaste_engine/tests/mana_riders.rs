@@ -405,7 +405,7 @@ fn spend_only_instant_cannot_fund_a_creature_spell() {
     state.player_mut(PlayerId(0)).mana_pool.add_riders(
         green(),
         1,
-        &[ManaRider::SpendOnly(Predicate::type_(Type::Instant))],
+        &[ManaRider::SpendOnly(Predicate::r#type(Type::Instant))],
     );
     state.player_mut(PlayerId(0)).mana_pool.add(red(), 1);
     // Re-derive the frozen priority list with the freshly floated pool.

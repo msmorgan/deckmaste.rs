@@ -246,10 +246,7 @@ fn spell_adjective(word: &str) -> Option<String> {
         return Some(ty);
     }
     if is_subtype(word) {
-        return Some(format!(
-            "Subtype(\"{}\")",
-            crate::ident::to_rust_ident(word)
-        ));
+        return Some(format!("Subtype({})", crate::ident::to_rust_ident(word)));
     }
     None
 }
@@ -412,7 +409,7 @@ fn strip_subtype_adjective(s: &str) -> Option<(String, &str)> {
         return None;
     }
     Some((
-        format!("Subtype(\"{}\")", crate::ident::to_rust_ident(first)),
+        format!("Subtype({})", crate::ident::to_rust_ident(first)),
         rest.trim_start(),
     ))
 }
@@ -464,11 +461,11 @@ const TYPE_NOUN_ATOMS: &[(&str, &str)] = &[
     ("permanent", "Permanent"),
     ("planeswalker", "Planeswalker"),
     ("battle", "Battle"),
-    ("artifact", "Type(\"Artifact\")"),
-    ("enchantment", "Type(\"Enchantment\")"),
-    ("land", "Type(\"Land\")"),
-    ("instant", "Type(\"Instant\")"),
-    ("sorcery", "Type(\"Sorcery\")"),
+    ("artifact", "Type(Artifact)"),
+    ("enchantment", "Type(Enchantment)"),
+    ("land", "Type(Land)"),
+    ("instant", "Type(Instant)"),
+    ("sorcery", "Type(Sorcery)"),
 ];
 
 /// The [`head_noun`] atom for a singular type-noun key, or `None` if `singular`
@@ -487,15 +484,16 @@ fn type_noun_atom(singular: &str) -> Option<&'static str> {
 pub(super) fn type_filter(singular: &str) -> Option<String> {
     let atom = type_noun_atom(singular)?;
     // The atom is either a bare predicate-macro name (`Creature`) or an already
-    // wrapped `Type("X")` form; extract the plain type name either way, then
-    // re-wrap with a QUOTED ident (`Type` filters by name, [CR#300.1]).
+    // wrapped `Type(X)` form; extract the plain type name either way, then
+    // re-wrap with a BARE ident (`Type(Creature)` — the macro-aware reader
+    // expands it; `Type` filters by name, [CR#300.1]).
     let ty = atom
-        .strip_prefix("Type(\"")
-        .and_then(|t| t.strip_suffix("\")"))
+        .strip_prefix("Type(")
+        .and_then(|t| t.strip_suffix(')'))
         .unwrap_or(atom);
     // `Permanent` has no `Type(...)` form — it is a builtin filter, not a card
     // type.
-    (ty != "Permanent").then(|| format!("Type(\"{ty}\")"))
+    (ty != "Permanent").then(|| format!("Type({ty})"))
 }
 
 /// A card-type noun (singular or plural) that can anchor a filter head:
@@ -514,7 +512,7 @@ fn strip_negation(s: &str) -> Option<(String, &str)> {
         format!("Not(ColorIs({c}))")
     } else {
         let t = type_code(stem)?;
-        format!("Not(Type(\"{t}\"))")
+        format!("Not(Type({t}))")
     };
     Some((atom, rest.trim_start()))
 }
@@ -588,7 +586,7 @@ fn head_noun(word: &str) -> Option<Vec<String>> {
     if let Some(subtype) = subtype_head(w) {
         return Some(vec![
             "Permanent".to_string(),
-            format!("Subtype(\"{}\")", crate::ident::to_rust_ident(&subtype)),
+            format!("Subtype({})", crate::ident::to_rust_ident(&subtype)),
         ]);
     }
     None
@@ -614,20 +612,14 @@ mod tests {
     fn head_nouns() {
         assert_eq!(parse_phrase("creatures").as_deref(), Some("Creature"));
         assert_eq!(parse_phrase("permanents").as_deref(), Some("Permanent"));
-        assert_eq!(
-            parse_phrase("artifacts").as_deref(),
-            Some("Type(\"Artifact\")")
-        );
+        assert_eq!(parse_phrase("artifacts").as_deref(), Some("Type(Artifact)"));
         // A bare subtype head is battlefield-scoped ([CR#109.2]) — `Permanent`,
         // the same scope the type-noun heads carry through their macros.
         assert_eq!(
             parse_phrase("Goblins").as_deref(),
-            Some("And([Permanent, Subtype(\"Goblin\")])")
+            Some("And([Permanent, Subtype(Goblin)])")
         );
-        assert_eq!(
-            parse_phrase("sorceries").as_deref(),
-            Some("Type(\"Sorcery\")")
-        );
+        assert_eq!(parse_phrase("sorceries").as_deref(), Some("Type(Sorcery)"));
     }
 
     #[test]
@@ -652,7 +644,7 @@ mod tests {
     fn prefix_adjectives() {
         assert_eq!(
             parse_phrase("other Goblins").as_deref(),
-            Some("And([Permanent, Subtype(\"Goblin\"), Not(Ref(This))])")
+            Some("And([Permanent, Subtype(Goblin), Not(Ref(This))])")
         );
         assert_eq!(
             parse_phrase("nonblack creatures").as_deref(),
@@ -689,7 +681,7 @@ mod tests {
         );
         assert_eq!(
             parse_phrase("artifacts an opponent controls").as_deref(),
-            Some("And([Type(\"Artifact\"), ControlledBy(OpponentOf(Ref(You)))])")
+            Some("And([Type(Artifact), ControlledBy(OpponentOf(Ref(You)))])")
         );
         assert_eq!(
             parse_phrase("creatures your opponents control").as_deref(),
@@ -757,7 +749,7 @@ mod tests {
         // for a subtype head, the builtin macro for a type-noun head.
         assert_eq!(
             parse_phrase("Elf on the battlefield").as_deref(),
-            Some("And([Permanent, Subtype(\"Elf\")])")
+            Some("And([Permanent, Subtype(Elf)])")
         );
         assert_eq!(
             parse_phrase("creatures on the battlefield").as_deref(),
@@ -774,25 +766,25 @@ mod tests {
         // "Elf creatures" → a creature with the Elf subtype.
         assert_eq!(
             parse_phrase("Elf creatures").as_deref(),
-            Some("And([Creature, Subtype(\"Elf\")])")
+            Some("And([Creature, Subtype(Elf)])")
         );
         // Elvish Archdruid's anthem subject.
         assert_eq!(
             parse_phrase("Other Elf creatures you control").as_deref(),
-            Some("And([Creature, Not(Ref(This)), Subtype(\"Elf\"), ControlledBy(Ref(You))])")
+            Some("And([Creature, Not(Ref(This)), Subtype(Elf), ControlledBy(Ref(You))])")
         );
         // A bare subtype head still parses as the head (not an adjective),
         // carrying the battlefield scope ([CR#109.2]).
         assert_eq!(
             parse_phrase("Goblins").as_deref(),
-            Some("And([Permanent, Subtype(\"Goblin\")])")
+            Some("And([Permanent, Subtype(Goblin)])")
         );
         // Krenko, Mob Boss / Elvish Archdruid's "you control" count: the
         // `Permanent` scope keeps the live count off the source's own on-stack
         // copy, so it no longer over-counts by one.
         assert_eq!(
             parse_phrase("Goblins you control").as_deref(),
-            Some("And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])")
+            Some("And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))])")
         );
     }
 
@@ -843,25 +835,25 @@ mod tests {
         // naive singularizer's mis-derivation (`Elve`/`Zomby`).
         assert_eq!(
             parse_phrase("Elves").as_deref(),
-            Some("And([Permanent, Subtype(\"Elf\")])")
+            Some("And([Permanent, Subtype(Elf)])")
         );
         assert_eq!(
             parse_phrase("Zombies").as_deref(),
-            Some("And([Permanent, Subtype(\"Zombie\")])")
+            Some("And([Permanent, Subtype(Zombie)])")
         );
         // A singular `-s` land type is left intact (not stripped to `Locu`).
         assert_eq!(
             parse_phrase("Locus").as_deref(),
-            Some("And([Permanent, Subtype(\"Locus\")])")
+            Some("And([Permanent, Subtype(Locus)])")
         );
         // `-ies` that is really `<stem>ie` + `s` (Faerie), and `-ies→-y` (Ally).
         assert_eq!(
             parse_phrase("Faeries").as_deref(),
-            Some("And([Permanent, Subtype(\"Faerie\")])")
+            Some("And([Permanent, Subtype(Faerie)])")
         );
         assert_eq!(
             parse_phrase("Allies").as_deref(),
-            Some("And([Permanent, Subtype(\"Ally\")])")
+            Some("And([Permanent, Subtype(Ally)])")
         );
     }
 
@@ -895,15 +887,12 @@ mod tests {
     fn type_filter_keeps_qualitys_divergent_wrapper() {
         // `quality_filter`'s view: always `Type(<T>)`, even for the nouns
         // `head_noun` renders as a bare builtin macro.
-        assert_eq!(
-            type_filter("creature").as_deref(),
-            Some("Type(\"Creature\")")
-        );
+        assert_eq!(type_filter("creature").as_deref(), Some("Type(Creature)"));
         assert_eq!(
             type_filter("planeswalker").as_deref(),
-            Some("Type(\"Planeswalker\")")
+            Some("Type(Planeswalker)")
         );
-        assert_eq!(type_filter("sorcery").as_deref(), Some("Type(\"Sorcery\")"));
+        assert_eq!(type_filter("sorcery").as_deref(), Some("Type(Sorcery)"));
         // `permanent` is a builtin filter, not a card type — no `Type(...)` form.
         assert_eq!(type_filter("permanent"), None);
         assert_eq!(type_filter("goblin"), None);

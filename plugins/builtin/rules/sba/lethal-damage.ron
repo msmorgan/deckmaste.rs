@@ -6,7 +6,7 @@
 // Battlefield → Graveyard move); the Act commits it atomically on apply.
 [
     SbaRule(
-        scope: Type("Creature"),
+        scope: Type(Creature),
         when: And([
             Compare(StatOf(This, Toughness), Greater, 0),
             Or([

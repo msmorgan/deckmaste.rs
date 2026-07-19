@@ -463,7 +463,7 @@ fn split_at_spell(body: &str) -> Option<(&str, Option<&str>)> {
 /// doesn't carry).
 fn descriptor_atoms(descriptor: &str) -> Option<Vec<String>> {
     if descriptor == "noncreature" {
-        return Some(vec!["Not(Type(\"Creature\"))".to_owned()]);
+        return Some(vec!["Not(Type(Creature))".to_owned()]);
     }
     if descriptor.contains(" or ") {
         return disjunction_atom(descriptor).map(|atom| vec![atom]);
@@ -472,7 +472,7 @@ fn descriptor_atoms(descriptor: &str) -> Option<Vec<String>> {
         return None;
     }
     let atom = filter::type_filter(&filter::singularize(descriptor).to_ascii_lowercase())
-        .unwrap_or_else(|| format!("Subtype(\"{}\")", crate::ident::to_rust_ident(descriptor)));
+        .unwrap_or_else(|| format!("Subtype({})", crate::ident::to_rust_ident(descriptor)));
     Some(vec![atom])
 }
 
@@ -503,7 +503,7 @@ fn disjunction_atom(descriptor: &str) -> Option<String> {
     }
     (filter::is_subtype(a) && filter::is_subtype(b)).then(|| {
         format!(
-            "Or([Subtype(\"{}\"), Subtype(\"{}\")])",
+            "Or([Subtype({}), Subtype({})])",
             crate::ident::to_rust_ident(a),
             crate::ident::to_rust_ident(b)
         )
@@ -690,9 +690,7 @@ mod tests {
         // subject is entering the battlefield).
         assert_eq!(
             trig("Whenever a Goblin enters, draw a card.").as_deref(),
-            Some(
-                "Triggered(event: Enters(And([Permanent, Subtype(\"Goblin\")])), effect: Draw(1))"
-            )
+            Some("Triggered(event: Enters(And([Permanent, Subtype(Goblin)])), effect: Draw(1))")
         );
     }
 
@@ -812,7 +810,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Or([Type(\"Instant\"), Type(\"Sorcery\")])])), \
+                 what: And([Kind(Spell), Or([Type(Instant), Type(Sorcery)])])), \
                  limits: [OncePerTurn], effect: Draw(1))"
             )
         );
@@ -870,7 +868,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: ThisAttacks, effect: Continuously(effect: Modify(This, \
-                 Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(\"Goblin\"), Not(Ref(This)), Attacking]))))), \
+                 Several([Power(Up(CountOf(Objects(And([Permanent, Subtype(Goblin), Not(Ref(This)), Attacking]))))), \
                  Toughness(Up(0))])), duration: FixedUntil(EndOfTurn)))"
             )
         );
@@ -888,7 +886,7 @@ mod tests {
             trig("Whenever ~ attacks, you gain 1 life for each attacking Elf you control.")
                 .as_deref(),
             Some(
-                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(Objects(And([Permanent, Subtype(\"Elf\"), \
+                "Triggered(event: ThisAttacks, effect: GainLife(CountOf(Objects(And([Permanent, Subtype(Elf), \
                  Attacking, ControlledBy(Ref(You))])))))"
             )
         );
@@ -1014,7 +1012,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Subtype(\"Elf\")])), \
+                 what: And([Kind(Spell), Subtype(Elf)])), \
                  effect: May(effect: Create(1, Token(color_indicator: [Green], types: [Creature], \
                  subtypes: [Elf, Warrior], power: 1, toughness: 1))))"
             )
@@ -1044,7 +1042,7 @@ mod tests {
         assert_eq!(
             trig("Whenever you cast a creature spell, draw a card.").as_deref(),
             Some(
-                "Triggered(event: Cast(who: Ref(You), what: And([Kind(Spell), Type(\"Creature\")])), \
+                "Triggered(event: Cast(who: Ref(You), what: And([Kind(Spell), Type(Creature)])), \
                  effect: Draw(1))"
             )
         );
@@ -1056,7 +1054,7 @@ mod tests {
             trig("Whenever you cast an instant or sorcery spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Or([Type(\"Instant\"), Type(\"Sorcery\")])])), \
+                 what: And([Kind(Spell), Or([Type(Instant), Type(Sorcery)])])), \
                  effect: Draw(1))"
             )
         );
@@ -1068,7 +1066,7 @@ mod tests {
             trig("Whenever you cast a noncreature spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Not(Type(\"Creature\"))])), \
+                 what: And([Kind(Spell), Not(Type(Creature))])), \
                  effect: Draw(1))"
             )
         );
@@ -1103,7 +1101,7 @@ mod tests {
             trig("Whenever you cast a creature or planeswalker spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Or([Type(\"Creature\"), Type(\"Planeswalker\")])])), \
+                 what: And([Kind(Spell), Or([Type(Creature), Type(Planeswalker)])])), \
                  effect: Draw(1))"
             )
         );
@@ -1116,7 +1114,7 @@ mod tests {
             trig("Whenever a player casts a creature spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: Player, \
-                 what: And([Kind(Spell), Type(\"Creature\")])), \
+                 what: And([Kind(Spell), Type(Creature)])), \
                  effect: Draw(1))"
             )
         );
@@ -1149,7 +1147,7 @@ mod tests {
             trig("Whenever you cast a Spirit or Arcane spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Or([Subtype(\"Spirit\"), Subtype(\"Arcane\")])])), \
+                 what: And([Kind(Spell), Or([Subtype(Spirit), Subtype(Arcane)])])), \
                  effect: Draw(1))"
             )
         );
@@ -1176,7 +1174,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(event: Cast(who: Ref(You), \
-                 what: And([Kind(Spell), Type(\"Creature\"), Stat(ManaValue, AtMost, 3)])), \
+                 what: And([Kind(Spell), Type(Creature), Stat(ManaValue, AtMost, 3)])), \
                  effect: Draw(1))"
             )
         );
@@ -1201,7 +1199,7 @@ mod tests {
             trig("Whenever an opponent casts a creature spell, draw a card.").as_deref(),
             Some(
                 "Triggered(event: Cast(who: OpponentOf(Ref(You)), \
-                 what: And([Kind(Spell), Type(\"Creature\")])), \
+                 what: And([Kind(Spell), Type(Creature)])), \
                  effect: Draw(1))"
             )
         );
@@ -1312,7 +1310,7 @@ mod tests {
             )
             .as_deref(),
             Some(
-                "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: EachPlayers), effect: Each(binder: Choose(quantity: Exactly(CounterCount(This, FadeCounter)), filter: And([Permanent, Or([Type(\"Artifact\"), Type(\"Creature\"), Type(\"Land\")]), ControlledBy(Ref(EventActor)), Not(Status(Tapped))]), by: EventActor), effect: By(EventActor, Tap(It))))"
+                "Triggered(event: StepBegins(at: Beginning(Upkeep), whose: EachPlayers), effect: Each(binder: Choose(quantity: Exactly(CounterCount(This, FadeCounter)), filter: And([Permanent, Or([Type(Artifact), Type(Creature), Type(Land)]), ControlledBy(Ref(EventActor)), Not(Status(Tapped))]), by: EventActor), effect: By(EventActor, Tap(It))))"
             )
         );
     }
@@ -1365,7 +1363,7 @@ mod tests {
                 .as_deref(),
             Some(
                 "Triggered(ability_word: \"Landfall\", \
-                 event: Enters(And([Type(\"Land\"), ControlledBy(Ref(You))])), \
+                 event: Enters(And([Type(Land), ControlledBy(Ref(You))])), \
                  effect: Continuously(effect: Modify(This, \
                  Several([Power(Up(2)), Toughness(Up(2))])), duration: FixedUntil(EndOfTurn)))"
             )
@@ -1381,7 +1379,7 @@ mod tests {
             .as_deref(),
             Some(
                 "Triggered(ability_word: \"Landfall\", \
-                 event: Enters(And([Type(\"Land\"), ControlledBy(Ref(You))])), \
+                 event: Enters(And([Type(Land), ControlledBy(Ref(You))])), \
                  effect: PutCounters(This, P1P1Counter, 1))"
             )
         );

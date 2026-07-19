@@ -67,7 +67,7 @@ mod tests {
             "protection from black"
         );
         assert_eq!(
-            keyword_name(&kw("Enchant(Type(\"Creature\"))")),
+            keyword_name(&kw("Enchant(Type(Creature))")),
             "enchant creature"
         );
     }

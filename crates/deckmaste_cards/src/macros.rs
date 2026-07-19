@@ -111,6 +111,11 @@ pub fn param_types() -> ParamTypeSet {
     param_types.add_typed::<dc::StaticEffect>("StaticEffect");
     param_types.add_typed::<dc::TargetSpec>("TargetSpec");
     param_types.add_typed::<dc::Subtype>("Subtype");
+    // The card-TYPE arg of the `PermanentOfType(T)` / bare `Type(T)` filter
+    // forms — a `TypeDef`-kind macro name (`Creature`), validated by reading it
+    // as a `TypeDef` with macros in scope (an undeclared type is rejected at the
+    // call site).
+    param_types.add_typed::<dc::TypeDef>("TypeDef");
     param_types.add_typed::<dc::Zone>("Zone");
     param_types.add_typed::<dc::strategy::Preference>("Preference");
     // A plain non-negative literal number (`PayEnergy(2)`) — distinct from the
@@ -235,7 +240,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "AnyTargetish",
                     kinds: [Predicate],
-                    body: Or([Kind(Player), And([InZone(Battlefield), Type("Creature")])]),
+                    body: Or([Kind(Player), And([InZone(Battlefield), Type(name:"Creature",permanent:true)])]),
                 )"#))
             .unwrap();
         let filter: Predicate = macros.read_str("AnyTargetish").unwrap();
@@ -470,7 +475,7 @@ mod tests {
         use deckmaste_core::NumericOp;
 
         let macros = builtin().macros;
-        let pred_src = r#"And([Permanent,Type("Creature"),ControlledBy(Ref(You))])"#;
+        let pred_src = r"And([Permanent,Type(Creature),ControlledBy(Ref(You))])";
         // Expanded, matching how `m.expand_all()` below normalizes the SAME
         // predicate nested inside the macro's own `Param(0)` substitution
         // (`Permanent` is itself a macro; both sides must reduce it away).
@@ -513,7 +518,7 @@ mod tests {
         use deckmaste_core::NumericOp;
 
         let macros = builtin().macros;
-        let pred_src = r#"And([Permanent,Type("Creature"),ControlledBy(Ref(You))])"#;
+        let pred_src = r"And([Permanent,Type(Creature),ControlledBy(Ref(You))])";
         // Expanded, matching how `m.expand_all()` below normalizes the SAME
         // predicate nested inside the macro's own `Param(0)` substitution
         // (`Permanent` is itself a macro; both sides must reduce it away).
@@ -540,7 +545,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "EachCreature",
                     kinds: [Selection],
-                    body: SelectAll(Type("Creature")),
+                    body: SelectAll(Type(name:"Creature",permanent:true)),
                 )"#))
             .unwrap();
         let selection: Selection = macros.read_str("EachCreature").unwrap();
@@ -550,9 +555,7 @@ mod tests {
         assert_eq!(expanded.name, "EachCreature");
         assert_eq!(
             *expanded.value,
-            Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Creature.name()
-            )))
+            Selection::SelectAll(Predicate::r#type(Type::Creature))
         );
     }
 
@@ -830,7 +833,7 @@ mod tests {
             .insert(&def(r#"(
                     name: "TargetCreature",
                     kinds: [TargetSpec],
-                    body: Target(Range(1, 1), Type("Creature")),
+                    body: Target(Range(1, 1), Type(name:"Creature",permanent:true)),
                 )"#))
             .unwrap();
         let spec: TargetSpec = macros.read_str("TargetCreature").unwrap();
@@ -903,11 +906,20 @@ mod tests {
                     body: Static(Cant(Attack(by: Ref(This)))),
                 )"#))
             .unwrap();
+        // A `TypeDef`-kind macro the parameterized `OfType` forwards its bare
+        // argument into — the arg is validated and expanded as a real type.
+        macros
+            .insert(&def(r#"(
+                    name: "Creature",
+                    kinds: [TypeDef],
+                    body: TypeDef(name: "Creature", permanent: true),
+                )"#))
+            .unwrap();
         macros
             .insert(&def(r#"(
                     name: "OfType",
                     kinds: [Predicate],
-                    params: [Any],
+                    params: [TypeDef],
                     body: Type(Param(0)),
                 )"#))
             .unwrap();
@@ -918,10 +930,41 @@ mod tests {
             "Flying"
         );
 
-        let filter: Predicate = macros.read_str("OfType(\"Creature\")").unwrap();
+        // The parameterized Predicate macro round-trips to its call text — the
+        // bare type name, not the expanded struct.
+        let filter: Predicate = macros.read_str("OfType(Creature)").unwrap();
         assert_eq!(
             deckmaste_core::ron::options().to_string(&filter).unwrap(),
-            "OfType(\"Creature\")"
+            "OfType(Creature)"
+        );
+    }
+
+    /// The macro-aware reader expands a bare card-TYPE name and a bare builtin
+    /// SUBTYPE name at a `Predicate` filter position to the resolved-def filter
+    /// (`TypeRef`/`SubtypeRef`, keyed by name); an undeclared name has no macro
+    /// and fails to parse — the load-time validation, for free.
+    #[test]
+    fn bare_type_and_subtype_names_expand_at_filter_positions() {
+        let macros = builtin().macros;
+
+        // A bare card type expands to the resolved `TypeRef` filter, equal by
+        // name to the structural `Predicate::r#type` helper.
+        let creature: Predicate = macros.read_str("Type(Creature)").unwrap();
+        assert_eq!(creature, Predicate::r#type(Type::Creature));
+
+        // A bare builtin subtype (`Zombie`, a `CreatureType` meta invocation)
+        // expands to the resolved `SubtypeRef` filter, keyed on its name.
+        let zombie: Predicate = macros.read_str("Subtype(Zombie)").unwrap();
+        let Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) = &zombie else {
+            panic!("expected a Subtype ref, got {zombie:?}");
+        };
+        assert_eq!(s.name().as_str(), "Zombie");
+
+        // An undeclared subtype has no macro — parse fails.
+        assert!(
+            macros
+                .read_str::<Predicate>("Subtype(SomeBogusName)")
+                .is_err()
         );
     }
 

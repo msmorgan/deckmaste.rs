@@ -8,7 +8,7 @@
     template: "creatures you control have total power 8 or greater",
     kinds: [Condition],
     body: Compare(
-        Aggregate(SumOf, (of: Objects(And([InZone(Battlefield), Type("Creature"), ControlledBy(Ref(You))])), by: StatOf(It, Power))),
+        Aggregate(SumOf, (of: Objects(And([InZone(Battlefield), Type(Creature), ControlledBy(Ref(You))])), by: StatOf(It, Power))),
         AtLeast,
         8,
     ),

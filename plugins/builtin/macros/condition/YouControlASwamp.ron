@@ -5,5 +5,5 @@
     name: "YouControlASwamp",
     template: "you control a Swamp",
     kinds: [Condition],
-    body: Exists(And([InZone(Battlefield), Subtype("Swamp"), ControlledBy(Ref(You))])),
+    body: Exists(And([InZone(Battlefield), Subtype(Swamp), ControlledBy(Ref(You))])),
 )

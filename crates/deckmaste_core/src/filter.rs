@@ -45,14 +45,22 @@ pub enum ObjectKind {
 }
 
 /// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
-/// object. `Type`/`Subtype`/`Named`/`Has` filter by *name* — validating that
-/// the name is declared is a lint, not a parse concern. `Type` carries a bare
-/// [`Ident`] (matched by name against the expanded `TypeDef`s, like `Subtype`),
-/// so an open plugin-declared type is filterable without a closed enum variant.
+/// object. `Type`/`Subtype` carry the RESOLVED def (`Arc<TypeDef>` /
+/// `Arc<Subtype>`) — the macro-aware reader expands the bare name
+/// (`Type(Creature)`, `Subtype(Vampire)`) to the full struct before core
+/// deserializes it, so an undeclared name has no macro to expand and fails at
+/// parse (validation for free). Open, plugin-declared types/subtypes stay
+/// filterable — the def is data, not a closed enum. Matching keys on `.name`.
+///
+/// Equality is by name: [`TypeDef`](crate::TypeDef)/[`Subtype`](crate::Subtype)
+/// compare by their `name` (they always resolve from the one macro of that
+/// name), so the derived `PartialEq`/`Hash` here are name-based for
+/// `Type`/`Subtype` for free, and a registry-less [`Predicate::r#type`] helper
+/// compares equal to a full parse-built filter.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CharacteristicPredicate {
-    Type(Ident),
-    Subtype(Ident),
+    Type(crate::TypeRef),
+    Subtype(crate::SubtypeRef),
     Supertype(Supertype),
     /// The object is the given color ([CR#105.2,202.2]).
     ColorIs(Color),
@@ -247,15 +255,17 @@ impl Predicate {
     /// Matches objects of a single card type ([CR#109.3]) — the flat
     /// `Type(t)` atom, spelled without its `Characteristic` compartment.
     #[must_use]
-    pub fn type_(t: Type) -> Predicate {
-        Predicate::Characteristic(CharacteristicPredicate::Type(t.name()))
+    pub fn r#type(t: Type) -> Predicate {
+        Predicate::Characteristic(CharacteristicPredicate::Type(crate::TypeRef(Arc::new(
+            t.def(),
+        ))))
     }
 
-    /// Matches creatures — [`Predicate::type_`] for [`Type::Creature`], the
+    /// Matches creatures — [`Predicate::r#type`] for [`Type::Creature`], the
     /// most common typed filter across the card base.
     #[must_use]
     pub fn creature() -> Predicate {
-        Predicate::type_(Type::Creature)
+        Predicate::r#type(Type::Creature)
     }
 
     /// Whether this filter is exactly the self-reference (`Ref(This)`) — the
@@ -363,16 +373,55 @@ mod tests {
         crate::ron::options().from_str(source).unwrap()
     }
 
+    /// PROOF (mechanism): a bare `Type(Creature)` macro-expands to the resolved
+    /// `TypeRef` through a real `MacroSet` — both at top level and forwarded
+    /// through a macro frame (`Type(Param(0))`). `TypeRef` delegates
+    /// Deserialize to `Arc<TypeDef>`'s `deserialize_struct` channel, and
+    /// the macro layer intercepts a struct position hosting `TypeDef`-kind
+    /// macros even under the newtype-variant `SkipStructs` mode, so the
+    /// bare name fires. An undeclared name fails to parse.
+    #[test]
+    fn bare_type_name_expands_through_macro_set() {
+        let mut macros =
+            macro_ron::MacroSet::new(crate::ron::kinds()).with_options(crate::ron::raw_options());
+        let def: macro_ron::MacroDef = crate::ron::options()
+            .from_str(
+                r#"(name: "Creature", kinds: [TypeDef], body: TypeDef(name: "Creature", permanent: true))"#,
+            )
+            .unwrap();
+        macros.insert(&def).unwrap();
+
+        let filter: Predicate = macros.read_str("Type(Creature)").unwrap();
+        assert_eq!(filter, Predicate::r#type(Type::Creature));
+        // The resolved def rode along in the Arc.
+        let Predicate::Characteristic(CharacteristicPredicate::Type(tref)) = &filter else {
+            panic!("expected a Type ref, got {filter:?}");
+        };
+        assert_eq!(tref.name(), Type::Creature.name());
+
+        // An undeclared name has no macro — parse fails (validation for free).
+        assert!(macros.read_str::<Predicate>("Type(Bogus)").is_err());
+
+        // IN-FRAME: a `Type(Param(0))` body forwarding a bare type name through a
+        // parameterized macro's expansion frame must expand identically.
+        let permof: macro_ron::MacroDef = crate::ron::options()
+            .from_str(
+                r#"(name: "PermOfType", kinds: [Predicate], params: [Any], body: And([Type(Param(0))]))"#,
+            )
+            .unwrap();
+        macros.insert(&permof).unwrap();
+        let framed: Predicate = macros.read_str("PermOfType(Creature)").unwrap();
+        assert_eq!(
+            crate::Expand::expand_all(framed),
+            Predicate::And(vec![Predicate::r#type(Type::Creature)])
+        );
+    }
+
     #[test]
     fn atoms_read_flat() {
-        assert_eq!(
-            read("Type(\"Creature\")"),
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
-        );
-        assert_eq!(
-            read(r#"Subtype("Forest")"#),
-            Predicate::Characteristic(CharacteristicPredicate::Subtype("Forest".into())),
-        );
+        // `Type`/`Subtype` now carry a resolved def (`Arc<…>`); their flat read
+        // is covered by `type_and_subtype_carry_resolved_def` (struct form) and
+        // the macro-aware bare-name test in `deckmaste_cards`.
         assert_eq!(
             read("Supertype(Basic)"),
             Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
@@ -384,6 +433,42 @@ mod tests {
         assert_eq!(read("Kind(Player)"), Predicate::Kind(ObjectKind::Player));
         assert_eq!(read("Kind(Ability)"), Predicate::Kind(ObjectKind::Ability));
         assert_eq!(read("Any"), Predicate::Any);
+    }
+
+    /// `Type`/`Subtype` filter atoms carry the RESOLVED def (`Arc<TypeDef>` /
+    /// `Arc<Subtype>`), not a bare name — the macro-aware reader expands
+    /// `Type(Creature)` / `Subtype(Vampire)` to the full struct before core
+    /// deserializes it (core here reads the post-expansion struct directly).
+    #[test]
+    fn type_and_subtype_carry_resolved_def() {
+        use crate::Subtype;
+        use crate::SubtypeRef;
+        use crate::TypeDef;
+        use crate::TypeRef;
+        assert_eq!(
+            read("Type(name:\"Creature\",permanent:true)"),
+            Predicate::Characteristic(CharacteristicPredicate::Type(TypeRef(Arc::new(TypeDef {
+                name: "Creature".into(),
+                permanent: true,
+                confers: vec![],
+            })))),
+        );
+        // By-name eq: the structural helper (empty `confers`) equals the parsed
+        // ref regardless of the payload the Arc carries.
+        assert_eq!(
+            read("Type(name:\"Creature\",permanent:true)"),
+            Predicate::r#type(Type::Creature)
+        );
+        assert_eq!(
+            read("Subtype(name:\"Vampire\",types:[Creature])"),
+            Predicate::Characteristic(CharacteristicPredicate::Subtype(SubtypeRef(Arc::new(
+                Subtype {
+                    name: "Vampire".into(),
+                    types: vec![Type::Creature],
+                    confers: vec![],
+                }
+            )))),
+        );
     }
 
     /// The team-relative player relation `TeammateOf` reads flat alongside its
@@ -459,26 +544,28 @@ mod tests {
             read("WasCastWith(Flashback)"),
             Predicate::State(StatePredicate::WasCastWith("Flashback".into())),
         );
+        // The inner `Type(..)` filter is spelled as the resolved struct here —
+        // the macro-less core reader can't expand the bare `Type(Creature)`
+        // name (covered in the macro-aware `deckmaste_cards` test); by-name eq
+        // matches the `Predicate::r#type` helper regardless.
         assert_eq!(
-            read(r#"RelatedBy("PairedWith", Type("Creature"))"#),
+            read(r#"RelatedBy("PairedWith", Type(name:"Creature",permanent:true))"#),
             Predicate::State(StatePredicate::RelatedBy(
                 "PairedWith".into(),
-                Arc::new(Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.name()
-                ))),
+                Arc::new(Predicate::r#type(Type::Creature)),
             )),
         );
         assert_eq!(
-            read("AttachedTo(Type(\"Creature\"))"),
-            Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()),)
-            ))),
+            read("AttachedTo(Type(name:\"Creature\",permanent:true))"),
+            Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(Predicate::r#type(
+                Type::Creature
+            )))),
         );
         assert_eq!(
-            read("Attachment(Type(\"Enchantment\"))"),
-            Predicate::Relation(RelationPredicate::Attachment(Arc::new(
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Enchantment.name()),)
-            ))),
+            read("Attachment(Type(name:\"Enchantment\",permanent:true))"),
+            Predicate::Relation(RelationPredicate::Attachment(Arc::new(Predicate::r#type(
+                Type::Enchantment
+            )))),
         );
         assert_eq!(
             // "milled" — [CR#701.17a].
@@ -552,10 +639,10 @@ mod tests {
     #[test]
     fn combinators_nest() {
         assert_eq!(
-            read("And([InZone(Battlefield), Type(\"Creature\")])"),
+            read("And([InZone(Battlefield), Type(name:\"Creature\",permanent:true)])"),
             Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                Predicate::r#type(Type::Creature),
             ]),
         );
         assert_eq!(
@@ -574,10 +661,10 @@ mod tests {
             )))),
         );
         assert_eq!(
-            read("Controls(Type(\"Land\"))"),
-            Predicate::Relation(RelationPredicate::Controls(Arc::new(
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land.name()))
-            ))),
+            read("Controls(Type(name:\"Land\",permanent:true))"),
+            Predicate::Relation(RelationPredicate::Controls(Arc::new(Predicate::r#type(
+                Type::Land
+            )))),
         );
     }
 
@@ -585,11 +672,12 @@ mod tests {
     /// RON stays flat.
     #[test]
     fn serialization_stays_flat() {
-        let filter =
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
+        // The filter channel writes the type by its BARE name, never the full
+        // struct — `Type(Creature)`, not `Type(name:"Creature",...)`.
+        let filter = Predicate::r#type(Type::Creature);
         assert_eq!(
             crate::ron::options().to_string(&filter).unwrap(),
-            "Type(\"Creature\")"
+            "Type(Creature)"
         );
     }
 
@@ -606,44 +694,50 @@ mod tests {
     /// collapses a singleton combinator to its element.
     #[test]
     fn normalize_flattens_and_collapses_combinators() {
-        // Associativity: And([And([a, b]), c]) → And([a, b, c]).
-        let nested = read("And([And([Type(\"Creature\"), Type(\"Land\")]), InZone(Battlefield)])");
+        // Associativity: And([And([a, b]), c]) → And([a, b, c]). The leaf atoms
+        // are `Supertype(..)` (core-readable, round-trippable) — the flattening
+        // is atom-agnostic, and the bare `Type(..)` filter can't round-trip
+        // through the macro-less core reader.
+        let nested =
+            read("And([And([Supertype(Basic), Supertype(Legendary)]), InZone(Battlefield)])");
         assert_eq!(
             nested.clone().normalize(),
-            read("And([Type(\"Creature\"), Type(\"Land\"), InZone(Battlefield)])"),
+            read("And([Supertype(Basic), Supertype(Legendary), InZone(Battlefield)])"),
         );
 
         // Same for Or.
-        let nested_or = read("Or([Or([Type(\"Creature\"), Type(\"Land\")]), InZone(Battlefield)])");
+        let nested_or =
+            read("Or([Or([Supertype(Basic), Supertype(Legendary)]), InZone(Battlefield)])");
         assert_eq!(
             nested_or.normalize(),
-            read("Or([Type(\"Creature\"), Type(\"Land\"), InZone(Battlefield)])"),
+            read("Or([Supertype(Basic), Supertype(Legendary), InZone(Battlefield)])"),
         );
 
         // Singleton collapse: And([x]) → x, Or([x]) → x.
         assert_eq!(
-            read("And([Type(\"Creature\")])").normalize(),
-            read("Type(\"Creature\")")
+            read("And([Supertype(Basic)])").normalize(),
+            read("Supertype(Basic)")
         );
         assert_eq!(
-            read("Or([Type(\"Creature\")])").normalize(),
-            read("Type(\"Creature\")")
+            read("Or([Supertype(Basic)])").normalize(),
+            read("Supertype(Basic)")
         );
 
         // Nested singletons collapse from the inside out.
         assert_eq!(
-            read("And([And([Type(\"Creature\")])])").normalize(),
-            read("Type(\"Creature\")")
+            read("And([And([Supertype(Basic)])])").normalize(),
+            read("Supertype(Basic)")
         );
 
         // A combinator under a compartment filter is normalized too.
         assert_eq!(
-            read("ControlledBy(And([Type(\"Creature\")]))").normalize(),
-            read("ControlledBy(Type(\"Creature\"))"),
+            read("ControlledBy(And([Supertype(Basic)]))").normalize(),
+            read("ControlledBy(Supertype(Basic))"),
         );
 
         // Distinct combinators are NOT merged (Or inside And stays).
-        let mixed = read("And([Or([Type(\"Creature\"), Type(\"Land\")]), InZone(Battlefield)])");
+        let mixed =
+            read("And([Or([Supertype(Basic), Supertype(Legendary)]), InZone(Battlefield)])");
         assert_eq!(
             mixed.clone().normalize(),
             mixed,
@@ -665,16 +759,18 @@ mod tests {
             "Owner(Kind(Player))",
             "OpponentOf(Kind(Player))",
             "TeammateOf(Kind(Player))",
-            "AttachedTo(Type(\"Creature\"))",
-            "Attachment(Type(\"Enchantment\"))",
+            // The inner filters avoid `Type`/`Subtype`: their bare-name write
+            // form doesn't round-trip through the macro-less core reader (that
+            // round-trip is covered in the macro-aware `deckmaste_cards` test).
+            "AttachedTo(InZone(Battlefield))",
+            "Attachment(Supertype(Basic))",
             "InZone(Battlefield)",
             "Status(Tapped)",
             "HasCounter(P1P1Counter)",
             "WasPaidWith(Kicker)",
             "WasCastWith(Flashback)",
             r#"Designated("Monstrous")"#,
-            r#"RelatedBy("PairedWith", Type("Creature"))"#,
-            r#"Subtype("Forest")"#,
+            r#"RelatedBy("PairedWith", InZone(Battlefield))"#,
             "Supertype(Basic)",
             "ColorIs(Green)",
             r#"Named("Forest")"#,

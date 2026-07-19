@@ -5,5 +5,5 @@
     name: "YouControlThreeOrMoreArtifacts",
     template: "you control three or more artifacts",
     kinds: [Condition],
-    body: Compare(CountOf(Objects(And([InZone(Battlefield), Type("Artifact"), ControlledBy(Ref(You))]))), AtLeast, 3),
+    body: Compare(CountOf(Objects(And([InZone(Battlefield), Type(Artifact), ControlledBy(Ref(You))]))), AtLeast, 3),
 )

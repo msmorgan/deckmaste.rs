@@ -157,7 +157,9 @@ pub fn matches_with(
     }
     match filter {
         Predicate::Kind(k) => object_kind(state, id) == *k,
-        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => has_type(state, id, *t),
+        Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
+            has_type(state, id, t.name())
+        }
         // [CR#110.5a]: state, not characteristic — card/token objects only, so a
         // player proxy (zone None) never matches InZone.
         Predicate::State(StatePredicate::InZone(z)) => state.objects.obj(id).zone == Some(*z),
@@ -230,7 +232,7 @@ pub fn matches_with(
                     .get(id)
                     .subtypes
                     .iter()
-                    .any(|s| s.name == *name)
+                    .any(|s| s.name == name.name())
         }
         // [CR#122.1] counters go on objects AND players — player counters
         // live on the player's proxy object, so one LIVE read serves both.
@@ -789,9 +791,7 @@ mod tests {
                 matches(
                     &state,
                     o,
-                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        deckmaste_core::Type::Creature.name(),
-                    )),
+                    &Predicate::r#type(deckmaste_core::Type::Creature),
                 )
             })
             .expect("a Grizzly Bears in the opening hand (10-card mono deck)");
@@ -829,15 +829,7 @@ mod tests {
         // Force a Forest from player 1's hand onto the battlefield.
         let land = *state.zones.hands[1]
             .iter()
-            .find(|&&o| {
-                matches(
-                    &state,
-                    o,
-                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        deckmaste_core::Type::Land.name(),
-                    )),
-                )
-            })
+            .find(|&&o| matches(&state, o, &Predicate::r#type(deckmaste_core::Type::Land)))
             .expect("a Forest in the opening hand (10-card mono deck)");
         state.remove_from_hand(PlayerId(1), land);
         state.objects.obj_mut(land).zone = Some(Zone::Battlefield);
@@ -861,9 +853,7 @@ mod tests {
         use crate::object::Timestamp;
 
         let (mut state, land) = game_with_a_forest_on_the_field();
-        let creature = Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            deckmaste_core::Type::Creature.name(),
-        ));
+        let creature = Predicate::r#type(deckmaste_core::Type::Creature);
         // Sanity: a plain Forest is not a creature.
         assert!(
             !matches(&state, land, &creature),
@@ -1276,7 +1266,7 @@ mod tests {
         let p0 = state.players[0].object;
         let p1 = state.players[1].object;
         let f = Predicate::Relation(RelationPredicate::Controls(Arc::new(cf(CF::Type(
-            Type::Creature.name(),
+            Type::Creature.into(),
         )))));
         assert!(matches(&state, p0, &f)); // P0 controls the bear
         assert!(!matches(&state, p1, &f)); // P1 controls no creature
@@ -1420,10 +1410,10 @@ mod tests {
     fn targets_reads_a_stack_objects_chosen_targets() {
         let (state, spell, bear) = spell_targeting_bear();
         let targets_creature = Predicate::State(StatePredicate::Targets(Arc::new(cf(CF::Type(
-            Type::Creature.name(),
+            Type::Creature.into(),
         )))));
         let targets_land = Predicate::State(StatePredicate::Targets(Arc::new(cf(CF::Type(
-            Type::Land.name(),
+            Type::Land.into(),
         )))));
         assert!(matches(&state, spell, &targets_creature));
         assert!(!matches(&state, spell, &targets_land));
@@ -1437,7 +1427,7 @@ mod tests {
     fn targets_ignores_a_departed_target() {
         let (mut state, spell, bear) = spell_targeting_bear();
         let targets_creature = Predicate::State(StatePredicate::Targets(Arc::new(cf(CF::Type(
-            Type::Creature.name(),
+            Type::Creature.into(),
         )))));
         assert!(matches(&state, spell, &targets_creature));
         // The bear leaves — its id is now stale on the stack entry.
@@ -1496,7 +1486,7 @@ mod tests {
         // A second Grizzly Bears on the field plays the attachment `a`.
         let a = *state.zones.hands[0]
             .iter()
-            .find(|&&o| matches(&state, o, &cf(CF::Type(Type::Creature.name()))))
+            .find(|&&o| matches(&state, o, &cf(CF::Type(Type::Creature.into()))))
             .expect("a second Grizzly Bears in the opening hand");
         state.remove_from_hand(PlayerId(0), a);
         state.objects.obj_mut(a).zone = Some(Zone::Battlefield);
@@ -1504,7 +1494,7 @@ mod tests {
         state.objects.obj_mut(a).attached_to = Some(b);
 
         let attached_to_creature = Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(
-            cf(CF::Type(Type::Creature.name())),
+            cf(CF::Type(Type::Creature.into())),
         )));
         let has_any_attachment =
             Predicate::Relation(RelationPredicate::Attachment(Arc::new(Predicate::Any)));
@@ -1552,9 +1542,7 @@ mod tests {
             subtypes: std::collections::HashMap::new(),
             types: std::collections::HashMap::new(),
         });
-        let creature = Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            deckmaste_core::Type::Creature.name(),
-        ));
+        let creature = Predicate::r#type(deckmaste_core::Type::Creature);
         let bear = *state.zones.hands[0]
             .iter()
             .find(|&&o| matches(&state, o, &creature))

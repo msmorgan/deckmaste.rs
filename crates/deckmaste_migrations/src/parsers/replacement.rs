@@ -356,10 +356,7 @@ fn subtype_atom(word: &str) -> Option<String> {
     if word.is_empty() || word.contains(' ') || !filter::is_subtype(word) {
         return None;
     }
-    Some(format!(
-        "Subtype(\"{}\")",
-        crate::ident::to_rust_ident(word)
-    ))
+    Some(format!("Subtype({})", crate::ident::to_rust_ident(word)))
 }
 
 #[cfg(test)]
@@ -537,7 +534,7 @@ mod tests {
             rep("~ enters tapped unless you control two or more other lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(\"Land\"), Not(Ref(This)), \
+                    "Compare(CountOf(Objects(And([Type(Land), Not(Ref(This)), \
                      ControlledBy(Ref(You))]))), AtLeast, 2)"
                 )
                 .as_str()
@@ -552,7 +549,7 @@ mod tests {
             rep("~ enters tapped unless you control two or fewer other lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(\"Land\"), Not(Ref(This)), \
+                    "Compare(CountOf(Objects(And([Type(Land), Not(Ref(This)), \
                      ControlledBy(Ref(You))]))), AtMost, 2)"
                 )
                 .as_str()
@@ -567,7 +564,7 @@ mod tests {
             rep("~ enters tapped unless you control two or more basic lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(\"Land\"), Supertype(Basic), \
+                    "Compare(CountOf(Objects(And([Type(Land), Supertype(Basic), \
                      ControlledBy(Ref(You))]))), AtLeast, 2)"
                 )
                 .as_str()
@@ -586,7 +583,7 @@ mod tests {
             rep("~ enters tapped unless you control three or more other Swamps.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Permanent, Subtype(\"Swamp\"), Not(Ref(This)), \
+                    "Compare(CountOf(Objects(And([Permanent, Subtype(Swamp), Not(Ref(This)), \
                      ControlledBy(Ref(You))]))), AtLeast, 3)"
                 )
                 .as_str()
@@ -601,7 +598,7 @@ mod tests {
             rep("~ enters tapped unless you control a basic land.").as_deref(),
             Some(
                 tapped_unless(
-                    "Exists(And([Type(\"Land\"), Supertype(Basic), ControlledBy(Ref(You))]))"
+                    "Exists(And([Type(Land), Supertype(Basic), ControlledBy(Ref(You))]))"
                 )
                 .as_str()
             )
@@ -630,10 +627,8 @@ mod tests {
         assert_eq!(
             rep("~ enters tapped unless you control a Swamp.").as_deref(),
             Some(
-                tapped_unless(
-                    "Exists(And([Permanent, Subtype(\"Swamp\"), ControlledBy(Ref(You))]))"
-                )
-                .as_str()
+                tapped_unless("Exists(And([Permanent, Subtype(Swamp), ControlledBy(Ref(You))]))")
+                    .as_str()
             )
         );
     }
@@ -649,7 +644,7 @@ mod tests {
             rep("~ enters tapped unless you control a Swamp or a Mountain.").as_deref(),
             Some(
                 tapped_unless(
-                    "Exists(And([Or([Subtype(\"Swamp\"), Subtype(\"Mountain\")]), \
+                    "Exists(And([Or([Subtype(Swamp), Subtype(Mountain)]), \
                      Permanent, ControlledBy(Ref(You))]))"
                 )
                 .as_str()
@@ -668,7 +663,7 @@ mod tests {
             rep("~ enters tapped unless you control a Mount or Vehicle.").as_deref(),
             Some(
                 tapped_unless(
-                    "Exists(And([Or([Subtype(\"Mount\"), Subtype(\"Vehicle\")]), \
+                    "Exists(And([Or([Subtype(Mount), Subtype(Vehicle)]), \
                      Permanent, ControlledBy(Ref(You))]))"
                 )
                 .as_str()
@@ -682,7 +677,7 @@ mod tests {
             rep("~ enters tapped unless your opponents control eight or more lands.").as_deref(),
             Some(
                 tapped_unless(
-                    "Compare(CountOf(Objects(And([Type(\"Land\"), \
+                    "Compare(CountOf(Objects(And([Type(Land), \
                      ControlledBy(OpponentOf(Ref(You)))]))), AtLeast, 8)"
                 )
                 .as_str()
@@ -698,7 +693,7 @@ mod tests {
             rep("If you control two or more other lands, ~ enters tapped.").as_deref(),
             Some(
                 "Static(Replacement(AsEnters(If(condition: \
-                 Compare(CountOf(Objects(And([Type(\"Land\"), Not(Ref(This)), ControlledBy(Ref(You))]))), \
+                 Compare(CountOf(Objects(And([Type(Land), Not(Ref(This)), ControlledBy(Ref(You))]))), \
                  AtLeast, 2), then: Tap(This)))))"
             )
         );

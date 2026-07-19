@@ -21,11 +21,11 @@ Normal(
     Activated(
       cost: [
         Mana([Green]),
-        With(binder: ChooseOne(filter: Type("Creature")), body: [Do(Sacrifice(That(Creature)))]),
+        With(binder: ChooseOne(filter: Type(Creature)), body: [Do(Sacrifice(That(Creature)))]),
       ],
       effect: RevealUntil(
         whose: You,
-        matches: Type("Creature"),
+        matches: Type(Creature),
         body: Sequentially([
           Move(It, Hand),
           MoveGroup(group: They, arrangement: RandomOrder, to: Library(FromBottom(0))),

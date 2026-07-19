@@ -6,7 +6,7 @@ KeywordAbility(
     name: "Prowess",
     template: "prowess",
     abilities: [Triggered(
-        event: Cast(who: Ref(You), what: And([Kind(Spell), Not(Type("Creature"))])),
+        event: Cast(who: Ref(You), what: And([Kind(Spell), Not(Type(Creature))])),
         effect: PumpThisUntilEot(1, 1),
     )],
 )

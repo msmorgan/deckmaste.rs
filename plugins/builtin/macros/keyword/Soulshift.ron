@@ -14,7 +14,7 @@
 //   - target:         a `Targeted` ([CR#115.1,601.2c]) declaring one target on
 //                     the effect — a Spirit CARD in YOUR graveyard with mana
 //                     value N or less. The filter conjoins
-//                     `Subtype("Spirit")` ([CR#205.3m] subtype),
+//                     `Subtype(Spirit)` ([CR#205.3m] subtype),
 //                     `InZone(Graveyard)` + `Owner(Ref(You))` ("your graveyard",
 //                     [CR#108.3,400.1]), and `Stat(ManaValue, AtMost, Param(0))`
 //                     — the printed N as a mana-value bound ([CR#202.3]). The
@@ -45,7 +45,7 @@
             event: ThisDies,
             effect: May(effect: Targeted(
                 targets: [Target(Exactly(1), And([
-                    Subtype("Spirit"),
+                    Subtype(Spirit),
                     InZone(Graveyard),
                     Owner(Ref(You)),
                     Stat(ManaValue, AtMost, Param(0)),

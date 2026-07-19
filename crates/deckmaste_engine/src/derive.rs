@@ -470,7 +470,6 @@ mod tests {
     /// live predicate scope) — and NOT into a non-matching object's.
     #[test]
     fn conferred_ability_by_type() {
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::ConferralRule;
         use deckmaste_core::KeywordAbility;
         use deckmaste_core::Predicate;
@@ -479,9 +478,7 @@ mod tests {
 
         let mut state = game();
         state.conferral_rules = vec![ConferralRule {
-            scope: Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Planeswalker.name(),
-            )),
+            scope: Predicate::r#type(Type::Planeswalker),
             confer: Property::Ability(Arc::new(Ability::Keyword(KeywordAbility::Trample))),
         }];
 

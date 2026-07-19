@@ -2407,7 +2407,6 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
-    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::CostChange;
     use deckmaste_core::Count;
     use deckmaste_core::Predicate;
@@ -2496,9 +2495,7 @@ mod tests {
                     times: Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
                         Predicate::And(vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            Predicate::Characteristic(CharacteristicPredicate::Type(
-                                Type::Artifact.name(),
-                            )),
+                            Predicate::r#type(Type::Artifact),
                         ]),
                     ))),
                 },
@@ -2569,7 +2566,7 @@ mod tests {
             name: "Thorn Totem".into(),
             types: vec![Type::Artifact.def()],
             abilities: vec![Ability::r#static(StaticEffect::CostModifier {
-                of: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                of: Predicate::r#type(Type::Creature),
                 change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
             })],
             ..CardFace::default()

@@ -32,11 +32,11 @@ Normal(
   abilities: [
     // "Vampire creature CARD you own that isn't on the battlefield" — a creature
     // card in any non-battlefield zone, NOT a creature permanent, so the scope
-    // uses the zone-agnostic `Type("Creature")` atom rather than the `Creature`
+    // uses the zone-agnostic `Type(Creature)` atom rather than the `Creature`
     // filter macro (which expands to `Permanent ∧ Type Creature`, i.e. requires
     // the battlefield and would contradict the `Not(InZone(Battlefield))` gate).
     Static(Each(
-      SelectAll(And([Type("Creature"), Subtype("Vampire"), Owner(Ref(You)), Not(InZone(Battlefield))])),
+      SelectAll(And([Type(Creature), Subtype(Vampire), Owner(Ref(You)), Not(InZone(Battlefield))])),
       Modify(It, GainAbility(Keyword(Madness([ManaCostOf(It)])))),
     )),
   ],

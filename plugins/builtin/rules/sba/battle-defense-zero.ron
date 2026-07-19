@@ -3,7 +3,7 @@
 // clause of [CR#704.5v,310.7] is deferred to engine-battles.
 [
     SbaRule(
-        scope: Type("Battle"),
+        scope: Type(Battle),
         when: Compare(StatOf(This, Defense), Eq, 0),
         then: Move(This, Graveyard),
     ),

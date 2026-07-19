@@ -53,14 +53,14 @@ mod tests {
     use crate::CharacteristicPredicate;
     use crate::Count;
     use crate::Quantity;
-    use crate::Type;
+    use crate::Supertype;
 
     fn read(source: &str) -> TargetSpec {
         crate::ron::options().from_str(source).unwrap()
     }
 
-    fn creature_filter() -> Predicate {
-        Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()))
+    fn basic_filter() -> Predicate {
+        Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic))
     }
 
     /// The announce-list grammar: `Target(Quantity, Predicate)`, distinct from
@@ -71,19 +71,19 @@ mod tests {
     #[test]
     fn announce_forms_read() {
         assert_eq!(
-            read("Target(Range(1, 1), Type(\"Creature\"))"),
-            TargetSpec::Target(Quantity::one(), creature_filter()),
+            read("Target(Range(1, 1), Supertype(Basic))"),
+            TargetSpec::Target(Quantity::one(), basic_filter()),
         );
         assert_eq!(
-            read("Target(Range(None, 2), Type(\"Creature\"))"),
+            read("Target(Range(None, 2), Supertype(Basic))"),
             TargetSpec::Target(
                 Quantity::Range(None, Some(Count::Literal(2))),
-                creature_filter(),
+                basic_filter(),
             ),
         );
         assert_eq!(
-            read("Target(Range(None, None), Type(\"Creature\"))"),
-            TargetSpec::Target(Quantity::Range(None, None), creature_filter()),
+            read("Target(Range(None, None), Supertype(Basic))"),
+            TargetSpec::Target(Quantity::Range(None, None), basic_filter()),
         );
     }
 
@@ -91,11 +91,11 @@ mod tests {
     #[test]
     fn target_round_trips() {
         for value in [
-            TargetSpec::Target(Quantity::one(), creature_filter()),
-            TargetSpec::Target(Quantity::Range(None, None), creature_filter()),
+            TargetSpec::Target(Quantity::one(), basic_filter()),
+            TargetSpec::Target(Quantity::Range(None, None), basic_filter()),
             TargetSpec::Target(
                 Quantity::Range(None, Some(Count::Literal(2))),
-                creature_filter(),
+                basic_filter(),
             ),
         ] {
             let written = crate::ron::options().to_string(&value).unwrap();

@@ -671,11 +671,14 @@ fn emit_characteristic_filter(cf: &CharacteristicPredicate) -> R {
     Ok(match cf {
         CharacteristicPredicate::Type(name) => app(
             "HasChar",
-            vec!["Types".to_string(), emit_type_name(name.as_str())?],
+            vec!["Types".to_string(), emit_type_name(name.name().as_str())?],
         ),
         CharacteristicPredicate::Subtype(name) => app(
             "HasChar",
-            vec!["Subtypes".to_string(), emit_subtype_ref(name.as_str())?],
+            vec![
+                "Subtypes".to_string(),
+                emit_subtype_ref(name.name().as_str())?,
+            ],
         ),
         CharacteristicPredicate::Supertype(s) => app(
             "HasChar",
@@ -2118,7 +2121,9 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
             "Alter",
             vec![
                 "Subtypes".to_string(),
-                emit_collection_op(op, |ident: &Ident| emit_subtype_ref(ident.as_str()))?,
+                emit_collection_op(op, |s: &deckmaste_core::SubtypeRef| {
+                    emit_subtype_ref(s.as_str())
+                })?,
             ],
         )),
         Modification::Supertypes(op) => out.push(app(
@@ -3906,7 +3911,7 @@ mod tests {
             ))),
             then: std::sync::Arc::new(Deontic::May(DeonticAction::Target {
                 by: deckmaste_core::DeedAgent::default(),
-                on: Predicate::Characteristic(CharacteristicPredicate::Type("Creature".into())),
+                on: Predicate::r#type(deckmaste_core::Type::Creature),
             })),
         });
         let out = emit_static_effect(&effect).expect("AsThough Counterfactual should emit");

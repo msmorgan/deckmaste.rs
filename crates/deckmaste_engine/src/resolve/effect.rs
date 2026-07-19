@@ -1920,15 +1920,7 @@ mod tests {
         // Force a second Grizzly Bears from player 0's hand onto the battlefield.
         let b = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    &state,
-                    o,
-                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature.name(),
-                    )),
-                )
-            })
+            .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
             .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
@@ -1985,15 +1977,7 @@ mod tests {
         // Force a second creature onto the battlefield.
         let b = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    &state,
-                    o,
-                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature.name(),
-                    )),
-                )
-            })
+            .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
             .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
@@ -2048,15 +2032,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         let b = *state.zones.hands[0]
             .iter()
-            .find(|&&o| {
-                obj_matches(
-                    &state,
-                    o,
-                    &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                        Type::Creature.name(),
-                    )),
-                )
-            })
+            .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
             .expect("a second Grizzly Bears in the opening hand");
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);

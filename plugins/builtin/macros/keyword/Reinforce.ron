@@ -17,7 +17,7 @@
 //
 // The effect is a `Targeted` ([CR#115.1,601.2c], the target declared on the
 // `Targeted` wrapper — the same `Target(Exactly(1), filter)` shape Modular and
-// Mentor use) over "target creature" (`Type("Creature")`), placing N +1/+1
+// Mentor use) over "target creature" (`Type(Creature)`), placing N +1/+1
 // counters [CR#122.1a] on the announced target: `PutCounters(It,
 // P1P1Counter, Param(0))` — the chosen target read back via `It`, the
 // counter kind a bare identifier, the amount the printed N.
@@ -32,7 +32,7 @@
             from: Hand,
             cost: [Splice(Param(1)), DiscardThis],
             effect: Targeted(
-                targets: [Target(Exactly(1), Type("Creature"))],
+                targets: [Target(Exactly(1), Type(Creature))],
                 effect: PutCounters(It, P1P1Counter, Param(0)),
             ),
         )],

@@ -136,7 +136,7 @@ mod tests {
     fn you_control_routes_with_an_object_predicate() {
         assert_eq!(
             resolve_builtin("you control an artifact").as_deref(),
-            Some("YouControl(Type(\"Artifact\"))")
+            Some("YouControl(Type(Artifact))")
         );
     }
 
@@ -148,7 +148,7 @@ mod tests {
     fn an_opponent_controls_routes() {
         assert_eq!(
             resolve_builtin("an opponent controls an Island").as_deref(),
-            Some("AnOpponentControls(And([Permanent, Subtype(\"Island\")]))")
+            Some("AnOpponentControls(And([Permanent, Subtype(Island)]))")
         );
     }
 

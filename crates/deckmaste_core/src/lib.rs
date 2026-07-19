@@ -228,9 +228,11 @@ pub use token::TokenSpec;
 
 mod r#type;
 pub use r#type::Subtype;
+pub use r#type::SubtypeRef;
 pub use r#type::Supertype;
 pub use r#type::Type;
 pub use r#type::TypeDef;
+pub use r#type::TypeRef;
 
 mod sba_rule;
 pub use sba_rule::SbaRule;

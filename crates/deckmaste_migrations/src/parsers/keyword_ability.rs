@@ -488,11 +488,11 @@ mod tests {
         );
         assert_eq!(
             bare("Enchant creature").as_deref(),
-            Some("Keyword(Enchant(Type(\"Creature\")))")
+            Some("Keyword(Enchant(Type(Creature)))")
         );
         assert_eq!(
             bare("Affinity for artifacts").as_deref(),
-            Some("Keyword(Affinity(Type(\"Artifact\")))")
+            Some("Keyword(Affinity(Type(Artifact)))")
         );
         // Bare hexproof keeps its parens (all-defaulted invocation); this is
         // the form `match_keyword_name` reuses for grants. The "from X" variant

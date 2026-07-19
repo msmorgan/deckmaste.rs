@@ -3,5 +3,5 @@
     name: "Plainswalk",
     template: "plainswalk",
     kinds: [KeywordAbility],
-    body: Landwalk(quality: Subtype("Plains")),
+    body: Landwalk(quality: Subtype(Plains)),
 )

@@ -197,6 +197,17 @@ fn render_arg(raw: &str) -> Option<String> {
             return Some(noun);
         }
     }
+    // A bare `Type(Name)` / `Subtype(Name)` filter arg (`enchant creature`,
+    // `Forestwalk`): the two atoms whose filter-position spelling is a bare
+    // macro name the macro-less core reader above can't expand. Identity is
+    // by-name, so a `named` ref renders the same noun the macro-expanded def
+    // would (see `TypeRef::named`).
+    if let Some(filter) = bare_type_or_subtype(t) {
+        let noun = super::fragment::filter_noun(&filter);
+        if !noun.contains("[unrendered") {
+            return Some(noun);
+        }
+    }
     // A Cost arg (`ward ${0}`, `equip ${0}`): a bracketed cost-component list.
     if let Ok(cost) =
         deckmaste_core::ron::options().from_str::<Vec<deckmaste_core::CostComponent>>(t)
@@ -210,6 +221,42 @@ fn render_arg(raw: &str) -> Option<String> {
         if !phrase.contains("[unrendered") {
             return Some(phrase);
         }
+    }
+    None
+}
+
+/// Recover a bare `Type(Name)` / `Subtype(Name)` filter arg as a predicate,
+/// name-only. These two filter atoms serialize to a bare macro name
+/// (`Type(Creature)`, `Subtype(Goblin)`), so the macro-less core reader in
+/// [`render_arg`] can't parse them; but rendering keys only on the name, so a
+/// [`deckmaste_core::TypeRef::named`] / [`deckmaste_core::SubtypeRef::named`]
+/// ref suffices. `None` for anything that isn't exactly one of those two atoms
+/// wrapping a bare identifier (a nested filter, a colored/negated form) — the
+/// caller then declines to its structural fallback, unchanged.
+fn bare_type_or_subtype(t: &str) -> Option<deckmaste_core::Predicate> {
+    use deckmaste_core::CharacteristicPredicate;
+    use deckmaste_core::Ident;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::SubtypeRef;
+    use deckmaste_core::TypeRef;
+
+    let inner = |head: &str| {
+        t.strip_prefix(head)
+            .and_then(|s| s.strip_suffix(')'))
+            .map(str::trim)
+            .filter(|name| {
+                !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_')
+            })
+    };
+    if let Some(name) = inner("Type(") {
+        return Some(Predicate::Characteristic(CharacteristicPredicate::Type(
+            TypeRef::named(Ident::new(name)),
+        )));
+    }
+    if let Some(name) = inner("Subtype(") {
+        return Some(Predicate::Characteristic(CharacteristicPredicate::Subtype(
+            SubtypeRef::named(Ident::new(name)),
+        )));
     }
     None
 }
@@ -306,7 +353,6 @@ mod tests {
     /// A dynamic (non-literal) count declines to the structural fallback.
     #[test]
     fn render_cost_renders_tap_total_crew() {
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Cmp;
         use deckmaste_core::CostComponent;
         use deckmaste_core::Count;
@@ -323,7 +369,7 @@ mod tests {
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
             filter: Arc::new(Predicate::And(vec![
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                Predicate::r#type(Type::Creature),
                 Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,

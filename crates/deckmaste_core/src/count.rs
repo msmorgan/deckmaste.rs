@@ -419,7 +419,7 @@ mod tests {
         ));
         assert_eq!(read(&write(&mk)), mk);
         // Objects wrapper is spelled explicitly.
-        let obj = read(r#"CountOf(Objects(And([Subtype("Goblin"), ControlledBy(Ref(You))])))"#);
+        let obj = read(r"CountOf(Objects(And([Supertype(Basic), ControlledBy(Ref(You))])))");
         assert!(matches!(obj, Count::CountOf(Countable::Objects(_))));
         assert_eq!(read(&write(&obj)), obj);
     }
@@ -539,12 +539,12 @@ mod tests {
         let value = Count::CountDistinct(
             Characteristic::Subtypes,
             Countable::Objects(Arc::new(Predicate::Characteristic(
-                crate::CharacteristicPredicate::Type(crate::Type::Land.name()),
+                crate::CharacteristicPredicate::Supertype(crate::Supertype::Basic),
             ))),
         );
         assert_eq!(read(&write(&value)), value);
         assert!(matches!(
-            read("CountDistinct(Power, Objects(Type(\"Creature\")))"),
+            read("CountDistinct(Power, Objects(Type(name:\"Creature\",permanent:true)))"),
             Count::CountDistinct(Characteristic::Power, Countable::Objects(_))
         ));
     }
@@ -620,9 +620,8 @@ mod tests {
         );
         assert_eq!(read(&write(&devotion_green)), devotion_green);
         for op in ["SumOf", "MinOf", "MaxOf", "AverageOf(RoundUp)"] {
-            let src = format!(
-                "Aggregate({op}, (of: Objects(Type(\"Creature\")), by: StatOf(It, Power)))"
-            );
+            let src =
+                format!("Aggregate({op}, (of: Objects(Supertype(Basic)), by: StatOf(It, Power)))");
             assert_eq!(read(&write(&read(&src))), read(&src), "round-trip {op}");
         }
     }

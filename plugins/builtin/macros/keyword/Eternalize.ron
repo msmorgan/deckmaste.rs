@@ -12,7 +12,7 @@
 //   - effect: `Create(1, Copy(source: SelfCard, ...))` — a token copy of the
 //     exiled card ([CR#707.1]) EXCEPT it's 4/4 (`Power(Set(4))` + `Toughness(Set(4))`,
 //     [CR#707.9d]), black (`Colors(Set([Black]))`), and a Zombie in addition to
-//     its other types (`Subtypes(Add("Zombie"))`). No mana cost needs no
+//     its other types (`Subtypes(Add(Zombie))`). No mana cost needs no
 //     exception (a token has no mana-cost slot, [CR#111.3,707.2]).
 (
     name: "Eternalize",
@@ -29,7 +29,7 @@
                 Modify(Power(Set(4))),
                 Modify(Toughness(Set(4))),
                 Modify(Colors(Set([Black]))),
-                Modify(Subtypes(Add("Zombie"))),
+                Modify(Subtypes(Add(Zombie))),
             ])),
         )],
     ),

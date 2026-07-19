@@ -20,7 +20,7 @@ Normal(
   abilities: [
     Static(Must(Target(
         by: (stack_object: ControlledBy(OpponentOf(Ref(You)))),
-        on: And([Permanent, Subtype("Flagbearer")]),
+        on: And([Permanent, Subtype(Flagbearer)]),
       ))),
   ],
   power: 1,

@@ -26,7 +26,7 @@
     body: With(
         binder: ChooseOne(filter: And([
             Kind(Token),
-            Type("Creature"),
+            Type(Creature),
             ControlledBy(Ref(You)),
         ])),
         body: Create(1, Copy(source: Object(That(Token)), exceptions: [])),

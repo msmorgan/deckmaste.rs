@@ -31,9 +31,7 @@ use deckmaste_engine::StepOutcome;
 /// The builtin planeswalker-loyalty rule as data.
 fn loyalty_rule() -> DamageResultRule {
     DamageResultRule {
-        recipient: Predicate::Characteristic(CharacteristicPredicate::Type(
-            Type::Planeswalker.name(),
-        )),
+        recipient: Predicate::r#type(Type::Planeswalker),
         remove: CounterRef::from("LoyaltyCounter"),
     }
 }
@@ -163,15 +161,7 @@ fn walker_on_field(state: &mut GameState, n: u32) -> ObjectId {
         .iter()
         .chain(state.zones.libraries[0].iter())
         .copied()
-        .find(|&o| {
-            deckmaste_engine::matches(
-                state,
-                o,
-                &Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Planeswalker.name(),
-                )),
-            )
-        })
+        .find(|&o| deckmaste_engine::matches(state, o, &Predicate::r#type(Type::Planeswalker)))
         .expect("a synthetic planeswalker in player 0's deck");
     state.zones.hands[0].retain(|&o| o != pw);
     state.zones.libraries[0].retain(|&o| o != pw);

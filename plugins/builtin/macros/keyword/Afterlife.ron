@@ -16,13 +16,13 @@
 //                     (`power`/`toughness`), and the flying keyword ability
 //                     (`Keyword(Flying)`, [CR#702.9]).
 //
-// The Spirit subtype is spelled INLINE as `Subtype(name: "Spirit", types:
-// [Creature, Kindred])` — exactly what the bare `CreatureType(name: "Spirit")`
-// macro ([CR#205.3m]) expands to — rather than the bare `Spirit` invocation,
-// because the concrete creature-subtype macros are GENERATED under
-// `plugins/wizards/` (gitignored) and so aren't in the `plugins/builtin`-only
-// load the keyword-expansion test exercises. `Keyword(Flying)` is a builtin
-// macro and is invoked normally.
+// The Spirit subtype is referenced by BARE name (`Spirit`), which expands to
+// the builtin `CreatureType(name: "Spirit")` declaration
+// (`types/creature/Spirit.ron`) — declared in builtin precisely so bare-name
+// references from builtin-only macros (Soulshift returns Spirits, and this
+// token) resolve in the `plugins/builtin`-only load the keyword-expansion test
+// exercises, without depending on the GENERATED `plugins/wizards/` subtype
+// macros. `Keyword(Flying)` is a builtin macro and is invoked normally.
 //
 // No engine gap: the inline `Token` already carries `color_indicator`, `types`,
 // `subtypes`, `power`, `toughness`, and `abilities` — every field this 1/1 W/B
@@ -40,7 +40,7 @@
             effect: Create(Param(0), Token(
                 color_indicator: [White, Black],
                 types: [Creature],
-                subtypes: [Subtype(name: "Spirit", types: [Creature, Kindred])],
+                subtypes: [Spirit],
                 abilities: [Keyword(Flying)],
                 power: 1,
                 toughness: 1,

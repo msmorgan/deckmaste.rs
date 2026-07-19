@@ -24,13 +24,13 @@ mod tests {
 
     #[test]
     fn conferral_rule_round_trips() {
-        let ron = r#"ConferralRule(
-            scope: Type("Planeswalker"),
+        let ron = r"ConferralRule(
+            scope: Supertype(Legendary),
             confer: Ability(Static(Replacement(Also(
                 would: ZoneChange(what: Ref(This), to: Battlefield),
                 also: PutCounters(This, LoyaltyCounter, StatOf(This, Loyalty)),
             )))),
-        )"#;
+        )";
         let rule: ConferralRule = crate::ron::options().from_str(ron).unwrap();
         let written = crate::ron::options().to_string(&rule).unwrap();
         let reparsed: ConferralRule = crate::ron::options().from_str(&written).unwrap();

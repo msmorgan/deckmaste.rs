@@ -578,7 +578,6 @@ mod tests {
 
     use deckmaste_cards::plugin::Plugin;
     use deckmaste_core::Card;
-    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Cmp;
     use deckmaste_core::Condition;
     use deckmaste_core::Count;
@@ -919,7 +918,7 @@ mod tests {
     fn one_creature_target() -> Vec<TargetSpec> {
         vec![TargetSpec::Target(
             Quantity::one(),
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+            Predicate::r#type(Type::Creature),
         )]
     }
 

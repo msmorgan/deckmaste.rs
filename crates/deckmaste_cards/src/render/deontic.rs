@@ -171,7 +171,7 @@ fn is_opponent_controlled(f: &Predicate) -> bool {
 fn find_subtype_noun(f: &Predicate) -> Option<String> {
     match fragment::strip_expanded(f) {
         Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
-            Some(name.as_str().to_string())
+            Some(name.name().as_str().to_string())
         }
         Predicate::And(parts) => parts.iter().find_map(find_subtype_noun),
         _ => None,

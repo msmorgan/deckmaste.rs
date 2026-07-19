@@ -759,15 +759,7 @@ fn bear_on_field() -> (GameState, ObjectId) {
     // Force a Grizzly Bears from player 0's hand onto the battlefield.
     let bear = *state.zones.hands[0]
         .iter()
-        .find(|&&o| {
-            deckmaste_engine::matches(
-                &state,
-                o,
-                &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                    Type::Creature.name(),
-                )),
-            )
-        })
+        .find(|&&o| deckmaste_engine::matches(&state, o, &Predicate::r#type(Type::Creature)))
         .expect("a Grizzly Bears in the opening hand (10-card mono deck)");
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
     state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);

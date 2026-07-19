@@ -316,7 +316,7 @@ mod tests {
 
         // "sacrifice a creature": choose one creature, then Sacrifice(That(Creature)).
         let creature =
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name()));
+            Predicate::Characteristic(CharacteristicPredicate::Supertype(crate::Supertype::Basic));
         let with = CostComponent::With {
             binder: Arc::new(Binder::ChooseOne {
                 filter: creature,
@@ -445,10 +445,12 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
-            filter: Arc::new(Predicate::creature()),
+            filter: Arc::new(Predicate::Characteristic(
+                crate::CharacteristicPredicate::Supertype(crate::Supertype::Basic),
+            )),
         };
         assert_eq!(
-            read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Type(\"Creature\"))"),
+            read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Supertype(Basic))"),
             crew,
         );
 

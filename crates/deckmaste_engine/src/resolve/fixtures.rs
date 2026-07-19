@@ -102,15 +102,7 @@ pub(super) fn bear_on_field() -> (GameState, ObjectId) {
     });
     let bear = *state.zones.hands[0]
         .iter()
-        .find(|&&o| {
-            obj_matches(
-                &state,
-                o,
-                &Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                    Type::Creature.name(),
-                )),
-            )
-        })
+        .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
         .expect("a Grizzly Bears in the opening hand");
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != bear);
     state.objects.obj_mut(bear).zone = Some(Zone::Battlefield);
@@ -304,7 +296,6 @@ pub(super) fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
 /// `plugins/builtin/macros/effect/Fight.ron` (the guard's `Permanent` is
 /// spelled here as `InZone(Battlefield)`, an equivalent for the test).
 pub(super) fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
-    use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Condition;
     use deckmaste_core::Predicate;
     use deckmaste_core::Stat;
@@ -313,7 +304,7 @@ pub(super) fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
         Condition::Matches(
             r.clone(),
             Predicate::And(vec![
-                Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.name())),
+                Predicate::r#type(Type::Creature),
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             ]),
         )

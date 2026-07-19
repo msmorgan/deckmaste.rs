@@ -21,7 +21,7 @@
             effect: Sequentially([
                 Reveal(what: It),
                 If(
-                    condition: Matches(It, Type("Land")),
+                    condition: Matches(It, Type(Land)),
                     then: Move(It, Hand),
                     otherwise: Sequentially([
                         PutCounters(This, P1P1Counter, 1),

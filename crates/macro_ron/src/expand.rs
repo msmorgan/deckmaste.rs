@@ -1084,8 +1084,19 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         // A struct position is captured when a hole or invocation could
         // stand there: inside a macro body, or whenever some macro expands
         // to this struct.
-        let interceptable = self.intercept == Intercept::Full
-            && (self.ctx.frame.is_some() || self.ctx.read.macros.expands_to_struct(name));
+        let hosts_macros = self.ctx.read.macros.expands_to_struct(name);
+        let interceptable = match self.intercept {
+            Intercept::Full => self.ctx.frame.is_some() || hosts_macros,
+            // Newtype-variant content is `SkipStructs` because
+            // `unwrap_variant_newtypes` can fuse a struct into the variant's
+            // parens mid-stream, where no whole value is capturable. A position
+            // that HOSTS struct-macros (a `TypeDef`/`Subtype` filter-atom ref)
+            // is the exception: its content is a bare macro name or an explicit
+            // `(...)` struct — both capturable — so it stays interceptable and
+            // the bare name still expands even nested in a newtype variant.
+            Intercept::SkipStructs => hosts_macros,
+            Intercept::Skip => false,
+        };
         if !interceptable {
             let wrapped = self.wrap(visitor);
             return self.de.deserialize_struct(name, fields, wrapped);

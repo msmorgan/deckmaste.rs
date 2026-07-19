@@ -1741,7 +1741,10 @@ mod tests {
                     .objects
                     .mint(ObjectSource::Card(src_card), PlayerId(0), Some(Zone::Stack));
 
-            let parsed: Predicate = builtin().macros.read_str(filter).unwrap();
+            // `canon()` (not `builtin()`): the filter names the canon-declared
+            // `Goblin` subtype, whose macro lives in canon — a bare `Subtype(Goblin)`
+            // only expands with that macro in scope.
+            let parsed: Predicate = canon().macros.read_str(filter).unwrap();
             let frame = frame_src(source);
             let before = state.zones.battlefield.len();
             state.run_effect(
@@ -1770,7 +1773,7 @@ mod tests {
         // Bare subtype (the pre-fix parser output): the Stack-zone copy is a
         // Goblin you control too, so it over-counts → 4.
         assert_eq!(
-            tokens_made("And([Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            tokens_made("And([Subtype(Goblin), ControlledBy(Ref(You))])"),
             4,
             "the unzoned filter wrongly counts the on-stack copy"
         );
@@ -1779,7 +1782,7 @@ mod tests {
         // the Stack-zone copy is excluded → exactly the three battlefield
         // Goblins.
         assert_eq!(
-            tokens_made("And([Permanent, Subtype(\"Goblin\"), ControlledBy(Ref(You))])"),
+            tokens_made("And([Permanent, Subtype(Goblin), ControlledBy(Ref(You))])"),
             3,
             "[CR#109.2]: the Permanent scope counts only battlefield Goblins"
         );

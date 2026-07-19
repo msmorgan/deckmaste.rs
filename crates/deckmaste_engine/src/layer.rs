@@ -758,7 +758,7 @@ fn matches_derived(
     }
     match filter {
         Predicate::Characteristic(CharacteristicPredicate::Type(name)) => {
-            c.card_types.iter().any(|t| &t.name == name)
+            c.card_types.iter().any(|t| t.name == name.name())
         }
         Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
             c.supertypes.contains(s)
@@ -769,7 +769,7 @@ fn matches_derived(
         // Subtype matching against derived: `working[id].subtypes` are Subtype
         // structs; the filter carries an Ident name. Match by name.
         Predicate::Characteristic(CharacteristicPredicate::Subtype(name)) => {
-            c.subtypes.iter().any(|s| &s.name == name)
+            c.subtypes.iter().any(|s| s.name == name.name())
         }
         // `Has` is derivable from the working map — check the derived
         // ability list.
@@ -1455,8 +1455,9 @@ fn apply_static(
             CollectionOp::Remove(s) => Arc::make_mut(&mut c.supertypes).retain(|x| x != s),
         },
         // --- Layer 4: subtype-changing ([CR#613.1d]) ---
-        // The op's elements are bare `Ident` names; `Characteristics::subtypes`
-        // holds full `Subtype` structs (with `confers`/`types`). Resolve each name
+        // The op's elements are name-keyed `SubtypeRef`s (`.name()` is the key);
+        // `Characteristics::subtypes` holds full `Subtype` structs (with
+        // `confers`/`types`). Resolve each name
         // through the engine's subtype registry (`state.subtypes`, populated from
         // the loaded plugin), so a granted subtype's inherent rules ride along —
         // e.g. a basic land type's mana ability ([CR#305.6]). An `Ident` absent
@@ -1467,19 +1468,19 @@ fn apply_static(
                 c.subtypes = Arc::new(
                     names
                         .iter()
-                        .map(|name| resolve_subtype(state, name))
+                        .map(|name| resolve_subtype(state, &name.name()))
                         .collect(),
                 );
             }
             CollectionOp::Add(name) => {
                 let subtypes = Arc::make_mut(&mut c.subtypes);
-                let resolved = resolve_subtype(state, name);
+                let resolved = resolve_subtype(state, &name.name());
                 if !subtypes.iter().any(|s| s.name == resolved.name) {
                     subtypes.push(resolved);
                 }
             }
             CollectionOp::Remove(name) => {
-                Arc::make_mut(&mut c.subtypes).retain(|s| s.name != *name);
+                Arc::make_mut(&mut c.subtypes).retain(|s| s.name != name.name());
             }
         },
         // [CR#305.7] deferred: replace land subtypes + strip abilities + grant basic
@@ -1979,9 +1980,7 @@ mod tests {
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
         let s = Ability::r#static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Creature.name(),
-            ))),
+            Selection::SelectAll(Predicate::r#type(Type::Creature)),
             Arc::new(StaticEffect::Modify(
                 Reference::It,
                 Modification::Several(vec![
@@ -2557,7 +2556,9 @@ mod tests {
             Selection::SelectAll(Predicate::And(vec![
                 Predicate::creature(),
                 Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-                Predicate::Characteristic(CharacteristicPredicate::Subtype("Goblin".into())),
+                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                    deckmaste_core::SubtypeRef::named("Goblin".into()),
+                )),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
                 )))),
@@ -2822,7 +2823,7 @@ mod tests {
 
     // -----------------------------------------------------------------------
     // layers-layer-4-subtypes: layer-4 subtype-changing ([CR#613.1d]). A
-    // `Subtypes(...)` modification carries bare `Ident` names; the engine
+    // `Subtypes(...)` modification carries name-keyed `SubtypeRef`s; the engine
     // resolves each through the injected subtype registry (`state.subtypes`),
     // so a granted subtype's `confers` ride along.
     // -----------------------------------------------------------------------

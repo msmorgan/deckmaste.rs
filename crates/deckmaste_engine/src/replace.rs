@@ -516,7 +516,6 @@ mod tests {
     /// lands you control), AtLeast, 1)), then: Tap(This)))` — "~ enters
     /// tapped unless you control one or more other lands" ([CR#614.1d]).
     fn tapped_unless_land() -> Card {
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Cmp;
         use deckmaste_core::Condition;
         use deckmaste_core::Count;
@@ -524,7 +523,7 @@ mod tests {
         use deckmaste_core::RelationPredicate;
 
         let other_lands_you_control = Predicate::And(vec![
-            Predicate::Characteristic(CharacteristicPredicate::Type(Type::Land.name())),
+            Predicate::r#type(Type::Land),
             Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                 Reference::You,
@@ -655,16 +654,13 @@ mod tests {
     /// printed-loyalty read is a later task).
     #[test]
     fn conferred_enters_with_counters_by_type() {
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::ConferralRule;
         use deckmaste_core::Count;
         use deckmaste_core::Property;
 
         let mut state = game();
         state.conferral_rules = vec![ConferralRule {
-            scope: Predicate::Characteristic(CharacteristicPredicate::Type(
-                Type::Planeswalker.name(),
-            )),
+            scope: Predicate::r#type(Type::Planeswalker),
             confer: Property::Ability(Arc::new(Ability::r#static(StaticEffect::Replacement(
                 Arc::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
@@ -751,7 +747,7 @@ mod tests {
             grant_dir.join("planeswalker-loyalty.ron"),
             r#"[
                 ConferralRule(
-                    scope: Type("Planeswalker"),
+                    scope: Type(name:"Planeswalker",permanent:true),
                     confer: Ability(Static(Replacement(Also(
                         would: ZoneChange(what: Ref(This), to: Battlefield),
                         also: PutCounters(This, LoyaltyCounter, Literal(3)),
@@ -847,10 +843,10 @@ mod tests {
             Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"))
                 .unwrap();
         assert!(
-            builtin.conferral_rules.iter().any(|rule| rule.scope
-                == Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-                    Type::Planeswalker.name()
-                ))),
+            builtin
+                .conferral_rules
+                .iter()
+                .any(|rule| rule.scope == Predicate::r#type(Type::Planeswalker)),
             "the builtin plugin loaded a Type(\"Planeswalker\") conferral rule from \
              rules/grant/planeswalker-loyalty.ron"
         );

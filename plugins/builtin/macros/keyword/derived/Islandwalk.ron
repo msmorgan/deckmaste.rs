@@ -3,5 +3,5 @@
     name: "Islandwalk",
     template: "islandwalk",
     kinds: [KeywordAbility],
-    body: Landwalk(quality: Subtype("Island")),
+    body: Landwalk(quality: Subtype(Island)),
 )

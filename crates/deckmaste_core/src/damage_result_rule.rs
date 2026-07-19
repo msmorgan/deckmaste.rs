@@ -28,7 +28,7 @@ mod tests {
 
     #[test]
     fn damage_result_rule_round_trips() {
-        let ron = "DamageResultRule(recipient: Type(\"Planeswalker\"), remove: LoyaltyCounter)";
+        let ron = "DamageResultRule(recipient: Supertype(Legendary), remove: LoyaltyCounter)";
         let rule: DamageResultRule = crate::ron::options().from_str(ron).unwrap();
         assert_eq!(rule.remove, CounterRef::from("LoyaltyCounter"));
         let written = crate::ron::options().to_string(&rule).unwrap();

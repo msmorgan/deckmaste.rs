@@ -16,7 +16,7 @@ Normal(
   abilities: [
     Spell(
       effect: Targeted(
-        targets: [TargetOne(And([Creature, Not(Subtype("Brushwagg"))]))],
+        targets: [TargetOne(And([Creature, Not(Subtype(Brushwagg))]))],
         effect: Until(FixedUntil(EndOfTurn), [
           Modify(Target(0), PowerAndToughnessUp(
             Plus(Plus(CountDistinct(Supertypes, Singleton(Target(0))), CountDistinct(Types, Singleton(Target(0)))), CountDistinct(Subtypes, Singleton(Target(0)))),

@@ -1,0 +1,4 @@
+// [CR#205.3m] the Army creature subtype — the token Amass ([CR#701.43]) amasses
+// and the filter its "Army you control" clauses key on. Declared in builtin
+// because a builtin macro (Amass) references it by bare name.
+CreatureType(name: "Army")

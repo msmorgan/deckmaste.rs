@@ -1,0 +1,4 @@
+// [CR#205.3m] the Spirit creature subtype — the token Soulshift ([CR#702.46])
+// returns. Declared in builtin because a builtin keyword macro (Soulshift)
+// references it by bare name.
+CreatureType(name: "Spirit")

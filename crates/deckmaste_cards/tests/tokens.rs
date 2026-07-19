@@ -251,7 +251,7 @@ fn vibranium_token_parses() {
             riders: vec![ManaRider::SpendOnly(Predicate::Not(Arc::new(
                 Predicate::And(vec![
                     Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Not(Arc::new(Predicate::type_(Type::Artifact))),
+                    Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
                 ]),
             )))],
         },

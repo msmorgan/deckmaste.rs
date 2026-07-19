@@ -147,7 +147,9 @@ fn creatures_you_control() -> Predicate {
 fn permanents_you_control(ty: deckmaste_core::Ident) -> Predicate {
     Predicate::And(vec![
         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(ty)),
+        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+            deckmaste_core::TypeRef::named(ty),
+        )),
         Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
             Reference::You,
         )))),
@@ -171,7 +173,7 @@ fn basic_land_you_control(f: &Predicate) -> Option<&'static str> {
     if controller.as_ref() != &Predicate::Ref(Reference::You) {
         return None;
     }
-    match name.as_str() {
+    match name.name().as_str() {
         "Swamp" => Some("a Swamp"),
         "Island" => Some("an Island"),
         "Mountain" => Some("a Mountain"),
@@ -303,7 +305,7 @@ fn object_phrase(pred: &Predicate) -> Option<String> {
             }
             Predicate::Characteristic(CharacteristicPredicate::Colorless) => colorless = true,
             Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) => {
-                subtype = Some(s.to_string());
+                subtype = Some(s.name().to_string());
             }
             _ => {}
         }
@@ -477,7 +479,7 @@ mod tests {
             let filter = Predicate::And(vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Subtype(
-                    subtype.into(),
+                    deckmaste_core::SubtypeRef::named(subtype.into()),
                 )),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
                     Reference::You,
@@ -505,7 +507,7 @@ mod tests {
     /// opponent controls X", the object's own indefinite noun phrase.
     #[test]
     fn renders_exists_you_control_and_opponent_controls() {
-        let artifact = Predicate::type_(deckmaste_core::Type::Artifact);
+        let artifact = Predicate::r#type(deckmaste_core::Type::Artifact);
         assert_eq!(
             condition(
                 &Condition::Exists(Predicate::And(vec![
@@ -533,7 +535,7 @@ mod tests {
         let human = Predicate::And(vec![
             permanent,
             Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::Ident::from("Human"),
+                deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Human")),
             )),
         ]);
         assert_eq!(
@@ -556,7 +558,7 @@ mod tests {
         let griffin_creature = Predicate::And(vec![
             Predicate::creature(),
             Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::Ident::from("Griffin"),
+                deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Griffin")),
             )),
         ]);
         assert_eq!(

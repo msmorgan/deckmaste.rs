@@ -1091,7 +1091,7 @@ mod tests {
             assert_eq!(state.objects.obj(t).controller, PlayerId(0));
             assert!(state.objects.obj(t).summoning_sick, "[CR#302.6]");
             assert!(
-                obj_matches(&state, t, &Predicate::type_(Type::Artifact)),
+                obj_matches(&state, t, &Predicate::r#type(Type::Artifact)),
                 "the creating effect's characteristics stick ([CR#111.3])"
             );
         }
@@ -1259,7 +1259,7 @@ mod tests {
             "[CR#707.2]: toughness matches the copied source"
         );
         assert!(
-            obj_matches(&state, t, &Predicate::type_(Type::Creature)),
+            obj_matches(&state, t, &Predicate::r#type(Type::Creature)),
             "[CR#707.2]: types match the copied source"
         );
         assert!(
@@ -1683,8 +1683,9 @@ mod tests {
             }),
         );
 
-        // Drive the ACTUAL macro expansion: amass Orcs 2.
-        let amass: OneShotEffect = builtin().macros.read_str("Amass(\"Orc\", 2)").unwrap();
+        // Drive the ACTUAL macro expansion: amass Zombies 2 (the subtype is a
+        // declared `Subtype` param, spelled bare).
+        let amass: OneShotEffect = builtin().macros.read_str("Amass(Zombie, 2)").unwrap();
         state.run_effect(amass, &frame_src(src));
 
         // Step 1's guard (`Not(Exists(Army creature you control))`) is FALSE —
@@ -1733,14 +1734,14 @@ mod tests {
         );
 
         // "If it isn't a [subtype], it becomes a [subtype] in addition to its
-        // other types." — the one-shot `Continuously(Modify(That, Add Orc))`
-        // locked the chosen id at creation, so the layer pass adds Orc while
+        // other types." — the one-shot `Continuously(Modify(That, Add Zombie))`
+        // locked the chosen id at creation, so the layer pass adds Zombie while
         // retaining Army ([CR#701.47a], [CR#611.2a] no stated duration).
         let view = state.layers();
         let subtypes = &view.get(army).subtypes;
         assert!(
-            subtypes.iter().any(|s| s.name == "Orc"),
-            "[CR#701.47a]: the chosen Army becomes an Orc in addition; got {subtypes:?}"
+            subtypes.iter().any(|s| s.name == "Zombie"),
+            "[CR#701.47a]: the chosen Army becomes a Zombie in addition; got {subtypes:?}"
         );
         assert!(
             subtypes.iter().any(|s| s.name == "Army"),
