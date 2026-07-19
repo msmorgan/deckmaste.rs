@@ -2,9 +2,11 @@
 //! <keyword>", "<subject> can't attack/block". The ±N/±N + keyword-grant +
 //! subject/target grammar is shared via [`crate::parsers::modify`]; this module
 //! renders the bare positional `Static(<one effect>)` RON. Declines
-//! (`Ok(None)`) on spells, durational clauses, targeted subjects, a subject
-//! with more than one restricted action (one `StaticEffect` per `Static` — no
-//! bundling), or anything its productions don't fully cover.
+//! (`Ok(None)`) on durational clauses, targeted subjects, a subject with more
+//! than one restricted action (one `StaticEffect` per `Static` — no
+//! bundling), or anything its productions don't fully cover — and on spells,
+//! EXCEPT the "can't be countered" form ([CR#113.6g,701.6a]), a static the
+//! spell itself carries on the stack, so Instant/Sorcery hosts reach it.
 
 use crate::parsers::modify;
 use crate::resolve::CardKind;
@@ -19,14 +21,30 @@ pub(crate) fn resolve_line(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Optio
 /// same-kind ambiguous macro match is a hard generation error, not a decline;
 /// every other (`Option`-returning) production is lifted with `Ok`.
 fn parse(line: &str, ctx: &ResolveCtx) -> anyhow::Result<Option<String>> {
-    if ctx.kind == CardKind::Spell {
-        return Ok(None);
-    }
     let low = line.to_ascii_lowercase();
     if low.contains("until end of turn") || low.contains("this turn") {
         return Ok(None);
     }
     let body = line.strip_suffix('.').unwrap_or(line);
+
+    // "~ can't be countered." is a static the SPELL ITSELF carries while on
+    // the stack ([CR#113.6g,701.6a]) — unlike every other static this module
+    // parses, it's not conditioned on being a permanent, so an Instant/Sorcery
+    // host (`ctx.kind == CardKind::Spell`) must reach this arm. Tried BEFORE
+    // the `CardKind::Spell` early-return below; every other production in
+    // this module is permanent-only (attack/block/anthem/keyword-grant have
+    // no meaning for a spell on the stack), so only the counter form is
+    // hoisted — `pred.starts_with("be countered")` gates it to exactly that
+    // shape, leaving the early-return to cover the rest unchanged.
+    if let Some((subj, pred)) = modify::split_marker(body, &[" can't ", " cannot "])
+        && pred.to_ascii_lowercase().starts_with("be countered")
+        && let Some(row) = parse_restriction(subj, pred)
+    {
+        return Ok(Some(row));
+    }
+    if ctx.kind == CardKind::Spell {
+        return Ok(None);
+    }
 
     if let Some(row) = parse_conditional(body, ctx)? {
         return Ok(Some(row));
@@ -750,6 +768,26 @@ mod tests {
     fn cant_be_countered_self() {
         assert_eq!(
             stat("~ can't be countered.").as_deref(),
+            Some("Static(Cant(Counter(on: Ref(This))))"),
+        );
+    }
+
+    #[test]
+    fn cant_be_countered_self_on_spell_host() {
+        // "~ can't be countered." is a static the SPELL ITSELF carries while
+        // on the stack ([CR#113.6g,701.6a]) — an Instant/Sorcery host
+        // (`CardKind::Spell`) must reach the counter arm despite this
+        // module's blanket spell early-return, which every OTHER static
+        // production still hits. Regression for the bug where the
+        // `CardKind::Spell` guard at the top of `parse` preceded (and so
+        // shadowed) this arm entirely.
+        assert_eq!(
+            resolve_line(
+                "~ can't be countered.",
+                &crate::parsers::test_ctx::ctx(CardKind::Spell)
+            )
+            .unwrap()
+            .as_deref(),
             Some("Static(Cant(Counter(on: Ref(This))))"),
         );
     }
