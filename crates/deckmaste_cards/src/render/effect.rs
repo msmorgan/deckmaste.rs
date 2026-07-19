@@ -2773,7 +2773,11 @@ mod tests {
     /// the contiguous glyphs within a single mana component ([CR#602.1]).
     #[test]
     fn activated_cost_separates_components_but_not_mana_symbols() {
+        use std::path::Path;
+
         use deckmaste_core::CostComponent;
+
+        use crate::plugin::Plugin;
 
         let ctx = Ctx {
             subject: "it",
@@ -2782,6 +2786,12 @@ mod tests {
             named: None,
         };
         let mana = |symbols: &str| CostComponent::Mana(symbols.parse().unwrap());
+        let plugins = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins");
+        let plugin = Plugin::load(plugins.join("builtin")).unwrap();
+        let energy = plugin
+            .macros
+            .read_str("PayEnergy(2)")
+            .expect("PayEnergy expands");
 
         assert_eq!(super::activated_cost(&[mana("{1}{W}")], &ctx), "{1}{W}",);
         assert_eq!(
@@ -2789,8 +2799,8 @@ mod tests {
             "{S}, {T}",
         );
         assert_eq!(
-            super::activated_cost(&[mana("{2}{W}"), mana("{U}"), CostComponent::Tap], &ctx),
-            "{2}{W}, {U}, {T}",
+            super::activated_cost(&[mana("{2}{W}"), energy, CostComponent::Tap], &ctx),
+            "{2}{W}, Pay {E}{E}, {T}",
         );
     }
 
