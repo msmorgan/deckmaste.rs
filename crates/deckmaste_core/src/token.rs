@@ -379,14 +379,13 @@ mod tests {
         use crate::CopyException;
         use crate::CopySource;
         use crate::CopySpec;
-        use crate::Count;
         use crate::Modification;
         use crate::NumericOp;
 
         let spec = TokenSpec::Copy(CopySpec {
             source: CopySource::SelfCard,
             exceptions: vec![
-                CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(4)))),
+                CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(4)))),
                 CopyException::Modify(Modification::Colors(CollectionOp::Set(vec![Color::Black]))),
                 CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Zombie".into()))),
             ],

@@ -517,6 +517,9 @@ fn keywordspec_idris(name: &str) -> Option<String> {
 fn emit_stat_value(v: &StatValue) -> R {
     match v {
         StatValue::Number(n) => Ok(app("Literal", vec![n.to_string()])),
+        // The embedded amount language maps straight onto the Idris `Count`
+        // (`CharValue Power = Count`) — a dynamic base value.
+        StatValue::Count(c) => emit_count(c),
         StatValue::DefinedByAbility => Err(gap(
             "StatValue::DefinedByAbility has no Idris Count value (CDA P/T isn't a printed value)",
         )),
@@ -2068,7 +2071,7 @@ fn emit_token_characteristics(t: &Token) -> R {
 
 fn emit_numeric_op(op: &NumericOp) -> R {
     Ok(match op {
-        NumericOp::Set(c) => app("Set", vec![emit_count(c)?]),
+        NumericOp::Set(v) => app("Set", vec![emit_stat_value(v)?]),
         NumericOp::Up(c) => app("Up", vec![emit_count(c)?]),
         NumericOp::Down(c) => app("Down", vec![emit_count(c)?]),
     })
@@ -3946,8 +3949,10 @@ mod tests {
     /// becomes-a-copy assertions.
     fn four_four_exceptions() -> Vec<CopyException> {
         vec![
-            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(4)))),
-            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(4)))),
+            CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(4)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(StatValue::Number(
+                4,
+            )))),
         ]
     }
 

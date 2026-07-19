@@ -60,15 +60,14 @@ jobs:
 
       # Generate the gitignored `plugins/wizards` corpus from the staged mtgjson
       # AtomicCards, so each crate's build.rs sets `wizards_corpus` and the
-      # otherwise-`ignored` corpus tests run. `--minimal` is REQUIRED: plain
-      # `generate` also builds keyword/action/ability-word stubs, which need
-      # `data/rules/cr.json` — NOT in the mirror (fetch_data --minimal skips it).
-      # `--minimal` runs subtype stubs + extract/resolve/graduate, all satisfiable
-      # from the mirror. Verified: the --minimal corpus passes the full workspace
-      # suite (fewer cards graduate than a full-stub corpus, but every gated test
-      # is green against it).
+      # otherwise-`ignored` corpus tests run. `generate` runs subtype stubs +
+      # extract/resolve/graduate, all satisfiable from the mirror — the
+      # keyword/action/ability-word stub generators that once needed
+      # `data/rules/cr.json` (and required the old `--minimal` flag to skip) were
+      # removed, so plain `generate` no longer touches cr.json. Verified: this
+      # corpus passes the full workspace suite (every gated test is green).
       - name: generate wizards corpus
-        run: cargo xtask generate --minimal plugins/wizards
+        run: cargo xtask generate plugins/wizards
       # Un-freeze the fixture cfgs: `cargo xtask generate` already BUILT
       # deckmaste_cards (an xtask dependency) before plugins/wizards existed,
       # and the build scripts deliberately emit no `rerun-if-changed` — so

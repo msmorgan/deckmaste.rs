@@ -314,11 +314,12 @@ fn apply_pt(result: &mut CopiableValues, axis: PtAxis, op: &NumericOp) {
 /// never-crash over never-reached.
 fn apply_numeric_field(field: &mut Option<StatValue>, op: &NumericOp) {
     match op {
-        NumericOp::Set(count) => {
-            if let Some(n) = count.literal_value() {
-                *field = Some(StatValue::Number(
-                    Int::try_from(n).expect("printed characteristic value fits Int"),
-                ));
+        NumericOp::Set(value) => {
+            // Apply only a `Set` this stateless fold can resolve to a scalar (a
+            // printed `Number`, or a literal-count embed); a dynamic count / `X`
+            // / CDA marker has no `&GameState` here and stays a no-op.
+            if let Some(n) = value.literal_value() {
+                *field = Some(StatValue::Number(n));
             }
         }
         NumericOp::Up(count) | NumericOp::Down(count) => {
@@ -539,7 +540,7 @@ mod tests {
         let out = apply_exceptions(
             base_bear(),
             &[CopyException::Modify(Modification::Power(NumericOp::Set(
-                Count::Literal(7),
+                StatValue::Number(7),
             )))],
         );
         assert_eq!(
@@ -574,16 +575,16 @@ mod tests {
         let cda = Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
-                Modification::Power(NumericOp::Set(Count::CountOf(
+                Modification::Power(NumericOp::Set(StatValue::Count(Count::CountOf(
                     deckmaste_core::Countable::Objects(std::sync::Arc::new(
                         deckmaste_core::Predicate::creature(),
                     )),
-                ))),
-                Modification::Toughness(NumericOp::Set(Count::CountOf(
+                )))),
+                Modification::Toughness(NumericOp::Set(StatValue::Count(Count::CountOf(
                     deckmaste_core::Countable::Objects(std::sync::Arc::new(
                         deckmaste_core::Predicate::creature(),
                     )),
-                ))),
+                )))),
             ]),
         ));
         let base = CopiableValues {
@@ -596,7 +597,7 @@ mod tests {
         let out = apply_exceptions(
             base,
             &[CopyException::Modify(Modification::Power(NumericOp::Set(
-                Count::Literal(3),
+                StatValue::Number(3),
             )))],
         );
         assert_eq!(out.power, Some(StatValue::Number(3)), "power overridden");
@@ -618,7 +619,7 @@ mod tests {
     fn modify_set_power_non_literal_count_is_true_noop() {
         let cda = Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Power(NumericOp::Set(Count::Literal(0))),
+            Modification::Power(NumericOp::Set(StatValue::Number(0))),
         ));
         let base = CopiableValues {
             power: Some(StatValue::DefinedByAbility),
@@ -631,7 +632,7 @@ mod tests {
         let out = apply_exceptions(
             base,
             &[CopyException::Modify(Modification::Power(NumericOp::Set(
-                dynamic,
+                StatValue::Count(dynamic),
             )))],
         );
         assert_eq!(
@@ -653,7 +654,7 @@ mod tests {
     fn retain_power_keeps_value_drops_defining_ability() {
         let cda = Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Power(NumericOp::Set(Count::Literal(0))),
+            Modification::Power(NumericOp::Set(StatValue::Number(0))),
         ));
         let base = CopiableValues {
             power: Some(StatValue::DefinedByAbility),

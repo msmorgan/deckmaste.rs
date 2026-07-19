@@ -1351,11 +1351,11 @@ mod tests {
                 deckmaste_core::TokenSpec::Copy(CopySpec {
                     source: CopySource::Object(Reference::Target(0)),
                     exceptions: vec![
-                        CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(
-                            4,
-                        )))),
+                        CopyException::Modify(Modification::Power(NumericOp::Set(
+                            StatValue::Number(4),
+                        ))),
                         CopyException::Modify(Modification::Toughness(NumericOp::Set(
-                            Count::Literal(4),
+                            StatValue::Number(4),
                         ))),
                     ],
                 }),
@@ -1850,6 +1850,7 @@ mod tests {
         use deckmaste_core::Countable;
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
+        use deckmaste_core::StatValue;
         use deckmaste_core::StaticEffect;
         let count = Count::CountOf(Countable::Objects(std::sync::Arc::new(
             Predicate::creature(),
@@ -1857,8 +1858,8 @@ mod tests {
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
-                Modification::Power(NumericOp::Set(count.clone())),
-                Modification::Toughness(NumericOp::Set(count)),
+                Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
+                Modification::Toughness(NumericOp::Set(StatValue::Count(count))),
             ]),
         ))
     }
@@ -1901,11 +1902,11 @@ mod tests {
                 deckmaste_core::TokenSpec::Copy(CopySpec {
                     source: CopySource::Object(Reference::Target(0)),
                     exceptions: vec![
-                        CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(
-                            5,
-                        )))),
+                        CopyException::Modify(Modification::Power(NumericOp::Set(
+                            StatValue::Number(5),
+                        ))),
                         CopyException::Modify(Modification::Toughness(NumericOp::Set(
-                            Count::Literal(5),
+                            StatValue::Number(5),
                         ))),
                     ],
                 }),

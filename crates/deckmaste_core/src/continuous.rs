@@ -17,6 +17,7 @@ use crate::Ident;
 use crate::Predicate;
 use crate::Reference;
 use crate::RelationPredicate;
+use crate::StatValue;
 use crate::Supertype;
 use crate::SupportsMacros;
 use crate::TurnMarker;
@@ -60,8 +61,11 @@ pub enum Duration {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum NumericOp {
     /// Overwrite the base value — layer 7b, or 7a when CDA-flagged
-    /// ([CR#613.4a,613.4b]).
-    Set(Count),
+    /// ([CR#613.4a,613.4b]). Carries a [`StatValue`], not a bare [`Count`]: the
+    /// value SET can be a printed-style scalar (incl. negative, [CR#107.1b]), a
+    /// CDA `*/*` marker, or a dynamic count — the same value type as a card's
+    /// printed base P/T. (`Up`/`Down` deltas stay non-negative [`Count`].)
+    Set(StatValue),
     /// "+N" ([CR#613.4c], layer 7c).
     Up(Count),
     /// "−N" ([CR#613.4c], layer 7c).

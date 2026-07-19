@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use anyhow::Context as _;
 use deckmaste_cards::plugin::Plugin;
 use deckmaste_cards::template::index::TemplateIndex;
 use deckmaste_core::plugin::is_ron_todo_file;
@@ -201,7 +202,13 @@ pub fn resolve_cards(plugin_dir: &Path) -> anyhow::Result<()> {
             // A malformed `.ron.todo` aborts the run (via `?`): it means a bug in
             // the step that wrote it, which the engineer should fix before resolving.
             let source = std::fs::read_to_string(path)?;
-            let mut card: TodoCard = crate::ron_output::ron_options().from_str(&source)?;
+            // Read through the literal-aware facade (as graduation reads a `Card`):
+            // a bare `power: 2` is a `StatValue::Number` `#[macro_ron(literal)]`,
+            // spliced by the literal reader — raw `ron` sees `StatValue` as an enum
+            // and rejects the bare numeral ("invalid std identifier").
+            let mut card: TodoCard = deckmaste_core::ron::options()
+                .from_str(&source)
+                .with_context(|| format!("parsing {}", path.display()))?;
             if resolve_card(&mut card, &index)? {
                 std::fs::write(path, render(&card)?)?;
                 eprintln!("resolved {}", path.display());

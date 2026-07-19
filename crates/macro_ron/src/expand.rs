@@ -1113,19 +1113,26 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         // Literal sugar: at a kind whose grammar is strict but whose reader
-        // accepts a bare numeral (`Quantity`: `3` for `Literal(3)`), capture
-        // the next value first. If it's digit-led, splice it into the wrapper
-        // and re-read; otherwise re-read it verbatim. The capture runs wherever
-        // a value can be captured (`Full`, and the newtype-content `SkipStructs`
-        // — an enum position is an ordinary value); only `Skip` opts out, so the
-        // re-reads below can't loop: the spliced `Literal(N)` re-read runs with
-        // `Full` but is no longer digit-led, so it falls to the verbatim branch,
-        // and the verbatim re-read runs with `Skip`, which skips this capture.
+        // accepts a bare numeral (`Quantity`: `3` for `Literal(3)`; `StatValue`:
+        // `-1` for `Number(-1)`, e.g. Spinal Parasite's -1/-1), capture the next
+        // value first. If it's numeral-led (a digit, or `-` then a digit), splice
+        // it into the wrapper and re-read; otherwise re-read it verbatim. The
+        // capture runs wherever a value can be captured (`Full`, and the
+        // newtype-content `SkipStructs` — an enum position is an ordinary value);
+        // only `Skip` opts out, so the re-reads below can't loop: the spliced
+        // `Literal(N)` re-read runs with `Full` but is no longer numeral-led (it
+        // is `Wrapper(...)`), so it falls to the verbatim branch, and the
+        // verbatim re-read runs with `Skip`, which skips this capture.
         if self.intercept != Intercept::Skip
             && let Some(wrapper) = self.ctx.read.macros.literal_wrapper(name)
         {
             let source = <&RawValue>::deserialize(self.de)?.get_ron();
-            if source.trim().starts_with(|c: char| c.is_ascii_digit()) {
+            let trimmed = source.trim();
+            let numeral_led = trimmed.starts_with(|c: char| c.is_ascii_digit())
+                || trimmed
+                    .strip_prefix('-')
+                    .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()));
+            if numeral_led {
                 let spliced = self.ctx.read.splice(format!("{wrapper}({source})"));
                 return reread(spliced, self.ctx, Intercept::Full, |de| {
                     de.deserialize_enum(name, variants, visitor)

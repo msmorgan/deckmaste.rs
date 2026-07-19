@@ -174,6 +174,20 @@ mod tests {
         assert!(matches!(&face.abilities[1], TodoAbility::Parsed(raw) if raw.trim() == "Flying"));
     }
 
+    /// A bare NEGATIVE stat reads as `StatValue::Number(-N)`: printed power or
+    /// toughness can be below zero ([CR#107.1b]), e.g. Spinal Parasite's -1/-1.
+    /// Regression: the literal splice once gated on digit-led, so `-1` fell to
+    /// the identifier reader and aborted the whole `generate` resolve pass.
+    #[test]
+    fn negative_stat_reads_as_number() {
+        let card = read(r#"Normal(name: "X", types: [Creature], power: -1, toughness: -1)"#);
+        let TodoCard::Normal(face) = card else {
+            panic!("expected Normal");
+        };
+        assert_eq!(face.power, Some(StatValue::Number(-1)));
+        assert_eq!(face.toughness, Some(StatValue::Number(-1)));
+    }
+
     /// Keystone: a fully-resolved `TodoCard` (every ability `Parsed`) renders
     /// byte-identical to a finished core `Card` file, so graduation's rename
     /// produces a valid `.ron`. Uses the real `plugins/canon/Lightning Bolt`

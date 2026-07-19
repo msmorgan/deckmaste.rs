@@ -2367,8 +2367,10 @@ fn copy_pt_set_clause(exceptions: &[CopyException]) -> Option<String> {
     for e in exceptions {
         let CopyException::Modify(m) = e else { continue };
         match peel_modification(m) {
-            Modification::Power(NumericOp::Set(Count::Literal(n))) => p = Some(i64::from(*n)),
-            Modification::Toughness(NumericOp::Set(Count::Literal(n))) => t = Some(i64::from(*n)),
+            Modification::Power(NumericOp::Set(StatValue::Number(n))) => p = Some(i64::from(*n)),
+            Modification::Toughness(NumericOp::Set(StatValue::Number(n))) => {
+                t = Some(i64::from(*n))
+            }
             _ => {}
         }
     }
@@ -4041,10 +4043,13 @@ mod tests {
     fn copy_exception_pt_set_pair_renders_slash_pt() {
         use deckmaste_core::CopyException;
         use deckmaste_core::NumericOp;
+        use deckmaste_core::StatValue;
 
         let exceptions = vec![
-            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(7)))),
-            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(7)))),
+            CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(7)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(StatValue::Number(
+                7,
+            )))),
         ];
         assert_eq!(copy_exceptions_clause(&exceptions), ", except it's 7/7");
     }
@@ -4139,10 +4144,13 @@ mod tests {
         use deckmaste_core::Color;
         use deckmaste_core::CopyException;
         use deckmaste_core::NumericOp;
+        use deckmaste_core::StatValue;
 
         let exceptions = vec![
-            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(4)))),
-            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(4)))),
+            CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(4)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(StatValue::Number(
+                4,
+            )))),
             CopyException::Modify(Modification::Colors(CollectionOp::Set(vec![Color::Black]))),
             CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Zombie".into()))),
         ];
@@ -4196,10 +4204,13 @@ mod tests {
         use deckmaste_core::CopyException;
         use deckmaste_core::KeywordAbility;
         use deckmaste_core::NumericOp;
+        use deckmaste_core::StatValue;
 
         let exceptions = vec![
-            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(1)))),
-            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(1)))),
+            CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(1)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(StatValue::Number(
+                1,
+            )))),
             CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Spirit".into()))),
             CopyException::Modify(Modification::GainAbility(Arc::new(Ability::Keyword(
                 KeywordAbility::Trample,
@@ -4222,6 +4233,7 @@ mod tests {
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::NumericOp;
+        use deckmaste_core::StatValue;
         use deckmaste_core::StaticEffect;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
@@ -4236,10 +4248,12 @@ mod tests {
             CopySpec {
                 source: CopySource::Object(Reference::Target(0)),
                 exceptions: vec![
-                    CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(7)))),
-                    CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(
-                        5,
+                    CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(
+                        7,
                     )))),
+                    CopyException::Modify(Modification::Toughness(NumericOp::Set(
+                        StatValue::Number(5),
+                    ))),
                 ],
             },
         );

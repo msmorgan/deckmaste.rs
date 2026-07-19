@@ -24,6 +24,7 @@ use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
 use deckmaste_core::Stat;
+use deckmaste_core::StatValue;
 use deckmaste_core::StateChange;
 use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
@@ -1418,8 +1419,10 @@ fn base_pt_clause(changes: &[Modification], plural: bool) -> Option<String> {
     let mut st: Option<i64> = None;
     for c in changes {
         match c {
-            Modification::Power(NumericOp::Set(Count::Literal(n))) => sp = Some(i64::from(*n)),
-            Modification::Toughness(NumericOp::Set(Count::Literal(n))) => st = Some(i64::from(*n)),
+            Modification::Power(NumericOp::Set(StatValue::Number(n))) => sp = Some(i64::from(*n)),
+            Modification::Toughness(NumericOp::Set(StatValue::Number(n))) => {
+                st = Some(i64::from(*n))
+            }
             _ => {}
         }
     }

@@ -1,5 +1,7 @@
-// [CR#714.2b,714.2d,714.4]: chapter thresholds belong to the card, and the
-// final threshold determines its sacrifice SBA rather than the Saga subtype.
+// [CR#714]: a Saga. The [Saga] subtype confers the enters-with-lore-counter
+// ([CR#714.3a]) and the turn-based lore increment ([CR#714.3c]). Chapter
+// thresholds belong to the card, and its final threshold ([CR#714.2b,714.2d])
+// drives the sacrifice SBA ([CR#714.4]) rather than the subtype.
 Normal(
     name: "Test Saga",
     mana_cost: [Generic(1), White],

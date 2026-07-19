@@ -25,6 +25,7 @@ use deckmaste_core::NumericOp;
 use deckmaste_core::Predicate;
 use deckmaste_core::Property;
 use deckmaste_core::Selection;
+use deckmaste_core::StatValue;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
@@ -434,7 +435,12 @@ fn bake_counter_counts(
     // Bake the `Count` each numeric op carries (Set/Up/Down all hold one).
     let bake_op = |op: &NumericOp| -> NumericOp {
         match op {
-            NumericOp::Set(n) => NumericOp::Set(bake(n)),
+            // `Set` carries a `StatValue`; only its dynamic-count embed has a
+            // `Count` to bake — a printed/CDA value passes through untouched.
+            NumericOp::Set(sv) => NumericOp::Set(match sv {
+                StatValue::Count(c) => StatValue::Count(bake(c)),
+                other => other.clone(),
+            }),
             NumericOp::Up(n) => NumericOp::Up(bake(n)),
             NumericOp::Down(n) => NumericOp::Down(bake(n)),
         }
@@ -1317,13 +1323,13 @@ fn apply(
         // [CR#122.1a,613.4c]). The count is evaluated against `working`
         // immutably before the `get_mut`.
         Modification::Power(op) => {
-            let v = eval_count(numeric_amount(op), state, working, watcher);
+            let v = eval_numeric_op(op, state, working, watcher);
             if let Some(d) = working.get_mut(&obj_id) {
                 apply_numeric(op, &mut d.characteristics.power, v);
             }
         }
         Modification::Toughness(op) => {
-            let v = eval_count(numeric_amount(op), state, working, watcher);
+            let v = eval_numeric_op(op, state, working, watcher);
             if let Some(d) = working.get_mut(&obj_id) {
                 apply_numeric(op, &mut d.characteristics.toughness, v);
             }
@@ -1333,11 +1339,35 @@ fn apply(
     }
 }
 
-/// The `Count` a numeric op evaluates — `Set`/`Up`/`Down` all carry exactly
-/// one.
-fn numeric_amount(op: &NumericOp) -> &Count {
+/// Evaluate a numeric op's amount to a scalar against the working state.
+/// `Up`/`Down` carry a plain [`Count`]; `Set` carries a [`StatValue`] — it can
+/// set a printed scalar, a dynamic count, or (unresolvable here) a CDA `*`/`X`
+/// marker, which reads as 0 ([CR#208.2a]).
+fn eval_numeric_op(
+    op: &NumericOp,
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    watcher: Option<ObjectSource>,
+) -> Int {
     match op {
-        NumericOp::Set(n) | NumericOp::Up(n) | NumericOp::Down(n) => n,
+        NumericOp::Set(v) => eval_stat_value(v, state, working, watcher),
+        NumericOp::Up(c) | NumericOp::Down(c) => eval_count(c, state, working, watcher),
+    }
+}
+
+/// A [`StatValue`] evaluated against the working state — a printed `Number`
+/// outright, a `Count` embed through [`eval_count`], and an unresolvable `X` /
+/// CDA marker as 0 ([CR#208.2a] — "use 0 instead of that number").
+fn eval_stat_value(
+    v: &StatValue,
+    state: &GameState,
+    working: &BTreeMap<ObjectId, DerivedObject>,
+    watcher: Option<ObjectSource>,
+) -> Int {
+    match v {
+        StatValue::Number(n) => *n,
+        StatValue::Count(c) => eval_count(c, state, working, watcher),
+        StatValue::Variable | StatValue::DefinedByAbility => 0,
     }
 }
 
@@ -2730,8 +2760,8 @@ mod tests {
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
             Modification::Several(vec![
-                Modification::Power(NumericOp::Set(count.clone())),
-                Modification::Toughness(NumericOp::Set(count)),
+                Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
+                Modification::Toughness(NumericOp::Set(StatValue::Count(count))),
             ]),
         ))
     }

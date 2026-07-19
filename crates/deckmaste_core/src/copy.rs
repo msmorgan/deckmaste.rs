@@ -124,7 +124,7 @@ mod tests {
         let spec = CopySpec {
             source: CopySource::Object(Reference::Target(0)),
             exceptions: vec![
-                CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(7)))),
+                CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(7)))),
                 CopyException::Retain(Characteristic::Colors),
                 CopyException::AdditionalEffect(EnterRider::WithCounters(
                     "P1P1Counter".into(),
