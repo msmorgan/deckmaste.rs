@@ -207,9 +207,6 @@ pub use status::Status;
 mod sort;
 pub use sort::Sort;
 
-mod symbol;
-pub use symbol::Symbol;
-
 pub mod ron;
 
 mod selection;
