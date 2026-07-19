@@ -308,8 +308,106 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // corpus's put-found-card / relocate-prefix-to-an-ordered-library-
         // position shape, declines structurally otherwise.
         OneShotEffect::RevealUntil(r) => reveal_until(r, ctx),
+        // [CR#701.27a] the Delver-of-Secrets upkeep peek — the top-card
+        // full-info read whose optional reveal-then-transform is ONE `May`
+        // sequence, reordered so "you may reveal" precedes the "if …" gate.
+        // Bespoke whole-shape arm like `search_library`/`reveal_until`; a body
+        // `If` outside this exact family keeps the `[unrendered]` fall-through.
+        OneShotEffect::If(f) => {
+            look_top_may_reveal_transform(f, ctx).unwrap_or_else(|| format!("[unrendered: {e:?}]."))
+        }
         other => format!("[unrendered: {other:?}]."),
     }
+}
+
+/// The Delver-of-Secrets front ability ([CR#701.27a]): "Look at the top card
+/// of your library. You may reveal that card. If [a/an TYPE] card is revealed
+/// this way, transform ~." A full-info top-card read
+/// (`Matches(Single(TopOfLibrary 1), Or([Type…]))`) whose OPTIONAL
+/// reveal-then-transform is one `May` sequence. The look is implicit in the
+/// condition and "revealed this way" is English surface, not a distinct node —
+/// so the whole sentence is REORDERED relative to the tree ("you may reveal"
+/// precedes the "if …" gate), which is why this is one bespoke recognizer
+/// emitting the entire surface (like Scry/Explore render their whole effect)
+/// rather than a structural walk contextualizing the generic
+/// `Matches`/`Or`/`Transform` renderers by their parent. `None` for any
+/// `If`/condition/body shape outside this exact family — the caller falls back
+/// to `[unrendered]`, matching every other bespoke-shape renderer here.
+fn look_top_may_reveal_transform(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
+    use deckmaste_core::Condition;
+    // Condition: the sole top card of your library matches an Or of card types.
+    let Condition::Matches(cond_ref, Predicate::Or(members)) = &f.condition else {
+        return None;
+    };
+    if !is_single_top_of_your_library(cond_ref) || f.otherwise.is_some() {
+        return None;
+    }
+    let types = or_type_words(members)?;
+    // then: you MAY (reveal that same top card, then transform ~).
+    let OneShotEffect::May(deckmaste_core::May {
+        effect: body,
+        if_did: None,
+        if_not: None,
+    }) = f.then.as_ref()
+    else {
+        return None;
+    };
+    let OneShotEffect::Sequentially(parts) = body.as_ref() else {
+        return None;
+    };
+    let [
+        OneShotEffect::Act(Action::By(
+            Reference::You,
+            PlayerAction::Reveal {
+                what: reveal_ref,
+                to: None,
+            },
+        )),
+        OneShotEffect::Act(Action::Transform(target)),
+    ] = parts.as_slice()
+    else {
+        return None;
+    };
+    if !is_single_top_of_your_library(reveal_ref) {
+        return None;
+    }
+    let noun = a_an(&format!("{} card", types.join(" or ")));
+    Some(format!(
+        "Look at the top card of your library. You may reveal that card. \
+         If {noun} is revealed this way, transform {}.",
+        fragment::reference(target, ctx),
+    ))
+}
+
+/// Whether `r` names the sole top card of YOUR library — the Idris
+/// `Single(TopOfLibrary(^1))` the Delver peek reads twice (condition + reveal).
+fn is_single_top_of_your_library(r: &Reference) -> bool {
+    let Reference::Single(sel) = r else {
+        return false;
+    };
+    matches!(
+        sel.as_ref(),
+        Selection::TopOfLibrary { count, whose: Reference::You }
+            if count.literal_value() == Some(1)
+    )
+}
+
+/// The lowercased type words of an `Or([Type(a), Type(b), …])` card-type
+/// disjunction ("instant", "sorcery") — `None` if any member is not a bare
+/// `Type` characteristic (so a non-type disjunction declines the Delver arm).
+fn or_type_words(members: &[Predicate]) -> Option<Vec<String>> {
+    if members.is_empty() {
+        return None;
+    }
+    members
+        .iter()
+        .map(|m| match m {
+            Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
+                Some(t.as_str().to_lowercase())
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 /// See [`OneShotEffect::RevealUntil`]'s render arm above.
