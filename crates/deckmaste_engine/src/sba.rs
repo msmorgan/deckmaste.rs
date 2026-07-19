@@ -806,6 +806,7 @@ mod tests {
         let (mut state, src) = bear_on_field();
         let frame = crate::stack::Frame::bare(src, PlayerId(0));
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],

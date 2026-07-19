@@ -419,6 +419,7 @@ mod tests {
     #[test]
     fn lint_flags_ineligible_action_in_do_cost() {
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -452,6 +453,7 @@ mod tests {
     #[test]
     fn lint_allows_sacrifice_in_do_cost() {
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -483,6 +485,7 @@ mod tests {
     #[test]
     fn lint_looks_through_expanded_cost_macros() {
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -521,6 +524,7 @@ mod tests {
     #[test]
     fn lint_ignores_non_activated_abilities() {
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],

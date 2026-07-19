@@ -563,6 +563,33 @@ impl GameState {
                     deckmaste_core::TokenSpec::Named(name) => name
                         .resolve()
                         .expect("a Named token in a card resolves to a builtin definition"),
+                    // [CR#707.1] a token that's a copy of an object. The
+                    // not-created guards fizzle to no token, never a panic:
+                    // [CR#111.12] the source no longer exists (or never did),
+                    // [CR#111.5] the resolved copiable values are an
+                    // instant/sorcery (or another forbid `token_from_copiable`
+                    // catches). `AdditionalEffect` exceptions
+                    // (`crate::copy::additional_riders`) have no in-scope
+                    // consumer for a token copy — no card in this campaign's
+                    // corpus needs a copy-and-additional-effect token, and the
+                    // `riders` slot they'd feed is the same
+                    // `core-action-riders-cost-modes` `todo!()` seam above —
+                    // so they're deliberately dropped here rather than routed
+                    // through that unbuilt seam.
+                    deckmaste_core::TokenSpec::Copy(spec) => {
+                        let Some(src) = crate::copy::resolve_source(self, frame, &spec.source)
+                        else {
+                            return vec![];
+                        };
+                        let Some(cv) = crate::copy::copiable_values(self, src) else {
+                            return vec![];
+                        };
+                        let cv = crate::copy::apply_exceptions(cv, &spec.exceptions);
+                        match crate::copy::token_from_copiable(cv) {
+                            Some(token) => token,
+                            None => return vec![],
+                        }
+                    }
                 };
                 let n = self.eval_count(qty, frame);
                 let events: Vec<GameEvent> = (0..n)
@@ -951,6 +978,7 @@ mod tests {
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -1101,6 +1129,476 @@ mod tests {
             crate::derive::face(&state.cards.get(card).def).name,
             "Treasure Token",
             "[CR#111.4]: unnamed token defaults to subtypes + \"Token\""
+        );
+    }
+
+    // ====================================================================
+    // core-copy-grammar Task 3 — `TokenSpec::Copy` execution ([CR#707.1])
+    // ====================================================================
+
+    /// [CR#707.2]: `Create(1, Copy(CopySpec{Object(target), []}))` mints
+    /// exactly one token whose name, power/toughness, types, and subtypes
+    /// match the copied source — a vanilla 2/2 Grizzly Bears on the
+    /// battlefield. Name is carried EXACTLY ("Grizzly Bears"), not
+    /// resynthesized from subtypes ("Bear Token") the way an unnamed token
+    /// would be — the Spitting Image example [CR#707.2].
+    #[test]
+    fn token_copy_mints_a_token_matching_the_source() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::StatValue;
+
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![b]);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                deckmaste_core::TokenSpec::Copy(CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                }),
+                vec![],
+            )),
+            &frame,
+        );
+        let _ = state.step(); // the TokenCreated batch applies
+
+        let created: Vec<ObjectId> = state
+            .zones
+            .battlefield
+            .iter()
+            .copied()
+            .filter(|&id| id != a && id != b)
+            .collect();
+        assert_eq!(
+            created.len(),
+            1,
+            "[CR#707.1]: exactly one copy token is minted"
+        );
+        let t = created[0];
+        assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+        let card = state.objects.obj(t).card_id().expect("card-backed");
+        let face = crate::derive::face(&state.cards.get(card).def);
+        assert_eq!(
+            face.name, "Grizzly Bears",
+            "[CR#707.2]: name matches the copied source EXACTLY (Spitting \
+             Image example) — not resynthesized to \"Bear Token\""
+        );
+        assert_eq!(
+            face.power,
+            Some(StatValue::Number(2)),
+            "[CR#707.2]: power matches the copied source"
+        );
+        assert_eq!(
+            face.toughness,
+            Some(StatValue::Number(2)),
+            "[CR#707.2]: toughness matches the copied source"
+        );
+        assert!(
+            obj_matches(&state, t, &Predicate::type_(Type::Creature)),
+            "[CR#707.2]: types match the copied source"
+        );
+        assert!(
+            face.subtypes.iter().any(|s| s.name == "Bear"),
+            "[CR#707.2]: subtypes match the copied source (Grizzly Bears -> Bear)"
+        );
+    }
+
+    /// [CR#111.12]: a copy of a nonexistent object (its announced target has
+    /// since left / never existed) creates no token — zero `TokenCreated`
+    /// facts, not a panic.
+    #[test]
+    fn token_copy_nonexistent_source_creates_nothing() {
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+
+        let (state, a) = bear_on_field();
+        let dead = ObjectId::from_raw(999);
+        let frame = frame_src_targets(a, vec![dead]);
+        assert_eq!(
+            state.action_items(
+                &Action::by_you(PlayerAction::Create(
+                    Count::Literal(1),
+                    deckmaste_core::TokenSpec::Copy(CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![],
+                    }),
+                    vec![],
+                )),
+                &frame,
+            ),
+            vec![],
+            "[CR#111.12]: a copy of a nonexistent object creates no token"
+        );
+    }
+
+    /// [CR#111.5]: "if an effect would create a token that is a copy of an
+    /// instant or sorcery card, no token is created" — zero tokens.
+    #[test]
+    fn token_copy_of_instant_or_sorcery_creates_nothing() {
+        use deckmaste_core::CardFace;
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+
+        let (mut state, a) = bear_on_field();
+        let bolt = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Lightning Bolt".into(),
+                types: vec![Type::Instant.def()],
+                ..CardFace::default()
+            }),
+        );
+        let frame = frame_src_targets(a, vec![bolt]);
+        assert_eq!(
+            state.action_items(
+                &Action::by_you(PlayerAction::Create(
+                    Count::Literal(1),
+                    deckmaste_core::TokenSpec::Copy(CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![],
+                    }),
+                    vec![],
+                )),
+                &frame,
+            ),
+            vec![],
+            "[CR#111.5]: a copy of an instant/sorcery card creates no token"
+        );
+    }
+
+    /// [CR#707.9d] (Eternalize shape): `Modify(Power Set 4) +
+    /// Modify(Toughness Set 4)` overrides the copied 2/2 source's P/T — the
+    /// token is 4/4.
+    #[test]
+    fn token_copy_modify_power_toughness_overrides_pt() {
+        use deckmaste_core::CopyException;
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::StatValue;
+
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(a, vec![b]);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                deckmaste_core::TokenSpec::Copy(CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![
+                        CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(
+                            4,
+                        )))),
+                        CopyException::Modify(Modification::Toughness(NumericOp::Set(
+                            Count::Literal(4),
+                        ))),
+                    ],
+                }),
+                vec![],
+            )),
+            &frame,
+        );
+        let _ = state.step(); // the TokenCreated batch applies
+
+        let &t = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&id| id != a && id != b)
+            .expect("the copy token on the battlefield");
+        let card = state.objects.obj(t).card_id().expect("card-backed");
+        let face = crate::derive::face(&state.cards.get(card).def);
+        assert_eq!(
+            face.power,
+            Some(StatValue::Number(4)),
+            "[CR#707.9d]: Modify(Power Set 4) overrides the copied power"
+        );
+        assert_eq!(
+            face.toughness,
+            Some(StatValue::Number(4)),
+            "[CR#707.9d]: Modify(Toughness Set 4) overrides the copied toughness"
+        );
+    }
+
+    /// [CR#707.5]: "any enters-the-battlefield triggered abilities of the
+    /// copy will have a chance to trigger" (the Wall of Omens example) — a
+    /// token copy of a "when this enters, draw a card" creature fires that
+    /// draw, proving the token enters via the SAME battlefield path any
+    /// permanent does, not a bypass. The source is minted directly onto the
+    /// battlefield (`mint_on_field`, no `ZoneChange` event), so its OWN ETB
+    /// never fires — only the fresh token's entry can account for the draw
+    /// asserted below.
+    #[test]
+    fn token_copy_etb_trigger_fires_through_the_normal_battlefield_path() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::TriggeredAbility;
+
+        use crate::decide::Action as Act;
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, actor) = bear_on_field();
+        let source_face = CardFace {
+            name: "Wall of Omens".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(0)),
+            toughness: Some(StatValue::Number(4)),
+            abilities: vec![Ability::triggered(TriggeredAbility {
+                ability_word: None,
+                where_x: None,
+                from: None,
+                event: EventFilter::ZoneChange {
+                    what: Predicate::Ref(Reference::This),
+                    from: None,
+                    to: Some(Zone::Battlefield),
+                    cause: None,
+                },
+                condition: None,
+                limits: Vec::new(),
+                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+            })],
+            ..CardFace::default()
+        };
+        let src = mint_on_field(&mut state, Card::Normal(source_face));
+
+        let frame = frame_src_targets(actor, vec![src]);
+        let hand_before = state.zones.hands[PlayerId(0).index()].len();
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                deckmaste_core::TokenSpec::Copy(CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                }),
+                vec![],
+            )),
+            &frame,
+        );
+
+        // Drive the stack empty: the copied ETB trigger must fire, go on the
+        // stack, and resolve. Stops the moment priority is offered over an
+        // empty stack (mirrors `resolve/action.rs`'s
+        // `drive_declining_or_casting`, simplified — this fixture has no
+        // casting/paying/ordering choices to answer).
+        for _ in 0..200 {
+            match state.step() {
+                StepOutcome::Progress(_) => {}
+                StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => {
+                    if state.stack.is_empty() {
+                        break;
+                    }
+                    state.submit_decision(Decision::Act(Act::Pass)).unwrap();
+                }
+                StepOutcome::NeedsDecision(other) => {
+                    panic!("unexpected decision while the ETB trigger resolves: {other:?}")
+                }
+                StepOutcome::GameOver(_) => break,
+            }
+        }
+
+        assert_eq!(
+            state.zones.hands[PlayerId(0).index()].len(),
+            hand_before + 1,
+            "[CR#707.5]: the token copy's ETB trigger (copied from the \
+             source's \"when this enters, draw a card\") fires and resolves, \
+             proving the token entered via the normal battlefield path"
+        );
+    }
+
+    /// A Tarmogoyf-shaped P/T CDA ([CR#604.3]): `Modify(This,
+    /// Several([Power(Set(CountOf(creatures))), Toughness(Set(CountOf(
+    /// creatures)))]))` — mirrors `layer.rs`'s `creature_count_cda` test
+    /// fixture, rebuilt here since that helper is private to `layer.rs`'s
+    /// own test module.
+    fn tarmogoyf_shaped_cda() -> deckmaste_core::Ability {
+        use deckmaste_core::Ability;
+        use deckmaste_core::Countable;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::StaticEffect;
+        let count = Count::CountOf(Countable::Objects(std::sync::Arc::new(
+            Predicate::creature(),
+        )));
+        Ability::r#static(StaticEffect::Modify(
+            Reference::This,
+            Modification::Several(vec![
+                Modification::Power(NumericOp::Set(count.clone())),
+                Modification::Toughness(NumericOp::Set(count)),
+            ]),
+        ))
+    }
+
+    /// [CR#707.9d] (CDA behavioral proof, deferred from Task 2): a token
+    /// copy of a source carrying a P/T-defining CDA, WITH a `Modify(P/T Set
+    /// N)` exception, is N/N and the CDA is dropped — not just at the
+    /// `CopiableValues` fold (`deckmaste_engine::copy`'s own unit tests
+    /// already cover that pure fold), but end to end: the live layer engine
+    /// reads a PINNED N/N off the actual minted token, not a re-derived
+    /// value that happens to equal N by coincidence (proven by adding
+    /// another creature afterward and confirming the token's P/T doesn't
+    /// move).
+    #[test]
+    fn token_copy_modify_pt_drops_source_cda_end_to_end() {
+        use deckmaste_core::CardFace;
+        use deckmaste_core::CopyException;
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::Modification;
+        use deckmaste_core::NumericOp;
+        use deckmaste_core::StatValue;
+
+        let mut state = game();
+        let goyf = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Tarmogoyf".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::DefinedByAbility),
+                toughness: Some(StatValue::DefinedByAbility),
+                abilities: vec![tarmogoyf_shaped_cda()],
+                ..CardFace::default()
+            }),
+        );
+        let frame = frame_src_targets(goyf, vec![goyf]);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                deckmaste_core::TokenSpec::Copy(CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![
+                        CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(
+                            5,
+                        )))),
+                        CopyException::Modify(Modification::Toughness(NumericOp::Set(
+                            Count::Literal(5),
+                        ))),
+                    ],
+                }),
+                vec![],
+            )),
+            &frame,
+        );
+        let _ = state.step(); // the TokenCreated batch applies
+
+        let &t = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&id| id != goyf)
+            .expect("the copy token on the battlefield");
+        let view = state.layers();
+        assert_eq!(
+            view.power(t),
+            Some(5),
+            "[CR#707.9d]: Modify(Power Set 5) overrides — the source's P/T-\
+             defining CDA is dropped, not carried alongside the override"
+        );
+        assert_eq!(
+            view.toughness(t),
+            Some(5),
+            "[CR#707.9d]: same for toughness"
+        );
+
+        // Add another creature: a live CDA would re-derive to a new count
+        // (3, here) — the token's P/T staying pinned at 5/5 proves the CDA
+        // is genuinely gone, not coincidentally reading 5.
+        mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Bear".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..CardFace::default()
+            }),
+        );
+        let view = state.layers();
+        assert_eq!(
+            view.power(t),
+            Some(5),
+            "pinned 5/5: no CDA left to re-derive from the new creature count"
+        );
+    }
+
+    /// [CR#707.9d]'s converse: a token copy of the SAME Tarmogoyf-shaped
+    /// source with NO `Modify` exception carries the P/T-defining CDA
+    /// along — its live power/toughness tracks the creature count
+    /// dynamically, exactly like the source's own.
+    #[test]
+    fn token_copy_without_modify_carries_source_cda() {
+        use deckmaste_core::CardFace;
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::StatValue;
+
+        let mut state = game();
+        let goyf = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Tarmogoyf".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::DefinedByAbility),
+                toughness: Some(StatValue::DefinedByAbility),
+                abilities: vec![tarmogoyf_shaped_cda()],
+                ..CardFace::default()
+            }),
+        );
+        let frame = frame_src_targets(goyf, vec![goyf]);
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                deckmaste_core::TokenSpec::Copy(CopySpec {
+                    source: CopySource::Object(Reference::Target(0)),
+                    exceptions: vec![],
+                }),
+                vec![],
+            )),
+            &frame,
+        );
+        let _ = state.step(); // the TokenCreated batch applies
+
+        let &t = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&id| id != goyf)
+            .expect("the copy token on the battlefield");
+        // Two creatures on the battlefield right now: goyf + the token
+        // itself (the token's own copied CDA counts itself too).
+        let view = state.layers();
+        assert_eq!(
+            view.power(t),
+            Some(2),
+            "[CR#707.9d]: no Modify exception — the CDA rides along and \
+             derives the live creature count (goyf + the token itself)"
+        );
+        assert_eq!(view.toughness(t), Some(2), "same for toughness");
+
+        // A third creature bumps the dynamic count — the copy's CDA must
+        // track it live, exactly like the source's own CDA would.
+        mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Bear".into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(2)),
+                toughness: Some(StatValue::Number(2)),
+                ..CardFace::default()
+            }),
+        );
+        let view = state.layers();
+        assert_eq!(
+            view.power(t),
+            Some(3),
+            "the copied CDA re-derives to the new creature count, same as \
+             any live CDA would"
         );
     }
 

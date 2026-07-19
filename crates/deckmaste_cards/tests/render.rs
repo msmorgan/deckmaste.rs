@@ -887,6 +887,7 @@ fn renders_create_one_token() {
     use deckmaste_core::Token;
     use deckmaste_core::TokenSpec;
     let token = Token {
+        name: None,
         color_indicator: vec![Color::Red],
         supertypes: vec![],
         types: vec![Type::Creature.def()],
@@ -930,6 +931,7 @@ fn renders_create_two_tokens() {
     use deckmaste_core::Token;
     use deckmaste_core::TokenSpec;
     let token = Token {
+        name: None,
         color_indicator: vec![Color::White],
         supertypes: vec![],
         types: vec![Type::Creature.def()],

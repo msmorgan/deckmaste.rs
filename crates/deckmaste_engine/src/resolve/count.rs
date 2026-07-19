@@ -1748,6 +1748,7 @@ mod tests {
                 OneShotEffect::act_by_you(PlayerAction::Create(
                     Count::CountOf(Countable::Objects(Arc::new(parsed))),
                     deckmaste_core::Token {
+                        name: None,
                         color_indicator: vec![],
                         supertypes: vec![],
                         types: vec![Type::Creature.def()],

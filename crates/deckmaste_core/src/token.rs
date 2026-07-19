@@ -26,6 +26,8 @@ pub enum TokenSpec {
     /// A predefined token by name ([CR#111.10]) — `Named(Treasure)`. The name
     /// is a bare identifier (it is also the token's `Subtype`).
     Named(TokenName),
+    /// A token that's a copy of an object ([CR#707.1]).
+    Copy(crate::CopySpec),
 }
 
 impl From<Token> for TokenSpec {
@@ -288,6 +290,7 @@ impl PredefinedToken {
         }));
 
         Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -303,10 +306,18 @@ impl PredefinedToken {
 /// token's characteristics ([CR#111.3] — functionally equivalent to printed
 /// values). Color rides a color indicator ([CR#202.2e]: a token has no mana
 /// cost, so its defined color is carried the same way `CardFace` carries a
-/// printed indicator). Name is still omitted — it defaults to the subtypes
-/// plus "Token" at synthesis ([CR#111.4]).
+/// printed indicator). `name` is usually omitted — an unnamed token defaults
+/// to its subtypes plus "Token" at synthesis ([CR#111.4]) — except when the
+/// creating effect DOES specify a name, which a copy effect always does: a
+/// copy acquires the source's name as a copiable value ([CR#707.2]), so
+/// `token_from_copiable` (`deckmaste_engine::copy`) sets this explicitly
+/// rather than letting a copy token's name resynthesize from its subtypes.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Token {
+    /// An explicit name ([CR#111.3]/[CR#707.2]) — `None` synthesizes at
+    /// [CR#111.4] (subtypes + "Token") the way an unnamed token always has.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub color_indicator: Vec<Color>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -406,6 +417,7 @@ mod tests {
         assert_eq!(
             spec,
             TokenSpec::Token(Token {
+                name: None,
                 color_indicator: vec![],
                 supertypes: vec![],
                 types: vec![Type::Artifact.def()],
@@ -432,6 +444,7 @@ mod tests {
     #[test]
     fn token_round_trips_with_empty_vecs_omitted() {
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -443,6 +456,13 @@ mod tests {
         let written = crate::ron::options().to_string(&token).unwrap();
         // Empty vecs must not appear in the output (skip_serializing_if is
         // load-bearing).
+        // `written` legitimately contains "name" as part of the nested
+        // `TypeDef(name: "Artifact", ...)` — check specifically for the
+        // Token-level `name:` key, not a bare substring match.
+        assert!(
+            !written.contains("Token(name:") && !written.contains(", name:"),
+            "the Token's own `name` field should be omitted when None: {written}"
+        );
         assert!(
             !written.contains("supertypes"),
             "supertypes should be omitted when empty"

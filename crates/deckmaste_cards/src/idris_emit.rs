@@ -1953,6 +1953,11 @@ fn emit_token_spec(spec: &TokenSpec) -> R {
                 name.as_str()
             ))
         })?,
+        // A token copy ([CR#707.1]) is core-copy-grammar Task 3's runtime
+        // seam only — no idris probe over its characteristics exists yet
+        // (deferred to a later task in the campaign). Decline structurally
+        // rather than guess.
+        TokenSpec::Copy(_) => return Err(gap("TokenSpec::Copy is not yet idris-emittable")),
     };
     emit_token_characteristics(&token)
 }

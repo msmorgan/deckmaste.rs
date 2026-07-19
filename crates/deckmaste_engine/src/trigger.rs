@@ -3670,6 +3670,7 @@ mod tests {
         use deckmaste_core::WhoseTurn;
 
         let goblin_token = Token {
+            name: None,
             color_indicator: vec![Color::Red],
             supertypes: vec![],
             types: vec![Type::Creature.def()],

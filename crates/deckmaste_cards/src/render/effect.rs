@@ -2145,6 +2145,11 @@ fn create_text(count: &Count, spec: &TokenSpec) -> String {
             let noun = if plural { "tokens" } else { "token" };
             format!("Create {count_word} {} {noun}.", name.as_str())
         }
+        // A token copy ([CR#707.1]) is core-copy-grammar Task 3's runtime
+        // seam only — the render arm is a later task in the campaign.
+        // Decline structurally rather than guess at the "a copy of ..."
+        // phrase.
+        TokenSpec::Copy(spec) => format!("[unrendered: Create({count:?}, {spec:?})]."),
     }
 }
 

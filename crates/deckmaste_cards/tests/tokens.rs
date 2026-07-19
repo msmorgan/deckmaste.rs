@@ -63,6 +63,7 @@ fn treasure_token_parses() {
     assert_eq!(
         token,
         Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -92,6 +93,7 @@ fn clue_token_parses() {
     assert_eq!(
         token,
         Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -118,6 +120,7 @@ fn food_token_parses() {
     assert_eq!(
         token,
         Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -144,6 +147,7 @@ fn gold_token_parses() {
     assert_eq!(
         token,
         Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -179,6 +183,7 @@ fn blood_token_parses() {
     assert_eq!(
         token,
         Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],
@@ -255,6 +260,7 @@ fn vibranium_token_parses() {
     assert_eq!(
         token,
         Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Artifact.def()],

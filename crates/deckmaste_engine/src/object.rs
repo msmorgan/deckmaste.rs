@@ -118,16 +118,19 @@ impl Cards {
     /// its creator) and returns its id. The `Token`'s characteristics become a
     /// one-faced card definition, so tokens ride the same derivation / layer /
     /// LKI machinery as cards; only the `is_token` flag tells them apart
-    /// ([CR#111.6]). The name defaults to the subtypes plus the word "Token"
-    /// ([CR#111.4] — `Token` carries no name of its own yet).
+    /// ([CR#111.6]). The name honors an explicit `token.name` (set by a copy
+    /// token per [CR#707.2]) when present; otherwise it defaults to the
+    /// subtypes plus the word "Token" ([CR#111.4]).
     pub(crate) fn push_token(&mut self, token: &Token, owner: PlayerId) -> CardId {
-        let name = token
-            .subtypes
-            .iter()
-            .map(|s| s.name.as_str())
-            .chain(std::iter::once("Token"))
-            .collect::<Vec<_>>()
-            .join(" ");
+        let name = token.name.clone().unwrap_or_else(|| {
+            token
+                .subtypes
+                .iter()
+                .map(|s| s.name.as_str())
+                .chain(std::iter::once("Token"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        });
         let def = Arc::new(Card::Normal(CardFace {
             name,
             mana_cost: deckmaste_core::ManaCost::default(),
@@ -467,6 +470,7 @@ mod tests {
     fn push_token_carries_color_and_pt() {
         let mut cards = Cards::default();
         let token = Token {
+            name: None,
             color_indicator: vec![Color::Red],
             supertypes: vec![],
             types: vec![Type::Creature.def()],
@@ -483,6 +487,65 @@ mod tests {
         };
         assert_eq!(face.power, Some(StatValue::Number(1)));
         assert_eq!(face.toughness, Some(StatValue::Number(1)));
+    }
+
+    /// An unnamed token still synthesizes subtypes + "Token" [CR#111.4] — the
+    /// `name: None` default from the test above, spelled out explicitly here
+    /// as the control case for the next test.
+    #[test]
+    fn push_token_with_no_name_synthesizes_subtypes_plus_token() {
+        let mut cards = Cards::default();
+        let token = Token {
+            name: None,
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![Type::Creature.def()],
+            subtypes: vec![deckmaste_core::Subtype {
+                name: "Bear".into(),
+                types: vec![Type::Creature],
+                confers: vec![],
+            }],
+            abilities: vec![],
+            power: None,
+            toughness: None,
+        };
+        let id = cards.push_token(&token, PlayerId(0));
+        let Card::Normal(face) = cards.get(id).def.as_ref() else {
+            panic!("a token synthesizes a one-faced Normal card");
+        };
+        assert_eq!(
+            face.name, "Bear Token",
+            "[CR#111.4]: no explicit name -> subtypes + \"Token\""
+        );
+    }
+
+    /// An explicit `token.name` (a copy token, [CR#707.2]) is used as-is —
+    /// it does NOT resynthesize from subtypes the way an unnamed token does.
+    #[test]
+    fn push_token_with_explicit_name_uses_it_verbatim() {
+        let mut cards = Cards::default();
+        let token = Token {
+            name: Some("Grizzly Bears".into()),
+            color_indicator: vec![],
+            supertypes: vec![],
+            types: vec![Type::Creature.def()],
+            subtypes: vec![deckmaste_core::Subtype {
+                name: "Bear".into(),
+                types: vec![Type::Creature],
+                confers: vec![],
+            }],
+            abilities: vec![],
+            power: None,
+            toughness: None,
+        };
+        let id = cards.push_token(&token, PlayerId(0));
+        let Card::Normal(face) = cards.get(id).def.as_ref() else {
+            panic!("a token synthesizes a one-faced Normal card");
+        };
+        assert_eq!(
+            face.name, "Grizzly Bears",
+            "[CR#707.2]: an explicit name is carried verbatim, not resynthesized"
+        );
     }
 
     #[test]

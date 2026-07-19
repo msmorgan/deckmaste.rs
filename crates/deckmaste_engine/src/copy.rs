@@ -49,6 +49,7 @@ use deckmaste_core::NumericOp;
 use deckmaste_core::Reference;
 use deckmaste_core::StatValue;
 use deckmaste_core::StaticEffect;
+use deckmaste_core::Token;
 use deckmaste_core::Type;
 use deckmaste_core::TypeDef;
 
@@ -140,6 +141,58 @@ pub fn additional_riders(exceptions: &[CopyException]) -> Vec<EnterRider> {
             _ => None,
         })
         .collect()
+}
+
+/// Map a copy's resolved [`CopiableValues`] to a [`Token`] for minting
+/// ([CR#707.1], Task 3's runtime seam) — `None` if the token doesn't come
+/// into being at all.
+///
+/// `name` is carried through explicitly — [CR#707.2]: "the copiable values
+/// are the values derived from the text printed on the object (that text
+/// being name, mana cost, color indicator, ...)" names `name` itself as a
+/// copiable characteristic (the Spitting Image example is explicit: a token
+/// that's a copy of Doomed Dissenter is named Doomed Dissenter, not "Human
+/// Token"). This is UNLIKE a plain `Create(N, Token(...))`/`Named(...)`
+/// token, whose effect never specifies a name and so always synthesizes one
+/// at [CR#111.4] (subtypes + "Token") — a copy's source, by contrast,
+/// always has one, so `Token::name` is set here rather than left `None`. An
+/// empty `cv.name` (a faceless/nameless source) still falls back to `None`
+/// (synthesis) rather than minting a token literally named "".
+///
+/// `Token` has no `mana_cost`/`loyalty`/`defense` slot (color rides
+/// `color_indicator` per [CR#202.2e]; a token this grammar mints is never a
+/// planeswalker/battle in the corpus this task covers) — those
+/// `CopiableValues` fields are dropped here, not carried anywhere else.
+/// Every other field maps straight across.
+///
+/// Returns `None` when the copiable values would make the token an instant
+/// or sorcery card ([CR#111.5]: "if an effect would create a token that is a
+/// copy of an instant or sorcery card, no token is created" — a hard
+/// decline, not a stripped-down land-in-limbo value). The broader [CR#111.5]
+/// clause ("a rule or effect states that a permanent with one or more of
+/// that token's characteristics can't enter the battlefield") has no other
+/// concrete check implemented in the engine today — never-crash: an
+/// unhandled forbid case simply isn't caught here, matching the rest of
+/// this module's documented PARTIAL coverage.
+#[must_use]
+pub fn token_from_copiable(cv: CopiableValues) -> Option<Token> {
+    let is_instant_or_sorcery = cv
+        .types
+        .iter()
+        .any(|t| t.name == Type::Instant.name() || t.name == Type::Sorcery.name());
+    if is_instant_or_sorcery {
+        return None;
+    }
+    Some(Token {
+        name: (!cv.name.is_empty()).then_some(cv.name),
+        color_indicator: cv.color_indicator,
+        supertypes: cv.supertypes,
+        types: cv.types,
+        subtypes: cv.subtypes,
+        abilities: cv.abilities,
+        power: cv.power,
+        toughness: cv.toughness,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -690,6 +743,7 @@ mod tests {
     fn copiable_values_reads_a_minted_token() {
         let mut state = bare_game();
         let token = Token {
+            name: None,
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![Type::Creature.def()],
