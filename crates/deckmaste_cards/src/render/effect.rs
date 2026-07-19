@@ -308,16 +308,18 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // corpus's put-found-card / relocate-prefix-to-an-ordered-library-
         // position shape, declines structurally otherwise.
         OneShotEffect::RevealUntil(r) => reveal_until(r, ctx),
-        // [CR#701.27a] the Delver-of-Secrets upkeep peek — the top-card
-        // full-info read whose optional reveal-then-transform is ONE `May`
-        // sequence, reordered so "you may reveal" precedes the "if …" gate.
-        // Bespoke whole-shape arm like `search_library`/`reveal_until`; a body
-        // `If` outside this exact family keeps the `[unrendered]` fall-through.
-        OneShotEffect::If(f) => {
-            look_top_may_reveal_transform(f, ctx).unwrap_or_else(|| format!("[unrendered: {e:?}]."))
-        }
-        other => format!("[unrendered: {other:?}]."),
+        // [CR#701.27a] the Delver-of-Secrets upkeep peek (whole-shape arm; see
+        // `delver_look_top`) — any other `If` keeps `[unrendered]`.
+        OneShotEffect::If(f) => delver_look_top(f, ctx).unwrap_or_else(|| unrendered(e)),
+        other => unrendered(other),
     }
+}
+
+/// The structural fall-through for an effect shape this renderer has no arm
+/// for yet — a LOUD `[unrendered: …]` marker (the fidelity gate fails on it,
+/// never silently drops the clause).
+fn unrendered(e: &OneShotEffect) -> String {
+    format!("[unrendered: {e:?}].")
 }
 
 /// The Delver-of-Secrets front ability ([CR#701.27a]): "Look at the top card
@@ -333,7 +335,7 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
 /// `Matches`/`Or`/`Transform` renderers by their parent. `None` for any
 /// `If`/condition/body shape outside this exact family — the caller falls back
 /// to `[unrendered]`, matching every other bespoke-shape renderer here.
-fn look_top_may_reveal_transform(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
+fn delver_look_top(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
     use deckmaste_core::Condition;
     // Condition: the sole top card of your library matches an Or of card types.
     let Condition::Matches(cond_ref, Predicate::Or(members)) = &f.condition else {
