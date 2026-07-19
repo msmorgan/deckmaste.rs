@@ -3,8 +3,25 @@ needs: []
 ---
 Structural drift between the Idris model (`idris/src/Core.idr`) and Rust core,
 found by the 2026-07-16 drift review. No automated check catches these (see
-`ci-idris-gate`); each cluster needs a design decision — mirror it, or record
-the asymmetry as sanctioned (the way Draw already is).
+`ci-idris-gate`); each cluster needs a design decision.
+
+**Default to MIRROR (user ruling 2026-07-19).** Prefer converging the two sides
+over recording a sanctioned asymmetry — the Draw-style "both encodings + why"
+hatch is deprecated as a resting state (Draw itself is now sunset, converging
+when `idris-retire-cards-idr` lands). Once the re-emit RON→`Core.idr` typecheck
+is the sole card-correctness gate, drift should converge to that one truth.
+Sanction only when mirror is genuinely infeasible (an Idris-only model probe
+with no Rust meaning), and mark it as debt, not a blessed parallel. **Re-verify
+each cluster against current code before ruling — this ticket is dated and
+drifts** (the `AsThough` cluster below already flipped from "unconstructable" to
+fully wired: Rust grew `AsThough::Counterfactual`, the engine evaluates it at
+`legal.rs`, and it emits — only `SpendAsThough` still one-way gaps).
+
+Additional Rust→Idris emit gaps surfaced 2026-07-19 (mirror candidates, absent
+from the original clusters): `Card::TwoFaced` (`idris_emit.rs:3608`),
+`Action::CreateReplacement` (`:1759`), `Count::EventCount` (`:1125`),
+`EventFilter::Nth` (`:3039`), `Reference::Linked` (`:572`), subtype-confer
+`Property::TurnBased` (`:335`).
 
 Rust-side constructs unrepresentable in Idris:
 

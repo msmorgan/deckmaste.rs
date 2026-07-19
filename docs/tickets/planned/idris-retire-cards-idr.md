@@ -103,13 +103,17 @@ CANONIZABLE). Two intents it is the worked example for:
   separate `idris_emit` gap at `:1738` — a decision for `idris-mirror-enum-gaps`,
   not needed by Donate.)
 
-## Bonus this unblocks
+## Converge Draw as part of the retire
 
 Retiring `Cards.idr` dissolves the standing justification for the **Draw
-divergence** (idris `Action.Draw` was kept because retiring it "forces migrating
-~20 Cards.idr sites"). With those sites gone, retiring idris `Action.Draw` and
-the `{default …}` grammar-arg sites becomes a free-standing surface decision —
-raise separately.
+divergence** (idris `Action.Draw` was kept only because retiring it "forces
+migrating ~20 Cards.idr sites"). Per the mirror policy (user ruling 2026-07-19:
+prefer mirror over sanctioned divergence — no more Draw-style asymmetries "if we
+can help it"), with those sites gone the plan is to **converge**: retire idris
+`Action.Draw` to Rust's Composite-only form as part of this cleanup, not to
+re-sanction it. The `{default …}` grammar-arg sites are the same shape — fold
+their removal in or spin a sibling cleanup. Do NOT retire idris `Action.Draw`
+before the `Cards.idr` sites are actually gone (it still has ~20 callers).
 
 Standard constraints apply. Deltas: `idris-check` is a local-only gate (no idris2
 in CI); the acceptance plugin must be registered in the fidelity `COVERED` list
