@@ -287,13 +287,6 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             batch.",
         ),
         (
-            n("Action", "Transform"),
-            "DEFERRED: the grammar (core variant, render, idris emit) and the engine resolve \
-            arm + legality helper are built and unit-tested ([CR#701.27a,701.27d]), but no canon \
-            transform-layout card is extracted yet (pipeline-layout-extraction) — until such a \
-            fixture lands, no transforming-DFC real card can graduate to cover this grammar.",
-        ),
-        (
             n("Action", "Cease"),
             "ENGINE-INTERNAL: the cease-to-exist verb the copy-cease SBA \
             ([CR#704.5d,707.10a], sba.rs) speaks through — no card will ever spell it \
@@ -548,9 +541,11 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("StateChange", "Transformed"),
             "DEFERRED: the Transformed fact is emitted by the transform resolve \
-            arm + apply, but no canon transform-layout card is extracted yet \
-            (pipeline-layout-extraction) — until such a fixture lands, no \
-            transforming-DFC real card can graduate to cover this node.",
+            arm + apply, and Delver of Secrets now performs a transform \
+            ([CR#701.27a]) — but this node is the transform TRIGGER-EVENT \
+            pattern ('whenever ~ transforms'), and no canon card OBSERVES a \
+            transform yet, so nothing spells the `Transformed` token in a \
+            trigger. Covered once a transform-triggered real card lands.",
         ),
         (
             n("Agency", "CostPayment"),
