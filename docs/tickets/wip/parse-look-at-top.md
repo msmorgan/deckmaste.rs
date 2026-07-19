@@ -23,42 +23,43 @@ No engine work: every primitive exists — `Existing(TopOfLibrary)`, `Move`, the
 `Reveal` seam (`engine-explore`, done), `May`, `If`/`Matches`, and the
 `That(Card)` anaphor.
 
-## Approach — bidirectional effect macros, sentence-composed
+## Approach — whole-shape bidirectional effect macros (mirror `Explore.ron`)
 
 No Rust parser arms and no Rust render arms (USER RULING: macros, not
-hand-rolled recognizers). Each production is an effect-kind `.ron` macro with an
-English `template`; parse emits the macro invocation, render fills the same
-template (template-first, like `Scry`/`Investigate`/`Amass`) — so render
-round-trips for free. Multi-sentence cards ride the existing `parse_sequence`
-(`crates/deckmaste_migrations/src/parsers/effect.rs`): each sentence matches its
-own macro, joined into `Sequentially`; the tail reads the peeked card via the
-`That(Card)` anaphor (`parse_sequence`'s documented contract — later sentences
-read the first sentence's binds/products as `That(Card)`). "it" is **literal
-template text**; the macro bodies hardcode `That` — this sidesteps the
-`it → Reference::This` self-reference slot-reader (`effect.rs`
-`macro_slot_reader`/`self_reference`), which would otherwise mis-bind the
-anaphor to the printed-on object.
+hand-rolled recognizers). Each shape is ONE effect-kind `.ron` macro whose
+`template` is the **entire** English (one OR two sentences) and whose body is
+`Each(Existing(TopOfLibrary(count: 1)), <body>)` — structurally identical to
+`Explore.ron`, which already peeks a single top card and acts on it as the
+per-iteration anaphor `It`. Parse emits the macro invocation, render fills the
+same template (template-first, like `Scry`/`Investigate`/`Amass`) — render
+round-trips for free.
+
+Two-sentence shapes are handled by the whole-body macro fallthrough, NOT by
+`parse_sequence` composition: for a body like "Look at the top card of your
+library. You may reveal it and put it into your hand.", the earlier
+`CLAUSE_PARSERS` all decline (`parse_if` — its base has no look-at production;
+`parse_may` — body doesn't start with "you may"; `parse_sequence` — its first
+sentence has no production), so `parse_macro_effect` (last in the list) receives
+the whole body and matches the multi-sentence template. Multi-sentence templates
+are already supported (`DestroyNoRegen.ron`: `"destroy ${0}. It can't be
+regenerated"`). Because there is deliberately **no** standalone "look at the top
+card" head production, `parse_sequence` never wins — keep it that way. The
+peeked card is `It` inside the one nested `Each` (no cross-sentence anaphor, no
+`That(Card)`, no `it → This` slot-reader hazard).
 
 Macros:
 
-| macro | template | body |
+| macro | template | body (inside `Each(Existing(TopOfLibrary(count: 1)), …)`) |
 |---|---|---|
-| `ExileTop` | `exile the top card of your library` | `With(Existing(TopOfLibrary(1)), Move(That, Exile))` |
-| `LookAtTop` (head) | `look at the top card of your library` | publish the top card as `That(Card)`; grant controller look-visibility; **no move** |
-| tail → hand | `you may reveal it and put it into your hand` | `May(Sequentially([Reveal(That), Move(That, Hand)]))` |
-| tail type-gate | `if it's a ${0:Type} card, you may reveal it and put it into your hand` | `If(Matches(That, Type(${0})), May(…hand))` |
-| tail → graveyard | `you may put it into your graveyard` | `May(Move(That, Graveyard))` — include only if a real card needs it (Surveil-1 covers most) |
+| `ExileTop` | `exile the top card of your library` | `Move(It, Exile)` |
+| `LookTopRevealToHand` | `look at the top card of your library. you may reveal it and put it into your hand` | `May(effect: Sequentially([Reveal(what: It), Move(It, Hand)]))` |
+| `LookTopRevealToHandIfType` | `look at the top card of your library. if it's a ${0} card, you may reveal it and put it into your hand` | `If(Matches(It, Type("${0}")), May(effect: Sequentially([Reveal(what: It), Move(It, Hand)])))` |
+| `LookTopMayGraveyard` | `look at the top card of your library. you may put it into your graveyard` | `May(effect: Move(It, Graveyard))` — include only if a real card needs it (Surveil-1 covers most) |
 
-## Spike (do this first)
-
-Confirm how a **standalone** `LookAtTop` head publishes `That(Card)` to the
-*next* sentence. `parse_sequence` says later sentences read the first
-sentence's product/announce as `That(Card)`, but "look at" binds an *existing*
-card rather than producing a token — verify the peeked bind lands on the
-antecedent stack for siblings (likely a `With`/look-bind node; the peek
-visibility is granted at `Existing(TopOfLibrary)` binder resolution per
-`engine-scry-recompose-ordered-move`). If a small core assist is needed to
-publish `That(Card)`, report before building the tails on top.
+The `${0}` type slot in `LookTopRevealToHandIfType` is the one open detail —
+declare its real `params` type (a card-type name reader) rather than `Any`; land
+the untyped `ExileTop`/`LookTopRevealToHand` first and add the type-gate macro
+second.
 
 ## Graduating cards (real, from the todo corpus)
 

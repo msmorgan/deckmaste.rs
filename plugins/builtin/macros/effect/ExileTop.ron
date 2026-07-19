@@ -1,0 +1,19 @@
+// "Exile the top card of your library." — bare top-card move to the exile zone
+// ([CR#701.13]: to exile an object is to put it into the exile zone; exiling
+// has no dedicated core verb — `Move(<what>, Exile)` IS the exile). The single
+// top card is peeked and moved as the per-iteration anaphor `It`, mirroring
+// `Draw.ron` (`Each(Existing(TopOfLibrary(count: 1)), Move(It, Hand))`).
+//
+// The impulse tail "You may play it this turn." is a SEPARATE sentence that
+// needs play-from-exile permission (`engine-cast-from-zones`); this macro
+// covers only the bare move, so an impulse card still stays in progress on its
+// second sentence.
+(
+    name: "ExileTop",
+    template: "exile the top card of your library",
+    kinds: [OneShotEffect],
+    body: Each(
+        binder: Existing(TopOfLibrary(count: 1)),
+        effect: Move(It, Exile),
+    ),
+)
