@@ -535,6 +535,11 @@ impl GameState {
                     StaticEffect::Each(sel, _) => todo!(
                         "P0.W1: Continuously(Each({sel:?}, _)) — only Each(SelectAll, Modify(It, _)) is wired"
                     ),
+                    // Becomes-a-copy is a deferred-exec seam: its copiable-value install is
+                    // owned by engine-layers-1-copy-facedown-text (base_values). Until that
+                    // lands a resolved becomes-a-copy FIZZLES — installs nothing — per the
+                    // never-panic contract, matching the early-return fizzles above (473/555).
+                    StaticEffect::BecomesCopy(..) => return,
                     other => {
                         todo!("P0.W1: Continuously({other:?}) — granted static-row kind unbuilt")
                     }
@@ -3501,6 +3506,54 @@ mod tests {
         assert!(
             state.continuous.is_empty(),
             "a false-at-mint ForAsLongAs pushes no instance"
+        );
+    }
+
+    /// A resolved `BecomesCopy` is a deferred-exec seam
+    /// (engine-layers-1-copy-facedown-text owns the layer-1a copiable-value
+    /// install): `Continuously(BecomesCopy(..))` and its `Until(..)`-list
+    /// spelling must both FIZZLE — no panic, no continuous instance minted —
+    /// never hit the `Continuously` match's `other => todo!(...)` catch-all.
+    #[test]
+    fn becomes_copy_continuously_fizzles_without_panic() {
+        use deckmaste_core::Continuously;
+        use deckmaste_core::CopySource;
+        use deckmaste_core::CopySpec;
+        use deckmaste_core::Duration;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticEffect;
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(src);
+        let spec = CopySpec {
+            source: CopySource::SelfCard,
+            exceptions: vec![],
+        };
+
+        let effect = OneShotEffect::Continuously(Continuously {
+            effect: Arc::new(StaticEffect::BecomesCopy(Reference::This, spec.clone())),
+            duration: Duration::EndOfGame,
+        });
+        state.run_effect(effect, &frame);
+        assert!(
+            state.continuous.is_empty(),
+            "Continuously(BecomesCopy(..)) fizzles — installs no continuous instance"
+        );
+
+        let until = OneShotEffect::Until(
+            Duration::EndOfGame,
+            vec![StaticEffect::BecomesCopy(Reference::This, spec)],
+        );
+        state.run_effect(until, &frame);
+        // `Until` lowers its one part to a scheduled
+        // `WorkItem::RunEffect { effect: Continuously(...), .. }`
+        // (pushed to the agenda FRONT) rather than resolving it inline —
+        // one `step()` pops and runs exactly that item.
+        let _ = state.step();
+        assert!(
+            state.continuous.is_empty(),
+            "Until(duration, [BecomesCopy(..)]) fizzles — installs no continuous instance"
         );
     }
 

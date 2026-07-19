@@ -1353,7 +1353,7 @@ fn emit_binder(b: &deckmaste_core::Binder) -> R {
             ],
         ),
         B::Existing(sel) => app("Existing", vec![emit_selection(sel)?]),
-        B::Produce(action) => app("Produce", vec![emit_action(action)?]),
+        B::Produce(action) => app("Produce", vec![emit_action_off_effect_path(action)?]),
         B::SearchOne { filter, .. } => app("SearchOne", vec![emit_filter(filter)?]),
         B::Search {
             quantity, filter, ..
@@ -1392,7 +1392,7 @@ fn emit_cost_component(c: &CostComponent) -> R {
         // Rust `Do(Box<Action>)` now matches it one-to-one — a bare player
         // verb arrives as `By(You, …)` and re-emits through the `<verb>By`
         // helpers, a discard composite emits as `Composite (Discard …) …`.
-        CostComponent::Do(action) => app("Do", vec![emit_action(action)?]),
+        CostComponent::Do(action) => app("Do", vec![emit_action_off_effect_path(action)?]),
         CostComponent::Cost(_) => {
             return Err(gap("CostComponent::Cost should have been normalized away"));
         }
@@ -1648,6 +1648,27 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
             "Composite keyword action {other} has no Idris KeywordActionSpec"
         ))),
     }
+}
+
+/// `emit_action`, gated for the two entry points that call into `Action`
+/// directly rather than through `emit_effect` (`CostComponent::Do`,
+/// `Binder::Produce`). `emit_effect`'s own `OneShotEffect::Act(Create(_,
+/// TokenSpec::Copy(_), _))` arm is the ONE place that Batch-wraps a count>1
+/// token-copy's multiplicity — `emit_player_action`'s `Create` arm never
+/// reads `count` for the `TokenSpec::Copy` case (the `Copy` Action itself
+/// carries no multiplicity slot, [CR#707.2]), relying entirely on that outer
+/// `Batch`. Reached off that path, a count != 1 would silently emit a single
+/// `Copy`, dropping the multiplier — gap instead of guessing.
+fn emit_action_off_effect_path(action: &Action) -> R {
+    if let Action::By(_, PlayerAction::Create(count, TokenSpec::Copy(_), _)) = action
+        && count.literal_value() != Some(1)
+    {
+        return Err(gap(
+            "token-copy Create with count != 1 reached off the Batch-wrapped effect path (Do/ \
+             Produce) has no per-unit Idris Copy multiplicity slot",
+        ));
+    }
+    emit_action(action)
 }
 
 fn emit_action(a: &Action) -> R {
@@ -3967,6 +3988,52 @@ mod tests {
         ))
         .expect("a 2x token copy should emit");
         assert_eq!(out, "(Batch (Literal 2) (Act (Copy (Target 0) [])))");
+    }
+
+    /// A count>1 token-copy `Create` reached via `CostComponent::Do` —
+    /// OFF the `emit_effect` path that Batch-wraps the multiplicity (there is
+    /// no such wrapper here) — must gap rather than silently emit a single
+    /// `Copy`, dropping the multiplier.
+    #[test]
+    fn token_copy_count_gt_one_via_cost_do_gaps() {
+        let action = Action::By(
+            Reference::You,
+            PlayerAction::Create(
+                Count::Literal(2),
+                TokenSpec::Copy(copy_spec(
+                    CopySource::Object(Reference::Target(0)),
+                    Vec::new(),
+                )),
+                Vec::new(),
+            ),
+        );
+        let err = emit_cost_component(&CostComponent::Do(Arc::new(action)))
+            .expect_err("a count>1 token-copy Do should gap, not silently drop the multiplier");
+        assert!(
+            err.to_string().contains("multiplicity"),
+            "expected the count!=1 off-effect-path gap, got: {err}"
+        );
+    }
+
+    /// A count==1 token-copy `Create` via `CostComponent::Do` still emits
+    /// normally (the gate only fires on count != 1) — the "off effect path"
+    /// wrapper must not regress the count==1 case's plain `Copy` emission.
+    #[test]
+    fn token_copy_count_one_via_cost_do_still_emits() {
+        let action = Action::By(
+            Reference::You,
+            PlayerAction::Create(
+                Count::Literal(1),
+                TokenSpec::Copy(copy_spec(
+                    CopySource::Object(Reference::Target(0)),
+                    Vec::new(),
+                )),
+                Vec::new(),
+            ),
+        );
+        let out = emit_cost_component(&CostComponent::Do(Arc::new(action)))
+            .expect("a count==1 token-copy Do should still emit");
+        assert_eq!(out, "(Do (Copy (Target 0) []))");
     }
 
     /// [CR#707.9d]: "a copy, except it's a 4/4" — the copiable-value

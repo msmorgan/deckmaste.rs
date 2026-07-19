@@ -35,9 +35,8 @@ pub enum ObjectKind {
     /// A copy of a card ([CR#109.1] lists it as its own object kind,
     /// distinct from `Card`): what copy effects that create card copies in
     /// non-stack zones produce ([CR#707.12]). A copy of a SPELL on the stack
-    /// is a `Spell`; this is the grammar footing for the card-copy object —
-    /// the engine's `object_kind` starts classifying copies when the copy
-    /// grammar lands.
+    /// is a `Spell`; the engine's `object_kind` (`deckmaste_engine::target`)
+    /// classifies copies as `CardCopy`.
     CardCopy,
     Emblem,
     Player,

@@ -1296,7 +1296,7 @@ fn renders_saga_chapter_range_marker() {
 /// core-copy-grammar Task 9: the copy-consuming keyword fixtures render their
 /// keyword lines. The keyword abilities print via their filled `template` (cost
 /// arg shown), matching Equip/Ward; Populate — a `KeywordAction`
-/// (OneShotEffect) — prints its template as a sentence. (The token-copy
+/// (`OneShotEffect`) — prints its template as a sentence. (The token-copy
 /// exceptions the keywords carry render through `copy_exceptions_clause`,
 /// exercised in `render::effect::tests`, not the keyword line.)
 #[test]
