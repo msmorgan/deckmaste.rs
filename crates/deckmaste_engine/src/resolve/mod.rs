@@ -209,14 +209,28 @@ impl GameState {
                 // A delayed/reflexive trigger carries its body by value
                 // ([CR#603.7,603.12]); a printed one is read by index — its
                 // text may have changed under layers, so re-derive it fresh.
+                // The index read uses `.get` (never `[]`): a source that left the
+                // battlefield and reminted shorter — or whose current face is
+                // shorter than the fired index — yields `None`, and the trigger
+                // FIZZLES (no-op, vanishes) rather than panicking, mirroring the
+                // intervening-if / illegal-target vanish below and
+                // `step::trigger`'s graceful `.get`. (Back-face-sourced printed
+                // triggers are captured by value at fire time, so they never
+                // reach this fallback; this guards the residual gone/short cases.)
                 let t = match created {
                     Some(t) => t.as_ref().clone(),
-                    None => match &crate::derive::abilities_of_source(self, *source)[*ability] {
-                        Ability::Triggered(t) => t.as_ref().clone(),
-                        other => unreachable!(
-                            "a Triggered stack object indexes a Triggered ability, got {other:?}"
-                        ),
-                    },
+                    None => {
+                        if let Some(Ability::Triggered(t)) =
+                            crate::derive::abilities_of_source(self, *source).get(*ability)
+                        {
+                            t.as_ref().clone()
+                        } else {
+                            self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
+                                GameEvent::AbilityResolved(entry.id),
+                            ))]);
+                            return;
+                        }
+                    }
                 };
                 let frame = Frame {
                     // [CR#608.2,603.10a]: `~`/`This` is the firing object's

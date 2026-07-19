@@ -780,6 +780,14 @@ impl GameState {
             // participates in the scan where the printed-only spine would miss it.
             let (abilities, printed_len) =
                 crate::derive::derived_abilities_of(self, live_id, source);
+            // Whether this watcher is a battlefield permanent showing its BACK
+            // face — exactly when `abilities_of_source` sources its section-1
+            // printed abilities from the back face ([CR#712.8e]), so those
+            // triggers must be captured by value (see `created` below).
+            let showing_back = live_id.is_some_and(|id| {
+                let o = self.objects.obj(id);
+                o.side == crate::object::Side::Back && o.zone == Some(Zone::Battlefield)
+            });
             for (idx, ability) in abilities.iter().enumerate() {
                 let Ability::Triggered(t) = ability else {
                     continue;
@@ -838,12 +846,22 @@ impl GameState {
                 // independent `TriggerFired` that places its own stack instance
                 // ([CR#603.3]) and chooses its own modes/targets. Multipliers ADD.
                 let extra = self.trigger_multiplier_extra(event, this.object);
-                // A CONFERRED trigger (idx past the printed spine) has no
-                // index-stable `(source, index)` identity for the re-read at
-                // resolution, so it carries its body BY VALUE — the same channel
-                // delayed/reflexive triggers use ([CR#603.7,603.12]). A printed
-                // trigger keeps `created: None` and resolves by index, unchanged.
-                let created = (idx >= printed_len).then(|| t.clone());
+                // A trigger carries its body BY VALUE — the channel
+                // delayed/reflexive triggers use ([CR#603.7,603.12]) — when the
+                // by-index `(source, idx)` re-read at resolution can't recover it:
+                //
+                //  * a CONFERRED trigger (idx past the printed spine) has no index-stable
+                //    identity, and
+                //  * a back-up permanent's section-1 PRINTED trigger is sourced from its BACK
+                //    face ([CR#712.8e]); if the permanent leaves the battlefield between firing
+                //    and resolution ([CR#603.3] — a trigger resolves independently of its
+                //    source), `abilities_of_source` finds no live battlefield object and falls
+                //    back to the FRONT face (a different, possibly shorter list) — an
+                //    out-of-bounds / wrong-body read. Capturing the back body now sidesteps it.
+                //
+                // A front-up printed trigger keeps `created: None` and resolves by
+                // index, unchanged.
+                let created = (idx >= printed_len || showing_back).then(|| t.clone());
                 let fired = GameEvent::TriggerFired(TriggerFired {
                     source,
                     ability: Uint::try_from(idx).expect("ability index fits in Uint"),
@@ -4013,6 +4031,170 @@ mod tests {
         );
         assert_ne!(entry.id, etb, "the stack id is a freshly minted token");
         assert!(entry.targets.is_empty(), "a non-targeting trigger has none");
+    }
+
+    /// A transforming DFC on P0's battlefield showing its BACK face. Front: a
+    /// vanilla 2/2 with ZERO abilities; back: a 3/3 whose SOLE printed ability
+    /// is an "at the beginning of your upkeep, draw a card" trigger the
+    /// front lacks — front printed len 0, back 1, the unequal shape that
+    /// moves the back trigger into section 1 (`idx < printed_len`) of
+    /// `derived_abilities_of`. Active player = P0 so `WhoseTurn::Your`
+    /// matches. Returns the object id and the back trigger body.
+    fn back_up_dfc_on_field_upkeep_draw() -> (GameState, ObjectId, deckmaste_core::TriggeredAbility)
+    {
+        use deckmaste_core::Ability;
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::Card;
+        use deckmaste_core::CardFace;
+        use deckmaste_core::Count;
+        use deckmaste_core::FaceLayout;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::PhaseStep;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::TriggeredAbility;
+        use deckmaste_core::WhoseTurn;
+
+        use crate::object::Side;
+
+        let back_trigger = TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            from: None,
+            event: EventFilter::StepBegins {
+                at: PhaseStep::Beginning(BeginningStep::Upkeep),
+                whose: WhoseTurn::Your,
+            },
+            condition: None,
+            limits: Vec::new(),
+            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+        };
+        let front = CardFace {
+            name: "Front Vanilla".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            ..CardFace::default()
+        };
+        let back = CardFace {
+            name: "Back Upkeep Drawer".into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(3)),
+            toughness: Some(StatValue::Number(3)),
+            abilities: vec![Ability::triggered(back_trigger.clone())],
+            ..CardFace::default()
+        };
+        let card = Card::TwoFaced {
+            layout: FaceLayout::Transforming,
+            front,
+            back,
+        };
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+        let id = put_synthetic_on_field(&mut state, card, PlayerId(0));
+        state.objects.obj_mut(id).side = Side::Back;
+        (state, id, back_trigger)
+    }
+
+    /// [Task 5b regression][CR#712.8e]: a back-up permanent's section-1 printed
+    /// trigger is captured BY VALUE at fire time (`created: Some`), NOT by the
+    /// `(source, idx)` index channel. `abilities_of_source` now sources section
+    /// 1 from the back face, so the index re-read at resolution would need
+    /// the live battlefield object; capturing the body now makes the
+    /// trigger independent of the (possibly-gone) source.
+    #[test]
+    fn back_up_permanent_captures_section1_trigger_by_value() {
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::PhaseStep;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let (mut state, _id, back_body) = back_up_dfc_on_field_upkeep_draw();
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Beginning(BeginningStep::Upkeep),
+        )));
+
+        let created = state
+            .agenda
+            .iter()
+            .find_map(|w| match w {
+                WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(tf))) => {
+                    Some(tf.created.clone())
+                }
+                _ => None,
+            })
+            .expect("the back-up upkeep trigger fired");
+        assert_eq!(
+            created.as_deref(),
+            Some(&back_body),
+            "a back-up permanent's section-1 printed trigger must be captured by \
+             value (created=Some) so the resolution re-read never indexes the \
+             possibly-gone source"
+        );
+    }
+
+    /// [Task 5b regression][CR#603.3,712.8e]: the scenario the by-value capture
+    /// exists for. A back-up permanent fires a section-1 printed trigger, then
+    /// LEAVES the battlefield (destroyed/sacrificed/bounced) before the trigger
+    /// resolves — a trigger resolves independently of its source ([CR#603.3]).
+    /// Resolution must NOT panic (no by-index re-read against the gone source's
+    /// front face) and must resolve the BACK body. Before the fix the trigger
+    /// was stored by index and this panicked (index-out-of-bounds on the
+    /// shorter front list) at `resolve/mod.rs`.
+    #[test]
+    fn back_up_trigger_survives_source_leaving_before_resolution() {
+        use deckmaste_core::BeginningStep;
+        use deckmaste_core::PhaseStep;
+
+        use crate::agenda::WorkItem;
+        use crate::event::Occurrence;
+
+        let (mut state, id, back_body) = back_up_dfc_on_field_upkeep_draw();
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            PhaseStep::Beginning(BeginningStep::Upkeep),
+        )));
+
+        // Note the fired trigger exactly as the real pipeline would — carrying
+        // the `created` the scan produced (Some, post-fix).
+        let (source, ability, created, bindings) = state
+            .agenda
+            .iter()
+            .find_map(|w| match w {
+                WorkItem::Emit(Occurrence::Single(GameEvent::TriggerFired(tf))) => Some((
+                    tf.source,
+                    tf.ability as usize,
+                    tf.created.clone(),
+                    (*tf.bindings).clone(),
+                )),
+                _ => None,
+            })
+            .expect("the back-up upkeep trigger fired");
+        state.pending_triggers.push(super::NotedTrigger {
+            source,
+            ability,
+            created,
+            controller: PlayerId(0),
+            bindings,
+        });
+        let _ = state.place_triggers();
+        assert_eq!(state.stack.len(), 1, "the non-targeting trigger placed");
+        let stack_id = state.stack[0].id;
+
+        // The source LEAVES the battlefield before resolution.
+        state.zones.battlefield.retain(|&x| x != id);
+        state.zones.graveyards[0].push(id);
+        state.objects.obj_mut(id).zone = Some(Zone::Graveyard);
+
+        // Must not panic, and must resolve the BACK body (schedule its draw).
+        state.resolve_object(stack_id);
+        assert!(
+            state.agenda.iter().any(|w| matches!(
+                w,
+                WorkItem::RunEffect { effect, .. } if **effect == back_body.effect
+            )),
+            "the trigger resolved with the back face's draw body, not a fizzle or \
+             the front face"
+        );
     }
 
     /// A targeting noted trigger surfaces a `ChooseTargets` at placement
