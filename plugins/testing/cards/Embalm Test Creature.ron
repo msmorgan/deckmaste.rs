@@ -1,0 +1,14 @@
+// A minimal Embalm carrier ([CR#702.128a]): "Embalm [cost]" — exile this from
+// your graveyard for a token copy that's a white Zombie, sorcery-speed. No card
+// in the canon slice carries Embalm (the copy grammar is brand new), so this
+// fixture isolates the copy-consuming keyword's expansion + graduation.
+Normal(
+    name: "Embalm Test Creature",
+    mana_cost: [Generic(2), White],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [
+        Keyword(Embalm([Mana([Generic(3), White])])),
+    ],
+)

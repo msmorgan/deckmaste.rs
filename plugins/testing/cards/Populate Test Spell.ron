@@ -1,0 +1,13 @@
+// A minimal Populate carrier ([CR#701.36a]): "Populate" — choose a creature
+// token you control, then create a token that's a copy of it. No canon-slice
+// card carries populate (the copy grammar is brand new); isolates the keyword
+// action's expansion (the `With(ChooseOne(creature-token-you-control),
+// Create(1, Copy(...)))` shape) + graduation as a spell effect.
+Normal(
+    name: "Populate Test Spell",
+    mana_cost: [Generic(1), Green],
+    types: [Instant],
+    abilities: [
+        Spell(effect: Populate),
+    ],
+)

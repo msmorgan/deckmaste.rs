@@ -1385,6 +1385,257 @@ mod tests {
         );
     }
 
+    // ====================================================================
+    // core-copy-grammar Task 9 — the copy-CONSUMING keyword macros
+    // (Populate/Embalm/Eternalize/Offspring) drive Task 3's landed token-copy
+    // execution. Each behavioral test extracts the token-minting `Create`
+    // effect from the EXPANDED macro (so the macro→CopySpec mapping is proven
+    // too, not just the runtime), then drives it through the resolve path and
+    // asserts the minted token's characteristics ([CR#707.1,707.9]). Graveyard
+    // activation for Embalm/Eternalize is exercised at the effect level (the
+    // `SelfCard` source reads the on-battlefield fixture's printed face — the
+    // full exile-then-activate flow is disproportionate and the copy semantics
+    // are identical either way, since the exiled card's copiable values are its
+    // printed face here [CR#707.2]).
+    // ====================================================================
+
+    /// Expand a copy-consuming keyword macro and pull out the `OneShotEffect`
+    /// that mints the token copy — the Activated ability's effect for the
+    /// graveyard keywords (Embalm/Eternalize), the ETB Triggered ability's for
+    /// Offspring. Proves the macro really produces a copy `Create` at all.
+    fn keyword_copy_effect(invocation: &str) -> OneShotEffect {
+        use deckmaste_core::Ability;
+        use deckmaste_core::KeywordAbility;
+        let kw: KeywordAbility = builtin().macros.read_str(invocation).unwrap();
+        let KeywordAbility::Expanded(exp) = kw else {
+            panic!("expected an Expanded keyword, got {kw:?}");
+        };
+        let KeywordAbility::Composite { abilities, .. } = &*exp.value else {
+            panic!("expected a Composite body");
+        };
+        abilities
+            .iter()
+            .find_map(|a| match a {
+                Ability::Activated(act) => Some(act.effect.clone()),
+                Ability::Triggered(trig) => Some(trig.effect.clone()),
+                _ => None,
+            })
+            .expect("the copy-minting effect (Activated for Embalm/Eternalize, Triggered for Offspring)")
+    }
+
+    /// The lone token minted onto the battlefield by the effect just run —
+    /// its resolved printed face, for the copy-characteristic assertions.
+    fn minted_copy_face<'a>(
+        state: &'a GameState,
+        exclude: &[ObjectId],
+    ) -> &'a deckmaste_core::CardFace {
+        let &t = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&id| !exclude.contains(id))
+            .expect("a freshly minted copy token on the battlefield");
+        assert_eq!(
+            crate::target::object_kind(state, t),
+            ObjectKind::Token,
+            "[CR#111.1]: the copy is a token"
+        );
+        let card = state.objects.obj(t).card_id().expect("card-backed");
+        crate::derive::face(&state.cards.get(card).def)
+    }
+
+    /// Eternalize ([CR#702.129a]): the macro's activated-ability effect mints a
+    /// token copy of the exiled card EXCEPT it's a 4/4 black Zombie — name
+    /// carried from the source, P/T 4/4, black, and a Zombie in addition to its
+    /// other types ([CR#707.9d]).
+    #[test]
+    fn eternalize_macro_mints_a_4_4_black_zombie_copy() {
+        use deckmaste_core::Color;
+        use deckmaste_core::StatValue;
+
+        let (mut state, src) = bear_on_field();
+        let effect = keyword_copy_effect("Eternalize([Mana([Generic(4),Black])])");
+        state.run_effect(effect, &frame_src(src));
+        let _ = state.step(); // the TokenCreated batch applies
+
+        let face = minted_copy_face(&state, &[src]);
+        assert_eq!(
+            face.name, "Grizzly Bears",
+            "[CR#707.2]: the copy keeps the source's name"
+        );
+        assert_eq!(
+            face.power,
+            Some(StatValue::Number(4)),
+            "[CR#702.129a,707.9d]: eternalize copy is 4/4"
+        );
+        assert_eq!(face.toughness, Some(StatValue::Number(4)));
+        assert!(
+            face.color_indicator.contains(&Color::Black),
+            "[CR#702.129a]: eternalize copy is black; got {:?}",
+            face.color_indicator
+        );
+        assert!(
+            face.subtypes.iter().any(|s| s.name == "Zombie"),
+            "[CR#702.129a]: eternalize copy is a Zombie in addition to its other types; got {:?}",
+            face.subtypes
+        );
+    }
+
+    /// Embalm ([CR#702.128a]): the macro's activated-ability effect mints a
+    /// token copy EXCEPT it's a white Zombie — the source's printed P/T rides
+    /// through unchanged (no P/T exception), only color and subtype are set.
+    #[test]
+    fn embalm_macro_mints_a_white_zombie_copy_retaining_pt() {
+        use deckmaste_core::Color;
+        use deckmaste_core::StatValue;
+
+        let (mut state, src) = bear_on_field();
+        let effect = keyword_copy_effect("Embalm([Mana([Generic(3),White])])");
+        state.run_effect(effect, &frame_src(src));
+        let _ = state.step();
+
+        let face = minted_copy_face(&state, &[src]);
+        assert_eq!(face.name, "Grizzly Bears", "[CR#707.2]: name carried");
+        assert_eq!(
+            face.power,
+            Some(StatValue::Number(2)),
+            "[CR#702.128a]: embalm keeps the source's P/T (2/2)"
+        );
+        assert_eq!(face.toughness, Some(StatValue::Number(2)));
+        assert!(
+            face.color_indicator.contains(&Color::White),
+            "[CR#702.128a]: embalm copy is white; got {:?}",
+            face.color_indicator
+        );
+        assert!(
+            face.subtypes.iter().any(|s| s.name == "Zombie"),
+            "[CR#702.128a]: embalm copy is a Zombie; got {:?}",
+            face.subtypes
+        );
+    }
+
+    /// Offspring ([CR#702.175a]): the macro's ETB-triggered effect (the branch
+    /// taken when the offspring cost was paid) mints a 1/1 token copy of the
+    /// entering permanent ([CR#707.9d]).
+    #[test]
+    fn offspring_macro_mints_a_1_1_copy() {
+        use deckmaste_core::StatValue;
+
+        let (mut state, src) = bear_on_field();
+        let effect = keyword_copy_effect("Offspring([Mana([Generic(1)])])");
+        state.run_effect(effect, &frame_src(src));
+        let _ = state.step();
+
+        let face = minted_copy_face(&state, &[src]);
+        assert_eq!(face.name, "Grizzly Bears", "[CR#707.2]: name carried");
+        assert_eq!(
+            face.power,
+            Some(StatValue::Number(1)),
+            "[CR#702.175a]: offspring copy is 1/1"
+        );
+        assert_eq!(face.toughness, Some(StatValue::Number(1)));
+    }
+
+    /// Populate ([CR#701.36a]): drives the FULL `Populate` macro expansion —
+    /// `With(ChooseOne(creature-token-you-control), Create(1,
+    /// Copy(Object(That))))` — end to end. Mints a real creature token,
+    /// answers the surfaced `ChooseObjects` with it, and asserts the minted
+    /// copy matches. This proves the macro RESOLVES: a `With` one-binder
+    /// binds its pick as `Reference::That` (the engine sets only
+    /// `anaphora.that` for a `With`), so the copy source
+    /// reads `Object(That)` — `Object(It)` would fizzle unbound. Also proves
+    /// the token-source copy path (`copiable_values` over a `push_token`
+    /// face, [CR#111.4]) and the "you control"/"a token" candidate filter.
+    #[test]
+    fn populate_macro_copies_the_chosen_creature_token() {
+        use deckmaste_core::StatValue;
+        use deckmaste_core::Subtype;
+        use deckmaste_core::Token;
+
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+        use crate::step::StepOutcome;
+
+        let (mut state, src) = bear_on_field();
+        // Mint the creature token to be populated (a 2/2 Bear token you control).
+        state.run_effect(
+            OneShotEffect::act_by_you(PlayerAction::Create(
+                Count::Literal(1),
+                Token {
+                    name: None,
+                    color_indicator: vec![],
+                    supertypes: vec![],
+                    types: vec![Type::Creature.def()],
+                    subtypes: vec![Subtype {
+                        name: "Bear".into(),
+                        types: vec![Type::Creature],
+                        confers: vec![],
+                    }],
+                    abilities: vec![],
+                    power: Some(StatValue::Number(2)),
+                    toughness: Some(StatValue::Number(2)),
+                }
+                .into(),
+                vec![],
+            )),
+            &frame_src(src),
+        );
+        run_injected(&mut state);
+        let &token = state
+            .zones
+            .battlefield
+            .iter()
+            .find(|&&id| id != src)
+            .expect("the creature token to populate");
+
+        // Drive the ACTUAL macro expansion.
+        let populate: OneShotEffect = builtin().macros.read_str("Populate").unwrap();
+        state.run_effect(populate, &frame_src(src));
+
+        // The `With(ChooseOne(...))` surfaces the pick.
+        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(choose)) = state.step()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert!(
+            choose.candidates.contains(&token),
+            "[CR#701.36a]: the creature token is a populate candidate"
+        );
+        assert!(
+            !choose.candidates.contains(&src),
+            "[CR#701.36a]: a non-token creature (the source Grizzly Bears) is NOT a populate candidate"
+        );
+        state
+            .submit_decision(Decision::Chosen(vec![token]))
+            .expect("choosing the creature token is legal");
+
+        // Pump to completion; the copy token mints.
+        for _ in 0..30 {
+            let _ = state.step();
+            if state.pending.is_some() {
+                break;
+            }
+        }
+
+        let face = minted_copy_face(&state, &[src, token]);
+        assert_eq!(
+            face.name, "Bear Token",
+            "[CR#701.36a,111.4]: the copy of an unnamed creature token carries its \
+             synthesized name (subtypes + \"Token\")"
+        );
+        assert_eq!(
+            face.power,
+            Some(StatValue::Number(2)),
+            "[CR#701.36a]: populate copy matches the source token's P/T"
+        );
+        assert_eq!(face.toughness, Some(StatValue::Number(2)));
+        assert!(
+            face.subtypes.iter().any(|s| s.name == "Bear"),
+            "[CR#701.36a]: populate copy matches the source token's subtypes; got {:?}",
+            face.subtypes
+        );
+    }
+
     /// [CR#707.5]: "any enters-the-battlefield triggered abilities of the
     /// copy will have a chance to trigger" (the Wall of Omens example) — a
     /// token copy of a "when this enters, draw a card" creature fires that

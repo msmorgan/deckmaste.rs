@@ -1,0 +1,36 @@
+// Eternalize [CR#702.129a]: "Eternalize [cost]" means "[cost], Exile this card
+// from your graveyard: Create a token that's a copy of it, except it's a 4/4
+// black Zombie. Eternalize only as a sorcery." Embalm's bigger twin
+// ([CR#702.128a]): same activated-from-graveyard, exile-self, sorcery-speed
+// shell; the token copy is 4/4 and black rather than keeping its P/T and being
+// white.
+//
+// Pieces (all over existing primitives — no engine gap):
+//   - from / cost / window: identical to Embalm/Scavenge — activate from the
+//     graveyard, printed [cost] then `Do(Move(This, Exile))` spliced flat, only
+//     as a sorcery ([CR#602.5d]).
+//   - effect: `Create(1, Copy(source: SelfCard, ...))` — a token copy of the
+//     exiled card ([CR#707.1]) EXCEPT it's 4/4 (`Power(Set(4))` + `Toughness(Set(4))`,
+//     [CR#707.9d]), black (`Colors(Set([Black]))`), and a Zombie in addition to
+//     its other types (`Subtypes(Add("Zombie"))`). No mana cost needs no
+//     exception (a token has no mana-cost slot, [CR#111.3,707.2]).
+(
+    name: "Eternalize",
+    template: "eternalize ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Eternalize",
+        abilities: [Activated(
+            from: Graveyard,
+            cost: [Splice(Param(0)), Do(Move(This, Exile))],
+            window: SorcerySpeed,
+            effect: Create(1, Copy(source: SelfCard, exceptions: [
+                Modify(Power(Set(4))),
+                Modify(Toughness(Set(4))),
+                Modify(Colors(Set([Black]))),
+                Modify(Subtypes(Add("Zombie"))),
+            ])),
+        )],
+    ),
+)

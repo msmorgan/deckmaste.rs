@@ -1,0 +1,13 @@
+// A minimal Eternalize carrier ([CR#702.129a]): "Eternalize [cost]" — exile
+// this from your graveyard for a token copy that's a 4/4 black Zombie,
+// sorcery-speed. Embalm's bigger twin; no canon-slice card carries it.
+Normal(
+    name: "Eternalize Test Creature",
+    mana_cost: [Generic(3), Black],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [
+        Keyword(Eternalize([Mana([Generic(4), Black])])),
+    ],
+)

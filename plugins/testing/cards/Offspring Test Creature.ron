@@ -1,0 +1,14 @@
+// A minimal Offspring carrier ([CR#702.175a]): "Offspring [cost]" — an optional
+// additional cost that, if paid, makes a 1/1 token copy of this permanent when
+// it enters. No canon-slice card carries Offspring (the copy grammar is brand
+// new); isolates the CostOption + PaidCost-gated ETB token-copy expansion.
+Normal(
+    name: "Offspring Test Creature",
+    mana_cost: [Generic(1), Green],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [
+        Keyword(Offspring([Mana([Generic(1)])])),
+    ],
+)

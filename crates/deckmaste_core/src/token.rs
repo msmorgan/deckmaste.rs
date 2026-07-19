@@ -366,6 +366,54 @@ mod tests {
         );
     }
 
+    /// `TokenSpec::Copy(CopySpec{…})` reads/writes FLAT — the newtype variant
+    /// unwraps the way `TokenSpec::Token(Token{…})` does
+    /// (`UNWRAP_VARIANT_NEWTYPES`), so a macro/card spells `Copy(source: …,
+    /// exceptions: […])`, never the double-paren `Copy((source: …))`.
+    /// Proves the spelling the copy-consuming keyword macros
+    /// (Populate/Embalm/Eternalize/Offspring) rely on.
+    #[test]
+    fn token_spec_copy_reads_flat() {
+        use crate::CollectionOp;
+        use crate::Color;
+        use crate::CopyException;
+        use crate::CopySource;
+        use crate::CopySpec;
+        use crate::Count;
+        use crate::Modification;
+        use crate::NumericOp;
+
+        let spec = TokenSpec::Copy(CopySpec {
+            source: CopySource::SelfCard,
+            exceptions: vec![
+                CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(4)))),
+                CopyException::Modify(Modification::Colors(CollectionOp::Set(vec![Color::Black]))),
+                CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Zombie".into()))),
+            ],
+        });
+        let written = crate::ron::options().to_string(&spec).unwrap();
+        assert_eq!(
+            written,
+            "Copy(source:SelfCard,exceptions:[Modify(Power(Set(4))),\
+             Modify(Colors(Set([Black]))),Modify(Subtypes(Add(\"Zombie\")))])",
+            "TokenSpec::Copy spells FLAT (newtype unwrapped); the writer is compact, \
+             the reader accepts the spaced human-readable form macros/cards spell"
+        );
+        let back: TokenSpec = crate::ron::options().from_str(&written).unwrap();
+        assert_eq!(back, spec, "TokenSpec::Copy survives a RON round trip");
+        // The spaced, human-readable spelling macros/cards actually write.
+        let spaced: TokenSpec = crate::ron::options()
+            .from_str(
+                "Copy(source: SelfCard, exceptions: [Modify(Power(Set(4))), \
+                 Modify(Colors(Set([Black]))), Modify(Subtypes(Add(\"Zombie\")))])",
+            )
+            .unwrap();
+        assert_eq!(
+            spaced, spec,
+            "the spaced macro/card spelling parses identically"
+        );
+    }
+
     /// A predefined name resolves to its rules-defined [CR#111.10]
     /// characteristics — a colorless artifact whose sole subtype is its own
     /// name. Matches the builtin `Treasure.ron` (the [CR#111.10a] body).

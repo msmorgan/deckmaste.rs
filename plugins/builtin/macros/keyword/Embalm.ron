@@ -1,0 +1,36 @@
+// Embalm [CR#702.128a]: "Embalm [cost]" means "[cost], Exile this card from
+// your graveyard: Create a token that's a copy of it, except it's a white
+// Zombie. Embalm only as a sorcery." Scavenge's graveyard twin ([CR#702.97a]):
+// same activated-from-graveyard, exile-self, sorcery-speed shell — only the
+// effect differs (a token copy in place of the +1/+1-counter grant).
+//
+// Pieces (all over existing primitives — no engine gap):
+//   - from: Graveyard [CR#702.128a] — the zone-of-function seam ([CR#113.6]);
+//     the ability functions only while the card is in a graveyard.
+//   - cost: the printed [cost] THEN exile this card. `Splice(Param(0))` inlines
+//     the printed cost components ahead of the fixed `Do(Move(This, Exile))`
+//     (Scavenge's exile-self, [CR#701.13]) at read time — one flat cost list.
+//   - window: SorcerySpeed [CR#602.5d] — "only as a sorcery".
+//   - effect: `Create(1, Copy(source: SelfCard, ...))` — a token copy of the
+//     exiled card ([CR#707.1]) EXCEPT it's white ([CR#707.9]: `Colors(Set([White]))`)
+//     and a Zombie in addition to its other types (`Subtypes(Add("Zombie"))`).
+//     A token has no mana cost slot ([CR#111.3,707.2]), so "no mana cost" needs
+//     no exception; the source's printed P/T rides through unchanged.
+(
+    name: "Embalm",
+    template: "embalm ${0}",
+    kinds: [KeywordAbility],
+    params: [Cost],
+    body: Composite(
+        name: "Embalm",
+        abilities: [Activated(
+            from: Graveyard,
+            cost: [Splice(Param(0)), Do(Move(This, Exile))],
+            window: SorcerySpeed,
+            effect: Create(1, Copy(source: SelfCard, exceptions: [
+                Modify(Colors(Set([White]))),
+                Modify(Subtypes(Add("Zombie"))),
+            ])),
+        )],
+    ),
+)

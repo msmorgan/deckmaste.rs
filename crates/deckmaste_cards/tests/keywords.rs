@@ -63,6 +63,10 @@ fn every_builtin_keyword_macro_expands() {
         ("Training", "Training"),
         ("Outlast([Mana([White])])", "Outlast"),
         ("Scavenge([Mana([Generic(2)])])", "Scavenge"),
+        // core-copy-grammar Task 9: the copy-consuming keyword abilities.
+        ("Embalm([Mana([Generic(3),White])])", "Embalm"),
+        ("Eternalize([Mana([Generic(4),Black])])", "Eternalize"),
+        ("Offspring([Mana([Generic(1)])])", "Offspring"),
         // Per-pip alternative payment ([CR#702.51a,702.66a,702.126a]): each
         // confers `PayPips` statics; all nullary.
         ("Convoke", "Convoke"),

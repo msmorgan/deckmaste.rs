@@ -1,0 +1,34 @@
+// Populate [CR#701.36a]: "choose a creature token you control, then create a
+// token that's a copy of that creature token." If you control no creature
+// tokens, populate does nothing ([CR#701.36b]) — the `ChooseOne` binder over an
+// empty candidate set makes no choice, so the inner `Create` never runs (a copy
+// of nothing creates nothing, the same fizzle `token_copy_nonexistent_source`
+// exercises). A composite keyword action ([CR#701.36]): it names no new engine
+// primitive, decomposing into the copy grammar's `Create(1, Copy(...))` under a
+// `With(ChooseOne(...))` binder — the "choose a … you control" shape.
+//
+// The filter is `Kind(Token) ∧ Creature ∧ you control` — a creature token you
+// control ([CR#701.36a]). `Kind(Token)` is `Predicate::Kind(ObjectKind::Token)`.
+// A `With` one-binder (`ChooseOne`) binds its pick as `Reference::That` (the
+// engine's `resolve/effect.rs` sets only `anaphora.that`, never `it`, for a
+// `With`; `It` would fizzle unbound here). The copy source therefore reads
+// `Object(That(Token))`: the `That` SORT must match what the Idris re-emit gate
+// derives for this filter — `filterSort` pins `Kind(Token)` to the `Token` sort
+// on the battlefield (`Core.idr`), and `compat` accepts `That(Token)` but NOT
+// `That(Creature)` against it (the sort is verified only by Idris; the engine
+// ignores it at runtime). An `OneShotEffect`-kind macro, so `Populate` stands as
+// the effect body of any shell (a spell, an ETB, an activated ability), plus
+// `KeywordAction` so it's recognized as one ([CR#701]).
+(
+    name: "Populate",
+    template: "populate",
+    kinds: [OneShotEffect, KeywordAction],
+    body: With(
+        binder: ChooseOne(filter: And([
+            Kind(Token),
+            Type("Creature"),
+            ControlledBy(Ref(You)),
+        ])),
+        body: Create(1, Copy(source: Object(That(Token)), exceptions: [])),
+    ),
+)

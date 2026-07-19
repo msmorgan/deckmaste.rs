@@ -2309,12 +2309,34 @@ fn copy_modify_clause(m: &Modification) -> String {
             copy_type_add_clause(&super::card::supertype_str(*s).to_lowercase())
         }
         Modification::Subtypes(CollectionOp::Add(ident)) => copy_type_add_clause(ident.as_str()),
+        // "it's [color(s)]" ([CR#707.9d]) — a copy exception SETTING the color
+        // outright (Embalm's "except it's a white Zombie", Eternalize's "except
+        // it's a 4/4 black Zombie", generalized to the flat per-exception
+        // "it's black"/"it's white" this grammar's exceptions clause joins). A
+        // multi-color Set joins the colors ("it's white and blue"); an empty
+        // Set (a copy made colorless) reads "it's colorless".
+        Modification::Colors(CollectionOp::Set(colors)) => copy_colors_set_clause(colors),
         // "it has [ability]" ([CR#707.9a]) — Progenitor Mimic's "except it
         // has "At the beginning of your upkeep, …"", Quicksilver Gargantuan
         // sibling cards' "except it has flying."
         Modification::GainAbility(a) => format!("it has {}", copy_gained_ability_phrase(a)),
         other => format!("[unrendered: {other:?}]"),
     }
+}
+
+/// "it's black" / "it's white and blue" / "it's colorless" — a copy exception
+/// that SETS the copy's color(s) outright ([CR#707.9d], the Embalm/Eternalize
+/// shape). The colors join with "and"; an empty Set is "colorless".
+fn copy_colors_set_clause(colors: &[Color]) -> String {
+    if colors.is_empty() {
+        return "it's colorless".to_string();
+    }
+    let joined = colors
+        .iter()
+        .map(|&c| color_word(c))
+        .collect::<Vec<_>>()
+        .join(" and ");
+    format!("it's {joined}")
 }
 
 /// "artifact"/"Spirit" + "in addition to its other types" — the shared tail
@@ -3959,6 +3981,68 @@ mod tests {
         assert_eq!(
             copy_exceptions_clause(&exceptions),
             ", except it has trample"
+        );
+    }
+
+    /// `Modification::Colors(Set(...))` ([CR#707.9d]) — a copy exception that
+    /// SETS the copy's color renders "it's [color]" (Embalm's "except it's
+    /// white", Eternalize's "except it's black"), not the `[unrendered]`
+    /// catch-all it hit before this arm existed. Empty Set → "it's colorless";
+    /// a multi-color Set joins the colors.
+    #[test]
+    fn copy_exception_colors_set_renders_its_color() {
+        use deckmaste_core::CollectionOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::CopyException;
+
+        assert_eq!(
+            copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
+                CollectionOp::Set(vec![Color::Black])
+            ))]),
+            ", except it's black"
+        );
+        assert_eq!(
+            copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
+                CollectionOp::Set(vec![Color::White])
+            ))]),
+            ", except it's white"
+        );
+        assert_eq!(
+            copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
+                CollectionOp::Set(vec![Color::White, Color::Blue])
+            ))]),
+            ", except it's white and blue"
+        );
+        assert_eq!(
+            copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
+                CollectionOp::Set(vec![])
+            ))]),
+            ", except it's colorless"
+        );
+    }
+
+    /// The full Eternalize-shape exception list ([CR#702.129a,707.9d]) renders
+    /// end-to-end — proving the new Colors arm slots into the Oxford-comma
+    /// join beside the P/T-pair collapse and the subtype-add clause, with no
+    /// `[unrendered]` fragment. (Per-exception grammar output — this need not
+    /// collapse to a real card's "black 4/4 Zombie" phrasing, a separate
+    /// nicety out of scope.)
+    #[test]
+    fn copy_exceptions_eternalize_shape_renders_end_to_end() {
+        use deckmaste_core::CollectionOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::CopyException;
+        use deckmaste_core::NumericOp;
+
+        let exceptions = vec![
+            CopyException::Modify(Modification::Power(NumericOp::Set(Count::Literal(4)))),
+            CopyException::Modify(Modification::Toughness(NumericOp::Set(Count::Literal(4)))),
+            CopyException::Modify(Modification::Colors(CollectionOp::Set(vec![Color::Black]))),
+            CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Zombie".into()))),
+        ];
+        assert_eq!(
+            copy_exceptions_clause(&exceptions),
+            ", except it's 4/4, it's black, and it's a Zombie in addition to its other types"
         );
     }
 
