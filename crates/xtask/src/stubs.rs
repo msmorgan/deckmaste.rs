@@ -1,5 +1,5 @@
-//! `cargo xtask stubs <plugin>` — generate a plugin's keyword/subtype macro
-//! stubs (formerly the `_000`-`_003` migrations).
+//! `cargo xtask stubs <plugin>` — generate a plugin's subtype macro stubs
+//! (formerly the `_000`-`_003` migrations).
 
 use std::path::PathBuf;
 

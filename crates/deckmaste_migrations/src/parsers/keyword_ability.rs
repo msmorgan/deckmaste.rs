@@ -58,9 +58,9 @@ const KEYWORD_SUPPLEMENT: &[&str] = &[
 ];
 
 /// The keyword-ability name catalog, derived once at first use: the Scryfall
-/// `keywordAbilities` list (`data/rules/keywords.json`, the same source the
-/// stub generator reads) plus [`KEYWORD_SUPPLEMENT`]. This replaces a
-/// hand-maintained ~200-entry array — a drifted duplicate of the catalog.
+/// `keywordAbilities` list (`data/rules/keywords.json`) plus
+/// [`KEYWORD_SUPPLEMENT`]. This replaces a hand-maintained ~200-entry array —
+/// a drifted duplicate of the catalog.
 static KEYWORD_NAMES: LazyLock<Vec<String>> = LazyLock::new(load_keyword_catalog);
 
 fn load_keyword_catalog() -> Vec<String> {

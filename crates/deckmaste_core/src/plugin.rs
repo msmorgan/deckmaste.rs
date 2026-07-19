@@ -9,11 +9,6 @@ pub const MACROS_DIR: &str = "macros";
 pub const CARDS_DIR: &str = "cards";
 pub const TOKENS_DIR: &str = "tokens";
 pub const RULES_DIR: &str = "rules";
-pub const KEYWORD_ABILITIES_DIR: &str = "keyword_abilities";
-pub const KEYWORD_ACTIONS_DIR: &str = "keyword_actions";
-pub const ABILITY_WORDS_DIR: &str = "ability_words";
-
-pub const KEYWORD_ABILITIES_FILE: &str = "keyword_abilities.ron";
 
 /// The file name a card of this name is stored under: [`card_filename`]
 /// plus the extension.
@@ -44,20 +39,6 @@ pub fn token_path(root: &Path, name: &str) -> PathBuf {
 /// finished definition drops `.todo`, living beside it at `<stem>.ron`.
 pub const TODO_SUFFIX: &str = ".todo.ron";
 
-/// The todo-stub file name for this `stem`, e.g. `todo_file("Flying")` is
-/// `"Flying.todo.ron"`.
-#[must_use]
-pub fn todo_file(stem: &str) -> String {
-    format!("{stem}{TODO_SUFFIX}")
-}
-
-/// The todo-stub file name for a card of this name: [`card_filename`] under
-/// the [`TODO_SUFFIX`].
-#[must_use]
-pub fn card_todo_file(name: &str) -> String {
-    todo_file(&card_filename(name))
-}
-
 /// Whether `path` is a todo stub by filename convention (ends in
 /// [`TODO_SUFFIX`]). The complement of a finished `.ron` definition.
 #[must_use]
@@ -65,15 +46,6 @@ pub fn is_todo_file(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
         .is_some_and(|name| name.ends_with(TODO_SUFFIX))
-}
-
-/// The finished file name a todo stub graduates into: `"Foo.todo.ron"` ->
-/// `"Foo.ron"`. `None` if `todo_name` isn't a [`TODO_SUFFIX`] stub name.
-#[must_use]
-pub fn final_for_todo(todo_name: &str) -> Option<String> {
-    todo_name
-        .strip_suffix(TODO_SUFFIX)
-        .map(|stem| format!("{stem}.ron"))
 }
 
 /// The in-progress suffix for the resolution pipeline: a Card-shaped definition
@@ -155,37 +127,12 @@ mod tests {
     }
 
     #[test]
-    fn todo_filenames() {
-        assert_eq!(todo_file("Flying"), "Flying.todo.ron");
-        // Card todos carry the same name sanitization as finished cards.
-        assert_eq!(
-            card_todo_file("Fire // Ice"),
-            "Fire {slash}{slash} Ice.todo.ron"
-        );
-        assert_eq!(card_todo_file("Lightning Bolt"), "Lightning Bolt.todo.ron");
-    }
-
-    #[test]
     fn todo_file_recognition() {
         assert!(is_todo_file(Path::new("cards/Plains.todo.ron")));
         assert!(!is_todo_file(Path::new("cards/Plains.ron")));
         // A bare `.todo.ron` with no stem still counts; a `.ron` never does.
         assert!(is_todo_file(Path::new(".todo.ron")));
         assert!(!is_todo_file(Path::new("cards/")));
-    }
-
-    #[test]
-    fn todo_graduates_to_final() {
-        assert_eq!(
-            final_for_todo("Plains.todo.ron").as_deref(),
-            Some("Plains.ron")
-        );
-        assert_eq!(
-            final_for_todo("Fire {slash}{slash} Ice.todo.ron").as_deref(),
-            Some("Fire {slash}{slash} Ice.ron")
-        );
-        // Not a stub name: nothing to graduate.
-        assert_eq!(final_for_todo("Plains.ron"), None);
     }
 
     #[test]

@@ -1,10 +1,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_core::plugin::ABILITY_WORDS_DIR;
 use deckmaste_core::plugin::CARDS_DIR;
-use deckmaste_core::plugin::KEYWORD_ABILITIES_DIR;
-use deckmaste_core::plugin::KEYWORD_ACTIONS_DIR;
 use deckmaste_core::plugin::MACROS_DIR;
 
 pub struct PluginLayout(PathBuf);
@@ -38,18 +35,6 @@ impl PluginLayout {
             ));
         }
         Ok(dir_path)
-    }
-
-    pub fn keyword_abilities_dir(&self) -> anyhow::Result<PathBuf> {
-        self.dir(KEYWORD_ABILITIES_DIR)
-    }
-
-    pub fn keyword_actions_dir(&self) -> anyhow::Result<PathBuf> {
-        self.dir(KEYWORD_ACTIONS_DIR)
-    }
-
-    pub fn ability_words_dir(&self) -> anyhow::Result<PathBuf> {
-        self.dir(ABILITY_WORDS_DIR)
     }
 
     /// Where a category's subtype-definition macros live —
