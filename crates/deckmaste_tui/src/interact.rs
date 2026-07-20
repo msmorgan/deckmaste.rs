@@ -123,16 +123,21 @@ pub fn actions_for(object: ObjectId, legal: &[Action]) -> Vec<Action> {
 
 /// Whether the human should drive this decision (vs the driver auto-resolving
 /// it via `Strategy`). Combat with an empty candidate set has nothing to
-/// choose, so it auto-resolves. The single source of truth for the driver
-/// partition.
+/// choose, so it auto-resolves. An attacker choice also needs a defending
+/// target; a malformed decision must not reach the picker and panic. The
+/// single source of truth for the driver partition.
 #[must_use]
 pub fn is_interactive(pending: &PendingDecision) -> bool {
     match pending {
         PendingDecision::Priority(deckmaste_engine::Priority { .. })
         | PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { .. })
         | PendingDecision::ChooseNewTargets(deckmaste_engine::ChooseNewTargets { .. }) => true,
-        PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers { legal, .. })
-        | PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { legal, .. }) => {
+        PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
+            legal,
+            legal_targets,
+            ..
+        }) => !legal.is_empty() && !legal_targets.is_empty(),
+        PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { legal, .. }) => {
             !legal.is_empty()
         }
         // The human picks which cards to discard — cleanup hand-size and
@@ -169,14 +174,14 @@ impl Interaction {
                 legal,
                 legal_targets,
                 ..
-            }) if !legal.is_empty() => Interaction::Attackers {
+            }) if !legal.is_empty() && !legal_targets.is_empty() => Interaction::Attackers {
                 legal: legal.clone(),
                 chosen: Vec::new(),
-                // The defending player's proxy is always the first legal
-                // target ([CR#508.1b]); default every attacker to it.
-                defender: *legal_targets
-                    .first()
-                    .expect("the defending player's proxy is a legal target"),
+                // The defending player's proxy is normally the first legal
+                // target ([CR#508.1b]); default every attacker to it. Keep the
+                // lookup fallible so malformed pending state cannot crash the
+                // TUI.
+                defender: legal_targets.first().copied()?,
             },
             PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { legal, .. }) if !legal.is_empty() => {
                 Interaction::Blockers {
@@ -911,6 +916,17 @@ mod tests {
         it.unpair_last(); // remove (b0, atk0)
         assert_eq!(it.confirm(), Some(Decision::Blocks(vec![])));
         assert_eq!(it.candidates(), vec![b0]); // available again
+    }
+
+    #[test]
+    fn attacker_without_a_defending_target_is_not_interactive() {
+        let pending = PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
+            player: PlayerId(0),
+            legal: vec![ObjectId::default()],
+            legal_targets: vec![],
+        });
+        assert!(!is_interactive(&pending));
+        assert_eq!(Interaction::for_decision(&pending), None);
     }
 
     #[test]

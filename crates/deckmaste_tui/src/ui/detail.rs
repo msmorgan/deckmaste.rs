@@ -177,4 +177,24 @@ mod tests {
         assert!(s.contains("draw a card"), "renders effect as prose: {s}");
         assert!(!s.contains("Triggered"), "no Debug ability form: {s}");
     }
+
+    #[test]
+    #[cfg_attr(
+        not(wizards_corpus),
+        ignore = "requires generated plugins/wizards corpus"
+    )]
+    fn object_detail_renders_mogg_fanatic() {
+        let state = opening();
+        let view = state.layers();
+        let id = state
+            .objects
+            .iter()
+            .filter(|o| o.card_id().is_some())
+            .map(|o| o.id)
+            .find(|&id| &*face(state.def(id)).name == "Mogg Fanatic")
+            .expect("Mogg Fanatic in game");
+        let s = text_to_string(&render(&state, &view, Some(Selected::Object(id))));
+        assert!(s.contains("Sacrifice"), "renders sacrifice cost: {s}");
+        assert!(s.contains("1 damage"), "renders damage effect: {s}");
+    }
 }
