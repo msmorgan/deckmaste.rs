@@ -445,6 +445,8 @@ fn conditionally_lead(text: &str, cond: &Condition, ctx: &Ctx) -> String {
 pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String) {
     match e {
         EventFilter::Expanded(exp) => event_clause(&exp.value, ctx),
+        EventFilter::OneOf(events) => disjoined_event_clause(events, ctx)
+            .unwrap_or_else(|| ("When", format!("[unrendered: {e:?}]"))),
         EventFilter::ZoneChange {
             what,
             to: Some(Zone::Battlefield),
@@ -643,15 +645,19 @@ pub(super) fn event_clause(e: &EventFilter, ctx: &Ctx) -> (&'static str, String)
         // specifically an opponent's ("an opponent casts"). Self
         // (`Ref(This)`) leads "When" via `lead_for`, matching the enters/dies
         // self convention.
-        EventFilter::Cast { who, what } => (
-            lead_for(what),
-            match cast_who_phrase(who) {
-                Some(subject) => format!("{subject} {}", cast_subject(what)),
-                None => format!("[unrendered: {who:?}]"),
-            },
-        ),
+        EventFilter::Cast { who, what } => cast_event_clause(who, what),
         other => ("When", format!("[unrendered: {other:?}]")),
     }
+}
+
+fn cast_event_clause(who: &Predicate, what: &Predicate) -> (&'static str, String) {
+    (
+        lead_for(what),
+        match cast_who_phrase(who) {
+            Some(subject) => format!("{subject} {}", cast_subject(what)),
+            None => format!("[unrendered: {who:?}]"),
+        },
+    )
 }
 
 /// The subject phrase for a [`EventFilter::TapForMana`]'s `by` coordinate:
@@ -725,7 +731,127 @@ fn subject_of(f: &Predicate, ctx: &Ctx) -> String {
     {
         return phrase;
     }
+    // Bare subtypes ("another Ally you control") are intentionally nouns in
+    // trigger-subject position. `subject_phrase` handles type-based subjects;
+    // its filter-noun sibling also recognizes subtype nouns and all of the
+    // same restrictors. Inflect its bare "other" into the singular-subject
+    // "another", or add the ordinary indefinite article.
+    let noun = super::fragment::filter_noun(f);
+    if !noun.starts_with("[unrendered") {
+        return noun.strip_prefix("other ").map_or_else(
+            || super::effect::a_an(&noun),
+            |rest| format!("another {rest}"),
+        );
+    }
     format!("[unrendered: {f:?}]")
+}
+
+/// Render a `OneOf` trigger as the printed shared-subject or shared-verb
+/// disjunction. Each member remains a full event filter internally; this
+/// function only factors their common English surface:
+///
+/// - `ThisEnters | ThisAttacks` → "~ enters or attacks";
+/// - `ThisEnters | Enters(another Ally)` → "~ or another Ally enters".
+fn disjoined_event_clause(events: &[EventFilter], ctx: &Ctx) -> Option<(&'static str, String)> {
+    let parts: Vec<(&'static str, String, &'static str)> = events
+        .iter()
+        .map(|event| event_clause_part(event, ctx))
+        .collect::<Option<_>>()?;
+    if parts.len() < 2 {
+        return None;
+    }
+    let lead = if parts.iter().any(|(lead, _, _)| *lead == "Whenever") {
+        "Whenever"
+    } else {
+        "When"
+    };
+
+    if parts.iter().all(|(_, _, verb)| *verb == parts[0].2) {
+        let subjects = parts
+            .iter()
+            .map(|(_, subject, _)| subject.as_str())
+            .collect::<Vec<_>>()
+            .join(" or ");
+        return Some((lead, format!("{subjects} {}", parts[0].2)));
+    }
+
+    if parts.iter().all(|(_, subject, _)| subject == &parts[0].1) {
+        let plural_subject = compound_name_takes_plural_verb(&parts[0].1, ctx);
+        let verbs = parts
+            .iter()
+            .map(
+                |(_, _, verb)| {
+                    if plural_subject { plural_event_verb(verb) } else { verb }
+                },
+            )
+            .collect::<Vec<_>>()
+            .join(" or ");
+        return Some((lead, format!("{} {verbs}", parts[0].1)));
+    }
+    None
+}
+
+/// The renderable object-event subset used by OR-composed trigger clauses.
+/// Directional two-slot block events deliberately stay outside this factoring
+/// helper: their two printed participants cannot be reduced to one subject +
+/// verb without losing a narrowing.
+fn event_clause_part(
+    event: &EventFilter,
+    ctx: &Ctx,
+) -> Option<(&'static str, String, &'static str)> {
+    match event {
+        EventFilter::Expanded(exp) => event_clause_part(&exp.value, ctx),
+        EventFilter::ZoneChange {
+            what,
+            to: Some(Zone::Battlefield),
+            from: None,
+            ..
+        } => Some((lead_for(what), subject_of(what, ctx), "enters")),
+        EventFilter::ZoneChange {
+            what,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            ..
+        } => Some((lead_for(what), subject_of(what, ctx), "dies")),
+        EventFilter::ZoneChange {
+            what,
+            from: Some(Zone::Battlefield),
+            to: None,
+            ..
+        } => Some((
+            lead_for(what),
+            subject_of(what, ctx),
+            "leaves the battlefield",
+        )),
+        EventFilter::AttackDeclared { by, .. } => {
+            Some(("Whenever", subject_of(by, ctx), "attacks"))
+        }
+        EventFilter::BlockDeclared {
+            by,
+            of: Predicate::Any,
+        } => Some(("Whenever", subject_of(by, ctx), "blocks")),
+        EventFilter::BlockDeclared {
+            by: Predicate::Any,
+            of,
+        } => Some(("Whenever", subject_of(of, ctx), "becomes blocked")),
+        _ => None,
+    }
+}
+
+fn compound_name_takes_plural_verb(subject: &str, ctx: &Ctx) -> bool {
+    subject == ctx.subject && (subject.contains(" & ") || subject.contains(" and "))
+}
+
+fn plural_event_verb(verb: &str) -> &str {
+    match verb {
+        "enters" => "enter",
+        "dies" => "die",
+        "leaves the battlefield" => "leave the battlefield",
+        "attacks" => "attack",
+        "blocks" => "block",
+        "becomes blocked" => "become blocked",
+        other => other,
+    }
 }
 
 /// The recipient phrase for a [`EventFilter::Damage`]'s `to` coordinate: the
@@ -2049,6 +2175,91 @@ mod tests {
         assert_eq!(
             event_clause(&event(Predicate::r#type(Type::Creature)), &ctx),
             ("Whenever", "a creature leaves the battlefield".to_string())
+        );
+    }
+
+    /// `EventFilter::OneOf` keeps each event's master-form pairing while the
+    /// renderer factors the shared printed surface. Covers both directions:
+    /// one subject with multiple events and one event over multiple subjects.
+    /// Compound card names retain Oracle's plural agreement.
+    #[test]
+    fn event_disjunction_renders_shared_subject_or_verb() {
+        use deckmaste_core::CharacteristicPredicate;
+        use deckmaste_core::RelationPredicate;
+
+        let ctx = Ctx {
+            subject: "Test",
+            targets: &[],
+            that: None,
+            named: None,
+        };
+        let this = || Predicate::Ref(Reference::This);
+        let enters = |what| EventFilter::ZoneChange {
+            what,
+            from: None,
+            to: Some(Zone::Battlefield),
+            cause: None,
+        };
+        let dies = |what| EventFilter::ZoneChange {
+            what,
+            from: Some(Zone::Battlefield),
+            to: Some(Zone::Graveyard),
+            cause: None,
+        };
+        let attacks = |by| EventFilter::AttackDeclared {
+            by,
+            against: Predicate::Any,
+        };
+
+        assert_eq!(
+            event_clause(
+                &EventFilter::OneOf(vec![enters(this()), dies(this())].into()),
+                &ctx
+            ),
+            ("When", "Test enters or dies".to_string())
+        );
+        assert_eq!(
+            event_clause(
+                &EventFilter::OneOf(vec![enters(this()), attacks(this())].into()),
+                &ctx
+            ),
+            ("Whenever", "Test enters or attacks".to_string())
+        );
+
+        let another_ally = Predicate::And(
+            vec![
+                Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                    deckmaste_core::SubtypeRef::named("Ally".into()),
+                )),
+                Predicate::Not(Arc::new(this())),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
+        assert_eq!(
+            event_clause(
+                &EventFilter::OneOf(vec![enters(this()), enters(another_ally)].into()),
+                &ctx
+            ),
+            (
+                "Whenever",
+                "Test or another Ally you control enters".to_string()
+            )
+        );
+
+        let compound_ctx = Ctx {
+            subject: "Krang & Shredder",
+            ..ctx
+        };
+        assert_eq!(
+            event_clause(
+                &EventFilter::OneOf(vec![enters(this()), attacks(this())].into()),
+                &compound_ctx
+            ),
+            ("Whenever", "Krang & Shredder enter or attack".to_string())
         );
     }
 

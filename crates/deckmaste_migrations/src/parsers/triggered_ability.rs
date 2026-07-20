@@ -171,9 +171,111 @@ fn render(
 /// replacement's `would:` is the same `EventFilter`, parsed from the same
 /// enters/dies clause grammar.
 pub(super) fn parse_event(clause: &str) -> Option<String> {
-    if clause == "~ blocks or becomes blocked" {
-        return Some("OneOf([ThisBlocks, ThisBecomesBlocked])".to_owned());
+    if let Some(event) = parse_event_disjunction(clause) {
+        return Some(event);
     }
+    parse_event_atom(clause)
+}
+
+/// Parse the two OR-composed event-clause shapes used by printed triggers:
+///
+/// - one verb over two subjects: `~ or another Ally you control enters`;
+/// - one subject over two verbs: `~ enters or attacks`.
+///
+/// Each arm is parsed through the ordinary event production, then retained as
+/// its own [`EventFilter`](deckmaste_core::EventFilter) disjunct. Keeping the
+/// subject/event pairing per arm matters when the verbs name different master
+/// forms (`ZoneChange` vs. `AttackDeclared`), and makes the trigger fire only
+/// once if one occurrence happens to satisfy both arms ([CR#603.2c]).
+///
+/// Partner-style names use plural agreement after extraction (`~ enter or
+/// attack`). [`parse_compound_event_atom`] singularizes only these bounded
+/// event verbs before routing them through the same atom parser.
+fn parse_event_disjunction(clause: &str) -> Option<String> {
+    let (left, right) = clause.split_once(" or ")?;
+
+    // Shared verb: "~ or another Ally you control enters".
+    if let Some((right_subject, verb)) = split_simple_event(right) {
+        let left_clause = format!("{left} {}", verb.singular());
+        let left_event = parse_compound_event_atom(&left_clause)?;
+        let right_event = parse_compound_event_atom(right)?;
+        if !right_subject.is_empty() {
+            return Some(format!("OneOf([{left_event}, {right_event}])"));
+        }
+    }
+
+    // Shared subject: "~ enters or attacks". The right side carries only a
+    // verb, so borrow the left event's subject and parse the reconstructed
+    // second clause through the ordinary event atom production.
+    let (subject, _) = split_simple_event(left)?;
+    let right_clause = format!("{subject} {right}");
+    let left_event = parse_compound_event_atom(left)?;
+    let right_event = parse_compound_event_atom(&right_clause)?;
+    Some(format!("OneOf([{left_event}, {right_event}])"))
+}
+
+#[derive(Clone, Copy)]
+enum SimpleEventVerb {
+    Enters,
+    Dies,
+    LeavesBattlefield,
+    Attacks,
+    Blocks,
+    BecomesBlocked,
+}
+
+impl SimpleEventVerb {
+    fn singular(self) -> &'static str {
+        match self {
+            Self::Enters => "enters",
+            Self::Dies => "dies",
+            Self::LeavesBattlefield => "leaves the battlefield",
+            Self::Attacks => "attacks",
+            Self::Blocks => "blocks",
+            Self::BecomesBlocked => "becomes blocked",
+        }
+    }
+}
+
+/// Split a simple object event into its subject and normalized verb. The
+/// plural spellings are confined to compound-name trigger subjects; the
+/// returned verb always reconstructs with singular agreement so the existing
+/// event atom parser remains the single source of event emission.
+fn split_simple_event(clause: &str) -> Option<(&str, SimpleEventVerb)> {
+    const SUFFIXES: [(&str, SimpleEventVerb); 12] = [
+        (
+            " leaves the battlefield",
+            SimpleEventVerb::LeavesBattlefield,
+        ),
+        (" becomes blocked", SimpleEventVerb::BecomesBlocked),
+        (" is blocked", SimpleEventVerb::BecomesBlocked),
+        (" enters", SimpleEventVerb::Enters),
+        (" enter", SimpleEventVerb::Enters),
+        (" dies", SimpleEventVerb::Dies),
+        (" die", SimpleEventVerb::Dies),
+        (" attacks", SimpleEventVerb::Attacks),
+        (" attack", SimpleEventVerb::Attacks),
+        (" blocks", SimpleEventVerb::Blocks),
+        (" block", SimpleEventVerb::Blocks),
+        (" leave", SimpleEventVerb::LeavesBattlefield),
+    ];
+    SUFFIXES.iter().find_map(|(suffix, verb)| {
+        clause
+            .strip_suffix(suffix)
+            .filter(|subject| !subject.is_empty())
+            .map(|subject| (subject, *verb))
+    })
+}
+
+fn parse_compound_event_atom(clause: &str) -> Option<String> {
+    if let Some(event) = parse_event_atom(clause) {
+        return Some(event);
+    }
+    let (subject, verb) = split_simple_event(clause)?;
+    parse_event_atom(&format!("{subject} {}", verb.singular()))
+}
+
+fn parse_event_atom(clause: &str) -> Option<String> {
     // Cast trigger: "you cast X" — the `Cast` onset event ([CR#601.2i]),
     // filtered per [`parse_cast_event`]'s recognized shapes (self, bare
     // spell, card-type/noncreature/instant-or-sorcery, single subtype).
@@ -983,12 +1085,15 @@ mod tests {
     }
 
     #[test]
-    fn blocks_or_becomes_blocked_disjunction_declines() {
-        // No core `EventFilter` combinator (Any/Or) holds "blocks or becomes
-        // blocked" — deferred (~101 corpus cards; the compound object residue
-        // never resolves to the literal "a creature", so this correctly
-        // declines rather than mis-parsing).
-        assert!(trig("Whenever ~ blocks or becomes blocked by a creature, draw a card.").is_none());
+    fn blocks_or_becomes_blocked_by_creature_disjunction() {
+        // The second arm keeps its directional blocker narrowing while the
+        // first remains the ordinary bare "blocks" event.
+        assert_eq!(
+            trig("Whenever ~ blocks or becomes blocked by a creature, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: OneOf([ThisBlocks, Blocking(Creature, Ref(This))]), effect: Draw(1))"
+            )
+        );
     }
 
     #[test]
@@ -999,6 +1104,44 @@ mod tests {
             Some(
                 "Triggered(event: OneOf([ThisBlocks, ThisBecomesBlocked]), effect: Targeted(targets: [TargetOne(OpponentOf(Ref(You)))], effect: GainControl(This, Target(0))))"
             )
+        );
+    }
+
+    #[test]
+    fn or_subject_and_or_event_triggers() {
+        assert_eq!(
+            trig("Whenever ~ or another Ally you control enters, draw a card.").as_deref(),
+            Some(
+                "Triggered(event: OneOf([ThisEnters, Enters(And([Permanent, Subtype(Ally), Not(Ref(This)), ControlledBy(Ref(You))]))]), effect: Draw(1))"
+            )
+        );
+        assert_eq!(
+            trig("When ~ enters or dies, draw a card.").as_deref(),
+            Some("Triggered(event: OneOf([ThisEnters, ThisDies]), effect: Draw(1))")
+        );
+        assert_eq!(
+            trig("Whenever ~ enters or attacks, draw a card.").as_deref(),
+            Some("Triggered(event: OneOf([ThisEnters, ThisAttacks]), effect: Draw(1))")
+        );
+        assert_eq!(
+            trig("When ~ enters or leaves the battlefield, draw a card.").as_deref(),
+            Some("Triggered(event: OneOf([ThisEnters, ThisLeavesBattlefield]), effect: Draw(1))")
+        );
+        assert_eq!(
+            trig("Whenever ~ attacks or blocks, draw a card.").as_deref(),
+            Some("Triggered(event: OneOf([ThisAttacks, ThisBlocks]), effect: Draw(1))")
+        );
+    }
+
+    #[test]
+    fn plural_compound_name_or_event_trigger() {
+        assert_eq!(
+            trig("Whenever ~ enter or attack, draw a card.").as_deref(),
+            Some("Triggered(event: OneOf([ThisEnters, ThisAttacks]), effect: Draw(1))")
+        );
+        assert_eq!(
+            trig("Whenever ~ attack or block, draw a card.").as_deref(),
+            Some("Triggered(event: OneOf([ThisAttacks, ThisBlocks]), effect: Draw(1))")
         );
     }
 

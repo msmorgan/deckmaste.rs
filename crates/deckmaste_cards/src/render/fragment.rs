@@ -975,6 +975,7 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
     let parts = flatten_all_of(f);
     let mut other = false;
     let mut base: Option<String> = None;
+    let mut subtype_base = false;
     let mut color: Option<Color> = None;
     let mut control: Option<&Predicate> = None;
     for p in parts {
@@ -1003,6 +1004,15 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
                 }
             }
         }
+    }
+    // A subtype is the printed head noun when no card-type atom is present:
+    // `And([Permanent, Subtype(Ally), Not(This), ControlledBy(You)])` is
+    // "another Ally you control", not the lossy "another permanent you
+    // control". Card type keeps precedence when both are present, matching
+    // `filter_noun`'s established ordering.
+    if base.is_none() {
+        base = find_bare_subtype_noun(f);
+        subtype_base = base.is_some();
     }
     if base.is_none() && !other && color.is_none() && control.is_none() {
         return None;
@@ -1041,7 +1051,7 @@ pub(super) fn subject_phrase(f: &Predicate, number: SubjectNumber) -> Option<Str
             s
         }
         SubjectNumber::SingularArticle => {
-            let lower = noun.to_lowercase();
+            let lower = if subtype_base { noun } else { noun.to_lowercase() };
             let described = match color {
                 Some(c) => format!("{} {lower}", super::effect::color_word(c)),
                 None => lower,
