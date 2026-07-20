@@ -40,8 +40,8 @@ not just the battlefield. So:
 Consequences: stripped type → not in current `card_types` → not folded → grant gone
 (removal works for free); the T3b dedup band-aid is removed; printed + layer-4-added
 conferral unify into one path; symmetric for subtypes. Zero canon reachability today, so no
-live bug, but this is the correct architecture per [[fix-convenient-not-quite-right]] (the
-cache is the convenient-but-wrong thing).
+live bug, but the cache is a convenient-but-wrong shortcut: the architecture must
+derive conferrals from current characteristics.
 
 **One nuance to handle:** the first-pass effect-source `gather` reads raw `printed_abilities`
 (`layer.rs:476`, `player_statics.rs:67`) to break the `layers()` recursion. A type/subtype

@@ -2,7 +2,7 @@
 needs: []
 ---
 Parser for replacement effects: "if … would …, instead …", "as … enters",
-and "… enters tapped" templates. Feeds the engine-replacements registry.
+and "… enters tapped" templates. Feeds the engine replacement registry.
 
 ## Implementation note (batch2 worker, 2026-06-14)
 

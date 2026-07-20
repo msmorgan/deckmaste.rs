@@ -23,7 +23,7 @@ The `AsEnters` / enter-status data names its host as a declared slot link
 (`Reference::Target(n)`), resolved through the normal reference channel — the same
 positional-target channel [[parse-positional-target-reads]] establishes on the
 surface. No card-shape predicate, no positional convention. See
-[[atom-independence-anaphora-only]].
+[Effect atom independence](../../decisions/effect-atom-independence.md).
 
 Verify: engine tests; an Aura attaches to its declared slot regardless of slot
 index; the existing single-slot Auras (Enchant Creature canon) attach unchanged.

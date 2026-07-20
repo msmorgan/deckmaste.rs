@@ -8,8 +8,9 @@ attached to and `AttachedTo(r)` to what is attached to `r`. Seamed by
 `engine-resolve-selections` (the `todo!` in `eval_reference`, resolve.rs).
 
 ## Done (satisfied by trunk — no new code)
-Superseded before it was claimed: the `engine-never-crashes-on-authoring-mistakes`
-sweep replaced the `eval_reference` `todo!`/`expect` seams (including
+Superseded before it was claimed: the sweep implementing
+[Invalid authoring fizzles](../../decisions/invalid-authoring-fizzles.md)
+replaced the `eval_reference` `todo!`/`expect` seams (including
 `AttachHostOf`) with the null-guarded `unbound_ref(...)` fizzle, and a later
 `Reference` cleanup deleted the `Reference::AttachedTo` variant, moving the
 host→attachment direction onto `RelationPredicate::AttachedTo` / `Attachment`.

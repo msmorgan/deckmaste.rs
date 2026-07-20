@@ -40,7 +40,8 @@ and both shadow tables delete. Make `that_object` kind-polymorphic (like
 highest-leverage single fix in the resolve-layer cross-boundary audit — it also
 resolves the `EventObject` inconsistency and hardens the paid-object read folded
 into [[engine-bound-references]]. Relates to [[engine-lki-robustness]] (the
-snapshot struct's field-enumeration), [[atom-independence-anaphora-only]].
+snapshot struct's field-enumeration) and
+[Effect atom independence](../../decisions/effect-atom-independence.md).
 
 Verify: engine tests; a gone-object `CounterCount(Expanded(This))` reads the
 snapshot, not 0; a patient-only frame resolves `EventObject` LKI; both former

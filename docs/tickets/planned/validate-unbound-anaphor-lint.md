@@ -6,7 +6,7 @@ needs: []
 loads fine, and fizzles at resolution: `eval_reference` degrades to the null id
 (`resolve/query.rs` `unbound_ref`) and `eval_selection_set` to the empty group
 (`unbound_group`). Both are deliberate — the engine never crashes on an
-authoring mistake ([[engine-never-crashes-on-authoring-mistakes]]) — but a
+authoring mistake ([Invalid authoring fizzles](../../decisions/invalid-authoring-fizzles.md)) — but a
 silent no-op is a poor way to learn you wrote a broken card.
 
 Carved out of [[parse-positional-target-reads]], which established that a target

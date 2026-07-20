@@ -61,7 +61,8 @@ executing; this ticket dates and drifts.
   execution that Idris captures the *event-scoping* via its window/`Replaces`
   mechanism; if not, that's a deontic-scoping gap, not a missing `Duration`.
 - **`Count::ManaAvailable`** — a strategy-only reader of the floated mana pool
-  (`strategy.rs:753`); no card reads it. Runner-side ([[engine-runner-boundary]]);
+  (`strategy.rs:753`); no card reads it. Runner-side
+  ([Engine/runner boundary](../../decisions/engine-runner-boundary.md));
   Idris correctly excludes it from card grammar.
 - **`Ability::Innate`** — an engine look-through wrapper ([CR#113.12]), like
   `AsThough::Expanded`. Engine-only; no Idris mirror.
@@ -74,8 +75,8 @@ executing; this ticket dates and drifts.
 
 - **`Reference::Bound`, `Count::Noted`, `Selection::AmongNoted`** — the stringly
   labeled-anaphora family (zero canon usage). Idris correctly uses positional
-  anaphora (`It`/`That`/`ThatMany`) per the no-stringly-binders ruling
-  ([[authored-surface-ergonomics-rulings]]). Rust is retiring these via the
+  anaphora (`It`/`That`/`ThatMany`) per the no-stringly-binders ruling in
+  [Authored card surface](../../decisions/authored-card-surface.md). Rust is retiring these via the
   planned `engine-bound-references` + `parse-subject-filter-stringly-channels`
   tickets. No Idris change; converge by Rust's retirement.
 - **`Selection::PilesOf`** — stringly pile-division read; defer until the piles

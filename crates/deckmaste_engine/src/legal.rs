@@ -1263,7 +1263,8 @@ thread_local! {
     /// authored `Conditionally(LegallyAttached(This), <Attach deontic>)` (a
     /// bootstrap-impossible aura — an authoring mistake; no canon or planned card
     /// authors this shape) would recurse without bound and stack-overflow,
-    /// violating the engine-never-crashes-on-authoring-mistakes floor. This
+    /// violating the Invalid authoring fizzles decision
+    /// (`docs/decisions/invalid-authoring-fizzles.md`). This
     /// counter bounds the recursion (see [`ATTACH_LEGAL_DEPTH_CAP`]).
     static ATTACH_LEGAL_DEPTH: Cell<u32> = const { Cell::new(0) };
 }
@@ -1306,7 +1307,8 @@ impl Drop for AttachLegalDepthGuard {
 /// (protection [CR#702.16d]) subtracts from any grant.
 #[must_use]
 pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: ObjectId) -> bool {
-    // Re-entrancy guard ([[engine-never-crashes-on-authoring-mistakes]]): if the
+    // Re-entrancy guard (the Invalid authoring fizzles decision,
+    // `docs/decisions/invalid-authoring-fizzles.md`): if the
     // deontic collector has already re-entered `attachment_legal` (only reachable
     // via a `Conditionally(LegallyAttached(…), …)` static — see
     // `ATTACH_LEGAL_DEPTH`), return the conservative default `false` ("not legally
@@ -1871,10 +1873,12 @@ mod tests {
         );
     }
 
-    /// [[engine-never-crashes-on-authoring-mistakes]] / [CR#611.3a]: a permanent
-    /// authored `Conditionally(LegallyAttached(This), May(Attach{Ref(This),
-    /// Any}))` is a bootstrap-impossible aura. The deontic collector gates
-    /// the grant on `condition_holds(LegallyAttached)`, which re-enters
+    /// The Invalid authoring fizzles decision
+    /// (`docs/decisions/invalid-authoring-fizzles.md`) / [CR#611.3a]: a
+    /// permanent authored `Conditionally(LegallyAttached(This),
+    /// May(Attach{Ref(This), Any}))` is a bootstrap-impossible aura. The
+    /// deontic collector gates the grant on
+    /// `condition_holds(LegallyAttached)`, which re-enters
     /// `attachment_legal`, which re-collects, which re-evaluates the
     /// condition … an UNBOUNDED cycle that would stack-overflow (aborting
     /// the process) without the re-entrancy guard. With the guard the

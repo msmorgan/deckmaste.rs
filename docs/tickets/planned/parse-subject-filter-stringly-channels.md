@@ -42,7 +42,8 @@ own view:
 
 The healthy model already in-tree: `count.rs`'s `Binder`/`CountClause` enums carry
 exactly this kind of distinction structurally. See
-[[atom-independence-anaphora-only]], [[authored-surface-ergonomics-rulings]].
+[Effect atom independence](../../decisions/effect-atom-independence.md) and
+[Authored card surface](../../decisions/authored-card-surface.md).
 
 Verify: the existing modify/replacement/filter unit tests pin the same emitted RON;
 a `filter::parse_phrase` production emitting a top-level `Ref(…)` no longer

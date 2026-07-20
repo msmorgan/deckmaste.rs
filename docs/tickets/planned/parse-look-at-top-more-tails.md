@@ -14,9 +14,8 @@ already shipped:
 - untyped "you may reveal it and put it into your hand" (no "if it's a … card"
   gate), and other single-card look-then-optional-move shapes.
 
-Approach: the settled whole-shape macro pattern (see the
-`parse-multi-sentence-whole-shape-macro` memory / the shipped `ExileTop.ron` +
-`LookAtTopRevealToHand.ron`) — ONE `OneShotEffect`-kind `.ron` macro per tail
+Approach: the settled whole-shape macro pattern demonstrated by the shipped
+`ExileTop.ron` and `LookAtTopRevealToHand.ron`: ONE `OneShotEffect`-kind `.ron` macro per tail
 under `plugins/builtin/macros/effect/`, template spanning both sentences, body
 `Each(Existing(TopOfLibrary(count: 1)), <tail>)`; NO standalone "look at the top
 card" head production (it would let `parse_sequence` preempt the whole-shape

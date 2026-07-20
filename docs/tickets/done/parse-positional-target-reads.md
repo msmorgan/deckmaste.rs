@@ -79,7 +79,7 @@ the atom's own rendered output). The engine `It` fallback
 (`no_other_singular && flat.len() == 1`, query.rs) and the parser's
 `starts_with("SelectAll(")` re-parse are the archetype violations; the work is
 done when no such cross-boundary branch decides a target read. See
-[[atom-independence-anaphora-only]].
+[Effect atom independence](../../decisions/effect-atom-independence.md).
 
 ## Scope the first draft missed (review, each verified against the code)
 
@@ -96,15 +96,15 @@ Direction confirmed correct; these belong in the ruling before it is claimed:
    `Targets n`, flip the Spec probes from positives to rejections, rewrite
    Cards.idr — and model and engine assert opposite things; the re-emit/idris
    gate then rejects the new `Target(0)` canon. Add `cargo xtask idris-check` to
-   Verify. (If a deliberate Rust/Idris divergence is ruled acceptable here — cf.
-   [[engine-draw-rust-idris-divergence]] — say so; the gate consequence must be
+   Verify. If a deliberate Rust/Idris divergence is ruled acceptable here, record
+   that exception explicitly; the gate consequence must be
    resolved either way.)
 7. **Renderer + emitter arms for `Targets(n)`.** `deckmaste_cards/src/render/effect.rs:1604`
    carries its own targets-as-`They` special case
    (`Binder::Existing(Selection::They) if ctx.targets.len() == 1`) that must
    migrate to `Targets(n)`, and `idris_emit.rs:1259` emits `They`/`Them` with no
-   arm for the new variant. Per [[canon-card-needs-renderer-for-fidelity]] a new
-   grammar needs its RENDER/emit arms or the cards suite breaks — name them here,
+   arm for the new variant. A new grammar needs its render and emit arms or the
+   cards suite breaks — name them here,
    don't discover them mid-implementation.
 8. **Decide: does `Target(n)` chase moves?** The `It` lone-target fallback chases
    the same-resolution move record (`chase_moved`, query.rs:424, [CR#400.7j]

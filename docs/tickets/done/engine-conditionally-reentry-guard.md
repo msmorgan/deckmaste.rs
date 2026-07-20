@@ -13,7 +13,7 @@ into the collector walk. A permanent authored with
 stack overflow.
 
 This was impossible before the feature (the walk looked *through* `Conditionally` without
-evaluating its condition). It violates [[engine-never-crashes-on-authoring-mistakes]]: an
+evaluating its condition). It violates [Invalid authoring fizzles](../../decisions/invalid-authoring-fizzles.md): an
 authoring mistake must fizzle/no-op, never crash the engine. Reachability today is ZERO —
 no canon or planned card authors this shape, and the combatant feature's own confers use
 only `Matches(This, SummoningSick)` / `Not(Matches(This, Has(Haste)))` (neither re-enters a

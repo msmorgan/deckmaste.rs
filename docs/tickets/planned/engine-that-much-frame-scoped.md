@@ -22,7 +22,8 @@ Bind the magnitude on the continuation frame like its siblings `allotment` /
 `crossed`: the amount-fixing instruction sets `anaphora.that_much` on the frame it
 continues into, so nesting scopes it for free and no global register is read. The
 trigger-seeded path (`TriggerBindings.that_much`) is already correctly channeled —
-only the intra-resolution register is global. See [[atom-independence-anaphora-only]].
+only the intra-resolution register is global. See
+[Effect atom independence](../../decisions/effect-atom-independence.md).
 
 Verify: engine tests; a two-magnitude fixture reads the authored antecedent, not
 the last apply; an `Each`-over-players + "that much" reads the per-element amount.

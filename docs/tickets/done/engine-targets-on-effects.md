@@ -32,7 +32,7 @@ regenerate wizards.
 for RON round-trip; `cargo xtask generate plugins/wizards`; `cargo xtask cite check`.
 
 ## Global constraints
-- Run jj only via `scripts/jj`; never bare `jj`/`git`. Work in `../engine-targets-on-effects`.
+- Run jj only via `scripts/jj`; never bare `jj`/`git`. Work in the feature workspace for this ticket.
 - CR citations use the repo bracket form; after citation changes the noncompliant list must be empty and stale count 0; bless any new rule.
 - Never edit `plugins/wizards/` by hand — it is regenerated.
 - Keep resolution semantics identical for the single-top-level-wrapper case
@@ -235,7 +235,7 @@ Equip: move `targets: [...]` inside → `Activated(cost: Param(0), window: Sorce
 - [ ] **Step 2 — `scripts/jj st`** clean except wizards content; spot-check a generated targeted card has the wrapper shape.
 - [ ] **Step 3 — full suite:** `cargo test --workspace` (incl. canon 0-mismatch), `cargo clippy --workspace`, `cargo xtask cite check --list-noncompliant` (empty) + `cite check` (0 stale).
 - [ ] **Step 4 — commit:** `wizards: regenerate under Targeted; full suite green`
-- [ ] **Step 5 — `scripts/workflow refresh engine-targets-on-effects`** (from default) to keep current with trunk; integrate when satisfied.
+- [ ] **Step 5 — refresh the feature workspace** to keep current with trunk; integrate when satisfied.
 
 ## Self-review notes
 - Spec coverage: type (T1), resolve (T2), discover (T3), parse (T4), data (T5),

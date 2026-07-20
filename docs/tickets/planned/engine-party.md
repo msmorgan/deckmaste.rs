@@ -11,7 +11,8 @@ A batch attempt verified against the CR that party is **not** a set-union of
 distinct subtypes, so it does **not** fit the existing
 `Count::CountDistinct(Characteristic, Countable)` primitive (`count.rs`,
 evaluated via `distinct_keys` in `resolve/count.rs`). Encoding it as `CountDistinct`
-would be provably wrong (violates the `fix-convenient-not-quite-right` ruling):
+would be provably wrong: the implementation must model the rule's actual
+one-of-each assignment rather than substitute a convenient distinct-count approximation.
 
 - `[CR#700.8]` — a party is *up to one each* of Cleric, Rogue, Warrior, Wizard
   you control; party size ∈ [0,4].
@@ -35,9 +36,9 @@ party.**
   role-set + object filter — more reusable (future "choose a party" / Stick
   Together, `[CR#700.8d]`), more surface.
 - **B — where the 4 class names live.** Hardcoded const (precedent
-  `BASIC_LAND_TYPES` in `count.rs`) vs data-driven from the RON subtype registry
-  (the `conferrals-sourced-from-ron` ruling favors data over hardcoded name
-  matches). Party classes are not a data flag today, so the data route needs a
+  `BASIC_LAND_TYPES` in `count.rs`) vs data-driven from the RON subtype registry.
+  [Conferrals come from registries](../../decisions/conferrals-come-from-registries.md)
+  favors data over hardcoded name matches. Party classes are not a data flag today, so the data route needs a
   new source.
 - **C — surface shape.** A scalar `Count` covers "for each creature in your
   party" / X = party. Full-party (`[CR#700.8c]`) is likely a separate

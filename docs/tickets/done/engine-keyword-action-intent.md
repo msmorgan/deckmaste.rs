@@ -31,7 +31,8 @@ intent events:
   `GameEvent::WillDestroy` is a redundant second intent layer.
 - `Action::Destroy(Reference)`, `PlayerAction::Draw/Mill` are bespoke per-verb
   variants where Scry/Surveil are already macro-over-`Composite` — the
-  special-casing the macro layer exists to kill ([[minimal-primitives-keyword-macros]]).
+  special-casing the macro layer exists to kill
+  ([Minimal core, data-driven rules](../../decisions/minimal-core-data-driven-rules.md)).
 
 ## Design — one parameterized atom, one `Act` event
 
@@ -102,7 +103,8 @@ replaceable `ZoneWillChange`. Realizations, all as the body facet:
   `Draw(who)` ALWAYS emits `Act(Draw)` (one ATTEMPT — the rules key on it), even
   from an empty library; the "no-op ⇒ no `Act`" rule fires only on a NULL
   instruction (`Repeat(0, …)`), never on an attempt that found no card.
-  **Draw-from-empty is authored, not baked in** ([[rules-sba-subsystem]]): a
+  **Draw-from-empty is authored, not baked in**
+  ([State-based actions are data](../../decisions/state-based-actions-are-data.md)): a
   reaction rule sets the persistent drew-from-empty flag on `Act(Draw)`-over-an-
   empty-library [CR#120.3,104.3c], and the existing loss `SbaRule` keys on that
   flag [CR#704.5b]. STAGE-4 design point to validate: whether the rules layer can
@@ -132,7 +134,7 @@ replaceable `ZoneWillChange`. Realizations, all as the body facet:
   "can't be regenerated" rider unchanged [CR#701.19c]. idris already models both
   as `CantHappen`/`Replaces (MkEventQuery [Destroy] [Patient (SameAs This)])`
   (`Macros.idr:171,186`).
-- Preserve cant→replace→apply order ([[engine-replacements]], `step.rs:1247`) so
+- Preserve cant→replace→apply order (`step.rs:1247`) so
   an indestructible creature never consumes its regen shield [CR#702.12b].
 - **One replace step, both facets ([CR#616.1]).** Because the composite is a
   single event, regeneration (tag facet, `Act(Destroy)`) and a graveyard-move
@@ -167,7 +169,7 @@ bareword: `Act(Destroy(Ref(This)))`, `Act(Scry(2))`, `Act(Mill(3))`.
 
 - **idris**: parameterize `KeywordActionSpec` (`Scry Nat | Destroy Reference |
   Mill Nat | Draw Nat | …`); verify re-emit soundness — this is the gate's turf
-  ([[idris-probe-soundness-gate]]); if a verb genuinely resists parameterization,
+  ([Idris is a soundness gate](../../decisions/idris-is-a-soundness-gate.md)); if a verb genuinely resists parameterization,
   report rather than force.
 - **core types**: one shared bare-ident newtype for the keyword-action-name
   namespace (`Composite.name`, `Act`, `Cause.verb`, `KeywordDecl.name`); remove
@@ -179,8 +181,8 @@ bareword: `Act(Destroy(Ref(This)))`, `Act(Scry(2))`, `Act(Mill(3))`.
   both facets; retarget indestructible + regen + lethal/deathtouch SBAs to
   `Act(Destroy(...))`; the ~8 `CauseVerb::*` construction sites → the newtype.
 - **grammar**: parse⇄render⇄idris round-trip for the atoms
-  ([[parse-via-macros-design-settled]], RENDER arms required
-  [[canon-card-needs-renderer-for-fidelity]]) — `parsers/effect.rs`,
+  ([Macro templates are bidirectional](../../decisions/macro-templates-are-bidirectional.md));
+  render arms are required — `parsers/effect.rs`,
   `render/effect.rs:648,975,1446-1488`, `idris_emit.rs:1510`.
 - re-encode existing `Composite(name: "…")` corpus to bareword-positional;
   regenerate `plugins/wizards`; re-bless fidelity (render text unaffected).
@@ -206,7 +208,7 @@ is not; `entailments.ron`-membership rejection of an unknown atom.
 `no_dead_grammar`, fidelity, keywords, builtin/canon load, idris re-emit,
 `cargo xtask cite check` all green; `cite audit --diff` the touched cites.
 
-Deps (all `done/`): engine-replacements, engine-resolve-actions,
+Deps (all `done/`): replacement-engine work, engine-resolve-actions,
 macro-keyword-actions, engine-cause-constructors, engine-trigger-events,
 migrate-damage-sbas-to-rules.
 
@@ -334,8 +336,7 @@ migrate-damage-sbas-to-rules.
     rulings]]) — and it's NOT correctness-required (package builds; the Rust
     re-emit path goes through the Composite form, validated against
     `KeywordActionSpec.Draw`; the two coexist). **Do NOT "clean up" `Action.Draw`
-    as dead/incomplete in a future pass — this asymmetry is intentional.** Also
-    recorded in memory [[engine-draw-rust-idris-divergence]].
+    as dead/incomplete in a future pass — this asymmetry is intentional.**
   - **Count-carrying `Draw` CONFIRMED (user, 2026-07-14)** — the reversal to
     `KeywordAction::Draw(Reference, Count)` (Mill-parity, idris-aligned) stands.
 - **Stage 5 — wizards regen + full suites: DONE, green.** Wizards regenerated

@@ -570,8 +570,9 @@ impl GameState {
         }
     }
 
-    /// Card-authoring mistakes must never crash the engine
-    /// ([[engine-never-crashes-on-authoring-mistakes]]): an unresolvable
+    /// Card-authoring mistakes must never crash the engine (the Invalid
+    /// authoring fizzles decision,
+    /// `docs/decisions/invalid-authoring-fizzles.md`): an unresolvable
     /// authored reference degrades to the null [`ObjectId`] — a slotmap key
     /// that never maps to a live object, so the effect fizzles exactly as a
     /// reference to a departed/zone-changed object does — leaving an
@@ -622,12 +623,12 @@ mod tests {
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
 
-    /// Card-authoring mistakes never crash the engine
-    /// ([[engine-never-crashes-on-authoring-mistakes]]): an unresolvable
-    /// authored reference degrades to the null object id (the effect
-    /// fizzles) rather than panicking. Soundness — that a well-formed
-    /// card's references always resolve — is the Idris re-emit gate's job,
-    /// not a runtime panic.
+    /// Card-authoring mistakes never crash the engine (the Invalid authoring
+    /// fizzles decision, `docs/decisions/invalid-authoring-fizzles.md`): an
+    /// unresolvable authored reference degrades to the null object id (the
+    /// effect fizzles) rather than panicking. Soundness — that a
+    /// well-formed card's references always resolve — is the Idris re-emit
+    /// gate's job, not a runtime panic.
     #[test]
     fn unbound_reference_degrades_to_null_not_panic() {
         use deckmaste_core::Reference;

@@ -14,8 +14,8 @@ queryObjectSort, queryRoles
 ```
 
 There is no `_` fallthrough in these functions (deliberately — the total
-enumeration is the soundness gate, so a new kind must be handled explicitly,
-[[idris-probe-soundness-gate]]), so the missing arms are hard build errors.
+enumeration is the soundness gate, so a new kind must be handled explicitly;
+see [Idris is a soundness gate](../../decisions/idris-is-a-soundness-gate.md)), so the missing arms are hard build errors.
 
 Landed by the `engine-act-fight-patient` / `idris-act-parity` trunk work, which
 added the EventKind data and the `KeywordActionSpec` shapes (`Scry : Count b ->

@@ -20,7 +20,7 @@ Both carry the same two facets `Subtype` did: a **scope/category** (`counterScop
 `Category`) and **conferrals** (`counterConfers`/`designationConfers` : `… -> List (Ability b)`,
 hand-mirrors of the RON `confers`). Follow `idris-subtype-open-names`: replace the closed enum with
 an open name-carrying value, put the conferrals ON the value sourced from the RON (never a hardcoded
-Idris match — see [[conferrals-sourced-from-ron]]), derive scope/category from the RON in
+Idris match — see [Conferrals come from registries](../../decisions/conferrals-come-from-registries.md)), derive scope/category from the RON in
 `idris_emit`, and delete the `*_idris` mirrors.
 
 **THE WRINKLE (why this wasn't done with subtypes): scope lives in a DEPENDENT TYPE INDEX.** Unlike

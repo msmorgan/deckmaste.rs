@@ -19,7 +19,7 @@ anything else (a macro invocation, an extra field) silently declines, and a
 Split the module's internal channel: internal productions return the bare
 `StaticEffect` RON; `resolve_line` applies the `Static(…)` shell at one exit point;
 `parse_conditional` composes `Conditionally(cond, inner)` structurally, never
-un-rendering. See [[atom-independence-anaphora-only]].
+un-rendering. See [Effect atom independence](../../decisions/effect-atom-independence.md).
 
 Parser-side and distinct from [[engine-conditional-statics-wiring]] (which wires
 `Conditionally` into the engine layers for execution); they meet at the same

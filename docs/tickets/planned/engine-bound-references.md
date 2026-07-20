@@ -23,4 +23,5 @@ Related minor from the same audit: `Count::TimesPaid` / `Condition::PaidCost` sc
 `self.stack` for `e.id == frame.source` (`count.rs:390-395`, `condition.rs:162-166`),
 so a read after the entry leaves the stack (the ETB "if it was kicked" recheck)
 silently returns 0/false — the paid record should ride the frame or the resolved
-permanent (an [[engine-alt-costs]] seam). See [[atom-independence-anaphora-only]].
+permanent (an [[engine-alt-costs]] seam). See
+[Effect atom independence](../../decisions/effect-atom-independence.md).

@@ -1,5 +1,5 @@
 ---
-needs: [engine-replacements]
+needs: []
 design: true
 ---
 ## Both residuals landed — the design pass concluded by shipping the `With`/`That` route
@@ -12,7 +12,7 @@ call sites were migrated to the explicit `Each`-over-selection form.
 
 **Residual item 2 (DONE, this feature):** the regeneration-shield `That`-capture
 was re-expressed through `With`. `CreateReplacement.subject` — the bespoke
-capture field `engine-replacements` had added — is **retired**; `create_shield`
+capture field the earlier replacement-engine work had added — is **retired**; `create_shield`
 now reads the protected permanent from the enclosing `With`'s `That` binding,
 and `Regenerate.ron` is re-spelled through `With`. `floating_watches` needed no
 change (it already keys on the frozen subject identity captured at shield

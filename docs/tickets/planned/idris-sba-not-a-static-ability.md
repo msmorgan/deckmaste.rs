@@ -25,7 +25,7 @@ authored (in `plugins/builtin/macros/types/enchantment/Aura.ron`) as
   subtype uses the `Property::Ability(…Static(Sba…))` form instead — that is the symptom.
 - `SbaRule` (`crates/deckmaste_core/src/sba_rule.rs`) is documented as `StaticEffect::Sba` "lifted
   to a global, scoped rule" — SBA-as-game-rule, the taxonomically-correct home (see
-  [[rules-sba-subsystem]]).
+  [State-based actions are data](../../decisions/state-based-actions-are-data.md)).
 
 **Fix (design-gated — pair before touching the grammar).**
 1. Remove `Sba` from `StaticEffect` (Rust `continuous.rs`) and from the Idris `StaticEffect`
@@ -37,7 +37,7 @@ authored (in `plugins/builtin/macros/types/enchantment/Aura.ron`) as
    path). Saga's lore is a `TurnBased`/replacement mechanic, not an SBA — keep it out of the SBA
    path.
 3. `idris_emit`: emit conferred SBAs through the new (ability-free) representation; the confers are
-   still sourced from the RON per [[conferrals-sourced-from-ron]], just no longer as
+   still sourced from the RON per [Conferrals come from registries](../../decisions/conferrals-come-from-registries.md), just no longer as
    `Static (Sba …)`.
 
 **Verify.** `cargo xtask idris-check` stays green (the Aura/Equipment/etc. cards re-emit through the

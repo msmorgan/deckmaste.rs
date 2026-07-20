@@ -32,5 +32,6 @@ Both are bidirectional-grammar work in `crates/deckmaste_cards/src/render/effect
 - Chandra renders faithfully (matches oracle text closely enough to pass the fidelity
   gate); the `// waiver:` block is removed from the card.
 - The cards conformance/fidelity suite passes with the waiver gone.
-- No engine/semantic changes — render-only. `render-template-first` / bidirectional
-  parse⇄render truth preserved.
+- No engine/semantic changes — render-only. The bidirectional parse⇄render
+  truth from [Macro templates are bidirectional](../../decisions/macro-templates-are-bidirectional.md)
+  is preserved.

@@ -3098,9 +3098,10 @@ mod tests {
     /// must fizzle silently, never panic — `StackObject::Activated`'s source
     /// is carried by id only and is documented as "possibly gone, possibly
     /// changed" (`stack.rs`). Card-authoring / timing situations that leave
-    /// a stale reference must never crash the engine
-    /// ([[engine-never-crashes-on-authoring-mistakes]]); this pins the
-    /// `Copied` apply arm's Activated-branch lookup against that invariant.
+    /// a stale reference must never crash the engine (the Invalid authoring
+    /// fizzles decision, `docs/decisions/invalid-authoring-fizzles.md`); this
+    /// pins the `Copied` apply arm's Activated-branch lookup against that
+    /// invariant.
     #[test]
     fn copy_activated_ability_with_gone_source_fizzles() {
         use deckmaste_core::ActivatedAbility;

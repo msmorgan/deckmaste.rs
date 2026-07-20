@@ -482,7 +482,8 @@ impl GameState {
             }
             // A resolved member with no zone to leave — a player proxy
             // (`zone: None`, which `Predicate::Any` matches) — is skipped, never
-            // moved (the engine-never-crashes-on-authoring-mistakes ruling).
+            // moved (the Invalid authoring fizzles decision,
+            // `docs/decisions/invalid-authoring-fizzles.md`).
             let Some(from) = self.objects.obj(object).zone else {
                 continue;
             };
@@ -636,7 +637,8 @@ impl GameState {
         // performer/patient references off the stored `body` (the same body
         // facets the renderer and Idris emitter read), so no typed atom is
         // needed. An unknown/mistyped verb name fizzles to no window — never a
-        // panic (the engine-never-crashes-on-authoring-mistakes ruling).
+        // panic (the Invalid authoring fizzles decision,
+        // `docs/decisions/invalid-authoring-fizzles.md`).
         match name.as_str() {
             // ── Destroy: single Battlefield → Graveyard move ([CR#701.8a]) ──
             "Destroy" => {
@@ -4227,7 +4229,8 @@ mod tests {
     /// A `MoveGroup` whose `SelectAll(Any)` selection sweeps in a zoneless
     /// member — a player proxy (`zone: None`, which `Predicate::Any` matches) —
     /// skips that member instead of panicking on its absent zone (the
-    /// engine-never-crashes-on-authoring-mistakes ruling). The zoned members
+    /// Invalid authoring fizzles decision,
+    /// `docs/decisions/invalid-authoring-fizzles.md`). The zoned members
     /// still move.
     #[test]
     fn move_group_skips_zoneless_members() {

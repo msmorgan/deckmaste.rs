@@ -100,8 +100,8 @@ per-card picks).
    zone-change triggers) — the old `apply_distribution` did direct `VecDeque`
    surgery for exactly this (decide.rs:1586). Today `Action::Move` (resolve.rs:1208)
    unconditionally emits `ZoneWillChange` + remints (step.rs:854). Add a
-   same-zone Library→Library reposition path (correctness fix, per
-   `fix-convenient-not-quite-right`). Surveil's spill IS a real zone change
+   same-zone Library→Library reposition path: correctness requires representing
+   a reorder as a reorder, not a zone change. Surveil's spill IS a real zone change
    (Library→Graveyard) and keeps reminting.
 
 3. **Post-pick arrange decision (option B).** `Each(Modal[Move…])` resolves

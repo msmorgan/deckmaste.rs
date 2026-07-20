@@ -8,8 +8,9 @@ parsing, instead of the parser and renderer each re-encoding what every mechanic
 looks like.
 
 The renderer already runs that grammar one way: core → English via macro
-templates (the `template::expanded` path; see `render-template-first` /
-`render-template-grammar-args`). This is the reverse — English → core — with the
+templates (the `template::expanded` path; see
+[Macro templates are bidirectional](../../decisions/macro-templates-are-bidirectional.md)).
+This is the reverse — English → core — with the
 parser consulting the registry: it knows what *kind* of macro it's targeting and
 looks registered macros up by template (a kind-scoped reverse index from
 template-shape → macro), emitting the matching macro invocation instead of

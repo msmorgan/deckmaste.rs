@@ -59,7 +59,8 @@ the token path emits (mirror it); getting an emblem is not itself a zone-change 
 - Parse "you get an emblem with «ability»" → `PlayerAction::GetEmblem(abilities)`.
   Mirror an existing `PlayerAction` parse arm (e.g. a nearby action macro).
 - Render the inverse (`PlayerAction::GetEmblem` → text) — bidirectional, per
-  render-template-first. New grammar needs a RENDER arm or the cards suite fails.
+  [Macro templates are bidirectional](../../decisions/macro-templates-are-bidirectional.md).
+  New grammar needs a RENDER arm or the cards suite fails.
 - Drop `GetEmblem` from the deferred list at `deckmaste_cards/tests/no_dead_grammar.rs:283`
   (and the note at `:846`); handle the emit side at `idris_emit.rs:1763`.
 

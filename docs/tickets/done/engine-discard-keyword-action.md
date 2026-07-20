@@ -55,7 +55,7 @@ top-of-library slice:
   the body; the "another player chooses" / "at random" variants are selection
   parameters, not new atoms. Confirm the existing `Selection` vocabulary can
   express "N chosen from hand (by chooser P, optionally at random)"; extend it if
-  not (Selection is sacred surface — [[authored-surface-ergonomics-rulings]] — so
+  not (Selection is sacred surface — [Authored card surface](../../decisions/authored-card-surface.md) — so
   any new variant is a design call, flagged before building).
 
 ## Open design questions (resolve before building)

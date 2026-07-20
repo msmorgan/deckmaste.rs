@@ -25,7 +25,7 @@ than proving provenance.
 Key the channel by binder identity, or — better — don't route re-run picks through
 the frame at all: the `BindChoice` continuation (`decide.rs:1198`) knows exactly
 which node it re-runs, so hand the picks to that node directly. Then no reader
-tests a shared presence-flag. See [[atom-independence-anaphora-only]].
+tests a shared presence-flag. See [Effect atom independence](../../decisions/effect-atom-independence.md).
 
 Verify: engine tests; a chooser nested under another chooser (or under `Random` /
 `AmongNoted`) resolves its own picks; deliberately omit a clear and confirm the new

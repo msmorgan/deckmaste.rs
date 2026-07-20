@@ -1,8 +1,9 @@
 ---
 needs: []
 ---
-Make one-shot effect verbs FIZZLE on an unbound reference instead of panicking — an
-`engine-never-crashes-on-authoring-mistakes` violation. An unbound `Reference::It`/`That`
+Make one-shot effect verbs FIZZLE on an unbound reference instead of panicking, as
+required by [Invalid authoring fizzles](../../decisions/invalid-authoring-fizzles.md).
+An unbound `Reference::It`/`That`
 (the anaphora slot is `None` and no lone-target fallback applies) correctly degrades to a
 sentinel `ObjectId::null()` in `GameState::eval_reference`
 (`crates/deckmaste_engine/src/resolve/query.rs:582-587`, tested by

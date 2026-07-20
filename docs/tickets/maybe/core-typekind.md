@@ -14,8 +14,8 @@ Why not now:
   representation for that fork.
 - The structured `TypeKind`'s only real payoff — capabilities as struct fields
   (`Permanent{can_attack, can_block, …}`) — is exactly what the conferred
-  `May(…)` grants replaced ([[composite-types-capability-gating]],
-  [[conferrals-sourced-from-ron]]). Reintroducing them as fields creates a second
+  `May(…)` grants replaced ([Types grant capabilities](../../decisions/types-grant-capabilities.md),
+  [Conferrals come from registries](../../decisions/conferrals-come-from-registries.md)). Reintroducing them as fields creates a second
   source of truth for combat capability competing with `TypeDef.confers` (folded
   in `layer.rs fold_conferred_abilities`).
 - Stripped of the capability fields, a two-variant `Spell | Permanent` enum is

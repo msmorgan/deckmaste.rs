@@ -44,8 +44,8 @@ impl EventApply for Copied {
                 // (`StackObject::Activated` doc) — a zone change
                 // removes it from the store ([CR#400.7]). A stale id
                 // here is an authoring-adjacent runtime state, not a
-                // reason to crash: fizzle
-                // ([[engine-never-crashes-on-authoring-mistakes]]).
+                // reason to crash: fizzle (the Invalid authoring fizzles
+                // decision, `docs/decisions/invalid-authoring-fizzles.md`).
                 g.objects.get(*source)?.source
             }
         };
