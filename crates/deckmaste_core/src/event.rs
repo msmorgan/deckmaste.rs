@@ -561,11 +561,11 @@ pub enum EventFilter {
     /// Every sub-pattern matches the same occurrence ([CR#603.2]) — a
     /// refinement conjunction. All conjuncts must agree on one master-form
     /// kind (a disagreement is unrepresentable in the Idris model).
-    AllOf(Vec<EventFilter>),
+    AllOf(Arc<[EventFilter]>),
     /// Any of several events ([CR#603.2], "whenever … or …"); still fires
     /// once per matching occurrence ([CR#603.2c]). Kind↔filter pairing is
     /// kept per disjunct; caps guarantee only the meet.
-    OneOf(Vec<EventFilter>),
+    OneOf(Arc<[EventFilter]>),
     /// The occurrence does NOT match the operand — a refinement, never an
     /// anchor: the operand must bottom out in master forms and `Not`
     /// itself never kind-anchors a live lane ([CR#603.2]; no

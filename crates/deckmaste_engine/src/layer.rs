@@ -589,10 +589,7 @@ fn gather(
                     // Flatten first (so `bake` sees the flat P/T ops), then bake
                     // the self-scoped counter counts — the same single boundary
                     // as the static-ability path.
-                    changes: bake_counter_counts(
-                        &Modification::flatten(changes.clone()),
-                        &obj.counters,
-                    ),
+                    changes: bake_counter_counts(&Modification::flatten(&changes), &obj.counters),
                     watcher: Some(obj.source),
                     locked: None,
                 });
@@ -608,7 +605,7 @@ fn gather(
             scope: ce.scope.clone(),
             // Same single boundary: a floating one-shot's `changes` (a granted
             // `+N/+N until end of turn`) is flattened before the layer pass.
-            changes: Modification::flatten(ce.changes.clone()),
+            changes: Modification::flatten(&ce.changes).to_vec(),
             // A spell-built floating effect's source spell has left the stack by
             // the time the layer pass runs, so `Ref(You)` anchors on the locked
             // controller's player proxy (`controller_of_source(Player(p)) == p`,
@@ -656,12 +653,12 @@ fn static_effect_scope(
     match effect {
         StaticEffect::Modify(reference, change) => Some((
             ScopeResolved::Locked(resolve_source_relative(state, obj, reference)),
-            Modification::flatten(vec![change.clone()]),
+            Modification::flatten(std::slice::from_ref(change)).to_vec(),
         )),
         StaticEffect::Each(Selection::SelectAll(filter), inner) => match inner.as_ref() {
             StaticEffect::Modify(deckmaste_core::Reference::It, change) => Some((
                 ScopeResolved::Floating(filter.clone()),
-                Modification::flatten(vec![change.clone()]),
+                Modification::flatten(std::slice::from_ref(change)).to_vec(),
             )),
             _ => None,
         },
@@ -1246,7 +1243,7 @@ fn distinct_keys_derived(
             .filter(|n| deckmaste_core::BASIC_LAND_TYPES.contains(&n.as_str()))
             .collect(),
         Ch::Supertypes => face.supertypes.iter().map(|s| format!("{s:?}")).collect(),
-        Ch::Name => vec![face.name.clone()],
+        Ch::Name => vec![face.name.to_string()],
         Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
         Ch::Colors => {
             let mut colors: Vec<deckmaste_core::Color> = face.color_indicator.clone();
@@ -1403,8 +1400,8 @@ fn resolve_subtype(state: &GameState, name: &Ident) -> Subtype {
         .cloned()
         .unwrap_or_else(|| Subtype {
             name: *name,
-            types: Vec::new(),
-            confers: Vec::new(),
+            types: Vec::new().into(),
+            confers: Vec::new().into(),
         })
 }
 
@@ -1417,7 +1414,7 @@ fn resolve_type(state: &GameState, name: &Ident) -> TypeDef {
     state.types.get(name).cloned().unwrap_or_else(|| TypeDef {
         name: *name,
         permanent: false,
-        confers: Vec::new(),
+        confers: Vec::new().into(),
     })
 }
 
@@ -1475,7 +1472,7 @@ fn apply_static(
             }
         },
         Modification::Supertypes(op) => match op {
-            CollectionOp::Set(ss) => c.supertypes = Arc::new(ss.clone()),
+            CollectionOp::Set(ss) => c.supertypes = Arc::new(ss.to_vec()),
             CollectionOp::Add(s) => {
                 let supertypes = Arc::make_mut(&mut c.supertypes);
                 if !supertypes.contains(s) {
@@ -1526,7 +1523,7 @@ fn apply_static(
         Modification::AllCreatureTypes => {}
         // --- Layer 5: color-changing ([CR#613.1e]) ---
         Modification::Colors(op) => match op {
-            CollectionOp::Set(cl) => c.colors = Arc::new(cl.clone()),
+            CollectionOp::Set(cl) => c.colors = Arc::new(cl.to_vec()),
             CollectionOp::Add(x) => {
                 let colors = Arc::make_mut(&mut c.colors);
                 if !colors.contains(x) {
@@ -2013,10 +2010,13 @@ mod tests {
             Selection::SelectAll(Predicate::r#type(Type::Creature)),
             Arc::new(StaticEffect::Modify(
                 Reference::It,
-                Modification::Several(vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(2))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(2))),
-                ]),
+                Modification::Several(
+                    vec![
+                        Modification::Power(NumericOp::Up(Count::Literal(2))),
+                        Modification::Toughness(NumericOp::Up(Count::Literal(2))),
+                    ]
+                    .into(),
+                ),
             )),
         ));
         if innate { Ability::Innate(Arc::new(s)) } else { s }
@@ -2144,15 +2144,15 @@ mod tests {
         // meta-macro declares it.
         let island = Subtype {
             name: "Island".into(),
-            types: vec![Type::Land],
+            types: vec![Type::Land].into(),
             confers: vec![Property::Ability(Arc::new(Ability::activated(
                 deckmaste_core::ActivatedAbility {
                     ability_word: None,
-                    cost: vec![CostComponent::Tap].into(),
+                    cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
                     from: None,
                     window: None,
                     condition: None,
-                    limits: vec![],
+                    limits: vec![].into(),
                     effect: OneShotEffect::Act(deckmaste_core::Action::By(
                         Reference::You,
                         PlayerAction::AddMana(
@@ -2163,7 +2163,8 @@ mod tests {
                         ),
                     )),
                 },
-            )))],
+            )))]
+            .into(),
         };
         let mut state = game();
         let card = Card::Normal(CardFace {
@@ -2332,10 +2333,13 @@ mod tests {
         use deckmaste_core::Reference;
         Ability::r#static(StaticEffect::Modify(
             Reference::AttachHostOf(Arc::new(Reference::This)),
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(Count::Literal(n))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(n))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(n))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(n))),
+                ]
+                .into(),
+            ),
         ))
     }
 
@@ -2556,8 +2560,8 @@ mod tests {
             types: vec![Type::Creature.def()],
             subtypes: vec![Subtype {
                 name: subtype.into(),
-                types: vec![Type::Creature],
-                confers: vec![],
+                types: vec![Type::Creature].into(),
+                confers: vec![].into(),
             }],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
@@ -2583,22 +2587,28 @@ mod tests {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationPredicate;
         Ability::r#static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::And(vec![
-                Predicate::creature(),
-                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-                Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                    deckmaste_core::SubtypeRef::named("Goblin".into()),
-                )),
-                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
-                )))),
-            ])),
+            Selection::SelectAll(Predicate::And(
+                vec![
+                    Predicate::creature(),
+                    Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                    Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                        deckmaste_core::SubtypeRef::named("Goblin".into()),
+                    )),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ]
+                .into(),
+            )),
             Arc::new(StaticEffect::Modify(
                 Reference::It,
-                Modification::Several(vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(1))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(1))),
-                ]),
+                Modification::Several(
+                    vec![
+                        Modification::Power(NumericOp::Up(Count::Literal(1))),
+                        Modification::Toughness(NumericOp::Up(Count::Literal(1))),
+                    ]
+                    .into(),
+                ),
             )),
         ))
     }
@@ -2712,12 +2722,15 @@ mod tests {
         state.continuous.push(ContinuousEffect {
             timestamp,
             controller: PlayerId(0),
-            scope: ScopeResolved::Floating(Predicate::And(vec![
-                Predicate::creature(),
-                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
-                )))),
-            ])),
+            scope: ScopeResolved::Floating(Predicate::And(
+                vec![
+                    Predicate::creature(),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ]
+                .into(),
+            )),
             changes: vec![
                 Modification::Power(NumericOp::Up(Count::Literal(2))),
                 Modification::Toughness(NumericOp::Up(Count::Literal(2))),
@@ -2759,10 +2772,13 @@ mod tests {
         let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
-                Modification::Toughness(NumericOp::Set(StatValue::Count(count))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
+                    Modification::Toughness(NumericOp::Set(StatValue::Count(count))),
+                ]
+                .into(),
+            ),
         ))
     }
 
@@ -2801,10 +2817,13 @@ mod tests {
         let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(count.clone())),
-                Modification::Toughness(NumericOp::Up(count)),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(count.clone())),
+                    Modification::Toughness(NumericOp::Up(count)),
+                ]
+                .into(),
+            ),
         ))
     }
 
@@ -2886,10 +2905,11 @@ mod tests {
             name.into(),
             Subtype {
                 name: name.into(),
-                types: vec![Type::Creature],
+                types: vec![Type::Creature].into(),
                 confers: vec![Property::Ability(Arc::new(Ability::Keyword(
                     KeywordAbility::Trample,
-                )))],
+                )))]
+                .into(),
             },
         );
     }
@@ -2976,9 +2996,9 @@ mod tests {
         lock_subtype_mod(
             &mut state,
             id,
-            vec![Modification::Subtypes(CollectionOp::Set(vec![
-                "Sliver".into(),
-            ]))],
+            vec![Modification::Subtypes(CollectionOp::Set(
+                vec!["Sliver".into()].into(),
+            ))],
         );
 
         let view = state.layers();
@@ -3033,10 +3053,13 @@ mod tests {
         use deckmaste_core::Reference;
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(Count::Literal(1))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(1))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(1))),
+                ]
+                .into(),
+            ),
         ))
     }
 
@@ -3049,10 +3072,13 @@ mod tests {
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
         Ability::r#static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::And(vec![
-                Predicate::creature(),
-                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            ])),
+            Selection::SelectAll(Predicate::And(
+                vec![
+                    Predicate::creature(),
+                    Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                ]
+                .into(),
+            )),
             Arc::new(StaticEffect::Modify(
                 Reference::It,
                 Modification::GainAbility(Arc::new(granted)),

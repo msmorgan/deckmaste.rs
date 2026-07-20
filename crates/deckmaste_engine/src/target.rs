@@ -307,7 +307,7 @@ pub fn matches_with(
                 _ => name.as_str(),
             };
             state.objects.obj(id).card_id().is_some()
-                && crate::derive::face(state.def(id)).name.as_str() == expected
+                && &*crate::derive::face(state.def(id)).name == expected
         }
         // Color predicates over the DERIVED colors ([CR#105.2,202.2]) — a
         // layer-5 color change counts. Same per-call layers() perf seam as
@@ -1579,18 +1579,24 @@ mod tests {
         use deckmaste_core::Condition;
         use deckmaste_core::Reference;
         let branch = |c| {
-            Condition::And(vec![
-                Condition::Matches(Reference::It, Predicate::Characteristic(ColorIs(c))),
-                Condition::Matches(Reference::This, Predicate::Characteristic(ColorIs(c))),
-            ])
+            Condition::And(
+                vec![
+                    Condition::Matches(Reference::It, Predicate::Characteristic(ColorIs(c))),
+                    Condition::Matches(Reference::This, Predicate::Characteristic(ColorIs(c))),
+                ]
+                .into(),
+            )
         };
-        Predicate::Where(Arc::new(Condition::Or(vec![
-            branch(White),
-            branch(Blue),
-            branch(Black),
-            branch(Red),
-            branch(Green),
-        ])))
+        Predicate::Where(Arc::new(Condition::Or(
+            vec![
+                branch(White),
+                branch(Blue),
+                branch(Black),
+                branch(Red),
+                branch(Green),
+            ]
+            .into(),
+        )))
     }
 
     /// `Subject` inside a `Where` condition resolves to the candidate being
@@ -1701,14 +1707,17 @@ mod tests {
         use deckmaste_core::Count;
         use deckmaste_core::Reference;
         use deckmaste_core::Stat;
-        Predicate::And(vec![
-            Predicate::State(StatePredicate::Attacking),
-            Predicate::Where(Arc::new(Condition::Compare(
-                Count::StatOf(Reference::It, Stat::Power),
-                Cmp::Less,
-                Count::StatOf(Reference::This, Stat::Power),
-            ))),
-        ])
+        Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::Attacking),
+                Predicate::Where(Arc::new(Condition::Compare(
+                    Count::StatOf(Reference::It, Stat::Power),
+                    Cmp::Less,
+                    Count::StatOf(Reference::This, Stat::Power),
+                ))),
+            ]
+            .into(),
+        )
     }
 
     /// `candidates_with(.., Some(carrier))` over the Mentor filter admits ONLY

@@ -324,12 +324,15 @@ mod tests {
                     },
                     also: OneShotEffect::With(deckmaste_core::With {
                         binder: deckmaste_core::Binder::ChooseOne {
-                            filter: Predicate::And(vec![
-                                Predicate::State(deckmaste_core::StatePredicate::InZone(
-                                    Zone::Battlefield,
-                                )),
-                                Predicate::creature(),
-                            ]),
+                            filter: Predicate::And(
+                                vec![
+                                    Predicate::State(deckmaste_core::StatePredicate::InZone(
+                                        Zone::Battlefield,
+                                    )),
+                                    Predicate::creature(),
+                                ]
+                                .into(),
+                            ),
                             by: Reference::You,
                         },
                         body: Arc::new(OneShotEffect::Act(Action::Attach {
@@ -522,13 +525,16 @@ mod tests {
         use deckmaste_core::If;
         use deckmaste_core::RelationPredicate;
 
-        let other_lands_you_control = Predicate::And(vec![
-            Predicate::r#type(Type::Land),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let other_lands_you_control = Predicate::And(
+            vec![
+                Predicate::r#type(Type::Land),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         let gate = Condition::Compare(
             Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
                 other_lands_you_control,

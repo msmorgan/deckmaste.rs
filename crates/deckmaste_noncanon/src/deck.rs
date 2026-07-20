@@ -54,8 +54,8 @@ mod tests {
     fn names(deck: &[Arc<Card>]) -> Vec<String> {
         deck.iter()
             .map(|c| match c.as_ref() {
-                Card::Normal(f) => f.name.clone(),
-                Card::TwoFaced { front, .. } => front.name.clone(),
+                Card::Normal(f) => f.name.to_string(),
+                Card::TwoFaced { front, .. } => front.name.to_string(),
             })
             .collect()
     }

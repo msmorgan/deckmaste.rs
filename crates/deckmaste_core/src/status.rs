@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -76,12 +78,12 @@ impl Default for FaceDownSpec {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub struct FaceDownCharacteristics {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub name: Option<Arc<str>>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub types: Vec<crate::Type>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub subtypes: Vec<crate::Subtype>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub abilities: Vec<crate::Ability>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power: Option<crate::StatValue>,

@@ -32,9 +32,9 @@ fn builtin() -> Plugin {
 
 /// `Mana([Generic(2)])` cost component.
 fn mana_2() -> CostComponent {
-    CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
-        SimpleManaSymbol::Generic(2),
-    )]))
+    CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
+        ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
+    ])))
 }
 
 /// `SacrificeThis` — a remembered `CostComponent` macro invocation whose body
@@ -51,8 +51,8 @@ fn sacrifice_this() -> CostComponent {
 fn artifact_subtype(name: &str) -> Subtype {
     Subtype {
         name: name.into(),
-        types: vec![Type::Artifact],
-        confers: vec![],
+        types: vec![Type::Artifact].into(),
+        confers: vec![].into(),
     }
 }
 
@@ -64,22 +64,24 @@ fn treasure_token_parses() {
         token,
         Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![artifact_subtype("Treasure")],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![artifact_subtype("Treasure")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![CostComponent::Tap, sacrifice_this()].into(),
+                cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap, sacrifice_this()])
+                    .into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         }
@@ -94,19 +96,20 @@ fn clue_token_parses() {
         token,
         Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![artifact_subtype("Clue")],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![artifact_subtype("Clue")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![mana_2(), sacrifice_this()].into(),
+                cost: Arc::<[CostComponent]>::from(vec![mana_2(), sacrifice_this()]).into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: builtin().macros.read_str("Draw(1)").unwrap(),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         }
@@ -121,19 +124,25 @@ fn food_token_parses() {
         token,
         Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![artifact_subtype("Food")],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![artifact_subtype("Food")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![mana_2(), CostComponent::Tap, sacrifice_this()].into(),
+                cost: Arc::<[CostComponent]>::from(vec![
+                    mana_2(),
+                    CostComponent::Tap,
+                    sacrifice_this()
+                ])
+                .into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         }
@@ -148,22 +157,23 @@ fn gold_token_parses() {
         token,
         Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![artifact_subtype("Gold")],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![artifact_subtype("Gold")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![sacrifice_this()].into(),
+                cost: Arc::<[CostComponent]>::from(vec![sacrifice_this()]).into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         }
@@ -173,9 +183,9 @@ fn gold_token_parses() {
 // [CR#111.10g]
 #[test]
 fn blood_token_parses() {
-    let mana_1 = CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
-        SimpleManaSymbol::Generic(1),
-    )]));
+    let mana_1 = CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
+        ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
+    ])));
     // Read through the builtin macro set so the remembered `Expanded`
     // wrapper (the `DiscardCards(1)` cost macro) matches exactly.
     let discard_one: CostComponent = builtin().macros.read_str("DiscardCards(1)").unwrap();
@@ -184,19 +194,26 @@ fn blood_token_parses() {
         token,
         Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![artifact_subtype("Blood")],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![artifact_subtype("Blood")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![mana_1, CostComponent::Tap, discard_one, sacrifice_this()].into(),
+                cost: Arc::<[CostComponent]>::from(vec![
+                    mana_1,
+                    CostComponent::Tap,
+                    discard_one,
+                    sacrifice_this()
+                ])
+                .into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: builtin().macros.read_str("Draw(1)").unwrap(),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         }
@@ -249,11 +266,15 @@ fn vibranium_token_parses() {
         ManaProduction::WithRiders {
             mana: ManaSpec::Specific(ColorOrColorless::Colorless),
             riders: vec![ManaRider::SpendOnly(Predicate::Not(Arc::new(
-                Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
-                ]),
-            )))],
+                Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
+                    ]
+                    .into(),
+                ),
+            )))]
+            .into(),
         },
     ));
     let token = builtin().token("Vibranium").unwrap();
@@ -261,22 +282,23 @@ fn vibranium_token_parses() {
         token,
         Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![artifact_subtype("Vibranium")],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![artifact_subtype("Vibranium")].into(),
             abilities: vec![
                 indestructible,
                 Ability::activated(ActivatedAbility {
                     ability_word: None,
                     from: None,
                     window: None,
-                    cost: vec![CostComponent::Tap].into(),
+                    cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
                     condition: None,
-                    limits: vec![],
+                    limits: vec![].into(),
                     effect: restricted_mana,
                 }),
-            ],
+            ]
+            .into(),
             power: None,
             toughness: None,
         }

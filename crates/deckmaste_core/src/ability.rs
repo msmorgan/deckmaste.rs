@@ -58,8 +58,8 @@ pub struct ActivatedAbility {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
     /// "Activate only once each turn." ([CR#602.5b]).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub limits: Vec<UseLimit>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub limits: Arc<[UseLimit]>,
     pub effect: OneShotEffect,
 }
 
@@ -106,8 +106,8 @@ pub struct TriggeredAbility {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<Condition>,
     /// Trigger-frequency limits ([CR#603.2h]).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub limits: Vec<UseLimit>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub limits: Arc<[UseLimit]>,
     /// The "where X is …" definition of an {X} in this ability's text —
     /// ability metadata that survives to render and defines the X a ward
     /// toll prices. Evaluated when the ability RESOLVES, never locked in as
@@ -184,7 +184,7 @@ pub enum ModalCostRider {
 pub struct Mode {
     pub effect: OneShotEffect,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cost: Option<Vec<CostComponent>>,
+    pub cost: Option<Arc<[CostComponent]>>,
 }
 
 /// An ability ([CR#113]). The struct-carrying variants read flat in RON —
@@ -324,9 +324,9 @@ mod tests {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![CostComponent::Tap].into(),
+                cost: crate::Cost(vec![CostComponent::Tap].into()),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GainLife(Count::Literal(1))
@@ -492,7 +492,7 @@ mod tests {
         let ability = read_ability(r#"Keyword(Composite(name: "Ward", abilities: []))"#);
         let expected = Ability::Keyword(KeywordAbility::Composite {
             name: crate::Ident::from("Ward"),
-            abilities: Vec::new(),
+            abilities: [].into(),
         });
         assert_eq!(ability, expected);
         let written = crate::ron::options().to_string(&ability).unwrap();

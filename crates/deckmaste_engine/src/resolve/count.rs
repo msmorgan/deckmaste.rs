@@ -512,7 +512,7 @@ impl GameState {
                 .filter(|n| deckmaste_core::BASIC_LAND_TYPES.contains(&n.as_str()))
                 .collect(),
             Ch::Supertypes => face.supertypes.iter().map(|s| format!("{s:?}")).collect(),
-            Ch::Name => vec![face.name.clone()],
+            Ch::Name => vec![face.name.to_string()],
             Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
             Ch::Colors => {
                 let mut colors: Vec<deckmaste_core::Color> = face.color_indicator.clone();
@@ -929,13 +929,16 @@ mod tests {
 
         // The storm count, evaluated in the storm spell's frame (This = S).
         let storm_count = Count::EventCount(
-            Arc::new(EventFilter::AllOf(vec![
-                EventFilter::Cast {
-                    who: Predicate::Any,
-                    what: Predicate::Any,
-                },
-                EventFilter::Before(Reference::This),
-            ])),
+            Arc::new(EventFilter::AllOf(
+                vec![
+                    EventFilter::Cast {
+                        who: Predicate::Any,
+                        what: Predicate::Any,
+                    },
+                    EventFilter::Before(Reference::This),
+                ]
+                .into(),
+            )),
             Lookback::ThisTurn,
         );
         let frame = frame_src(storm);
@@ -971,13 +974,16 @@ mod tests {
         state.record_history_fact(1, None, GameEvent::SpellCast(storm));
 
         let storm_count = Count::EventCount(
-            Arc::new(EventFilter::AllOf(vec![
-                EventFilter::Cast {
-                    who: Predicate::Any,
-                    what: Predicate::Any,
-                },
-                EventFilter::Before(Reference::This),
-            ])),
+            Arc::new(EventFilter::AllOf(
+                vec![
+                    EventFilter::Cast {
+                        who: Predicate::Any,
+                        what: Predicate::Any,
+                    },
+                    EventFilter::Before(Reference::This),
+                ]
+                .into(),
+            )),
             Lookback::ThisTurn,
         );
         let frame = frame_src(storm);
@@ -1066,10 +1072,13 @@ mod tests {
         let _ = second_bear_to_player_1(&mut state);
 
         let frame = frame_src(bear);
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::Objects(Arc::new(creatures.clone()))),
@@ -1079,12 +1088,15 @@ mod tests {
         );
 
         // "Creatures you control": only the frame side's bear.
-        let yours = Predicate::And(vec![
-            creatures,
-            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
-                Predicate::Ref(Reference::You),
-            ))),
-        ]);
+        let yours = Predicate::And(
+            vec![
+                creatures,
+                Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
+                    Predicate::Ref(Reference::You),
+                ))),
+            ]
+            .into(),
+        );
         assert_eq!(
             state.eval_count(&Count::CountOf(Countable::Objects(Arc::new(yours))), &frame),
             1
@@ -1162,10 +1174,13 @@ mod tests {
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
                     Arc::new(Reference::This),
-                    SymbolPred::Or(vec![
-                        SymbolPred::CountsAs(deckmaste_core::Color::White),
-                        SymbolPred::CountsAs(deckmaste_core::Color::Black),
-                    ]),
+                    SymbolPred::Or(
+                        vec![
+                            SymbolPred::CountsAs(deckmaste_core::Color::White),
+                            SymbolPred::CountsAs(deckmaste_core::Color::Black),
+                        ]
+                        .into()
+                    ),
                 )),
                 &frame,
             ),
@@ -1215,12 +1230,15 @@ mod tests {
         let src = permanent_with_cost(&mut state, "{1}");
         let frame = frame_src(src);
 
-        let your_permanents = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let your_permanents = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
 
         let devotion_green = Count::Aggregate(
             AggregateOp::SumOf,
@@ -1247,10 +1265,13 @@ mod tests {
         let total_power = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Arc::new(Predicate::And(vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::creature(),
-                ]))),
+                of: Countable::Objects(Arc::new(Predicate::And(
+                    vec![
+                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::creature(),
+                    ]
+                    .into(),
+                ))),
                 by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
             },
         );
@@ -1413,12 +1434,15 @@ mod tests {
         use deckmaste_core::SymbolPred;
 
         let your_permanents = || {
-            Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
-                )))),
-            ])
+            Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ]
+                .into(),
+            )
         };
         let devotion_wb = |of| {
             Count::Aggregate(
@@ -1427,10 +1451,13 @@ mod tests {
                     of,
                     by: Arc::new(Count::CountOf(Countable::ManaSymbols(
                         Arc::new(Reference::It),
-                        SymbolPred::Or(vec![
-                            SymbolPred::CountsAs(Color::White),
-                            SymbolPred::CountsAs(Color::Black),
-                        ]),
+                        SymbolPred::Or(
+                            vec![
+                                SymbolPred::CountsAs(Color::White),
+                                SymbolPred::CountsAs(Color::Black),
+                            ]
+                            .into(),
+                        ),
                     ))),
                 },
             )
@@ -1521,10 +1548,13 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(bear, vec![bear]);
         state.run_effect(
-            OneShotEffect::Sequentially(vec![
-                OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
-                OneShotEffect::act_by_you(PlayerAction::GainLife(Count::ThatMuch)),
-            ]),
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
+                    OneShotEffect::act_by_you(PlayerAction::GainLife(Count::ThatMuch)),
+                ]
+                .into(),
+            ),
             &frame,
         );
         // RunEffect(damage) → Emit(DamageDealt) → RunEffect(gain) → Emit(LifeGained).
@@ -1752,16 +1782,16 @@ mod tests {
                     Count::CountOf(Countable::Objects(Arc::new(parsed))),
                     deckmaste_core::Token {
                         name: None,
-                        color_indicator: vec![],
-                        supertypes: vec![],
-                        types: vec![Type::Creature.def()],
-                        subtypes: vec![subtype("Goblin")],
-                        abilities: vec![],
+                        color_indicator: vec![].into(),
+                        supertypes: vec![].into(),
+                        types: vec![Type::Creature.def()].into(),
+                        subtypes: vec![subtype("Goblin")].into(),
+                        abilities: vec![].into(),
                         power: Some(deckmaste_core::StatValue::Number(1)),
                         toughness: Some(deckmaste_core::StatValue::Number(1)),
                     }
                     .into(),
-                    vec![],
+                    vec![].into(),
                 )),
                 &frame,
             );
@@ -2222,10 +2252,13 @@ mod tests {
     /// their own zone narrowing) — keeps the deck's hand/library bears out of
     /// the matched set.
     fn creatures_in_play() -> Predicate {
-        Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ])
+        Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        )
     }
 
     /// `CountDistinct` ([CR#107.3]) is the distinct-union size of an axis over

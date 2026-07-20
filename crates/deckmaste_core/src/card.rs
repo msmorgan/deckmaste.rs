@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -12,23 +14,23 @@ use crate::ability::Ability;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub struct CardFace {
-    pub name: String,
+    pub name: Arc<str>,
 
     #[serde(default, skip_serializing_if = "ManaCost::is_empty")]
     pub mana_cost: ManaCost,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub color_indicator: Vec<Color>,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub supertypes: Vec<Supertype>,
 
     pub types: Vec<TypeDef>,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub subtypes: Vec<Subtype>,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub abilities: Vec<Ability>,
 
     #[serde(skip_serializing_if = "Option::is_none")]

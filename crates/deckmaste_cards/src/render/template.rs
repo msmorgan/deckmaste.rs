@@ -402,13 +402,16 @@ mod tests {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
             count: Count::Literal(3),
-            filter: Arc::new(Predicate::And(vec![
-                Predicate::r#type(Type::Creature),
-                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
-                )))),
-            ])),
+            filter: Arc::new(Predicate::And(
+                vec![
+                    Predicate::r#type(Type::Creature),
+                    Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ]
+                .into(),
+            )),
         };
         assert_eq!(
             render_cost(&[crew]).as_deref(),

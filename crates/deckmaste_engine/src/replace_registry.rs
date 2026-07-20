@@ -499,6 +499,10 @@ fn floating_watches(
 // ── Task 4: replace_event loop + lineage + apply Instead/Also ────────────────
 
 /// The outcome of running the [CR#616.1] replacement loop for one event.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "GameEvent rides the hot step() path one-at-a-time; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+)]
 #[derive(Debug)]
 pub(crate) enum ReplaceOutcome {
     /// No applicable replacement rewrote the event — apply `e` as-is.
@@ -939,6 +943,10 @@ pub(crate) fn resume_replacements(
 
 /// Outcome of re-entering the replacement loop on an already-partially-applied
 /// event during a `resume_replacements` call.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "GameEvent rides the hot step() path one-at-a-time; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+)]
 enum ResumeOutcome {
     /// The event survived the loop — apply it.
     Fact(GameEvent),
@@ -1329,12 +1337,11 @@ mod tests {
         // A spell object per caster (the fact record's actor is its
         // controller).
         let mut spell = |controller: crate::player::PlayerId| {
-            let card =
-                std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
-                    name: "Test Spell".into(),
-                    types: vec![deckmaste_core::Type::Sorcery.def()],
-                    ..deckmaste_core::CardFace::default()
-                }));
+            let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+                name: "Test Spell".into(),
+                types: vec![deckmaste_core::Type::Sorcery.def()],
+                ..deckmaste_core::CardFace::default()
+            }));
             let cid = state.cards.push(card, controller);
             state
                 .objects
@@ -1362,7 +1369,7 @@ mod tests {
 
         let instead = deckmaste_core::Replacement::Instead {
             would: destroyed_self(),
-            instead: OneShotEffect::Sequentially(vec![]),
+            instead: OneShotEffect::Sequentially(vec![].into()),
         };
         let (mut state, id) = tests_support::creature_with_static(StaticEffect::Replacement(
             Arc::new(instead.clone()),
@@ -1426,7 +1433,7 @@ mod tests {
         // A regeneration shield on the SUBJECT: watches the TAG facet.
         let regen = deckmaste_core::Replacement::Instead {
             would: destroyed_self(),
-            instead: OneShotEffect::Sequentially(vec![]),
+            instead: OneShotEffect::Sequentially(vec![].into()),
         };
         state.shields.push(ReplacementInstance {
             id: InstanceId(0),
@@ -1518,7 +1525,7 @@ mod tests {
 
         let instead = deckmaste_core::Replacement::Instead {
             would: destroyed_self(),
-            instead: OneShotEffect::Sequentially(vec![]),
+            instead: OneShotEffect::Sequentially(vec![].into()),
         };
         let (mut state, _view, id) = tests_support::lone_creature();
         state.shields.push(ReplacementInstance {
@@ -1755,7 +1762,7 @@ mod tests {
                         to: None,
                         cause: None,
                     },
-                    instead: deckmaste_core::OneShotEffect::Sequentially(vec![]),
+                    instead: deckmaste_core::OneShotEffect::Sequentially(vec![].into()),
                 })),
                 source: id,
             })

@@ -291,7 +291,7 @@ impl GameState {
             // object; LKI-derived characteristics are not captured — see the
             // snapshot-stat seam note). A player-proxy snapshot has no face.
             Predicate::Characteristic(CharacteristicPredicate::Named(n)) => {
-                snapshot_face(self, snapshot).is_some_and(|f| f.name.as_str() == n.as_str())
+                snapshot_face(self, snapshot).is_some_and(|f| &*f.name == n.as_str())
             }
             Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
                 snapshot_face(self, snapshot).is_some_and(|f| f.supertypes.contains(s))
@@ -2007,16 +2007,19 @@ mod tests {
         use deckmaste_core::StatePredicate;
         Condition::Compare(
             Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-                Predicate::And(vec![
-                    Predicate::creature(),
-                    Predicate::State(StatePredicate::Attacking),
-                    Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-                    Predicate::Where(Arc::new(Condition::Compare(
-                        Count::StatOf(Reference::It, Stat::Power),
-                        Cmp::Greater,
-                        Count::StatOf(Reference::This, Stat::Power),
-                    ))),
-                ]),
+                Predicate::And(
+                    vec![
+                        Predicate::creature(),
+                        Predicate::State(StatePredicate::Attacking),
+                        Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                        Predicate::Where(Arc::new(Condition::Compare(
+                            Count::StatOf(Reference::It, Stat::Power),
+                            Cmp::Greater,
+                            Count::StatOf(Reference::This, Stat::Power),
+                        ))),
+                    ]
+                    .into(),
+                ),
             ))),
             deckmaste_core::Cmp::AtLeast,
             Count::Literal(1),
@@ -2760,10 +2763,13 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Cast {
             who: Predicate::Ref(Reference::You),
-            what: Predicate::And(vec![
-                Predicate::Kind(ObjectKind::Spell),
-                Predicate::Not(Arc::new(Predicate::r#type(Type::Creature))),
-            ]),
+            what: Predicate::And(
+                vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Not(Arc::new(Predicate::r#type(Type::Creature))),
+                ]
+                .into(),
+            ),
         };
         let mut spell_on_stack = |name: &str, controller: PlayerId| {
             let card = Arc::new(canon().card(name).unwrap());
@@ -3100,20 +3106,23 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let creature = Predicate::creature();
-        let pattern = EventFilter::OneOf(vec![
-            EventFilter::ZoneChange {
-                cause: None,
-                what: creature.clone(),
-                from: Some(Zone::Battlefield),
-                to: Some(Zone::Graveyard),
-            },
-            EventFilter::ZoneChange {
-                cause: None,
-                what: creature,
-                from: None,
-                to: Some(Zone::Battlefield),
-            },
-        ]);
+        let pattern = EventFilter::OneOf(
+            vec![
+                EventFilter::ZoneChange {
+                    cause: None,
+                    what: creature.clone(),
+                    from: Some(Zone::Battlefield),
+                    to: Some(Zone::Graveyard),
+                },
+                EventFilter::ZoneChange {
+                    cause: None,
+                    what: creature,
+                    from: None,
+                    to: Some(Zone::Battlefield),
+                },
+            ]
+            .into(),
+        );
 
         let dies = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
         let enters = zone_changed_event(&state, bear, Zone::Hand, Zone::Battlefield);
@@ -3355,7 +3364,7 @@ mod tests {
                 becomes: StateChange::Transformed,
             },
             condition: None,
-            limits: Vec::new(),
+            limits: Vec::new().into(),
             effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
         });
         let face = |name: &str| CardFace {
@@ -3721,23 +3730,29 @@ mod tests {
             OneShotEffect::If(If {
                 condition: Condition::Matches(
                     top_ref(),
-                    Predicate::Or(vec![
-                        Predicate::Characteristic(CharacteristicPredicate::Type(
-                            Type::Instant.into(),
-                        )),
-                        Predicate::Characteristic(CharacteristicPredicate::Type(
-                            Type::Sorcery.into(),
-                        )),
-                    ]),
+                    Predicate::Or(
+                        vec![
+                            Predicate::Characteristic(CharacteristicPredicate::Type(
+                                Type::Instant.into(),
+                            )),
+                            Predicate::Characteristic(CharacteristicPredicate::Type(
+                                Type::Sorcery.into(),
+                            )),
+                        ]
+                        .into(),
+                    ),
                 ),
                 then: Arc::new(OneShotEffect::May(May {
-                    effect: Arc::new(OneShotEffect::Sequentially(vec![
-                        OneShotEffect::act_by_you(PlayerAction::Reveal {
-                            what: top_ref(),
-                            to: None,
-                        }),
-                        OneShotEffect::Act(Action::Transform(Reference::This)),
-                    ])),
+                    effect: Arc::new(OneShotEffect::Sequentially(
+                        vec![
+                            OneShotEffect::act_by_you(PlayerAction::Reveal {
+                                what: top_ref(),
+                                to: None,
+                            }),
+                            OneShotEffect::Act(Action::Transform(Reference::This)),
+                        ]
+                        .into(),
+                    )),
                     if_did: None,
                     if_not: None,
                 })),
@@ -3839,11 +3854,11 @@ mod tests {
 
         let goblin_token = Token {
             name: None,
-            color_indicator: vec![Color::Red],
-            supertypes: vec![],
-            types: vec![Type::Creature.def()],
-            subtypes: vec![],
-            abilities: vec![],
+            color_indicator: vec![Color::Red].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Creature.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![].into(),
             power: Some(StatValue::Number(1)),
             toughness: Some(StatValue::Number(1)),
         };
@@ -3859,10 +3874,10 @@ mod tests {
                     whose: WhoseTurn::Your,
                 },
                 condition: None,
-                limits: Vec::new(),
+                limits: Vec::new().into(),
                 effect: OneShotEffect::Act(Action::By(
                     Reference::You,
-                    PlayerAction::Create(Count::Literal(1), goblin_token.into(), vec![]),
+                    PlayerAction::Create(Count::Literal(1), goblin_token.into(), vec![].into()),
                 )),
             })],
             ..CardFace::default()
@@ -4008,7 +4023,7 @@ mod tests {
             from: None,
             event,
             condition: None,
-            limits: Vec::new(),
+            limits: Vec::new().into(),
             effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
         }
     }
@@ -4255,7 +4270,7 @@ mod tests {
                     whose: WhoseTurn::Your,
                 },
                 condition: None,
-                limits: Vec::new(),
+                limits: Vec::new().into(),
                 effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
             })],
             ..CardFace::default()
@@ -4539,7 +4554,7 @@ mod tests {
                 whose: WhoseTurn::Your,
             },
             condition: None,
-            limits: Vec::new(),
+            limits: Vec::new().into(),
             effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
         };
         let front = CardFace {
@@ -5182,7 +5197,7 @@ mod tests {
                     cause: None,
                 },
                 condition: None,
-                limits,
+                limits: limits.into(),
                 effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GainLife(Count::Literal(1)),
@@ -5271,7 +5286,7 @@ mod tests {
                     amount: None,
                 },
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GainLife(Count::ThatMuch),

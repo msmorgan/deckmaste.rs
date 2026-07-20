@@ -73,7 +73,7 @@ pub enum Binder {
         /// The zones searched (default `[Library]`; e.g. library and/or
         /// graveyard).
         #[serde(default = "from_library", skip_serializing_if = "is_from_library")]
-        from: Vec<Zone>,
+        from: Arc<[Zone]>,
         /// The explicit WHIFF branch ([CR#701.23b] — a search may fail to
         /// find): what happens when nothing is found. Whiff semantics are
         /// DATA — a whiffed search skips the product-dependent body, and the
@@ -115,7 +115,7 @@ pub enum Binder {
         whose: Reference,
         /// The zones searched (default `[Library]`).
         #[serde(default = "from_library", skip_serializing_if = "is_from_library")]
-        from: Vec<Zone>,
+        from: Arc<[Zone]>,
         /// The explicit whiff branch ([CR#701.23b]) — see
         /// [`SearchOne::if_none`](Binder::SearchOne). Elaborates without the
         /// searched group bound.
@@ -141,8 +141,8 @@ fn ref_is_you(r: &Reference) -> bool {
 
 /// The default search domain — a player's library. Mirrors the Idris
 /// `{default [Library] from}` on `Search`/`SearchOne`.
-fn from_library() -> Vec<Zone> {
-    vec![Zone::Library]
+fn from_library() -> Arc<[Zone]> {
+    vec![Zone::Library].into()
 }
 
 /// Whether `from` is the default single-`Library` domain (so it is omitted on
@@ -199,7 +199,7 @@ mod tests {
             Binder::Produce(Arc::new(Action::Move(
                 Reference::It,
                 Destination::Zone(Zone::Exile),
-                vec![],
+                vec![].into(),
                 None,
             ))),
             // Bare defaults: by = whose = You, from = [Library].
@@ -207,7 +207,7 @@ mod tests {
                 filter: one_filter.clone(),
                 by: Reference::You,
                 whose: Reference::You,
-                from: vec![Zone::Library],
+                from: vec![Zone::Library].into(),
                 if_none: None,
             },
             // Explicit non-default by/whose/from (Bribery-style: search an
@@ -216,7 +216,7 @@ mod tests {
                 filter: one_filter.clone(),
                 by: Reference::You,
                 whose: Reference::Opponent,
-                from: vec![Zone::Library, Zone::Graveyard],
+                from: vec![Zone::Library, Zone::Graveyard].into(),
                 if_none: None,
             },
             Binder::Search {
@@ -224,7 +224,7 @@ mod tests {
                 filter: one_filter.clone(),
                 by: Reference::You,
                 whose: Reference::You,
-                from: vec![Zone::Library],
+                from: vec![Zone::Library].into(),
                 if_none: None,
             },
             Binder::Search {
@@ -232,7 +232,7 @@ mod tests {
                 filter: one_filter.clone(),
                 by: Reference::Opponent,
                 whose: Reference::Opponent,
-                from: vec![Zone::Graveyard],
+                from: vec![Zone::Graveyard].into(),
                 if_none: None,
             },
         ] {
@@ -286,7 +286,7 @@ mod tests {
             filter: creature.clone(),
             by: Reference::You,
             whose: Reference::You,
-            from: vec![Zone::Library],
+            from: vec![Zone::Library].into(),
             if_none: None,
         };
         let written = to_string(&bare);
@@ -311,7 +311,7 @@ mod tests {
             filter: creature.clone(),
             by: Reference::You,
             whose: Reference::You,
-            from: vec![Zone::Library],
+            from: vec![Zone::Library].into(),
             if_none: None,
         };
         assert!(
@@ -323,7 +323,7 @@ mod tests {
             filter: creature,
             by: Reference::You,
             whose: Reference::You,
-            from: vec![Zone::Library],
+            from: vec![Zone::Library].into(),
             if_none: Some(Arc::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
                 Count::Literal(1),
             )))),

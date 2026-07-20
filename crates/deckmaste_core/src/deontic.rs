@@ -28,7 +28,7 @@ pub enum AlternativeCost {
     /// "Without paying its mana cost" — the limiting case ([CR#118.9]).
     Free,
     /// "You may pay [cost] rather than …" ([CR#118.9b]).
-    Components(Vec<CostComponent>),
+    Components(Arc<[CostComponent]>),
 }
 
 /// A predicate over an ability's activation COST, carried by
@@ -335,7 +335,7 @@ pub enum Deontic {
     /// action is legal only in completions paying the cost, once per
     /// matching instance; the actor is never compelled. Resolution Tolls
     /// (ward, [CR#702.21a,118.12a]) are trigger + unless, not a `Deontic`.
-    Gate(DeonticAction, Vec<CostComponent>),
+    Gate(DeonticAction, Arc<[CostComponent]>),
     /// A remembered `Deontic` macro invocation (evasion keywords, …).
     #[macro_ron(expanded)]
     Expanded(Expansion<Deontic>),
@@ -540,7 +540,7 @@ mod tests {
                     by: Predicate::Any,
                     on: Predicate::Ref(Reference::You),
                 },
-                vec![CostComponent::Tap],
+                vec![CostComponent::Tap].into(),
             ),
         );
     }

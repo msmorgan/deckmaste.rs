@@ -1297,10 +1297,13 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
 
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         // The RNG's pick is bound into the frame before the group is read.
         let mut frame = frame_src(bear);
         frame.anaphora.chosen = Some(vec![theirs]);
@@ -1357,10 +1360,13 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
 
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let frame = frame_src(bear);
         state.run_effect(
             OneShotEffect::With(With {
@@ -1926,7 +1932,8 @@ mod tests {
                     vec![
                         Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
                         Predicate::creature(),
-                    ],
+                    ]
+                    .into(),
                 ))),
                 effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             })),
@@ -1981,24 +1988,27 @@ mod tests {
         let libsize = state.zones.libraries[0].len();
         assert!(libsize >= 3, "the harness deck has cards to mill");
 
-        let effect = OneShotEffect::Sequentially(vec![
-            OneShotEffect::Noting(deckmaste_core::Noting {
-                key: "milled".into(),
-                effect: Arc::new(OneShotEffect::mill(Reference::You, Count::Literal(3))),
-            }),
-            OneShotEffect::Each(deckmaste_core::Each {
-                binder: deckmaste_core::Binder::Existing(Selection::AmongNoted(
-                    "milled".into(),
-                    deckmaste_core::Quantity::Range(None, None),
-                )),
-                effect: Arc::new(OneShotEffect::Act(Action::Move(
-                    Reference::It,
-                    deckmaste_core::Destination::Zone(Zone::Exile),
-                    vec![],
-                    None,
-                ))),
-            }),
-        ]);
+        let effect = OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::Noting(deckmaste_core::Noting {
+                    key: "milled".into(),
+                    effect: Arc::new(OneShotEffect::mill(Reference::You, Count::Literal(3))),
+                }),
+                OneShotEffect::Each(deckmaste_core::Each {
+                    binder: deckmaste_core::Binder::Existing(Selection::AmongNoted(
+                        "milled".into(),
+                        deckmaste_core::Quantity::Range(None, None),
+                    )),
+                    effect: Arc::new(OneShotEffect::Act(Action::Move(
+                        Reference::It,
+                        deckmaste_core::Destination::Zone(Zone::Exile),
+                        vec![].into(),
+                        None,
+                    ))),
+                }),
+            ]
+            .into(),
+        );
         let frame = frame_src(a);
         state.run_effect(effect, &frame);
         run_injected(&mut state);
@@ -2268,7 +2278,7 @@ mod tests {
     /// backing card, never a pre-move `ObjectId`.
     fn zone_has_named(state: &GameState, zone: &[crate::object::ObjectId], name: &str) -> bool {
         zone.iter()
-            .any(|&o| matches!(state.def(o), deckmaste_core::Card::Normal(f) if f.name == name))
+            .any(|&o| matches!(state.def(o), deckmaste_core::Card::Normal(f) if &*f.name == name))
     }
 
     /// [CR#702.35a]: the madness window — a replacement over `Act(Discard)`
@@ -2367,12 +2377,12 @@ mod tests {
         use deckmaste_core::StatValue;
         CardFace {
             name: name.into(),
-            mana_cost: ManaCost::from(vec![
+            mana_cost: ManaCost::from(Arc::from(vec![
                 ManaSymbol::Simple(SimpleManaSymbol::Generic(3)),
                 ManaSymbol::Simple(SimpleManaSymbol::Specific(ColorOrColorless::Color(
                     Color::Red,
                 ))),
-            ]),
+            ])),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
@@ -2422,7 +2432,7 @@ mod tests {
                         cause: None,
                     },
                     condition: None,
-                    limits: Vec::new(),
+                    limits: Vec::new().into(),
                     effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
                         Count::Literal(2),
                     ))),
@@ -2487,7 +2497,7 @@ mod tests {
                     // a successful pay here IS the alternative cost ([CR#118.9]).
                     assert_eq!(
                         cost,
-                        deckmaste_core::ManaCost::from(vec![
+                        deckmaste_core::ManaCost::from(Arc::from(vec![
                             deckmaste_core::ManaSymbol::Simple(
                                 deckmaste_core::SimpleManaSymbol::Generic(1)
                             ),
@@ -2498,7 +2508,7 @@ mod tests {
                                     )
                                 )
                             ),
-                        ]),
+                        ])),
                         "the madness cast pays {{1}}{{R}}, not the printed {{3}}{{R}}"
                     );
                     let pay = state.auto_pay_pending();
@@ -2887,14 +2897,17 @@ mod tests {
                 instead: OneShotEffect::Act(Action::move_to(Reference::EventObject, Zone::Exile)),
             })));
         state.conferral_rules = vec![ConferralRule {
-            scope: Predicate::And(vec![
-                Predicate::Characteristic(CharacteristicPredicate::Named(
-                    "Conferred Vampire".into(),
-                )),
-                Predicate::Not(Arc::new(Predicate::State(StatePredicate::InZone(
-                    Zone::Battlefield,
-                )))),
-            ]),
+            scope: Predicate::And(
+                vec![
+                    Predicate::Characteristic(CharacteristicPredicate::Named(
+                        "Conferred Vampire".into(),
+                    )),
+                    Predicate::Not(Arc::new(Predicate::State(StatePredicate::InZone(
+                        Zone::Battlefield,
+                    )))),
+                ]
+                .into(),
+            ),
             confer: Property::Ability(Arc::new(madness)),
         }];
 
@@ -3009,7 +3022,7 @@ mod tests {
                 cause: None,
             },
             condition: None,
-            limits: Vec::new(),
+            limits: Vec::new().into(),
             effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(Count::Literal(2)))),
         });
         state.conferral_rules = vec![ConferralRule {
@@ -3128,7 +3141,7 @@ mod tests {
             .zones
             .exile
             .iter()
-            .filter(|&&o| matches!(state.def(o), Card::Normal(f) if f.name == "Printed-Madness Vampire"))
+            .filter(|&&o| matches!(state.def(o), Card::Normal(f) if &*f.name == "Printed-Madness Vampire"))
             .count();
         assert_eq!(
             in_exile, 1,
@@ -3488,16 +3501,19 @@ mod tests {
                         // "a creature you control": And([creature,
                         // ControlledBy(Ref(You))]) — the relation spelling of
                         // deckmaste_core/src/filter.rs / layer.rs:2550.
-                        on: Predicate::And(vec![
-                            Predicate::creature(),
-                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::You),
-                            ))),
-                        ]),
+                        on: Predicate::And(
+                            vec![
+                                Predicate::creature(),
+                                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                    Predicate::Ref(Reference::You),
+                                ))),
+                            ]
+                            .into(),
+                        ),
                         cause: None,
                     },
                     condition: None,
-                    limits: Vec::new(),
+                    limits: Vec::new().into(),
                     effect: OneShotEffect::act_by_you(PlayerAction::PutCounters(
                         Reference::EventObject,
                         deckmaste_core::CounterRef::from("P1P1Counter"),
@@ -3663,7 +3679,7 @@ mod tests {
                         cause: None,
                     },
                     condition: None,
-                    limits: Vec::new(),
+                    limits: Vec::new().into(),
                     effect: OneShotEffect::Act(Action::by_you(PlayerAction::LoseLife(
                         Count::Literal(2),
                     ))),
@@ -4067,7 +4083,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
-                vec![],
+                vec![].into(),
             )),
             &frame,
         );
@@ -4090,7 +4106,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
-                vec![],
+                vec![].into(),
             )),
             &frame,
         );
@@ -4116,7 +4132,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Zone(Zone::Hand),
-                vec![],
+                vec![].into(),
                 None,
             )),
             &frame,
@@ -4143,7 +4159,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Zone(Zone::Hand),
-                vec![],
+                vec![].into(),
                 None,
             )),
             &frame,
@@ -4178,7 +4194,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Zone(Zone::Graveyard),
-                vec![],
+                vec![].into(),
                 Some(Zone::Hand),
             )),
             &frame,
@@ -4227,7 +4243,7 @@ mod tests {
                 group: Selection::SelectAll(Predicate::Any),
                 arrangement: deckmaste_core::Arrangement::AnyOrder,
                 to: Destination::Zone(Zone::Graveyard),
-                riders: vec![],
+                riders: vec![].into(),
             }),
             &frame,
         );
@@ -4402,7 +4418,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
-                vec![],
+                vec![].into(),
                 None,
             )),
             &frame,
@@ -4422,7 +4438,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-                vec![],
+                vec![].into(),
                 None,
             )),
             &frame,
@@ -4497,10 +4513,13 @@ mod tests {
     fn host_pump(n: u32) -> Ability {
         Ability::r#static(StaticEffect::Modify(
             Reference::AttachHostOf(Arc::new(Reference::This)),
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(Count::Literal(n))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(n))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(n))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(n))),
+                ]
+                .into(),
+            ),
         ))
     }
 
@@ -4896,7 +4915,7 @@ mod tests {
                 )),
             ),
         )];
-        let pa = deckmaste_core::PlayerAction::GetEmblem(abilities.clone());
+        let pa = deckmaste_core::PlayerAction::GetEmblem(abilities.clone().into());
 
         let items = state.player_action_items(&pa, p0, &frame);
         assert_eq!(items.len(), 1, "GetEmblem emits exactly one fact");
@@ -4942,7 +4961,7 @@ mod tests {
             effect: OneShotEffect::Act(Action::Move(
                 Reference::It,
                 Destination::Library(anchor),
-                vec![],
+                vec![].into(),
                 None,
             )),
             cost: None,
@@ -4968,7 +4987,8 @@ mod tests {
                     modes: vec![
                         mode(Anchor::FromTop(Count::Literal(0))),
                         mode(Anchor::FromBottom(Count::Literal(0))),
-                    ],
+                    ]
+                    .into(),
                 })),
             })),
         })
@@ -5295,7 +5315,7 @@ mod tests {
             ))),
             arrangement: deckmaste_core::Arrangement::AnyOrder,
             to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
-            riders: vec![],
+            riders: vec![].into(),
         });
         state.run_effect(effect, &frame);
         drain_events(&mut state, 60);

@@ -142,9 +142,9 @@ fn run_batch(
     // step (emission, reporting proof failures by name) agrees on it.
     let mut used_idents: HashSet<String> = HashSet::new();
     let named_cards: Vec<(String, String, Card)> = cards
-        .into_iter()
+        .iter()
         .map(|card| {
-            let card = card.expand_all();
+            let card = card.clone().expand_all();
             let name = idris_emit::card_display_name(&card).to_string();
             let mut ident = idris_emit::sanitize_ident(&name);
             while !used_idents.insert(ident.clone()) {

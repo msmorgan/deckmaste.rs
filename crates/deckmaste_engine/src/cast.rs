@@ -59,7 +59,7 @@ pub(crate) fn concretize_x(cost: &ManaCost, x: Uint) -> ManaCost {
                 ManaSymbol::Variable => ManaSymbol::Simple(SimpleManaSymbol::Generic(x)),
                 other => *other,
             })
-            .collect::<Vec<_>>(),
+            .collect::<Arc<[_]>>(),
     )
 }
 
@@ -542,13 +542,13 @@ fn partition_alternative_cost(cost: &deckmaste_core::Cost) -> (ManaCost, Vec<Cos
             CostComponent::Mana(m) => symbols.extend(m.iter().copied()),
             CostComponent::Cost(nested) => {
                 let (m, v) = partition_alternative_cost(nested);
-                symbols.extend(<Vec<ManaSymbol>>::from(m));
+                symbols.extend(m.iter().copied());
                 verbs.extend(v);
             }
             other => verbs.push(other.clone()),
         }
     }
-    (ManaCost::from(symbols), verbs)
+    (ManaCost::from(Arc::from(symbols)), verbs)
 }
 
 /// [CR#118.9]: just the MANA portion of an alternative base cost — the
@@ -1462,7 +1462,7 @@ impl GameState {
         ));
         self.choice = Some(crate::state::ChoiceContinuation::OptionalCost {
             tag: option.tag,
-            components: option.components.clone(),
+            components: option.components.to_vec(),
             repeatable: option.repeatable,
             index,
         });
@@ -1544,7 +1544,7 @@ impl GameState {
                 // [CR#601.2f]: announced optional additional costs (kicker,
                 // [CR#702.33a]) join the total — mana components into the
                 // mana decision, verb components into the payment window.
-                let mut mana: Vec<ManaSymbol> = mana.into();
+                let mut mana: Vec<ManaSymbol> = mana.to_vec();
                 for component in &optional_components {
                     match component {
                         CostComponent::Mana(m) => mana.extend(m.iter().copied()),
@@ -1562,7 +1562,7 @@ impl GameState {
                         ),
                     }
                 }
-                let mana = ManaCost::from(mana);
+                let mana = ManaCost::from(Arc::from(mana));
                 // [CR#601.2g..601.2h]: convoke/delve/improvise — offer each
                 // eligible pip of the now-locked-in cost its `PayPips`
                 // alternative; pips paid that way drop out of the mana decision
@@ -1788,7 +1788,7 @@ impl GameState {
                 covered.push((act.clone(), resource));
             }
         }
-        (ManaCost::from(symbols), covered)
+        (ManaCost::from(Arc::from(symbols)), covered)
     }
 
     /// The first eligible object for a [`PayAct`] alternative not already spent
@@ -1864,14 +1864,14 @@ impl GameState {
         if rows.is_empty() {
             return printed;
         }
-        let mut cost: Vec<ManaSymbol> = printed.into();
+        let mut cost: Vec<ManaSymbol> = printed.to_vec();
         for (frame, change) in &rows {
             self.apply_cost_change(&mut cost, change, frame, ChangePhase::Raise, 1);
         }
         for (frame, change) in &rows {
             self.apply_cost_change(&mut cost, change, frame, ChangePhase::Lower, 1);
         }
-        ManaCost::from(cost)
+        ManaCost::from(Arc::from(cost))
     }
 
     /// Every applicable `CostModifier` row for casting `object`, each with a
@@ -2489,14 +2489,17 @@ mod tests {
             abilities: vec![Ability::r#static(StaticEffect::CostModifier {
                 of: Predicate::Ref(Reference::This),
                 change: CostChange::Scaled {
-                    change: Arc::new(CostChange::Reduce(vec![CostComponent::Mana(
-                        "{1}".parse().unwrap(),
-                    )])),
+                    change: Arc::new(CostChange::Reduce(
+                        vec![CostComponent::Mana("{1}".parse().unwrap())].into(),
+                    )),
                     times: Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-                        Predicate::And(vec![
-                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            Predicate::r#type(Type::Artifact),
-                        ]),
+                        Predicate::And(
+                            vec![
+                                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                                Predicate::r#type(Type::Artifact),
+                            ]
+                            .into(),
+                        ),
                     ))),
                 },
             })],
@@ -2567,17 +2570,19 @@ mod tests {
             types: vec![Type::Artifact.def()],
             abilities: vec![Ability::r#static(StaticEffect::CostModifier {
                 of: Predicate::r#type(Type::Creature),
-                change: CostChange::Increase(vec![CostComponent::Mana("{1}".parse().unwrap())]),
+                change: CostChange::Increase(
+                    vec![CostComponent::Mana("{1}".parse().unwrap())].into(),
+                ),
             })],
             ..CardFace::default()
         });
         put_synthetic(&mut state, taxer, PlayerId(1), Zone::Battlefield);
         // Increase appends: [{1}, {G}] + {1} -> [{1}, {G}, {1}].
-        let expected: ManaCost = vec![
+        let expected: ManaCost = Arc::<[ManaSymbol]>::from(vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
             deckmaste_core::Color::Green.into(),
             ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
-        ]
+        ])
         .into();
         assert_eq!(state.mana_cost(spell).unwrap(), expected);
     }
@@ -2588,19 +2593,19 @@ mod tests {
     fn reduce_symbol_arithmetic() {
         let mut c: Vec<ManaSymbol> = Vec::from(&*cost("{2}{G}{G}"));
         reduce_symbol(&mut c, deckmaste_core::Color::Green.into());
-        assert_eq!(ManaCost::from(c.clone()), {
+        assert_eq!(ManaCost::from(Arc::from(c.clone())), {
             let v: Vec<ManaSymbol> = vec![
                 ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
                 deckmaste_core::Color::Green.into(),
             ];
-            ManaCost::from(v)
+            ManaCost::from(Arc::from(v))
         });
         reduce_symbol(&mut c, ManaSymbol::Simple(SimpleManaSymbol::Generic(1)));
         let v: Vec<ManaSymbol> = vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
             deckmaste_core::Color::Green.into(),
         ];
-        assert_eq!(ManaCost::from(c), ManaCost::from(v));
+        assert_eq!(ManaCost::from(Arc::from(c)), ManaCost::from(Arc::from(v)));
     }
 
     // ---- autotap_for_cast (runner autotap planner) ----
@@ -2618,11 +2623,11 @@ mod tests {
             types: vec![Type::Land.def()],
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
-                cost: Cost(vec![CostComponent::Tap]),
+                cost: Cost(vec![CostComponent::Tap].into()),
                 from: None,
                 window: None,
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     Count::Literal(1),
                     ManaSpec::Specific(color).into(),
@@ -2653,7 +2658,8 @@ mod tests {
                         tag: None,
                     },
                 ))),
-            ))],
+            ))]
+            .into(),
         }
     }
 
@@ -2736,7 +2742,8 @@ mod tests {
                         from: None,
                     },
                 ))),
-            ))],
+            ))]
+            .into(),
         }
     }
 

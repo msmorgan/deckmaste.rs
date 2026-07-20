@@ -136,7 +136,7 @@ fn gap(msg: impl Into<String>) -> Gap {
 
 /// Build `(head a1 a2 …)`, or the bare `head` when `args` is empty (a
 /// nullary/unit constructor never needs parens).
-fn app(head: &str, args: Vec<String>) -> String {
+fn app(head: &str, args: Arc<[String]>) -> String {
     if args.is_empty() {
         head.to_string()
     } else {
@@ -146,7 +146,7 @@ fn app(head: &str, args: Vec<String>) -> String {
 
 /// An Idris list literal `[a, b, c]` — self-delimited, safe to splice as an
 /// argument with no extra parens.
-fn ilist(items: Vec<String>) -> String {
+fn ilist(items: Arc<[String]>) -> String {
     format!("[{}]", items.join(", "))
 }
 
@@ -169,7 +169,7 @@ fn map_list<T>(items: &[T], f: impl Fn(&T) -> R) -> Result<String, Gap> {
     for item in items {
         out.push(f(item)?);
     }
-    Ok(ilist(out))
+    Ok(ilist(out.into()))
 }
 
 // ===========================================================================
@@ -193,20 +193,24 @@ fn emit_color(c: Color) -> String {
 /// devotion twin at all, so it gaps.
 fn emit_symbol_pred(p: &SymbolPred) -> R {
     Ok(match p {
-        SymbolPred::CountsAs(c) => app("CountsAs", vec![emit_color(*c)]),
+        SymbolPred::CountsAs(c) => app("CountsAs", vec![emit_color(*c)].into()),
         SymbolPred::IsGeneric => "IsGeneric".to_string(),
-        SymbolPred::And(ps) => app("And", vec![map_list(ps, emit_symbol_pred)?]),
-        SymbolPred::Or(ps) => app("Or", vec![map_list(ps, emit_symbol_pred)?]),
-        SymbolPred::Not(inner) => app("Not", vec![emit_symbol_pred(inner)?]),
+        SymbolPred::And(ps) => app("And", vec![map_list(ps, emit_symbol_pred)?].into()),
+        SymbolPred::Or(ps) => app("Or", vec![map_list(ps, emit_symbol_pred)?].into()),
+        SymbolPred::Not(inner) => app("Not", vec![emit_symbol_pred(inner)?].into()),
         SymbolPred::AnyColor => app(
             "Or",
-            vec![ilist(vec![
-                app("CountsAs", vec!["White".to_string()]),
-                app("CountsAs", vec!["Blue".to_string()]),
-                app("CountsAs", vec!["Black".to_string()]),
-                app("CountsAs", vec!["Red".to_string()]),
-                app("CountsAs", vec!["Green".to_string()]),
-            ])],
+            vec![ilist(
+                vec![
+                    app("CountsAs", vec!["White".to_string()].into()),
+                    app("CountsAs", vec!["Blue".to_string()].into()),
+                    app("CountsAs", vec!["Black".to_string()].into()),
+                    app("CountsAs", vec!["Red".to_string()].into()),
+                    app("CountsAs", vec!["Green".to_string()].into()),
+                ]
+                .into(),
+            )]
+            .into(),
         ),
         SymbolPred::AnyType => {
             return Err(gap(
@@ -225,8 +229,8 @@ fn emit_color_or_colorless(c: ColorOrColorless) -> String {
 
 fn emit_simple_mana_symbol(s: &SimpleManaSymbol) -> String {
     match s {
-        SimpleManaSymbol::Generic(n) => app("Generic", vec![n.to_string()]),
-        SimpleManaSymbol::Specific(c) => app("Specific", vec![emit_color_or_colorless(*c)]),
+        SimpleManaSymbol::Generic(n) => app("Generic", vec![n.to_string()].into()),
+        SimpleManaSymbol::Specific(c) => app("Specific", vec![emit_color_or_colorless(*c)].into()),
     }
 }
 
@@ -234,7 +238,10 @@ fn emit_mana_symbol(m: &ManaSymbol) -> String {
     match m {
         ManaSymbol::Variable => "Variable".to_string(),
         ManaSymbol::Snow => "SnowMana".to_string(),
-        ManaSymbol::Hybrid(s, c) => app("Hybrid", vec![emit_simple_mana_symbol(s), emit_color(*c)]),
+        ManaSymbol::Hybrid(s, c) => app(
+            "Hybrid",
+            vec![emit_simple_mana_symbol(s), emit_color(*c)].into(),
+        ),
         ManaSymbol::Phyrexian(c, mc) => app(
             "Phyrexian",
             vec![
@@ -243,9 +250,10 @@ fn emit_mana_symbol(m: &ManaSymbol) -> String {
                     None => "Nothing".to_string(),
                     Some(c2) => format!("(Just {})", emit_color(*c2)),
                 },
-            ],
+            ]
+            .into(),
         ),
-        ManaSymbol::Simple(s) => app("Simple", vec![emit_simple_mana_symbol(s)]),
+        ManaSymbol::Simple(s) => app("Simple", vec![emit_simple_mana_symbol(s)].into()),
     }
 }
 
@@ -516,7 +524,7 @@ fn keywordspec_idris(name: &str) -> Option<String> {
 
 fn emit_stat_value(v: &StatValue) -> R {
     match v {
-        StatValue::Number(n) => Ok(app("Literal", vec![n.to_string()])),
+        StatValue::Number(n) => Ok(app("Literal", vec![n.to_string()].into())),
         // The embedded amount language maps straight onto the Idris `Count`
         // (`CharValue Power = Count`) — a dynamic base value.
         StatValue::Count(c) => emit_count(c),
@@ -541,7 +549,7 @@ fn emit_sort(s: &Sort) -> R {
         Sort::Spell => "Spell".to_string(),
         Sort::StackObject => "StackObject".to_string(),
         Sort::Permanent => "Permanent".to_string(),
-        Sort::OfType(t) => app("OfType", vec![emit_type_name(t.name().as_str())?]),
+        Sort::OfType(t) => app("OfType", vec![emit_type_name(t.name().as_str())?].into()),
         Sort::Amount => "Amount".to_string(),
         Sort::Pile => "Pile".to_string(),
     })
@@ -550,7 +558,7 @@ fn emit_sort(s: &Sort) -> R {
 fn emit_reference(r: &Reference) -> R {
     Ok(match r {
         Reference::This => "This".to_string(),
-        Reference::Single(selection) => app("Single", vec![emit_selection(selection)?]),
+        Reference::Single(selection) => app("Single", vec![emit_selection(selection)?].into()),
         Reference::You => "You".to_string(),
         // No definite "the opponent" Reference in Idris; the closest sound
         // reading is the unique object matching the opponent predicate.
@@ -560,13 +568,13 @@ fn emit_reference(r: &Reference) -> R {
         Reference::EventPatient => "EventPatient".to_string(),
         Reference::EventActor => "EventActor".to_string(),
         Reference::DefendingPlayer => "DefendingPlayer".to_string(),
-        Reference::That(sort) => app("That", vec![emit_sort(sort)?]),
+        Reference::That(sort) => app("That", vec![emit_sort(sort)?].into()),
         // The nth announced target ([CR#115.3,601.2c]).
-        Reference::Target(n) => app("Target", vec![n.to_string()]),
-        Reference::ControllerOf(r) => app("ControllerOf", vec![emit_reference(r)?]),
-        Reference::Coalesce(rs) => app("Coalesce", vec![map_list(rs, emit_reference)?]),
-        Reference::OwnerOf(r) => app("OwnerOf", vec![emit_reference(r)?]),
-        Reference::AttachHostOf(r) => app("AttachHostOf", vec![emit_reference(r)?]),
+        Reference::Target(n) => app("Target", vec![n.to_string()].into()),
+        Reference::ControllerOf(r) => app("ControllerOf", vec![emit_reference(r)?].into()),
+        Reference::Coalesce(rs) => app("Coalesce", vec![map_list(rs, emit_reference)?].into()),
+        Reference::OwnerOf(r) => app("OwnerOf", vec![emit_reference(r)?].into()),
+        Reference::AttachHostOf(r) => app("AttachHostOf", vec![emit_reference(r)?].into()),
         Reference::Bound(_) => {
             return Err(gap(
                 "Reference::Bound (legacy role binding) has no Idris counterpart",
@@ -611,7 +619,7 @@ fn emit_reference_anykind(r: &Reference) -> R {
 /// becomes `SameAs <ref>` (an already-resolved reference IS a predicate:
 /// "equal to r").
 fn reference_as_predicate(r: &Reference) -> R {
-    Ok(app("SameAs", vec![emit_reference(r)?]))
+    Ok(app("SameAs", vec![emit_reference(r)?].into()))
 }
 
 // ===========================================================================
@@ -641,24 +649,27 @@ fn emit_filter(f: &Predicate) -> R {
         Predicate::Characteristic(cf) => emit_characteristic_filter(cf)?,
         Predicate::State(sf) => emit_state_filter(sf)?,
         Predicate::Relation(rf) => emit_relation_filter(rf)?,
-        Predicate::Ref(r) => app("SameAs", vec![emit_reference(r)?]),
-        Predicate::Adjacent(a, r) => app("Adjacent", vec![emit_adjacency(*a), emit_reference(r)?]),
+        Predicate::Ref(r) => app("SameAs", vec![emit_reference(r)?].into()),
+        Predicate::Adjacent(a, r) => app(
+            "Adjacent",
+            vec![emit_adjacency(*a), emit_reference(r)?].into(),
+        ),
         // [CR#119.1]: the player-scope stat twin of `StatCmp` — the Idris
         // `PlayerStatCmp` (`emit_player_attr`/`emit_cmp` are the same idiom
         // `Count::PlayerStatOf` uses below).
         Predicate::PlayerStatCmp(attr, cmp, count) => app(
             "PlayerStatCmp",
-            vec![emit_player_attr(*attr), emit_cmp(*cmp), emit_count(count)?],
+            vec![emit_player_attr(*attr), emit_cmp(*cmp), emit_count(count)?].into(),
         ),
         Predicate::FromSource(_) => {
             return Err(gap(
                 "Predicate::FromSource has no Idris Predicate counterpart",
             ));
         }
-        Predicate::And(fs) => app("And", vec![map_list(fs, emit_filter)?]),
-        Predicate::Or(fs) => app("Or", vec![map_list(fs, emit_filter)?]),
-        Predicate::Not(inner) => app("Not", vec![emit_filter(inner)?]),
-        Predicate::Where(cond) => app("Where", vec![emit_condition(cond)?]),
+        Predicate::And(fs) => app("And", vec![map_list(fs, emit_filter)?].into()),
+        Predicate::Or(fs) => app("Or", vec![map_list(fs, emit_filter)?].into()),
+        Predicate::Not(inner) => app("Not", vec![emit_filter(inner)?].into()),
+        Predicate::Where(cond) => app("Where", vec![emit_condition(cond)?].into()),
         // The vacuous conjunction is universally (if trivially) true at any
         // kind — the one "matches anything" Predicate Idris has.
         Predicate::Any => "(And [])".to_string(),
@@ -674,28 +685,29 @@ fn emit_characteristic_filter(cf: &CharacteristicPredicate) -> R {
     Ok(match cf {
         CharacteristicPredicate::Type(name) => app(
             "HasChar",
-            vec!["Types".to_string(), emit_type_name(name.name().as_str())?],
+            vec!["Types".to_string(), emit_type_name(name.name().as_str())?].into(),
         ),
         CharacteristicPredicate::Subtype(name) => app(
             "HasChar",
             vec![
                 "Subtypes".to_string(),
                 emit_subtype_ref(name.name().as_str())?,
-            ],
+            ]
+            .into(),
         ),
         CharacteristicPredicate::Supertype(s) => app(
             "HasChar",
-            vec!["Supertypes".to_string(), emit_supertype(*s)],
+            vec!["Supertypes".to_string(), emit_supertype(*s)].into(),
         ),
         CharacteristicPredicate::ColorIs(c) => {
-            app("HasChar", vec!["Colors".to_string(), emit_color(*c)])
+            app("HasChar", vec!["Colors".to_string(), emit_color(*c)].into())
         }
-        CharacteristicPredicate::Named(name) => app("HasName", vec![ilit(name.as_str())]),
+        CharacteristicPredicate::Named(name) => app("HasName", vec![ilit(name.as_str())].into()),
         CharacteristicPredicate::Stat(stat, cmp, count) => {
             let characteristic = numeric_characteristic(*stat)?;
             app(
                 "StatCmp",
-                vec![characteristic, emit_cmp(*cmp), emit_count(count)?],
+                vec![characteristic, emit_cmp(*cmp), emit_count(count)?].into(),
             )
         }
         CharacteristicPredicate::Multicolored => "Multicolored".to_string(),
@@ -703,7 +715,7 @@ fn emit_characteristic_filter(cf: &CharacteristicPredicate) -> R {
         CharacteristicPredicate::Has(kw) => {
             let spec = keywordspec_idris(kw.as_str())
                 .ok_or_else(|| gap(format!("unmapped keyword in Has(): {}", kw.as_str())))?;
-            app("HasKeyword", vec![spec])
+            app("HasKeyword", vec![spec].into())
         }
     })
 }
@@ -735,7 +747,7 @@ fn emit_cmp(c: Cmp) -> String {
 
 fn emit_state_filter(sf: &StatePredicate) -> R {
     Ok(match sf {
-        StatePredicate::InZone(z) => app("InZone", vec![emit_zone(*z)]),
+        StatePredicate::InZone(z) => app("InZone", vec![emit_zone(*z)].into()),
         StatePredicate::Status(status) => {
             use deckmaste_core::Status as S;
             match status {
@@ -754,11 +766,11 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
         }
         StatePredicate::HasCounter(c) => {
             let k = counter_ref_idris(c.as_str())?;
-            app("HasCounter", vec![k])
+            app("HasCounter", vec![k].into())
         }
         StatePredicate::Designated(name) => {
             let d = designation_ref_idris(name.as_str())?;
-            app("HasDesignation", vec![d])
+            app("HasDesignation", vec![d].into())
         }
         StatePredicate::RelatedBy(..) => {
             return Err(gap(
@@ -772,12 +784,15 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
         StatePredicate::Unblocked => {
             "(And [Holds Attack Agent, Not (Holds Block Patient)])".to_string()
         }
-        StatePredicate::Targets(inner) => app("Targets", vec![emit_filter(inner)?]),
+        StatePredicate::Targets(inner) => app("Targets", vec![emit_filter(inner)?].into()),
         StatePredicate::TargetCount(bound) => {
             let (cmp, count) = bound.split();
-            app("TargetCount", vec![emit_cmp(cmp), emit_count(count)?])
+            app(
+                "TargetCount",
+                vec![emit_cmp(cmp), emit_count(count)?].into(),
+            )
         }
-        StatePredicate::WasPaidWith(tag) => app("WasPaidWith", vec![ilit(tag.as_str())]),
+        StatePredicate::WasPaidWith(tag) => app("WasPaidWith", vec![ilit(tag.as_str())].into()),
         // Unlike `WasPaidWith` (a bare string label), Idris `WasCastWith`
         // takes a `KeywordSpec`, so the tag resolves through the same
         // keyword table `Cast.tag` does, not `ilit`.
@@ -788,11 +803,11 @@ fn emit_state_filter(sf: &StatePredicate) -> R {
                     tag.as_str()
                 ))
             })?;
-            app("WasCastWith", vec![spec])
+            app("WasCastWith", vec![spec].into())
         }
         // The move-provenance twin of `WasCastFrom` ([CR#701.17a,701.9a] —
         // "milled"/"discarded" decompose over this).
-        StatePredicate::WasPutFrom(z) => app("WasPutFrom", vec![emit_zone(*z)]),
+        StatePredicate::WasPutFrom(z) => app("WasPutFrom", vec![emit_zone(*z)].into()),
         // `SummoningSick` has no Idris counterpart; it appears only in the
         // (Idris-invisible) combatant type-confer, never in emitted card text.
         StatePredicate::SummoningSick => {
@@ -827,9 +842,9 @@ fn designation_ref_idris(name: &str) -> R {
 
 fn emit_relation_filter(rf: &RelationPredicate) -> R {
     Ok(match rf {
-        RelationPredicate::ControlledBy(f) => app("ControlledBy", vec![emit_filter(f)?]),
-        RelationPredicate::Controls(f) => app("Controls", vec![emit_filter(f)?]),
-        RelationPredicate::Owner(f) => app("OwnedBy", vec![emit_filter(f)?]),
+        RelationPredicate::ControlledBy(f) => app("ControlledBy", vec![emit_filter(f)?].into()),
+        RelationPredicate::Controls(f) => app("Controls", vec![emit_filter(f)?].into()),
+        RelationPredicate::Owner(f) => app("OwnedBy", vec![emit_filter(f)?].into()),
         RelationPredicate::OpponentOf(f) => {
             if matches!(f.as_ref(), Predicate::Ref(Reference::You)) {
                 "OpponentOf".to_string()
@@ -881,16 +896,18 @@ fn emit_condition(c: &Condition) -> R {
     Ok(match c {
         Condition::Compare(a, cmp, b) => app(
             "Compare",
-            vec![emit_count(a)?, emit_cmp(*cmp), emit_count(b)?],
+            vec![emit_count(a)?, emit_cmp(*cmp), emit_count(b)?].into(),
         ),
         Condition::Exists(f) => format!("(exists {})", emit_filter(f)?),
-        Condition::Matches(r, f) => app("Matches", vec![emit_reference(r)?, emit_filter(f)?]),
-        Condition::LegallyAttached(r) => app("LegallyAttached", vec![emit_reference(r)?]),
+        Condition::Matches(r, f) => {
+            app("Matches", vec![emit_reference(r)?, emit_filter(f)?].into())
+        }
+        Condition::LegallyAttached(r) => app("LegallyAttached", vec![emit_reference(r)?].into()),
         Condition::Happened { .. } => {
             return Err(gap("Condition::Happened (history lookback) not yet mapped"));
         }
         Condition::Crossed { .. } => return Err(gap("Condition::Crossed not yet mapped")),
-        Condition::PaidCost(tag) => app("PaidCost", vec![ilit(tag.as_str())]),
+        Condition::PaidCost(tag) => app("PaidCost", vec![ilit(tag.as_str())].into()),
         // Idris's `Condition` namespace has no `CastWith` of its own (only
         // the `WasCastWith` PREDICATE) — desugar to `Matches This
         // (WasCastWith tag)`, mirroring `Condition::Matches`'s `Matches` shape.
@@ -903,15 +920,15 @@ fn emit_condition(c: &Condition) -> R {
             })?;
             app(
                 "Matches",
-                vec!["This".to_string(), app("WasCastWith", vec![spec])],
+                vec!["This".to_string(), app("WasCastWith", vec![spec].into())].into(),
             )
         }
         Condition::YourTurn => "yourTurn".to_string(),
-        Condition::TurnOf(f) => app("TurnOf", vec![emit_filter(f)?]),
-        Condition::DuringPhase(p) => app("During", vec![emit_phase_step(*p)?]),
-        Condition::And(cs) => app("And", vec![map_list(cs, emit_condition)?]),
-        Condition::Or(cs) => app("Or", vec![map_list(cs, emit_condition)?]),
-        Condition::Not(inner) => app("Not", vec![emit_condition(inner)?]),
+        Condition::TurnOf(f) => app("TurnOf", vec![emit_filter(f)?].into()),
+        Condition::DuringPhase(p) => app("During", vec![emit_phase_step(*p)?].into()),
+        Condition::And(cs) => app("And", vec![map_list(cs, emit_condition)?].into()),
+        Condition::Or(cs) => app("Or", vec![map_list(cs, emit_condition)?].into()),
+        Condition::Not(inner) => app("Not", vec![emit_condition(inner)?].into()),
         Condition::Expanded(_) => {
             return Err(gap(
                 "unexpanded Condition macro invocation remained after expand_all",
@@ -934,7 +951,8 @@ fn emit_phase_step(p: PhaseStep) -> R {
                     B::Draw => "DrawStep",
                 }
                 .to_string(),
-            ],
+            ]
+            .into(),
         ),
         PhaseStep::PrecombatMain => "(MainPhase PreCombat)".to_string(),
         PhaseStep::PostcombatMain => "(MainPhase PostCombat)".to_string(),
@@ -950,7 +968,8 @@ fn emit_phase_step(p: PhaseStep) -> R {
                     C::EndOfCombat => "EndOfCombatStep",
                 }
                 .to_string(),
-            ],
+            ]
+            .into(),
         ),
         PhaseStep::Ending(e) => app(
             "EndingPhase",
@@ -960,7 +979,8 @@ fn emit_phase_step(p: PhaseStep) -> R {
                     E::Cleanup => "CleanupStep",
                 }
                 .to_string(),
-            ],
+            ]
+            .into(),
         ),
     })
 }
@@ -982,16 +1002,16 @@ fn emit_countable(c: &Countable) -> R {
         Countable::Players(f) => format!("(Players {})", emit_filter(f)?),
         Countable::ManaSymbols(r, pred) => app(
             "ManaSymbols",
-            vec![emit_reference(r)?, emit_symbol_pred(pred)?],
+            vec![emit_reference(r)?, emit_symbol_pred(pred)?].into(),
         ),
         // [CR#105.2]: the per-object twin of `Objects` — Embiggen's "number
         // of card types it has" = `CountDistinct Types (Singleton This)`.
-        Countable::Singleton(r) => app("Singleton", vec![emit_reference(r)?]),
+        Countable::Singleton(r) => app("Singleton", vec![emit_reference(r)?].into()),
         // [CR#107.4]: mana spent to cast/activate `r`, filtered by `pred` —
         // Adamant's "if at least three white mana symbols were spent".
         Countable::ManaSpentMatching(r, pred) => app(
             "ManaSpentMatching",
-            vec![emit_reference(r)?, emit_symbol_pred(pred)?],
+            vec![emit_reference(r)?, emit_symbol_pred(pred)?].into(),
         ),
     })
 }
@@ -1012,7 +1032,8 @@ fn emit_aggregate_op(op: &deckmaste_core::AggregateOp) -> String {
                     deckmaste_core::RoundMode::RoundDown => "RoundDown",
                 }
                 .to_string(),
-            ],
+            ]
+            .into(),
         ),
     }
 }
@@ -1020,18 +1041,18 @@ fn emit_aggregate_op(op: &deckmaste_core::AggregateOp) -> String {
 fn emit_count(c: &Count) -> R {
     Ok(match c {
         Count::X => "X".to_string(),
-        Count::Literal(n) => app("Literal", vec![n.to_string()]),
+        Count::Literal(n) => app("Literal", vec![n.to_string()].into()),
         Count::CountOf(source) => match source {
             Countable::Objects(f) => format!("(CountMatching {})", emit_filter(f)?),
             // Every other `Countable` source (devotion's `ManaSymbols`,
             // `Singleton`, `ManaSpentMatching`) has no `CountMatching`-style
             // sugar — spell it out as the explicit `CountOf` application.
-            other => app("CountOf", vec![emit_countable(other)?]),
+            other => app("CountOf", vec![emit_countable(other)?].into()),
         },
         Count::CountDistinct(characteristic, source) => {
             let c = collection_characteristic(*characteristic)?;
             let src = emit_countable(source)?;
-            app("CountDistinct", vec![c, src])
+            app("CountDistinct", vec![c, src].into())
         }
         // [CR#107.1]: fold a per-element `Project` — devotion's own shape
         // ([CR#700.5]). A `Players`-sourced projection ([CR#119.1] Arbiter of
@@ -1043,38 +1064,38 @@ fn emit_count(c: &Count) -> R {
             let projected = match &proj.of {
                 Countable::Players(filter) => app(
                     "eachPlayer",
-                    vec![emit_filter(filter)?, emit_count(&proj.by)?],
+                    vec![emit_filter(filter)?, emit_count(&proj.by)?].into(),
                 ),
                 other => app(
                     "Project",
-                    vec![emit_countable(other)?, emit_count(&proj.by)?],
+                    vec![emit_countable(other)?, emit_count(&proj.by)?].into(),
                 ),
             };
-            app("Aggregate", vec![emit_aggregate_op(op), projected])
+            app("Aggregate", vec![emit_aggregate_op(op), projected].into())
         }
         Count::StatOf(r, stat) => {
             use deckmaste_core::Stat as S;
             match stat {
-                S::ManaValue => app("ManaValueOf", vec![emit_reference(r)?]),
+                S::ManaValue => app("ManaValueOf", vec![emit_reference(r)?].into()),
                 S::Loyalty => app(
                     "CountersOn",
-                    vec!["Loyalty".to_string(), emit_reference(r)?],
+                    vec!["Loyalty".to_string(), emit_reference(r)?].into(),
                 ),
                 S::Power | S::Toughness | S::Defense => app(
                     "StatOf",
-                    vec![emit_reference(r)?, numeric_characteristic(*stat)?],
+                    vec![emit_reference(r)?, numeric_characteristic(*stat)?].into(),
                 ),
             }
         }
         Count::CounterCount(r, kind) => {
             let k = counter_ref_idris(kind.as_str())?;
-            app("CountersOn", vec![k, emit_reference(r)?])
+            app("CountersOn", vec![k, emit_reference(r)?].into())
         }
         // [CR#119.1,402.2]: a player's numeric attribute — the Idris
         // `PlayerStatOf` (the player-side twin of `StatOf`).
         Count::PlayerStatOf(r, attr) => app(
             "PlayerStatOf",
-            vec![emit_reference(r)?, emit_player_attr(*attr)],
+            vec![emit_reference(r)?, emit_player_attr(*attr)].into(),
         ),
         // [CR#102.1]: opponent count. Idris has no dedicated constructor — it
         // is the cardinality of the opponent PLAYERS (`CountOf (Players
@@ -1089,11 +1110,11 @@ fn emit_count(c: &Count) -> R {
                 )));
             }
         },
-        Count::Min(a, b) => app("Min", vec![emit_count(a)?, emit_count(b)?]),
-        Count::Max(a, b) => app("Max", vec![emit_count(a)?, emit_count(b)?]),
-        Count::Plus(a, b) => app("Plus", vec![emit_count(a)?, emit_count(b)?]),
-        Count::Minus(a, b) => app("Minus", vec![emit_count(a)?, emit_count(b)?]),
-        Count::Times(a, b) => app("Times", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Min(a, b) => app("Min", vec![emit_count(a)?, emit_count(b)?].into()),
+        Count::Max(a, b) => app("Max", vec![emit_count(a)?, emit_count(b)?].into()),
+        Count::Plus(a, b) => app("Plus", vec![emit_count(a)?, emit_count(b)?].into()),
+        Count::Minus(a, b) => app("Minus", vec![emit_count(a)?, emit_count(b)?].into()),
+        Count::Times(a, b) => app("Times", vec![emit_count(a)?, emit_count(b)?].into()),
         Count::Half(mode, inner) => app(
             "Half",
             vec![
@@ -1103,7 +1124,8 @@ fn emit_count(c: &Count) -> R {
                 }
                 .to_string(),
                 emit_count(inner)?,
-            ],
+            ]
+            .into(),
         ),
         // [CR#107.1a]: general integer division, `Half`'s dedicated /2 twin.
         Count::Divide(mode, a, b) => app(
@@ -1116,15 +1138,16 @@ fn emit_count(c: &Count) -> R {
                 .to_string(),
                 emit_count(a)?,
                 emit_count(b)?,
-            ],
+            ]
+            .into(),
         ),
         // [CR#107.1]: remainder — parity checks (`Compare(Mod(x, 2), Eq, 0)`).
-        Count::Mod(a, b) => app("Mod", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Mod(a, b) => app("Mod", vec![emit_count(a)?, emit_count(b)?].into()),
         // [CR#107.1]: exponentiation — doubling effects (`Pow(2, X)`).
-        Count::Pow(a, b) => app("Pow", vec![emit_count(a)?, emit_count(b)?]),
+        Count::Pow(a, b) => app("Pow", vec![emit_count(a)?, emit_count(b)?].into()),
         // [CR#115.9a]: how many times `r` was chosen as a target on
         // announcement — Strive's `Minus(TargetsOf(This), 1)`.
-        Count::TargetsOf(r) => app("TargetsOf", vec![emit_reference(r)?]),
+        Count::TargetsOf(r) => app("TargetsOf", vec![emit_reference(r)?].into()),
         Count::ThatMany | Count::ThatMuch => "ThatMany".to_string(),
         Count::Allotment => "Allotment".to_string(),
         Count::EventCount(..) => {
@@ -1134,8 +1157,8 @@ fn emit_count(c: &Count) -> R {
             return Err(gap("Count::EventSum (history lookback) not yet mapped"));
         }
         Count::Noted(_) => return Err(gap("Count::Noted has no Idris counterpart")),
-        Count::TimesPaid(tag) => app("TimesPaid", vec![ilit(tag.as_str())]),
-        Count::Damage(r) => app("Damage", vec![emit_reference(r)?]),
+        Count::TimesPaid(tag) => app("TimesPaid", vec![ilit(tag.as_str())].into()),
+        Count::Damage(r) => app("Damage", vec![emit_reference(r)?].into()),
         // The floated-mana-pool reader is a data-driven-strategy sensing
         // source ([CR#106.4]); the Idris grammar models card text, not play
         // policy, so it has no counterpart.
@@ -1177,7 +1200,8 @@ fn emit_quantity(q: &Quantity) -> R {
         vec![
             try_maybe(&lo.cloned(), emit_count)?,
             try_maybe(&hi.cloned(), emit_count)?,
-        ],
+        ]
+        .into(),
     ))
 }
 
@@ -1192,15 +1216,18 @@ fn count_bound_as_quantity(b: &CountBound) -> R {
     Ok(match b {
         CountBound::Eq(c) => {
             let c = emit_count(c)?;
-            app("Range", vec![format!("(Just {c})"), format!("(Just {c})")])
+            app(
+                "Range",
+                vec![format!("(Just {c})"), format!("(Just {c})")].into(),
+            )
         }
         CountBound::AtLeast(c) => app(
             "Range",
-            vec![format!("(Just {})", emit_count(c)?), "Nothing".to_string()],
+            vec![format!("(Just {})", emit_count(c)?), "Nothing".to_string()].into(),
         ),
         CountBound::AtMost(c) => app(
             "Range",
-            vec!["Nothing".to_string(), format!("(Just {})", emit_count(c)?)],
+            vec!["Nothing".to_string(), format!("(Just {})", emit_count(c)?)].into(),
         ),
         CountBound::Greater(c) => {
             let n = lit(c).ok_or_else(|| {
@@ -1208,7 +1235,7 @@ fn count_bound_as_quantity(b: &CountBound) -> R {
             })?;
             app(
                 "Range",
-                vec![format!("(Just (Literal {}))", n + 1), "Nothing".to_string()],
+                vec![format!("(Just (Literal {}))", n + 1), "Nothing".to_string()].into(),
             )
         }
         CountBound::Less(c) => {
@@ -1220,7 +1247,7 @@ fn count_bound_as_quantity(b: &CountBound) -> R {
             }
             app(
                 "Range",
-                vec!["Nothing".to_string(), format!("(Just (Literal {}))", n - 1)],
+                vec!["Nothing".to_string(), format!("(Just (Literal {}))", n - 1)].into(),
             )
         }
     })
@@ -1232,18 +1259,19 @@ fn count_bound_as_quantity(b: &CountBound) -> R {
 
 fn emit_selection(s: &Selection) -> R {
     Ok(match s {
-        Selection::SelectAll(f) => app("SelectAll", vec![emit_filter(f)?]),
-        Selection::Union(gs) => app("Union", vec![map_list(gs, emit_selection)?]),
-        Selection::Random(q, f) => app("Random", vec![emit_quantity(q)?, emit_filter(f)?]),
+        Selection::SelectAll(f) => app("SelectAll", vec![emit_filter(f)?].into()),
+        Selection::Union(gs) => app("Union", vec![map_list(gs, emit_selection)?].into()),
+        Selection::Random(q, f) => app("Random", vec![emit_quantity(q)?, emit_filter(f)?].into()),
         Selection::AmongNoted(..) => {
             return Err(gap("Selection::AmongNoted has no Idris counterpart"));
         }
-        Selection::TopOfLibrary { count, whose } => {
-            app("topFrom", vec![emit_count(count)?, emit_reference(whose)?])
-        }
+        Selection::TopOfLibrary { count, whose } => app(
+            "topFrom",
+            vec![emit_count(count)?, emit_reference(whose)?].into(),
+        ),
         Selection::BottomOfLibrary { count, whose } => app(
             "bottomFrom",
-            vec![emit_count(count)?, emit_reference(whose)?],
+            vec![emit_count(count)?, emit_reference(whose)?].into(),
         ),
         // Unlike `TopOfLibrary`/`BottomOfLibrary`'s `topFrom`/`bottomFrom`
         // helpers (baking a `{default You}` implicit arg), Idris
@@ -1251,7 +1279,7 @@ fn emit_selection(s: &Selection) -> R {
         // no curried helper needed.
         Selection::TopOfGraveyard { count, of } => app(
             "TopOfGraveyard",
-            vec![emit_count(count)?, emit_reference(of)?],
+            vec![emit_count(count)?, emit_reference(of)?].into(),
         ),
         // [CR#115.3,601.2c]: the nth announced slot read as its whole group —
         // the plural twin of `Reference::Target`, and like it a POSITIONAL,
@@ -1259,9 +1287,9 @@ fn emit_selection(s: &Selection) -> R {
         // antecedent stack. Idris disambiguates the name from `Predicate.Targets`
         // by argument type (a `Nat` index, not a `Predicate`) — the same
         // deliberate clash `Reference.Target` already carries.
-        Selection::Targets(n) => app("Targets", vec![n.to_string()]),
+        Selection::Targets(n) => app("Targets", vec![n.to_string()].into()),
         Selection::They => "They".to_string(),
-        Selection::Them(sort) => app("Them", vec![emit_sort(sort)?]),
+        Selection::Them(sort) => app("Them", vec![emit_sort(sort)?].into()),
         Selection::PilesOf { .. } => return Err(gap("Selection::PilesOf not yet mapped")),
         // [CR#107.1]: the extremal element(s) of `proj` — shares `Project`
         // emission with `Count::Aggregate`; `op` is identity on the Idris
@@ -1284,9 +1312,10 @@ fn emit_selection(s: &Selection) -> R {
                     emit_aggregate_op(op),
                     app(
                         "Project",
-                        vec![emit_countable(&proj.of)?, emit_count(&proj.by)?],
+                        vec![emit_countable(&proj.of)?, emit_count(&proj.by)?].into(),
                     ),
-                ],
+                ]
+                .into(),
             )
         }
         Selection::Expanded(_) => {
@@ -1318,14 +1347,15 @@ fn emit_target_spec(t: &TargetSpec) -> R {
             } else {
                 emit_filter(f)?
             };
-            app("Target", vec![emit_quantity(q)?, pred])
+            app("Target", vec![emit_quantity(q)?, pred].into())
         }
         TargetSpec::Distinct(idxs, inner) => app(
             "Distinct",
             vec![
                 ilist(idxs.iter().map(usize::to_string).collect()),
                 emit_target_spec(inner)?,
-            ],
+            ]
+            .into(),
         ),
         TargetSpec::Expanded(_) => {
             return Err(gap(
@@ -1341,10 +1371,10 @@ fn emit_target_spec(t: &TargetSpec) -> R {
 fn emit_binder(b: &deckmaste_core::Binder) -> R {
     use deckmaste_core::Binder as B;
     Ok(match b {
-        B::TheRef(r) => app("TheRef", vec![emit_reference(r)?]),
+        B::TheRef(r) => app("TheRef", vec![emit_reference(r)?].into()),
         B::ChooseOne { filter, by } => app(
             "chooseOneBy",
-            vec![emit_reference(by)?, emit_filter(filter)?],
+            vec![emit_reference(by)?, emit_filter(filter)?].into(),
         ),
         B::Choose {
             quantity,
@@ -1356,16 +1386,17 @@ fn emit_binder(b: &deckmaste_core::Binder) -> R {
                 emit_reference(by)?,
                 emit_quantity(quantity)?,
                 emit_filter(filter)?,
-            ],
+            ]
+            .into(),
         ),
-        B::Existing(sel) => app("Existing", vec![emit_selection(sel)?]),
-        B::Produce(action) => app("Produce", vec![emit_action_off_effect_path(action)?]),
-        B::SearchOne { filter, .. } => app("SearchOne", vec![emit_filter(filter)?]),
+        B::Existing(sel) => app("Existing", vec![emit_selection(sel)?].into()),
+        B::Produce(action) => app("Produce", vec![emit_action_off_effect_path(action)?].into()),
+        B::SearchOne { filter, .. } => app("SearchOne", vec![emit_filter(filter)?].into()),
         B::Search {
             quantity, filter, ..
         } => app(
             "Search",
-            vec![emit_quantity(quantity)?, emit_filter(filter)?],
+            vec![emit_quantity(quantity)?, emit_filter(filter)?].into(),
         ),
         B::Expanded(_) => {
             return Err(gap(
@@ -1385,20 +1416,20 @@ fn emit_cost(cost: &Cost) -> R {
     for c in &normalized {
         components.push(emit_cost_component(c)?);
     }
-    Ok(app("Costs", vec![ilist(components)]))
+    Ok(app("Costs", vec![ilist(components.into())].into()))
 }
 
 fn emit_cost_component(c: &CostComponent) -> R {
     Ok(match c {
-        CostComponent::Mana(cost) => app("Mana", vec![emit_mana_cost(cost)]),
-        CostComponent::ManaCostOf(r) => app("ManaCostOf", vec![emit_reference(r)?]),
+        CostComponent::Mana(cost) => app("Mana", vec![emit_mana_cost(cost)].into()),
+        CostComponent::ManaCostOf(r) => app("ManaCostOf", vec![emit_reference(r)?].into()),
         CostComponent::Tap => "(Do (Tap This))".to_string(),
         CostComponent::Untap => "(Do (Untap This))".to_string(),
         // `Do : Action b -> Cost b` is UNRESTRICTED in Idris; the widened
         // Rust `Do(Box<Action>)` now matches it one-to-one — a bare player
         // verb arrives as `By(You, …)` and re-emits through the `<verb>By`
         // helpers, a discard composite emits as `Composite (Discard …) …`.
-        CostComponent::Do(action) => app("Do", vec![emit_action_off_effect_path(action)?]),
+        CostComponent::Do(action) => app("Do", vec![emit_action_off_effect_path(action)?].into()),
         CostComponent::Cost(_) => {
             return Err(gap("CostComponent::Cost should have been normalized away"));
         }
@@ -1414,7 +1445,8 @@ fn emit_cost_component(c: &CostComponent) -> R {
                 emit_cmp(*cmp),
                 emit_count(count)?,
                 emit_filter(filter)?,
-            ],
+            ]
+            .into(),
         ),
         CostComponent::With { binder, body } => {
             // The common "sacrifice/tap a chosen one" cost shape: a
@@ -1448,9 +1480,9 @@ fn emit_with_cost_as_predicate_verb(binder: &deckmaste_core::Binder, body: &Cost
             Action::By(_, PlayerAction::Sacrifice(Reference::That(_))) => {
                 let sac = app(
                     "sacrificeBy",
-                    vec![emit_reference(by)?, emit_filter(filter)?],
+                    vec![emit_reference(by)?, emit_filter(filter)?].into(),
                 );
-                Ok(app("Do", vec![sac]))
+                Ok(app("Do", vec![sac].into()))
             }
             _ => Err(gap(
                 "CostComponent::With body isn't the recognized Sacrifice(That) shape",
@@ -1466,15 +1498,15 @@ fn emit_with_cost_as_predicate_verb(binder: &deckmaste_core::Binder, body: &Cost
 
 fn emit_destination(d: &Destination) -> R {
     Ok(match d {
-        Destination::Zone(z) => app("ToZone", vec![emit_zone(*z)]),
-        Destination::Library(anchor) => app("ToLibrary", vec![emit_anchor(anchor)?]),
+        Destination::Zone(z) => app("ToZone", vec![emit_zone(*z)].into()),
+        Destination::Library(anchor) => app("ToLibrary", vec![emit_anchor(anchor)?].into()),
     })
 }
 
 fn emit_anchor(a: &Anchor) -> R {
     Ok(match a {
-        Anchor::FromTop(c) => app("FromTop", vec![emit_count(c)?]),
-        Anchor::FromBottom(c) => app("FromBottom", vec![emit_count(c)?]),
+        Anchor::FromTop(c) => app("FromTop", vec![emit_count(c)?].into()),
+        Anchor::FromBottom(c) => app("FromBottom", vec![emit_count(c)?].into()),
     })
 }
 
@@ -1523,7 +1555,7 @@ fn emit_counter_spec(c: &CounterSpec) -> R {
     Ok(match c {
         CounterSpec::Named(kind, count) => {
             let k = counter_ref_idris(kind.as_str())?;
-            app("Some", vec![k, emit_count(count)?])
+            app("Some", vec![k, emit_count(count)?].into())
         }
         CounterSpec::AllKinds => "AllKinds".to_string(),
     })
@@ -1594,14 +1626,14 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
         "Destroy" => {
             let r = composite_move_src(body)
                 .ok_or_else(|| gap("Destroy composite body is not a Move"))?;
-            Ok(app("Destroy", vec![emit_reference(r)?]))
+            Ok(app("Destroy", vec![emit_reference(r)?].into()))
         }
         "Scry" | "Surveil" => {
             // Definitionally YOUR library ([CR#701.22a,701.25a]): the atom carries
             // only the count; the top-slice `whose` is implicit.
             let (_whose, count) = top_of_library(body)
                 .ok_or_else(|| gap(format!("{name} composite body has no TopOfLibrary slice")))?;
-            Ok(app(name, vec![emit_count(count)?]))
+            Ok(app(name, vec![emit_count(count)?].into()))
         }
         "Mill" | "Draw" => {
             // SLICE family ([CR#121.2,701.17a]): the atom carries the performing
@@ -1609,7 +1641,7 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
             // atom is a single top-slot slice — so no count arg here.
             let (whose, _count) = top_of_library(body)
                 .ok_or_else(|| gap(format!("{name} composite body has no TopOfLibrary slice")))?;
-            Ok(app(name, vec![emit_reference(whose)?]))
+            Ok(app(name, vec![emit_reference(whose)?].into()))
         }
         "Fateseal" => {
             // The named player's library top ([CR#701.20a]) plus the count.
@@ -1617,7 +1649,7 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
                 .ok_or_else(|| gap("Fateseal composite body has no TopOfLibrary slice"))?;
             Ok(app(
                 "Fateseal",
-                vec![emit_reference(whose)?, emit_count(count)?],
+                vec![emit_reference(whose)?, emit_count(count)?].into(),
             ))
         }
         "Discard" => {
@@ -1629,7 +1661,7 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
             if let Some((whose, count)) = discard_choice(body) {
                 Ok(app(
                     "Discard",
-                    vec![emit_reference(whose)?, emit_count(count)?],
+                    vec![emit_reference(whose)?, emit_count(count)?].into(),
                 ))
             } else if composite_move_src(body).is_some() {
                 Ok(app(
@@ -1637,7 +1669,8 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
                     vec![
                         emit_reference(&Reference::You)?,
                         emit_count(&Count::Literal(1))?,
-                    ],
+                    ]
+                    .into(),
                 ))
             } else {
                 Err(gap(
@@ -1648,7 +1681,10 @@ fn emit_keyword_spec(name: &str, body: &OneShotEffect) -> R {
         "Fight" => {
             let (a, b) = deckmaste_core::fight_body_fighters(body)
                 .ok_or_else(|| gap("Fight composite body has no fighters"))?;
-            Ok(app("Fight", vec![emit_reference(a)?, emit_reference(b)?]))
+            Ok(app(
+                "Fight",
+                vec![emit_reference(a)?, emit_reference(b)?].into(),
+            ))
         }
         other => Err(gap(format!(
             "Composite keyword action {other} has no Idris KeywordActionSpec"
@@ -1686,21 +1722,23 @@ fn emit_action(a: &Action) -> R {
                 emit_reference(source)?,
                 emit_reference_anykind(patient)?,
                 emit_count(count)?,
-            ],
+            ]
+            .into(),
         ),
         // Destroy is not a bespoke verb — it emits through the `Composite` arm
         // below (`Composite (Destroy r) (Act (moveAttacking r Graveyard))`).
-        Action::Counter(r) => app("Counter", vec![emit_reference(r)?]),
-        Action::Transform(r) => app("Transform", vec![emit_reference(r)?]),
+        Action::Counter(r) => app("Counter", vec![emit_reference(r)?].into()),
+        Action::Transform(r) => app("Transform", vec![emit_reference(r)?].into()),
         // core-copy-grammar Task 5: the cease-to-exist verb the copy-cease
         // SBA now speaks through (`sba.rs`) — engine-internal only, never
         // authored on a card face, so it has no Idris counterpart, same
         // deferred-gap shape as `ExtraPhase`/`CreateReplacement` below.
         Action::Cease(_) => return Err(gap("Action::Cease has no Idris counterpart")),
-        Action::Attach { what, to } => {
-            app("Attach", vec![emit_reference(what)?, emit_reference(to)?])
-        }
-        Action::Unattach(r) => app("Unattach", vec![emit_reference(r)?]),
+        Action::Attach { what, to } => app(
+            "Attach",
+            vec![emit_reference(what)?, emit_reference(to)?].into(),
+        ),
+        Action::Unattach(r) => app("Unattach", vec![emit_reference(r)?].into()),
         // `moveAttacking` exposes the (default-`Nothing`) `enteringAttacking`
         // positionally as a plain `Maybe`; it does NOT forward `from` (no
         // Idris counterpart in its own signature). The unguarded default
@@ -1716,7 +1754,7 @@ fn emit_action(a: &Action) -> R {
             let dest_ = emit_destination(dest)?;
             let ea = attacking_maybe(riders)?;
             match from {
-                None => app("moveAttacking", vec![r_, dest_, ea]),
+                None => app("moveAttacking", vec![r_, dest_, ea].into()),
                 Some(z) => format!(
                     "(Move {r_} {dest_} {{enteringAttacking = {ea}}} {{from = (Just {})}})",
                     emit_zone(*z)
@@ -1738,7 +1776,8 @@ fn emit_action(a: &Action) -> R {
                     emit_selection(group)?,
                     emit_arrangement(arrangement),
                     emit_destination(to)?,
-                ],
+                ]
+                .into(),
             )
         }
         Action::GainControl(..) => {
@@ -1759,7 +1798,8 @@ fn emit_action(a: &Action) -> R {
                 emit_counter_spec(spec)?,
                 emit_reference(from)?,
                 emit_reference(to)?,
-            ],
+            ]
+            .into(),
         ),
         Action::CreateReplacement { .. } => {
             return Err(gap("Action::CreateReplacement has no Idris counterpart"));
@@ -1773,12 +1813,16 @@ fn emit_action(a: &Action) -> R {
         // this arm inside the `Batch`. `Fateseal` has no Idris spec yet — a gap.
         Action::Composite { name, body } => {
             let spec = emit_keyword_spec(name.as_str(), body)?;
-            app("Composite", vec![spec, emit_effect(body)?])
+            app("Composite", vec![spec, emit_effect(body)?].into())
         }
         Action::By(actor, pa) => emit_player_action(pa, actor)?,
     })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one match arm per player verb; splitting would scatter the verb→Idris-constructor mapping this function documents as a whole"
+)]
 fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
     // The player verbs whose Idris constructor carries a `{default You actor}`
     // are emitted through the positional `<verb>By` helper, always passing the
@@ -1788,11 +1832,11 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
     match pa {
         PlayerAction::GainLife(c) => Ok(app(
             "gainLifeBy",
-            vec![emit_reference(actor)?, emit_count(c)?],
+            vec![emit_reference(actor)?, emit_count(c)?].into(),
         )),
         PlayerAction::LoseLife(c) => Ok(app(
             "loseLifeBy",
-            vec![emit_reference(actor)?, emit_count(c)?],
+            vec![emit_reference(actor)?, emit_count(c)?].into(),
         )),
         PlayerAction::AddMana(count, production) => {
             let (mana, riders) = emit_mana_production(production)?;
@@ -1803,7 +1847,8 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
                     emit_count(count)?,
                     mana,
                     ilist(riders),
-                ],
+                ]
+                .into(),
             ))
         }
         PlayerAction::Create(count, spec, riders) => {
@@ -1824,12 +1869,13 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
                     emit_count(count)?,
                     emit_token_spec(spec)?,
                     attacking_maybe(riders)?,
-                ],
+                ]
+                .into(),
             ))
         }
         PlayerAction::Sacrifice(r) => Ok(app(
             "sacrificeBy",
-            vec![emit_reference(actor)?, reference_as_predicate(r)?],
+            vec![emit_reference(actor)?, reference_as_predicate(r)?].into(),
         )),
         PlayerAction::Move(r, dest, riders) => {
             if !matches!(actor, Reference::You) {
@@ -1838,8 +1884,8 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             // `PlayerAction::Move` has no `from` fizzle-guard slot of its own.
             emit_action(&Action::Move(r.clone(), dest.clone(), riders.clone(), None))
         }
-        PlayerAction::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?])),
-        PlayerAction::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?])),
+        PlayerAction::Tap(r) => Ok(app("Tap", vec![emit_reference(r)?].into())),
+        PlayerAction::Untap(r) => Ok(app("Untap", vec![emit_reference(r)?].into())),
         PlayerAction::PutCounters(r, kind, count) => {
             if !matches!(actor, Reference::You) {
                 return Err(gap("PutCounters has no Idris actor slot"));
@@ -1847,35 +1893,37 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
             let k = counter_ref_idris(kind.as_str())?;
             Ok(app(
                 "PutCounters",
-                vec![k, emit_count(count)?, emit_reference(r)?],
+                vec![k, emit_count(count)?, emit_reference(r)?].into(),
             ))
         }
         PlayerAction::RemoveCounters(r, kind, count) => {
             let k = counter_ref_idris(kind.as_str())?;
             Ok(app(
                 "RemoveCounters",
-                vec![k, emit_count(count)?, emit_reference(r)?],
+                vec![k, emit_count(count)?, emit_reference(r)?].into(),
             ))
         }
-        PlayerAction::Shuffle => Ok(app("shuffleBy", vec![emit_reference(actor)?])),
+        PlayerAction::Shuffle => Ok(app("shuffleBy", vec![emit_reference(actor)?].into())),
         PlayerAction::SetLife(c) => Ok(app(
             "setLifeToBy",
-            vec![emit_reference(actor)?, emit_count(c)?],
+            vec![emit_reference(actor)?, emit_count(c)?].into(),
         )),
         PlayerAction::Reveal { what, .. } => {
             if !matches!(actor, Reference::You) {
                 return Err(gap("Reveal has no Idris actor slot"));
             }
-            Ok(app("Reveal", vec![emit_reference(what)?]))
+            Ok(app("Reveal", vec![emit_reference(what)?].into()))
         }
-        PlayerAction::RemoveDamage(r) => Ok(app("RemoveAllDamage", vec![emit_reference(r)?])),
+        PlayerAction::RemoveDamage(r) => {
+            Ok(app("RemoveAllDamage", vec![emit_reference(r)?].into()))
+        }
         PlayerAction::WinGame => Ok(app(
             "Conclude",
-            vec![app("WinGame", vec![emit_reference(actor)?])],
+            vec![app("WinGame", vec![emit_reference(actor)?].into())].into(),
         )),
         PlayerAction::LoseGame => Ok(app(
             "Conclude",
-            vec![app("LoseGame", vec![emit_reference(actor)?])],
+            vec![app("LoseGame", vec![emit_reference(actor)?].into())].into(),
         )),
         // [CR#705.1,706.1,901.9]: Idris's `RollDice`/`FlipCoins`/
         // `RollPlanarDie` carry NO actor slot at all (unlike
@@ -1891,14 +1939,18 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
                 vec![
                     emit_count(count)?,
                     if *called { "True" } else { "False" }.to_string(),
-                ],
+                ]
+                .into(),
             ))
         }
         PlayerAction::RollDice(count, sides) => {
             if !matches!(actor, Reference::You) {
                 return Err(gap("RollDice has no Idris actor slot"));
             }
-            Ok(app("RollDice", vec![emit_count(count)?, sides.to_string()]))
+            Ok(app(
+                "RollDice",
+                vec![emit_count(count)?, sides.to_string()].into(),
+            ))
         }
         PlayerAction::RollPlanarDie => {
             if !matches!(actor, Reference::You) {
@@ -1909,9 +1961,10 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         // A stack copy ([CR#707.10]) carries no copiable-value alterations —
         // the modification list is empty (`Copy r []`). Exception-bearing
         // copies are the token/becomes/enters sites, not `CopySpell`.
-        PlayerAction::CopySpell(what) => {
-            Ok(app("Copy", vec![emit_reference(what)?, "[]".to_string()]))
-        }
+        PlayerAction::CopySpell(what) => Ok(app(
+            "Copy",
+            vec![emit_reference(what)?, "[]".to_string()].into(),
+        )),
         // [CR#608.2g]: casting a referenced card as a resolution effect. The
         // Idris north-star `Core.idr` has no resolution-time `Cast` effect verb
         // (casting there rides the 601 deontic-permission pipeline, `Enact
@@ -1941,7 +1994,7 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
         PlayerAction::ChooseNewTargets { of, by } => {
             let of_ = emit_reference(of)?;
             Ok(match by {
-                Reference::You => app("ChooseNewTargets", vec![of_]),
+                Reference::You => app("ChooseNewTargets", vec![of_].into()),
                 other => format!(
                     "(ChooseNewTargets {of_} {{by = {}}})",
                     emit_reference(other)?
@@ -1961,17 +2014,17 @@ fn emit_player_action(pa: &PlayerAction, actor: &Reference) -> R {
     }
 }
 
-fn emit_mana_production(p: &ManaProduction) -> Result<(String, Vec<String>), Gap> {
+fn emit_mana_production(p: &ManaProduction) -> Result<(String, Arc<[String]>), Gap> {
     let (spec, riders) = match p {
         ManaProduction::Bare(spec) => (spec, &[][..]),
-        ManaProduction::WithRiders { mana, riders } => (mana, riders.as_slice()),
+        ManaProduction::WithRiders { mana, riders } => (mana, riders.as_ref()),
     };
     let mana = emit_mana_spec(spec)?;
     let mut out_riders = Vec::new();
     for r in riders {
         match r {
             deckmaste_core::ManaRider::SpendOnly(f) => {
-                out_riders.push(app("SpendOnly", vec![emit_filter(f)?]));
+                out_riders.push(app("SpendOnly", vec![emit_filter(f)?].into()));
             }
             deckmaste_core::ManaRider::GrantOnSpend(_)
             | deckmaste_core::ManaRider::TriggerOnSpend(_)
@@ -1982,7 +2035,7 @@ fn emit_mana_production(p: &ManaProduction) -> Result<(String, Vec<String>), Gap
             }
         }
     }
-    Ok((mana, out_riders))
+    Ok((mana, out_riders.into()))
 }
 
 fn emit_mana_spec(spec: &ManaSpec) -> R {
@@ -1992,7 +2045,8 @@ fn emit_mana_spec(spec: &ManaSpec) -> R {
             "OneOf",
             vec![ilist(
                 cs.iter().map(|c| emit_color_or_colorless(*c)).collect(),
-            )],
+            )]
+            .into(),
         ),
         // The filterland cycle: a choice among multi-symbol runs. Each run is
         // itself an Idris list of `Maybe Color`, so the argument is a list of
@@ -2003,10 +2057,11 @@ fn emit_mana_spec(spec: &ManaSpec) -> R {
                 runs.iter()
                     .map(|run| ilist(run.iter().map(|c| emit_color_or_colorless(*c)).collect()))
                     .collect(),
-            )],
+            )]
+            .into(),
         ),
-        ManaSpec::Specific(c) => app("OfColor", vec![emit_color_or_colorless(*c)]),
-        ManaSpec::AmongColorsOf(r) => app("AmongColorsOf", vec![emit_reference(r)?]),
+        ManaSpec::Specific(c) => app("OfColor", vec![emit_color_or_colorless(*c)].into()),
+        ManaSpec::AmongColorsOf(r) => app("AmongColorsOf", vec![emit_reference(r)?].into()),
         ManaSpec::ProducedByEvent => "ProducedByEvent".to_string(),
     })
 }
@@ -2018,12 +2073,15 @@ fn emit_mana_spec(spec: &ManaSpec) -> R {
 fn emit_token_spec(spec: &TokenSpec) -> R {
     let token = match spec {
         TokenSpec::Token(t) => t.clone(),
-        TokenSpec::Named(name) => name.resolve().ok_or_else(|| {
-            gap(format!(
-                "unresolvable predefined token name: {}",
-                name.as_str()
-            ))
-        })?,
+        TokenSpec::Named(name) => name
+            .resolve()
+            .ok_or_else(|| {
+                gap(format!(
+                    "unresolvable predefined token name: {}",
+                    name.as_str()
+                ))
+            })?
+            .into(),
         // A token copy ([CR#707.2]) does NOT go through this characteristics
         // emitter: the `PlayerAction::Create` arm intercepts `TokenSpec::Copy`
         // upstream and emits the `Copy` Action (source + copiable-value
@@ -2061,7 +2119,8 @@ fn emit_token_characteristics(t: &Token) -> R {
             toughness,
             "Nothing".to_string(),
             "Nothing".to_string(),
-        ],
+        ]
+        .into(),
     ))
 }
 
@@ -2071,17 +2130,19 @@ fn emit_token_characteristics(t: &Token) -> R {
 
 fn emit_numeric_op(op: &NumericOp) -> R {
     Ok(match op {
-        NumericOp::Set(v) => app("Set", vec![emit_stat_value(v)?]),
-        NumericOp::Up(c) => app("Up", vec![emit_count(c)?]),
-        NumericOp::Down(c) => app("Down", vec![emit_count(c)?]),
+        NumericOp::Set(v) => app("Set", vec![emit_stat_value(v)?].into()),
+        NumericOp::Up(c) => app("Up", vec![emit_count(c)?].into()),
+        NumericOp::Down(c) => app("Down", vec![emit_count(c)?].into()),
     })
 }
 
 fn emit_collection_op<T>(op: &deckmaste_core::CollectionOp<T>, elem: impl Fn(&T) -> R) -> R {
     Ok(match op {
-        deckmaste_core::CollectionOp::Set(items) => app("Set", vec![map_list(items, &elem)?]),
-        deckmaste_core::CollectionOp::Add(item) => app("Add", vec![elem(item)?]),
-        deckmaste_core::CollectionOp::Remove(item) => app("Remove", vec![elem(item)?]),
+        deckmaste_core::CollectionOp::Set(items) => {
+            app("Set", vec![map_list(items, &elem)?].into())
+        }
+        deckmaste_core::CollectionOp::Add(item) => app("Add", vec![elem(item)?].into()),
+        deckmaste_core::CollectionOp::Remove(item) => app("Remove", vec![elem(item)?].into()),
     })
 }
 
@@ -2092,11 +2153,11 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
     match m {
         Modification::Power(op) => out.push(app(
             "Alter",
-            vec!["Power".to_string(), emit_numeric_op(op)?],
+            vec!["Power".to_string(), emit_numeric_op(op)?].into(),
         )),
         Modification::Toughness(op) => out.push(app(
             "Alter",
-            vec!["Toughness".to_string(), emit_numeric_op(op)?],
+            vec!["Toughness".to_string(), emit_numeric_op(op)?].into(),
         )),
         Modification::BaseLoyalty(_) | Modification::BaseDefense(_) => {
             // Idris's `Alter` has no dedicated loyalty/defense-BASE axis
@@ -2111,14 +2172,16 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
             vec![
                 "Colors".to_string(),
                 emit_collection_op(op, |c| Ok(emit_color(*c)))?,
-            ],
+            ]
+            .into(),
         )),
         Modification::CardTypes(op) => out.push(app(
             "Alter",
             vec![
                 "Types".to_string(),
                 emit_collection_op(op, |t| emit_type_name(t.as_str()))?,
-            ],
+            ]
+            .into(),
         )),
         Modification::Subtypes(op) => out.push(app(
             "Alter",
@@ -2127,17 +2190,19 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
                 emit_collection_op(op, |s: &deckmaste_core::SubtypeRef| {
                     emit_subtype_ref(s.as_str())
                 })?,
-            ],
+            ]
+            .into(),
         )),
         Modification::Supertypes(op) => out.push(app(
             "Alter",
             vec![
                 "Supertypes".to_string(),
                 emit_collection_op(op, |s| Ok(emit_supertype(*s)))?,
-            ],
+            ]
+            .into(),
         )),
         Modification::GainAbility(ability) => {
-            out.push(app("GrantAbility", vec![emit_ability(ability)?]));
+            out.push(app("GrantAbility", vec![emit_ability(ability)?].into()));
         }
         Modification::LoseAbility(name) => {
             let spec = keywordspec_idris(name.as_str()).ok_or_else(|| {
@@ -2146,7 +2211,7 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
                     name.as_str()
                 ))
             })?;
-            out.push(app("LoseKeyword", vec![spec]));
+            out.push(app("LoseKeyword", vec![spec].into()));
         }
         Modification::LoseAllAbilities => out.push("LoseAbilities".to_string()),
         Modification::CantHaveAbility(_) => {
@@ -2154,7 +2219,9 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
                 "Modification::CantHaveAbility has no Idris counterpart",
             ));
         }
-        Modification::SetController(r) => out.push(app("GainControl", vec![emit_reference(r)?])),
+        Modification::SetController(r) => {
+            out.push(app("GainControl", vec![emit_reference(r)?].into()));
+        }
         Modification::SetText(_) => {
             return Err(gap(
                 "Modification::SetText has no Idris counterpart (Idris only has ChangeText's word-class swap)",
@@ -2167,7 +2234,7 @@ fn emit_modification_ops(m: &Modification, out: &mut Vec<String>) -> Result<(), 
             return Err(gap("Modification::BecomeBasicLandType not yet mapped"));
         }
         Modification::Several(inner) => {
-            for m in inner {
+            for m in inner.iter() {
                 emit_modification_ops(m, out)?;
             }
         }
@@ -2186,7 +2253,7 @@ fn emit_modification(m: &Modification) -> R {
     match ops.len() {
         0 => Err(gap("Modification produced no Idris ops")),
         1 => Ok(ops.into_iter().next().expect("len checked")),
-        _ => Ok(app("ApplyAll", vec![ilist(ops)])),
+        _ => Ok(app("ApplyAll", vec![ilist(ops.into())].into())),
     }
 }
 
@@ -2211,7 +2278,7 @@ fn emit_copy_source(src: &CopySource) -> R {
 /// Idris `Modification`s (flattened via `emit_modification_ops`, so a Rust
 /// `Several` splices its members in). Only `CopyException::Modify` has an Idris
 /// analog; `Retain`/`AdditionalEffect` ([CR#707.9c..707.9e]) are deferred.
-fn emit_copy_exception_mods(exceptions: &[CopyException]) -> Result<Vec<String>, Gap> {
+fn emit_copy_exception_mods(exceptions: &[CopyException]) -> Result<Arc<[String]>, Gap> {
     let mut mods = Vec::new();
     for exc in exceptions {
         match exc {
@@ -2224,7 +2291,7 @@ fn emit_copy_exception_mods(exceptions: &[CopyException]) -> Result<Vec<String>,
             }
         }
     }
-    Ok(mods)
+    Ok(mods.into())
 }
 
 /// The copiable-value `Modification` a becomes-a-copy / enters-as-a-copy effect
@@ -2236,15 +2303,15 @@ fn emit_copy_exception_mods(exceptions: &[CopyException]) -> Result<Vec<String>,
 /// carries the exceptions directly (no `BecomeCopyOf`, since the `Copy` verb
 /// itself is the copy).
 fn emit_copy_modification(cs: &CopySpec) -> R {
-    let become_copy = app("BecomeCopyOf", vec![emit_copy_source(&cs.source)?]);
+    let become_copy = app("BecomeCopyOf", vec![emit_copy_source(&cs.source)?].into());
     let exc_mods = emit_copy_exception_mods(&cs.exceptions)?;
     if exc_mods.is_empty() {
         return Ok(become_copy);
     }
     let mut mods = Vec::with_capacity(1 + exc_mods.len());
     mods.push(become_copy);
-    mods.extend(exc_mods);
-    Ok(app("ApplyAll", vec![ilist(mods)]))
+    mods.extend(exc_mods.iter().cloned());
+    Ok(app("ApplyAll", vec![ilist(mods.into())].into()))
 }
 
 /// A token copy ([CR#707.2]) inside `PlayerAction::Create`: the `Copy` Action
@@ -2264,16 +2331,26 @@ fn emit_create_token_copy(cs: &CopySpec, riders: &[EnterRider]) -> R {
         vec![
             emit_copy_source(&cs.source)?,
             ilist(emit_copy_exception_mods(&cs.exceptions)?),
-        ],
+        ]
+        .into(),
     ))
 }
 
 fn emit_player_mod(m: &PlayerMod) -> R {
     Ok(match m {
-        PlayerMod::SetTo(attr, c) => app("SetTo", vec![emit_player_attr(*attr), emit_count(c)?]),
-        PlayerMod::Raise(attr, c) => app("Raise", vec![emit_player_attr(*attr), emit_count(c)?]),
-        PlayerMod::Lower(attr, c) => app("Lower", vec![emit_player_attr(*attr), emit_count(c)?]),
-        PlayerMod::NoMax(attr) => app("NoMax", vec![emit_player_attr(*attr)]),
+        PlayerMod::SetTo(attr, c) => app(
+            "SetTo",
+            vec![emit_player_attr(*attr), emit_count(c)?].into(),
+        ),
+        PlayerMod::Raise(attr, c) => app(
+            "Raise",
+            vec![emit_player_attr(*attr), emit_count(c)?].into(),
+        ),
+        PlayerMod::Lower(attr, c) => app(
+            "Lower",
+            vec![emit_player_attr(*attr), emit_count(c)?].into(),
+        ),
+        PlayerMod::NoMax(attr) => app("NoMax", vec![emit_player_attr(*attr)].into()),
     })
 }
 
@@ -2289,18 +2366,18 @@ fn emit_player_attr(a: PlayerAttr) -> String {
 
 fn emit_cost_change(c: &CostChange) -> R {
     Ok(match c {
-        CostChange::Reduce(cs) => app("Reduce", vec![emit_cost_components_as_mana(cs)?]),
-        CostChange::Increase(cs) => app("Increase", vec![emit_cost_components_as_mana(cs)?]),
+        CostChange::Reduce(cs) => app("Reduce", vec![emit_cost_components_as_mana(cs)?].into()),
+        CostChange::Increase(cs) => app("Increase", vec![emit_cost_components_as_mana(cs)?].into()),
         CostChange::Additional { components } => {
             let mut out = Vec::with_capacity(components.len());
-            for c in components {
+            for c in components.iter() {
                 out.push(emit_cost_component(c)?);
             }
-            app("Additional", vec![ilist(out)])
+            app("Additional", vec![ilist(out.into())].into())
         }
         CostChange::Scaled { change, times } => app(
             "ScaledBy",
-            vec![emit_cost_change(change)?, emit_count(times)?],
+            vec![emit_cost_change(change)?, emit_count(times)?].into(),
         ),
     })
 }
@@ -2323,14 +2400,14 @@ fn emit_replacement(r: &deckmaste_core::Replacement) -> R {
             let (kinds, facets) = emit_event_filter(would)?;
             app(
                 "Replaces",
-                vec![event_query(&kinds, &facets), emit_effect(instead)?],
+                vec![event_query(&kinds, &facets), emit_effect(instead)?].into(),
             )
         }
         Repl::Also { would, also } => {
             let (kinds, facets) = emit_event_filter(would)?;
             app(
                 "Also",
-                vec![event_query(&kinds, &facets), emit_effect(also)?],
+                vec![event_query(&kinds, &facets), emit_effect(also)?].into(),
             )
         }
         Repl::Skip { .. } => {
@@ -2354,7 +2431,7 @@ fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
                 &["(DealDamage Nothing)".to_string()],
                 &damage_facets(from, to)?,
             );
-            app("Replaces", vec![q, "(Sequentially [])".to_string()])
+            app("Replaces", vec![q, "(Sequentially [])".to_string()].into())
         }
         P::PreventNext { n, from, to, .. } => {
             let q = event_query(
@@ -2369,7 +2446,8 @@ fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
                     q,
                     "(Sequentially [])".to_string(),
                     format!("(UpTo {})", emit_count(n)?),
-                ],
+                ]
+                .into(),
             )
         }
         P::PreventNextInstance { .. } => {
@@ -2380,47 +2458,54 @@ fn emit_prevention(p: &deckmaste_core::Prevention) -> R {
     })
 }
 
-fn damage_facets(from: &Predicate, to: &Predicate) -> Result<Vec<String>, Gap> {
+fn damage_facets(from: &Predicate, to: &Predicate) -> Result<Arc<[String]>, Gap> {
     let mut facets = Vec::new();
     if !matches!(from, Predicate::Any) {
-        facets.push(app("Agent", vec![emit_filter(from)?]));
+        facets.push(app("Agent", vec![emit_filter(from)?].into()));
     }
     if !matches!(to, Predicate::Any) {
-        facets.push(app("Patient", vec![emit_filter(to)?]));
+        facets.push(app("Patient", vec![emit_filter(to)?].into()));
     }
-    Ok(facets)
+    Ok(facets.into())
 }
 
 fn emit_static_effect(se: &StaticEffect) -> R {
     Ok(match se {
-        StaticEffect::Modify(r, m) => {
-            app("Modify", vec![emit_reference(r)?, emit_modification(m)?])
-        }
+        StaticEffect::Modify(r, m) => app(
+            "Modify",
+            vec![emit_reference(r)?, emit_modification(m)?].into(),
+        ),
         StaticEffect::Each(sel, inner) => app(
             "Each",
             vec![
                 format!("(Existing {})", emit_selection(sel)?),
                 emit_static_effect(inner)?,
-            ],
+            ]
+            .into(),
         ),
         StaticEffect::Conditionally(cond, inner) => app(
             "While",
-            vec![emit_condition(cond)?, emit_static_effect(inner)?],
+            vec![emit_condition(cond)?, emit_static_effect(inner)?].into(),
         ),
         StaticEffect::Deontic(d) => emit_deontic(d)?,
         StaticEffect::CostModifier { of, change } => app(
             "CostModifier",
-            vec![emit_filter(of)?, emit_cost_change(change)?],
+            vec![emit_filter(of)?, emit_cost_change(change)?].into(),
         ),
         StaticEffect::CostOption(oc) => {
             let mut costs = Vec::with_capacity(oc.components.len());
-            for c in &oc.components {
+            for c in oc.components.iter() {
                 costs.push(emit_cost_component(c)?);
             }
             let repeatable = if oc.repeatable { "True" } else { "False" };
             app(
                 "costOptionRep",
-                vec![ilit(oc.tag.as_str()), ilist(costs), repeatable.to_string()],
+                vec![
+                    ilit(oc.tag.as_str()),
+                    ilist(costs.into()),
+                    repeatable.to_string(),
+                ]
+                .into(),
             )
         }
         StaticEffect::TriggerMultiplier {
@@ -2435,12 +2520,13 @@ fn emit_static_effect(se: &StaticEffect) -> R {
                     event_query(&kinds, &facets),
                     emit_count(extra)?,
                     emit_filter(affected)?,
-                ],
+                ]
+                .into(),
             )
         }
         StaticEffect::ModifyPlayer(r, m) => app(
             "ModifyPlayer",
-            vec![emit_reference(r)?, emit_player_mod(m)?],
+            vec![emit_reference(r)?, emit_player_mod(m)?].into(),
         ),
         StaticEffect::Replacement(r) => emit_replacement(r)?,
         StaticEffect::Prevention(p) => emit_prevention(p)?,
@@ -2461,28 +2547,30 @@ fn emit_static_effect(se: &StaticEffect) -> R {
                 vec![
                     emit_reference(&deckmaste_core::Reference::This)?,
                     emit_filter(premise)?,
-                ],
+                ]
+                .into(),
             );
-            app("AsThough", vec![premise_cond, emit_deontic(then)?])
+            app("AsThough", vec![premise_cond, emit_deontic(then)?].into())
         }
         StaticEffect::AsThough(deckmaste_core::AsThough::Expanded(_)) => {
             return Err(gap(
                 "StaticEffect::AsThough macro provenance (Expanded) is not re-emitted",
             ));
         }
-        StaticEffect::Sba { when, then } => {
-            app("Sba", vec![emit_condition(when)?, emit_effect(then)?])
-        }
+        StaticEffect::Sba { when, then } => app(
+            "Sba",
+            vec![emit_condition(when)?, emit_effect(then)?].into(),
+        ),
         StaticEffect::OutcomeGate { who, gate } => {
             let g = match gate {
                 deckmaste_core::OutcomeGateKind::CantLose => "CantLose",
                 deckmaste_core::OutcomeGateKind::CantWin => "CantWin",
             };
-            app("OutcomeGate", vec![g.to_string(), emit_filter(who)?])
+            app("OutcomeGate", vec![g.to_string(), emit_filter(who)?].into())
         }
         StaticEffect::CantHappen(ef) => {
             let (kinds, facets) = emit_event_filter(ef)?;
-            app("CantHappen", vec![event_query(&kinds, &facets)])
+            app("CantHappen", vec![event_query(&kinds, &facets)].into())
         }
         StaticEffect::ReplaceRoll {
             query,
@@ -2496,7 +2584,8 @@ fn emit_static_effect(se: &StaticEffect) -> R {
                     event_query(&kinds, &facets),
                     emit_count(extra)?,
                     emit_ignore_rule(ignore),
-                ],
+                ]
+                .into(),
             )
         }
         StaticEffect::PayPips(class, act) => {
@@ -2509,10 +2598,14 @@ fn emit_static_effect(se: &StaticEffect) -> R {
                 deckmaste_core::PipClass::Colored(_) => "Colored".to_string(),
             };
             let act_s = match act {
-                deckmaste_core::PayAct::TapToPay(f) => app("TapToPay", vec![emit_filter(f)?]),
-                deckmaste_core::PayAct::ExileToPay(f) => app("ExileToPay", vec![emit_filter(f)?]),
+                deckmaste_core::PayAct::TapToPay(f) => {
+                    app("TapToPay", vec![emit_filter(f)?].into())
+                }
+                deckmaste_core::PayAct::ExileToPay(f) => {
+                    app("ExileToPay", vec![emit_filter(f)?].into())
+                }
             };
-            app("PayPips", vec![class_s, act_s])
+            app("PayPips", vec![class_s, act_s].into())
         }
         // [CR#707.4] "becomes a copy of" — core-copy-grammar Task 6's
         // grammar-only seam; the Idris mapping is Task 8's.
@@ -2523,7 +2616,7 @@ fn emit_static_effect(se: &StaticEffect) -> R {
         // composed from the existing `Modify`/`BecomeCopyOf`/`ApplyAll`/`Alter`.
         StaticEffect::BecomesCopy(who, cs) => app(
             "Modify",
-            vec![emit_reference(who)?, emit_copy_modification(cs)?],
+            vec![emit_reference(who)?, emit_copy_modification(cs)?].into(),
         ),
         StaticEffect::Expanded(_) => {
             return Err(gap(
@@ -2539,27 +2632,36 @@ fn emit_static_effect(se: &StaticEffect) -> R {
 fn emit_ignore_rule(ir: &deckmaste_core::IgnoreRule) -> String {
     match ir {
         deckmaste_core::IgnoreRule::IgnoreLowest => "IgnoreLowest".to_string(),
-        deckmaste_core::IgnoreRule::IgnoreChosen(n) => app("IgnoreChosen", vec![n.to_string()]),
+        deckmaste_core::IgnoreRule::IgnoreChosen(n) => {
+            app("IgnoreChosen", vec![n.to_string()].into())
+        }
     }
 }
 
 fn emit_deontic(d: &Deontic) -> R {
     Ok(match d {
-        Deontic::Cant(action) => app("Constrain", vec!["Forbid".to_string(), emit_deed(action)?]),
-        Deontic::Must(action) => app("Constrain", vec!["Require".to_string(), emit_deed(action)?]),
+        Deontic::Cant(action) => app(
+            "Constrain",
+            vec!["Forbid".to_string(), emit_deed(action)?].into(),
+        ),
+        Deontic::Must(action) => app(
+            "Constrain",
+            vec!["Require".to_string(), emit_deed(action)?].into(),
+        ),
         Deontic::May(action) => emit_can(action)?,
         Deontic::Gate(action, costs) => {
             let mut cs = Vec::with_capacity(costs.len());
-            for c in costs {
+            for c in costs.iter() {
                 cs.push(emit_cost_component(c)?);
             }
             app(
                 "Priced",
                 vec![
                     "AtDeclaration".to_string(),
-                    format!("(Costs {})", ilist(cs)),
+                    format!("(Costs {})", ilist(cs.into())),
                     emit_deed(action)?,
-                ],
+                ]
+                .into(),
             )
         }
         Deontic::Expanded(_) => {
@@ -2593,10 +2695,10 @@ fn emit_can(action: &DeonticAction) -> R {
                 deckmaste_core::AlternativeCost::Free => "[]".to_string(),
                 deckmaste_core::AlternativeCost::Components(cs) => {
                     let mut out = Vec::with_capacity(cs.len());
-                    for c in cs {
+                    for c in cs.iter() {
                         out.push(emit_cost_component(c)?);
                     }
-                    ilist(out)
+                    ilist(out.into())
                 }
             };
             // `from` defaults to `[Hand]`; `mayCastForFrom` takes it
@@ -2610,7 +2712,7 @@ fn emit_can(action: &DeonticAction) -> R {
             // helper has no way to thread it through, so call `MayCastFor`
             // directly with named-field syntax for both `from` and `tag`.
             return Ok(match tag {
-                None => app("mayCastForFrom", vec![costs, from_zones]),
+                None => app("mayCastForFrom", vec![costs, from_zones].into()),
                 Some(t) => {
                     let spec = keywordspec_idris(t.as_str()).ok_or_else(|| {
                         gap(format!(
@@ -2633,7 +2735,7 @@ fn emit_can(action: &DeonticAction) -> R {
         } else {
             emit_filter(what)?
         };
-        let deed = app("Enact", vec!["Cast".to_string(), by_pred, what_pred]);
+        let deed = app("Enact", vec!["Cast".to_string(), by_pred, what_pred].into());
         let window_maybe = match window {
             None => "Nothing".to_string(),
             Some(deckmaste_core::Timing::InstantSpeed) => "(Just AsInstant)".to_string(),
@@ -2644,9 +2746,9 @@ fn emit_can(action: &DeonticAction) -> R {
                 ));
             }
         };
-        return Ok(app("canWindow", vec![deed, window_maybe]));
+        return Ok(app("canWindow", vec![deed, window_maybe].into()));
     }
-    Ok(app("Can", vec![emit_deed(action)?]))
+    Ok(app("Can", vec![emit_deed(action)?].into()))
 }
 
 /// `Deed.Enact`'s `patient : Predicate b k` carries a totally FREE `k` (no
@@ -2670,18 +2772,18 @@ fn emit_deed(action: &DeonticAction) -> R {
     Ok(match action {
         DeonticAction::Attack { by, on } => app(
             "Enact",
-            vec!["Attack".to_string(), emit_filter(by)?, deed_patient(on)?],
+            vec!["Attack".to_string(), emit_filter(by)?, deed_patient(on)?].into(),
         ),
         DeonticAction::Block { by, on, count } => match count {
             None => app(
                 "Enact",
-                vec!["Block".to_string(), emit_filter(by)?, deed_patient(on)?],
+                vec!["Block".to_string(), emit_filter(by)?, deed_patient(on)?].into(),
             ),
             Some(bound) => {
                 let attacker = if matches!(on, Predicate::Any) { by } else { on };
                 app(
                     "BlockedBy",
-                    vec![emit_filter(attacker)?, count_bound_as_quantity(bound)?],
+                    vec![emit_filter(attacker)?, count_bound_as_quantity(bound)?].into(),
                 )
             }
         },
@@ -2711,12 +2813,12 @@ fn emit_deed(action: &DeonticAction) -> R {
             };
             app(
                 "Enact",
-                vec!["Target".to_string(), agent, deed_patient(on)?],
+                vec!["Target".to_string(), agent, deed_patient(on)?].into(),
             )
         }
         DeonticAction::Attach { what, to } => app(
             "Enact",
-            vec!["Attach".to_string(), emit_filter(what)?, deed_patient(to)?],
+            vec!["Attach".to_string(), emit_filter(what)?, deed_patient(to)?].into(),
         ),
         DeonticAction::Cast { .. } => return Err(gap("Deontic::Cant/Must(Cast) not yet mapped")),
         DeonticAction::Play { what, by, from } => {
@@ -2725,7 +2827,7 @@ fn emit_deed(action: &DeonticAction) -> R {
             }
             app(
                 "Enact",
-                vec!["Play".to_string(), emit_filter(by)?, deed_patient(what)?],
+                vec!["Play".to_string(), emit_filter(by)?, deed_patient(what)?].into(),
             )
         }
         DeonticAction::Activate { what, by, cost } => {
@@ -2740,7 +2842,8 @@ fn emit_deed(action: &DeonticAction) -> R {
                     "Activate".to_string(),
                     emit_filter(by)?,
                     deed_patient(what)?,
-                ],
+                ]
+                .into(),
             )
         }
         DeonticAction::Regenerate { by, on } => app(
@@ -2749,7 +2852,8 @@ fn emit_deed(action: &DeonticAction) -> R {
                 "Regenerate".to_string(),
                 emit_filter(by)?,
                 deed_patient(on)?,
-            ],
+            ]
+            .into(),
         ),
         // `cant (Enact Counter spellOrAbility (SameAs This))` ([CR#701.6a]):
         // `agentScope Counter = AnObject` is forced concretely (a literal
@@ -2757,7 +2861,7 @@ fn emit_deed(action: &DeonticAction) -> R {
         // conjunction like `Target`'s agent.
         DeonticAction::Counter { by, on } => app(
             "Enact",
-            vec!["Counter".to_string(), emit_filter(by)?, deed_patient(on)?],
+            vec!["Counter".to_string(), emit_filter(by)?, deed_patient(on)?].into(),
         ),
         // [CR#502.3] "doesn't untap": a single-patient deed with no agent
         // slot (untapping is a turn-based action, not a deed some object
@@ -2785,10 +2889,14 @@ fn emit_deed(action: &DeonticAction) -> R {
 fn event_query(kinds: &[String], facets: &[String]) -> String {
     format!(
         "(MkEventQuery {} {})",
-        ilist(kinds.to_vec()),
-        ilist(facets.to_vec())
+        ilist(kinds.to_vec().into()),
+        ilist(facets.to_vec().into())
     )
 }
+
+/// The `(kinds, facets)` string lists that `MkEventQuery` bundles — the return
+/// shape shared by [`emit_event_filter`] and the `merge_*` combinators.
+type KindsAndFacets = (Arc<[String]>, Arc<[String]>);
 
 /// Translate a Rust `EventFilter` master form into an Idris
 /// `(kinds : List EventKind, facets : List Facet)` pair — the two lists
@@ -2803,7 +2911,7 @@ fn event_query(kinds: &[String], facets: &[String]) -> String {
     clippy::too_many_lines,
     reason = "one match arm per EventFilter master form; splitting would scatter the kind/facet mapping this function documents as a whole"
 )]
-fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap> {
+fn emit_event_filter(ef: &EventFilter) -> Result<KindsAndFacets, Gap> {
     Ok(match ef {
         EventFilter::ZoneChange {
             what,
@@ -2819,9 +2927,9 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             let kind = format!("(ZoneChanged {} {})", opt_zone(*from), opt_zone(*to));
             let mut facets = Vec::new();
             if !matches!(what, Predicate::Any) {
-                facets.push(app("Agent", vec![emit_filter(what)?]));
+                facets.push(app("Agent", vec![emit_filter(what)?].into()));
             }
-            (vec![kind], facets)
+            (vec![kind].into(), facets.into())
         }
         EventFilter::Damage {
             source,
@@ -2837,24 +2945,24 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             let kind = format!("(DealDamage {})", opt_bool(*combat));
             let mut facets = Vec::new();
             if !matches!(source, Predicate::Any) {
-                facets.push(app("Agent", vec![emit_filter(source)?]));
+                facets.push(app("Agent", vec![emit_filter(source)?].into()));
             }
             if !matches!(to, Predicate::Any) {
-                facets.push(app("Patient", vec![emit_filter(to)?]));
+                facets.push(app("Patient", vec![emit_filter(to)?].into()));
             }
-            (vec![kind], facets)
+            (vec![kind].into(), facets.into())
         }
         EventFilter::LifeGained { who, amount } => {
             reject_amount(amount)?;
-            (vec!["GainLife".to_string()], actor_facet(who)?)
+            (vec!["GainLife".to_string()].into(), actor_facet(who)?)
         }
         EventFilter::LifeLost { who, amount } => {
             reject_amount(amount)?;
-            (vec!["LoseLife".to_string()], actor_facet(who)?)
+            (vec!["LoseLife".to_string()].into(), actor_facet(who)?)
         }
         EventFilter::Drawn { who, amount } => {
             reject_amount(amount)?;
-            (vec!["Draw".to_string()], actor_facet(who)?)
+            (vec!["Draw".to_string()].into(), actor_facet(who)?)
         }
         // [CR#701]: the named keyword-action filter lowers to the verb's
         // `EventKind` (`Destroy`/`Discard`/`Draw`/`Mill`/`Scry`/`Surveil`/
@@ -2875,7 +2983,7 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                 ));
             }
             (
-                vec![act_event_kind(verb.as_str())?],
+                vec![act_event_kind(verb.as_str())?].into(),
                 actor_agent_facets(who, on)?,
             )
         }
@@ -2886,17 +2994,17 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                     "EventFilter::CounterPlaced{kind} not yet mapped (Idris PutCounters carries no kind)",
                 ));
             }
-            (vec!["PutCounters".to_string()], agent_facet(on)?)
+            (vec!["PutCounters".to_string()].into(), agent_facet(on)?)
         }
         EventFilter::CounterRemoved { kind, on, amount } => {
             reject_amount(amount)?;
             if kind.is_some() {
                 return Err(gap("EventFilter::CounterRemoved{kind} not yet mapped"));
             }
-            (vec!["RemoveCounters".to_string()], agent_facet(on)?)
+            (vec!["RemoveCounters".to_string()].into(), agent_facet(on)?)
         }
         EventFilter::Cast { who, what } => (
-            vec!["(Begins Cast)".to_string()],
+            vec!["(Begins Cast)".to_string()].into(),
             actor_agent_facets(who, what)?,
         ),
         // [CR#707.10]: the copy-on-stack plumbing lands here (P0.W4 seam);
@@ -2907,11 +3015,11 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
             ));
         }
         EventFilter::Played { who, what } => (
-            vec!["(Begins Play)".to_string()],
+            vec!["(Begins Play)".to_string()].into(),
             actor_agent_facets(who, what)?,
         ),
         EventFilter::ActivatedAb { who, what } => (
-            vec!["(Begins Activate)".to_string()],
+            vec!["(Begins Activate)".to_string()].into(),
             actor_agent_facets(who, what)?,
         ),
         EventFilter::AttackDeclared { by, against } => {
@@ -2920,13 +3028,13 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                     "AttackDeclared{against} not yet mapped (no Idris facet for the defending player)",
                 ));
             }
-            (vec!["(Begins Attack)".to_string()], agent_facet(by)?)
+            (vec!["(Begins Attack)".to_string()].into(), agent_facet(by)?)
         }
         EventFilter::BlockDeclared { by, of } => {
             if !matches!(of, Predicate::Any) {
                 return Err(gap("BlockDeclared{of} not yet mapped"));
             }
-            (vec!["(Begins Block)".to_string()], agent_facet(by)?)
+            (vec!["(Begins Block)".to_string()].into(), agent_facet(by)?)
         }
         EventFilter::Attached { what, to } => {
             if !matches!(to, Predicate::Any) {
@@ -2934,7 +3042,10 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                     "Attached{to} not yet mapped (no Idris patient facet for Begins Attach)",
                 ));
             }
-            (vec!["(Begins Attach)".to_string()], agent_facet(what)?)
+            (
+                vec!["(Begins Attach)".to_string()].into(),
+                agent_facet(what)?,
+            )
         }
         EventFilter::StateBecame { of, becomes } => {
             let kind = match becomes {
@@ -2962,7 +3073,7 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                     ));
                 }
             };
-            (vec![kind], agent_facet(of)?)
+            (vec![kind].into(), agent_facet(of)?)
         }
         EventFilter::BecomesTarget { .. } => {
             return Err(gap(
@@ -2980,17 +3091,17 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
                     Some("(Whenever (TurnOf OpponentOf))".to_string())
                 }
             };
-            (vec![kind], facet.into_iter().collect())
+            (vec![kind].into(), facet.into_iter().collect())
         }
         EventFilter::ControlChanged { of, to } => {
             let mut facets = Vec::new();
             if !matches!(of, Predicate::Any) {
-                facets.push(app("Agent", vec![emit_filter(of)?]));
+                facets.push(app("Agent", vec![emit_filter(of)?].into()));
             }
             if !matches!(to, Predicate::Any) {
-                facets.push(app("Actor", vec![emit_filter(to)?]));
+                facets.push(app("Actor", vec![emit_filter(to)?].into()));
             }
-            (vec!["GainControl".to_string()], facets)
+            (vec!["GainControl".to_string()].into(), facets.into())
         }
         EventFilter::DesignationChanged { .. } => {
             return Err(gap(
@@ -3000,12 +3111,12 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         EventFilter::TokenCreated { what, by } => {
             let mut facets = Vec::new();
             if !matches!(what, Predicate::Any) {
-                facets.push(app("Agent", vec![emit_filter(what)?]));
+                facets.push(app("Agent", vec![emit_filter(what)?].into()));
             }
             if !matches!(by, Predicate::Any) {
-                facets.push(app("Actor", vec![emit_filter(by)?]));
+                facets.push(app("Actor", vec![emit_filter(by)?].into()));
             }
-            (vec!["CreateToken".to_string()], facets)
+            (vec!["CreateToken".to_string()].into(), facets.into())
         }
         EventFilter::Used { .. } => {
             return Err(gap("EventFilter::Used has no Idris EventKind counterpart"));
@@ -3016,25 +3127,25 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         // flip, `Just True`/`Just False` = won/lost (Chance Encounter's
         // trigger: `MkEventQuery [FlipCoin (Just True)] [Actor you]`).
         EventFilter::CoinFlipped { by, won } => (
-            vec![format!("(FlipCoin {})", opt_bool(*won))],
+            vec![format!("(FlipCoin {})", opt_bool(*won))].into(),
             actor_facet(by)?,
         ),
-        EventFilter::DiceRolled { by } => (vec!["RollDice".to_string()], actor_facet(by)?),
+        EventFilter::DiceRolled { by } => (vec!["RollDice".to_string()].into(), actor_facet(by)?),
         // [CR#106.12,106.12a]: the ONE event kind whose `producesMana` cap
         // is `True` — the tapped land is the Agent, its controller the
         // Actor (Dictate of Karametra's trigger: `MkEventQuery [TapForMana]
         // [Actor you, Agent (hasType Land)]`).
         EventFilter::TapForMana { what, by } => {
-            let mut facets = actor_facet(by)?;
+            let mut facets = actor_facet(by)?.to_vec();
             if !matches!(what, Predicate::Any) {
-                facets.push(app("Agent", vec![emit_filter(what)?]));
+                facets.push(app("Agent", vec![emit_filter(what)?].into()));
             }
-            (vec!["TapForMana".to_string()], facets)
+            (vec!["TapForMana".to_string()].into(), facets.into())
         }
         // [CR#901.9,901.9d]: the fixed six-face planar die — `face`
         // wildcards like `ZoneChanged`'s zones (`Nothing` = any face).
         EventFilter::RollPlanarDie { by, face } => (
-            vec![format!("(RollPlanarDie {})", opt_planar_face(*face))],
+            vec![format!("(RollPlanarDie {})", opt_planar_face(*face))].into(),
             actor_facet(by)?,
         ),
         EventFilter::BecameDay | EventFilter::BecameNight => {
@@ -3046,9 +3157,10 @@ fn emit_event_filter(ef: &EventFilter) -> Result<(Vec<String>, Vec<String>), Gap
         EventFilter::OneOrMore(_) => return Err(gap("EventFilter::OneOrMore not yet mapped")),
         EventFilter::Nth { .. } => return Err(gap("EventFilter::Nth not yet mapped")),
         EventFilter::When(inner, cond) => {
-            let (kinds, mut facets) = emit_event_filter(inner)?;
-            facets.push(app("Whenever", vec![emit_condition(cond)?]));
-            (kinds, facets)
+            let (kinds, facets) = emit_event_filter(inner)?;
+            let mut facets = facets.to_vec();
+            facets.push(app("Whenever", vec![emit_condition(cond)?].into()));
+            (kinds, facets.into())
         }
         EventFilter::Within(..) => {
             return Err(gap(
@@ -3109,26 +3221,26 @@ fn opt_planar_face(f: Option<deckmaste_core::PlanarFace>) -> String {
     }
 }
 
-fn actor_facet(who: &Predicate) -> Result<Vec<String>, Gap> {
+fn actor_facet(who: &Predicate) -> Result<Arc<[String]>, Gap> {
     if matches!(who, Predicate::Any) {
-        Ok(vec![])
+        Ok(vec![].into())
     } else {
-        Ok(vec![app("Actor", vec![emit_filter(who)?])])
+        Ok(vec![app("Actor", vec![emit_filter(who)?].into())].into())
     }
 }
 
-fn agent_facet(what: &Predicate) -> Result<Vec<String>, Gap> {
+fn agent_facet(what: &Predicate) -> Result<Arc<[String]>, Gap> {
     if matches!(what, Predicate::Any) {
-        Ok(vec![])
+        Ok(vec![].into())
     } else {
-        Ok(vec![app("Agent", vec![emit_filter(what)?])])
+        Ok(vec![app("Agent", vec![emit_filter(what)?].into())].into())
     }
 }
 
-fn actor_agent_facets(who: &Predicate, what: &Predicate) -> Result<Vec<String>, Gap> {
-    let mut facets = actor_facet(who)?;
-    facets.extend(agent_facet(what)?);
-    Ok(facets)
+fn actor_agent_facets(who: &Predicate, what: &Predicate) -> Result<Arc<[String]>, Gap> {
+    let mut facets = actor_facet(who)?.to_vec();
+    facets.extend(agent_facet(what)?.iter().cloned());
+    Ok(facets.into())
 }
 
 /// Map a keyword-action verb name ([CR#701]) to its Idris `EventKind`
@@ -3149,11 +3261,11 @@ fn act_event_kind(verb: &str) -> Result<String, Gap> {
 
 /// `AllOf` merges constituents that share the same emitted kind list,
 /// concatenating facets (the same occurrence, refined further).
-fn merge_all_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
-    let mut kinds: Option<Vec<String>> = None;
+fn merge_all_of(fs: &[EventFilter]) -> Result<KindsAndFacets, Gap> {
+    let mut kinds: Option<Arc<[String]>> = None;
     let mut facets = Vec::new();
     for f in fs {
-        let (k, mut fa) = emit_event_filter(f)?;
+        let (k, fa) = emit_event_filter(f)?;
         if !k.is_empty() {
             match &kinds {
                 None => kinds = Some(k),
@@ -3161,19 +3273,19 @@ fn merge_all_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
                 Some(_) => return Err(gap("AllOf constituents specify conflicting event kinds")),
             }
         }
-        facets.append(&mut fa);
+        facets.extend(fa.iter().cloned());
     }
-    Ok((kinds.unwrap_or_default(), facets))
+    Ok((kinds.unwrap_or_default(), facets.into()))
 }
 
 /// `OneOf` widens the kind list when every disjunct shares the same facets
 /// (the common case: "whenever a creature attacks or blocks").
-fn merge_one_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
+fn merge_one_of(fs: &[EventFilter]) -> Result<KindsAndFacets, Gap> {
     let mut kinds = Vec::new();
-    let mut shared_facets: Option<Vec<String>> = None;
+    let mut shared_facets: Option<Arc<[String]>> = None;
     for f in fs {
         let (k, fa) = emit_event_filter(f)?;
-        kinds.extend(k);
+        kinds.extend(k.iter().cloned());
         match &shared_facets {
             None => shared_facets = Some(fa),
             Some(existing) if *existing == fa => {}
@@ -3184,7 +3296,7 @@ fn merge_one_of(fs: &[EventFilter]) -> Result<(Vec<String>, Vec<String>), Gap> {
             }
         }
     }
-    Ok((kinds, shared_facets.unwrap_or_default()))
+    Ok((kinds.into(), shared_facets.unwrap_or_default()))
 }
 
 // ===========================================================================
@@ -3211,32 +3323,37 @@ fn emit_effect(e: &OneShotEffect) -> R {
         OneShotEffect::Act(
             a @ Action::By(_, PlayerAction::Create(count, TokenSpec::Copy(_), _)),
         ) => {
-            let single = app("Act", vec![emit_action(a)?]);
+            let single = app("Act", vec![emit_action(a)?].into());
             if count.literal_value() == Some(1) {
                 single
             } else {
-                app("Batch", vec![emit_count(count)?, single])
+                app("Batch", vec![emit_count(count)?, single].into())
             }
         }
-        OneShotEffect::Act(a) => app("Act", vec![emit_action(a)?]),
-        OneShotEffect::Sequentially(es) => app("Sequentially", vec![map_list(es, emit_effect)?]),
+        OneShotEffect::Act(a) => app("Act", vec![emit_action(a)?].into()),
+        OneShotEffect::Sequentially(es) => {
+            app("Sequentially", vec![map_list(es, emit_effect)?].into())
+        }
         // One pre-application snapshot, one batch ([CR#701.14a]) — a plain list
         // (no `SeqList` threading, unlike `Sequentially`). Fight's guarded body
         // rides this.
         OneShotEffect::Simultaneously(es) => {
-            app("Simultaneously", vec![map_list(es, emit_effect)?])
+            app("Simultaneously", vec![map_list(es, emit_effect)?].into())
         }
         OneShotEffect::Continuously(c) => app(
             "Continuously",
-            vec![emit_duration(&c.duration)?, emit_static_effect(&c.effect)?],
+            vec![emit_duration(&c.duration)?, emit_static_effect(&c.effect)?].into(),
         ),
         OneShotEffect::Until(duration, parts) => {
             let d = emit_duration(duration)?;
             let mut wrapped = Vec::with_capacity(parts.len());
-            for p in parts {
-                wrapped.push(app("Continuously", vec![d.clone(), emit_static_effect(p)?]));
+            for p in parts.iter() {
+                wrapped.push(app(
+                    "Continuously",
+                    vec![d.clone(), emit_static_effect(p)?].into(),
+                ));
             }
-            app("Sequentially", vec![ilist(wrapped)])
+            app("Sequentially", vec![ilist(wrapped.into())].into())
         }
         OneShotEffect::Label { .. } => {
             return Err(gap(
@@ -3252,7 +3369,8 @@ fn emit_effect(e: &OneShotEffect) -> R {
                 emit_effect(&m.effect)?,
                 opt_effect(&m.if_did)?,
                 opt_effect(&m.if_not)?,
-            ],
+            ]
+            .into(),
         ),
         // `ifElse` takes the (default-`Nothing`) `otherwise` positionally.
         OneShotEffect::If(i) => app(
@@ -3261,7 +3379,8 @@ fn emit_effect(e: &OneShotEffect) -> R {
                 emit_condition(&i.condition)?,
                 emit_effect(&i.then)?,
                 opt_effect(&i.otherwise)?,
-            ],
+            ]
+            .into(),
         ),
         // `mayPayFull`/`mustPayBy` take the (default-`You`) actor positionally.
         OneShotEffect::MayPay(m) => app(
@@ -3271,7 +3390,8 @@ fn emit_effect(e: &OneShotEffect) -> R {
                 emit_cost(&m.cost)?,
                 emit_effect(&m.and_then)?,
                 opt_effect(&m.or_else)?,
-            ],
+            ]
+            .into(),
         ),
         OneShotEffect::MustPay(m) => app(
             "mustPayBy",
@@ -3279,48 +3399,58 @@ fn emit_effect(e: &OneShotEffect) -> R {
                 emit_reference(&m.actor)?,
                 emit_cost(&m.cost)?,
                 emit_effect(&m.or_else)?,
-            ],
+            ]
+            .into(),
         ),
         OneShotEffect::AdditionalCost(ac) => app(
             "AdditionalCost",
-            vec![emit_cost(&ac.pay)?, emit_effect(&ac.body)?],
+            vec![emit_cost(&ac.pay)?, emit_effect(&ac.body)?].into(),
         ),
         OneShotEffect::Each(e) => app(
             "Each",
-            vec![emit_binder(&e.binder)?, emit_effect(&e.effect)?],
+            vec![emit_binder(&e.binder)?, emit_effect(&e.effect)?].into(),
         ),
-        OneShotEffect::With(w) => app("With", vec![emit_binder(&w.binder)?, emit_effect(&w.body)?]),
+        OneShotEffect::With(w) => app(
+            "With",
+            vec![emit_binder(&w.binder)?, emit_effect(&w.body)?].into(),
+        ),
         OneShotEffect::Distribute(d) => app(
             "Distribute",
             vec![
                 emit_count(&d.amount)?,
                 emit_binder(&d.binder)?,
                 emit_effect(&d.body)?,
-            ],
+            ]
+            .into(),
         ),
         OneShotEffect::Noting(_) => return Err(gap("OneShotEffect::Noting not yet mapped")),
         OneShotEffect::Delayed(ta) => {
             let (kinds, facets) = emit_event_filter(&ta.event)?;
             app(
                 "Delayed",
-                vec![event_query(&kinds, &facets), emit_effect(&ta.effect)?],
+                vec![event_query(&kinds, &facets), emit_effect(&ta.effect)?].into(),
             )
         }
-        OneShotEffect::Reflexive(ta) => app("Reflexive", vec![emit_effect(&ta.effect)?]),
+        OneShotEffect::Reflexive(ta) => app("Reflexive", vec![emit_effect(&ta.effect)?].into()),
         OneShotEffect::Modal(m) => emit_modal(m)?,
         OneShotEffect::Targeted(t) => emit_targeted(t)?,
-        OneShotEffect::Repeat(n, body) => app("Repeat", vec![emit_count(n)?, emit_effect(body)?]),
+        OneShotEffect::Repeat(n, body) => {
+            app("Repeat", vec![emit_count(n)?, emit_effect(body)?].into())
+        }
         // SHELL: `Batch` emits exactly like `Repeat` at this stage (see the
         // Idris `Batch` doc comment) — the aggregate-count tier is a later
         // pass's job, not this one's.
-        OneShotEffect::Batch(n, body) => app("Batch", vec![emit_count(n)?, emit_effect(body)?]),
+        OneShotEffect::Batch(n, body) => {
+            app("Batch", vec![emit_count(n)?, emit_effect(body)?].into())
+        }
         OneShotEffect::RevealUntil(r) => app(
             "RevealUntil",
             vec![
                 emit_reference(&r.whose)?,
                 emit_filter(&r.matches)?,
                 emit_effect(&r.body)?,
-            ],
+            ]
+            .into(),
         ),
         OneShotEffect::Expanded(_) => {
             return Err(gap(
@@ -3348,10 +3478,10 @@ fn emit_duration(d: &deckmaste_core::Duration) -> R {
         },
         deckmaste_core::Duration::UntilEvent(ef) => {
             let (kinds, facets) = emit_event_filter(ef)?;
-            app("UntilEvent", vec![event_query(&kinds, &facets)])
+            app("UntilEvent", vec![event_query(&kinds, &facets)].into())
         }
         deckmaste_core::Duration::ForAsLongAs(cond) => {
-            app("ForAsLongAs", vec![emit_condition(cond)?])
+            app("ForAsLongAs", vec![emit_condition(cond)?].into())
         }
         // `ForThisEvent` is an engine-level instruction-scoped rider
         // ([CR#611.2a]), NOT an Idris `Duration`: the Idris model expresses
@@ -3370,12 +3500,12 @@ fn emit_duration(d: &deckmaste_core::Duration) -> R {
 
 fn emit_targeted(t: &deckmaste_core::Targeted) -> R {
     let mut specs = Vec::with_capacity(t.targets.len());
-    for ts in &t.targets {
+    for ts in t.targets.iter() {
         specs.push(emit_target_spec(ts)?);
     }
     Ok(format!(
         "(Targeted {} {})",
-        ilist(specs),
+        ilist(specs.into()),
         emit_effect(&t.effect)?
     ))
 }
@@ -3383,17 +3513,17 @@ fn emit_targeted(t: &deckmaste_core::Targeted) -> R {
 fn emit_modal(m: &deckmaste_core::Modal) -> R {
     let choose = emit_choose_spec(&m.choose)?;
     let mut modes = Vec::with_capacity(m.modes.len());
-    for mode in &m.modes {
+    for mode in m.modes.iter() {
         modes.push(emit_mode(mode)?);
     }
-    Ok(format!("(Modal {} {})", choose, ilist(modes)))
+    Ok(format!("(Modal {} {})", choose, ilist(modes.into())))
 }
 
 fn emit_choose_spec(cs: &deckmaste_core::ChooseSpec) -> R {
     let repeats = if cs.repeats { "True" } else { "False" };
     Ok(app(
         "mkChooseSpecRep",
-        vec![emit_quantity(&cs.count)?, repeats.to_string()],
+        vec![emit_quantity(&cs.count)?, repeats.to_string()].into(),
     ))
 }
 
@@ -3402,13 +3532,16 @@ fn emit_mode(m: &deckmaste_core::Mode) -> R {
         None => "Nothing".to_string(),
         Some(cs) => {
             let mut components = Vec::with_capacity(cs.len());
-            for c in cs {
+            for c in cs.iter() {
                 components.push(emit_cost_component(c)?);
             }
-            format!("(Just (Costs {}))", ilist(components))
+            format!("(Just (Costs {}))", ilist(components.into()))
         }
     };
-    Ok(app("mkModeCost", vec![emit_effect(&m.effect)?, cost_maybe]))
+    Ok(app(
+        "mkModeCost",
+        vec![emit_effect(&m.effect)?, cost_maybe].into(),
+    ))
 }
 
 fn emit_separate_piles(_sp: &deckmaste_core::SeparatePiles) -> R {
@@ -3428,7 +3561,7 @@ fn emit_choose_pile(_cp: &deckmaste_core::ChoosePile) -> R {
 /// Emit ONE ability (never splicing) — the Idris `Ability b` text.
 fn emit_ability(a: &Ability) -> R {
     Ok(match a {
-        Ability::Static(se) => app("Static", vec![emit_static_effect(se)?]),
+        Ability::Static(se) => app("Static", vec![emit_static_effect(se)?].into()),
         // `activatedFull` exposes window/limits/from/activationGuard
         // positionally (all default in the constructor).
         Ability::Activated(aa) => {
@@ -3459,14 +3592,16 @@ fn emit_ability(a: &Ability) -> R {
                     limits,
                     from,
                     guard,
-                ],
+                ]
+                .into(),
             )
         }
         // `triggeredFull` exposes limits/from positionally.
         Ability::Triggered(ta) => {
-            let (kinds, mut facets) = emit_event_filter(&ta.event)?;
+            let (kinds, facets) = emit_event_filter(&ta.event)?;
+            let mut facets = facets.to_vec();
             if let Some(cond) = &ta.condition {
-                facets.push(app("Whenever", vec![emit_condition(cond)?]));
+                facets.push(app("Whenever", vec![emit_condition(cond)?].into()));
             }
             if ta.where_x.is_some() {
                 return Err(gap("TriggeredAbility.where_x not yet mapped"));
@@ -3483,11 +3618,12 @@ fn emit_ability(a: &Ability) -> R {
                     emit_effect(&ta.effect)?,
                     limits,
                     from,
-                ],
+                ]
+                .into(),
             )
         }
-        Ability::Spell(sa) => app("Spell", vec![emit_effect(&sa.effect)?]),
-        Ability::Keyword(ka) => app("Keyword", vec![emit_keyword_ability(ka)?]),
+        Ability::Spell(sa) => app("Spell", vec![emit_effect(&sa.effect)?].into()),
+        Ability::Keyword(ka) => app("Keyword", vec![emit_keyword_ability(ka)?].into()),
         Ability::Innate(inner) => emit_ability(inner)?,
         Ability::Expanded(_) => {
             return Err(gap(
@@ -3516,7 +3652,7 @@ fn emit_keyword_ability(ka: &KeywordAbility) -> R {
         KeywordAbility::Composite { name, abilities } => {
             let tag = keywordspec_idris(name.as_str())
                 .ok_or_else(|| gap(format!("unmapped keyword name: {}", name.as_str())))?;
-            app("Composite", vec![tag, emit_ability_list(abilities)?])
+            app("Composite", vec![tag, emit_ability_list(abilities)?].into())
         }
         KeywordAbility::Expanded(_) => {
             return Err(gap(
@@ -3532,7 +3668,7 @@ fn emit_keyword_ability(ka: &KeywordAbility) -> R {
 /// abilities (the targeting spell, the two `Cant` rows, the attach
 /// replacement) are all faithfully representable on their own. Losing only
 /// the "this is named Enchant" bookkeeping, never the mechanics.
-fn emit_ability_or_splice(a: &Ability) -> Result<Vec<String>, Gap> {
+fn emit_ability_or_splice(a: &Ability) -> Result<Arc<[String]>, Gap> {
     match a {
         Ability::Innate(inner) => emit_ability_or_splice(inner),
         Ability::Keyword(KeywordAbility::Composite { name, abilities })
@@ -3540,20 +3676,20 @@ fn emit_ability_or_splice(a: &Ability) -> Result<Vec<String>, Gap> {
         {
             let mut out = Vec::new();
             for inner in abilities {
-                out.extend(emit_ability_or_splice(inner)?);
+                out.extend(emit_ability_or_splice(inner)?.iter().cloned());
             }
-            Ok(out)
+            Ok(out.into())
         }
-        other => Ok(vec![emit_ability(other)?]),
+        other => Ok(vec![emit_ability(other)?].into()),
     }
 }
 
 fn emit_ability_list(abs: &[Ability]) -> R {
     let mut items = Vec::new();
     for a in abs {
-        items.extend(emit_ability_or_splice(a)?);
+        items.extend(emit_ability_or_splice(a)?.iter().cloned());
     }
-    Ok(ilist(items))
+    Ok(ilist(items.into()))
 }
 
 // ===========================================================================
@@ -3590,7 +3726,8 @@ fn emit_characteristics_from_face(face: &CardFace) -> R {
             toughness,
             loyalty,
             defense,
-        ],
+        ]
+        .into(),
     ))
 }
 
@@ -3612,7 +3749,10 @@ pub fn emit_card_expr(card: &Card, plugin: &Plugin) -> R {
     load_counter_scopes(&plugin.counters);
     load_designation_scopes(&plugin.designations);
     match card {
-        Card::Normal(face) => Ok(app("Normal", vec![emit_characteristics_from_face(face)?])),
+        Card::Normal(face) => Ok(app(
+            "Normal",
+            vec![emit_characteristics_from_face(face)?].into(),
+        )),
         Card::TwoFaced { .. } => Err(gap("Card::TwoFaced not yet mapped")),
     }
 }
@@ -3629,7 +3769,7 @@ pub fn emit_card_expr(card: &Card, plugin: &Plugin) -> R {
 pub fn load_all_cards(
     plugin_dir: &std::path::Path,
     plugin: &crate::plugin::Plugin,
-) -> anyhow::Result<Vec<Card>> {
+) -> anyhow::Result<Arc<[Card]>> {
     use anyhow::Context;
     use deckmaste_core::plugin::CARDS_DIR;
     use deckmaste_core::plugin::is_todo_source;
@@ -3646,7 +3786,7 @@ pub fn load_all_cards(
             .with_context(|| format!("parsing {}", path.display()))?;
         cards.push(card);
     }
-    Ok(cards)
+    Ok(cards.into())
 }
 
 /// The printed name of a card's primary face — what to display/sanitize into
@@ -3690,7 +3830,7 @@ mod tests {
             by: Predicate::Any,
             from: Some(deckmaste_core::Zone::Graveyard),
             window: None,
-            cost: Some(AlternativeCost::Components(vec![CostComponent::Tap])),
+            cost: Some(AlternativeCost::Components(vec![CostComponent::Tap].into())),
             tag: Some(CostTag::from("Flashback")),
         };
         let out = emit_can(&action).expect("Cast.tag should emit");
@@ -3717,7 +3857,7 @@ mod tests {
             by: Predicate::Any,
             from: None,
             window: None,
-            cost: Some(AlternativeCost::Components(vec![CostComponent::Tap])),
+            cost: Some(AlternativeCost::Components(vec![CostComponent::Tap].into())),
             tag: None,
         };
         let out = emit_can(&action).expect("Cast without tag should emit");
@@ -3825,7 +3965,7 @@ mod tests {
             cause: None,
         })
         .expect("EventFilter::Act should now lower (was a gap)");
-        assert_eq!(kinds, vec!["Mill".to_string()]);
+        assert_eq!(kinds, vec!["Mill".to_string()].into());
     }
 
     /// `StatePredicate::WasCastWith` resolves its tag through the same
@@ -3909,10 +4049,10 @@ mod tests {
     #[test]
     fn as_though_counterfactual_wraps_premise_as_matches_this() {
         let effect = StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual {
-            premise: Predicate::Not(std::sync::Arc::new(Predicate::Characteristic(
+            premise: Predicate::Not(Arc::new(Predicate::Characteristic(
                 CharacteristicPredicate::Has(deckmaste_core::KeywordRef::from("Hexproof")),
             ))),
-            then: std::sync::Arc::new(Deontic::May(DeonticAction::Target {
+            then: Arc::new(Deontic::May(DeonticAction::Target {
                 by: deckmaste_core::DeedAgent::default(),
                 on: Predicate::r#type(deckmaste_core::Type::Creature),
             })),
@@ -3940,26 +4080,30 @@ mod tests {
 
     // ---- core-copy-grammar Task 8: copy grammar ([CR#707]) → Idris parity ----
 
-    fn copy_spec(source: CopySource, exceptions: Vec<CopyException>) -> CopySpec {
-        CopySpec { source, exceptions }
+    fn copy_spec(source: CopySource, exceptions: Arc<[CopyException]>) -> CopySpec {
+        CopySpec {
+            source,
+            exceptions: exceptions.to_vec(),
+        }
     }
 
     /// The "except it's a 4/4" exception pair ([CR#707.9d]): a P and a T set,
     /// each a `CopyException::Modify` — shared by the token-copy and
     /// becomes-a-copy assertions.
-    fn four_four_exceptions() -> Vec<CopyException> {
+    fn four_four_exceptions() -> Arc<[CopyException]> {
         vec![
             CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(4)))),
             CopyException::Modify(Modification::Toughness(NumericOp::Set(StatValue::Number(
                 4,
             )))),
         ]
+        .into()
     }
 
     fn token_copy_effect(count: Count, cs: CopySpec) -> OneShotEffect {
         OneShotEffect::Act(Action::By(
             Reference::You,
-            PlayerAction::Create(count, TokenSpec::Copy(cs), Vec::new()),
+            PlayerAction::Create(count, TokenSpec::Copy(cs.into()), [].into()),
         ))
     }
 
@@ -3970,7 +4114,7 @@ mod tests {
     fn token_copy_bare_emits_copy_action() {
         let out = emit_effect(&token_copy_effect(
             Count::Literal(1),
-            copy_spec(CopySource::Object(Reference::Target(0)), Vec::new()),
+            copy_spec(CopySource::Object(Reference::Target(0)), [].into()),
         ))
         .expect("a bare token copy should emit");
         assert_eq!(out, "(Act (Copy (Target 0) []))");
@@ -3982,7 +4126,7 @@ mod tests {
     fn token_copy_selfcard_emits_this_source() {
         let out = emit_effect(&token_copy_effect(
             Count::Literal(1),
-            copy_spec(CopySource::SelfCard, Vec::new()),
+            copy_spec(CopySource::SelfCard, [].into()),
         ))
         .expect("a self-card token copy should emit");
         assert_eq!(out, "(Act (Copy This []))");
@@ -3994,7 +4138,7 @@ mod tests {
     fn token_copy_count_gt_one_wraps_in_batch() {
         let out = emit_effect(&token_copy_effect(
             Count::Literal(2),
-            copy_spec(CopySource::Object(Reference::Target(0)), Vec::new()),
+            copy_spec(CopySource::Object(Reference::Target(0)), [].into()),
         ))
         .expect("a 2x token copy should emit");
         assert_eq!(out, "(Batch (Literal 2) (Act (Copy (Target 0) [])))");
@@ -4010,11 +4154,10 @@ mod tests {
             Reference::You,
             PlayerAction::Create(
                 Count::Literal(2),
-                TokenSpec::Copy(copy_spec(
-                    CopySource::Object(Reference::Target(0)),
-                    Vec::new(),
-                )),
-                Vec::new(),
+                TokenSpec::Copy(
+                    copy_spec(CopySource::Object(Reference::Target(0)), [].into()).into(),
+                ),
+                [].into(),
             ),
         );
         let err = emit_cost_component(&CostComponent::Do(Arc::new(action)))
@@ -4034,11 +4177,10 @@ mod tests {
             Reference::You,
             PlayerAction::Create(
                 Count::Literal(1),
-                TokenSpec::Copy(copy_spec(
-                    CopySource::Object(Reference::Target(0)),
-                    Vec::new(),
-                )),
-                Vec::new(),
+                TokenSpec::Copy(
+                    copy_spec(CopySource::Object(Reference::Target(0)), [].into()).into(),
+                ),
+                [].into(),
             ),
         );
         let out = emit_cost_component(&CostComponent::Do(Arc::new(action)))
@@ -4075,7 +4217,8 @@ mod tests {
                 CopySource::Object(Reference::Target(0)),
                 vec![CopyException::Retain(
                     deckmaste_core::Characteristic::Colors,
-                )],
+                )]
+                .into(),
             ),
         ))
         .expect_err("a Retain exception should gap");
@@ -4092,7 +4235,7 @@ mod tests {
     fn becomes_copy_bare_emits_modify_become_copy_of() {
         let out = emit_static_effect(&StaticEffect::BecomesCopy(
             Reference::This,
-            copy_spec(CopySource::Object(Reference::Target(0)), Vec::new()),
+            copy_spec(CopySource::Object(Reference::Target(0)), [].into()),
         ))
         .expect("a bare becomes-a-copy should emit");
         assert_eq!(out, "(Modify This (BecomeCopyOf (Target 0)))");
@@ -4124,7 +4267,7 @@ mod tests {
     /// rider-list path gaps pointing at that deferred carrier.
     #[test]
     fn as_copy_lowers_to_become_copy_of() {
-        let cs = copy_spec(CopySource::Object(Reference::Target(0)), Vec::new());
+        let cs = copy_spec(CopySource::Object(Reference::Target(0)), [].into());
         let rider = EnterRider::AsCopy(cs.clone());
 
         // The payload mapping (shared with becomes-a-copy).
@@ -4152,7 +4295,7 @@ mod tests {
         let err = emit_player_action(
             &PlayerAction::CastCopy(copy_spec(
                 CopySource::Object(Reference::Target(0)),
-                Vec::new(),
+                [].into(),
             )),
             &Reference::You,
         )

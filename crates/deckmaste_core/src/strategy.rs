@@ -16,6 +16,8 @@
 //! [`Predicate`]: crate::Predicate
 //! [`Count`]: crate::Count
 
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -134,7 +136,7 @@ pub struct Rule {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Strategy {
     /// Human-facing name.
-    pub name: String,
+    pub name: Arc<str>,
     /// Ordered rules; the first whose `when` holds and whose `prefer` is legal
     /// wins.
     pub rules: Vec<Rule>,
@@ -240,11 +242,11 @@ mod tests {
                 ],
             )"#,
         );
-        assert_eq!(s.name, "Test Aggro");
+        assert_eq!(&*s.name, "Test Aggro");
         assert_eq!(s.rules.len(), 2);
         assert_eq!(s.rules[0].when, Condition::YourTurn);
         assert!(matches!(s.rules[0].prefer, Preference::Cast { .. }));
-        assert_eq!(s.rules[1].when, Condition::And(vec![]));
+        assert_eq!(s.rules[1].when, Condition::And(vec![].into()));
         assert_eq!(s.rules[1].prefer, Preference::Pass);
     }
 

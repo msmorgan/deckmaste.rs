@@ -271,12 +271,12 @@ pub(super) fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
             .copied()
             .find(|&o| {
                 state.objects.obj(o).card_id().is_some()
-                    && matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if f.name == *name)
+                    && matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if &*f.name == *name)
             })
             .or_else(|| {
                 state.zones.libraries[p].iter().copied().find(|&o| {
                     state.objects.obj(o).card_id().is_some()
-                        && matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if f.name == *name)
+                        && matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if &*f.name == *name)
                 })
             })
             .unwrap_or_else(|| panic!("no {name} in P0's hand or library"));
@@ -303,10 +303,13 @@ pub(super) fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
     let is_creature = |r: &Reference| {
         Condition::Matches(
             r.clone(),
-            Predicate::And(vec![
-                Predicate::r#type(Type::Creature),
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            ]),
+            Predicate::And(
+                vec![
+                    Predicate::r#type(Type::Creature),
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                ]
+                .into(),
+            ),
         )
     };
     let half = |tgt: &Reference, src: &Reference| {
@@ -319,8 +322,10 @@ pub(super) fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
     OneShotEffect::Act(Action::Composite {
         name: deckmaste_core::VerbName::from("Fight"),
         body: Arc::new(OneShotEffect::If(deckmaste_core::If {
-            condition: Condition::And(vec![is_creature(x), is_creature(y)]),
-            then: Arc::new(OneShotEffect::Simultaneously(vec![half(y, x), half(x, y)])),
+            condition: Condition::And(vec![is_creature(x), is_creature(y)].into()),
+            then: Arc::new(OneShotEffect::Simultaneously(
+                vec![half(y, x), half(x, y)].into(),
+            )),
             otherwise: None,
         })),
     })

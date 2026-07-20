@@ -21,6 +21,7 @@ use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::sync::Arc;
 
+// type Vec<T> = Arc<[T]>;
 use crate::Ident;
 
 /// Recursively replaces every `Expanded` node with its stored value.
@@ -63,7 +64,26 @@ macro_rules! traverse_leaf {
 }
 
 traverse_leaf!(
-    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64, bool, char, String,
+    u8,
+    u16,
+    u32,
+    u64,
+    u128,
+    usize,
+    i8,
+    i16,
+    i32,
+    i64,
+    i128,
+    isize,
+    f32,
+    f64,
+    bool,
+    char,
+    String,
+    // `Arc<str>` is a leaf like `String` (shared, cheap-clone text). The `Arc<T>`
+    // blanket above can't cover it — `str` is unsized, so it's not a `T: Sized`.
+    Arc<str>,
     Ident,
 );
 
@@ -81,6 +101,16 @@ impl<T: Expand> Expand for Box<T> {
 impl<T: Expand + Clone> Expand for Arc<T> {
     fn expand_all(self) -> Self {
         Arc::new(Arc::unwrap_or_clone(self).expand_all())
+    }
+}
+
+// Grammar lists are frozen `Arc<[T]>` (a single shared allocation, O(1) whole-
+// list clone on the hot path). Unlike `Arc<T>`, a slice can't move its payload
+// out of the `Arc`, so the rebuild always clones its elements before recursing
+// — then re-freezes into a fresh `Arc<[T]>` via `FromIterator`.
+impl<T: Expand + Clone> Expand for Arc<[T]> {
+    fn expand_all(self) -> Self {
+        self.iter().cloned().map(Expand::expand_all).collect()
     }
 }
 
@@ -134,6 +164,14 @@ impl<T: Normalize> Normalize for Box<T> {
 impl<T: Normalize + Clone> Normalize for Arc<T> {
     fn normalize(self) -> Self {
         Arc::new(Arc::unwrap_or_clone(self).normalize())
+    }
+}
+
+// See the `Expand for Arc<[T]>` note: a shared slice clones its elements before
+// recursing, then re-freezes into a fresh `Arc<[T]>`.
+impl<T: Normalize + Clone> Normalize for Arc<[T]> {
+    fn normalize(self) -> Self {
+        self.iter().cloned().map(Normalize::normalize).collect()
     }
 }
 

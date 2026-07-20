@@ -45,7 +45,7 @@ pub enum ManaSpec {
     /// One mana of a color the controller chooses from a fixed set on
     /// resolution ("{W} or {U}", [CR#106.1b]) — a single mana ability, not a
     /// [CR#700.2] modal choice. Members keep their printed order.
-    OneOf(Vec<ColorOrColorless>),
+    OneOf(Arc<[ColorOrColorless]>),
     /// A choice among multi-symbol RUNS the controller makes on resolution
     /// ("{W}{W}, {W}{U}, or {U}{U}", the filterland cycle, [CR#106.1b]): one
     /// mana ability offering several fixed sequences, the chosen run's whole
@@ -53,7 +53,7 @@ pub enum ManaSpec {
     /// colored/colorless symbols; runs keep their printed order. The
     /// general multi-mana form of `OneOf` (whose "runs" are each one mana);
     /// still a single mana ability, not a [CR#700.2] modal choice.
-    OneOfRuns(Vec<Vec<ColorOrColorless>>),
+    OneOfRuns(Arc<[Vec<ColorOrColorless>]>),
     /// One mana of any of a referenced object's colors ([CR#105.2]) — the
     /// producer picks AMONG that object's colors, not a fixed authored set
     /// (distinct from [`OneOf`](ManaSpec::OneOf)): Chrome Mox's imprint,
@@ -206,9 +206,9 @@ pub enum SymbolPred {
     /// A generic pip (`{2}`, `{X}`), i.e. one with no color.
     IsGeneric,
     /// All of the given filters (non-empty by convention; empty fizzles).
-    And(Vec<SymbolPred>),
+    And(Arc<[SymbolPred]>),
     /// Any of the given filters (non-empty by convention; empty = "no colors").
-    Or(Vec<SymbolPred>),
+    Or(Arc<[SymbolPred]>),
     /// The negation of a filter.
     Not(Arc<SymbolPred>),
 }
@@ -304,7 +304,7 @@ pub enum ManaRider {
 pub enum ManaProduction {
     WithRiders {
         mana: ManaSpec,
-        riders: Vec<ManaRider>,
+        riders: Arc<[ManaRider]>,
     },
     #[macro_ron(embed)]
     Bare(ManaSpec),
@@ -332,7 +332,7 @@ impl<T: Into<ManaSpec>> From<T> for ManaProduction {
 /// spelled `[Generic(0)]` — payable with nothing, but still a payment.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 #[serde(transparent)]
-pub struct ManaCost(Vec<ManaSymbol>);
+pub struct ManaCost(Arc<[ManaSymbol]>);
 
 impl ManaCost {
     #[must_use]
@@ -362,13 +362,13 @@ impl ManaCost {
     }
 }
 
-impl From<Vec<ManaSymbol>> for ManaCost {
-    fn from(symbols: Vec<ManaSymbol>) -> Self {
+impl From<Arc<[ManaSymbol]>> for ManaCost {
+    fn from(symbols: Arc<[ManaSymbol]>) -> Self {
         Self(symbols)
     }
 }
 
-impl From<ManaCost> for Vec<ManaSymbol> {
+impl From<ManaCost> for Arc<[ManaSymbol]> {
     fn from(cost: ManaCost) -> Self {
         cost.0
     }
@@ -423,7 +423,7 @@ fn parse_simple(code: &str) -> Option<SimpleManaSymbol> {
 /// the compositional hybrid/Phyrexian forms — including deliberately unprinted
 /// ones like `{5/W}` — matching the permissive [`ManaSymbol`] shape.
 fn parse_symbol_body(body: &str) -> Option<ManaSymbol> {
-    Some(match *body.split('/').collect::<Vec<_>>() {
+    Some(match *body.split('/').collect::<Arc<[_]>>() {
         ["X"] => ManaSymbol::Variable,
         ["S"] => ManaSymbol::Snow,
         [simple] => ManaSymbol::Simple(parse_simple(simple)?),
@@ -457,7 +457,7 @@ impl FromStr for ManaCost {
     /// Parses a mana cost like "{2}{W/U}{X}": a string of symbols and nothing
     /// else. The empty string is the empty cost.
     fn from_str(mana_cost: &str) -> Result<Self, Self::Err> {
-        let mut symbols = Vec::new();
+        let mut symbols: Vec<ManaSymbol> = Vec::new();
         let mut rest = mana_cost;
         while !rest.is_empty() {
             let end = rest.find('}').map_or(rest.len(), |close| close + 1);
@@ -465,7 +465,7 @@ impl FromStr for ManaCost {
             symbols.push(symbol.parse()?);
             rest = tail;
         }
-        Ok(Self(symbols))
+        Ok(Self(symbols.into()))
     }
 }
 
@@ -543,19 +543,25 @@ mod tests {
 
         assert_eq!(
             cost("{1}{G}").unwrap(),
-            ManaCost(vec![Simple(Generic(1)), Green.into()])
+            ManaCost(vec![Simple(Generic(1)), Green.into()].into())
         );
-        assert_eq!(cost("{X}{S}").unwrap(), ManaCost(vec![Variable, Snow]));
+        assert_eq!(
+            cost("{X}{S}").unwrap(),
+            ManaCost(vec![Variable, Snow].into())
+        );
         assert_eq!(
             cost("{2/W}{C/B}").unwrap(),
-            ManaCost(vec![
-                Hybrid(Generic(2), White),
-                Hybrid(Specific(Colorless), Black),
-            ])
+            ManaCost(
+                vec![
+                    Hybrid(Generic(2), White),
+                    Hybrid(Specific(Colorless), Black),
+                ]
+                .into()
+            )
         );
         assert_eq!(
             cost("{G/U/P}{W/P}").unwrap(),
-            ManaCost(vec![Phyrexian(Green, Some(Blue)), Phyrexian(White, None),])
+            ManaCost(vec![Phyrexian(Green, Some(Blue)), Phyrexian(White, None),].into())
         );
         assert_eq!(cost("").unwrap(), ManaCost::default());
 
@@ -639,13 +645,16 @@ mod tests {
     fn mana_spec_one_of_round_trips() {
         let read = |s: &str| crate::ron::options().from_str::<ManaSpec>(s).unwrap();
         let spec = read("OneOf([White, Blue])");
-        assert_eq!(spec, ManaSpec::OneOf(vec![White.into(), Blue.into()]));
+        assert_eq!(
+            spec,
+            ManaSpec::OneOf(vec![White.into(), Blue.into()].into())
+        );
         let write = |m: &ManaSpec| crate::ron::options().to_string(m).unwrap();
         assert_eq!(write(&spec), "OneOf([White,Blue])");
         // Colorless is a valid member too ({C} or {U} appears in the corpus).
         assert_eq!(
             read("OneOf([Colorless, Blue])"),
-            ManaSpec::OneOf(vec![Colorless, Blue.into()])
+            ManaSpec::OneOf(vec![Colorless, Blue.into()].into())
         );
     }
 
@@ -658,11 +667,14 @@ mod tests {
         let spec = read("OneOfRuns([[White, White], [White, Blue], [Blue, Blue]])");
         assert_eq!(
             spec,
-            ManaSpec::OneOfRuns(vec![
-                vec![White.into(), White.into()],
-                vec![White.into(), Blue.into()],
-                vec![Blue.into(), Blue.into()],
-            ])
+            ManaSpec::OneOfRuns(
+                vec![
+                    vec![White.into(), White.into()],
+                    vec![White.into(), Blue.into()],
+                    vec![Blue.into(), Blue.into()],
+                ]
+                .into()
+            )
         );
         let write = |m: &ManaSpec| crate::ron::options().to_string(m).unwrap();
         assert_eq!(
@@ -672,10 +684,9 @@ mod tests {
         // Colorless is a valid member of a run too.
         assert_eq!(
             read("OneOfRuns([[Colorless, Colorless], [Colorless, Blue]])"),
-            ManaSpec::OneOfRuns(vec![
-                vec![Colorless, Colorless],
-                vec![Colorless, Blue.into()],
-            ])
+            ManaSpec::OneOfRuns(
+                vec![vec![Colorless, Colorless], vec![Colorless, Blue.into()],].into()
+            )
         );
     }
 
@@ -689,10 +700,13 @@ mod tests {
         let g = SymbolPred::CountsAs(Color::Green);
         assert_eq!(read("CountsAs(Green)"), g);
         assert_eq!(read(&write(&g)), g);
-        let wb = SymbolPred::Or(vec![
-            SymbolPred::CountsAs(Color::White),
-            SymbolPred::CountsAs(Color::Black),
-        ]);
+        let wb = SymbolPred::Or(
+            vec![
+                SymbolPred::CountsAs(Color::White),
+                SymbolPred::CountsAs(Color::Black),
+            ]
+            .into(),
+        );
         assert_eq!(read(&write(&wb)), wb);
         assert_eq!(read("AnyColor"), SymbolPred::AnyColor); // spend-time spelling preserved
 
@@ -741,7 +755,7 @@ mod tests {
             wr,
             ManaProduction::WithRiders {
                 mana: ManaSpec::Specific(Colorless),
-                riders: vec![ManaRider::Snow],
+                riders: vec![ManaRider::Snow].into(),
             }
         );
         assert_eq!(write(&wr), "WithRiders(mana:Colorless,riders:[Snow])");
@@ -768,6 +782,6 @@ mod tests {
             panic!("expected WithRiders");
         };
         assert_eq!(mana, ManaSpec::Specific(Colorless));
-        assert!(matches!(riders.as_slice(), [ManaRider::SpendOnly(_)]));
+        assert!(matches!(riders.as_ref(), [ManaRider::SpendOnly(_)]));
     }
 }

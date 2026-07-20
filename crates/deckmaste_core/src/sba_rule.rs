@@ -37,7 +37,7 @@ mod tests {
         let rule = SbaRule {
             scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.into())),
             when: Condition::YourTurn,
-            then: OneShotEffect::Sequentially(vec![]),
+            then: OneShotEffect::Sequentially(vec![].into()),
         };
         assert!(matches!(rule.scope, Predicate::Characteristic(_)));
         assert!(matches!(rule.when, Condition::YourTurn));

@@ -4,6 +4,8 @@
 //! out of the data; the engine never special-cases land subtypes) are folded
 //! in later, per pass, by `layer::fold_conferred_abilities`.
 
+use std::sync::Arc;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Card;
@@ -117,14 +119,14 @@ pub(crate) fn conferred_rule_abilities(state: &GameState, id: ObjectId) -> Vec<A
 /// are folded in here too, alongside the layer view's own list, and peeled
 /// the same way.
 #[must_use]
-pub fn usable_abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>> {
+pub fn usable_abilities(state: &GameState, id: ObjectId) -> Arc<Vec<Ability>> {
     let view = state.layers();
     let derived = &view.get(id).abilities;
     let conferred = conferred_rule_abilities(state, id);
     if conferred.is_empty() && !derived.iter().any(|a| matches!(a, Ability::Innate(_))) {
-        return std::sync::Arc::clone(derived);
+        return Arc::clone(derived);
     }
-    std::sync::Arc::new(
+    Arc::new(
         derived
             .iter()
             .chain(conferred.iter())
@@ -152,15 +154,15 @@ pub fn usable_abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<A
 /// are folded in here too — and, being `Innate`, filtered right back out, the
 /// same as a subtype conferral.
 #[must_use]
-pub fn abilities(state: &GameState, id: ObjectId) -> std::sync::Arc<Vec<Ability>> {
+pub fn abilities(state: &GameState, id: ObjectId) -> Arc<Vec<Ability>> {
     let view = state.layers();
     let derived = &view.get(id).abilities;
     let conferred = conferred_rule_abilities(state, id);
     if conferred.is_empty() && !derived.iter().any(Ability::is_innate) {
         // No Innate present — return the shared Arc unchanged (the common case).
-        return std::sync::Arc::clone(derived);
+        return Arc::clone(derived);
     }
-    std::sync::Arc::new(
+    Arc::new(
         derived
             .iter()
             .chain(conferred.iter())
@@ -368,7 +370,7 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
     match ability {
         Ability::Activated(a)
             if crate::resolve::top_targets(&a.effect).is_empty()
-                && a.cost.as_slice() == [CostComponent::Tap] =>
+                && **a.cost == [CostComponent::Tap] =>
         {
             match &a.effect {
                 // The produced-mana effect is a bare `AddMana` in RON, which
@@ -443,7 +445,7 @@ mod tests {
                 cause: None,
             },
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)),
         };
         let card = Card::Normal(CardFace {
@@ -554,7 +556,7 @@ mod tests {
                 cause: None,
             },
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)),
         };
         // Front: vanilla 1/1, ZERO printed abilities. Back: 3/2 with ONE

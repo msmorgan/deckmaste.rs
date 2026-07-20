@@ -682,7 +682,8 @@ mod tests {
                             from: None,
                         })
                     ))
-                ))],
+                ))]
+                .into(),
             }
         );
         // Instant confers its instant-speed casting window (Task 6, the
@@ -704,7 +705,8 @@ mod tests {
                             tag: None,
                         })
                     ))
-                ))],
+                ))]
+                .into(),
             }
         );
     }
@@ -840,10 +842,10 @@ mod tests {
     #[test]
     fn redeclarations_override_the_prelude() {
         let mut prelude = Plugin::load(plugins().join("builtin")).unwrap();
-        prelude.subtypes.get_mut("Plains").unwrap().types = vec![Type::Creature];
+        prelude.subtypes.get_mut("Plains").unwrap().types = vec![Type::Creature].into();
         let layered = Plugin::load_with_prelude(&prelude, plugins().join("builtin")).unwrap();
         // builtin's own Plains definition replaced the doctored prelude entry.
-        assert_eq!(layered.subtypes["Plains"].types, [Type::Land]);
+        assert_eq!(layered.subtypes["Plains"].types, [Type::Land].into());
     }
 
     /// A meta-invocation definition file loads regardless of file order:
@@ -876,7 +878,7 @@ mod tests {
         .unwrap();
         let plugin = Plugin::load(root.path()).unwrap();
         assert!(plugin.macros.get("Subtype", "Bear").is_some());
-        assert_eq!(plugin.subtypes["Bear"].types, [Type::Creature]);
+        assert_eq!(plugin.subtypes["Bear"].types, [Type::Creature].into());
     }
 
     /// When no pass makes progress, the first remaining failure is real

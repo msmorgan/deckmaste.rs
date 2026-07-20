@@ -42,15 +42,15 @@ fn builtin() -> Plugin {
 fn basic_land_subtype(name: &str, color: Color) -> Subtype {
     Subtype {
         name: name.into(),
-        types: vec![Type::Land],
+        types: vec![Type::Land].into(),
         confers: vec![Property::Ability(Arc::new(Ability::activated(
             ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![CostComponent::Tap].into(),
+                cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::AddMana(
@@ -59,7 +59,8 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                     ),
                 )),
             },
-        )))],
+        )))]
+        .into(),
     }
 }
 
@@ -90,13 +91,14 @@ fn land_type() -> deckmaste_core::TypeDef {
                     from: None,
                 },
             )),
-        )))],
+        )))]
+        .into(),
     }
 }
 
 fn basic_land(name: &str) -> Card {
     Card::Normal(CardFace {
-        name: name.to_owned(),
+        name: name.into(),
         mana_cost: ManaCost::default(),
         supertypes: vec![Supertype::Basic],
         types: vec![land_type()],
@@ -150,7 +152,7 @@ fn basic_lands_parse_against_the_subtype_macros() {
                 .subtypes
                 .get(&subtype.name)
                 .unwrap_or_else(|| panic!("{name} references undeclared {}", subtype.name));
-            for parent in &subtype.types {
+            for parent in subtype.types.iter() {
                 assert!(
                     declared.types.contains(parent),
                     "{} is not a {parent:?} subtype",
@@ -180,8 +182,8 @@ fn declared_subtypes_cover_the_basics() {
 fn subtypes_round_trip_plainly() {
     let forest = Subtype {
         name: "Forest".into(),
-        types: vec![Type::Land],
-        confers: vec![],
+        types: vec![Type::Land].into(),
+        confers: vec![].into(),
     };
     let written = ron_options().to_string(&forest).unwrap();
     let parsed: Subtype = ron_options().from_str(&written).unwrap();
@@ -194,8 +196,8 @@ fn subtypes_round_trip_plainly() {
 fn subtype_confers_round_trips_and_omits_empty() {
     let plain = Subtype {
         name: "Forest".into(),
-        types: vec![Type::Land],
-        confers: vec![],
+        types: vec![Type::Land].into(),
+        confers: vec![].into(),
     };
     let written = ron_options().to_string(&plain).unwrap();
     assert!(
@@ -526,7 +528,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     };
     assert_eq!(
         thresholds,
-        &vec![deckmaste_core::Count::Literal(1)],
+        &Arc::<[deckmaste_core::Count]>::from([deckmaste_core::Count::Literal(1)]),
         "a single chapter is a one-element threshold list"
     );
 }
@@ -552,10 +554,10 @@ fn chapter_range_expands_to_plural_thresholds() {
     };
     assert_eq!(
         thresholds,
-        &vec![
+        &Arc::<[deckmaste_core::Count]>::from([
             deckmaste_core::Count::Literal(2),
             deckmaste_core::Count::Literal(3)
-        ],
+        ]),
         "a range lists every chapter number ([CR#714.2c])"
     );
 }
@@ -592,7 +594,7 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     );
     assert_eq!(
         a.limits,
-        vec![UseLimit::LoyaltyOncePerTurn],
+        vec![UseLimit::LoyaltyOncePerTurn].into(),
         "the shared per-permanent limit ([CR#606.3,306.5d]), not a plain OncePerTurn"
     );
     let Cost(components) = &a.cost;
@@ -623,7 +625,7 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
         panic!("a loyalty ability is an Activated ability ([CR#606.3])");
     };
     assert_eq!(a.window, Some(Timing::SorcerySpeed));
-    assert_eq!(a.limits, vec![UseLimit::LoyaltyOncePerTurn]);
+    assert_eq!(a.limits, vec![UseLimit::LoyaltyOncePerTurn].into());
     let Cost(components) = &a.cost;
     assert!(
         components.iter().any(|c| matches!(
@@ -694,17 +696,21 @@ fn amass_decomposes_into_core_primitives() {
     else {
         panic!("the guard creates a token, got {:?}", guard.then);
     };
-    assert_eq!(tok.color_indicator, vec![Color::Black], "0/0 BLACK token");
+    assert_eq!(
+        tok.color_indicator,
+        vec![Color::Black].into(),
+        "0/0 BLACK token"
+    );
     // The token's `Creature` type carries the combat-capability confers
     // ([CR#508.1a,509.1a]) — the `Creature` cardtype macro expands to the full
     // conferring `TypeDef`, not the empty-confer `Type::Creature.def()`. Read
     // the SAME expansion the token's authored `types: [Creature]` produced.
     let creature_type: deckmaste_core::TypeDef = plugin.macros.read_str("Creature").unwrap();
-    assert_eq!(tok.types, vec![creature_type]);
-    let names: Vec<&str> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(tok.types, vec![creature_type].into());
+    let names: Arc<[&str]> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(
         names,
-        vec!["Zombie", "Army"],
+        vec!["Zombie", "Army"].into(),
         "the amassed subtype PLUS Army"
     );
     assert_eq!(tok.power, Some(deckmaste_core::StatValue::Number(0)));

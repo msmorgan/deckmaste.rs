@@ -1,6 +1,8 @@
 //! The steppable core: `step()` pops one agenda item and returns one
 //! `Progress`. Decisions surface on the following call; the runner loops.
 
+use std::sync::Arc;
+
 use deckmaste_core::BeginningStep;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CombatStep;
@@ -66,6 +68,10 @@ pub(crate) trait EventApply {
 }
 
 /// What one `step()` call produced.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "carries Progress/GameEvent on the hot step() path; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StepOutcome {
     /// One unit of work happened.
@@ -76,6 +82,10 @@ pub enum StepOutcome {
 }
 
 /// One unit of engine work, observed.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "carries Occurrence/GameEvent on the hot step() path; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Progress {
     /// One or more events mutated the state (apply-time bindings filled in).
@@ -298,7 +308,7 @@ impl GameState {
             }
             WorkItem::RunEffect { effect, frame } => {
                 let source = frame.source;
-                self.run_effect(std::sync::Arc::unwrap_or_clone(effect), &frame);
+                self.run_effect(Arc::unwrap_or_clone(effect), &frame);
                 Progress::Resolving(source)
             }
             WorkItem::InstallRiders { no_regen } => {
@@ -2210,6 +2220,8 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use deckmaste_core::Lookback;
     use deckmaste_core::PhaseStep;
     use deckmaste_core::Zone;
@@ -2300,7 +2312,7 @@ mod tests {
     /// `apply_zone_will_change` requires, since it reads the card's owner
     /// ([CR#108.3]) via `ObjectSource::Card` on the way out.
     fn mint_card_backed(state: &mut GameState, controller: PlayerId) -> ObjectId {
-        let card = std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: "Test Card".into(),
             ..deckmaste_core::CardFace::default()
         }));
@@ -2525,12 +2537,11 @@ mod tests {
         // Two cards in hand to discard.
         let mut in_hand = Vec::new();
         for name in ["Discard A", "Discard B"] {
-            let card =
-                std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
-                    name: name.into(),
-                    types: vec![deckmaste_core::Type::Sorcery.def()],
-                    ..deckmaste_core::CardFace::default()
-                }));
+            let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+                name: name.into(),
+                types: vec![deckmaste_core::Type::Sorcery.def()],
+                ..deckmaste_core::CardFace::default()
+            }));
             let cid = state.cards.push(card, PlayerId(0));
             let id = state
                 .objects
@@ -2966,7 +2977,7 @@ mod tests {
         controller: PlayerId,
         abilities: Vec<deckmaste_core::Ability>,
     ) -> ObjectId {
-        let card = std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: "Untap Fixture".into(),
             abilities,
             ..deckmaste_core::CardFace::default()
@@ -3112,12 +3123,12 @@ mod tests {
                 source,
                 ability: Box::new(ActivatedAbility {
                     ability_word: None,
-                    cost: Cost(vec![]),
+                    cost: Cost(vec![].into()),
                     from: None,
                     window: None,
                     condition: None,
-                    limits: vec![],
-                    effect: OneShotEffect::Sequentially(vec![]),
+                    limits: vec![].into(),
+                    effect: OneShotEffect::Sequentially(vec![].into()),
                 }),
                 bindings: TriggerBindings::default(),
             },
@@ -3177,7 +3188,7 @@ mod tests {
             },
         };
         let mut state = game();
-        let card_id = state.cards.push(std::sync::Arc::new(card), PlayerId(0));
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
             PlayerId(0),

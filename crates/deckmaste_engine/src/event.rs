@@ -802,6 +802,15 @@ impl GameEvent {
 
 /// A scheduled occurrence: one event, or a set of simultaneous events applied
 /// and matched together ([CR#603.3b], [CR#700.1]).
+// `GameEvent` (~288B) rides the hot `step()` path one-at-a-time; wrapping it in
+// `Arc`/`Box` here adds a per-event allocation and splits event producers from
+// consumers workspace-wide (see the `WorkItem` note in `agenda.rs`, same
+// rationale). A uniform engine-event `Arc` conversion is tracked in the
+// `arc-engine-event-types` ticket.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "GameEvent rides the hot step() path one-at-a-time; boxing/Arc adds per-event churn (see arc-engine-event-types ticket)"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Occurrence {
     Single(GameEvent),

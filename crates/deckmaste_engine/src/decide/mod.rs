@@ -491,7 +491,7 @@ fn cost_body_effect(
         body.iter().map(|c| unless_cost_effect(c, who)).collect();
     match effects.len() {
         1 => effects.pop().expect("len 1"),
-        _ => deckmaste_core::OneShotEffect::Sequentially(effects),
+        _ => deckmaste_core::OneShotEffect::Sequentially(effects.into()),
     }
 }
 

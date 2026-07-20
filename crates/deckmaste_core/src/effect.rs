@@ -47,7 +47,7 @@ pub enum OneShotEffect {
     #[macro_ron(flatten)]
     Act(Action),
     /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
-    Sequentially(Vec<OneShotEffect>),
+    Sequentially(Arc<[OneShotEffect]>),
     /// Simultaneously sub-effects — the written spec. **One snapshot:** every
     /// member reads game state as of one pre-application view (an exchange
     /// works BECAUSE both halves read the pre-state). **One timestamp, one
@@ -63,7 +63,7 @@ pub enum OneShotEffect {
     /// `Simultaneously` sugar — it stays a primitive verb
     /// ([CR#701.14a..701.14d]). Restricted to the exchange-family macros'
     /// bodies until the wiring generalizes.
-    Simultaneously(Vec<OneShotEffect>),
+    Simultaneously(Arc<[OneShotEffect]>),
     /// A one-shot-created continuous effect ([CR#611.2]).
     Continuously(Continuously),
     /// A one-shot-created continuous effect over a LIST of static parts —
@@ -74,7 +74,7 @@ pub enum OneShotEffect {
     /// follows each part's kind.
     /// (`Continuously` is the single-part spelling; `Static` ability
     /// position stays live re-gathering, [CR#611.3a].)
-    Until(Duration, Vec<StaticEffect>),
+    Until(Duration, Arc<[StaticEffect]>),
     /// `Label { as, effect }` — names the antecedents the inner effect
     /// introduces so later clauses can read them explicitly, rather than by
     /// the positional/anaphoric defaults ([CR#608.2d]).
@@ -254,8 +254,8 @@ pub struct Continuously {
 /// cycle (mirrors `May`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Targeted {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub targets: Vec<TargetSpec>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub targets: Arc<[TargetSpec]>,
     pub effect: Arc<OneShotEffect>,
 }
 
@@ -263,7 +263,7 @@ impl Targeted {
     /// Scopes `targets` over `effect`, boxing the inner effect. Builds the
     /// wrapper without the caller spelling the `Arc::new` / field order.
     #[must_use]
-    pub fn new(targets: Vec<TargetSpec>, effect: OneShotEffect) -> Targeted {
+    pub fn new(targets: Arc<[TargetSpec]>, effect: OneShotEffect) -> Targeted {
         Targeted {
             targets,
             effect: Arc::new(effect),
@@ -408,7 +408,7 @@ pub struct RevealUntil {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Modal {
     pub choose: ChooseSpec,
-    pub modes: Vec<Mode>,
+    pub modes: Arc<[Mode]>,
 }
 
 /// `Label { as, effect }` — see [`OneShotEffect::Label`]. `as` is a Rust
@@ -425,7 +425,7 @@ pub struct Label {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct SeparatePiles {
     pub group: crate::Selection,
-    pub into: Vec<crate::Ident>,
+    pub into: Arc<[crate::Ident]>,
     #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub by: Reference,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -453,7 +453,7 @@ pub struct ChoosePile {
 /// shape) ([CR#700.3a..700.3b]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PileSource {
-    Labels(Vec<crate::Ident>),
+    Labels(Arc<[crate::Ident]>),
     Noted { note: crate::Ident, of: Reference },
 }
 
@@ -549,7 +549,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 Destination::Library(Anchor::FromTop(Count::Literal(0))),
-                vec![],
+                vec![].into(),
                 None,
             )),
         );
@@ -573,10 +573,13 @@ mod tests {
     fn structural_forms_read_flat() {
         assert_eq!(
             read("Sequentially([GainLife(Literal(1)), GainLife(Literal(1))])"),
-            OneShotEffect::Sequentially(vec![
-                act_by_you(PlayerAction::GainLife(Count::Literal(1))),
-                act_by_you(PlayerAction::GainLife(Count::Literal(1))),
-            ]),
+            OneShotEffect::Sequentially(
+                vec![
+                    act_by_you(PlayerAction::GainLife(Count::Literal(1))),
+                    act_by_you(PlayerAction::GainLife(Count::Literal(1))),
+                ]
+                .into()
+            ),
         );
         let may = read("May(effect: GainLife(Literal(1)))");
         let OneShotEffect::May(may) = may else {

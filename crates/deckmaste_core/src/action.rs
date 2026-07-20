@@ -205,7 +205,7 @@ pub enum Action {
     Move(
         Reference,
         Destination,
-        #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
+        #[macro_ron(default = "crate::empty_arc()")] Arc<[EnterRider]>,
         #[macro_ron(default = "None")] Option<crate::Zone>,
     ),
     /// Move a GROUP to a destination as one event, with an [`Arrangement`]
@@ -222,8 +222,8 @@ pub enum Action {
         group: Selection,
         arrangement: Arrangement,
         to: Destination,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        riders: Vec<EnterRider>,
+        #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+        riders: Arc<[EnterRider]>,
     },
     /// The patient object comes under the control of the referenced player
     /// — a one-shot control TRANSITION ([CR#701.12b]; a control change is
@@ -317,7 +317,7 @@ pub enum PlayerAction {
     Create(
         Count,
         TokenSpec,
-        #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
+        #[macro_ron(default = "crate::empty_arc()")] Arc<[EnterRider]>,
     ),
     /// Sacrifice the referenced permanent ([CR#701.21]).
     Sacrifice(Reference),
@@ -330,7 +330,7 @@ pub enum PlayerAction {
     Move(
         Reference,
         Destination,
-        #[macro_ron(default = "Vec::new()")] Vec<EnterRider>,
+        #[macro_ron(default = "crate::empty_arc()")] Arc<[EnterRider]>,
     ),
     /// "[Player] ventures into the dungeon" ([CR#701.49a]) — a footing verb:
     /// the venture-marker/dungeon machinery is the engine's; the agent rides
@@ -343,7 +343,7 @@ pub enum PlayerAction {
     /// "You get an emblem with [abilities]" — a command-zone object that
     /// never touches the battlefield (rules-taxonomy §6: a degenerate
     /// token definition; [CR#114.1,114.4]).
-    GetEmblem(Vec<crate::Ability>),
+    GetEmblem(Arc<[crate::Ability]>),
     /// "[Player] gets the named designation" ([CR#702.131c] — the city's
     /// blessing; the generic player-scope grant verb). v1 handles the
     /// **player-scope flag** case only; single-holder designations (monarch /
@@ -489,7 +489,7 @@ impl Action {
     /// (empty) rider list, or the (absent) `from` fizzle-guard.
     #[must_use]
     pub fn move_to(what: Reference, zone: crate::Zone) -> Action {
-        Action::Move(what, Destination::Zone(zone), Vec::new(), None)
+        Action::Move(what, Destination::Zone(zone), [].into(), None)
     }
 
     /// `Move` guarded by the object's CURRENT zone ([CR#701.8a]) — moves
@@ -499,7 +499,7 @@ impl Action {
     /// ([CR#701.8a,701.9a,701.17a]).
     #[must_use]
     pub fn move_if_in(what: Reference, from: crate::Zone, to: crate::Zone) -> Action {
-        Action::Move(what, Destination::Zone(to), Vec::new(), Some(from))
+        Action::Move(what, Destination::Zone(to), [].into(), Some(from))
     }
 
     /// "Destroy [permanent]" ([CR#701.8a]) — the keyword action as data: a
@@ -542,7 +542,7 @@ impl Action {
                 },
                 arrangement: crate::Arrangement::AnyOrder,
                 to: Destination::Zone(crate::Zone::Graveyard),
-                riders: Vec::new(),
+                riders: [].into(),
             })),
         }
     }
@@ -650,12 +650,15 @@ impl Action {
 /// `Random` binder carries; [`discard_body_whose`] reads `who` back off it
 /// for the at-random form, which (unlike `Choose`) carries no separate `by`.
 fn discard_hand_filter(who: Reference) -> crate::Predicate {
-    crate::Predicate::And(vec![
-        crate::Predicate::State(crate::StatePredicate::InZone(crate::Zone::Hand)),
-        crate::Predicate::Relation(crate::RelationPredicate::Owner(Arc::new(
-            crate::Predicate::Ref(who),
-        ))),
-    ])
+    crate::Predicate::And(
+        vec![
+            crate::Predicate::State(crate::StatePredicate::InZone(crate::Zone::Hand)),
+            crate::Predicate::Relation(crate::RelationPredicate::Owner(Arc::new(
+                crate::Predicate::Ref(who),
+            ))),
+        ]
+        .into(),
+    )
 }
 
 /// The `who` an `InHand(who)`-shaped filter names — the hand-owning
@@ -769,7 +772,7 @@ pub fn fight_body_fighters(body: &crate::OneShotEffect) -> Option<(&Reference, &
     match body {
         E::Expanded(e) => fight_body_fighters(&e.value),
         E::If(iff) => fight_body_fighters(&iff.then),
-        E::Simultaneously(parts) => match parts.as_slice() {
+        E::Simultaneously(parts) => match parts.as_ref() {
             [
                 E::Act(A::DealDamage(a, _, _)),
                 E::Act(A::DealDamage(b, _, _)),
@@ -861,7 +864,7 @@ mod tests {
             PlayerAction::Move(
                 Reference::This,
                 Destination::Zone(crate::Zone::Exile),
-                vec![]
+                vec![].into()
             )
             .is_cost_eligible()
         );
@@ -964,10 +967,13 @@ mod tests {
                 crate::Cmp::Eq,
                 Count::Literal(1),
             ),
-            then: Arc::new(OneShotEffect::Simultaneously(vec![
-                half(Reference::Target(0), Reference::Target(1)),
-                half(Reference::Target(1), Reference::Target(0)),
-            ])),
+            then: Arc::new(OneShotEffect::Simultaneously(
+                vec![
+                    half(Reference::Target(0), Reference::Target(1)),
+                    half(Reference::Target(1), Reference::Target(0)),
+                ]
+                .into(),
+            )),
             otherwise: None,
         });
         let (a, b) = fight_body_fighters(&body).expect("both fighters");
@@ -1202,7 +1208,7 @@ mod tests {
         let top = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(read("Move(This, Library(FromTop(0)))"), top);
@@ -1211,7 +1217,7 @@ mod tests {
         let bottom = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(read("Move(This, Library(FromBottom(0)))"), bottom);
@@ -1282,7 +1288,7 @@ mod tests {
         let tapped = Action::Move(
             Reference::That(crate::Sort::Card),
             Destination::Zone(Zone::Battlefield),
-            vec![EnterRider::Tapped, EnterRider::UnderOwnersControl],
+            vec![EnterRider::Tapped, EnterRider::UnderOwnersControl].into(),
             None,
         );
         assert_eq!(
@@ -1298,7 +1304,8 @@ mod tests {
             vec![
                 EnterRider::WithCounters(crate::CounterRef::from("P1P1Counter"), Count::Literal(1)),
                 EnterRider::Attacking(Some(Reference::Opponent)),
-            ],
+            ]
+            .into(),
             None,
         );
         assert_eq!(read(&write(&countered)), countered);
@@ -1320,7 +1327,8 @@ mod tests {
             vec![EnterRider::AsCopy(CopySpec {
                 source: CopySource::Object(Reference::Target(0)),
                 exceptions: vec![],
-            })],
+            })]
+            .into(),
             None,
         );
         assert_eq!(read(&write(&mv)), mv, "EnterRider::AsCopy round-trips");
@@ -1353,7 +1361,7 @@ mod tests {
             group: Selection::They,
             arrangement: Arrangement::AnyOrder,
             to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
-            riders: vec![],
+            riders: vec![].into(),
         };
         assert_eq!(
             read("MoveGroup(group: They, arrangement: AnyOrder, to: Library(FromTop(0)))"),
@@ -1371,7 +1379,7 @@ mod tests {
             group: Selection::They,
             arrangement: Arrangement::ChosenOrder(Reference::Opponent),
             to: Destination::Zone(crate::Zone::Battlefield),
-            riders: vec![EnterRider::Tapped],
+            riders: vec![EnterRider::Tapped].into(),
         };
         assert_eq!(read(&write(&arranged)), arranged);
         for arrangement in ["SameOrder", "RandomOrder"] {
@@ -1488,11 +1496,16 @@ mod tests {
         // cost) reads the trailing slot positionally and round-trips.
         let for_cost = Action::by_you(PlayerAction::Cast(
             Reference::That(crate::Sort::Card),
-            Some(crate::Cost(vec![crate::CostComponent::Mana(
-                crate::ManaCost::from(vec![crate::ManaSymbol::Simple(
-                    crate::SimpleManaSymbol::Generic(1),
-                )]),
-            )])),
+            Some(crate::Cost(
+                vec![crate::CostComponent::Mana(crate::ManaCost::from(Arc::<
+                    [crate::ManaSymbol],
+                >::from(
+                    vec![
+                    crate::ManaSymbol::Simple(crate::SimpleManaSymbol::Generic(1)),
+                ]
+                )))]
+                .into(),
+            )),
         ));
         assert_eq!(
             read("Cast(That(Card), [Mana([Generic(1)])])"),
@@ -1523,7 +1536,7 @@ mod tests {
                 effect: Arc::new(crate::OneShotEffect::Act(Action::Move(
                     Reference::It,
                     Destination::Library(Anchor::FromTop(Count::Literal(0))),
-                    vec![],
+                    vec![].into(),
                     None,
                 ))),
             })),
@@ -1562,7 +1575,7 @@ mod tests {
                     },
                     arrangement: Arrangement::AnyOrder,
                     to: Destination::Zone(crate::Zone::Graveyard),
-                    riders: Vec::new(),
+                    riders: [].into(),
                 })),
             }
         );

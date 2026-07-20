@@ -11,7 +11,7 @@ use crate::plugin::Plugin;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Deck {
     pub name: String,
-    pub entries: Vec<DeckEntry>,
+    pub entries: Arc<[DeckEntry]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,7 +59,10 @@ impl Deck {
                 card: card.trim().to_string(),
             });
         }
-        Ok(Deck { name, entries })
+        Ok(Deck {
+            name,
+            entries: entries.into(),
+        })
     }
 
     /// Resolves every entry to `count` clones of its card, looking each name up
@@ -67,9 +70,9 @@ impl Deck {
     ///
     /// # Errors
     /// If a card name resolves in none of the plugins.
-    pub fn resolve(&self, plugins: &[&Plugin]) -> Result<Vec<Arc<Card>>> {
+    pub fn resolve(&self, plugins: &[&Plugin]) -> Result<Arc<[Arc<Card>]>> {
         let mut out = Vec::new();
-        for entry in &self.entries {
+        for entry in self.entries.iter() {
             let card = plugins
                 .iter()
                 .find_map(|p| p.card(&entry.card).ok())
@@ -77,7 +80,7 @@ impl Deck {
             let card = Arc::new(card);
             out.extend(std::iter::repeat_n(Arc::clone(&card), entry.count));
         }
-        Ok(out)
+        Ok(out.into())
     }
 }
 
@@ -106,6 +109,7 @@ mod tests {
                     card: "Mountain".to_string()
                 },
             ]
+            .into()
         );
     }
 

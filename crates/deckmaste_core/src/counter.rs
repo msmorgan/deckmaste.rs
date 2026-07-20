@@ -115,7 +115,7 @@ pub struct Counter {
     pub name: Ident,
     #[serde(default, skip_serializing_if = "is_object_scope")]
     pub scope: CounterScope,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub confers: Vec<Property>,
 }
 

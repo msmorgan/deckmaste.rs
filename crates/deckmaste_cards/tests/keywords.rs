@@ -123,7 +123,7 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
         }
     }
     // Expand a keyword invocation to the flat list of its `PayPips` rows.
-    fn pay_pips(plugin: &Plugin, invocation: &str) -> Vec<(PipClass, PayAct)> {
+    fn pay_pips(plugin: &Plugin, invocation: &str) -> Arc<[(PipClass, PayAct)]> {
         let kw: KeywordAbility = plugin
             .macros
             .read_str(invocation)
@@ -179,10 +179,7 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
     // Delve: a single Generic EXILE clause ([CR#702.66a]).
     let delve = pay_pips(&plugin, "Delve");
     assert!(
-        matches!(
-            delve.as_slice(),
-            [(PipClass::Generic, PayAct::ExileToPay(_))]
-        ),
+        matches!(delve.as_ref(), [(PipClass::Generic, PayAct::ExileToPay(_))]),
         "delve confers exactly one Generic ExileToPay clause; got {delve:?}"
     );
 
@@ -190,7 +187,7 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
     let improvise = pay_pips(&plugin, "Improvise");
     assert!(
         matches!(
-            improvise.as_slice(),
+            improvise.as_ref(),
             [(PipClass::Generic, PayAct::TapToPay(_))]
         ),
         "improvise confers exactly one Generic TapToPay clause; got {improvise:?}"
@@ -334,7 +331,7 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     let KeywordAbility::Composite { abilities, .. } = &*expanded.value else {
         panic!("Reconfigure body is a Composite");
     };
-    let acts: Vec<_> = abilities
+    let acts: Arc<[_]> = abilities
         .iter()
         .filter_map(|a| match a {
             Ability::Activated(act) => Some(act),
@@ -491,22 +488,28 @@ fn ascend_macro_expands_to_static_sba() {
     // Drift guard: the macro's Sba `when` must equal the canonical Ascend gate
     // ([CR#702.131a,702.131b]) — the same typed `Condition` the spell-form
     // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
-    let canonical = Condition::And(vec![
-        Condition::Compare(
-            Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
+    let canonical = Condition::And(
+        vec![
+            Condition::Compare(
+                Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
+                    vec![
+                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You),
+                        ))),
+                    ]
+                    .into(),
                 )))),
-            ])))),
-            Cmp::AtLeast,
-            Count::Literal(10),
-        ),
-        Condition::Not(Arc::new(Condition::Matches(
-            Reference::You,
-            Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
-        ))),
-    ]);
+                Cmp::AtLeast,
+                Count::Literal(10),
+            ),
+            Condition::Not(Arc::new(Condition::Matches(
+                Reference::You,
+                Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
+            ))),
+        ]
+        .into(),
+    );
     assert_eq!(
         when,
         Arc::new(canonical),

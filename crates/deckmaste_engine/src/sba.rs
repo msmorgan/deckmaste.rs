@@ -351,7 +351,7 @@ fn run_sba_effect(
             }
         }
         OneShotEffect::Sequentially(children) => {
-            for child in children {
+            for child in children.iter() {
                 out.extend(run_sba_effect(state, child, frame));
             }
         }
@@ -383,7 +383,7 @@ pub(crate) fn legend_rule_groups(
             continue;
         }
         let controller = state.objects.obj(id).controller;
-        let name = crate::derive::face(state.def(id)).name.clone();
+        let name = crate::derive::face(state.def(id)).name.to_string();
         by_player
             .entry(controller)
             .or_default()
@@ -819,18 +819,18 @@ mod tests {
         let frame = crate::stack::Frame::bare(src, PlayerId(0));
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
-            abilities: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![].into(),
             power: None,
             toughness: None,
         };
         state.run_effect(
             OneShotEffect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Create(Count::Literal(1), token.into(), vec![]),
+                PlayerAction::Create(Count::Literal(1), token.into(), vec![].into()),
             )),
             &frame,
         );
@@ -985,11 +985,14 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(CopySpec {
-                    source: CopySource::Object(Reference::This),
-                    exceptions: vec![],
-                }),
-                vec![],
+                deckmaste_core::TokenSpec::Copy(
+                    CopySpec {
+                        source: CopySource::Object(Reference::This),
+                        exceptions: vec![],
+                    }
+                    .into(),
+                ),
+                vec![].into(),
             )),
             &frame,
         );
@@ -1339,22 +1342,28 @@ mod tests {
         let p0 = PlayerId(0);
 
         // The Ascend static, built typed (mirrors the builtin macro's expansion).
-        let gate = Condition::And(vec![
-            Condition::Compare(
-                Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
+        let gate = Condition::And(
+            vec![
+                Condition::Compare(
+                    Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
+                        vec![
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                Predicate::Ref(Reference::You),
+                            ))),
+                        ]
+                        .into(),
                     )))),
-                ])))),
-                Cmp::AtLeast,
-                Count::Literal(10),
-            ),
-            Condition::Not(Arc::new(Condition::Matches(
-                Reference::You,
-                Predicate::State(StatePredicate::Designated(name)),
-            ))),
-        ]);
+                    Cmp::AtLeast,
+                    Count::Literal(10),
+                ),
+                Condition::Not(Arc::new(Condition::Matches(
+                    Reference::You,
+                    Predicate::State(StatePredicate::Designated(name)),
+                ))),
+            ]
+            .into(),
+        );
         let ascend = Ability::r#static(StaticEffect::Sba {
             when: Arc::new(gate),
             then: Arc::new(OneShotEffect::Act(Action::By(
@@ -1431,22 +1440,28 @@ mod tests {
         // controller's permanents and grants to that controller.
         let ascend = || {
             Ability::r#static(StaticEffect::Sba {
-                when: Arc::new(Condition::And(vec![
-                    Condition::Compare(
-                        Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
-                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::You),
-                            ))),
-                        ])))),
-                        Cmp::AtLeast,
-                        Count::Literal(10),
-                    ),
-                    Condition::Not(Arc::new(Condition::Matches(
-                        Reference::You,
-                        Predicate::State(StatePredicate::Designated(name)),
-                    ))),
-                ])),
+                when: Arc::new(Condition::And(
+                    vec![
+                        Condition::Compare(
+                            Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
+                                vec![
+                                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                        Predicate::Ref(Reference::You),
+                                    ))),
+                                ]
+                                .into(),
+                            )))),
+                            Cmp::AtLeast,
+                            Count::Literal(10),
+                        ),
+                        Condition::Not(Arc::new(Condition::Matches(
+                            Reference::You,
+                            Predicate::State(StatePredicate::Designated(name)),
+                        ))),
+                    ]
+                    .into(),
+                )),
                 then: Arc::new(OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::GetDesignation(name),

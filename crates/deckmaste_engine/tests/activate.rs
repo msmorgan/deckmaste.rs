@@ -513,7 +513,9 @@ fn artifact_pays_mana_ignores_sickness() {
     };
     assert_eq!(
         cost,
-        ManaCost::from(vec![ManaSymbol::Simple(SimpleManaSymbol::Generic(2))]),
+        ManaCost::from(Arc::<[ManaSymbol]>::from(vec![ManaSymbol::Simple(
+            SimpleManaSymbol::Generic(2),
+        )])),
         "the decision carries the ability's {{2}} cost"
     );
     let pay = state.auto_pay_pending();
@@ -1141,7 +1143,7 @@ fn gain_zero() -> OneShotEffect {
 fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: name.into(),
-        mana_cost: ManaCost::from(vec![]),
+        mana_cost: ManaCost::from(Arc::<[ManaSymbol]>::from(vec![])),
         color_indicator: vec![],
         supertypes: vec![],
         types: vec![Type::Artifact.def()],
@@ -1150,9 +1152,9 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
             ability_word: None,
             from: None,
             window: None,
-            cost: cost.into(),
+            cost: Arc::<[deckmaste_core::CostComponent]>::from(cost).into(),
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: gain_zero(),
         })],
         power: None,
@@ -1481,10 +1483,13 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
 fn activated_ability_pays_choose_sacrifice_cost() {
     const ARTIFACT_NAME: &str = "Choose-sacrifice test artifact";
     // Creature filter: battlefield creatures (zone check + type check).
-    let creature_filter = Predicate::And(vec![
-        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-        Predicate::creature(),
-    ]);
+    let creature_filter = Predicate::And(
+        vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::creature(),
+        ]
+        .into(),
+    );
     let card = artifact_with_cost(
         ARTIFACT_NAME,
         vec![
@@ -1496,9 +1501,12 @@ fn activated_ability_pays_choose_sacrifice_cost() {
                     filter: creature_filter,
                     by: Reference::You,
                 }),
-                body: deckmaste_core::Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                    Reference::That(deckmaste_core::Sort::Permanent),
-                ))]),
+                body: deckmaste_core::Cost(
+                    vec![CostComponent::do_(PlayerAction::Sacrifice(
+                        Reference::That(deckmaste_core::Sort::Permanent),
+                    ))]
+                    .into(),
+                ),
             },
         ],
     );

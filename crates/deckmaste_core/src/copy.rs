@@ -1,6 +1,8 @@
 //! Copy effects ([CR#707]): the shared `CopySpec` that four delivery sites
 //! reference (token copy, enters-as-a-copy, cast-a-copy, becomes-a-copy).
 
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -30,7 +32,7 @@ use crate::reference::Reference;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct CopySpec {
     pub source: CopySource,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub exceptions: Vec<CopyException>,
 }
 
@@ -72,23 +74,23 @@ pub enum CopyException {
 /// execution here and by `base_values` downstream.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, Serialize)]
 pub struct CopiableValues {
-    pub name: String,
+    pub name: Arc<str>,
 
     #[serde(default, skip_serializing_if = "ManaCost::is_empty")]
     pub mana_cost: ManaCost,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub color_indicator: Vec<Color>,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub supertypes: Vec<Supertype>,
 
     pub types: Vec<TypeDef>,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub subtypes: Vec<Subtype>,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub abilities: Vec<Ability>,
 
     #[serde(skip_serializing_if = "Option::is_none")]

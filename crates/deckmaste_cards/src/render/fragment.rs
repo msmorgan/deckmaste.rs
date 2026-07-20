@@ -1473,17 +1473,23 @@ mod tests {
             filter_noun(&Predicate::Relation(RelationPredicate::TeammateOf(you()))),
             "teammate"
         );
-        let flying = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Characteristic(CharacteristicPredicate::Has("Flying".into())),
-        ]);
+        let flying = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Characteristic(CharacteristicPredicate::Has("Flying".into())),
+            ]
+            .into(),
+        );
         assert_eq!(filter_noun(&flying), "creature with flying");
-        let nonflying = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Characteristic(
-                CharacteristicPredicate::Has("Flying".into()),
-            ))),
-        ]);
+        let nonflying = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Not(Arc::new(Predicate::Characteristic(
+                    CharacteristicPredicate::Has("Flying".into()),
+                ))),
+            ]
+            .into(),
+        );
         assert_eq!(filter_noun(&nonflying), "creature without flying");
     }
 
@@ -1498,22 +1504,28 @@ mod tests {
     /// adjective ahead of it, controller suffix trailing as usual).
     #[test]
     fn filter_noun_renders_attacking_and_untapped_adjuncts() {
-        let goblin_piledriver = Predicate::And(vec![
-            Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::SubtypeRef::named("Goblin".into()),
-            )),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::State(StatePredicate::Attacking),
-        ]);
+        let goblin_piledriver = Predicate::And(
+            vec![
+                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                    deckmaste_core::SubtypeRef::named("Goblin".into()),
+                )),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::State(StatePredicate::Attacking),
+            ]
+            .into(),
+        );
         assert_eq!(filter_noun(&goblin_piledriver), "other attacking Goblin");
 
-        let knotvine_paladin = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::State(StatePredicate::Status(Status::Untapped)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let knotvine_paladin = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::State(StatePredicate::Status(Status::Untapped)),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         assert_eq!(
             filter_noun(&knotvine_paladin),
             "untapped creature you control"
@@ -1540,11 +1552,14 @@ mod tests {
     #[test]
     fn subject_phrase_renders_singular_and_plural_inflections() {
         let you = || Arc::new(Predicate::Ref(Reference::You));
-        let filtered = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(you())),
-        ]);
+        let filtered = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(you())),
+            ]
+            .into(),
+        );
         assert_eq!(
             subject_phrase(&filtered, SubjectNumber::SingularArticle).as_deref(),
             Some("another creature you control")
@@ -1555,18 +1570,21 @@ mod tests {
         );
         assert_eq!(filter_subject(&filtered), "Other creatures you control");
 
-        let doubled = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(you())),
-        ]);
+        let doubled = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(you())),
+            ]
+            .into(),
+        );
         assert_eq!(
             subject_phrase(&doubled, SubjectNumber::SingularArticle).as_deref(),
             Some("another creature you control")
         );
 
-        let bare_and = Predicate::And(vec![Predicate::creature()]);
+        let bare_and = Predicate::And(vec![Predicate::creature()].into());
         assert_eq!(
             subject_phrase(&bare_and, SubjectNumber::SingularArticle).as_deref(),
             Some("a creature")
@@ -1577,13 +1595,16 @@ mod tests {
             Some("a creature")
         );
 
-        let opponent_controls = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                Predicate::Relation(RelationPredicate::OpponentOf(you())),
-            ))),
-        ]);
+        let opponent_controls = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                    Predicate::Relation(RelationPredicate::OpponentOf(you())),
+                ))),
+            ]
+            .into(),
+        );
         assert_eq!(
             subject_phrase(&opponent_controls, SubjectNumber::SingularArticle).as_deref(),
             Some("another creature an opponent controls")
@@ -1593,13 +1614,16 @@ mod tests {
             Some("Other creatures your opponents control")
         );
 
-        let teammate_controls = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                Predicate::Relation(RelationPredicate::TeammateOf(you())),
-            ))),
-        ]);
+        let teammate_controls = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                    Predicate::Relation(RelationPredicate::TeammateOf(you())),
+                ))),
+            ]
+            .into(),
+        );
         assert_eq!(
             subject_phrase(&teammate_controls, SubjectNumber::SingularArticle).as_deref(),
             Some("another creature a teammate controls")
@@ -1612,12 +1636,15 @@ mod tests {
         // No `Not(Ref(This))` — the committed `CreatureOpponentControls`
         // macro shape, so the determiner comes from `a_an(...)` rather than
         // "another".
-        let opponent_controls_no_self_exclusion = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                Predicate::Relation(RelationPredicate::OpponentOf(you())),
-            ))),
-        ]);
+        let opponent_controls_no_self_exclusion = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                    Predicate::Relation(RelationPredicate::OpponentOf(you())),
+                ))),
+            ]
+            .into(),
+        );
         assert_eq!(
             subject_phrase(
                 &opponent_controls_no_self_exclusion,
@@ -1632,14 +1659,17 @@ mod tests {
     /// inside a plural subject ([CR#102.3]).
     #[test]
     fn filter_subject_renders_teammate_controller_phrase() {
-        let f = Predicate::And(vec![
-            Predicate::r#type(deckmaste_core::Type::Creature),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
-                    Reference::You,
-                )))),
-            ))),
-        ]);
+        let f = Predicate::And(
+            vec![
+                Predicate::r#type(deckmaste_core::Type::Creature),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                    Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ))),
+            ]
+            .into(),
+        );
         assert_eq!(filter_subject(&f), "Creatures your teammates control");
     }
 
@@ -1648,12 +1678,15 @@ mod tests {
     /// CountsAs(Green)))`.
     #[test]
     fn count_renders_single_color_devotion() {
-        let permanents_you_control = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let permanents_you_control = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         let devotion_green = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
@@ -1671,22 +1704,28 @@ mod tests {
     /// as an English color list — "your devotion to white and black".
     #[test]
     fn count_renders_two_color_devotion() {
-        let permanents_you_control = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let permanents_you_control = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         let devotion_wb = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
                 of: Countable::Objects(Arc::new(permanents_you_control)),
                 by: Arc::new(Count::CountOf(Countable::ManaSymbols(
                     Arc::new(Reference::It),
-                    SymbolPred::Or(vec![
-                        SymbolPred::CountsAs(Color::White),
-                        SymbolPred::CountsAs(Color::Black),
-                    ]),
+                    SymbolPred::Or(
+                        vec![
+                            SymbolPred::CountsAs(Color::White),
+                            SymbolPred::CountsAs(Color::Black),
+                        ]
+                        .into(),
+                    ),
                 ))),
             },
         );
@@ -1700,10 +1739,13 @@ mod tests {
         let total_power = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Arc::new(Predicate::And(vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::r#type(deckmaste_core::Type::Creature),
-                ]))),
+                of: Countable::Objects(Arc::new(Predicate::And(
+                    vec![
+                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::r#type(deckmaste_core::Type::Creature),
+                    ]
+                    .into(),
+                ))),
                 by: Arc::new(Count::StatOf(Reference::It, Stat::Power)),
             },
         );

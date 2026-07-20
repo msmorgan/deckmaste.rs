@@ -579,7 +579,7 @@ mod tests {
             Predicate::creature(),
         );
         let wrapped = OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-            vec![spec.clone()],
+            vec![spec.clone()].into(),
             OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
         ));
         assert_eq!(super::top_targets(&wrapped), std::slice::from_ref(&spec));
@@ -668,7 +668,7 @@ mod tests {
         let contraption = deckmaste_core::TypeDef {
             name: "Contraption".into(),
             permanent: true,
-            confers: vec![],
+            confers: vec![].into(),
         };
         let novel = spell_with_types(&mut state, vec![contraption]);
         assert!(
@@ -680,7 +680,7 @@ mod tests {
         let fake_land = deckmaste_core::TypeDef {
             name: "Land".into(),
             permanent: false,
-            confers: vec![],
+            confers: vec![].into(),
         };
         let non_permanent_land = spell_with_types(&mut state, vec![fake_land]);
         assert!(

@@ -98,7 +98,7 @@ pub enum Condition {
     /// one-at-a-time play fires each member on its own placement event.)
     Crossed {
         value: Count,
-        thresholds: Vec<Count>,
+        thresholds: Arc<[Count]>,
     },
     /// The tagged optional cost ([`OptionalCost`](crate::OptionalCost)) was
     /// paid for this object — "if it was kicked" ([CR#702.33d]; buyback's
@@ -128,9 +128,9 @@ pub enum Condition {
     /// needs it.
     DuringPhase(crate::PhaseStep),
     /// All sub-conditions hold.
-    And(Vec<Condition>),
+    And(Arc<[Condition]>),
     /// At least one sub-condition holds.
-    Or(Vec<Condition>),
+    Or(Arc<[Condition]>),
     /// The sub-condition does not hold.
     Not(Arc<Condition>),
     /// A remembered `Condition` macro invocation (ability words: `Threshold`,
@@ -179,7 +179,10 @@ mod tests {
         let Condition::Crossed { thresholds, .. } = &v else {
             panic!("expected a Crossed condition");
         };
-        assert_eq!(thresholds, &vec![Count::Literal(2), Count::Literal(3)]);
+        assert_eq!(
+            thresholds,
+            &Arc::<[Count]>::from([Count::Literal(2), Count::Literal(3)])
+        );
         let written = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&written), v, "round-trips");
     }
@@ -191,7 +194,7 @@ mod tests {
         let Condition::Crossed { thresholds, .. } = &v else {
             panic!("expected a Crossed condition");
         };
-        assert_eq!(thresholds, &vec![Count::Literal(1)]);
+        assert_eq!(thresholds, &Arc::<[Count]>::from([Count::Literal(1)]));
     }
 
     #[test]

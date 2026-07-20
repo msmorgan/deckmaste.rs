@@ -85,14 +85,14 @@ pub enum NumericOp {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CollectionOp<T> {
     /// Overwrite the whole list (layer 4 types / layer 5 colors).
-    Set(Vec<T>),
+    Set(Arc<[T]>),
     /// Add one element.
     Add(T),
     /// Remove one element.
     Remove(T),
 }
 
-impl<T: Expand> Expand for CollectionOp<T> {
+impl<T: Expand + Clone> Expand for CollectionOp<T> {
     fn expand_all(self) -> Self {
         match self {
             CollectionOp::Set(v) => CollectionOp::Set(v.expand_all()),
@@ -180,7 +180,7 @@ pub enum Modification {
     /// The [CR#305.7] bundle: replace land types ∧ lose printed abilities ∧
     /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
     /// reachable from the plain `Set*` ops.
-    BecomeBasicLandType(Vec<Ident>),
+    BecomeBasicLandType(Arc<[Ident]>),
     /// A bundle of ops contributed by one macro invocation — the analog of
     /// `Predicate::And`. A macro expands to a single value, so a
     /// change-bundling macro (`PowerAndToughnessUp(p, t)`) produces
@@ -188,7 +188,7 @@ pub enum Modification {
     /// `changes` is already a flat, layer-spanning list ([CR#613.6]), so
     /// [`Modification::flatten`] splices a `Several` into its parent list
     /// at the engine boundary and the engine never sees this variant.
-    Several(Vec<Modification>),
+    Several(Arc<[Modification]>),
     /// A remembered `Modification` macro invocation. Serialized as the
     /// invocation, not the struct; `expand_all` strips it to the bundled value.
     #[macro_ron(expanded)]
@@ -209,16 +209,18 @@ impl Modification {
     /// `Expanded` invocations), then splice: a plain element passes through, a
     /// `Several` recurses and splices its (already-flattened) members in place.
     #[must_use]
-    pub fn flatten(changes: Vec<Modification>) -> Vec<Modification> {
+    pub fn flatten(changes: &[Modification]) -> Arc<[Modification]> {
         use crate::Expand;
-        let mut out = Vec::with_capacity(changes.len());
-        for m in changes {
+        let mut out: Vec<Modification> = Vec::with_capacity(changes.len());
+        for m in changes.iter().cloned() {
             match m.expand_all() {
-                Modification::Several(inner) => out.extend(Modification::flatten(inner)),
+                Modification::Several(inner) => {
+                    out.extend(Modification::flatten(&inner).iter().cloned());
+                }
                 other => out.push(other),
             }
         }
-        out
+        out.into()
     }
 }
 
@@ -230,15 +232,15 @@ impl Modification {
 /// ([CR#118.9]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CostChange {
-    Increase(Vec<CostComponent>),
-    Reduce(Vec<CostComponent>),
+    Increase(Arc<[CostComponent]>),
+    Reduce(Arc<[CostComponent]>),
     /// A MANDATORY "as an additional cost …" ([CR#118.8]). The optional
     /// kicker-family shape ("you may pay an additional …", [CR#118.8b])
     /// is NOT a pipeline step — it is a declared
     /// [`OptionalCost`](crate::OptionalCost) (`StaticEffect::CostOption`),
     /// announced at [CR#601.2b] and folded into the total at [CR#601.2f].
     Additional {
-        components: Vec<CostComponent>,
+        components: Arc<[CostComponent]>,
     },
     /// A COUNT-SCALED change: the inner change applies `times` times at
     /// total-cost time ([CR#601.2f]). Covers both polarities — "costs {1}
@@ -588,10 +590,13 @@ mod tests {
                 )),
                 Arc::new(StaticEffect::Modify(
                     Reference::It,
-                    Modification::Several(vec![
-                        Modification::Power(NumericOp::Up(Count::Literal(1))),
-                        Modification::Toughness(NumericOp::Up(Count::Literal(1))),
-                    ]),
+                    Modification::Several(
+                        vec![
+                            Modification::Power(NumericOp::Up(Count::Literal(1))),
+                            Modification::Toughness(NumericOp::Up(Count::Literal(1))),
+                        ]
+                        .into()
+                    ),
                 )),
             ),
         );
@@ -613,10 +618,13 @@ mod tests {
                 )),
                 Arc::new(StaticEffect::Modify(
                     Reference::It,
-                    Modification::Several(vec![
-                        Modification::Power(NumericOp::Down(Count::Literal(1))),
-                        Modification::Toughness(NumericOp::Down(Count::Literal(1))),
-                    ]),
+                    Modification::Several(
+                        vec![
+                            Modification::Power(NumericOp::Down(Count::Literal(1))),
+                            Modification::Toughness(NumericOp::Down(Count::Literal(1))),
+                        ]
+                        .into()
+                    ),
                 )),
             ),
         );
@@ -642,10 +650,13 @@ mod tests {
                 )),
                 Arc::new(StaticEffect::Modify(
                     Reference::It,
-                    Modification::Several(vec![
-                        Modification::Colors(CollectionOp::Set(vec![Color::Black])),
-                        Modification::CardTypes(CollectionOp::Add("Artifact".into())),
-                    ]),
+                    Modification::Several(
+                        vec![
+                            Modification::Colors(CollectionOp::Set(vec![Color::Black].into())),
+                            Modification::CardTypes(CollectionOp::Add("Artifact".into())),
+                        ]
+                        .into()
+                    ),
                 )),
             ),
         );
@@ -710,24 +721,34 @@ mod tests {
     #[test]
     fn flatten_splices_several() {
         let changes = vec![
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(Count::Literal(3))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(3))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(3))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(3))),
+                ]
+                .into(),
+            ),
             Modification::LoseAllAbilities,
             // A nested Several splices recursively.
-            Modification::Several(vec![Modification::Several(vec![Modification::Colors(
-                CollectionOp::Set(vec![Color::White]),
-            )])]),
+            Modification::Several(
+                vec![Modification::Several(
+                    vec![Modification::Colors(CollectionOp::Set(
+                        vec![Color::White].into(),
+                    ))]
+                    .into(),
+                )]
+                .into(),
+            ),
         ];
         assert_eq!(
-            Modification::flatten(changes),
+            Modification::flatten(&changes),
             vec![
                 Modification::Power(NumericOp::Up(Count::Literal(3))),
                 Modification::Toughness(NumericOp::Up(Count::Literal(3))),
                 Modification::LoseAllAbilities,
-                Modification::Colors(CollectionOp::Set(vec![Color::White])),
-            ],
+                Modification::Colors(CollectionOp::Set(vec![Color::White].into())),
+            ]
+            .into(),
         );
     }
 
@@ -742,18 +763,22 @@ mod tests {
             name: "PowerAndToughnessUp".into(),
             args: ExpansionArgs::Positional(vec!["2".into(), "0".into()]),
             template: Some("gets +${0}/+${1}".into()),
-            value: Box::new(Modification::Several(vec![
-                Modification::Power(NumericOp::Up(Count::Literal(2))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(0))),
-            ])),
+            value: Box::new(Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(2))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(0))),
+                ]
+                .into(),
+            )),
         });
         assert_eq!(
-            Modification::flatten(vec![expanded, Modification::SwitchPowerToughness]),
+            Modification::flatten(&[expanded, Modification::SwitchPowerToughness]),
             vec![
                 Modification::Power(NumericOp::Up(Count::Literal(2))),
                 Modification::Toughness(NumericOp::Up(Count::Literal(0))),
                 Modification::SwitchPowerToughness,
-            ],
+            ]
+            .into(),
         );
     }
 
@@ -834,13 +859,18 @@ mod tests {
             convoke,
             StaticEffect::PayPips(
                 PipClass::Colored(Color::White),
-                PayAct::TapToPay(Predicate::And(vec![
-                    Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
-                    Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You
-                    )))),
-                ])),
+                PayAct::TapToPay(Predicate::And(
+                    vec![
+                        Predicate::Characteristic(CharacteristicPredicate::Supertype(
+                            Supertype::Basic
+                        )),
+                        Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You)
+                        ))),
+                    ]
+                    .into()
+                )),
             ),
         );
         let written = crate::ron::options().to_string(&convoke).unwrap();
@@ -955,7 +985,8 @@ mod tests {
                     source: CopySource::Object(Reference::Target(0)),
                     exceptions: vec![],
                 },
-            )],
+            )]
+            .into(),
         );
         let written = crate::ron::options().to_string(&until).unwrap();
         let back: OneShotEffect = crate::ron::options().from_str(&written).unwrap();

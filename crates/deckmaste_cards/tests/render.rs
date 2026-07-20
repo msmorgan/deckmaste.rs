@@ -290,8 +290,8 @@ fn renders_a_synthesized_token() {
     let types = [Type::Creature.def()];
     let subs = [Subtype {
         name: "Goblin".into(),
-        types: vec![Type::Creature, Type::Kindred],
-        confers: vec![],
+        types: vec![Type::Creature, Type::Kindred].into(),
+        confers: vec![].into(),
     }];
     let p = StatValue::Number(1);
     let t = StatValue::Number(1);
@@ -342,7 +342,7 @@ fn renders_a_derived_pumped_flier() {
 
 // ── Full-canon breadth sweep ─────────────────────────────────────────────────
 
-fn canon_card_names() -> Vec<String> {
+fn canon_card_names() -> Arc<[String]> {
     std::fs::read_dir(canon_path().join("cards"))
         .unwrap()
         .filter_map(Result::ok)
@@ -365,14 +365,14 @@ fn renders_every_canon_card_without_panicking() {
     let plugin = Plugin::load_with_sibling_prelude(canon_path()).unwrap();
     let mut markers = 0usize;
     let mut total = 0usize;
-    for name in canon_card_names() {
-        let Ok(card) = plugin.card(&name) else { continue };
-        let faces: Vec<CardFace> = match card {
-            Card::Normal(f) => vec![f],
-            Card::TwoFaced { front, back, .. } => vec![front, back],
+    for name in canon_card_names().iter() {
+        let Ok(card) = plugin.card(name) else { continue };
+        let faces: Arc<[CardFace]> = match card {
+            Card::Normal(f) => vec![f].into(),
+            Card::TwoFaced { front, back, .. } => vec![front, back].into(),
         };
-        for f in faces {
-            let r = render_card_face(&f);
+        for f in faces.iter() {
+            let r = render_card_face(f);
             assert!(!r.type_line.is_empty(), "{name}: empty type line");
             total += 1;
             if r.rules.iter().any(|l| l.contains("[unrendered")) {
@@ -488,7 +488,7 @@ fn renders_synthesized_lose_life_and_destroy() {
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 destroy_verb,
             )),
         })],
@@ -522,7 +522,7 @@ fn renders_named_predefined_token() {
                 PlayerAction::Create(
                     Count::Literal(1),
                     TokenSpec::Named(TokenName::from("Treasure")),
-                    vec![],
+                    vec![].into(),
                 ),
             )),
         })],
@@ -543,7 +543,7 @@ fn renders_named_predefined_token() {
                 PlayerAction::Create(
                     Count::Literal(2),
                     TokenSpec::Named(TokenName::from("Food")),
-                    vec![],
+                    vec![].into(),
                 ),
             )),
         })],
@@ -646,10 +646,13 @@ fn renders_scope_of_singular() {
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-                Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                ]
+                .into(),
+            ),
         ))],
         ..CardFace::default()
     };
@@ -674,10 +677,13 @@ fn renders_aura_host_pump() {
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticEffect::Modify(
             Reference::AttachHostOf(Arc::new(Reference::This)),
-            Modification::Several(vec![
-                Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(2))),
-                Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(2))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(2))),
+                    Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(2))),
+                ]
+                .into(),
+            ),
         ))],
         ..CardFace::default()
     };
@@ -716,16 +722,21 @@ fn renders_continuously_pump_until_eot() {
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 OneShotEffect::Continuously(Continuously {
                     effect: Arc::new(StaticEffect::Modify(
                         Reference::Target(0),
-                        Modification::Several(vec![
-                            Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(3))),
-                            Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(
-                                3,
-                            ))),
-                        ]),
+                        Modification::Several(
+                            vec![
+                                Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(
+                                    3,
+                                ))),
+                                Modification::Toughness(deckmaste_core::NumericOp::Up(
+                                    Count::Literal(3),
+                                )),
+                            ]
+                            .into(),
+                        ),
                     )),
                     duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
                 }),
@@ -767,7 +778,7 @@ fn renders_continuously_cant_block_eot() {
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 OneShotEffect::Continuously(Continuously {
                     effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
                         by: Predicate::Ref(Reference::Target(0)),
@@ -812,7 +823,7 @@ fn renders_continuously_cant_be_blocked_eot() {
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
+                vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
                 OneShotEffect::Continuously(Continuously {
                     effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
                         by: Predicate::Any,
@@ -888,15 +899,16 @@ fn renders_create_one_token() {
     use deckmaste_core::TokenSpec;
     let token = Token {
         name: None,
-        color_indicator: vec![Color::Red],
-        supertypes: vec![],
-        types: vec![Type::Creature.def()],
+        color_indicator: vec![Color::Red].into(),
+        supertypes: vec![].into(),
+        types: vec![Type::Creature.def()].into(),
         subtypes: vec![Subtype {
             name: "Goblin".into(),
-            types: vec![Type::Creature],
-            confers: vec![],
-        }],
-        abilities: vec![],
+            types: vec![Type::Creature].into(),
+            confers: vec![].into(),
+        }]
+        .into(),
+        abilities: vec![].into(),
         power: Some(StatValue::Number(1)),
         toughness: Some(StatValue::Number(1)),
     };
@@ -907,7 +919,11 @@ fn renders_create_one_token() {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Create(Count::Literal(1), TokenSpec::Token(token), vec![]),
+                PlayerAction::Create(
+                    Count::Literal(1),
+                    TokenSpec::Token(token.into()),
+                    vec![].into(),
+                ),
             )),
         })],
         ..CardFace::default()
@@ -932,15 +948,16 @@ fn renders_create_two_tokens() {
     use deckmaste_core::TokenSpec;
     let token = Token {
         name: None,
-        color_indicator: vec![Color::White],
-        supertypes: vec![],
-        types: vec![Type::Creature.def()],
+        color_indicator: vec![Color::White].into(),
+        supertypes: vec![].into(),
+        types: vec![Type::Creature.def()].into(),
         subtypes: vec![Subtype {
             name: "Soldier".into(),
-            types: vec![Type::Creature],
-            confers: vec![],
-        }],
-        abilities: vec![],
+            types: vec![Type::Creature].into(),
+            confers: vec![].into(),
+        }]
+        .into(),
+        abilities: vec![].into(),
         power: Some(StatValue::Number(1)),
         toughness: Some(StatValue::Number(1)),
     };
@@ -951,7 +968,11 @@ fn renders_create_two_tokens() {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
-                PlayerAction::Create(Count::Literal(2), TokenSpec::Token(token), vec![]),
+                PlayerAction::Create(
+                    Count::Literal(2),
+                    TokenSpec::Token(token.into()),
+                    vec![].into(),
+                ),
             )),
         })],
         ..CardFace::default()
@@ -1049,7 +1070,7 @@ fn renders_get_emblem() {
             ability_word: None,
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
-                PlayerAction::GetEmblem(vec![emblem_ability]),
+                PlayerAction::GetEmblem(vec![emblem_ability].into()),
             )),
         })],
         ..CardFace::default()
@@ -1088,18 +1109,26 @@ fn renders_graveyard_static_from_zone() {
                 Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
             ),
             Arc::new(StaticEffect::Each(
-                Selection::SelectAll(Predicate::And(vec![
-                    Predicate::r#type(Type::Creature),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
-                    )))),
-                ])),
+                Selection::SelectAll(Predicate::And(
+                    vec![
+                        Predicate::r#type(Type::Creature),
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You),
+                        ))),
+                    ]
+                    .into(),
+                )),
                 Arc::new(StaticEffect::Modify(
                     Reference::It,
-                    Modification::Several(vec![
-                        Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-                        Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(1))),
-                    ]),
+                    Modification::Several(
+                        vec![
+                            Modification::Power(deckmaste_core::NumericOp::Up(Count::Literal(1))),
+                            Modification::Toughness(deckmaste_core::NumericOp::Up(Count::Literal(
+                                1,
+                            ))),
+                        ]
+                        .into(),
+                    ),
                 )),
             )),
         ))],
@@ -1150,7 +1179,7 @@ fn renders_trigger_with_turnof_intervening_if() {
             condition: Some(Condition::TurnOf(Predicate::Relation(
                 RelationPredicate::OpponentOf(Arc::new(Predicate::Ref(Reference::You))),
             ))),
-            limits: vec![],
+            limits: vec![].into(),
             effect: draw,
         })],
         ..CardFace::default()

@@ -4,6 +4,8 @@
 //! never come here: they are stackless ([CR#605.3b]) and keep their fast
 //! path.
 
+use std::sync::Arc;
+
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
@@ -204,7 +206,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
         }
     }
     Some(CostSummary {
-        mana: ManaCost::from(symbols),
+        mana: ManaCost::from(Arc::<[ManaSymbol]>::from(symbols)),
         tap,
         untap,
         verbs,
@@ -272,7 +274,7 @@ impl GameState {
                 symbols.extend_from_slice(&printed);
             }
         }
-        ManaCost::from(symbols)
+        ManaCost::from(Arc::<[ManaSymbol]>::from(symbols))
     }
 
     /// [CR#602.1,602.5]: may `player` activate this non-mana activated
@@ -384,7 +386,7 @@ impl GameState {
 
         // [CR#602.5b]: use limits — gate via the turn/game history window.
         let index_u = deckmaste_core::Uint::try_from(index).expect("ability index fits in Uint");
-        for limit in &ability.limits {
+        for limit in ability.limits.iter() {
             match limit {
                 UseLimit::OncePerTurn => {
                     if self.ability_used_count(object, index_u, deckmaste_core::Lookback::ThisTurn)
@@ -871,9 +873,9 @@ mod tests {
             ability_word: None,
             from: None,
             window: None,
-            cost: cost.into(),
+            cost: Arc::<[CostComponent]>::from(cost).into(),
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect,
         }
     }
@@ -921,7 +923,7 @@ mod tests {
             // no-op `Several([])` stands in for "any static ability".
             as_activated(&Ability::r#static(deckmaste_core::StaticEffect::Modify(
                 deckmaste_core::Reference::This,
-                deckmaste_core::Modification::Several(vec![]),
+                deckmaste_core::Modification::Several(vec![].into()),
             )))
             .is_none()
         );
@@ -1004,9 +1006,9 @@ mod tests {
     #[test]
     fn cost_summary_sums_mana_and_notes_tap() {
         let cost = vec![
-            CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
+            CostComponent::Mana(ManaCost::from(Arc::from(vec![ManaSymbol::Simple(
                 SimpleManaSymbol::Generic(2),
-            )])),
+            )]))),
             CostComponent::Tap,
         ];
         let summary = cost_summary(&cost).expect("mixed [Mana, Tap] should not be None");
@@ -1110,10 +1112,10 @@ mod tests {
     // -- tap_total_subset (the crew candidate set) --
 
     /// A vanilla creature card with the given printed power/toughness.
-    fn creature_card(power: i32, toughness: i32) -> std::sync::Arc<deckmaste_core::Card> {
-        std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+    fn creature_card(power: i32, toughness: i32) -> Arc<deckmaste_core::Card> {
+        Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: "Crew Fixture".into(),
-            mana_cost: ManaCost::from(vec![]),
+            mana_cost: ManaCost::from(Arc::from(vec![])),
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![deckmaste_core::Type::Creature.def()],
@@ -1212,7 +1214,7 @@ mod tests {
         // play. A prior `ObjectSource::Player` synthetic was absent from the
         // view, so the battlefield-wide `Cant(Activate)` collector's `view.get`
         // could not resolve it.
-        let card = std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+        let card = Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: "Gate Fixture".into(),
             ..deckmaste_core::CardFace::default()
         }));
@@ -1234,10 +1236,10 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: None,
             condition: Some(Condition::YourTurn),
-            limits: vec![],
+            limits: vec![].into(),
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -1256,10 +1258,10 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             condition: Some(Condition::YourTurn),
             window: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -1289,9 +1291,9 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             condition: None,
-            limits: vec![UseLimit::OncePerTurn],
+            limits: vec![UseLimit::OncePerTurn].into(),
             window: None,
             effect: noop_effect(),
         };
@@ -1333,9 +1335,9 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             condition: None,
-            limits: vec![UseLimit::OncePerGame],
+            limits: vec![UseLimit::OncePerGame].into(),
             window: None,
             effect: noop_effect(),
         };
@@ -1374,10 +1376,10 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringTurn(WhoseTurn::Your)),
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -1404,10 +1406,10 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringTurn(WhoseTurn::AnOpponents)),
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -1434,10 +1436,10 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringTurn(WhoseTurn::EachPlayers)),
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: noop_effect(),
         };
         let view = state.layers();
@@ -1463,13 +1465,13 @@ mod tests {
         let ability = ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![].into(),
+            cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringStep(
                 PhaseStep::Beginning(BeginningStep::Upkeep),
                 WhoseTurn::Your,
             )),
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: noop_effect(),
         };
 
@@ -1718,10 +1720,10 @@ mod tests {
     /// A card whose only ability is the given activated ability.
     // In-module fixture: no macro/serde path exercised, so no plugin round-trip
     // needed.
-    fn card_with_activated(act: ActivatedAbility) -> std::sync::Arc<deckmaste_core::Card> {
-        std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+    fn card_with_activated(act: ActivatedAbility) -> Arc<deckmaste_core::Card> {
+        Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: "Activated Fixture".into(),
-            mana_cost: ManaCost::from(vec![]),
+            mana_cost: ManaCost::from(Arc::from(vec![])),
             color_indicator: vec![],
             supertypes: vec![],
             types: vec![deckmaste_core::Type::Artifact.def()],
@@ -1739,8 +1741,8 @@ mod tests {
     fn card_with_cost_and_activated(
         mana_cost: ManaCost,
         act: ActivatedAbility,
-    ) -> std::sync::Arc<deckmaste_core::Card> {
-        std::sync::Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
+    ) -> Arc<deckmaste_core::Card> {
+        Arc::new(deckmaste_core::Card::Normal(deckmaste_core::CardFace {
             name: "ManaCostOf Fixture".into(),
             mana_cost,
             color_indicator: vec![],
@@ -1886,7 +1888,7 @@ mod tests {
 
         // Build a free ({0}) no-op artifact activated ability.
         let act = activated(
-            vec![CostComponent::Mana(ManaCost::from(vec![]))],
+            vec![CostComponent::Mana(ManaCost::from(Arc::from(vec![])))],
             noop_effect(),
         );
         let card_id = state.cards.push(card_with_activated(act), player);

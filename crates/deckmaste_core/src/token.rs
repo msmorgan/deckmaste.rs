@@ -22,17 +22,17 @@ use crate::ability::Ability;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum TokenSpec {
     /// An inline token definition.
-    Token(Token),
+    Token(Arc<Token>),
     /// A predefined token by name ([CR#111.10]) — `Named(Treasure)`. The name
     /// is a bare identifier (it is also the token's `Subtype`).
     Named(TokenName),
     /// A token that's a copy of an object ([CR#707.1]).
-    Copy(crate::CopySpec),
+    Copy(Arc<crate::CopySpec>),
 }
 
 impl From<Token> for TokenSpec {
     fn from(token: Token) -> Self {
-        TokenSpec::Token(token)
+        TokenSpec::Token(Arc::new(token))
     }
 }
 
@@ -184,14 +184,14 @@ impl PredefinedToken {
 
         let subtype = Subtype {
             name: self.name().into(),
-            types: vec![Type::Artifact],
-            confers: vec![],
+            types: vec![Type::Artifact].into(),
+            confers: [].into(),
         };
         let sac = CostComponent::do_(PlayerAction::Sacrifice(Reference::This));
         let mana = |n: u32| {
-            CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
-                SimpleManaSymbol::Generic(n),
-            )]))
+            let symbols: Arc<[ManaSymbol]> =
+                [ManaSymbol::Simple(SimpleManaSymbol::Generic(n))].into();
+            CostComponent::Mana(ManaCost::from(symbols))
         };
         let add_any = || PlayerAction::AddMana(Count::Literal(1), ManaSpec::AnyColor.into());
         // Vibranium's "Add {C}. This mana can't be spent to cast a nonartifact
@@ -199,17 +199,21 @@ impl PredefinedToken {
         // rider ([CR#106.6]) whose filter admits everything EXCEPT a
         // nonartifact spell (abilities and artifact spells stay payable).
         let restricted_colorless = || {
-            let nonartifact_spell = Predicate::And(vec![
-                Predicate::Kind(ObjectKind::Spell),
-                Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
-            ]);
+            let nonartifact_spell = Predicate::And(
+                vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
+                ]
+                .into(),
+            );
             PlayerAction::AddMana(
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(ColorOrColorless::Colorless),
                     riders: vec![ManaRider::SpendOnly(Predicate::Not(Arc::new(
                         nonartifact_spell,
-                    )))],
+                    )))]
+                    .into(),
                 },
             )
         };
@@ -232,70 +236,75 @@ impl PredefinedToken {
         };
 
         // (leading keyword abilities, activated-ability cost, effect)
-        let (keywords, cost, effect): (Vec<Ability>, Vec<CostComponent>, OneShotEffect) = match self
-        {
-            // [CR#111.10a] "{T}, Sacrifice this token: Add one mana of any color."
-            Self::Treasure => (
-                vec![],
-                vec![CostComponent::Tap, sac],
-                OneShotEffect::act_by_you(add_any()),
-            ),
-            // [CR#111.10b] "{2}, {T}, Sacrifice this token: You gain 3 life."
-            Self::Food => (
-                vec![],
-                vec![mana(2), CostComponent::Tap, sac],
-                OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
-            ),
-            // [CR#111.10c] "Sacrifice this token: Add one mana of any color."
-            Self::Gold => (vec![], vec![sac], OneShotEffect::act_by_you(add_any())),
-            // [CR#111.10f] "{2}, Sacrifice this token: Draw a card."
-            Self::Clue => (
-                vec![],
-                vec![mana(2), sac],
-                crate::OneShotEffect::draw(Reference::You, Count::Literal(1)),
-            ),
-            // [CR#111.10g] "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
-            Self::Blood => (
-                vec![],
-                vec![
-                    mana(1),
-                    CostComponent::Tap,
-                    CostComponent::do_action(crate::Action::discard(
-                        Reference::You,
-                        Count::Literal(1),
-                        false,
-                    )),
-                    sac,
-                ],
-                crate::OneShotEffect::draw(Reference::You, Count::Literal(1)),
-            ),
-            // [CR#111.10w] indestructible; "{T}: Add {C}. This mana can't be
-            // spent to cast a nonartifact spell."
-            Self::Vibranium => (
-                vec![indestructible()],
-                vec![CostComponent::Tap],
-                OneShotEffect::act_by_you(restricted_colorless()),
-            ),
-        };
+        let (keywords, cost, effect): (Arc<[Ability]>, Arc<[CostComponent]>, OneShotEffect) =
+            match self {
+                // [CR#111.10a] "{T}, Sacrifice this token: Add one mana of any color."
+                Self::Treasure => (
+                    [].into(),
+                    vec![CostComponent::Tap, sac].into(),
+                    OneShotEffect::act_by_you(add_any()),
+                ),
+                // [CR#111.10b] "{2}, {T}, Sacrifice this token: You gain 3 life."
+                Self::Food => (
+                    [].into(),
+                    vec![mana(2), CostComponent::Tap, sac].into(),
+                    OneShotEffect::act_by_you(PlayerAction::GainLife(Count::Literal(3))),
+                ),
+                // [CR#111.10c] "Sacrifice this token: Add one mana of any color."
+                Self::Gold => (
+                    [].into(),
+                    vec![sac].into(),
+                    OneShotEffect::act_by_you(add_any()),
+                ),
+                // [CR#111.10f] "{2}, Sacrifice this token: Draw a card."
+                Self::Clue => (
+                    [].into(),
+                    vec![mana(2), sac].into(),
+                    crate::OneShotEffect::draw(Reference::You, Count::Literal(1)),
+                ),
+                // [CR#111.10g] "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
+                Self::Blood => (
+                    [].into(),
+                    vec![
+                        mana(1),
+                        CostComponent::Tap,
+                        CostComponent::do_action(crate::Action::discard(
+                            Reference::You,
+                            Count::Literal(1),
+                            false,
+                        )),
+                        sac,
+                    ]
+                    .into(),
+                    crate::OneShotEffect::draw(Reference::You, Count::Literal(1)),
+                ),
+                // [CR#111.10w] indestructible; "{T}: Add {C}. This mana can't be
+                // spent to cast a nonartifact spell."
+                Self::Vibranium => (
+                    vec![indestructible()].into(),
+                    vec![CostComponent::Tap].into(),
+                    OneShotEffect::act_by_you(restricted_colorless()),
+                ),
+            };
 
-        let mut abilities = keywords;
+        let mut abilities: Vec<Ability> = keywords.to_vec();
         abilities.push(Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
             window: None,
             cost: cost.into(),
             condition: None,
-            limits: vec![],
+            limits: [].into(),
             effect,
         }));
 
         Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![subtype],
-            abilities,
+            color_indicator: [].into(),
+            supertypes: [].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![subtype].into(),
+            abilities: abilities.into(),
             power: None,
             toughness: None,
         }
@@ -317,16 +326,16 @@ pub struct Token {
     /// An explicit name ([CR#111.3]/[CR#707.2]) — `None` synthesizes at
     /// [CR#111.4] (subtypes + "Token") the way an unnamed token always has.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub color_indicator: Vec<Color>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub supertypes: Vec<Supertype>,
-    pub types: Vec<crate::TypeDef>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub subtypes: Vec<Subtype>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub abilities: Vec<Ability>,
+    pub name: Option<Arc<str>>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub color_indicator: Arc<[Color]>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub supertypes: Arc<[Supertype]>,
+    pub types: Arc<[crate::TypeDef]>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub subtypes: Arc<[Subtype]>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub abilities: Arc<[Ability]>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub power: Option<StatValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -382,14 +391,23 @@ mod tests {
         use crate::Modification;
         use crate::NumericOp;
 
-        let spec = TokenSpec::Copy(CopySpec {
-            source: CopySource::SelfCard,
-            exceptions: vec![
-                CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(4)))),
-                CopyException::Modify(Modification::Colors(CollectionOp::Set(vec![Color::Black]))),
-                CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Zombie".into()))),
-            ],
-        });
+        let spec = TokenSpec::Copy(
+            CopySpec {
+                source: CopySource::SelfCard,
+                exceptions: vec![
+                    CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(
+                        4,
+                    )))),
+                    CopyException::Modify(Modification::Colors(CollectionOp::Set(
+                        vec![Color::Black].into(),
+                    ))),
+                    CopyException::Modify(Modification::Subtypes(CollectionOp::Add(
+                        "Zombie".into(),
+                    ))),
+                ],
+            }
+            .into(),
+        );
         let written = crate::ron::options().to_string(&spec).unwrap();
         assert_eq!(
             written,
@@ -422,7 +440,7 @@ mod tests {
     #[test]
     fn named_treasure_resolves_to_rules_token() {
         let token = TokenName::from("Treasure").resolve().unwrap();
-        assert_eq!(token.types, vec![Type::Artifact.def()]);
+        assert_eq!(token.types, vec![Type::Artifact.def()].into());
         assert_eq!(token.subtypes.len(), 1);
         assert_eq!(token.subtypes[0].name, "Treasure");
         assert!(token.color_indicator.is_empty(), "[CR#111.10a]: colorless");
@@ -432,18 +450,21 @@ mod tests {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![
-                    CostComponent::Tap,
-                    CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
-                ]
-                .into(),
+                cost: crate::Cost(
+                    vec![
+                        CostComponent::Tap,
+                        CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+                    ]
+                    .into(),
+                ),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::act_by_you(PlayerAction::AddMana(
                     crate::Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 )),
             })]
+            .into()
         );
     }
 
@@ -466,23 +487,26 @@ mod tests {
             .unwrap();
         assert_eq!(
             spec,
-            TokenSpec::Token(Token {
-                name: None,
-                color_indicator: vec![],
-                supertypes: vec![],
-                types: vec![Type::Artifact.def()],
-                subtypes: vec![],
-                abilities: vec![],
-                power: None,
-                toughness: None,
-            })
+            TokenSpec::Token(
+                Token {
+                    name: None,
+                    color_indicator: vec![].into(),
+                    supertypes: vec![].into(),
+                    types: vec![Type::Artifact.def()].into(),
+                    subtypes: vec![].into(),
+                    abilities: vec![].into(),
+                    power: None,
+                    toughness: None,
+                }
+                .into()
+            )
         );
     }
 
     #[test]
     fn minimal_token_parses() {
         let token = read("Token(types: [TypeDef(name: \"Artifact\", permanent: true)])");
-        assert_eq!(token.types, vec![Type::Artifact.def()]);
+        assert_eq!(token.types, vec![Type::Artifact.def()].into());
         assert!(token.supertypes.is_empty());
         assert!(token.subtypes.is_empty());
         assert!(token.abilities.is_empty());
@@ -495,11 +519,11 @@ mod tests {
     fn token_round_trips_with_empty_vecs_omitted() {
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
-            abilities: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![].into(),
             power: None,
             toughness: None,
         };
@@ -548,8 +572,8 @@ mod tests {
         let token = read(
             "Token(color_indicator: [Red], types: [TypeDef(name: \"Creature\", permanent: true)], power: 1, toughness: 1)",
         );
-        assert_eq!(token.color_indicator, vec![Color::Red]);
-        assert_eq!(token.types, vec![Type::Creature.def()]);
+        assert_eq!(token.color_indicator, vec![Color::Red].into());
+        assert_eq!(token.types, vec![Type::Creature.def()].into());
         assert_eq!(token.power, Some(StatValue::Number(1)));
         assert_eq!(token.toughness, Some(StatValue::Number(1)));
         let written = crate::ron::options().to_string(&token).unwrap();
@@ -571,7 +595,7 @@ mod tests {
             ],\
         )";
         let token = read(source);
-        assert_eq!(token.types, vec![Type::Artifact.def()]);
+        assert_eq!(token.types, vec![Type::Artifact.def()].into());
         assert!(token.subtypes.is_empty());
         assert_eq!(
             token.abilities,
@@ -579,18 +603,21 @@ mod tests {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![
-                    CostComponent::Tap,
-                    CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
-                ]
-                .into(),
+                cost: crate::Cost(
+                    vec![
+                        CostComponent::Tap,
+                        CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
+                    ]
+                    .into(),
+                ),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: OneShotEffect::Act(Action::By(
                     Reference::You,
                     PlayerAction::AddMana(crate::Count::Literal(1), ManaSpec::AnyColor.into()),
                 )),
             })]
+            .into()
         );
     }
 }

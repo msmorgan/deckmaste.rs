@@ -380,7 +380,7 @@ fn delver_look_top(f: &deckmaste_core::If, ctx: &Ctx) -> Option<String> {
             },
         )),
         OneShotEffect::Act(Action::Transform(target)),
-    ] = parts.as_slice()
+    ] = parts.as_ref()
     else {
         return None;
     };
@@ -468,7 +468,7 @@ fn reveal_until_body(body: &OneShotEffect, whose_poss: &str) -> Option<String> {
             to: Destination::Library(anchor),
             riders: group_riders,
         }),
-    ] = parts.as_slice()
+    ] = parts.as_ref()
     else {
         return None;
     };
@@ -546,13 +546,13 @@ fn search_library(w: &With) -> Option<String> {
     else {
         return None;
     };
-    if from.as_slice() != [Zone::Library] {
+    if from.as_ref() != [Zone::Library] {
         return None;
     }
     let OneShotEffect::Sequentially(parts) = w.body.as_ref() else {
         return None;
     };
-    let (reveal, move_part, shuffle_part) = match parts.as_slice() {
+    let (reveal, move_part, shuffle_part) = match parts.as_ref() {
         [a, b, c] => (Some(a), b, c),
         [a, b] => (None, a, b),
         _ => return None,
@@ -586,7 +586,7 @@ fn search_library(w: &With) -> Option<String> {
         Zone::Graveyard => ("into your graveyard", false),
         _ => return None,
     };
-    let tapped = match riders.as_slice() {
+    let tapped = match riders.as_ref() {
         [] => false,
         [EnterRider::Tapped] if tapped_ok => true,
         _ => return None,
@@ -686,7 +686,7 @@ fn search_filter_phrase(filter: &Predicate) -> Option<String> {
                 subtypes.push(s.name().as_str());
             }
             Predicate::Or(members) => {
-                for m in members {
+                for m in members.iter() {
                     let Predicate::Characteristic(CharacteristicPredicate::Subtype(s)) = m else {
                         return None;
                     };
@@ -934,9 +934,9 @@ fn pile_collective(body: &OneShotEffect, group_phrase: &str) -> Option<String> {
         // `DestroyNoRegen`'s expansion: `Sequentially([Composite(name: Destroy,
         // body: Move(It, Graveyard)), Until(ForThisEvent, [Cant(Regenerate(on:
         // It))])])` ([CR#701.19c]).
-        OneShotEffect::Sequentially(parts) => match parts.as_slice() {
+        OneShotEffect::Sequentially(parts) => match parts.as_ref() {
             [b, OneShotEffect::Until(Duration::ForThisEvent, statics)] if is_destroy_it(b) => {
-                match statics.as_slice() {
+                match statics.as_ref() {
                     [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Regenerate { .. }))] => {
                         Some(format!(
                             "Destroy all creatures in {group_phrase}. They can't be regenerated."
@@ -970,7 +970,7 @@ fn modal_effect(modal: &deckmaste_core::Modal, ctx: &Ctx) -> String {
         }
     }
     lines.push(choose_line(&modal.choose));
-    for mode in &modal.modes {
+    for mode in modal.modes.iter() {
         lines.push(format!(
             "\u{2022} {}",
             ensure_period(&effect(&mode.effect, ctx))
@@ -2005,7 +2005,7 @@ fn additional_cost_object_phrase(cost: &[deckmaste_core::CostComponent]) -> Opti
     use deckmaste_core::CostComponent;
     if let [CostComponent::With { binder, body }] = cost
         && let Binder::ChooseOne { filter, .. } = binder.as_ref()
-        && let [CostComponent::Do(pa)] = body.0.as_slice()
+        && let [CostComponent::Do(pa)] = body.0.as_ref()
         && let Action::By(_, PlayerAction::Sacrifice(Reference::That(_))) = pa.as_ref()
     {
         return Some(format!("the sacrificed {}", fragment::filter_noun(filter)));
@@ -2383,7 +2383,7 @@ fn copy_pt_set_clause(exceptions: &[CopyException]) -> Option<String> {
         match peel_modification(m) {
             Modification::Power(NumericOp::Set(StatValue::Number(n))) => p = Some(i64::from(*n)),
             Modification::Toughness(NumericOp::Set(StatValue::Number(n))) => {
-                t = Some(i64::from(*n))
+                t = Some(i64::from(*n));
             }
             _ => {}
         }
@@ -2571,22 +2571,22 @@ fn token_descriptor(t: &Token) -> String {
     }
 
     // Colors
-    for color in &t.color_indicator {
+    for color in t.color_indicator.iter() {
         parts.push(color_word(*color).to_string());
     }
 
     // Supertypes
-    for s in &t.supertypes {
+    for s in t.supertypes.iter() {
         parts.push(super::card::supertype_str(*s).to_lowercase());
     }
 
     // Subtypes (proper-cased names)
-    for s in &t.subtypes {
+    for s in t.subtypes.iter() {
         parts.push(s.name.to_string());
     }
 
     // Types
-    for ty in &t.types {
+    for ty in t.types.iter() {
         parts.push(super::card::type_str(ty).to_lowercase());
     }
 
@@ -2738,7 +2738,7 @@ mod tests {
             that: None,
             named: None,
         };
-        let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())]);
+        let one = || Cost(vec![CostComponent::Mana("{1}".parse().unwrap())].into());
         let draw = || Arc::new(kw("Draw(1)"));
         let lose = || {
             Arc::new(OneShotEffect::act_by_you(PlayerAction::LoseLife(
@@ -2934,18 +2934,21 @@ mod tests {
         };
         let w = || ColorOrColorless::Color(White);
         let u = || ColorOrColorless::Color(Blue);
-        assert_eq!(render(ManaSpec::OneOf(vec![w(), u()])), "Add {W} or {U}.");
         assert_eq!(
-            render(ManaSpec::OneOfRuns(vec![
-                vec![w(), w()],
-                vec![w(), u()],
-                vec![u(), u()],
-            ])),
+            render(ManaSpec::OneOf(vec![w(), u()].into())),
+            "Add {W} or {U}."
+        );
+        assert_eq!(
+            render(ManaSpec::OneOfRuns(
+                vec![vec![w(), w()], vec![w(), u()], vec![u(), u()],].into()
+            )),
             "Add {W}{W}, {W}{U}, or {U}{U}."
         );
         // The two-run form drops the Oxford comma.
         assert_eq!(
-            render(ManaSpec::OneOfRuns(vec![vec![w(), w()], vec![u(), u()]])),
+            render(ManaSpec::OneOfRuns(
+                vec![vec![w(), w()], vec![u(), u()]].into()
+            )),
             "Add {W}{W} or {U}{U}."
         );
     }
@@ -3080,14 +3083,14 @@ mod tests {
         let top = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(action(&top, &ctx), "Put it on top of your library.");
         let bottom = Action::Move(
             Reference::This,
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(
@@ -3112,7 +3115,7 @@ mod tests {
         let top = Action::Move(
             Reference::Target(0),
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(
@@ -3122,7 +3125,7 @@ mod tests {
         let bottom = Action::Move(
             Reference::Target(0),
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(
@@ -3150,7 +3153,12 @@ mod tests {
             that: None,
             named: None,
         };
-        let self_hand = Action::Move(Reference::This, Destination::Zone(Zone::Hand), vec![], None);
+        let self_hand = Action::Move(
+            Reference::This,
+            Destination::Zone(Zone::Hand),
+            vec![].into(),
+            None,
+        );
         assert_eq!(action(&self_hand, &self_ctx), "Return it to your hand.");
 
         // Targeted permanent (battlefield) -> "its owner's hand".
@@ -3164,7 +3172,7 @@ mod tests {
         let bf_hand = Action::Move(
             Reference::Target(0),
             Destination::Zone(Zone::Hand),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(
@@ -3176,13 +3184,16 @@ mod tests {
         // player); the possessive keeps "your library" even for a `Target`.
         let grave = TargetSpec::Target(
             Quantity::one(),
-            Predicate::And(vec![
-                Predicate::creature(),
-                Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-                Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
-                    Reference::You,
-                )))),
-            ]),
+            Predicate::And(
+                vec![
+                    Predicate::creature(),
+                    Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+                    Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ]
+                .into(),
+            ),
         );
         let grave_ctx = Ctx {
             subject: "it",
@@ -3193,7 +3204,7 @@ mod tests {
         let grave_lib = Action::Move(
             Reference::Target(0),
             Destination::Library(Anchor::FromTop(Count::Literal(0))),
-            vec![],
+            vec![].into(),
             None,
         );
         let rendered = action(&grave_lib, &grave_ctx);
@@ -3234,26 +3245,32 @@ mod tests {
                 body: Arc::new(OneShotEffect::Act(Action::Move(
                     Reference::That(Sort::Permanent),
                     Destination::Zone(Zone::Hand),
-                    vec![],
+                    vec![].into(),
                     None,
                 ))),
             })
         };
 
-        let land_you_control = Predicate::And(vec![
-            Predicate::r#type(deckmaste_core::Type::Land),
-            Predicate::Relation(RelationPredicate::ControlledBy(you())),
-        ]);
+        let land_you_control = Predicate::And(
+            vec![
+                Predicate::r#type(deckmaste_core::Type::Land),
+                Predicate::Relation(RelationPredicate::ControlledBy(you())),
+            ]
+            .into(),
+        );
         assert_eq!(
             effect(&chosen_hand(land_you_control), &ctx),
             "Return a land you control to its owner's hand."
         );
 
-        let another_creature = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(you())),
-        ]);
+        let another_creature = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(you())),
+            ]
+            .into(),
+        );
         assert_eq!(
             effect(&chosen_hand(another_creature), &ctx),
             "Return another creature you control to its owner's hand."
@@ -3273,13 +3290,16 @@ mod tests {
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
 
-        let graveyard_creature = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-            Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let graveyard_creature = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+                Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         let target = TargetSpec::Target(Quantity::one(), graveyard_creature);
         let ctx = Ctx {
             subject: "it",
@@ -3290,7 +3310,7 @@ mod tests {
         let targeted = Action::Move(
             Reference::Target(0),
             Destination::Zone(Zone::Battlefield),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(
@@ -3299,12 +3319,15 @@ mod tests {
         );
 
         // Bare "card" (no type qualifier).
-        let bare_card = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-            Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let bare_card = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+                Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         let bare_target = TargetSpec::Target(Quantity::one(), bare_card);
         let bare_ctx = Ctx {
             subject: "it",
@@ -3327,7 +3350,7 @@ mod tests {
         let self_move = Action::Move(
             Reference::This,
             Destination::Zone(Zone::Battlefield),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(
@@ -3341,7 +3364,7 @@ mod tests {
         let riders = Action::Move(
             Reference::That(deckmaste_core::Sort::Card),
             Destination::Zone(Zone::Battlefield),
-            vec![EnterRider::UnderOwnersControl],
+            vec![EnterRider::UnderOwnersControl].into(),
             None,
         );
         assert_eq!(
@@ -3356,7 +3379,7 @@ mod tests {
         let riderless_that = Action::Move(
             Reference::That(deckmaste_core::Sort::Card),
             Destination::Zone(Zone::Battlefield),
-            vec![],
+            vec![].into(),
             None,
         );
         assert!(
@@ -3450,17 +3473,23 @@ mod tests {
             &deckmaste_core::OneShotEffect::AdditionalCost(AdditionalCost {
                 // "sacrifice a creature" is now the choose-then-pay `With` cost
                 // step: ChooseOne(Creature) binds `That`, then `Sacrifice(That)`.
-                pay: Cost(vec![CostComponent::With {
-                    binder: Arc::new(Binder::ChooseOne {
-                        filter: Predicate::creature(),
-                        by: Reference::You,
-                    }),
-                    body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                        Reference::That(deckmaste_core::Sort::OfType(
-                            deckmaste_core::Type::Creature,
-                        )),
-                    ))]),
-                }]),
+                pay: Cost(
+                    vec![CostComponent::With {
+                        binder: Arc::new(Binder::ChooseOne {
+                            filter: Predicate::creature(),
+                            by: Reference::You,
+                        }),
+                        body: Cost(
+                            vec![CostComponent::do_(PlayerAction::Sacrifice(
+                                Reference::That(deckmaste_core::Sort::OfType(
+                                    deckmaste_core::Type::Creature,
+                                )),
+                            ))]
+                            .into(),
+                        ),
+                    }]
+                    .into(),
+                ),
                 body: Arc::new(kw("Draw(1)")),
             }),
             &ctx,
@@ -3532,32 +3561,38 @@ mod tests {
             named: None,
         };
         let basic_land = || {
-            Predicate::And(vec![
-                Predicate::r#type(deckmaste_core::Type::Land),
-                Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
-            ])
+            Predicate::And(
+                vec![
+                    Predicate::r#type(deckmaste_core::Type::Land),
+                    Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
+                ]
+                .into(),
+            )
         };
         let hand = OneShotEffect::With(With {
             binder: Binder::SearchOne {
                 filter: basic_land(),
                 by: Reference::You,
                 whose: Reference::You,
-                from: vec![Zone::Library],
+                from: vec![Zone::Library].into(),
                 if_none: None,
             },
-            body: Arc::new(OneShotEffect::Sequentially(vec![
-                OneShotEffect::act_by_you(PlayerAction::Reveal {
-                    what: Reference::That(Sort::Card),
-                    to: None,
-                }),
-                OneShotEffect::Act(Action::Move(
-                    Reference::That(Sort::Card),
-                    Destination::Zone(Zone::Hand),
-                    vec![],
-                    None,
-                )),
-                OneShotEffect::act_by_you(PlayerAction::Shuffle),
-            ])),
+            body: Arc::new(OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::act_by_you(PlayerAction::Reveal {
+                        what: Reference::That(Sort::Card),
+                        to: None,
+                    }),
+                    OneShotEffect::Act(Action::Move(
+                        Reference::That(Sort::Card),
+                        Destination::Zone(Zone::Hand),
+                        vec![].into(),
+                        None,
+                    )),
+                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                ]
+                .into(),
+            )),
         });
         assert_eq!(
             effect(&hand, &ctx),
@@ -3569,18 +3604,21 @@ mod tests {
                 filter: basic_land(),
                 by: Reference::You,
                 whose: Reference::You,
-                from: vec![Zone::Library],
+                from: vec![Zone::Library].into(),
                 if_none: None,
             },
-            body: Arc::new(OneShotEffect::Sequentially(vec![
-                OneShotEffect::Act(Action::Move(
-                    Reference::That(Sort::Card),
-                    Destination::Zone(Zone::Battlefield),
-                    vec![EnterRider::Tapped],
-                    None,
-                )),
-                OneShotEffect::act_by_you(PlayerAction::Shuffle),
-            ])),
+            body: Arc::new(OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(Action::Move(
+                        Reference::That(Sort::Card),
+                        Destination::Zone(Zone::Battlefield),
+                        vec![EnterRider::Tapped].into(),
+                        None,
+                    )),
+                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                ]
+                .into(),
+            )),
         });
         assert_eq!(
             effect(&battlefield, &ctx),
@@ -3618,22 +3656,25 @@ mod tests {
                 filter: subtype("Goblin"),
                 by: Reference::You,
                 whose: Reference::You,
-                from: vec![Zone::Library],
+                from: vec![Zone::Library].into(),
                 if_none: None,
             },
-            body: Arc::new(OneShotEffect::Sequentially(vec![
-                OneShotEffect::act_by_you(PlayerAction::Reveal {
-                    what: Reference::That(Sort::Card),
-                    to: None,
-                }),
-                OneShotEffect::Act(Action::Move(
-                    Reference::That(Sort::Card),
-                    Destination::Zone(Zone::Hand),
-                    vec![],
-                    None,
-                )),
-                OneShotEffect::act_by_you(PlayerAction::Shuffle),
-            ])),
+            body: Arc::new(OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::act_by_you(PlayerAction::Reveal {
+                        what: Reference::That(Sort::Card),
+                        to: None,
+                    }),
+                    OneShotEffect::Act(Action::Move(
+                        Reference::That(Sort::Card),
+                        Destination::Zone(Zone::Hand),
+                        vec![].into(),
+                        None,
+                    )),
+                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                ]
+                .into(),
+            )),
         });
         assert_eq!(
             effect(&goblin, &ctx),
@@ -3642,21 +3683,24 @@ mod tests {
 
         let swamp_or_mountain = OneShotEffect::With(With {
             binder: Binder::SearchOne {
-                filter: Predicate::Or(vec![subtype("Swamp"), subtype("Mountain")]),
+                filter: Predicate::Or(vec![subtype("Swamp"), subtype("Mountain")].into()),
                 by: Reference::You,
                 whose: Reference::You,
-                from: vec![Zone::Library],
+                from: vec![Zone::Library].into(),
                 if_none: None,
             },
-            body: Arc::new(OneShotEffect::Sequentially(vec![
-                OneShotEffect::Act(Action::Move(
-                    Reference::That(Sort::Card),
-                    Destination::Zone(Zone::Battlefield),
-                    vec![],
-                    None,
-                )),
-                OneShotEffect::act_by_you(PlayerAction::Shuffle),
-            ])),
+            body: Arc::new(OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(Action::Move(
+                        Reference::That(Sort::Card),
+                        Destination::Zone(Zone::Battlefield),
+                        vec![].into(),
+                        None,
+                    )),
+                    OneShotEffect::act_by_you(PlayerAction::Shuffle),
+                ]
+                .into(),
+            )),
         });
         assert_eq!(
             effect(&swamp_or_mountain, &ctx),
@@ -3680,9 +3724,9 @@ mod tests {
         };
         let draw = || kw("Draw(1)");
         let discard = || kw("Discard(1)");
-        let loot = OneShotEffect::Sequentially(vec![draw(), discard()]);
+        let loot = OneShotEffect::Sequentially(vec![draw(), discard()].into());
         assert_eq!(effect(&loot, &ctx), "Draw a card, then discard a card.");
-        let rummage = OneShotEffect::Sequentially(vec![discard(), draw()]);
+        let rummage = OneShotEffect::Sequentially(vec![discard(), draw()].into());
         assert_eq!(effect(&rummage, &ctx), "Discard a card, then draw a card.");
     }
 
@@ -3844,7 +3888,7 @@ mod tests {
         let exile = Action::by_you(PlayerAction::Move(
             Reference::This,
             Destination::Zone(Zone::Exile),
-            vec![],
+            vec![].into(),
         ));
         assert_eq!(action(&exile, &ctx), "Exile Scavenger.");
     }
@@ -3858,10 +3902,13 @@ mod tests {
     fn exile_target_card_from_a_graveyard_round_trips() {
         use deckmaste_core::StatePredicate;
 
-        let graveyard_creature = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-        ]);
+        let graveyard_creature = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+            ]
+            .into(),
+        );
         let target = TargetSpec::Target(Quantity::one(), graveyard_creature);
         let ctx = Ctx {
             subject: "it",
@@ -3872,7 +3919,7 @@ mod tests {
         let exiled = Action::Move(
             Reference::Target(0),
             Destination::Zone(Zone::Exile),
-            vec![],
+            vec![].into(),
             None,
         );
         assert_eq!(
@@ -3974,10 +4021,13 @@ mod tests {
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = target_creature_ctx(&target);
-        let spec = TokenSpec::Copy(CopySpec {
-            source: CopySource::Object(Reference::Target(0)),
-            exceptions: vec![],
-        });
+        let spec = TokenSpec::Copy(
+            CopySpec {
+                source: CopySource::Object(Reference::Target(0)),
+                exceptions: vec![],
+            }
+            .into(),
+        );
         assert_eq!(
             create_text(&Count::Literal(1), &spec, &ctx),
             "Create a token that's a copy of target creature.",
@@ -3996,10 +4046,13 @@ mod tests {
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::creature());
         let ctx = target_creature_ctx(&target);
-        let spec = TokenSpec::Copy(CopySpec {
-            source: CopySource::Object(Reference::Target(0)),
-            exceptions: vec![],
-        });
+        let spec = TokenSpec::Copy(
+            CopySpec {
+                source: CopySource::Object(Reference::Target(0)),
+                exceptions: vec![],
+            }
+            .into(),
+        );
         assert_eq!(
             create_text(&Count::Literal(5), &spec, &ctx),
             "Create five tokens that are copies of target creature.",
@@ -4062,10 +4115,13 @@ mod tests {
             that: None,
             named: None,
         };
-        let spec = TokenSpec::Copy(CopySpec {
-            source: CopySource::SelfCard,
-            exceptions: vec![],
-        });
+        let spec = TokenSpec::Copy(
+            CopySpec {
+                source: CopySource::SelfCard,
+                exceptions: vec![],
+            }
+            .into(),
+        );
         assert_eq!(
             create_text(&Count::Literal(1), &spec, &ctx),
             "Create a token that's a copy of it."
@@ -4144,25 +4200,25 @@ mod tests {
 
         assert_eq!(
             copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
-                CollectionOp::Set(vec![Color::Black])
+                CollectionOp::Set(vec![Color::Black].into())
             ))]),
             ", except it's black"
         );
         assert_eq!(
             copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
-                CollectionOp::Set(vec![Color::White])
+                CollectionOp::Set(vec![Color::White].into())
             ))]),
             ", except it's white"
         );
         assert_eq!(
             copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
-                CollectionOp::Set(vec![Color::White, Color::Blue])
+                CollectionOp::Set(vec![Color::White, Color::Blue].into())
             ))]),
             ", except it's white and blue"
         );
         assert_eq!(
             copy_exceptions_clause(&[CopyException::Modify(Modification::Colors(
-                CollectionOp::Set(vec![])
+                CollectionOp::Set(vec![].into())
             ))]),
             ", except it's colorless"
         );
@@ -4187,7 +4243,9 @@ mod tests {
             CopyException::Modify(Modification::Toughness(NumericOp::Set(StatValue::Number(
                 4,
             )))),
-            CopyException::Modify(Modification::Colors(CollectionOp::Set(vec![Color::Black]))),
+            CopyException::Modify(Modification::Colors(CollectionOp::Set(
+                vec![Color::Black].into(),
+            ))),
             CopyException::Modify(Modification::Subtypes(CollectionOp::Add("Zombie".into()))),
         ];
         assert_eq!(

@@ -47,7 +47,7 @@ impl EventApply for TriggerFired {
         // `abilities_of_source` borrow must not overlap them).
         let limits: Vec<deckmaste_core::UseLimit> =
             match crate::derive::abilities_of_source(g, source).get(ability as usize) {
-                Some(deckmaste_core::Ability::Triggered(t)) => t.limits.clone(),
+                Some(deckmaste_core::Ability::Triggered(t)) => t.limits.to_vec(),
                 _ => Vec::new(),
             };
         if let Some(obj) = obj {

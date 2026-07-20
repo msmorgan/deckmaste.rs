@@ -514,22 +514,28 @@ mod tests {
             .from_str(ASCEND_GATE)
             .expect("ASCEND_GATE parses as a Condition");
 
-        let canonical = Condition::And(vec![
-            Condition::Compare(
-                Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
+        let canonical = Condition::And(
+            vec![
+                Condition::Compare(
+                    Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
+                        vec![
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                Predicate::Ref(Reference::You),
+                            ))),
+                        ]
+                        .into(),
                     )))),
-                ])))),
-                Cmp::AtLeast,
-                Count::Literal(10),
-            ),
-            Condition::Not(Arc::new(Condition::Matches(
-                Reference::You,
-                Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
-            ))),
-        ]);
+                    Cmp::AtLeast,
+                    Count::Literal(10),
+                ),
+                Condition::Not(Arc::new(Condition::Matches(
+                    Reference::You,
+                    Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
+                ))),
+            ]
+            .into(),
+        );
 
         assert_eq!(
             parsed, canonical,

@@ -514,10 +514,11 @@ fn layer_added_subtype_confers_its_keyword() {
         "Trampler".into(),
         Subtype {
             name: "Trampler".into(),
-            types: vec![Type::Creature],
+            types: vec![Type::Creature].into(),
             confers: vec![Property::Ability(Arc::new(Ability::Keyword(
                 KeywordAbility::Trample,
-            )))],
+            )))]
+            .into(),
         },
     );
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
@@ -628,9 +629,9 @@ fn losing_creature_type_removes_the_attack_grant() {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
-        changes: vec![Modification::CardTypes(CollectionOp::Set(vec![
-            "Enchantment".into(),
-        ]))],
+        changes: vec![Modification::CardTypes(CollectionOp::Set(
+            vec!["Enchantment".into()].into(),
+        ))],
         duration: Duration::EndOfGame,
         rows: vec![],
         origin: None,
@@ -892,7 +893,7 @@ fn independent_effects_keep_timestamp_order() {
         controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![Modification::Colors(deckmaste_core::CollectionOp::Set(
-            vec![Color::Red],
+            vec![Color::Red].into(),
         ))],
         duration: Duration::EndOfGame,
         rows: vec![],
@@ -904,7 +905,7 @@ fn independent_effects_keep_timestamp_order() {
         controller: PlayerId(0),
         scope: ScopeResolved::Locked(vec![bear]),
         changes: vec![Modification::Colors(deckmaste_core::CollectionOp::Set(
-            vec![Color::Blue],
+            vec![Color::Blue].into(),
         ))],
         duration: Duration::EndOfGame,
         rows: vec![],

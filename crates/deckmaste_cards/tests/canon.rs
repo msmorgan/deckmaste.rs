@@ -70,8 +70,8 @@ fn grizzly_bears_expand_the_creature_type_macro() {
         face.subtypes,
         vec![Subtype {
             name: "Bear".into(),
-            types: vec![Type::Creature, Type::Kindred],
-            confers: vec![],
+            types: vec![Type::Creature, Type::Kindred].into(),
+            confers: vec![].into(),
         }]
     );
     assert_eq!(face.power, Some(StatValue::Number(2)));
@@ -97,7 +97,7 @@ fn lightning_bolt_expands_target_macros() {
         vec![Ability::spell(SpellAbility {
             ability_word: None,
             effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![any_target],
+                vec![any_target].into(),
                 OneShotEffect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
             )),
         })]
@@ -190,9 +190,12 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     );
     assert_eq!(
         m.cost,
-        Cost(vec![CostComponent::Mana(ManaCost::from(vec![
-            ManaSymbol::Simple(SimpleManaSymbol::Generic(3)),
-        ]))]),
+        Cost(
+            vec![CostComponent::Mana(ManaCost::from(
+                Arc::<[ManaSymbol]>::from(vec![ManaSymbol::Simple(SimpleManaSymbol::Generic(3)),])
+            ))]
+            .into()
+        ),
         "the toll is the full {{3}} Cost"
     );
     assert_eq!(
@@ -232,10 +235,10 @@ fn fate_transfer_cost_is_hybrid_blue_black() {
     };
     assert_eq!(
         face.mana_cost,
-        ManaCost::from(vec![
+        ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
             ManaSymbol::Hybrid(SimpleManaSymbol::from(Color::Blue), Color::Black),
-        ])
+        ]))
     );
 }
 

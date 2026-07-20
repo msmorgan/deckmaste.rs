@@ -149,7 +149,7 @@ mod tests {
         let id = *state.zones.hands[0].first().expect("nonempty hand");
         let s = text_to_string(&render(&state, &view, Some(Selected::Object(id))));
         assert!(
-            s.contains(&face(state.def(id)).name),
+            s.contains(&*face(state.def(id)).name),
             "detail names the card: {s}"
         );
     }
@@ -171,7 +171,7 @@ mod tests {
             .iter()
             .filter(|o| o.card_id().is_some())
             .map(|o| o.id)
-            .find(|&id| face(state.def(id)).name == "Elvish Visionary")
+            .find(|&id| &*face(state.def(id)).name == "Elvish Visionary")
             .expect("Elvish Visionary in game");
         let s = text_to_string(&render(&state, &view, Some(Selected::Object(id))));
         assert!(s.contains("draw a card"), "renders effect as prose: {s}");

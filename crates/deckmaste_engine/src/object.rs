@@ -134,15 +134,16 @@ impl Cards {
                 .chain(std::iter::once("Token"))
                 .collect::<Vec<_>>()
                 .join(" ")
+                .into()
         });
         let def = Arc::new(Card::Normal(CardFace {
             name,
             mana_cost: deckmaste_core::ManaCost::default(),
-            color_indicator: token.color_indicator.clone(),
-            supertypes: token.supertypes.clone(),
-            types: token.types.clone(),
-            subtypes: token.subtypes.clone(),
-            abilities: token.abilities.clone(),
+            color_indicator: token.color_indicator.to_vec(),
+            supertypes: token.supertypes.to_vec(),
+            types: token.types.to_vec(),
+            subtypes: token.subtypes.to_vec(),
+            abilities: token.abilities.to_vec(),
             power: token.power.clone(),
             toughness: token.toughness.clone(),
             loyalty: None,
@@ -475,11 +476,11 @@ mod tests {
         let mut cards = Cards::default();
         let token = Token {
             name: None,
-            color_indicator: vec![Color::Red],
-            supertypes: vec![],
-            types: vec![Type::Creature.def()],
-            subtypes: vec![],
-            abilities: vec![],
+            color_indicator: vec![Color::Red].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Creature.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![].into(),
             power: Some(StatValue::Number(1)),
             toughness: Some(StatValue::Number(1)),
         };
@@ -501,15 +502,16 @@ mod tests {
         let mut cards = Cards::default();
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Creature.def()],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Creature.def()].into(),
             subtypes: vec![deckmaste_core::Subtype {
                 name: "Bear".into(),
-                types: vec![Type::Creature],
-                confers: vec![],
-            }],
-            abilities: vec![],
+                types: vec![Type::Creature].into(),
+                confers: vec![].into(),
+            }]
+            .into(),
+            abilities: vec![].into(),
             power: None,
             toughness: None,
         };
@@ -518,7 +520,7 @@ mod tests {
             panic!("a token synthesizes a one-faced Normal card");
         };
         assert_eq!(
-            face.name, "Bear Token",
+            &*face.name, "Bear Token",
             "[CR#111.4]: no explicit name -> subtypes + \"Token\""
         );
     }
@@ -530,15 +532,16 @@ mod tests {
         let mut cards = Cards::default();
         let token = Token {
             name: Some("Grizzly Bears".into()),
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Creature.def()],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Creature.def()].into(),
             subtypes: vec![deckmaste_core::Subtype {
                 name: "Bear".into(),
-                types: vec![Type::Creature],
-                confers: vec![],
-            }],
-            abilities: vec![],
+                types: vec![Type::Creature].into(),
+                confers: vec![].into(),
+            }]
+            .into(),
+            abilities: vec![].into(),
             power: None,
             toughness: None,
         };
@@ -547,7 +550,7 @@ mod tests {
             panic!("a token synthesizes a one-faced Normal card");
         };
         assert_eq!(
-            face.name, "Grizzly Bears",
+            &*face.name, "Grizzly Bears",
             "[CR#707.2]: an explicit name is carried verbatim, not resynthesized"
         );
     }

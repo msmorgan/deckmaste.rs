@@ -222,8 +222,8 @@ pub enum Predicate {
     /// red sources" is `Or([And([Kind(Spell), ColorIs(Red)]),
     /// FromSource(ColorIs(Red))])`. Boxed like the other one-child atoms.
     FromSource(Arc<Predicate>),
-    And(Vec<Predicate>),
-    Or(Vec<Predicate>),
+    And(Arc<[Predicate]>),
+    Or(Arc<[Predicate]>),
     Not(Arc<Predicate>),
     /// The candidate matches iff a [`Condition`] holds with `It` bound to
     /// it — the bridge that lets a per-object filter slot reach the whole
@@ -325,11 +325,11 @@ impl Normalize for Predicate {
             Predicate::FromSource(inner) => Predicate::FromSource(inner.normalize()),
 
             Predicate::And(children) => {
-                let mut flat = Vec::with_capacity(children.len());
-                for child in children {
+                let mut flat: Vec<Predicate> = Vec::with_capacity(children.len());
+                for child in children.iter().cloned() {
                     match child.normalize() {
                         // Associativity: splice a nested And in.
-                        Predicate::And(inner) => flat.extend(inner),
+                        Predicate::And(inner) => flat.extend(inner.iter().cloned()),
                         other => flat.push(other),
                     }
                 }
@@ -337,21 +337,21 @@ impl Normalize for Predicate {
                 if flat.len() == 1 {
                     flat.pop().expect("len checked")
                 } else {
-                    Predicate::And(flat)
+                    Predicate::And(flat.into())
                 }
             }
             Predicate::Or(children) => {
-                let mut flat = Vec::with_capacity(children.len());
-                for child in children {
+                let mut flat: Vec<Predicate> = Vec::with_capacity(children.len());
+                for child in children.iter().cloned() {
                     match child.normalize() {
-                        Predicate::Or(inner) => flat.extend(inner),
+                        Predicate::Or(inner) => flat.extend(inner.iter().cloned()),
                         other => flat.push(other),
                     }
                 }
                 if flat.len() == 1 {
                     flat.pop().expect("len checked")
                 } else {
-                    Predicate::Or(flat)
+                    Predicate::Or(flat.into())
                 }
             }
 
@@ -413,7 +413,7 @@ mod tests {
         let framed: Predicate = macros.read_str("PermOfType(Creature)").unwrap();
         assert_eq!(
             crate::Expand::expand_all(framed),
-            Predicate::And(vec![Predicate::r#type(Type::Creature)])
+            Predicate::And(vec![Predicate::r#type(Type::Creature)].into())
         );
     }
 
@@ -450,7 +450,7 @@ mod tests {
             Predicate::Characteristic(CharacteristicPredicate::Type(TypeRef(Arc::new(TypeDef {
                 name: "Creature".into(),
                 permanent: true,
-                confers: vec![],
+                confers: vec![].into(),
             })))),
         );
         // By-name eq: the structural helper (empty `confers`) equals the parsed
@@ -464,8 +464,8 @@ mod tests {
             Predicate::Characteristic(CharacteristicPredicate::Subtype(SubtypeRef(Arc::new(
                 Subtype {
                     name: "Vampire".into(),
-                    types: vec![Type::Creature],
-                    confers: vec![],
+                    types: vec![Type::Creature].into(),
+                    confers: vec![].into(),
                 }
             )))),
         );
@@ -489,12 +489,15 @@ mod tests {
         // "your team" ([CR#102.4]) composes from the two primitives.
         assert_eq!(
             read("Or([Ref(You), TeammateOf(Ref(You))])"),
-            Predicate::Or(vec![
-                Predicate::Ref(Reference::You),
-                Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
-                    Reference::You
-                )))),
-            ]),
+            Predicate::Or(
+                vec![
+                    Predicate::Ref(Reference::You),
+                    Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
+                        Reference::You
+                    )))),
+                ]
+                .into()
+            ),
         );
     }
 
@@ -640,10 +643,13 @@ mod tests {
     fn combinators_nest() {
         assert_eq!(
             read("And([InZone(Battlefield), Type(name:\"Creature\",permanent:true)])"),
-            Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::r#type(Type::Creature),
-            ]),
+            Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::r#type(Type::Creature),
+                ]
+                .into()
+            ),
         );
         assert_eq!(
             read("Not(Kind(Player))"),

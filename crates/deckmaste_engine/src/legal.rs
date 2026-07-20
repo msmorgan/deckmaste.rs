@@ -1994,10 +1994,10 @@ mod tests {
         Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: vec![CostComponent::Tap].into(),
+            cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
             window: None,
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::AddMana(
@@ -2178,7 +2178,8 @@ mod tests {
                     cost: None,
                     tag: None,
                 }))),
-            ))],
+            ))]
+            .into(),
         }
     }
 
@@ -2475,7 +2476,8 @@ mod tests {
                     by: Predicate::Any,
                     from: None,
                 }))),
-            ))],
+            ))]
+            .into(),
         }
     }
 
@@ -2612,16 +2614,19 @@ mod tests {
         use deckmaste_core::Property;
         use deckmaste_core::StatePredicate;
         let sick_not_hasty = || {
-            Condition::And(vec![
-                Condition::Matches(
-                    Reference::This,
-                    Predicate::State(StatePredicate::SummoningSick),
-                ),
-                Condition::Not(Arc::new(Condition::Matches(
-                    Reference::This,
-                    Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
-                ))),
-            ])
+            Condition::And(
+                vec![
+                    Condition::Matches(
+                        Reference::This,
+                        Predicate::State(StatePredicate::SummoningSick),
+                    ),
+                    Condition::Not(Arc::new(Condition::Matches(
+                        Reference::This,
+                        Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
+                    ))),
+                ]
+                .into(),
+            )
         };
         let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
         deckmaste_core::TypeDef {
@@ -2656,7 +2661,8 @@ mod tests {
                         },
                     ))),
                 )),
-            ],
+            ]
+            .into(),
         }
     }
 
@@ -2876,10 +2882,10 @@ mod tests {
         Ability::activated(ActivatedAbility {
             ability_word: None,
             from: None,
-            cost: cost.into(),
+            cost: Arc::<[deckmaste_core::CostComponent]>::from(cost).into(),
             window: None,
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GainLife(Count::Literal(1)),
@@ -3142,11 +3148,11 @@ mod tests {
             vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 from: None,
-                event: EventFilter::OneOf(Vec::new()),
+                event: EventFilter::OneOf(Vec::new().into()),
                 condition: None,
-                limits: Vec::new(),
+                limits: Vec::new().into(),
                 where_x: None,
-                effect: OneShotEffect::Sequentially(Vec::new()),
+                effect: OneShotEffect::Sequentially(Vec::new().into()),
             })],
         );
         let source = state.objects.obj(source_obj).source;

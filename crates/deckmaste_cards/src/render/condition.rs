@@ -130,12 +130,15 @@ pub(super) fn condition(c: &Condition, ctx: &Ctx) -> String {
 /// `Compare(CounterCount(...), ...)` arm and the crate-wide `Expanded`
 /// peeling convention.
 fn graveyard_cards_you_own() -> Predicate {
-    Predicate::And(vec![
-        Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
-        Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
-            Reference::You,
-        )))),
-    ])
+    Predicate::And(
+        vec![
+            Predicate::State(StatePredicate::InZone(Zone::Graveyard)),
+            Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]
+        .into(),
+    )
 }
 
 fn creatures_you_control() -> Predicate {
@@ -145,15 +148,18 @@ fn creatures_you_control() -> Predicate {
 /// `And([InZone(Battlefield), Type(ty), ControlledBy(Ref(You))])` — the
 /// battlefield-census filter for a single card type, controlled by you.
 fn permanents_you_control(ty: deckmaste_core::Ident) -> Predicate {
-    Predicate::And(vec![
-        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-        Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
-            deckmaste_core::TypeRef::named(ty),
-        )),
-        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-            Reference::You,
-        )))),
-    ])
+    Predicate::And(
+        vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Type(
+                deckmaste_core::TypeRef::named(ty),
+            )),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                Reference::You,
+            )))),
+        ]
+        .into(),
+    )
 }
 
 /// `And([InZone(Battlefield), Subtype(name), ControlledBy(Ref(You))])` for
@@ -166,7 +172,7 @@ fn basic_land_you_control(f: &Predicate) -> Option<&'static str> {
         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
         Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Subtype(name)),
         Predicate::Relation(RelationPredicate::ControlledBy(controller)),
-    ] = parts.as_slice()
+    ] = parts.as_ref()
     else {
         return None;
     };
@@ -196,7 +202,7 @@ fn basic_land_you_control(f: &Predicate) -> Option<&'static str> {
 /// `plugins/builtin/macros/condition/AnOpponentControls.ron`
 fn exists_phrase(pred: &Predicate) -> String {
     if let Predicate::And(parts) = strip_expanded(pred)
-        && let [object, control] = parts.as_slice()
+        && let [object, control] = parts.as_ref()
         && let Predicate::Relation(RelationPredicate::ControlledBy(who)) = strip_expanded(control)
     {
         let verb = match strip_expanded(who) {
@@ -476,15 +482,18 @@ mod tests {
             ("Plains", "a Plains"),
             ("Forest", "a Forest"),
         ] {
-            let filter = Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Subtype(
-                    deckmaste_core::SubtypeRef::named(subtype.into()),
-                )),
-                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
-                )))),
-            ]);
+            let filter = Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::Subtype(
+                        deckmaste_core::SubtypeRef::named(subtype.into()),
+                    )),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                        Reference::You,
+                    )))),
+                ]
+                .into(),
+            );
             assert_eq!(
                 condition(&Condition::Exists(filter), &ctx()),
                 format!("you control {phrase}")
@@ -510,12 +519,15 @@ mod tests {
         let artifact = Predicate::r#type(deckmaste_core::Type::Artifact);
         assert_eq!(
             condition(
-                &Condition::Exists(Predicate::And(vec![
-                    artifact.clone(),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You
-                    )))),
-                ])),
+                &Condition::Exists(Predicate::And(
+                    vec![
+                        artifact.clone(),
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You)
+                        ))),
+                    ]
+                    .into()
+                )),
                 &ctx()
             ),
             "you control an artifact"
@@ -532,22 +544,28 @@ mod tests {
                 deckmaste_core::Zone::Battlefield,
             ))),
         });
-        let human = Predicate::And(vec![
-            permanent,
-            Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Human")),
-            )),
-        ]);
+        let human = Predicate::And(
+            vec![
+                permanent,
+                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                    deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Human")),
+                )),
+            ]
+            .into(),
+        );
         assert_eq!(
             condition(
-                &Condition::Exists(Predicate::And(vec![
-                    human,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                        Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(
-                            Predicate::Ref(Reference::You)
-                        )))
-                    ))),
-                ])),
+                &Condition::Exists(Predicate::And(
+                    vec![
+                        human,
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(
+                                Predicate::Ref(Reference::You)
+                            )))
+                        ))),
+                    ]
+                    .into()
+                )),
                 &ctx()
             ),
             "an opponent controls a Human"
@@ -555,20 +573,26 @@ mod tests {
         // A subtype ADJECTIVE before an EXPLICIT type noun ("a Griffin
         // creature", "a Domri planeswalker") — the noun DOES print, unlike
         // the bare-subtype case above.
-        let griffin_creature = Predicate::And(vec![
-            Predicate::creature(),
-            Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Griffin")),
-            )),
-        ]);
+        let griffin_creature = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                    deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Griffin")),
+                )),
+            ]
+            .into(),
+        );
         assert_eq!(
             condition(
-                &Condition::Exists(Predicate::And(vec![
-                    griffin_creature,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You
-                    )))),
-                ])),
+                &Condition::Exists(Predicate::And(
+                    vec![
+                        griffin_creature,
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You)
+                        ))),
+                    ]
+                    .into()
+                )),
                 &ctx()
             ),
             "you control a Griffin creature"
@@ -588,35 +612,49 @@ mod tests {
                 ))),
             })
         };
-        let another_multicolored_permanent = Predicate::And(vec![
-            permanent_noun(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Characteristic(CharacteristicPredicate::Multicolored),
-        ]);
+        let another_multicolored_permanent = Predicate::And(
+            vec![
+                permanent_noun(),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Characteristic(CharacteristicPredicate::Multicolored),
+            ]
+            .into(),
+        );
         assert_eq!(
             condition(
-                &Condition::Exists(Predicate::And(vec![
-                    another_multicolored_permanent,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You
-                    )))),
-                ])),
+                &Condition::Exists(Predicate::And(
+                    vec![
+                        another_multicolored_permanent,
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You)
+                        ))),
+                    ]
+                    .into()
+                )),
                 &ctx()
             ),
             "you control another multicolored permanent"
         );
-        let red_permanent = Predicate::And(vec![
-            permanent_noun(),
-            Predicate::Characteristic(CharacteristicPredicate::ColorIs(deckmaste_core::Color::Red)),
-        ]);
+        let red_permanent = Predicate::And(
+            vec![
+                permanent_noun(),
+                Predicate::Characteristic(CharacteristicPredicate::ColorIs(
+                    deckmaste_core::Color::Red,
+                )),
+            ]
+            .into(),
+        );
         assert_eq!(
             condition(
-                &Condition::Exists(Predicate::And(vec![
-                    red_permanent,
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You
-                    )))),
-                ])),
+                &Condition::Exists(Predicate::And(
+                    vec![
+                        red_permanent,
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You)
+                        ))),
+                    ]
+                    .into()
+                )),
                 &ctx()
             ),
             "you control a red permanent"

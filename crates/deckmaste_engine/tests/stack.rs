@@ -882,9 +882,11 @@ fn ward_x_prices_where_x_at_toll_resolution() {
                 assert_eq!(player, PlayerId(0));
                 assert_eq!(
                     cost,
-                    deckmaste_core::ManaCost::from(vec![deckmaste_core::ManaSymbol::Simple(
-                        deckmaste_core::SimpleManaSymbol::Generic(3)
-                    )]),
+                    deckmaste_core::ManaCost::from(Arc::<[deckmaste_core::ManaSymbol]>::from(
+                        vec![deckmaste_core::ManaSymbol::Simple(
+                            deckmaste_core::SimpleManaSymbol::Generic(3),
+                        )],
+                    )),
                     "the ward-X toll is priced {{3}} from where_x at resolution \
                      ([CR#702.21b])"
                 );
@@ -1187,7 +1189,7 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
                 .objects
                 .obj(o)
                 .card_id()
-                .is_some_and(|_| matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if f.name == "Grizzly Bears"))
+                .is_some_and(|_| matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if &*f.name == "Grizzly Bears"))
         })
         .expect("the reminted Vanilla Creature is on the battlefield");
     assert_ne!(entered, bears, "the entering object carries a fresh id");
@@ -2092,7 +2094,7 @@ fn etb_trigger_draws_a_card() {
         .find(|&o| {
             state.objects.obj(o).card_id().is_some_and(|_| {
                 matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
-                    if f.name == "Elvish Visionary")
+                    if &*f.name == "Elvish Visionary")
             })
         })
         .expect("the ETB creature is on the battlefield");
@@ -2679,7 +2681,7 @@ fn two_triggers_same_player_order_triggers_surfaces() {
             || state.zones.battlefield.iter().any(|&o| {
                 state.objects.obj(o).card_id().is_some_and(|_| {
                     matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
-                        if f.name == "Moonlit Wake")
+                        if &*f.name == "Moonlit Wake")
                 })
             }),
         "at least one watcher is still on the battlefield (the bear died, not the watchers)"
@@ -2754,7 +2756,7 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             .find(|&&o| {
                 state.objects.obj(o).card_id().is_some_and(|_| {
                     matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
-                        if f.name == "Diregraf Ghoul")
+                        if &*f.name == "Diregraf Ghoul")
                 })
             })
             .expect("the reminted Diregraf Ghoul is on the battlefield");
@@ -2799,7 +2801,7 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             .find(|&&o| {
                 state.objects.obj(o).card_id().is_some_and(|_| {
                     matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
-                        if f.name == "Grizzly Bears")
+                        if &*f.name == "Grizzly Bears")
                 })
             })
             .expect("the reminted Vanilla Creature is on the battlefield");
@@ -3143,21 +3145,24 @@ fn inline_blink() -> Card {
             deckmaste_core::SpellAbility {
                 ability_word: None,
                 effect: OneShotEffect::Targeted(Targeted::new(
-                    vec![TargetSpec::Target(Quantity::one(), Predicate::creature())],
-                    OneShotEffect::Sequentially(vec![
-                        OneShotEffect::Act(Action::Move(
-                            Reference::It,
-                            Destination::Zone(Zone::Exile),
-                            vec![],
-                            None,
-                        )),
-                        OneShotEffect::Act(Action::Move(
-                            Reference::That(Sort::Card),
-                            Destination::Zone(Zone::Battlefield),
-                            vec![],
-                            None,
-                        )),
-                    ]),
+                    vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
+                    OneShotEffect::Sequentially(
+                        vec![
+                            OneShotEffect::Act(Action::Move(
+                                Reference::It,
+                                Destination::Zone(Zone::Exile),
+                                vec![].into(),
+                                None,
+                            )),
+                            OneShotEffect::Act(Action::Move(
+                                Reference::That(Sort::Card),
+                                Destination::Zone(Zone::Battlefield),
+                                vec![].into(),
+                                None,
+                            )),
+                        ]
+                        .into(),
+                    ),
                 )),
             },
         )],

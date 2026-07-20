@@ -188,7 +188,7 @@ pub(super) fn triggered(t: &TriggeredAbility, view: &CardView) -> String {
 fn trigger_limit_rider(t: &TriggeredAbility) -> String {
     use deckmaste_core::UseLimit;
     let mut out = String::new();
-    for limit in &t.limits {
+    for limit in t.limits.iter() {
         match limit {
             UseLimit::OncePerTurn => out.push_str(" This ability triggers only once each turn."),
             UseLimit::OncePerGame => out.push_str(" This ability triggers only once."),
@@ -223,7 +223,7 @@ fn adjacent_in_zone_if_clause(
     let Condition::Exists(Predicate::And(parts)) = cond else {
         return None;
     };
-    let [a, b] = parts.as_slice() else { return None };
+    let [a, b] = parts.as_ref() else { return None };
     let ((Predicate::Adjacent(dir, Reference::This), other)
     | (other, Predicate::Adjacent(dir, Reference::This))) = (a, b)
     else {
@@ -1107,7 +1107,7 @@ fn axis_sum_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
     let [
         Modification::Power(NumericOp::Up(power_delta)),
         Modification::Toughness(NumericOp::Up(toughness_delta)),
-    ] = parts.as_slice()
+    ] = parts.as_ref()
     else {
         return None;
     };
@@ -1179,7 +1179,7 @@ fn for_each_pump_clause(r: &Reference, change: &Modification, ctx: &Ctx) -> Opti
             let [
                 Modification::Power(NumericOp::Up(power_delta)),
                 Modification::Toughness(NumericOp::Up(toughness_delta)),
-            ] = parts.as_slice()
+            ] = parts.as_ref()
             else {
                 return None;
             };
@@ -1299,8 +1299,8 @@ fn modifications_predicate(changes: &[Modification], plural: bool, one_shot: boo
     // `Several([Power, Toughness])`, looked through `Expanded`) so the grouping
     // below renders identically to the inline pair — the graduated-RON change
     // is cosmetic.
-    let changes = Modification::flatten(changes.to_vec());
-    let changes = changes.as_slice();
+    let changes = Modification::flatten(changes);
+    let changes = changes.as_ref();
 
     // Pre-scan to compute the combined values for the grouped cases.
     let delta = pt_delta_clause(changes, plural);
@@ -1421,7 +1421,7 @@ fn base_pt_clause(changes: &[Modification], plural: bool) -> Option<String> {
         match c {
             Modification::Power(NumericOp::Set(StatValue::Number(n))) => sp = Some(i64::from(*n)),
             Modification::Toughness(NumericOp::Set(StatValue::Number(n))) => {
-                st = Some(i64::from(*n))
+                st = Some(i64::from(*n));
             }
             _ => {}
         }
@@ -1819,11 +1819,11 @@ mod tests {
         };
         let base = ActivatedAbility {
             ability_word: None,
-            cost: Cost(vec![]),
+            cost: Cost(vec![].into()),
             from: None,
             window: None,
             condition: None,
-            limits: vec![],
+            limits: vec![].into(),
             effect: OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GainLife(Count::Literal(1)),
@@ -1840,7 +1840,7 @@ mod tests {
         );
 
         let once_per_turn = ActivatedAbility {
-            limits: vec![UseLimit::OncePerTurn],
+            limits: vec![UseLimit::OncePerTurn].into(),
             ..base.clone()
         };
         assert_eq!(
@@ -1850,7 +1850,7 @@ mod tests {
 
         let combo = ActivatedAbility {
             window: Some(Timing::SorcerySpeed),
-            limits: vec![UseLimit::OncePerTurn],
+            limits: vec![UseLimit::OncePerTurn].into(),
             ..base.clone()
         };
         assert_eq!(
@@ -1862,7 +1862,7 @@ mod tests {
 
         let loyalty = ActivatedAbility {
             window: Some(Timing::SorcerySpeed),
-            limits: vec![UseLimit::LoyaltyOncePerTurn],
+            limits: vec![UseLimit::LoyaltyOncePerTurn].into(),
             ..base
         };
         assert_eq!(activation_rider(&loyalty, &ctx), "");
@@ -1895,13 +1895,13 @@ mod tests {
 
         let convoke = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Predicate::And(vec![ty(Type::Creature), you()])),
+            PayAct::TapToPay(Predicate::And(vec![ty(Type::Creature), you()].into())),
         );
         assert_eq!(static_effect(&convoke, &ctx).as_deref(), Some("Convoke"));
 
         let improvise = StaticEffect::PayPips(
             PipClass::Generic,
-            PayAct::TapToPay(Predicate::And(vec![ty(Type::Artifact), you()])),
+            PayAct::TapToPay(Predicate::And(vec![ty(Type::Artifact), you()].into())),
         );
         assert_eq!(
             static_effect(&improvise, &ctx).as_deref(),
@@ -1965,10 +1965,13 @@ mod tests {
         );
         assert_eq!(
             event_clause(
-                &event(Predicate::Or(vec![
-                    Predicate::Kind(ObjectKind::Player),
-                    Predicate::r#type(Type::Planeswalker),
-                ])),
+                &event(Predicate::Or(
+                    vec![
+                        Predicate::Kind(ObjectKind::Player),
+                        Predicate::r#type(Type::Planeswalker),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             (
@@ -2091,7 +2094,7 @@ mod tests {
             event,
             from: None,
             condition: None,
-            limits: Vec::new(),
+            limits: [].into(),
             where_x: None,
             effect,
         };
@@ -2120,9 +2123,14 @@ mod tests {
             event,
             OneShotEffect::MustPay(MustPay {
                 actor: Reference::You,
-                cost: Cost(vec![CostComponent::Mana(ManaCost::from(vec![
-                    ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
-                ]))]),
+                cost: Cost(
+                    vec![CostComponent::Mana(ManaCost::from(
+                        Arc::<[ManaSymbol]>::from(vec![ManaSymbol::Simple(
+                            SimpleManaSymbol::Generic(2),
+                        )]),
+                    ))]
+                    .into(),
+                ),
                 or_else: Arc::new(sacrifice_this()),
             }),
         );
@@ -2180,7 +2188,7 @@ mod tests {
             event: event.clone(),
             from: None,
             condition: None,
-            limits: vec![limit],
+            limits: vec![limit].into(),
             where_x: None,
             effect: sacrifice_this.clone(),
         };
@@ -2349,6 +2357,10 @@ mod tests {
     /// Round-trips every new `what:` shape (plus the retained self and
     /// single-subtype forms) back to its oracle phrase.
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "exhaustive per-form round-trip cases for the cast-event clause family; data-heavy by nature"
+    )]
     fn cast_event_clause_renders_forms() {
         let ctx = Ctx {
             subject: "Test",
@@ -2375,10 +2387,13 @@ mod tests {
         // A single card-type filter.
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::r#type(Type::Creature),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::r#type(Type::Creature),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             ("Whenever", "you cast a creature spell".to_string())
@@ -2386,13 +2401,19 @@ mod tests {
         // The instant-or-sorcery disjunction.
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Or(vec![
-                        Predicate::r#type(Type::Instant),
-                        Predicate::r#type(Type::Sorcery),
-                    ]),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::Or(
+                            vec![
+                                Predicate::r#type(Type::Instant),
+                                Predicate::r#type(Type::Sorcery),
+                            ]
+                            .into()
+                        ),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             (
@@ -2403,10 +2424,13 @@ mod tests {
         // The noncreature negation.
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Not(Arc::new(Predicate::r#type(Type::Creature))),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::Not(Arc::new(Predicate::r#type(Type::Creature))),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             ("Whenever", "you cast a noncreature spell".to_string())
@@ -2414,12 +2438,15 @@ mod tests {
         // The retained single-subtype form ("an Elf spell").
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                        deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Elf"))
-                    )),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                            deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from("Elf"))
+                        )),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             ("Whenever", "you cast an Elf spell".to_string())
@@ -2429,21 +2456,27 @@ mod tests {
         // type-disjunction reading misses.
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Or(vec![
-                        Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                            deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from(
-                                "Spirit"
-                            ))
-                        )),
-                        Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                            deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from(
-                                "Arcane"
-                            ))
-                        )),
-                    ]),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::Or(
+                            vec![
+                                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                                    deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from(
+                                        "Spirit"
+                                    ))
+                                )),
+                                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                                    deckmaste_core::SubtypeRef::named(deckmaste_core::Ident::from(
+                                        "Arcane"
+                                    ))
+                                )),
+                            ]
+                            .into()
+                        ),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             ("Whenever", "you cast a Spirit or Arcane spell".to_string())
@@ -2452,14 +2485,17 @@ mod tests {
         // base noun defaults to "a spell".
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::Characteristic(CharacteristicPredicate::Stat(
-                        Stat::ManaValue,
-                        Cmp::AtLeast,
-                        Count::Literal(4)
-                    )),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::Characteristic(CharacteristicPredicate::Stat(
+                            Stat::ManaValue,
+                            Cmp::AtLeast,
+                            Count::Literal(4)
+                        )),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             (
@@ -2471,15 +2507,18 @@ mod tests {
         // threshold) — "a creature spell with mana value 3 or less".
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::r#type(Type::Creature),
-                    Predicate::Characteristic(CharacteristicPredicate::Stat(
-                        Stat::ManaValue,
-                        Cmp::AtMost,
-                        Count::Literal(3)
-                    )),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::r#type(Type::Creature),
+                        Predicate::Characteristic(CharacteristicPredicate::Stat(
+                            Stat::ManaValue,
+                            Cmp::AtMost,
+                            Count::Literal(3)
+                        )),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             (
@@ -2490,12 +2529,15 @@ mod tests {
         // Heroic's head ([CR#115.9b]): "a spell that targets ~".
         assert_eq!(
             event_clause(
-                &event(Predicate::And(vec![
-                    Predicate::Kind(ObjectKind::Spell),
-                    Predicate::State(StatePredicate::Targets(Arc::new(Predicate::Ref(
-                        Reference::This
-                    )))),
-                ])),
+                &event(Predicate::And(
+                    vec![
+                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::State(StatePredicate::Targets(Arc::new(Predicate::Ref(
+                            Reference::This
+                        )))),
+                    ]
+                    .into()
+                )),
                 &ctx
             ),
             ("Whenever", "you cast a spell that targets ~".to_string())
@@ -2514,10 +2556,13 @@ mod tests {
             named: None,
         };
         let what = || {
-            Predicate::And(vec![
-                Predicate::Kind(ObjectKind::Spell),
-                Predicate::r#type(Type::Creature),
-            ])
+            Predicate::And(
+                vec![
+                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::r#type(Type::Creature),
+                ]
+                .into(),
+            )
         };
         assert_eq!(
             event_clause(
@@ -2578,20 +2623,26 @@ mod tests {
             that: None,
             named: None,
         };
-        let pred = Predicate::And(vec![
-            Predicate::r#type(Type::Creature),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let pred = Predicate::And(
+            vec![
+                Predicate::r#type(Type::Creature),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         let count = Count::CountOf(Countable::Objects(Arc::new(pred.clone())));
 
         let symmetric = StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(count.clone())),
-                Modification::Toughness(NumericOp::Up(count.clone())),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(count.clone())),
+                    Modification::Toughness(NumericOp::Up(count.clone())),
+                ]
+                .into(),
+            ),
         );
         assert_eq!(
             static_effect(&symmetric, &ctx).as_deref(),
@@ -2628,23 +2679,29 @@ mod tests {
         // built here only to exercise the render arm's raw-`Several`
         // asymmetric branch directly, reusing Goblin Piledriver's own
         // predicate and wording.
-        let goblin_pred = Predicate::And(vec![
-            Predicate::Characteristic(CharacteristicPredicate::Subtype(
-                deckmaste_core::SubtypeRef::named("Goblin".into()),
-            )),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::State(StatePredicate::Attacking),
-        ]);
+        let goblin_pred = Predicate::And(
+            vec![
+                Predicate::Characteristic(CharacteristicPredicate::Subtype(
+                    deckmaste_core::SubtypeRef::named("Goblin".into()),
+                )),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::State(StatePredicate::Attacking),
+            ]
+            .into(),
+        );
         let goblin_count = Count::Times(
             Arc::new(Count::Literal(2)),
             Arc::new(Count::CountOf(Countable::Objects(Arc::new(goblin_pred)))),
         );
         let goblin_piledriver = StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(goblin_count)),
-                Modification::Toughness(NumericOp::Up(Count::Literal(0))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(goblin_count)),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(0))),
+                ]
+                .into(),
+            ),
         );
         assert_eq!(
             static_effect(&goblin_piledriver, &ctx).as_deref(),

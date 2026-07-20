@@ -803,7 +803,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Exile),
-                vec![],
+                vec![].into(),
                 None,
             )),
             &frame,
@@ -824,7 +824,7 @@ mod tests {
             OneShotEffect::Act(Action::Move(
                 Reference::This,
                 deckmaste_core::Destination::Zone(Zone::Hand),
-                vec![],
+                vec![].into(),
                 None,
             )),
             &pframe,
@@ -853,13 +853,13 @@ mod tests {
                 binder: Binder::Produce(Arc::new(Action::Move(
                     Reference::This,
                     Destination::Zone(Zone::Exile),
-                    vec![],
+                    vec![].into(),
                     None,
                 ))),
                 body: Arc::new(OneShotEffect::Act(Action::Move(
                     Reference::That(deckmaste_core::Sort::Card),
                     Destination::Zone(Zone::Battlefield),
-                    vec![],
+                    vec![].into(),
                     None,
                 ))),
             }),
@@ -903,10 +903,13 @@ mod tests {
         use deckmaste_core::Quantity;
 
         let (state, bear) = bear_on_field();
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let frame = Frame {
             anaphora: Anaphora {
                 chosen: Some(vec![bear]),
@@ -931,10 +934,13 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let frame = frame_src(bear);
         state.run_effect(
             OneShotEffect::With(With {
@@ -990,10 +996,13 @@ mod tests {
             state.player(PlayerId(1)).object,
             "controller of player 1's creature is player 1"
         );
-        let payer = Reference::Coalesce(vec![
-            Reference::ControllerOf(Arc::new(Reference::Target(0))),
-            Reference::Target(0),
-        ]);
+        let payer = Reference::Coalesce(
+            vec![
+                Reference::ControllerOf(Arc::new(Reference::Target(0))),
+                Reference::Target(0),
+            ]
+            .into(),
+        );
         assert_eq!(
             state.eval_reference(&payer, &frame),
             state.player(PlayerId(1)).object,

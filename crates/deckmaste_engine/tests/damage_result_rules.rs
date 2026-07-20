@@ -63,16 +63,19 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
     use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticEffect;
     let sick_not_hasty = || {
-        Condition::And(vec![
-            Condition::Matches(
-                Reference::This,
-                Predicate::State(StatePredicate::SummoningSick),
-            ),
-            Condition::Not(Arc::new(Condition::Matches(
-                Reference::This,
-                Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
-            ))),
-        ])
+        Condition::And(
+            vec![
+                Condition::Matches(
+                    Reference::This,
+                    Predicate::State(StatePredicate::SummoningSick),
+                ),
+                Condition::Not(Arc::new(Condition::Matches(
+                    Reference::This,
+                    Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
+                ))),
+            ]
+            .into(),
+        )
     };
     let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
@@ -107,7 +110,8 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                     },
                 ))),
             )),
-        ],
+        ]
+        .into(),
     }
 }
 

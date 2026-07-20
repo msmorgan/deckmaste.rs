@@ -539,10 +539,10 @@ mod tests {
                     ability_word: None,
                     where_x: None,
                     from: None,
-                    event: EventFilter::OneOf(Vec::new()),
+                    event: EventFilter::OneOf(Vec::new().into()),
                     condition: Some(Condition::Exists(Predicate::r#type(Type::Creature))),
-                    limits: Vec::new(),
-                    effect: OneShotEffect::Sequentially(Vec::new()),
+                    limits: Vec::new().into(),
+                    effect: OneShotEffect::Sequentially(Vec::new().into()),
                 })],
                 ..CardFace::default()
             });
@@ -934,18 +934,21 @@ mod tests {
 
         // The Evolve intervening-if, parameterized over the entering creature
         // already bound as the event `EventObject`.
-        let evolve_if = Condition::Or(vec![
-            Condition::Compare(
-                Count::StatOf(Reference::EventObject, Stat::Power),
-                Cmp::Greater,
-                Count::StatOf(Reference::This, Stat::Power),
-            ),
-            Condition::Compare(
-                Count::StatOf(Reference::EventObject, Stat::Toughness),
-                Cmp::Greater,
-                Count::StatOf(Reference::This, Stat::Toughness),
-            ),
-        ]);
+        let evolve_if = Condition::Or(
+            vec![
+                Condition::Compare(
+                    Count::StatOf(Reference::EventObject, Stat::Power),
+                    Cmp::Greater,
+                    Count::StatOf(Reference::This, Stat::Power),
+                ),
+                Condition::Compare(
+                    Count::StatOf(Reference::EventObject, Stat::Toughness),
+                    Cmp::Greater,
+                    Count::StatOf(Reference::This, Stat::Toughness),
+                ),
+            ]
+            .into(),
+        );
 
         // Build a trigger-style frame whose `This` is the carrier and whose
         // `EventObject` is the just-entered creature `entrant`.
@@ -1301,7 +1304,9 @@ mod tests {
     fn combinators() {
         let state = game();
         let p = PlayerId(0);
-        let cond = Condition::Not(Arc::new(Condition::And(vec![Condition::Or(vec![])])));
+        let cond = Condition::Not(Arc::new(Condition::And(
+            vec![Condition::Or(vec![].into())].into(),
+        )));
         assert!(
             state.condition_holds(&cond, &frame_for(&state, p)),
             "Not(And([Or([])])) should be true (vacuous Or false → And false → Not true)"

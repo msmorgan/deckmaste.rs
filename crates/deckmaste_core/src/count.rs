@@ -606,12 +606,15 @@ mod tests {
         let devotion_green = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
-                of: Countable::Objects(Arc::new(Predicate::And(vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
-                    )))),
-                ]))),
+                of: Countable::Objects(Arc::new(Predicate::And(
+                    vec![
+                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::You),
+                        ))),
+                    ]
+                    .into(),
+                ))),
                 by: Arc::new(Count::CountOf(Countable::ManaSymbols(
                     Arc::new(Reference::It),
                     crate::SymbolPred::CountsAs(Color::Green),

@@ -205,11 +205,11 @@ pub fn token_from_copiable(cv: CopiableValues) -> Option<Token> {
     }
     Some(Token {
         name: (!cv.name.is_empty()).then_some(cv.name),
-        color_indicator: cv.color_indicator,
-        supertypes: cv.supertypes,
-        types: cv.types,
-        subtypes: cv.subtypes,
-        abilities: cv.abilities,
+        color_indicator: cv.color_indicator.into(),
+        supertypes: cv.supertypes.into(),
+        types: cv.types.into(),
+        subtypes: cv.subtypes.into(),
+        abilities: cv.abilities.into(),
         power: cv.power,
         toughness: cv.toughness,
     })
@@ -253,7 +253,7 @@ fn apply_modification(result: &mut CopiableValues, m: &Modification) {
         // rather than assume, so a not-yet-flattened exception still folds
         // correctly instead of silently dropping ops (never-crash).
         Modification::Several(changes) => {
-            for change in changes {
+            for change in changes.iter() {
                 apply_modification(result, change);
             }
         }
@@ -335,7 +335,7 @@ fn apply_numeric_field(field: &mut Option<StatValue>, op: &NumericOp) {
 
 fn apply_collection<T: Clone + PartialEq>(field: &mut Vec<T>, op: &CollectionOp<T>) {
     match op {
-        CollectionOp::Set(values) => field.clone_from(values),
+        CollectionOp::Set(values) => *field = values.to_vec(),
         CollectionOp::Add(value) => {
             if !field.contains(value) {
                 field.push(value.clone());
@@ -385,7 +385,7 @@ fn minimal_type_def(name: &Ident) -> TypeDef {
         TypeDef {
             name: *name,
             permanent: false,
-            confers: Vec::new(),
+            confers: Vec::new().into(),
         },
         Type::def,
     )
@@ -413,8 +413,8 @@ fn apply_subtype_op(subtypes: &mut Vec<deckmaste_core::Subtype>, op: &Collection
 fn minimal_subtype(name: &Ident) -> deckmaste_core::Subtype {
     deckmaste_core::Subtype {
         name: *name,
-        types: Vec::new(),
-        confers: Vec::new(),
+        types: Vec::new().into(),
+        confers: Vec::new().into(),
     }
 }
 
@@ -501,6 +501,8 @@ fn retain_characteristic(result: &mut CopiableValues, ch: Characteristic) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use deckmaste_core::Card;
     use deckmaste_core::CardFace;
     use deckmaste_core::CollectionOp;
@@ -574,18 +576,21 @@ mod tests {
     fn modify_set_power_drops_pt_defining_cda() {
         let cda = Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Set(StatValue::Count(Count::CountOf(
-                    deckmaste_core::Countable::Objects(std::sync::Arc::new(
-                        deckmaste_core::Predicate::creature(),
-                    )),
-                )))),
-                Modification::Toughness(NumericOp::Set(StatValue::Count(Count::CountOf(
-                    deckmaste_core::Countable::Objects(std::sync::Arc::new(
-                        deckmaste_core::Predicate::creature(),
-                    )),
-                )))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Set(StatValue::Count(Count::CountOf(
+                        deckmaste_core::Countable::Objects(Arc::new(
+                            deckmaste_core::Predicate::creature(),
+                        )),
+                    )))),
+                    Modification::Toughness(NumericOp::Set(StatValue::Count(Count::CountOf(
+                        deckmaste_core::Countable::Objects(Arc::new(
+                            deckmaste_core::Predicate::creature(),
+                        )),
+                    )))),
+                ]
+                .into(),
+            ),
         ));
         let base = CopiableValues {
             name: "Tarmogoyf".into(),
@@ -626,7 +631,7 @@ mod tests {
             abilities: vec![cda.clone()],
             ..CopiableValues::default()
         };
-        let dynamic = Count::CountOf(deckmaste_core::Countable::Objects(std::sync::Arc::new(
+        let dynamic = Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
             deckmaste_core::Predicate::creature(),
         )));
         let out = apply_exceptions(
@@ -720,9 +725,7 @@ mod tests {
     }
 
     fn mint_card(state: &mut GameState, face: CardFace) -> ObjectId {
-        let card = state
-            .cards
-            .push(std::sync::Arc::new(Card::Normal(face)), PlayerId(0));
+        let card = state.cards.push(Arc::new(Card::Normal(face)), PlayerId(0));
         state.objects.mint(
             ObjectSource::Card(card),
             PlayerId(0),
@@ -753,7 +756,7 @@ mod tests {
             },
         );
         let values = copiable_values(&state, id).expect("card-backed object has copiable values");
-        assert_eq!(values.name, "Grizzly Bears");
+        assert_eq!(&*values.name, "Grizzly Bears");
         assert_eq!(values.power, Some(StatValue::Number(2)));
         assert_eq!(values.toughness, Some(StatValue::Number(2)));
     }
@@ -767,22 +770,23 @@ mod tests {
         let mut state = bare_game();
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Creature.def()],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Creature.def()].into(),
             subtypes: vec![deckmaste_core::Subtype {
                 name: "Bear".into(),
-                types: vec![Type::Creature],
-                confers: vec![],
-            }],
-            abilities: vec![],
+                types: vec![Type::Creature].into(),
+                confers: vec![].into(),
+            }]
+            .into(),
+            abilities: vec![].into(),
             power: Some(StatValue::Number(3)),
             toughness: Some(StatValue::Number(3)),
         };
         let id = mint_token(&mut state, &token);
         let values = copiable_values(&state, id).expect("token-backed object has copiable values");
         assert_eq!(
-            values.name, "Bear Token",
+            &*values.name, "Bear Token",
             "a token's synthesized name is subtypes + \"Token\" [CR#111.4]"
         );
         assert_eq!(values.power, Some(StatValue::Number(3)));

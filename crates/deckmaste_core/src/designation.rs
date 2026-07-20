@@ -24,7 +24,7 @@ pub enum DesignationShape {
     /// A number (e.g. a count).
     Number,
     /// One of a fixed set of named values.
-    Enum(Vec<Ident>),
+    Enum(Arc<[Ident]>),
     /// A relation to another object.
     Relation,
 }
@@ -59,8 +59,8 @@ pub enum DesignationDef {
         uniqueness: DesignationUniqueness,
         persistence: DesignationPersistence,
         /// Abilities the designation confers (e.g. suspected's menace).
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        payload: Vec<StaticEffect>,
+        #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+        payload: Arc<[StaticEffect]>,
     },
     /// A designation derived by re-evaluating a filter (e.g. `Modified`).
     Derived(Predicate),

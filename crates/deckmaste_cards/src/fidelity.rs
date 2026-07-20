@@ -207,7 +207,7 @@ pub fn check_plugin(plugin_dir: &Path, oracle: &Oracle) -> anyhow::Result<Vec<Ca
         for face in faces(&card) {
             out.push(CardFidelity {
                 path: path.clone(),
-                name: face.name.clone(),
+                name: face.name.to_string(),
                 waiver: waiver.clone(),
                 outcome: check_face(face, oracle),
             });

@@ -101,7 +101,7 @@ impl GameState {
     pub fn describe_action(&self, action: &Action) -> ActionView<'_> {
         let name = |id: ObjectId| -> Option<&str> {
             match self.def(id) {
-                Card::Normal(f) | Card::TwoFaced { front: f, .. } => Some(f.name.as_str()),
+                Card::Normal(f) | Card::TwoFaced { front: f, .. } => Some(&*f.name),
             }
         };
         match *action {

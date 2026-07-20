@@ -481,7 +481,7 @@ impl StrategyEvaluator {
             }) => {
                 let name = state.zones.hands[player.index()].first().map_or_else(
                     || "Mountain".to_owned(),
-                    |&id| crate::derive::face(state.def(id)).name.clone(),
+                    |&id| crate::derive::face(state.def(id)).name.to_string(),
                 );
                 Decision::CardName(name)
             }
@@ -643,7 +643,7 @@ mod tests {
     }
 
     fn always() -> Condition {
-        Condition::And(vec![])
+        Condition::And(vec![].into())
     }
 
     /// A one-rule strategy: `Always → prefer`.

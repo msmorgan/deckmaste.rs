@@ -355,7 +355,7 @@ mod target_set_tests {
     }
 
     fn distinct(siblings: Vec<usize>, inner: TargetSpec) -> TargetSpec {
-        TargetSpec::Distinct(siblings, Arc::new(inner))
+        TargetSpec::Distinct(siblings.into(), Arc::new(inner))
     }
 
     fn id(n: u64) -> ObjectId {

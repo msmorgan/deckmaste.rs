@@ -87,7 +87,7 @@ fn face_name(state: &GameState, id: ObjectId) -> Option<&str> {
         .get(id)
         .and_then(deckmaste_engine::GameObject::card_id)
         .map(|cid| match state.cards.get(cid).def.as_ref() {
-            Card::Normal(f) | Card::TwoFaced { front: f, .. } => f.name.as_str(),
+            Card::Normal(f) | Card::TwoFaced { front: f, .. } => &*f.name,
         })
 }
 
@@ -113,16 +113,19 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
     use deckmaste_core::Property;
     use deckmaste_core::StatePredicate;
     let sick_not_hasty = || {
-        Condition::And(vec![
-            Condition::Matches(
-                Reference::This,
-                Predicate::State(StatePredicate::SummoningSick),
-            ),
-            Condition::Not(Arc::new(Condition::Matches(
-                Reference::This,
-                Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
-            ))),
-        ])
+        Condition::And(
+            vec![
+                Condition::Matches(
+                    Reference::This,
+                    Predicate::State(StatePredicate::SummoningSick),
+                ),
+                Condition::Not(Arc::new(Condition::Matches(
+                    Reference::This,
+                    Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
+                ))),
+            ]
+            .into(),
+        )
     };
     let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
@@ -157,7 +160,8 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                     },
                 ))),
             )),
-        ],
+        ]
+        .into(),
     }
 }
 
@@ -216,7 +220,7 @@ fn creature_with_abilities(
     abilities: Vec<Ability>,
 ) -> (GameState, ObjectId) {
     let card = Arc::new(Card::Normal(CardFace {
-        name: name.to_owned(),
+        name: name.into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(power)),
         toughness: Some(StatValue::Number(toughness)),
@@ -301,7 +305,7 @@ fn instead_redirects_destruction_to_exile() {
         PlayerAction::Move(
             Reference::This,
             deckmaste_core::Destination::Zone(Zone::Exile),
-            vec![],
+            vec![].into(),
         ),
     ));
     let (mut state, id) = creature_with_replacement(Replacement::Instead {
@@ -378,7 +382,7 @@ fn indestructible_still_survives_via_cant_pass() {
 fn creature_with_two_replacements() -> (GameState, ObjectId) {
     let instead = Replacement::Instead {
         would: destroyed_self(),
-        instead: OneShotEffect::Sequentially(vec![]),
+        instead: OneShotEffect::Sequentially(vec![].into()),
     };
     let card = Arc::new(Card::Normal(CardFace {
         name: "Double Shield".into(),
@@ -532,7 +536,7 @@ fn vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
 /// on `is_combatant` ([CR#120.3d,120.3e]).
 fn combatant_vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
     let card = Arc::new(Card::Normal(CardFace {
-        name: "Vanilla".to_owned(),
+        name: "Vanilla".into(),
         types: vec![combatant_creature_def()],
         power: Some(StatValue::Number(power)),
         toughness: Some(StatValue::Number(toughness)),
@@ -577,18 +581,21 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
             agent: None,
         })),
     };
-    let instead = OneShotEffect::Sequentially(vec![
-        // [CR#701.19a]: remove all damage from That (the regenerated permanent).
-        OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::RemoveDamage(Reference::EventObject),
-        )),
-        // [CR#701.19a]: its controller taps it.
-        OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::Tap(Reference::EventObject),
-        )),
-    ]);
+    let instead = OneShotEffect::Sequentially(
+        vec![
+            // [CR#701.19a]: remove all damage from That (the regenerated permanent).
+            OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::RemoveDamage(Reference::EventObject),
+            )),
+            // [CR#701.19a]: its controller taps it.
+            OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::Tap(Reference::EventObject),
+            )),
+        ]
+        .into(),
+    );
     // [CR#614.3]: the shield's subject is bound by an enclosing `With` as the
     // singular `That`; `create_shield` freezes that resolved identity (no
     // authored `subject:` field).
@@ -888,15 +895,18 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // "the object THIS (the Aura) is attached to" ([CR#702.89a]).
     let enchanted_perm = Predicate::Ref(Reference::AttachHostOf(Arc::new(Reference::This)));
 
-    let instead_body = OneShotEffect::Sequentially(vec![
-        // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
-        OneShotEffect::Act(Action::By(
-            Reference::You,
-            PlayerAction::RemoveDamage(Reference::AttachHostOf(Arc::new(Reference::This))),
-        )),
-        // [CR#702.89a]: destroy this Aura.
-        OneShotEffect::Act(Action::destroy(Reference::This)),
-    ]);
+    let instead_body = OneShotEffect::Sequentially(
+        vec![
+            // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
+            OneShotEffect::Act(Action::By(
+                Reference::You,
+                PlayerAction::RemoveDamage(Reference::AttachHostOf(Arc::new(Reference::This))),
+            )),
+            // [CR#702.89a]: destroy this Aura.
+            OneShotEffect::Act(Action::destroy(Reference::This)),
+        ]
+        .into(),
+    );
 
     let umbra_armor = Replacement::Instead {
         would: EventFilter::ZoneChange {

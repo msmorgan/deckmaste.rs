@@ -387,7 +387,7 @@ impl GameState {
                 // the rider must be armed BEFORE the destroy runs. We install it
                 // just before that preceding sibling's `RunEffect`.
                 let mut items: Vec<WorkItem> = Vec::new();
-                for child in children {
+                for child in children.iter().cloned() {
                     if let Some(parts) = for_this_event_rider(&child) {
                         let no_regen = self.resolve_no_regen_riders(parts, frame);
                         // A rider with no preceding sibling is an authoring
@@ -423,7 +423,7 @@ impl GameState {
             // in sound data and trips loudly.
             OneShotEffect::Simultaneously(children) => {
                 let mut member_events: Vec<Vec<GameEvent>> = Vec::new();
-                for child in &children {
+                for child in children.iter() {
                     let OneShotEffect::Act(action) = peel_effect(child) else {
                         todo!("a non-verb Simultaneously member is not yet supported: {child:?}")
                     };
@@ -483,7 +483,7 @@ impl GameState {
                     // ([CR#613.6]).
                     StaticEffect::Modify(r, change) => (
                         ScopeResolved::Locked(vec![self.eval_reference(r, frame)]),
-                        Modification::flatten(vec![change.clone()]),
+                        Modification::flatten(std::slice::from_ref(change)),
                         vec![],
                     ),
                     // The distributor shape ("target creature and all creatures
@@ -493,7 +493,7 @@ impl GameState {
                     StaticEffect::Each(Selection::SelectAll(f), inner) => match inner.as_ref() {
                         StaticEffect::Modify(Reference::It, change) => (
                             ScopeResolved::Floating(f.clone()),
-                            Modification::flatten(vec![change.clone()]),
+                            Modification::flatten(std::slice::from_ref(change)),
                             vec![],
                         ),
                         other => todo!(
@@ -512,7 +512,7 @@ impl GameState {
                         let (ids, locked) = self.lock_deontic_subject(deontic, frame);
                         (
                             ScopeResolved::Locked(ids),
-                            vec![],
+                            [].into(),
                             vec![StaticEffect::Deontic(locked)],
                         )
                     }
@@ -522,7 +522,7 @@ impl GameState {
                     // `cost_modifier_rows` (cast.rs), `CantHappen` into
                     // `cant_event` (replace_registry.rs).
                     row @ (StaticEffect::CostModifier { .. } | StaticEffect::CantHappen(_)) => {
-                        (ScopeResolved::Locked(vec![]), vec![], vec![row.clone()])
+                        (ScopeResolved::Locked(vec![]), [].into(), vec![row.clone()])
                     }
                     // Prevention shields/windows are engine-prevention's domain
                     // ([CR#615.1]); the PreventNext/PreventAll macros stay
@@ -566,7 +566,7 @@ impl GameState {
                     // it resolves the `You` in a layer-2 control change.
                     controller: frame.controller,
                     scope,
-                    changes,
+                    changes: changes.to_vec(),
                     rows,
                     duration: e.duration.clone(),
                     origin,
@@ -579,11 +579,11 @@ impl GameState {
             // continuous-effect instance sharing the duration.
             OneShotEffect::Until(duration, parts) => {
                 let items: Vec<WorkItem> = parts
-                    .into_iter()
+                    .iter()
                     .map(|part| WorkItem::RunEffect {
                         effect: Arc::new(OneShotEffect::Continuously(
                             deckmaste_core::Continuously {
-                                effect: Arc::new(part),
+                                effect: Arc::new(part.clone()),
                                 duration: duration.clone(),
                             },
                         )),
@@ -992,7 +992,7 @@ impl GameState {
                     },
                 ));
                 self.choice = Some(crate::state::ChoiceContinuation::Modal {
-                    modes: modal.modes,
+                    modes: modal.modes.to_vec(),
                     frame: frame.clone(),
                 });
             }
@@ -1016,7 +1016,7 @@ impl GameState {
                 // `CostComponent::Cost`); splice it flat before the payment
                 // walk (`unless_cost_action`) consumes it.
                 let cost = m.cost.normalize().0;
-                let cost = self.price_variable_cost(cost, frame);
+                let cost = self.price_variable_cost(cost.to_vec(), frame);
                 self.choice = Some(crate::state::ChoiceContinuation::Unless {
                     effect: m.or_else,
                     who: m.actor,
@@ -1035,7 +1035,7 @@ impl GameState {
                 ));
                 self.choice = Some(crate::state::ChoiceContinuation::MayPay {
                     actor: m.actor,
-                    cost: m.cost.normalize().0,
+                    cost: m.cost.normalize().0.to_vec(),
                     and_then: m.and_then,
                     or_else: m.or_else,
                     frame: frame.clone(),
@@ -1690,8 +1690,9 @@ impl GameState {
         cost.into_iter()
             .map(|component| match component {
                 CostComponent::Mana(m) => {
-                    let symbols: Vec<ManaSymbol> = Vec::from(m)
-                        .into_iter()
+                    let symbols: Vec<ManaSymbol> = m
+                        .iter()
+                        .copied()
                         .map(|s| match s {
                             ManaSymbol::Variable => {
                                 ManaSymbol::Simple(SimpleManaSymbol::Generic(x))
@@ -1699,7 +1700,7 @@ impl GameState {
                             other => other,
                         })
                         .collect();
-                    CostComponent::Mana(symbols.into())
+                    CostComponent::Mana(Arc::<[ManaSymbol]>::from(symbols).into())
                 }
                 other => other,
             })
@@ -1902,7 +1903,7 @@ mod tests {
         let frame = frame_src_targets(bear, vec![bear]);
         state.run_effect(
             OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![],
+                vec![].into(),
                 OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
             )),
             &frame,
@@ -1927,10 +1928,13 @@ mod tests {
         state.zones.battlefield.push(b);
 
         let frame = frame_src(a);
-        let filter = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let filter = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let mut got = state.eval_selection_set(&Selection::SelectAll(filter), &frame);
         got.sort();
         let mut want = vec![a, b];
@@ -1985,10 +1989,13 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]))),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::creature(),
+                ]
+                .into(),
+            ))),
             effect: Arc::new(OneShotEffect::Act(Action::deal_damage(
                 Reference::It,
                 Count::Literal(2),
@@ -2041,10 +2048,13 @@ mod tests {
 
         let frame = frame_src(a);
         let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]))),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::creature(),
+                ]
+                .into(),
+            ))),
             effect: Arc::new(OneShotEffect::Act(Action::discard(
                 Reference::You,
                 Count::Literal(1),
@@ -2533,7 +2543,7 @@ mod tests {
                         ability_word: None,
                         from: None,
                         condition: None,
-                        limits: Vec::new(),
+                        limits: Vec::new().into(),
                         where_x: None,
                         event: deckmaste_core::EventFilter::Act {
                             verb: deckmaste_core::VerbName::from("Mill"),
@@ -2672,13 +2682,16 @@ mod tests {
 
         let (mut state, a) = bear_on_field();
         let key = deckmaste_core::Ident::from("n");
-        let effect = OneShotEffect::Sequentially(vec![
-            OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
-                key,
-                deckmaste_core::NotedKind::Number,
-            )),
-            OneShotEffect::mill(deckmaste_core::Reference::You, Count::Noted(key)),
-        ]);
+        let effect = OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::act_by_you(PlayerAction::ChooseAndNote(
+                    key,
+                    deckmaste_core::NotedKind::Number,
+                )),
+                OneShotEffect::mill(deckmaste_core::Reference::You, Count::Noted(key)),
+            ]
+            .into(),
+        );
         let frame = frame_src(a);
         state.run_effect(effect, &frame);
         run_injected(&mut state);
@@ -3383,7 +3396,7 @@ mod tests {
         let effect = OneShotEffect::Continuously(Continuously {
             effect: Arc::new(StaticEffect::CostModifier {
                 of: Predicate::creature(),
-                change: CostChange::Increase(vec![]),
+                change: CostChange::Increase(vec![].into()),
             }),
             duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
         });
@@ -3519,7 +3532,7 @@ mod tests {
 
         let until = OneShotEffect::Until(
             Duration::EndOfGame,
-            vec![StaticEffect::BecomesCopy(Reference::This, spec)],
+            vec![StaticEffect::BecomesCopy(Reference::This, spec)].into(),
         );
         state.run_effect(until, &frame);
         // `Until` lowers its one part to a scheduled
@@ -3583,18 +3596,22 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
-        let seq = OneShotEffect::Sequentially(vec![
-            OneShotEffect::Act(Action::by_you(PlayerAction::GainLife(Count::Literal(1)))),
-            OneShotEffect::Until(
-                Duration::ForThisEvent,
-                vec![StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Regenerate {
-                        by: Predicate::Any,
-                        on: Predicate::Ref(Reference::This),
-                    },
-                ))],
-            ),
-        ]);
+        let seq = OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::Act(Action::by_you(PlayerAction::GainLife(Count::Literal(1)))),
+                OneShotEffect::Until(
+                    Duration::ForThisEvent,
+                    vec![StaticEffect::Deontic(Deontic::Cant(
+                        DeonticAction::Regenerate {
+                            by: Predicate::Any,
+                            on: Predicate::Ref(Reference::This),
+                        },
+                    ))]
+                    .into(),
+                ),
+            ]
+            .into(),
+        );
         state.run_effect(seq, &frame);
 
         let front: Vec<&WorkItem> = state.agenda.iter().take(2).collect();
@@ -3627,15 +3644,19 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(src);
-        let seq = OneShotEffect::Sequentially(vec![OneShotEffect::Until(
-            Duration::ForThisEvent,
-            vec![StaticEffect::Deontic(Deontic::Cant(
-                DeonticAction::Regenerate {
-                    by: Predicate::Any,
-                    on: Predicate::Ref(Reference::This),
-                },
-            ))],
-        )]);
+        let seq = OneShotEffect::Sequentially(
+            vec![OneShotEffect::Until(
+                Duration::ForThisEvent,
+                vec![StaticEffect::Deontic(Deontic::Cant(
+                    DeonticAction::Regenerate {
+                        by: Predicate::Any,
+                        on: Predicate::Ref(Reference::This),
+                    },
+                ))]
+                .into(),
+            )]
+            .into(),
+        );
         state.run_effect(seq, &frame);
         assert!(
             !state
@@ -3801,10 +3822,13 @@ mod tests {
         let frame = frame_src(a);
         let effect = OneShotEffect::Distribute(Distribute {
             amount: Count::Literal(3),
-            binder: Binder::Existing(Selection::SelectAll(Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]))),
+            binder: Binder::Existing(Selection::SelectAll(Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::creature(),
+                ]
+                .into(),
+            ))),
             body: Arc::new(OneShotEffect::Act(Action::deal_damage(
                 Reference::It,
                 Count::Allotment,
@@ -3913,10 +3937,13 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let frame = frame_src(bear);
         state.run_effect(
             OneShotEffect::Each(deckmaste_core::Each {
@@ -3975,10 +4002,13 @@ mod tests {
     fn nested_each_clears_outer_divide_among_allotment() {
         let (mut state, a, _b) = two_permanents_on_field();
         let frame = frame_src(a);
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let effect = OneShotEffect::Distribute(deckmaste_core::Distribute {
             amount: Count::Literal(2),
             binder: Binder::Existing(Selection::SelectAll(creatures.clone())),
@@ -4082,10 +4112,13 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let frame = frame_src(bear);
         state.run_effect(
             OneShotEffect::Each(Each {
@@ -4109,10 +4142,13 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
+        let creatures = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
         let frame = frame_src(bear);
         let life0 = state.player(PlayerId(0)).life;
         state.run_effect(
@@ -4238,7 +4274,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Modal(Modal {
                 choose: spec(1, false),
-                modes: modes(),
+                modes: modes().into(),
             }),
             &frame,
         );
@@ -4278,7 +4314,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Modal(Modal {
                 choose: spec(2, false),
-                modes: modes(),
+                modes: modes().into(),
             }),
             &frame,
         );
@@ -4303,9 +4339,12 @@ mod tests {
         let p0 = PlayerId(0);
         let must_pay = || MustPay {
             actor: Reference::You,
-            cost: Cost(vec![CostComponent::do_(PlayerAction::LoseLife(
-                Count::Literal(2),
-            ))]),
+            cost: Cost(
+                vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                    2,
+                )))]
+                .into(),
+            ),
             or_else: Arc::new(OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GainLife(Count::Literal(10)),
@@ -4357,9 +4396,12 @@ mod tests {
         let p0 = PlayerId(0);
         let may_pay = || MayPay {
             actor: Reference::You,
-            cost: Cost(vec![CostComponent::do_(PlayerAction::LoseLife(
-                Count::Literal(2),
-            ))]),
+            cost: Cost(
+                vec![CostComponent::do_(PlayerAction::LoseLife(Count::Literal(
+                    2,
+                )))]
+                .into(),
+            ),
             and_then: Arc::new(OneShotEffect::Act(Action::By(
                 Reference::You,
                 PlayerAction::GainLife(Count::Literal(10)),
@@ -4425,9 +4467,9 @@ mod tests {
 
         state.run_effect(
             OneShotEffect::AdditionalCost(AdditionalCost {
-                pay: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                    Reference::This,
-                ))]),
+                pay: Cost(
+                    vec![CostComponent::do_(PlayerAction::Sacrifice(Reference::This))].into(),
+                ),
                 body: Arc::new(OneShotEffect::act_by_you(PlayerAction::GainLife(
                     Count::CounterCount(Arc::new(Reference::EventObject), "P1P1Counter".into()),
                 ))),
@@ -4473,22 +4515,28 @@ mod tests {
         use deckmaste_core::Condition;
         use deckmaste_core::RelationPredicate;
 
-        Condition::And(vec![
-            Condition::Compare(
-                Count::CountOf(Countable::Objects(Arc::new(Predicate::And(vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
+        Condition::And(
+            vec![
+                Condition::Compare(
+                    Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
+                        vec![
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                Predicate::Ref(Reference::You),
+                            ))),
+                        ]
+                        .into(),
                     )))),
-                ])))),
-                Cmp::AtLeast,
-                Count::Literal(10),
-            ),
-            Condition::Not(Arc::new(Condition::Matches(
-                Reference::You,
-                Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
-            ))),
-        ])
+                    Cmp::AtLeast,
+                    Count::Literal(10),
+                ),
+                Condition::Not(Arc::new(Condition::Matches(
+                    Reference::You,
+                    Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
+                ))),
+            ]
+            .into(),
+        )
     }
 
     /// Secrets of the Golden City's resolved shape — the folded grant followed
@@ -4505,26 +4553,29 @@ mod tests {
         use deckmaste_core::Condition;
         use deckmaste_core::If;
 
-        OneShotEffect::Sequentially(vec![
-            OneShotEffect::If(If {
-                condition: ascend_gate(),
-                then: Arc::new(OneShotEffect::act_by_you(PlayerAction::GetDesignation(
-                    "CitysBlessing".into(),
-                ))),
-                otherwise: None,
-            }),
-            OneShotEffect::If(If {
-                condition: Condition::Matches(
-                    Reference::You,
-                    Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
-                ),
-                then: Arc::new(OneShotEffect::draw(Reference::You, Count::Literal(3))),
-                otherwise: Some(Arc::new(OneShotEffect::draw(
-                    Reference::You,
-                    Count::Literal(2),
-                ))),
-            }),
-        ])
+        OneShotEffect::Sequentially(
+            vec![
+                OneShotEffect::If(If {
+                    condition: ascend_gate(),
+                    then: Arc::new(OneShotEffect::act_by_you(PlayerAction::GetDesignation(
+                        "CitysBlessing".into(),
+                    ))),
+                    otherwise: None,
+                }),
+                OneShotEffect::If(If {
+                    condition: Condition::Matches(
+                        Reference::You,
+                        Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
+                    ),
+                    then: Arc::new(OneShotEffect::draw(Reference::You, Count::Literal(3))),
+                    otherwise: Some(Arc::new(OneShotEffect::draw(
+                        Reference::You,
+                        Count::Literal(2),
+                    ))),
+                }),
+            ]
+            .into(),
+        )
     }
 
     /// Builds a game where p0 controls `permanents` battlefield objects, has a
@@ -4564,7 +4615,7 @@ mod tests {
         // a real board), all controlled by p0 — the gate counts these.
         for i in 0..permanents {
             let perm = Card::Normal(CardFace {
-                name: format!("Permanent {i}"),
+                name: format!("Permanent {i}").into(),
                 types: vec![Type::Artifact.def()],
                 ..CardFace::default()
             });
@@ -4835,7 +4886,7 @@ mod tests {
                     count: Count::Literal(2),
                     whose: deckmaste_core::Reference::You,
                 }),
-                body: Arc::new(OneShotEffect::Sequentially(vec![])),
+                body: Arc::new(OneShotEffect::Sequentially(vec![].into())),
             }),
             &frame,
         );
@@ -4900,7 +4951,7 @@ mod tests {
         assert!(
             state.zones.hands[p0.index()]
                 .iter()
-                .any(|&o| matches!(state.def(o), Card::Normal(f) if f.name == "Forest")),
+                .any(|&o| matches!(state.def(o), Card::Normal(f) if &*f.name == "Forest")),
             "a revealed land card is put into hand ([CR#701.44a])"
         );
         assert!(

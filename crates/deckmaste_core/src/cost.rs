@@ -134,7 +134,7 @@ impl CostComponent {
 /// list.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 #[serde(transparent)]
-pub struct Cost(pub Vec<CostComponent>);
+pub struct Cost(pub Arc<[CostComponent]>);
 
 impl Normalize for CostComponent {
     /// Recurse into a nested cost; every other variant is a leaf for
@@ -161,26 +161,26 @@ impl Normalize for Cost {
     /// replacement for the old read-time flatten: a macro-spliced cost reads
     /// lumpy and `.normalize()` collapses it (cycling, [CR#702.29a]).
     fn normalize(self) -> Self {
-        let mut flat = Vec::with_capacity(self.0.len());
-        for component in self.0 {
+        let mut flat: Vec<CostComponent> = Vec::with_capacity(self.0.len());
+        for component in self.0.iter().cloned() {
             match component.normalize() {
-                CostComponent::Cost(inner) => flat.extend(inner.0),
+                CostComponent::Cost(inner) => flat.extend(inner.0.iter().cloned()),
                 other => flat.push(other),
             }
         }
-        Cost(flat)
+        Cost(flat.into())
     }
 }
 
 impl std::ops::Deref for Cost {
-    type Target = Vec<CostComponent>;
+    type Target = Arc<[CostComponent]>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<Vec<CostComponent>> for Cost {
-    fn from(components: Vec<CostComponent>) -> Self {
+impl From<Arc<[CostComponent]>> for Cost {
+    fn from(components: Arc<[CostComponent]>) -> Self {
         Cost(components)
     }
 }
@@ -262,7 +262,7 @@ impl<'de> Deserialize<'de> for CostTag {
 /// are announced at [CR#601.2b]; the total locks at [CR#601.2f].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct OptionalCost {
-    pub components: Vec<CostComponent>,
+    pub components: Arc<[CostComponent]>,
     pub tag: CostTag,
     #[serde(default, skip_serializing_if = "crate::ability::is_false")]
     pub repeatable: bool,
@@ -279,9 +279,9 @@ pub struct OptionalCost {
 /// cost still pays the original ([CR#118.7,118.11]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TotalCost {
-    pub base: Vec<CostComponent>,
+    pub base: Arc<[CostComponent]>,
     /// Applied modification steps, in application order ([CR#601.2f]).
-    pub trace: Vec<crate::CostChange>,
+    pub trace: Arc<[crate::CostChange]>,
     /// Set at [CR#601.2f]; a locked total never moves.
     pub locked: bool,
 }
@@ -322,9 +322,12 @@ mod tests {
                 filter: creature,
                 by: Reference::You,
             }),
-            body: Cost(vec![CostComponent::do_(PlayerAction::Sacrifice(
-                Reference::That(crate::Sort::OfType(Type::Creature)),
-            ))]),
+            body: Cost(
+                vec![CostComponent::do_(PlayerAction::Sacrifice(
+                    Reference::That(crate::Sort::OfType(Type::Creature)),
+                ))]
+                .into(),
+            ),
         };
         assert_eq!(read(&to_string(&with)), with, "With cost round-trips");
 
@@ -364,23 +367,26 @@ mod tests {
                  Do(Composite(name: Discard, body: Move(This, Graveyard)))]",
             )
             .unwrap();
-        let mana_two = CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
-            SimpleManaSymbol::Generic(2),
-        )]));
+        let mana_two = CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
+            ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
+        ])));
         let discard_self = CostComponent::do_action(crate::Action::discard_what(Reference::This));
         assert_eq!(
             lumpy,
-            Cost(vec![
-                CostComponent::Cost(Cost(vec![mana_two.clone()])),
-                discard_self.clone(),
-            ]),
+            Cost(
+                vec![
+                    CostComponent::Cost(Cost(vec![mana_two.clone()].into())),
+                    discard_self.clone(),
+                ]
+                .into()
+            ),
             "read preserves the lumpy macro-splice shape",
         );
 
         // `.normalize()` splices the nested Cost into one flat list.
         assert_eq!(
             lumpy.normalize(),
-            Cost(vec![mana_two, discard_self]),
+            Cost(vec![mana_two, discard_self].into()),
             "normalize collapses the nested Cost",
         );
     }
@@ -393,7 +399,10 @@ mod tests {
             .from_str("[Cost([Cost([Tap]), Untap])]")
             .unwrap();
         let flat = deep.normalize();
-        assert_eq!(flat, Cost(vec![CostComponent::Tap, CostComponent::Untap]));
+        assert_eq!(
+            flat,
+            Cost(vec![CostComponent::Tap, CostComponent::Untap].into())
+        );
         assert_eq!(flat.clone().normalize(), flat, "normalize is idempotent");
     }
 
@@ -403,9 +412,9 @@ mod tests {
 
         assert_eq!(
             read("Mana([Generic(2)])"),
-            CostComponent::Mana(ManaCost::from(vec![ManaSymbol::Simple(
-                SimpleManaSymbol::Generic(2)
-            )])),
+            CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
+                ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
+            ]))),
         );
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
@@ -495,9 +504,9 @@ mod tests {
     #[test]
     fn cost_list_round_trips() {
         let source = "[Mana([Generic(2)]),Tap,Do(Sacrifice(This))]";
-        let parsed: Vec<CostComponent> = crate::ron::options().from_str(source).unwrap();
+        let parsed: Arc<[CostComponent]> = crate::ron::options().from_str(source).unwrap();
         let written = crate::ron::options().to_string(&parsed).unwrap();
-        let reparsed: Vec<CostComponent> = crate::ron::options().from_str(&written).unwrap();
+        let reparsed: Arc<[CostComponent]> = crate::ron::options().from_str(&written).unwrap();
         assert_eq!(parsed, reparsed);
     }
 }

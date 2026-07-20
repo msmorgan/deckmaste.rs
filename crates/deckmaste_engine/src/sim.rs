@@ -491,7 +491,7 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         }) => {
             let name = state.zones.hands[player.index()].first().map_or_else(
                 || "Mountain".to_owned(),
-                |&id| crate::derive::face(state.def(id)).name.clone(),
+                |&id| crate::derive::face(state.def(id)).name.to_string(),
             );
             Decision::CardName(name)
         }

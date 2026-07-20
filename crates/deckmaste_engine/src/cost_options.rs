@@ -9,6 +9,8 @@
 //! Phyrexian "lose 2 life" verb costs ([`concretize`]). Wiring this into the
 //! announce flow is a later task; these are the seam-free building blocks.
 
+use std::sync::Arc;
+
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::ManaCost;
@@ -156,7 +158,7 @@ pub fn concretize(
         }
     }
 
-    Ok((ManaCost::from(mana), verbs))
+    Ok((ManaCost::from(Arc::from(mana)), verbs))
 }
 
 #[cfg(test)]

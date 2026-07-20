@@ -287,7 +287,7 @@ fn lint_card_abilities(path: &Path, abilities: &[Ability], out: &mut Vec<(PathBu
             continue;
         };
         let normalized = activated.cost.clone().normalize();
-        for component in &normalized.0 {
+        for component in normalized.0.iter() {
             let Some(action) = cost_action(component) else {
                 continue;
             };
@@ -380,6 +380,7 @@ mod tests {
     use std::collections::HashMap;
     use std::path::Path;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
@@ -425,22 +426,23 @@ mod tests {
     fn lint_flags_ineligible_action_in_do_cost() {
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![CostComponent::do_(PlayerAction::GainLife(Count::Literal(
-                    1,
-                )))]
+                cost: Arc::<[CostComponent]>::from(vec![CostComponent::do_(
+                    PlayerAction::GainLife(Count::Literal(1)),
+                )])
                 .into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: add_one_any(),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         };
@@ -459,23 +461,24 @@ mod tests {
     fn lint_allows_sacrifice_in_do_cost() {
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![
+                cost: Arc::<[CostComponent]>::from(vec![
                     CostComponent::Tap,
                     CostComponent::do_(PlayerAction::Sacrifice(Reference::This)),
-                ]
+                ])
                 .into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: add_one_any(),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         };
@@ -491,27 +494,28 @@ mod tests {
     fn lint_looks_through_expanded_cost_macros() {
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
                 from: None,
                 window: None,
-                cost: vec![CostComponent::Expanded(Expansion {
+                cost: Arc::<[CostComponent]>::from(vec![CostComponent::Expanded(Expansion {
                     name: "BadCost".into(),
                     args: ExpansionArgs::none(),
                     template: None,
                     value: Box::new(CostComponent::do_(PlayerAction::GainLife(Count::Literal(
                         1,
                     )))),
-                })]
+                })])
                 .into(),
                 condition: None,
-                limits: vec![],
+                limits: vec![].into(),
                 effect: add_one_any(),
-            })],
+            })]
+            .into(),
             power: None,
             toughness: None,
         };
@@ -530,16 +534,17 @@ mod tests {
     fn lint_ignores_non_activated_abilities() {
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
             abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attack {
                     by: Predicate::Ref(Reference::This),
                     on: Predicate::Any,
                 },
-            )))],
+            )))]
+            .into(),
             power: None,
             toughness: None,
         };
@@ -554,8 +559,8 @@ mod tests {
     fn lint_flags_undeclared_subtype() {
         let undeclared = Subtype {
             name: "Undeclared".into(),
-            types: vec![Type::Land],
-            confers: vec![],
+            types: vec![Type::Land].into(),
+            confers: vec![].into(),
         };
         let declared: HashMap<_, _> = HashMap::new();
         let mut failures = Vec::new();
@@ -578,8 +583,8 @@ mod tests {
     fn lint_passes_declared_matching_subtype() {
         let declared_subtype = Subtype {
             name: "Forest".into(),
-            types: vec![Type::Land],
-            confers: vec![],
+            types: vec![Type::Land].into(),
+            confers: vec![].into(),
         };
         let declared: HashMap<_, Subtype> = [("Forest".into(), declared_subtype.clone())]
             .into_iter()
@@ -599,13 +604,13 @@ mod tests {
     fn lint_flags_declared_name_with_drifted_value() {
         let declared_subtype = Subtype {
             name: "Forest".into(),
-            types: vec![Type::Land],
-            confers: vec![],
+            types: vec![Type::Land].into(),
+            confers: vec![].into(),
         };
         let drifted = Subtype {
             name: "Forest".into(),
-            types: vec![Type::Creature],
-            confers: vec![],
+            types: vec![Type::Creature].into(),
+            confers: vec![].into(),
         };
         let declared: HashMap<_, Subtype> =
             [("Forest".into(), declared_subtype)].into_iter().collect();
@@ -631,7 +636,7 @@ mod tests {
         let undeclared = TypeDef {
             name: "Bogus".into(),
             permanent: true,
-            confers: vec![],
+            confers: vec![].into(),
         };
         let declared: HashMap<Ident, TypeDef> = HashMap::new();
         let mut failures = Vec::new();

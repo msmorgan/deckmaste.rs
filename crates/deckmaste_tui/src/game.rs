@@ -103,7 +103,10 @@ pub fn build_game_with_seed(seed: u64) -> Result<GameState> {
     types.extend(wizards.types.clone());
 
     Ok(GameState::new(GameConfig {
-        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
+        players: vec![
+            PlayerConfig { deck: p0.to_vec() },
+            PlayerConfig { deck: p1.to_vec() },
+        ],
         seed,
         starting_life: 20,
         starting_player: StartingPlayer::Fixed(PlayerId(0)),

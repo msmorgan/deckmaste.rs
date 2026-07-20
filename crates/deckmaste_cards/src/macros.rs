@@ -273,10 +273,13 @@ mod tests {
         // macro-aware too.
         assert_eq!(
             arms[1],
-            Predicate::And(vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ])
+            Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::creature(),
+                ]
+                .into()
+            )
         );
         assert_eq!(arms.len(), 2);
     }
@@ -324,10 +327,13 @@ mod tests {
         assert_eq!(exp.name, "PowerAndToughnessUp");
         assert_eq!(
             *exp.value,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(Count::Literal(3))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(3))),
-            ])
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(3))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(3))),
+                ]
+                .into()
+            )
         );
 
         // Round-trips as the invocation, not the expansion.
@@ -343,7 +349,7 @@ mod tests {
             unreachable!()
         };
         let Modification::Several(changes) = change else { unreachable!() };
-        let flat = Modification::flatten(changes);
+        let flat = Modification::flatten(&changes);
         assert_eq!(flat.len(), 3, "Several spliced to flat ops: {flat:?}");
         assert_eq!(
             flat[0],
@@ -407,10 +413,13 @@ mod tests {
         );
         assert_eq!(
             up.expand_all(),
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(Count::Literal(2))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(2))),
-            ])
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(Count::Literal(2))),
+                    Modification::Toughness(NumericOp::Up(Count::Literal(2))),
+                ]
+                .into()
+            )
         );
 
         let down: Modification = macros.read_str("PowerAndToughnessDown(2, 2)").unwrap();
@@ -420,10 +429,13 @@ mod tests {
         );
         assert_eq!(
             down.expand_all(),
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Down(Count::Literal(2))),
-                Modification::Toughness(NumericOp::Down(Count::Literal(2))),
-            ])
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Down(Count::Literal(2))),
+                    Modification::Toughness(NumericOp::Down(Count::Literal(2))),
+                ]
+                .into()
+            )
         );
     }
 
@@ -514,10 +526,13 @@ mod tests {
         let count = Count::CountOf(Countable::Objects(Arc::new(pred)));
         assert_eq!(
             m.expand_all(),
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Up(count.clone())),
-                Modification::Toughness(NumericOp::Up(count)),
-            ])
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Up(count.clone())),
+                    Modification::Toughness(NumericOp::Up(count)),
+                ]
+                .into()
+            )
         );
     }
 
@@ -710,17 +725,23 @@ mod tests {
         // Fully expanding through BOTH macro layers (the selection wrapper,
         // then the predicate atom, then `Creature`'s own nested `Permanent`)
         // lands on the flat filter — the keystone this test pins.
-        let creature = Predicate::And(vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]);
-        let expected_atom = Predicate::And(vec![
-            creature,
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
-            )))),
-        ]);
+        let creature = Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        );
+        let expected_atom = Predicate::And(
+            vec![
+                creature,
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                    Reference::You,
+                )))),
+            ]
+            .into(),
+        );
         assert_eq!(
             sel.expand_all(),
             Selection::SelectAll(expected_atom.clone())
@@ -1010,9 +1031,12 @@ mod tests {
         let expanded = effect.expand_all();
         assert_eq!(
             expanded,
-            OneShotEffect::Sequentially(vec![OneShotEffect::act_by_you(PlayerAction::GainLife(
-                Count::Literal(2),
-            ))])
+            OneShotEffect::Sequentially(
+                vec![OneShotEffect::act_by_you(PlayerAction::GainLife(
+                    Count::Literal(2),
+                ))]
+                .into()
+            )
         );
         let written = deckmaste_core::ron::options().to_string(&expanded).unwrap();
         assert!(!written.contains("GainTwo"), "macro name leaked: {written}");

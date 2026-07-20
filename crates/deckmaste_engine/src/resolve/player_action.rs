@@ -169,7 +169,7 @@ impl GameState {
                 vec![WorkItem::Emit(Occurrence::single(
                     GameEvent::EmblemCreated(EmblemCreated {
                         player: actor,
-                        abilities: abilities.clone(),
+                        abilities: abilities.to_vec(),
                     }),
                 ))]
             }
@@ -457,7 +457,7 @@ impl GameState {
                 let (spec, mut riders) = match production {
                     deckmaste_core::ManaProduction::Bare(spec) => (spec, Vec::new()),
                     deckmaste_core::ManaProduction::WithRiders { mana, riders } => {
-                        (mana, riders.clone())
+                        (mana, riders.to_vec())
                     }
                 };
                 // [CR#107.4h]: mana from a snow source carries `Snow`
@@ -488,7 +488,7 @@ impl GameState {
                     }],
                     ManaSpec::OneOf(options) => vec![WorkItem::ChooseManaColor {
                         player: actor,
-                        options: options.clone(),
+                        options: options.to_vec(),
                         amount,
                         riders,
                     }],
@@ -497,7 +497,7 @@ impl GameState {
                     // run's whole sequence of mana is produced.
                     ManaSpec::OneOfRuns(options) => vec![WorkItem::ChooseManaMode {
                         player: actor,
-                        options: options.clone(),
+                        options: options.to_vec(),
                         amount,
                         riders,
                     }],
@@ -577,7 +577,7 @@ impl GameState {
                 // predefined token ([CR#111.10]) resolves to its rules-defined
                 // characteristics here.
                 let token = match spec {
-                    deckmaste_core::TokenSpec::Token(token) => token.clone(),
+                    deckmaste_core::TokenSpec::Token(token) => (**token).clone(),
                     deckmaste_core::TokenSpec::Named(name) => name
                         .resolve()
                         .expect("a Named token in a card resolves to a builtin definition"),
@@ -725,7 +725,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Move(
                 Reference::This,
                 Destination::Zone(Zone::Battlefield),
-                vec![EnterRider::AsCopy(spec)],
+                vec![EnterRider::AsCopy(spec)].into(),
             )),
             &frame,
         );
@@ -822,11 +822,9 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::AddMana(
                 Count::Literal(1),
-                ManaSpec::OneOfRuns(vec![
-                    vec![white, white],
-                    vec![white, blue],
-                    vec![blue, blue],
-                ])
+                ManaSpec::OneOfRuns(
+                    vec![vec![white, white], vec![white, blue], vec![blue, blue]].into(),
+                )
                 .into(),
             )),
             &frame,
@@ -873,7 +871,7 @@ mod tests {
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(red),
-                    riders: vec![rider],
+                    riders: vec![rider].into(),
                 },
             )),
             &frame,
@@ -1043,11 +1041,11 @@ mod tests {
         let frame = frame_src(src);
         let token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
-            abilities: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![].into(),
             power: None,
             toughness: None,
         };
@@ -1055,7 +1053,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(2),
                 token.into(),
-                vec![],
+                vec![].into(),
             )),
             &frame,
         );
@@ -1126,7 +1124,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
                 deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName::from("Treasure")),
-                vec![],
+                vec![].into(),
             )),
             &frame,
         );
@@ -1163,7 +1161,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
                 treasure.into(),
-                vec![],
+                vec![].into(),
             )),
             &frame,
         );
@@ -1190,7 +1188,7 @@ mod tests {
         );
         assert!(state.cards.get(card).is_token, "[CR#111.6]");
         assert_eq!(
-            crate::derive::face(&state.cards.get(card).def).name,
+            &*crate::derive::face(&state.cards.get(card).def).name,
             "Treasure Token",
             "[CR#111.4]: unnamed token defaults to subtypes + \"Token\""
         );
@@ -1217,11 +1215,14 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![],
-                }),
-                vec![],
+                deckmaste_core::TokenSpec::Copy(
+                    CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![],
+                    }
+                    .into(),
+                ),
+                vec![].into(),
             )),
             &frame,
         );
@@ -1244,7 +1245,7 @@ mod tests {
         let card = state.objects.obj(t).card_id().expect("card-backed");
         let face = crate::derive::face(&state.cards.get(card).def);
         assert_eq!(
-            face.name, "Grizzly Bears",
+            &*face.name, "Grizzly Bears",
             "[CR#707.2]: name matches the copied source EXACTLY (Spitting \
              Image example) — not resynthesized to \"Bear Token\""
         );
@@ -1283,11 +1284,14 @@ mod tests {
             state.action_items(
                 &Action::by_you(PlayerAction::Create(
                     Count::Literal(1),
-                    deckmaste_core::TokenSpec::Copy(CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
-                        exceptions: vec![],
-                    }),
-                    vec![],
+                    deckmaste_core::TokenSpec::Copy(
+                        CopySpec {
+                            source: CopySource::Object(Reference::Target(0)),
+                            exceptions: vec![],
+                        }
+                        .into()
+                    ),
+                    vec![].into(),
                 )),
                 &frame,
             ),
@@ -1318,11 +1322,14 @@ mod tests {
             state.action_items(
                 &Action::by_you(PlayerAction::Create(
                     Count::Literal(1),
-                    deckmaste_core::TokenSpec::Copy(CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
-                        exceptions: vec![],
-                    }),
-                    vec![],
+                    deckmaste_core::TokenSpec::Copy(
+                        CopySpec {
+                            source: CopySource::Object(Reference::Target(0)),
+                            exceptions: vec![],
+                        }
+                        .into()
+                    ),
+                    vec![].into(),
                 )),
                 &frame,
             ),
@@ -1348,18 +1355,21 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![
-                        CopyException::Modify(Modification::Power(NumericOp::Set(
-                            StatValue::Number(4),
-                        ))),
-                        CopyException::Modify(Modification::Toughness(NumericOp::Set(
-                            StatValue::Number(4),
-                        ))),
-                    ],
-                }),
-                vec![],
+                deckmaste_core::TokenSpec::Copy(
+                    CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![
+                            CopyException::Modify(Modification::Power(NumericOp::Set(
+                                StatValue::Number(4),
+                            ))),
+                            CopyException::Modify(Modification::Toughness(NumericOp::Set(
+                                StatValue::Number(4),
+                            ))),
+                        ],
+                    }
+                    .into(),
+                ),
+                vec![].into(),
             )),
             &frame,
         );
@@ -1460,7 +1470,7 @@ mod tests {
 
         let face = minted_copy_face(&state, &[src]);
         assert_eq!(
-            face.name, "Grizzly Bears",
+            &*face.name, "Grizzly Bears",
             "[CR#707.2]: the copy keeps the source's name"
         );
         assert_eq!(
@@ -1495,7 +1505,7 @@ mod tests {
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
-        assert_eq!(face.name, "Grizzly Bears", "[CR#707.2]: name carried");
+        assert_eq!(&*face.name, "Grizzly Bears", "[CR#707.2]: name carried");
         assert_eq!(
             face.power,
             Some(StatValue::Number(2)),
@@ -1527,7 +1537,7 @@ mod tests {
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
-        assert_eq!(face.name, "Grizzly Bears", "[CR#707.2]: name carried");
+        assert_eq!(&*face.name, "Grizzly Bears", "[CR#707.2]: name carried");
         assert_eq!(
             face.power,
             Some(StatValue::Number(1)),
@@ -1563,20 +1573,21 @@ mod tests {
                 Count::Literal(1),
                 Token {
                     name: None,
-                    color_indicator: vec![],
-                    supertypes: vec![],
-                    types: vec![Type::Creature.def()],
+                    color_indicator: vec![].into(),
+                    supertypes: vec![].into(),
+                    types: vec![Type::Creature.def()].into(),
                     subtypes: vec![Subtype {
                         name: "Bear".into(),
-                        types: vec![Type::Creature],
-                        confers: vec![],
-                    }],
-                    abilities: vec![],
+                        types: vec![Type::Creature].into(),
+                        confers: vec![].into(),
+                    }]
+                    .into(),
+                    abilities: vec![].into(),
                     power: Some(StatValue::Number(2)),
                     toughness: Some(StatValue::Number(2)),
                 }
                 .into(),
-                vec![],
+                vec![].into(),
             )),
             &frame_src(src),
         );
@@ -1619,7 +1630,7 @@ mod tests {
 
         let face = minted_copy_face(&state, &[src, token]);
         assert_eq!(
-            face.name, "Bear Token",
+            &*face.name, "Bear Token",
             "[CR#701.36a,111.4]: the copy of an unnamed creature token carries its \
              synthesized name (subtypes + \"Token\")"
         );
@@ -1674,8 +1685,8 @@ mod tests {
                 types: vec![Type::Creature.def()],
                 subtypes: vec![Subtype {
                     name: "Army".into(),
-                    types: vec![Type::Creature],
-                    confers: vec![],
+                    types: vec![Type::Creature].into(),
+                    confers: vec![].into(),
                 }],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
@@ -1789,7 +1800,7 @@ mod tests {
                     cause: None,
                 },
                 condition: None,
-                limits: Vec::new(),
+                limits: Vec::new().into(),
                 effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
             })],
             ..CardFace::default()
@@ -1801,11 +1812,14 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![],
-                }),
-                vec![],
+                deckmaste_core::TokenSpec::Copy(
+                    CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![],
+                    }
+                    .into(),
+                ),
+                vec![].into(),
             )),
             &frame,
         );
@@ -1852,15 +1866,16 @@ mod tests {
         use deckmaste_core::NumericOp;
         use deckmaste_core::StatValue;
         use deckmaste_core::StaticEffect;
-        let count = Count::CountOf(Countable::Objects(std::sync::Arc::new(
-            Predicate::creature(),
-        )));
+        let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
             Reference::This,
-            Modification::Several(vec![
-                Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
-                Modification::Toughness(NumericOp::Set(StatValue::Count(count))),
-            ]),
+            Modification::Several(
+                vec![
+                    Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
+                    Modification::Toughness(NumericOp::Set(StatValue::Count(count))),
+                ]
+                .into(),
+            ),
         ))
     }
 
@@ -1899,18 +1914,21 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![
-                        CopyException::Modify(Modification::Power(NumericOp::Set(
-                            StatValue::Number(5),
-                        ))),
-                        CopyException::Modify(Modification::Toughness(NumericOp::Set(
-                            StatValue::Number(5),
-                        ))),
-                    ],
-                }),
-                vec![],
+                deckmaste_core::TokenSpec::Copy(
+                    CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![
+                            CopyException::Modify(Modification::Power(NumericOp::Set(
+                                StatValue::Number(5),
+                            ))),
+                            CopyException::Modify(Modification::Toughness(NumericOp::Set(
+                                StatValue::Number(5),
+                            ))),
+                        ],
+                    }
+                    .into(),
+                ),
+                vec![].into(),
             )),
             &frame,
         );
@@ -1983,11 +2001,14 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![],
-                }),
-                vec![],
+                deckmaste_core::TokenSpec::Copy(
+                    CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![],
+                    }
+                    .into(),
+                ),
+                vec![].into(),
             )),
             &frame,
         );
@@ -2064,11 +2085,14 @@ mod tests {
         state.run_effect(
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
-                deckmaste_core::TokenSpec::Copy(CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![],
-                }),
-                vec![],
+                deckmaste_core::TokenSpec::Copy(
+                    CopySpec {
+                        source: CopySource::Object(Reference::Target(0)),
+                        exceptions: vec![],
+                    }
+                    .into(),
+                ),
+                vec![].into(),
             )),
             &frame,
         );
@@ -2076,11 +2100,11 @@ mod tests {
 
         let plain_token = Token {
             name: None,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![Type::Artifact.def()],
-            subtypes: vec![],
-            abilities: vec![],
+            color_indicator: vec![].into(),
+            supertypes: vec![].into(),
+            types: vec![Type::Artifact.def()].into(),
+            subtypes: vec![].into(),
+            abilities: vec![].into(),
             power: None,
             toughness: None,
         };
@@ -2088,7 +2112,7 @@ mod tests {
             OneShotEffect::act_by_you(PlayerAction::Create(
                 Count::Literal(1),
                 plain_token.into(),
-                vec![],
+                vec![].into(),
             )),
             &frame,
         );
@@ -2563,7 +2587,7 @@ mod tests {
                 from: None,
                 event,
                 condition: None,
-                limits: Vec::new(),
+                limits: Vec::new().into(),
                 effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
             })],
             ..CardFace::default()

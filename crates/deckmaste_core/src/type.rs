@@ -53,9 +53,9 @@ pub enum Supertype {
 #[derive(Debug, Clone, Eq, Deserialize, Expand, Serialize)]
 pub struct Subtype {
     pub name: Ident,
-    pub types: Vec<Type>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub confers: Vec<Property>,
+    pub types: Arc<[Type]>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub confers: Arc<[Property]>,
 }
 
 // A subtype's identity is its NAME: it always comes from the one macro of that
@@ -86,8 +86,8 @@ impl std::hash::Hash for Subtype {
 pub struct TypeDef {
     pub name: Ident,
     pub permanent: bool,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub confers: Vec<Property>,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub confers: Arc<[Property]>,
 }
 
 // Identity is the NAME (see [`Subtype`]'s eq): a type ref always resolves to
@@ -149,7 +149,7 @@ impl Type {
         TypeDef {
             name: self.name(),
             permanent: self.permanent(),
-            confers: Vec::new(),
+            confers: [].into(),
         }
     }
 }
@@ -202,7 +202,7 @@ impl TypeRef {
         TypeRef(Arc::new(TypeDef {
             name,
             permanent: false,
-            confers: Vec::new(),
+            confers: [].into(),
         }))
     }
 }
@@ -255,8 +255,8 @@ impl SubtypeRef {
     pub fn named(name: Ident) -> Self {
         SubtypeRef(Arc::new(Subtype {
             name,
-            types: Vec::new(),
-            confers: Vec::new(),
+            types: [].into(),
+            confers: [].into(),
         }))
     }
 
@@ -297,7 +297,7 @@ mod tests {
         let land = TypeDef {
             name: "Land".into(),
             permanent: true,
-            confers: Vec::new(),
+            confers: [].into(),
         };
         let written = crate::ron::options().to_string(&land).unwrap();
         // Plain top-level structs serialize without their type name prefix
@@ -316,7 +316,7 @@ mod tests {
             TypeDef {
                 name: "Creature".into(),
                 permanent: true,
-                confers: Vec::new()
+                confers: [].into()
             }
         );
         assert_eq!(
@@ -324,7 +324,7 @@ mod tests {
             TypeDef {
                 name: "Instant".into(),
                 permanent: false,
-                confers: Vec::new()
+                confers: [].into()
             }
         );
         assert_eq!(Type::Land.name(), Ident::from("Land"));

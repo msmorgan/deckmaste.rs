@@ -93,10 +93,13 @@ mod tests {
 
     #[test]
     fn coalesce_round_trips() {
-        let value = Reference::Coalesce(vec![
-            Reference::ControllerOf(Arc::new(Reference::Target(0))),
-            Reference::Target(0),
-        ]);
+        let value = Reference::Coalesce(
+            vec![
+                Reference::ControllerOf(Arc::new(Reference::Target(0))),
+                Reference::Target(0),
+            ]
+            .into(),
+        );
         let written = crate::ron::options().to_string(&value).unwrap();
         assert_eq!(read(&written), value);
     }
@@ -219,7 +222,7 @@ pub enum Reference {
     /// The controller of a referenced object ([CR#109.5]).
     ControllerOf(Arc<Reference>),
     /// The first reference in order that resolves to a non-null value.
-    Coalesce(Vec<Reference>),
+    Coalesce(Arc<[Reference]>),
     /// The owner of a referenced object ([CR#108.3]).
     OwnerOf(Arc<Reference>),
     /// The permanent that attachment R is attached to — attachment→host
