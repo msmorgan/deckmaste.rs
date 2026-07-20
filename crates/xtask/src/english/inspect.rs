@@ -29,9 +29,17 @@ pub(super) struct InspectArgs {
     #[arg(long, value_name = "DIR")]
     catalogs: Option<PathBuf>,
 
-    /// Include the underlying byte spans instead of resolving them to text.
+    #[command(flatten)]
+    output_config: OutputConfig,
+}
+
+#[derive(Debug, Args)]
+struct OutputConfig {
     #[arg(short, long)]
     verbose: bool,
+
+    #[arg(short, long)]
+    abilities_only: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -76,7 +84,7 @@ pub(super) fn run(args: InspectArgs) -> Result<()> {
         );
     }
 
-    write_cards(io::stdout().lock(), &cards, &catalogs, args.verbose)
+    write_cards(io::stdout().lock(), &cards, &catalogs, &args.output_config)
 }
 
 fn default_data_path() -> PathBuf {
@@ -183,7 +191,7 @@ fn write_cards(
     mut writer: impl Write,
     cards: &[CardText],
     catalogs: &Catalogs,
-    verbose: bool,
+    output_config: &OutputConfig,
 ) -> Result<()> {
     for (index, card) in cards.iter().enumerate() {
         if index != 0 {
@@ -196,7 +204,12 @@ fn write_cards(
         }
         writeln!(writer, "\nOracle text:\n{}", card.oracle_text)?;
         let ast = parse_with_catalogs(&card.oracle_text, catalogs);
-        if verbose {
+        if output_config.abilities_only {
+            writeln!(writer, "\nAbilities:\n{:#?}", ast.abilities)?;
+            if !ast.diagnostics.is_empty() {
+                writeln!(writer, "\nDiagnostics:\n{:#?}", ast.diagnostics)?;
+            }
+        } else if output_config.verbose {
             writeln!(writer, "\nAST:\n{ast:#?}")?;
         } else {
             writeln!(writer, "\nAST:\n{:#?}", ast.source_debug(&card.oracle_text))?;
@@ -213,6 +226,15 @@ mod tests {
     use super::*;
 
     const DATA_PATH: &str = "test-cards.jsonl";
+
+    impl OutputConfig {
+        fn new(verbose: bool, abilities_only: bool) -> Self {
+            OutputConfig {
+                verbose,
+                abilities_only,
+            }
+        }
+    }
 
     #[test]
     fn standalone_name_wins_over_a_face_with_the_same_name() {
@@ -311,8 +333,20 @@ mod tests {
         let mut verbose = Vec::new();
         let catalogs = Catalogs::default();
 
-        write_cards(&mut normal, &cards, &catalogs, false).unwrap();
-        write_cards(&mut verbose, &cards, &catalogs, true).unwrap();
+        write_cards(
+            &mut normal,
+            &cards,
+            &catalogs,
+            &OutputConfig::new(false, false),
+        )
+        .unwrap();
+        write_cards(
+            &mut verbose,
+            &cards,
+            &catalogs,
+            &OutputConfig::new(true, false),
+        )
+        .unwrap();
         let normal = String::from_utf8(normal).unwrap();
         let verbose = String::from_utf8(verbose).unwrap();
 
