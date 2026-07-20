@@ -19,16 +19,28 @@ end
 cd "$default_dir"
 or exit 1
 
-# data and docs/superpowers are shared with the coordinator checkout; the symlink
-# form is excluded once via default's .git/info/exclude, which every secondary
-# workspace shares. plugins/wizards is generated code — a real dir, never a
-# symlink (the deckmaste_cards suite loads it; a symlink would make generate
-# write into the coordinator checkout).
+
+# Link the ignored data dir into the workspace instead of re-downloading it.
 ln -sfn "$default_dir/data" "$ws_dir/data"
-and ln -sfn "$default_dir/docs/superpowers" "$ws_dir/docs/superpowers"
+
+# If the user has any globally-ignored directories under docs (like the default
+# superpowers config does) we link those too.
+and begin
+    set -l failures
+    for docs_subdir in (path basename "$default_dir/docs"/*/)
+        if not test -e "$ws_dir/docs/$docs_subdir"
+            ln -sfn "$default_dir/docs/$docs_subdir" "$ws_dir/docs/$docs_subdir"
+            or set -a failures "$docs_subdir"
+        end
+    end
+    not set -q failures[1]
+end
+
+# Re-generate cards from Oracle text.
 and cargo xtask generate "$ws_dir/plugins/wizards"
+
 or begin
-    echo >&2 "$(status filename): $ws_dir's jj structure is set, but shared-dir provisioning failed — fix the data / docs/superpowers symlinks and run 'cargo xtask generate $ws_dir/plugins/wizards' by hand."
+    echo >&2 "$(status filename): $ws_dir's jj structure is set, but shared-dir provisioning failed — check symlinks and run 'cargo xtask generate $ws_dir/plugins/wizards' by hand."
     exit 1
 end
 
@@ -43,7 +55,7 @@ end
 # gitignored so jj won't snapshot it. A miss here just means a cold first build.
 if test -d "$default_dir/target"
     if cp --reflink=auto -a "$default_dir/target" "$ws_dir/target"
-        rm -rf "$ws_dir/target/debug/incremental" "$ws_dir/target/release/incremental"
+        rm -rf "$ws_dir/target"/{debug,release}/incremental
     else
         echo >&2 "$(status filename): target/ pre-warm into $ws_dir failed — first build there starts cold (harmless)."
     end

@@ -10,7 +10,7 @@
 
 The lifecycle (`claim`/`start` → work in `../NAME` → `integrate`, then `drop`; plus `refresh`/`repair`/`conflicts`) is the **jj-workflow** plugin — the auto-loading **`/jj-workflow` skill** is the reference for every command, flag, and exit code. Don't restate it here; this section is only what the plugin can't know about *this* repo. (One guardrail the auto-loaded skill omits: **never `refresh --all`** — human-only; it rewrites every workspace's claim at once and can race a concurrent `integrate` into divergence.)
 
-- **Claim/start eagerly — before any exploration, design, or subagents.** A fresh workspace lacks the gitignored fixtures the build needs — `data`, `docs/superpowers`, ~31k generated `plugins/wizards` — until `scripts/provision-workspace` runs on `claim`/`start`, so building/testing from an unprovisioned workspace wastes the work. And `default` holds other sessions' live claims and edits (expected coordinator state) — claim your own item first so that pre-existing state isn't a mystery to reconcile. Then `cd ../NAME`. EnterWorktree is wired to this repo (the plugin's `WorktreeCreate`/`WorktreeRemove` hooks), so isolating that way mints a real feature workspace and provisions identically — the path background-job sessions use.
+- **Claim/start eagerly — before any exploration, design, or subagents.** A fresh workspace lacks the gitignored fixtures the build needs — `data`, ignored local `docs/` directories such as `docs/superpowers` and `docs/memory`, and ~31k generated `plugins/wizards` — until `scripts/provision-workspace` runs on `claim`/`start`, so building/testing from an unprovisioned workspace wastes the work. And `default` holds other sessions' live claims and edits (expected coordinator state) — claim your own item first so that pre-existing state isn't a mystery to reconcile. Then `cd ../NAME`. EnterWorktree is wired to this repo (the plugin's `WorktreeCreate`/`WorktreeRemove` hooks), so isolating that way mints a real feature workspace and provisions identically — the path background-job sessions use.
 - **Tickets** live at `docs/tickets/<status>/<slug>.md`, folder = status; `scripts/todo ready` lists the next claimable items and the census is `docs/tickets/census.md`. **`docs/tickets/README.md`** is the full model (folders, priority order, the `scripts/todo` command set); `jjworkflow.toml` points `todo_cmd` at `scripts/todo`.
 - **Name your session after the item** (NAME) so the session/job list maps one-to-one onto the active claim.
 - **Semantic conflicts:** when the conflict is that another feature moved a ticket to `done/` you also hold, reconcile the *meaning* — move/mint the right tickets — not just the markers.
@@ -50,16 +50,17 @@ hook yourself from `default`:
 scripts/provision-workspace ../NAME
 ```
 
-What it does (background, in case provisioning needs fixing by hand): `data` and
-`docs/superpowers` are symlinked back to the `default` checkout; `plugins/wizards`
-is generated (it's all generated code — a real dir, never a symlink: the
-deckmaste_cards suite loads it, and a symlink would make generate write into the
-main checkout). The `data`/`docs/superpowers` ignores are **dir-only** (trailing
-slash), which does NOT match a symlink — but the symlink form is already excluded
-once in `default`'s `.git/info/exclude`, and every workspace shares that
-(secondary workspaces have no `.git` of their own), so there is no per-workspace
-exclude step. It also CoW-reflinks `default`'s `target/` into the new workspace
-as a build-cache pre-warm (best-effort).
+What it does (background, in case provisioning needs fixing by hand): `data` is
+symlinked back to the `default` checkout. Each directory present under
+`default/docs/` but absent from the new tracked workspace is also symlinked;
+this shares ignored local directories such as `docs/superpowers` and
+`docs/memory` while leaving tracked documentation directories alone.
+`plugins/wizards` is generated (it's all generated code — a real dir, never a
+symlink: the deckmaste_cards suite loads it, and a symlink would make generate
+write into the main checkout). The workspaces share the repository and global
+ignore configuration, so there is no per-workspace exclude step. Provisioning
+also CoW-reflinks `default`'s `target/` into the new workspace as a build-cache
+pre-warm (best-effort).
 
 Verify with a real `jj st` (not `--ignore-working-copy`, which skips the
 snapshot and hides leaked symlinks): it must report no changes.
