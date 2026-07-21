@@ -22,7 +22,7 @@
 //! To inspect a card from the repository's local data snapshot, run:
 //!
 //! ```text
-//! cargo run -p deckmaste_english_ast --example inspect -- "Lightning Bolt"
+//! cargo xtask english inspect "Lightning Bolt"
 //! ```
 //!
 //! The inspector loads the repository's local Scryfall catalogs automatically.
@@ -31,7 +31,7 @@
 //! To rank unknown phrases across the complete local snapshot, run:
 //!
 //! ```text
-//! cargo run -p deckmaste_english_ast --example unknown_phrases
+//! cargo xtask english unknown
 //! ```
 //!
 //! Card-data examples normalize self-references before parsing: `~` denotes a

@@ -469,14 +469,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_english_ast"
+name = "deckmaste_english"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "deckmaste_migrations"
@@ -1792,6 +1786,7 @@ dependencies = [
  "clap",
  "deckmaste_cards",
  "deckmaste_core",
+ "deckmaste_english",
  "deckmaste_migrations",
  "proc-macro2",
  "quote",

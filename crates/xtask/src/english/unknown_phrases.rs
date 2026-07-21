@@ -8,25 +8,24 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use clap::Parser;
-use deckmaste_english_ast::Ability;
-use deckmaste_english_ast::AbilityKind;
-use deckmaste_english_ast::CatalogKind;
-use deckmaste_english_ast::Catalogs;
-use deckmaste_english_ast::Clause;
-use deckmaste_english_ast::ModalFrame;
-use deckmaste_english_ast::OracleText;
-use deckmaste_english_ast::Paragraph;
-use deckmaste_english_ast::Phrase;
-use deckmaste_english_ast::Predicate;
-use deckmaste_english_ast::SimpleClause;
-use deckmaste_english_ast::normalize_self_references;
-use deckmaste_english_ast::parse_with_catalogs;
+use clap::Args;
+use deckmaste_english::Ability;
+use deckmaste_english::AbilityKind;
+use deckmaste_english::CatalogKind;
+use deckmaste_english::Catalogs;
+use deckmaste_english::Clause;
+use deckmaste_english::ModalFrame;
+use deckmaste_english::OracleText;
+use deckmaste_english::Paragraph;
+use deckmaste_english::Phrase;
+use deckmaste_english::Predicate;
+use deckmaste_english::SimpleClause;
+use deckmaste_english::normalize_self_references;
+use deckmaste_english::parse_with_catalogs;
 use serde::Deserialize;
 
-#[derive(Debug, Parser)]
-#[command(about = "Rank UnknownPhrase occurrences in local Oracle text by word count")]
-struct Args {
+#[derive(Debug, Args)]
+pub(super) struct UnknownPhrasesArgs {
     /// Override the derived card-data snapshot.
     #[arg(long, value_name = "PATH")]
     data: Option<PathBuf>,
@@ -100,8 +99,7 @@ struct UniqueOccurrence {
     count: usize,
 }
 
-fn main() -> Result<()> {
-    let args = Args::parse();
+pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
     if args
         .max_words
         .is_some_and(|max_words| max_words < args.min_words)
@@ -115,7 +113,7 @@ fn main() -> Result<()> {
     {
         bail!("--max-count must be greater than or equal to --min-count");
     }
-    let unique = uses_unique_mode(&args);
+    let unique = uses_unique_mode(args);
     let data_path = args.data.clone().unwrap_or_else(default_data_path);
     let catalogs_path = args.catalogs.clone().unwrap_or_else(default_catalogs_path);
     let catalogs = load_catalogs(&catalogs_path)?;
@@ -187,7 +185,7 @@ fn main() -> Result<()> {
         } else {
             "longest-first"
         };
-        print_result_header("unique groups", &args, order);
+        print_result_header("unique groups", args, order);
         for (index, occurrence) in grouped
             .iter()
             .filter(|occurrence| {
@@ -214,7 +212,7 @@ fn main() -> Result<()> {
     } else {
         sort_occurrences(&mut occurrences, args.alphabetical);
         let order = if args.alphabetical { "alphabetical" } else { "longest-first" };
-        print_result_header("occurrences", &args, order);
+        print_result_header("occurrences", args, order);
         for (index, occurrence) in occurrences
             .iter()
             .filter(|occurrence| {
@@ -237,7 +235,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn print_result_header(kind: &str, args: &Args, order: &str) {
+fn print_result_header(kind: &str, args: &UnknownPhrasesArgs, order: &str) {
     let word_range = match args.max_words {
         Some(max_words) => format!("from {} through {max_words} words", args.min_words),
         None => format!("with at least {} words", args.min_words),
@@ -480,7 +478,7 @@ fn matches_count_bounds(count: usize, min_count: usize, max_count: Option<usize>
     count >= min_count && max_count.is_none_or(|maximum| count <= maximum)
 }
 
-fn uses_unique_mode(args: &Args) -> bool {
+fn uses_unique_mode(args: &UnknownPhrasesArgs) -> bool {
     args.unique || args.sort_count || args.min_count.is_some() || args.max_count.is_some()
 }
 
@@ -595,9 +593,32 @@ mod tests {
 
     #[test]
     fn count_arguments_imply_unique_mode() {
-        let min = Args::try_parse_from(["unknown_phrases", "--min-count", "2"]).unwrap();
-        let max = Args::try_parse_from(["unknown_phrases", "--max-count", "4"]).unwrap();
-        let sorted = Args::try_parse_from(["unknown_phrases", "--sort-count"]).unwrap();
+        fn args() -> UnknownPhrasesArgs {
+            UnknownPhrasesArgs {
+                data: None,
+                catalogs: None,
+                limit: 50,
+                min_words: 0,
+                max_words: None,
+                alphabetical: false,
+                unique: false,
+                sort_count: false,
+                min_count: None,
+                max_count: None,
+            }
+        }
+        let min = UnknownPhrasesArgs {
+            min_count: Some(2),
+            ..args()
+        };
+        let max = UnknownPhrasesArgs {
+            max_count: Some(4),
+            ..args()
+        };
+        let sorted = UnknownPhrasesArgs {
+            sort_count: true,
+            ..args()
+        };
 
         assert!(uses_unique_mode(&min));
         assert!(uses_unique_mode(&max));

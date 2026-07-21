@@ -9,16 +9,15 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use clap::Parser;
-use deckmaste_english_ast::CatalogKind;
-use deckmaste_english_ast::Catalogs;
-use deckmaste_english_ast::normalize_self_references;
-use deckmaste_english_ast::parse_with_catalogs;
+use clap::Args;
+use deckmaste_english::CatalogKind;
+use deckmaste_english::Catalogs;
+use deckmaste_english::normalize_self_references;
+use deckmaste_english::parse_with_catalogs;
 use serde::Deserialize;
 
-#[derive(Debug, Parser)]
-#[command(about = "Parse a card's Oracle text from deckmaste's local data snapshot")]
-struct Args {
+#[derive(Debug, Args)]
+pub(super) struct InspectArgs {
     /// Exact card or face name (matched case-insensitively).
     card: String,
 
@@ -57,8 +56,7 @@ struct CardText {
     oracle_text: String,
 }
 
-fn main() -> Result<()> {
-    let args = Args::parse();
+pub(super) fn run(args: InspectArgs) -> Result<()> {
     let data_path = args.data.unwrap_or_else(default_data_path);
     let catalogs_path = args.catalogs.unwrap_or_else(default_catalogs_path);
     let catalogs = load_catalogs(&catalogs_path)?;

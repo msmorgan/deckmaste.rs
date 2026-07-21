@@ -7,6 +7,7 @@ use clap::Parser;
 use clap::Subcommand;
 use xtask::card::CardArgs;
 use xtask::cite::CiteArgs;
+use xtask::english::EnglishArgs;
 use xtask::extract::ExtractArgs;
 use xtask::fidelity::FidelityArgs;
 use xtask::generate::GenerateArgs;
@@ -17,8 +18,8 @@ use xtask::resolve::ResolveArgs;
 use xtask::stubs::StubsArgs;
 use xtask::validate::ValidateArgs;
 
-/// Workspace automation: validate, card, generate, stubs, extract, resolve,
-/// graduate, and CR-citation tasks.
+/// Workspace automation for cards, English parsing, generation, validation,
+/// and CR-citation tasks.
 #[derive(Debug, Parser)]
 #[command(name = "cargo xtask", bin_name = "cargo xtask")]
 struct Cli {
@@ -48,6 +49,8 @@ enum Cmd {
     Graduate(GraduateArgs),
     /// Check / bless / diff / list / show CR citations.
     Cite(CiteArgs),
+    /// Inspect parsed Oracle text and audit unresolved English phrases.
+    English(EnglishArgs),
     /// The anaphora-soundness gate: re-emit each expanded card as a raw
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.
     /// One card name = single-card mode; omitted = batch-check the plugin.
@@ -67,6 +70,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Resolve(args) => xtask::resolve::run(&args),
         Cmd::Graduate(args) => xtask::graduate::run(&args),
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
+        Cmd::English(args) => xtask::english::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
     }
