@@ -25,10 +25,11 @@ pub(crate) struct AbilityDiagnostic {
     pub(crate) span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AbilitySelection {
     pub(crate) span: Span,
     pub(crate) rule: Option<usize>,
+    pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: ParseCost,
 }
 
@@ -324,13 +325,13 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
     }
 
     fn parse_sentence(&mut self, tokens: &[Token]) -> Sentence {
+        if let Some(sentence) = self.parse_quoted_sentence(tokens) {
+            return sentence;
+        }
         if let Some(parsed) = self.parse_exact(tokens, Nonterminal::Sentence)
             && let Some(sentence) = parsed.sentence()
         {
             return sentence.clone();
-        }
-        if let Some(sentence) = self.parse_quoted_sentence(tokens) {
-            return sentence;
         }
 
         let (body, ending) = peel_sentence_ending(tokens);
@@ -487,6 +488,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
         self.selections.push(AbilitySelection {
             span,
             rule: parsed.root_rule(),
+            tied_alternatives: parsed.root_tied_alternatives().to_vec(),
             cost: parsed.cost(),
         });
         Some(parsed)

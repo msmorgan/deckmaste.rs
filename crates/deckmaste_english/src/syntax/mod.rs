@@ -162,9 +162,24 @@ impl<'syntax> UnknownWalker<'syntax> {
                 {
                     self.noun_phrase(possessor, context);
                 }
+                if let crate::word::NounInstance::Singular(crate::word::Noun::Unknown(unknown))
+                | crate::word::NounInstance::Plural(crate::word::Noun::Unknown(unknown))
+                | crate::word::NounInstance::Mass(crate::word::Noun::Unknown(unknown)) =
+                    &nominal.head
+                {
+                    self.push(unknown, UnknownRole::NominalComplement, context);
+                }
                 for modifier in &nominal.modifiers {
-                    if let NominalModifier::Adjective(adjective) = modifier {
-                        self.adjective_phrase(adjective, UnknownRole::NominalComplement, context);
+                    match modifier {
+                        NominalModifier::Adjective(adjective) => self.adjective_phrase(
+                            adjective,
+                            UnknownRole::NominalComplement,
+                            context,
+                        ),
+                        NominalModifier::Unknown(unknown) => {
+                            self.push(unknown, UnknownRole::NominalComplement, context);
+                        }
+                        NominalModifier::Noun(_) => {}
                     }
                 }
                 for complement in &nominal.complements {

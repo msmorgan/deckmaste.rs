@@ -14,7 +14,7 @@ use crate::word::Pronoun;
 use crate::word::PronounCase;
 use crate::word::Vocab;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UnknownPhrase(pub String);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -198,6 +198,7 @@ pub struct NominalPhrase {
 pub enum NominalModifier {
     Adjective(AdjectivePhrase),
     Noun(NounInstance),
+    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

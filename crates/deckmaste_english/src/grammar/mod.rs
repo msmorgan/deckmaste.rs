@@ -6,6 +6,7 @@
 pub(crate) mod ability;
 mod clause;
 mod nominal;
+mod recovery;
 
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
@@ -13,6 +14,7 @@ use std::hash::Hash;
 use std::hash::Hasher;
 
 use crate::Numeral;
+use crate::Span;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
@@ -59,6 +61,7 @@ use crate::syntax::Sentence;
 use crate::syntax::SimpleClause;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
+use crate::syntax::UnknownPhrase;
 use crate::syntax::VerbPhrase;
 use crate::word::Adjective;
 use crate::word::Auxiliary;
@@ -138,6 +141,41 @@ pub(crate) enum EnglishLexicalSlot {
     If,
     AsLongAs,
     Conjunction,
+    Unknown(RecoverySlot),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RecoveryMode {
+    Exact,
+    UnknownPhrases,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum RecoveryProfile {
+    Exact,
+    // Local phrase recovery plus verbs with an overt inflectional suffix.
+    Phrases,
+    // Bare forms are highly syncretic, so admit them only when the narrower
+    // recovery chart cannot supply a trustworthy winner.
+    WithBareVerbs,
+}
+
+impl RecoveryProfile {
+    const fn mode(self) -> RecoveryMode {
+        match self {
+            Self::Exact => RecoveryMode::Exact,
+            Self::Phrases | Self::WithBareVerbs => RecoveryMode::UnknownPhrases,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RecoverySlot {
+    Noun(NounForm),
+    Verb(VerbSlot),
+    NominalModifier,
+    VerbDependent,
+    PrepositionObject,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -207,6 +245,7 @@ pub(crate) enum Features {
         form: NounForm,
         initial_sound: InitialSound,
         determined: bool,
+        leading_recovery: bool,
     },
     NounPhrase {
         agreement: Option<Agreement>,
@@ -221,6 +260,7 @@ pub(crate) enum Features {
     VerbPhrase {
         form: PredicateForm,
         has_direct_object: bool,
+        trailing_recovery: bool,
     },
     InfinitiveClause,
     SimpleClause {
@@ -236,6 +276,9 @@ pub(crate) enum Features {
     Sentence,
     PrepositionalPhrase,
     RelativeClause(RelativeGap),
+    UnknownPhrase {
+        initial_sound: InitialSound,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -396,8 +439,9 @@ pub(crate) enum MeaningKey {
     Subordinator(crate::syntax::Subordinator),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
+    Unknown(UnknownKey),
     Nominal {
-        head: NounInstance,
+        head: NominalHeadKey,
         shape: u64,
     },
     NounPhrase {
@@ -432,6 +476,18 @@ pub(crate) enum MeaningKey {
     Sentence {
         shape: u64,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct UnknownKey {
+    slot: RecoverySlot,
+    span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum NominalHeadKey {
+    Known(NounInstance),
+    Unknown(UnknownKey),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -492,6 +548,11 @@ enum RuleTag {
     SentenceExclamation,
     SentenceQuestion,
     SentenceNone,
+    NounUnknown,
+    VerbUnknown,
+    NominalUnknownModifier,
+    VerbPhraseUnknownDependent,
+    PrepositionalPhraseUnknownObject,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -501,6 +562,7 @@ pub(crate) struct EnglishGrammar<'source, 'catalogs> {
     rules: Vec<Rule<Nonterminal, EnglishLexicalSlot>>,
     tags: Vec<RuleTag>,
     rules_by_lhs: HashMap<Nonterminal, Vec<RuleId>>,
+    recovery_profile: RecoveryProfile,
 }
 
 impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
@@ -509,9 +571,22 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         catalogs: &'catalogs Catalogs,
         start: Nonterminal,
     ) -> Self {
+        Self::with_recovery_profile(source, catalogs, start, RecoveryProfile::Exact)
+    }
+
+    fn with_recovery_profile(
+        source: &'source str,
+        catalogs: &'catalogs Catalogs,
+        start: Nonterminal,
+        recovery_profile: RecoveryProfile,
+    ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
         builder.add_clause_rules();
+        if recovery_profile != RecoveryProfile::Exact {
+            recovery::add_rules(&mut builder);
+            recovery::add_unknown_verb_rules(&mut builder);
+        }
         Self {
             source,
             catalogs,
@@ -519,6 +594,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             rules: builder.rules,
             tags: builder.tags,
             rules_by_lhs: builder.rules_by_lhs,
+            recovery_profile,
         }
     }
 
@@ -762,6 +838,36 @@ impl Grammar for EnglishGrammar<'_, '_> {
             | EnglishLexicalSlot::If
             | EnglishLexicalSlot::AsLongAs
             | EnglishLexicalSlot::Conjunction) => self.scan_clause_lexical(slot, tokens, start),
+            EnglishLexicalSlot::Unknown(slot)
+                if self.recovery_profile != RecoveryProfile::Exact =>
+            {
+                let already_known = match slot {
+                    RecoverySlot::Noun(_)
+                    | RecoverySlot::NominalModifier
+                    | RecoverySlot::VerbDependent
+                    | RecoverySlot::PrepositionObject => self.has_known_word(tokens, start),
+                    RecoverySlot::Verb(verb) => {
+                        !self
+                            .word_matches(tokens, start, LexicalSlot::Verb(verb))
+                            .is_empty()
+                            || !self
+                                .catalog_matches(tokens, start, CatalogSlot::Verb(verb))
+                                .is_empty()
+                    }
+                };
+                if already_known {
+                    Vec::new()
+                } else {
+                    recovery::scan_unknown(
+                        self.source,
+                        tokens,
+                        start,
+                        slot,
+                        self.recovery_profile == RecoveryProfile::WithBareVerbs,
+                    )
+                }
+            }
+            EnglishLexicalSlot::Unknown(_) => Vec::new(),
         }
     }
 
@@ -830,6 +936,48 @@ impl EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start),
             _ => Vec::new(),
         }
+    }
+
+    fn has_known_word(&self, tokens: &[Token], start: usize) -> bool {
+        if tokens
+            .get(start)
+            .is_none_or(|token| token.kind != TokenKind::Word)
+        {
+            return true;
+        }
+        let vocabulary_slots = [
+            LexicalSlot::Noun(NounUsage::Either),
+            LexicalSlot::Adjective,
+            LexicalSlot::Adverb,
+            LexicalSlot::Pronoun(PronounCase::Subject),
+            LexicalSlot::Pronoun(PronounCase::Object),
+            LexicalSlot::Auxiliary,
+        ];
+        vocabulary_slots
+            .into_iter()
+            .any(|slot| !self.word_matches(tokens, start, slot).is_empty())
+            || crate::word::VERB_SLOTS.into_iter().any(|slot| {
+                !self
+                    .word_matches(tokens, start, LexicalSlot::Verb(slot))
+                    .is_empty()
+            })
+            || !self.scan_determiner(tokens, start).is_empty()
+            || !self.scan_preposition(tokens, start).is_empty()
+            || !self.scan_conjunction(tokens, start).is_empty()
+            || !self
+                .catalog_matches(tokens, start, CatalogSlot::Noun(NounUsage::Either))
+                .is_empty()
+            || !self
+                .catalog_matches(tokens, start, CatalogSlot::Adjective)
+                .is_empty()
+            || !self
+                .catalog_matches(tokens, start, CatalogSlot::AbilityItem)
+                .is_empty()
+            || crate::word::VERB_SLOTS.into_iter().any(|slot| {
+                !self
+                    .catalog_matches(tokens, start, CatalogSlot::Verb(slot))
+                    .is_empty()
+            })
     }
 
     fn scan_subordinator(
@@ -1327,6 +1475,7 @@ fn noun_initial_sound(noun: &NounInstance) -> Option<InitialSound> {
         Noun::Gerund(_) => Vocabulary::new()
             .render_noun(noun)
             .map(|surface| surface_initial_sound(&surface)),
+        Noun::Unknown(unknown) => Some(surface_initial_sound(&unknown.0)),
     }
 }
 
@@ -1443,6 +1592,13 @@ fn reduce(
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => clause::reduce_clause(tag, children, shape)?,
+        RuleTag::NounUnknown
+        | RuleTag::VerbUnknown
+        | RuleTag::NominalUnknownModifier
+        | RuleTag::VerbPhraseUnknownDependent
+        | RuleTag::PrepositionalPhraseUnknownObject => {
+            recovery::reduce_recovery(tag, children, shape)?
+        }
     };
     Some(Reduction {
         features,
@@ -1611,32 +1767,34 @@ fn reduce_nominal(
             else {
                 return None;
             };
-            let MeaningKey::Noun(head) = child.meaning else {
-                return None;
+            let head = match child.meaning {
+                MeaningKey::Noun(head) => NominalHeadKey::Known(head.clone()),
+                MeaningKey::Unknown(key) if matches!(key.slot, RecoverySlot::Noun(_)) => {
+                    NominalHeadKey::Unknown(*key)
+                }
+                _ => return None,
             };
             Some((
                 Features::Nominal {
                     form: *form,
                     initial_sound: *initial_sound,
                     determined: false,
+                    leading_recovery: false,
                 },
-                MeaningKey::Nominal {
-                    head: head.clone(),
-                    shape,
-                },
+                MeaningKey::Nominal { head, shape },
             ))
         }
         RuleTag::NominalAdjective => {
             let Features::Adjective { initial_sound } = children.first()?.features else {
                 return None;
             };
-            nominal_with_prefix(children.get(1)?, *initial_sound, shape)
+            nominal_with_prefix(children.get(1)?, *initial_sound, false, shape)
         }
         RuleTag::NominalNounModifier => {
             let Features::Noun { initial_sound, .. } = children.first()?.features else {
                 return None;
             };
-            nominal_with_prefix(children.get(1)?, *initial_sound, shape)
+            nominal_with_prefix(children.get(1)?, *initial_sound, false, shape)
         }
         RuleTag::NominalDeterminer => {
             let MeaningKey::Determiner(determiner) = children.first()?.meaning else {
@@ -1646,6 +1804,7 @@ fn reduce_nominal(
                 form,
                 initial_sound,
                 determined,
+                ..
             } = children.get(1)?.features
             else {
                 return None;
@@ -1664,6 +1823,7 @@ fn reduce_nominal(
                     form: *form,
                     initial_sound: *initial_sound,
                     determined: true,
+                    leading_recovery: false,
                 },
                 MeaningKey::Nominal {
                     head: head.clone(),
@@ -1676,6 +1836,7 @@ fn reduce_nominal(
                 form,
                 initial_sound,
                 determined,
+                leading_recovery,
             } = children.first()?.features
             else {
                 return None;
@@ -1688,6 +1849,7 @@ fn reduce_nominal(
                     form: *form,
                     initial_sound: *initial_sound,
                     determined: *determined,
+                    leading_recovery: *leading_recovery,
                 },
                 MeaningKey::Nominal {
                     head: head.clone(),
@@ -1788,6 +1950,7 @@ fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {
 fn nominal_with_prefix(
     nominal: &Child<'_, EnglishGrammar<'_, '_>>,
     initial_sound: InitialSound,
+    leading_recovery: bool,
     shape: u64,
 ) -> Option<Reduced> {
     let Features::Nominal {
@@ -1804,6 +1967,7 @@ fn nominal_with_prefix(
             form: *form,
             initial_sound,
             determined: *determined,
+            leading_recovery,
         },
         MeaningKey::Nominal {
             head: head.clone(),
@@ -1879,6 +2043,7 @@ pub(crate) struct ParsedNonterminal {
     root: NodeId,
     best: BestParse,
     syntax: Lowered,
+    recovery_mode: RecoveryMode,
 }
 
 impl ParsedNonterminal {
@@ -1926,8 +2091,16 @@ impl ParsedNonterminal {
             .map(crate::chart::RuleId::index)
     }
 
+    pub(crate) fn root_tied_alternatives(&self) -> &[usize] {
+        self.best.tied_alternatives(self.root)
+    }
+
     pub(crate) const fn cost(&self) -> ParseCost {
         self.best.cost
+    }
+
+    pub(crate) const fn recovery_mode(&self) -> RecoveryMode {
+        self.recovery_mode
     }
 }
 
@@ -1945,8 +2118,66 @@ pub(crate) fn parse_nonterminal(
     nonterminal: Nonterminal,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
     let surface = lex(source);
-    let grammar = EnglishGrammar::new(source, catalogs, nonterminal);
-    let chart = parse_chart(&grammar, &surface.tokens).map_err(ParseNonterminalError::Grammar)?;
+    match parse_nonterminal_with_profile(
+        source,
+        catalogs,
+        nonterminal,
+        &surface.tokens,
+        RecoveryProfile::Exact,
+    ) {
+        Ok(parsed) => Ok(parsed),
+        Err(ParseNonterminalError::NoCompleteParse(_)) => match parse_nonterminal_with_profile(
+            source,
+            catalogs,
+            nonterminal,
+            &surface.tokens,
+            RecoveryProfile::Phrases,
+        ) {
+            Ok(parsed) if recovery_may_hide_bare_verb(&parsed) => {
+                match parse_nonterminal_with_profile(
+                    source,
+                    catalogs,
+                    nonterminal,
+                    &surface.tokens,
+                    RecoveryProfile::WithBareVerbs,
+                ) {
+                    Ok(candidate) if candidate.cost() < parsed.cost() => Ok(candidate),
+                    Ok(_) | Err(ParseNonterminalError::NoCompleteParse(_)) => Ok(parsed),
+                    Err(error) => Err(error),
+                }
+            }
+            Ok(parsed) => Ok(parsed),
+            Err(ParseNonterminalError::NoCompleteParse(_)) => parse_nonterminal_with_profile(
+                source,
+                catalogs,
+                nonterminal,
+                &surface.tokens,
+                RecoveryProfile::WithBareVerbs,
+            ),
+            Err(error) => Err(error),
+        },
+        Err(error) => Err(error),
+    }
+}
+
+const fn recovery_may_hide_bare_verb(parsed: &ParsedNonterminal) -> bool {
+    let cost = parsed.cost();
+    // A forced chain of recoveries can be an artifact of withholding a bare
+    // predicate. Re-run the superset grammar and retain it only when it
+    // improves the lexical cost tuple.
+    cost.recoveries > 1
+}
+
+fn parse_nonterminal_with_profile(
+    source: &str,
+    catalogs: &Catalogs,
+    nonterminal: Nonterminal,
+    tokens: &[Token],
+    recovery_profile: RecoveryProfile,
+) -> Result<ParsedNonterminal, ParseNonterminalError> {
+    let grammar =
+        EnglishGrammar::with_recovery_profile(source, catalogs, nonterminal, recovery_profile);
+    let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
     let mut candidates = chart
         .roots
         .iter()
@@ -1971,6 +2202,7 @@ pub(crate) fn parse_nonterminal(
         root,
         best,
         syntax,
+        recovery_mode: recovery_profile.mode(),
     })
 }
 
@@ -2003,6 +2235,7 @@ enum Lowered {
     Sentence(Sentence),
     Conjunction(crate::syntax::PredicateConjunction),
     Subordinator(crate::syntax::Subordinator),
+    Unknown(UnknownPhrase),
     Ignored,
 }
 
@@ -2014,7 +2247,7 @@ fn lower(
 ) -> Option<Lowered> {
     let forest_node = forest.node(node);
     if matches!(forest_node.key.symbol, ForestSymbol::Lexical(_)) {
-        return lower_lexical(&forest_node.key.meaning);
+        return lower_lexical(grammar, &forest_node.key.meaning);
     }
     let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
     let rule = alternative.rule?;
@@ -2027,7 +2260,7 @@ fn lower(
     lower_rule(tag, &mut children)
 }
 
-fn lower_lexical(meaning: &MeaningKey) -> Option<Lowered> {
+fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Option<Lowered> {
     Some(match meaning {
         MeaningKey::Literal(_) | MeaningKey::Punctuation(_) => Lowered::Ignored,
         MeaningKey::Number(number) => Lowered::Number(*number),
@@ -2050,6 +2283,26 @@ fn lower_lexical(meaning: &MeaningKey) -> Option<Lowered> {
         MeaningKey::Subordinator(subordinator) => Lowered::Subordinator(*subordinator),
         MeaningKey::ThisCard(form) => Lowered::ThisCard(*form),
         MeaningKey::Preposition(preposition) => Lowered::Preposition(*preposition),
+        MeaningKey::Unknown(key) => {
+            let unknown = UnknownPhrase(key.span.text(grammar.source)?.to_owned());
+            match key.slot {
+                RecoverySlot::Noun(form) => {
+                    let noun = Noun::Unknown(unknown);
+                    Lowered::Noun(match form {
+                        NounForm::Singular => NounInstance::Singular(noun),
+                        NounForm::Plural => NounInstance::Plural(noun),
+                        NounForm::Mass => NounInstance::Mass(noun),
+                    })
+                }
+                RecoverySlot::Verb(slot) => Lowered::Verb(VerbInstance {
+                    verb: crate::word::Verb::Unknown(unknown),
+                    slot,
+                }),
+                RecoverySlot::NominalModifier
+                | RecoverySlot::VerbDependent
+                | RecoverySlot::PrepositionObject => Lowered::Unknown(unknown),
+            }
+        }
         MeaningKey::Nominal { .. }
         | MeaningKey::NounPhrase { .. }
         | MeaningKey::PossessiveNounPhrase { .. }
@@ -2121,6 +2374,11 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::SentenceExclamation
         | RuleTag::SentenceQuestion
         | RuleTag::SentenceNone => clause::lower_clause(tag, children),
+        RuleTag::NounUnknown
+        | RuleTag::VerbUnknown
+        | RuleTag::NominalUnknownModifier
+        | RuleTag::VerbPhraseUnknownDependent
+        | RuleTag::PrepositionalPhraseUnknownObject => recovery::lower_recovery(tag, children),
     }
 }
 

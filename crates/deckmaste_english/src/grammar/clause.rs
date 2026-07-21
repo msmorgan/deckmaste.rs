@@ -207,6 +207,7 @@ fn reduce_predicate(
                 Features::VerbPhrase {
                     form,
                     has_direct_object: false,
+                    trailing_recovery: false,
                 },
                 MeaningKey::VerbPhrase { form, shape },
             ))
@@ -218,6 +219,7 @@ fn reduce_predicate(
             let Features::VerbPhrase {
                 form: child_form,
                 has_direct_object,
+                trailing_recovery,
             } = children.get(1)?.features
             else {
                 return None;
@@ -227,6 +229,7 @@ fn reduce_predicate(
                 Features::VerbPhrase {
                     form,
                     has_direct_object: *has_direct_object,
+                    trailing_recovery: *trailing_recovery,
                 },
                 MeaningKey::VerbPhrase { form, shape },
             ))
@@ -273,6 +276,7 @@ fn extend_predicate(
     let Features::VerbPhrase {
         form,
         has_direct_object,
+        ..
     } = predicate.features
     else {
         return None;
@@ -284,6 +288,7 @@ fn extend_predicate(
         Features::VerbPhrase {
             form: *form,
             has_direct_object: *has_direct_object || direct_object,
+            trailing_recovery: false,
         },
         MeaningKey::VerbPhrase { form: *form, shape },
     ))
@@ -309,6 +314,7 @@ fn reduce_simple_clause(
             let Features::VerbPhrase {
                 form: PredicateForm::Finite(predicate_agreement),
                 has_direct_object,
+                ..
             } = children.get(1)?.features
             else {
                 return None;
@@ -328,6 +334,7 @@ fn reduce_simple_clause(
             let Features::VerbPhrase {
                 form,
                 has_direct_object,
+                ..
             } = children.first()?.features
             else {
                 return None;

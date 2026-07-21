@@ -4,6 +4,7 @@ use std::sync::OnceLock;
 
 use crate::catalog::CatalogAtom;
 use crate::catalog::KeywordAction;
+use crate::syntax::UnknownPhrase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Person {
@@ -55,6 +56,7 @@ pub enum Noun {
     Word(Vocab),
     Catalog(CatalogAtom),
     Gerund(Verb),
+    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -92,6 +94,7 @@ pub struct NounDefinition {
 pub enum Verb {
     Word(Vocab),
     KeywordAction(KeywordAction),
+    Unknown(UnknownPhrase),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -887,6 +890,7 @@ impl Vocabulary {
                     NounSurface::Singular | NounSurface::Mass => present_participle,
                 })
             }
+            Noun::Unknown(unknown) => Some(unknown.0.clone()),
         }
     }
 
@@ -966,6 +970,7 @@ impl Vocabulary {
         match verb {
             Verb::Word(vocab) => self.render_verb(*vocab, slot),
             Verb::KeywordAction(action) => action.render(slot),
+            Verb::Unknown(unknown) => Some(unknown.0.clone()),
         }
     }
 }

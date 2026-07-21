@@ -442,6 +442,7 @@ impl<'identity> Renderer<'identity> {
             parts.push(match modifier {
                 NominalModifier::Adjective(adjective) => self.adjective_phrase(adjective)?,
                 NominalModifier::Noun(noun) => self.render_noun(noun)?,
+                NominalModifier::Unknown(unknown) => unknown.0.clone(),
             });
         }
         parts.push(self.render_noun(&phrase.head)?);
@@ -464,6 +465,7 @@ impl<'identity> Renderer<'identity> {
                     self.adjective_initial_sound(&adjective.head)
                 }
                 NominalModifier::Noun(noun) => self.noun_initial_sound(noun),
+                NominalModifier::Unknown(unknown) => Ok(spelling_initial_sound(&unknown.0)),
             };
         }
         self.noun_initial_sound(&phrase.head)
@@ -486,6 +488,7 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(|surface| spelling_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
+            Noun::Unknown(unknown) => Ok(spelling_initial_sound(&unknown.0)),
         }
     }
 

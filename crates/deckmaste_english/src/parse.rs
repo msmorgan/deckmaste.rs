@@ -25,10 +25,11 @@ pub(crate) struct ParseProvenance {
     pub(crate) selections: Vec<ParseSelection>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ParseSelection {
     pub(crate) span: Span,
     pub(crate) rule: Option<usize>,
+    pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: crate::forest::ParseCost,
 }
 
@@ -78,6 +79,7 @@ pub(crate) fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> ParseRep
                 .map(|selection| ParseSelection {
                     span: selection.span,
                     rule: selection.rule,
+                    tied_alternatives: selection.tied_alternatives,
                     cost: selection.cost,
                 })
                 .collect(),
@@ -108,6 +110,7 @@ mod tests {
         assert!(report.provenance.selections.iter().all(|selection| {
             selection.span == Span::new(0, 12)
                 && selection.rule.is_some()
+                && !selection.tied_alternatives.is_empty()
                 && selection.cost == crate::forest::ParseCost::default()
         }));
     }

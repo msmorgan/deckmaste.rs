@@ -141,9 +141,20 @@ where
     pub(crate) fn best(&self, root: NodeId) -> Result<BestParse, ForestError> {
         let mut costs = vec![None; self.nodes.len()];
         let mut alternatives = vec![None; self.nodes.len()];
+        let mut tied_alternatives = vec![Vec::new(); self.nodes.len()];
         let mut visiting = vec![false; self.nodes.len()];
-        let cost = self.best_cost(root, &mut costs, &mut alternatives, &mut visiting)?;
-        Ok(BestParse { cost, alternatives })
+        let cost = self.best_cost(
+            root,
+            &mut costs,
+            &mut alternatives,
+            &mut tied_alternatives,
+            &mut visiting,
+        )?;
+        Ok(BestParse {
+            cost,
+            alternatives,
+            tied_alternatives,
+        })
     }
 
     fn best_cost(
@@ -151,6 +162,7 @@ where
         node: NodeId,
         costs: &mut [Option<ParseCost>],
         choices: &mut [Option<usize>],
+        ties: &mut [Vec<usize>],
         visiting: &mut [bool],
     ) -> Result<ParseCost, ForestError> {
         if let Some(cost) = costs[node.index()] {
@@ -166,12 +178,27 @@ where
         for (alternative_index, alternative) in forest_node.alternatives.iter().enumerate() {
             let mut cost = alternative.local_cost;
             for &child in &alternative.children {
-                cost += self.best_cost(child, costs, choices, visiting)?;
+                cost += self.best_cost(child, costs, choices, ties, visiting)?;
             }
             let rule_order = alternative.rule.map_or(usize::MAX, RuleId::index);
             let candidate = (cost, rule_order, alternative_index);
-            if best.is_none_or(|current| candidate < current) {
-                best = Some(candidate);
+            match best {
+                None => {
+                    best = Some(candidate);
+                    ties[node.index()].push(alternative_index);
+                }
+                Some(current) if cost < current.0 => {
+                    best = Some(candidate);
+                    ties[node.index()].clear();
+                    ties[node.index()].push(alternative_index);
+                }
+                Some(current) if cost == current.0 => {
+                    ties[node.index()].push(alternative_index);
+                    if candidate < current {
+                        best = Some(candidate);
+                    }
+                }
+                Some(_) => {}
             }
         }
 
@@ -187,11 +214,18 @@ where
 pub(crate) struct BestParse {
     pub(crate) cost: ParseCost,
     alternatives: Vec<Option<usize>>,
+    tied_alternatives: Vec<Vec<usize>>,
 }
 
 impl BestParse {
     pub(crate) fn alternative(&self, node: NodeId) -> Option<usize> {
         self.alternatives.get(node.index()).copied().flatten()
+    }
+
+    pub(crate) fn tied_alternatives(&self, node: NodeId) -> &[usize] {
+        self.tied_alternatives
+            .get(node.index())
+            .map_or(&[], Vec::as_slice)
     }
 }
 
@@ -252,5 +286,39 @@ mod tests {
         let best = forest.best(first.node).expect("the node is acyclic");
         assert_eq!(best.cost.precedence, 1);
         assert_eq!(best.alternative(first.node), Some(1));
+    }
+
+    #[test]
+    fn equal_cost_uses_stable_rule_order_and_preserves_all_ties() {
+        let mut forest = ParseForest::<&str, (), (), &str>::new();
+        let key = NodeKey {
+            symbol: ForestSymbol::Nonterminal("expression"),
+            start: 0,
+            end: 1,
+            features: (),
+            meaning: "same meaning",
+        };
+        let root = forest
+            .intern_node(
+                key.clone(),
+                PackedAlternative {
+                    rule: Some(RuleId::new(4)),
+                    children: Vec::new(),
+                    local_cost: ParseCost::default(),
+                },
+            )
+            .node;
+        forest.intern_node(
+            key,
+            PackedAlternative {
+                rule: Some(RuleId::new(3)),
+                children: Vec::new(),
+                local_cost: ParseCost::default(),
+            },
+        );
+
+        let best = forest.best(root).expect("the node is acyclic");
+        assert_eq!(best.alternative(root), Some(1));
+        assert_eq!(best.tied_alternatives(root), &[0, 1]);
     }
 }
