@@ -51,6 +51,7 @@ mod source_debug;
 mod span;
 #[cfg(test)]
 mod surface;
+pub mod word;
 
 pub use ast::Ability;
 pub use ast::AbilityKind;

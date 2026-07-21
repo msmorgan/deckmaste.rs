@@ -1,0 +1,1751 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Person {
+    Second,
+    Third,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Number {
+    Singular,
+    Plural,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Tense {
+    Present,
+    Past,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Pronoun {
+    You,
+    It,
+    They,
+    He,
+    She,
+    EachOther,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PronounCase {
+    Subject,
+    Object,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PronounInstance {
+    pub pronoun: Pronoun,
+    pub case: PronounCase,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Noun {
+    Word(Vocab),
+    Gerund(Verb),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum NounInstance {
+    Singular(Noun),
+    Plural(Noun),
+    Mass(Noun),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NounDeclension {
+    Regular,
+    Irregular {
+        singular: &'static str,
+        plural: &'static str,
+    },
+    Invariant,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Countability {
+    Count,
+    Mass,
+    CountOrMass,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NounDefinition {
+    pub noun: Noun,
+    pub declension: NounDeclension,
+    pub countability: Countability,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Verb {
+    Word(Vocab),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VerbSlot {
+    Infinitive,
+    Imperative,
+    Present { person: Person, number: Number },
+    Past { person: Person, number: Number },
+    PresentParticiple,
+    PastParticiple,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VerbInstance {
+    pub verb: Verb,
+    pub slot: VerbSlot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VerbForm {
+    Regular,
+    Irregular(IrregularVerbDef),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct IrregularVerbDef {
+    pub present_second: Option<&'static str>,
+    pub present_third_singular: Option<&'static str>,
+    pub present_third_plural: Option<&'static str>,
+    pub past_second: Option<&'static str>,
+    pub past_third_singular: Option<&'static str>,
+    pub past_third_plural: Option<&'static str>,
+    pub present_participle: Option<&'static str>,
+    pub past_participle: Option<&'static str>,
+}
+
+impl IrregularVerbDef {
+    pub const EMPTY: Self = Self {
+        present_second: None,
+        present_third_singular: None,
+        present_third_plural: None,
+        past_second: None,
+        past_third_singular: None,
+        past_third_plural: None,
+        present_participle: None,
+        past_participle: None,
+    };
+
+    #[must_use]
+    pub const fn with_present(
+        mut self,
+        second: &'static str,
+        third_singular: &'static str,
+        third_plural: &'static str,
+    ) -> Self {
+        self.present_second = Some(second);
+        self.present_third_singular = Some(third_singular);
+        self.present_third_plural = Some(third_plural);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_present_third_singular(mut self, form: &'static str) -> Self {
+        self.present_third_singular = Some(form);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_past(mut self, form: &'static str) -> Self {
+        self.past_second = Some(form);
+        self.past_third_singular = Some(form);
+        self.past_third_plural = Some(form);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_past_agreement(
+        mut self,
+        second: &'static str,
+        third_singular: &'static str,
+        third_plural: &'static str,
+    ) -> Self {
+        self.past_second = Some(second);
+        self.past_third_singular = Some(third_singular);
+        self.past_third_plural = Some(third_plural);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_present_participle(mut self, form: &'static str) -> Self {
+        self.present_participle = Some(form);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_past_participle(mut self, form: &'static str) -> Self {
+        self.past_participle = Some(form);
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VerbDefinition {
+    pub verb: Verb,
+    pub form: VerbForm,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ColorWord {
+    White,
+    Blue,
+    Black,
+    Red,
+    Green,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Adjective {
+    Word(Vocab),
+    Color(ColorWord),
+    Participle(Tense, Verb),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InitialSound {
+    Consonant,
+    Vowel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Auxiliary {
+    Can,
+    Could,
+    Do,
+    May,
+    Might,
+    Must,
+    Shall,
+    Should,
+    Will,
+    Would,
+    Be,
+    Have,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AuxiliaryInflection {
+    Base,
+    Present { person: Person, number: Number },
+    Past { person: Person, number: Number },
+    PresentParticiple,
+    PastParticiple,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AuxiliaryInstance {
+    pub auxiliary: Auxiliary,
+    pub inflection: AuxiliaryInflection,
+    pub contracted_negation: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NounUsage {
+    Count,
+    Mass,
+    Either,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LexicalSlot {
+    Noun(NounUsage),
+    Verb(VerbSlot),
+    Adjective,
+    Adverb,
+    Pronoun(PronounCase),
+    Auxiliary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum WordMatch {
+    Noun(NounInstance),
+    Verb(VerbInstance),
+    Adjective(Adjective),
+    Adverb(Vocab),
+    Pronoun(PronounInstance),
+    Auxiliary(AuxiliaryInstance),
+}
+
+#[derive(Debug, Clone, Copy)]
+struct VocabDefinition {
+    spelling: &'static str,
+    noun: Option<(NounDeclension, Countability)>,
+    verb: Option<VerbForm>,
+    adjective: bool,
+    adverb: bool,
+    initial_sound: Option<InitialSound>,
+}
+
+impl VocabDefinition {
+    const fn new(spelling: &'static str) -> Self {
+        Self {
+            spelling,
+            noun: None,
+            verb: None,
+            adjective: false,
+            adverb: false,
+            initial_sound: None,
+        }
+    }
+
+    const fn noun(mut self, declension: NounDeclension, countability: Countability) -> Self {
+        self.noun = Some((declension, countability));
+        self
+    }
+
+    const fn verb(mut self, form: VerbForm) -> Self {
+        self.verb = Some(form);
+        self
+    }
+
+    const fn adjective(mut self) -> Self {
+        self.adjective = true;
+        self
+    }
+
+    const fn adverb(mut self) -> Self {
+        self.adverb = true;
+        self
+    }
+
+    const fn initial_sound(mut self, sound: InitialSound) -> Self {
+        self.initial_sound = Some(sound);
+        self
+    }
+}
+
+macro_rules! vocabulary {
+    ($(
+        $variant:ident($spelling:literal)
+        $(.$method:ident($($argument:expr),* $(,)?))*;
+    )+) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum Vocab {
+            $($variant,)+
+        }
+
+        impl Vocab {
+            pub const ALL: &'static [Self] = &[$(Self::$variant,)+];
+
+            #[must_use]
+            pub const fn spelling(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $spelling,)+
+                }
+            }
+
+            const fn definition(self) -> VocabDefinition {
+                match self {
+                    $(Self::$variant => VocabDefinition::new($spelling)
+                        $(.$method($($argument),*))*,)+
+                }
+            }
+        }
+    };
+}
+
+vocabulary! {
+    Abandon("abandon").verb(VerbForm::Regular);
+    Ability("ability").noun(NounDeclension::Regular, Countability::Count);
+    Able("able").adjective();
+    Activate("activate").verb(VerbForm::Regular);
+    Adapt("adapt").verb(VerbForm::Regular);
+    Add("add").verb(VerbForm::Regular);
+    Again("again").adverb();
+    Airbend("airbend").verb(VerbForm::Regular);
+    Alone("alone").adverb();
+    Amass("amass").verb(VerbForm::Regular);
+    Apply("apply").verb(VerbForm::Regular);
+    Ask("ask").verb(VerbForm::Regular);
+    Assemble("assemble").verb(VerbForm::Regular);
+    Attach("attach").verb(VerbForm::Regular);
+    Attack("attack").verb(VerbForm::Regular);
+    Bargain("bargain").verb(VerbForm::Regular);
+    Battlefield("battlefield").noun(NounDeclension::Regular, Countability::Count);
+    Be("be").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_present("are", "is", "are")
+            .with_past_agreement("were", "was", "were")
+            .with_present_participle("being")
+            .with_past_participle("been")
+    ));
+    Become("become").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("became")
+            .with_past_participle("become")
+    ));
+    Begin("begin").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("began")
+            .with_present_participle("beginning")
+            .with_past_participle("begun")
+    ));
+    Behold("behold").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("beheld")
+            .with_past_participle("beheld")
+    ));
+    Blight("blight").verb(VerbForm::Regular);
+    Block("block").verb(VerbForm::Regular);
+    Bolster("bolster").verb(VerbForm::Regular);
+    Card("card").noun(NounDeclension::Regular, Countability::Count);
+    Cast("cast").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("cast")
+            .with_past_participle("cast")
+    ));
+    Cause("cause").verb(VerbForm::Regular);
+    Change("change").verb(VerbForm::Regular);
+    Chaos("chaos").noun(NounDeclension::Regular, Countability::Mass);
+    Choose("choose").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("chose")
+            .with_past_participle("chosen")
+    ));
+    Clash("clash").verb(VerbForm::Regular);
+    Cloak("cloak").verb(VerbForm::Regular);
+    Coin("coin").noun(NounDeclension::Regular, Countability::Count);
+    Collect("collect").verb(VerbForm::Regular);
+    Color("color").noun(NounDeclension::Regular, Countability::Count);
+    Colorless("colorless").adjective();
+    Commander("commander").noun(NounDeclension::Regular, Countability::Count);
+    Combat("combat").noun(NounDeclension::Regular, Countability::Mass);
+    Conjure("conjure").verb(VerbForm::Regular);
+    Connive("connive").verb(VerbForm::Regular);
+    Control("control").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("controlled")
+            .with_present_participle("controlling")
+            .with_past_participle("controlled")
+    ));
+    Controller("controller").noun(NounDeclension::Regular, Countability::Count);
+    Convert("convert").verb(VerbForm::Regular);
+    Copy("copy")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Regular);
+    Cost("cost")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Irregular(
+            IrregularVerbDef::EMPTY
+                .with_past("cost")
+                .with_past_participle("cost")
+        ));
+    Count("count").verb(VerbForm::Regular);
+    Counter("counter")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Regular);
+    Create("create").verb(VerbForm::Regular);
+    Damage("damage").noun(NounDeclension::Regular, Countability::Mass);
+    Day("day").noun(NounDeclension::Regular, Countability::Count);
+    Deal("deal").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("dealt")
+            .with_past_participle("dealt")
+    ));
+    Deck("deck").noun(NounDeclension::Regular, Countability::Count);
+    Defend("defend").verb(VerbForm::Regular);
+    Destroy("destroy").verb(VerbForm::Regular);
+    Detain("detain").verb(VerbForm::Regular);
+    Die("die")
+        .noun(
+            NounDeclension::Irregular {
+                singular: "die",
+                plural: "dice",
+            },
+            Countability::Count,
+        )
+        .verb(VerbForm::Irregular(
+            IrregularVerbDef::EMPTY.with_present_participle("dying")
+        ));
+    Discard("discard").verb(VerbForm::Regular);
+    Discover("discover").verb(VerbForm::Regular);
+    Double("double").verb(VerbForm::Regular);
+    Do("do").verb(VerbForm::Irregular(
+            IrregularVerbDef::EMPTY
+                .with_present_third_singular("does")
+                .with_past("did")
+                .with_present_participle("doing")
+                .with_past_participle("done")
+        ));
+    Draft("draft").verb(VerbForm::Regular);
+    Draw("draw").verb(VerbForm::Irregular(
+            IrregularVerbDef::EMPTY
+                .with_past("drew")
+                .with_past_participle("drawn")
+        ));
+    Earthbend("earthbend").verb(VerbForm::Regular);
+    Effect("effect").noun(NounDeclension::Regular, Countability::Count);
+    Enchant("enchant").verb(VerbForm::Regular);
+    Endure("endure").verb(VerbForm::Regular);
+    Enter("enter").verb(VerbForm::Regular);
+    Equip("equip").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("equipped")
+            .with_present_participle("equipping")
+            .with_past_participle("equipped")
+    ));
+    Even("even").adjective();
+    Evidence("evidence").noun(NounDeclension::Regular, Countability::Mass);
+    Exchange("exchange").verb(VerbForm::Regular);
+    Exert("exert").verb(VerbForm::Regular);
+    Exile("exile")
+        .noun(NounDeclension::Regular, Countability::Mass)
+        .verb(VerbForm::Regular);
+    Explore("explore").verb(VerbForm::Regular);
+    Fateseal("fateseal").verb(VerbForm::Regular);
+    Fight("fight").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("fought")
+            .with_past_participle("fought")
+    ));
+    Flip("flip").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("flipped")
+            .with_present_participle("flipping")
+            .with_past_participle("flipped")
+    ));
+    Foe("foe").noun(NounDeclension::Regular, Countability::Count);
+    Forage("forage").verb(VerbForm::Regular);
+    Foretell("foretell").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("foretold")
+            .with_past_participle("foretold")
+    ));
+    Friend("friend").noun(NounDeclension::Regular, Countability::Count);
+    Gain("gain").verb(VerbForm::Regular);
+    Game("game").noun(NounDeclension::Regular, Countability::Count);
+    Get("get").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("got")
+            .with_present_participle("getting")
+            .with_past_participle("gotten")
+    ));
+    Go("go").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("went")
+            .with_past_participle("gone")
+    ));
+    Goad("goad").verb(VerbForm::Regular);
+    Graveyard("graveyard").noun(NounDeclension::Regular, Countability::Count);
+    Greater("greater").adjective();
+    Hand("hand").noun(NounDeclension::Regular, Countability::Count);
+    Harness("harness").verb(VerbForm::Regular);
+    Have("have").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_present_third_singular("has")
+            .with_past("had")
+            .with_present_participle("having")
+            .with_past_participle("had")
+    ));
+    Heal("heal").verb(VerbForm::Regular);
+    Heist("heist").verb(VerbForm::Regular);
+    Hour("hour")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .initial_sound(InitialSound::Vowel);
+    Incorporate("incorporate").verb(VerbForm::Regular);
+    Incubate("incubate").verb(VerbForm::Regular);
+    Initiative("initiative").noun(NounDeclension::Regular, Countability::Count);
+    Instead("instead").adverb();
+    Investigate("investigate").verb(VerbForm::Regular);
+    Kick("kick").verb(VerbForm::Regular);
+    Learn("learn").verb(VerbForm::Regular);
+    Leave("leave").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("left")
+            .with_past_participle("left")
+    ));
+    Library("library").noun(NounDeclension::Regular, Countability::Count);
+    Life("life").noun(NounDeclension::Regular, Countability::Mass);
+    Look("look").verb(VerbForm::Regular);
+    Lose("lose").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("lost")
+            .with_past_participle("lost")
+    ));
+    Mana("mana").noun(NounDeclension::Regular, Countability::Mass);
+    Manifest("manifest").verb(VerbForm::Regular);
+    Meld("meld").verb(VerbForm::Regular);
+    Merfolk("merfolk").noun(NounDeclension::Invariant, Countability::Count);
+    Mill("mill").verb(VerbForm::Regular);
+    Mode("mode").noun(NounDeclension::Regular, Countability::Count);
+    Modify("modify").verb(VerbForm::Regular);
+    Monarch("monarch").noun(NounDeclension::Regular, Countability::Count);
+    Monocolored("monocolored").adjective();
+    Monstrosity("monstrosity").noun(NounDeclension::Regular, Countability::Count);
+    Monstrous("monstrous").adjective();
+    Move("move").verb(VerbForm::Regular);
+    Night("night").noun(NounDeclension::Regular, Countability::Count);
+    Nonbasic("nonbasic").adjective();
+    Noncreature("noncreature").adjective();
+    Number("number").noun(NounDeclension::Regular, Countability::Count);
+    Odd("odd").adjective();
+    Open("open").verb(VerbForm::Regular);
+    Opponent("opponent").noun(NounDeclension::Regular, Countability::Count);
+    Only("only").adverb();
+    Own("own").verb(VerbForm::Regular);
+    Owner("owner").noun(NounDeclension::Regular, Countability::Count);
+    Pay("pay").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("paid")
+            .with_past_participle("paid")
+    ));
+    Permanent("permanent").noun(NounDeclension::Regular, Countability::Count);
+    Phase("phase").verb(VerbForm::Regular);
+    Pile("pile").noun(NounDeclension::Regular, Countability::Count);
+    Planeswalk("planeswalk").verb(VerbForm::Regular);
+    Play("play").verb(VerbForm::Regular);
+    Player("player").noun(NounDeclension::Regular, Countability::Count);
+    Plot("plot").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("plotted")
+            .with_present_participle("plotting")
+            .with_past_participle("plotted")
+    ));
+    Poison("poison").verb(VerbForm::Regular);
+    Populate("populate").verb(VerbForm::Regular);
+    Power("power").noun(NounDeclension::Regular, Countability::Mass);
+    Prepare("prepare").verb(VerbForm::Regular);
+    Prevent("prevent").verb(VerbForm::Regular);
+    Process("process").noun(NounDeclension::Regular, Countability::Count);
+    Produce("produce").verb(VerbForm::Regular);
+    Proliferate("proliferate").verb(VerbForm::Regular);
+    Promise("promise").verb(VerbForm::Regular);
+    Put("put").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("put")
+            .with_present_participle("putting")
+            .with_past_participle("put")
+    ));
+    Reduce("reduce").verb(VerbForm::Regular);
+    Regenerate("regenerate").verb(VerbForm::Regular);
+    Remove("remove").verb(VerbForm::Regular);
+    Renowned("renowned").adjective();
+    Repeat("repeat").verb(VerbForm::Regular);
+    Reselect("reselect").verb(VerbForm::Regular);
+    Rest("rest").noun(NounDeclension::Regular, Countability::Mass);
+    Result("result").noun(NounDeclension::Regular, Countability::Count);
+    Return("return").verb(VerbForm::Regular);
+    Reveal("reveal").verb(VerbForm::Regular);
+    Roll("roll")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Regular);
+    Sacrifice("sacrifice").verb(VerbForm::Regular);
+    Saddle("saddle").verb(VerbForm::Regular);
+    Same("same").adjective();
+    Scry("scry").verb(VerbForm::Regular);
+    Search("search").verb(VerbForm::Regular);
+    Seek("seek").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("sought")
+            .with_past_participle("sought")
+    ));
+    Set("set").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("set")
+            .with_present_participle("setting")
+            .with_past_participle("set")
+    ));
+    Shuffle("shuffle").verb(VerbForm::Regular);
+    Skip("skip").verb(VerbForm::Regular);
+    So("so").adverb();
+    Source("source").noun(NounDeclension::Regular, Countability::Count);
+    Spend("spend").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("spent")
+            .with_past_participle("spent")
+    ));
+    Spell("spell").noun(NounDeclension::Regular, Countability::Count);
+    Support("support")
+        .noun(NounDeclension::Regular, Countability::Mass)
+        .verb(VerbForm::Regular);
+    Surveil("surveil").verb(VerbForm::Regular);
+    Suspend("suspend").verb(VerbForm::Regular);
+    Suspect("suspect").verb(VerbForm::Regular);
+    Tap("tap").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("tapped")
+            .with_present_participle("tapping")
+            .with_past_participle("tapped")
+    ));
+    Target("target")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Regular)
+        .adjective();
+    Team("team").noun(NounDeclension::Regular, Countability::Count);
+    Then("then").adverb();
+    Time("time")
+        .noun(NounDeclension::Regular, Countability::CountOrMass)
+        .verb(VerbForm::Regular);
+    Token("token").noun(NounDeclension::Regular, Countability::Count);
+    Top("top").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("topped")
+            .with_present_participle("topping")
+            .with_past_participle("topped")
+    ));
+    Toughness("toughness").noun(NounDeclension::Regular, Countability::Mass);
+    Transform("transform").verb(VerbForm::Regular);
+    Triple("triple").verb(VerbForm::Regular);
+    Turn("turn")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Regular);
+    Twice("twice").adverb();
+    Type("type").noun(NounDeclension::Regular, Countability::Count);
+    Untap("untap").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("untapped")
+            .with_present_participle("untapping")
+            .with_past_participle("untapped")
+    ));
+    Venture("venture").verb(VerbForm::Regular);
+    Vote("vote").verb(VerbForm::Regular);
+    Waterbend("waterbend").verb(VerbForm::Regular);
+    Way("way").noun(NounDeclension::Regular, Countability::Count);
+    Win("win").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("won")
+            .with_present_participle("winning")
+            .with_past_participle("won")
+    ));
+    Yell("yell").verb(VerbForm::Regular);
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Vocabulary;
+
+impl Vocabulary {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
+    }
+
+    #[must_use]
+    pub fn matches(self, surface: &str, slot: LexicalSlot) -> Vec<WordMatch> {
+        let key = if surface.bytes().any(|byte| byte.is_ascii_uppercase()) {
+            Cow::Owned(surface.to_ascii_lowercase())
+        } else {
+            Cow::Borrowed(surface)
+        };
+        reverse_index()
+            .get(key.as_ref())
+            .into_iter()
+            .flatten()
+            .filter_map(|candidate| candidate.for_slot(slot))
+            .collect()
+    }
+
+    #[must_use]
+    pub fn noun_definition(self, vocab: Vocab) -> Option<NounDefinition> {
+        let definition = vocab.definition();
+        definition
+            .noun
+            .map(|(declension, countability)| NounDefinition {
+                noun: Noun::Word(vocab),
+                declension,
+                countability,
+            })
+    }
+
+    #[must_use]
+    pub fn verb_definition(self, vocab: Vocab) -> Option<VerbDefinition> {
+        vocab.definition().verb.map(|form| VerbDefinition {
+            verb: Verb::Word(vocab),
+            form,
+        })
+    }
+
+    #[must_use]
+    pub fn initial_sound(self, vocab: Vocab) -> InitialSound {
+        let definition = vocab.definition();
+        definition.initial_sound.unwrap_or_else(|| {
+            if definition.spelling.starts_with(['a', 'e', 'i', 'o', 'u']) {
+                InitialSound::Vowel
+            } else {
+                InitialSound::Consonant
+            }
+        })
+    }
+
+    #[must_use]
+    pub fn render_noun(self, noun: &NounInstance) -> Option<String> {
+        let (noun, form) = match noun {
+            NounInstance::Singular(noun) => (noun, NounSurface::Singular),
+            NounInstance::Plural(noun) => (noun, NounSurface::Plural),
+            NounInstance::Mass(noun) => (noun, NounSurface::Mass),
+        };
+
+        match noun {
+            Noun::Word(vocab) => Self::render_vocab_noun(*vocab, form),
+            Noun::Gerund(verb) => {
+                let present_participle =
+                    self.render_verb_identity(verb, VerbSlot::PresentParticiple)?;
+                Some(match form {
+                    NounSurface::Plural => regular_plural(&present_participle),
+                    NounSurface::Singular | NounSurface::Mass => present_participle,
+                })
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn render_verb(self, vocab: Vocab, slot: VerbSlot) -> Option<String> {
+        let definition = vocab.definition();
+        let form = definition.verb?;
+        Some(render_verb_form(definition.spelling, form, slot))
+    }
+
+    #[must_use]
+    pub fn render_adjective(self, adjective: &Adjective) -> Option<String> {
+        match adjective {
+            Adjective::Word(vocab) => vocab
+                .definition()
+                .adjective
+                .then(|| vocab.spelling().to_owned()),
+            Adjective::Color(color) => Some(color.spelling().to_owned()),
+            Adjective::Participle(Tense::Present, verb) => {
+                self.render_verb_identity(verb, VerbSlot::PresentParticiple)
+            }
+            Adjective::Participle(Tense::Past, verb) => {
+                self.render_verb_identity(verb, VerbSlot::PastParticiple)
+            }
+        }
+    }
+
+    #[must_use]
+    pub const fn render_auxiliary(self, auxiliary: AuxiliaryInstance) -> Option<&'static str> {
+        render_auxiliary(auxiliary)
+    }
+
+    fn render_vocab_noun(vocab: Vocab, form: NounSurface) -> Option<String> {
+        let definition = vocab.definition();
+        let (declension, countability) = definition.noun?;
+        if !countability.accepts(form) {
+            return None;
+        }
+        Some(render_noun_form(definition.spelling, declension, form))
+    }
+
+    fn render_verb_identity(self, verb: &Verb, slot: VerbSlot) -> Option<String> {
+        match verb {
+            Verb::Word(vocab) => self.render_verb(*vocab, slot),
+        }
+    }
+}
+
+impl ColorWord {
+    #[must_use]
+    pub const fn spelling(self) -> &'static str {
+        match self {
+            Self::White => "white",
+            Self::Blue => "blue",
+            Self::Black => "black",
+            Self::Red => "red",
+            Self::Green => "green",
+        }
+    }
+}
+
+impl Countability {
+    const fn accepts(self, form: NounSurface) -> bool {
+        match self {
+            Self::Count => matches!(form, NounSurface::Singular | NounSurface::Plural),
+            Self::Mass => matches!(form, NounSurface::Mass),
+            Self::CountOrMass => true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum NounSurface {
+    Singular,
+    Plural,
+    Mass,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum IndexedWord {
+    Noun { vocab: Vocab, form: NounSurface },
+    Verb { vocab: Vocab, slot: VerbSlot },
+    Adjective(Vocab),
+    Participle { vocab: Vocab, tense: Tense },
+    Gerund(Vocab),
+    Adverb(Vocab),
+    Color(ColorWord),
+    Pronoun(PronounInstance),
+    Auxiliary(AuxiliaryInstance),
+}
+
+impl IndexedWord {
+    fn for_slot(self, slot: LexicalSlot) -> Option<WordMatch> {
+        match (self, slot) {
+            (Self::Noun { vocab, form }, LexicalSlot::Noun(usage)) if usage.accepts(form) => {
+                let noun = Noun::Word(vocab);
+                Some(WordMatch::Noun(match form {
+                    NounSurface::Singular => NounInstance::Singular(noun),
+                    NounSurface::Plural => NounInstance::Plural(noun),
+                    NounSurface::Mass => NounInstance::Mass(noun),
+                }))
+            }
+            (Self::Gerund(vocab), LexicalSlot::Noun(NounUsage::Mass | NounUsage::Either)) => Some(
+                WordMatch::Noun(NounInstance::Mass(Noun::Gerund(Verb::Word(vocab)))),
+            ),
+            (
+                Self::Verb {
+                    vocab,
+                    slot: candidate_slot,
+                },
+                LexicalSlot::Verb(requested_slot),
+            ) if candidate_slot == requested_slot => Some(WordMatch::Verb(VerbInstance {
+                verb: Verb::Word(vocab),
+                slot: candidate_slot,
+            })),
+            (Self::Adjective(vocab), LexicalSlot::Adjective) => {
+                Some(WordMatch::Adjective(Adjective::Word(vocab)))
+            }
+            (Self::Participle { vocab, tense }, LexicalSlot::Adjective) => Some(
+                WordMatch::Adjective(Adjective::Participle(tense, Verb::Word(vocab))),
+            ),
+            (Self::Adverb(vocab), LexicalSlot::Adverb) => Some(WordMatch::Adverb(vocab)),
+            (Self::Color(color), LexicalSlot::Adjective) => {
+                Some(WordMatch::Adjective(Adjective::Color(color)))
+            }
+            (Self::Pronoun(pronoun), LexicalSlot::Pronoun(case)) if pronoun.case == case => {
+                Some(WordMatch::Pronoun(pronoun))
+            }
+            (Self::Auxiliary(auxiliary), LexicalSlot::Auxiliary) => {
+                Some(WordMatch::Auxiliary(auxiliary))
+            }
+            _ => None,
+        }
+    }
+}
+
+impl NounUsage {
+    const fn accepts(self, form: NounSurface) -> bool {
+        match self {
+            Self::Count => matches!(form, NounSurface::Singular | NounSurface::Plural),
+            Self::Mass => matches!(form, NounSurface::Mass),
+            Self::Either => true,
+        }
+    }
+}
+
+fn reverse_index() -> &'static HashMap<String, Vec<IndexedWord>> {
+    static INDEX: OnceLock<HashMap<String, Vec<IndexedWord>>> = OnceLock::new();
+    INDEX.get_or_init(build_reverse_index)
+}
+
+fn build_reverse_index() -> HashMap<String, Vec<IndexedWord>> {
+    let vocabulary = Vocabulary::new();
+    let mut index = HashMap::new();
+
+    for &vocab in Vocab::ALL {
+        let definition = vocab.definition();
+        if let Some((_, countability)) = definition.noun {
+            for form in [
+                NounSurface::Singular,
+                NounSurface::Plural,
+                NounSurface::Mass,
+            ] {
+                if countability.accepts(form) {
+                    let surface = Vocabulary::render_vocab_noun(vocab, form)
+                        .expect("declared noun form must render");
+                    insert_index(&mut index, &surface, IndexedWord::Noun { vocab, form });
+                }
+            }
+        }
+
+        if definition.verb.is_some() {
+            for slot in VERB_SLOTS {
+                let surface = vocabulary
+                    .render_verb(vocab, slot)
+                    .expect("declared verb form must render");
+                insert_index(&mut index, &surface, IndexedWord::Verb { vocab, slot });
+            }
+
+            let present_participle = vocabulary
+                .render_verb(vocab, VerbSlot::PresentParticiple)
+                .expect("declared verb present participle must render");
+            insert_index(
+                &mut index,
+                &present_participle,
+                IndexedWord::Participle {
+                    vocab,
+                    tense: Tense::Present,
+                },
+            );
+            insert_index(&mut index, &present_participle, IndexedWord::Gerund(vocab));
+
+            let past_participle = vocabulary
+                .render_verb(vocab, VerbSlot::PastParticiple)
+                .expect("declared verb past participle must render");
+            insert_index(
+                &mut index,
+                &past_participle,
+                IndexedWord::Participle {
+                    vocab,
+                    tense: Tense::Past,
+                },
+            );
+        }
+
+        if definition.adjective {
+            insert_index(
+                &mut index,
+                definition.spelling,
+                IndexedWord::Adjective(vocab),
+            );
+        }
+        if definition.adverb {
+            insert_index(&mut index, definition.spelling, IndexedWord::Adverb(vocab));
+        }
+    }
+
+    for color in [
+        ColorWord::White,
+        ColorWord::Blue,
+        ColorWord::Black,
+        ColorWord::Red,
+        ColorWord::Green,
+    ] {
+        insert_index(&mut index, color.spelling(), IndexedWord::Color(color));
+    }
+
+    for auxiliary in auxiliary_instances() {
+        if let Some(surface) = vocabulary.render_auxiliary(auxiliary) {
+            insert_index(&mut index, surface, IndexedWord::Auxiliary(auxiliary));
+        }
+    }
+
+    for (surface, pronoun) in PRONOUN_FORMS {
+        insert_index(&mut index, surface, IndexedWord::Pronoun(pronoun));
+    }
+
+    index
+}
+
+fn insert_index(
+    index: &mut HashMap<String, Vec<IndexedWord>>,
+    surface: &str,
+    candidate: IndexedWord,
+) {
+    let candidates = index.entry(surface.to_ascii_lowercase()).or_default();
+    if !candidates.contains(&candidate) {
+        candidates.push(candidate);
+    }
+}
+
+const VERB_SLOTS: [VerbSlot; 12] = [
+    VerbSlot::Infinitive,
+    VerbSlot::Imperative,
+    VerbSlot::Present {
+        person: Person::Second,
+        number: Number::Singular,
+    },
+    VerbSlot::Present {
+        person: Person::Second,
+        number: Number::Plural,
+    },
+    VerbSlot::Present {
+        person: Person::Third,
+        number: Number::Singular,
+    },
+    VerbSlot::Present {
+        person: Person::Third,
+        number: Number::Plural,
+    },
+    VerbSlot::Past {
+        person: Person::Second,
+        number: Number::Singular,
+    },
+    VerbSlot::Past {
+        person: Person::Second,
+        number: Number::Plural,
+    },
+    VerbSlot::Past {
+        person: Person::Third,
+        number: Number::Singular,
+    },
+    VerbSlot::Past {
+        person: Person::Third,
+        number: Number::Plural,
+    },
+    VerbSlot::PresentParticiple,
+    VerbSlot::PastParticiple,
+];
+
+const PRONOUN_FORMS: [(&str, PronounInstance); 9] = [
+    (
+        "you",
+        PronounInstance {
+            pronoun: Pronoun::You,
+            case: PronounCase::Subject,
+        },
+    ),
+    (
+        "you",
+        PronounInstance {
+            pronoun: Pronoun::You,
+            case: PronounCase::Object,
+        },
+    ),
+    (
+        "it",
+        PronounInstance {
+            pronoun: Pronoun::It,
+            case: PronounCase::Subject,
+        },
+    ),
+    (
+        "it",
+        PronounInstance {
+            pronoun: Pronoun::It,
+            case: PronounCase::Object,
+        },
+    ),
+    (
+        "they",
+        PronounInstance {
+            pronoun: Pronoun::They,
+            case: PronounCase::Subject,
+        },
+    ),
+    (
+        "them",
+        PronounInstance {
+            pronoun: Pronoun::They,
+            case: PronounCase::Object,
+        },
+    ),
+    (
+        "he",
+        PronounInstance {
+            pronoun: Pronoun::He,
+            case: PronounCase::Subject,
+        },
+    ),
+    (
+        "she",
+        PronounInstance {
+            pronoun: Pronoun::She,
+            case: PronounCase::Subject,
+        },
+    ),
+    (
+        "each other",
+        PronounInstance {
+            pronoun: Pronoun::EachOther,
+            case: PronounCase::Object,
+        },
+    ),
+];
+
+fn auxiliary_instances() -> impl Iterator<Item = AuxiliaryInstance> {
+    const AUXILIARIES: [Auxiliary; 12] = [
+        Auxiliary::Can,
+        Auxiliary::Could,
+        Auxiliary::Do,
+        Auxiliary::May,
+        Auxiliary::Might,
+        Auxiliary::Must,
+        Auxiliary::Shall,
+        Auxiliary::Should,
+        Auxiliary::Will,
+        Auxiliary::Would,
+        Auxiliary::Be,
+        Auxiliary::Have,
+    ];
+    const INFLECTIONS: [AuxiliaryInflection; 11] = [
+        AuxiliaryInflection::Base,
+        AuxiliaryInflection::Present {
+            person: Person::Second,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Present {
+            person: Person::Second,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::Present {
+            person: Person::Third,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Present {
+            person: Person::Third,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Second,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Second,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Third,
+            number: Number::Singular,
+        },
+        AuxiliaryInflection::Past {
+            person: Person::Third,
+            number: Number::Plural,
+        },
+        AuxiliaryInflection::PresentParticiple,
+        AuxiliaryInflection::PastParticiple,
+    ];
+
+    AUXILIARIES.into_iter().flat_map(|auxiliary| {
+        INFLECTIONS.into_iter().flat_map(move |inflection| {
+            [false, true].map(move |contracted_negation| AuxiliaryInstance {
+                auxiliary,
+                inflection,
+                contracted_negation,
+            })
+        })
+    })
+}
+
+const fn render_auxiliary(instance: AuxiliaryInstance) -> Option<&'static str> {
+    use Auxiliary as A;
+    use AuxiliaryInflection as I;
+    use Number as N;
+    use Person as P;
+
+    if instance.contracted_negation {
+        return match (instance.auxiliary, instance.inflection) {
+            (A::Can, I::Base) => Some("can't"),
+            (A::Could, I::Base) => Some("couldn't"),
+            (A::Will, I::Base) => Some("won't"),
+            (
+                A::Do,
+                I::Base
+                | I::Present {
+                    person: P::Second, ..
+                }
+                | I::Present {
+                    person: P::Third,
+                    number: N::Plural,
+                },
+            ) => Some("don't"),
+            (
+                A::Do,
+                I::Present {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("doesn't"),
+            (A::Do, I::Past { .. }) => Some("didn't"),
+            (
+                A::Be,
+                I::Present {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("isn't"),
+            (A::Be, I::Present { .. }) => Some("aren't"),
+            (
+                A::Be,
+                I::Past {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("wasn't"),
+            (A::Be, I::Past { .. }) => Some("weren't"),
+            (
+                A::Have,
+                I::Present {
+                    person: P::Third,
+                    number: N::Singular,
+                },
+            ) => Some("hasn't"),
+            (A::Have, I::Base | I::Present { .. }) => Some("haven't"),
+            (A::Have, I::Past { .. }) => Some("hadn't"),
+            _ => None,
+        };
+    }
+
+    match (instance.auxiliary, instance.inflection) {
+        (A::Can, I::Base) => Some("can"),
+        (A::Could, I::Base) => Some("could"),
+        (A::May, I::Base) => Some("may"),
+        (A::Might, I::Base) => Some("might"),
+        (A::Must, I::Base) => Some("must"),
+        (A::Shall, I::Base) => Some("shall"),
+        (A::Should, I::Base) => Some("should"),
+        (A::Will, I::Base) => Some("will"),
+        (A::Would, I::Base) => Some("would"),
+        (
+            A::Do,
+            I::Base
+            | I::Present {
+                person: P::Second, ..
+            }
+            | I::Present {
+                person: P::Third,
+                number: N::Plural,
+            },
+        ) => Some("do"),
+        (
+            A::Do,
+            I::Present {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("does"),
+        (A::Do, I::Past { .. }) => Some("did"),
+        (A::Do, I::PresentParticiple) => Some("doing"),
+        (A::Do, I::PastParticiple) => Some("done"),
+        (A::Be, I::Base) => Some("be"),
+        (
+            A::Be,
+            I::Present {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("is"),
+        (A::Be, I::Present { .. }) => Some("are"),
+        (
+            A::Be,
+            I::Past {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("was"),
+        (A::Be, I::Past { .. }) => Some("were"),
+        (A::Be, I::PresentParticiple) => Some("being"),
+        (A::Be, I::PastParticiple) => Some("been"),
+        (
+            A::Have,
+            I::Base
+            | I::Present {
+                person: P::Second, ..
+            }
+            | I::Present {
+                person: P::Third,
+                number: N::Plural,
+            },
+        ) => Some("have"),
+        (
+            A::Have,
+            I::Present {
+                person: P::Third,
+                number: N::Singular,
+            },
+        ) => Some("has"),
+        (A::Have, I::Past { .. } | I::PastParticiple) => Some("had"),
+        (A::Have, I::PresentParticiple) => Some("having"),
+        _ => None,
+    }
+}
+
+fn render_verb_form(lemma: &str, form: VerbForm, slot: VerbSlot) -> String {
+    if let VerbForm::Irregular(irregular) = form {
+        let override_form = match slot {
+            VerbSlot::Infinitive | VerbSlot::Imperative => None,
+            VerbSlot::Present {
+                person: Person::Second,
+                ..
+            } => irregular.present_second,
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Singular,
+            } => irregular.present_third_singular,
+            VerbSlot::Present {
+                person: Person::Third,
+                number: Number::Plural,
+            } => irregular.present_third_plural,
+            VerbSlot::Past {
+                person: Person::Second,
+                ..
+            } => irregular.past_second,
+            VerbSlot::Past {
+                person: Person::Third,
+                number: Number::Singular,
+            } => irregular.past_third_singular,
+            VerbSlot::Past {
+                person: Person::Third,
+                number: Number::Plural,
+            } => irregular.past_third_plural,
+            VerbSlot::PresentParticiple => irregular.present_participle,
+            VerbSlot::PastParticiple => irregular.past_participle,
+        };
+        if let Some(surface) = override_form {
+            return surface.to_owned();
+        }
+    }
+
+    match slot {
+        VerbSlot::Present {
+            person: Person::Third,
+            number: Number::Singular,
+        } => regular_third_person_singular(lemma),
+        VerbSlot::Infinitive | VerbSlot::Imperative | VerbSlot::Present { .. } => lemma.to_owned(),
+        VerbSlot::Past { .. } | VerbSlot::PastParticiple => regular_past(lemma),
+        VerbSlot::PresentParticiple => regular_present_participle(lemma),
+    }
+}
+
+fn render_noun_form(lemma: &str, declension: NounDeclension, form: NounSurface) -> String {
+    match (declension, form) {
+        (NounDeclension::Irregular { singular, .. }, NounSurface::Singular)
+        | (NounDeclension::Irregular { singular, .. }, NounSurface::Mass) => singular.to_owned(),
+        (NounDeclension::Irregular { plural, .. }, NounSurface::Plural) => plural.to_owned(),
+        (NounDeclension::Invariant, _) | (NounDeclension::Regular, NounSurface::Mass) => {
+            lemma.to_owned()
+        }
+        (NounDeclension::Regular, NounSurface::Singular) => lemma.to_owned(),
+        (NounDeclension::Regular, NounSurface::Plural) => regular_plural(lemma),
+    }
+}
+
+fn regular_plural(word: &str) -> String {
+    if let Some(stem) = consonant_y_stem(word) {
+        format!("{stem}ies")
+    } else if has_sibilant_ending(word) {
+        format!("{word}es")
+    } else {
+        format!("{word}s")
+    }
+}
+
+fn regular_third_person_singular(verb: &str) -> String {
+    if let Some(stem) = consonant_y_stem(verb) {
+        format!("{stem}ies")
+    } else if has_sibilant_ending(verb) || verb.ends_with('o') {
+        format!("{verb}es")
+    } else {
+        format!("{verb}s")
+    }
+}
+
+fn regular_past(verb: &str) -> String {
+    if let Some(stem) = consonant_y_stem(verb) {
+        format!("{stem}ied")
+    } else if verb.ends_with('e') {
+        format!("{verb}d")
+    } else {
+        format!("{verb}ed")
+    }
+}
+
+fn regular_present_participle(verb: &str) -> String {
+    if let Some(stem) = verb.strip_suffix("ie") {
+        format!("{stem}ying")
+    } else if let Some(stem) = verb.strip_suffix('e')
+        && !verb.ends_with("ee")
+        && !verb.ends_with("ye")
+        && !verb.ends_with("oe")
+    {
+        format!("{stem}ing")
+    } else {
+        format!("{verb}ing")
+    }
+}
+
+fn consonant_y_stem(word: &str) -> Option<&str> {
+    let stem = word.strip_suffix('y')?;
+    stem.chars()
+        .next_back()
+        .is_some_and(|character| !is_vowel(character))
+        .then_some(stem)
+}
+
+fn has_sibilant_ending(word: &str) -> bool {
+    ["s", "x", "z", "ch", "sh"]
+        .iter()
+        .any(|ending| word.ends_with(ending))
+}
+
+const fn is_vowel(character: char) -> bool {
+    matches!(character, 'a' | 'e' | 'i' | 'o' | 'u')
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    const THIRD_PLURAL_PRESENT: VerbSlot = VerbSlot::Present {
+        person: Person::Third,
+        number: Number::Plural,
+    };
+    const THIRD_SINGULAR_PRESENT: VerbSlot = VerbSlot::Present {
+        person: Person::Third,
+        number: Number::Singular,
+    };
+
+    #[test]
+    fn one_surface_can_fill_only_the_requested_lexical_slot() {
+        let vocabulary = Vocabulary::new();
+
+        assert_eq!(
+            vocabulary.matches("cost", LexicalSlot::Noun(NounUsage::Count)),
+            vec![WordMatch::Noun(NounInstance::Singular(Noun::Word(
+                Vocab::Cost,
+            )))]
+        );
+        assert_eq!(
+            vocabulary.matches("cost", LexicalSlot::Verb(THIRD_PLURAL_PRESENT)),
+            vec![WordMatch::Verb(VerbInstance {
+                verb: Verb::Word(Vocab::Cost),
+                slot: THIRD_PLURAL_PRESENT,
+            })]
+        );
+        assert_eq!(
+            vocabulary.matches("target", LexicalSlot::Adjective),
+            vec![WordMatch::Adjective(Adjective::Word(Vocab::Target))]
+        );
+        assert_eq!(
+            vocabulary.matches("target", LexicalSlot::Noun(NounUsage::Count)),
+            vec![WordMatch::Noun(NounInstance::Singular(Noun::Word(
+                Vocab::Target,
+            )))]
+        );
+        assert_eq!(
+            vocabulary.matches("targets", LexicalSlot::Verb(THIRD_SINGULAR_PRESENT)),
+            vec![WordMatch::Verb(VerbInstance {
+                verb: Verb::Word(Vocab::Target),
+                slot: THIRD_SINGULAR_PRESENT,
+            })]
+        );
+    }
+
+    #[test]
+    fn irregular_verbs_are_selected_by_fixed_slots() {
+        let vocabulary = Vocabulary::new();
+
+        assert_eq!(
+            vocabulary.render_verb(
+                Vocab::Draw,
+                VerbSlot::Past {
+                    person: Person::Third,
+                    number: Number::Singular,
+                },
+            ),
+            Some("drew".to_owned())
+        );
+        assert_eq!(
+            vocabulary.render_verb(Vocab::Draw, VerbSlot::PastParticiple),
+            Some("drawn".to_owned())
+        );
+        assert_eq!(
+            vocabulary.matches("do", LexicalSlot::Verb(THIRD_PLURAL_PRESENT)),
+            vec![WordMatch::Verb(VerbInstance {
+                verb: Verb::Word(Vocab::Do),
+                slot: THIRD_PLURAL_PRESENT,
+            })]
+        );
+        assert_eq!(
+            vocabulary.matches("does", LexicalSlot::Verb(THIRD_SINGULAR_PRESENT)),
+            vec![WordMatch::Verb(VerbInstance {
+                verb: Verb::Word(Vocab::Do),
+                slot: THIRD_SINGULAR_PRESENT,
+            })]
+        );
+    }
+
+    #[test]
+    fn derived_participles_and_gerunds_exist_only_in_the_requested_slot() {
+        let vocabulary = Vocabulary::new();
+        let target = Verb::Word(Vocab::Target);
+        let draw = Verb::Word(Vocab::Draw);
+
+        assert_eq!(
+            vocabulary.matches("targeted", LexicalSlot::Adjective),
+            vec![WordMatch::Adjective(Adjective::Participle(
+                Tense::Past,
+                target.clone(),
+            ))]
+        );
+        assert_eq!(
+            vocabulary.render_adjective(&Adjective::Participle(Tense::Past, target)),
+            Some("targeted".to_owned())
+        );
+        assert_eq!(
+            vocabulary.matches("drawing", LexicalSlot::Noun(NounUsage::Mass)),
+            vec![WordMatch::Noun(NounInstance::Mass(Noun::Gerund(
+                draw.clone(),
+            )))]
+        );
+        assert_eq!(
+            vocabulary.render_noun(&NounInstance::Mass(Noun::Gerund(draw))),
+            Some("drawing".to_owned())
+        );
+        assert!(
+            vocabulary
+                .matches("targeted", LexicalSlot::Noun(NounUsage::Count))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn noun_declension_drives_both_lookup_and_rendering() {
+        let vocabulary = Vocabulary::new();
+
+        for (surface, vocab) in [("libraries", Vocab::Library), ("copies", Vocab::Copy)] {
+            let noun = NounInstance::Plural(Noun::Word(vocab));
+            assert_eq!(
+                vocabulary.matches(surface, LexicalSlot::Noun(NounUsage::Count)),
+                vec![WordMatch::Noun(noun.clone())]
+            );
+            assert_eq!(vocabulary.render_noun(&noun).as_deref(), Some(surface));
+        }
+
+        assert_eq!(
+            vocabulary.render_noun(&NounInstance::Plural(Noun::Word(Vocab::Merfolk))),
+            Some("merfolk".to_owned())
+        );
+    }
+
+    #[test]
+    fn colors_and_pronunciation_are_semantic() {
+        let vocabulary = Vocabulary::new();
+
+        assert_eq!(
+            vocabulary.matches("black", LexicalSlot::Adjective),
+            vec![WordMatch::Adjective(Adjective::Color(ColorWord::Black))]
+        );
+        assert_eq!(vocabulary.initial_sound(Vocab::Hour), InitialSound::Vowel);
+    }
+
+    #[test]
+    fn supported_auxiliary_contractions_are_structured() {
+        let vocabulary = Vocabulary::new();
+        let contracted_can = AuxiliaryInstance {
+            auxiliary: Auxiliary::Can,
+            inflection: AuxiliaryInflection::Base,
+            contracted_negation: true,
+        };
+
+        assert_eq!(
+            vocabulary.matches("can't", LexicalSlot::Auxiliary),
+            vec![WordMatch::Auxiliary(contracted_can)]
+        );
+        assert_eq!(vocabulary.render_auxiliary(contracted_can), Some("can't"));
+        assert!(
+            vocabulary
+                .matches("cannot", LexicalSlot::Auxiliary)
+                .is_empty()
+        );
+        assert!(
+            vocabulary
+                .matches("mightn't've", LexicalSlot::Auxiliary)
+                .is_empty()
+        );
+        assert_eq!(
+            vocabulary.render_auxiliary(AuxiliaryInstance {
+                auxiliary: Auxiliary::May,
+                inflection: AuxiliaryInflection::Base,
+                contracted_negation: true,
+            }),
+            None
+        );
+    }
+
+    #[test]
+    fn unsupported_first_person_pronouns_have_no_candidate() {
+        let vocabulary = Vocabulary::new();
+
+        assert!(
+            vocabulary
+                .matches("I", LexicalSlot::Pronoun(PronounCase::Subject))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn every_declared_form_round_trips_through_its_slot() {
+        let vocabulary = Vocabulary::new();
+        let mut spellings = HashSet::new();
+
+        for &vocab in Vocab::ALL {
+            let definition = vocab.definition();
+            assert!(spellings.insert(definition.spelling), "duplicate {vocab:?}");
+            assert!(
+                definition.noun.is_some()
+                    || definition.verb.is_some()
+                    || definition.adjective
+                    || definition.adverb,
+                "{vocab:?} has no lexical role"
+            );
+
+            if let Some((_, countability)) = definition.noun {
+                for form in [
+                    NounSurface::Singular,
+                    NounSurface::Plural,
+                    NounSurface::Mass,
+                ] {
+                    if !countability.accepts(form) {
+                        continue;
+                    }
+                    let noun = match form {
+                        NounSurface::Singular => NounInstance::Singular(Noun::Word(vocab)),
+                        NounSurface::Plural => NounInstance::Plural(Noun::Word(vocab)),
+                        NounSurface::Mass => NounInstance::Mass(Noun::Word(vocab)),
+                    };
+                    let surface = vocabulary.render_noun(&noun).unwrap();
+                    let usage = match form {
+                        NounSurface::Singular | NounSurface::Plural => NounUsage::Count,
+                        NounSurface::Mass => NounUsage::Mass,
+                    };
+                    assert!(
+                        vocabulary
+                            .matches(&surface, LexicalSlot::Noun(usage))
+                            .contains(&WordMatch::Noun(noun)),
+                        "noun {vocab:?} {form:?} rendered as {surface:?} but did not parse"
+                    );
+                }
+            }
+
+            if definition.verb.is_some() {
+                for slot in VERB_SLOTS {
+                    let verb = VerbInstance {
+                        verb: Verb::Word(vocab),
+                        slot,
+                    };
+                    let surface = vocabulary.render_verb(vocab, slot).unwrap();
+                    assert!(
+                        vocabulary
+                            .matches(&surface, LexicalSlot::Verb(slot))
+                            .contains(&WordMatch::Verb(verb)),
+                        "verb {vocab:?} {slot:?} rendered as {surface:?} but did not parse"
+                    );
+                }
+            }
+
+            if definition.adjective {
+                let adjective = Adjective::Word(vocab);
+                assert!(
+                    vocabulary
+                        .matches(definition.spelling, LexicalSlot::Adjective)
+                        .contains(&WordMatch::Adjective(adjective)),
+                    "adjective {vocab:?} did not parse"
+                );
+            }
+
+            if definition.adverb {
+                assert!(
+                    vocabulary
+                        .matches(definition.spelling, LexicalSlot::Adverb)
+                        .contains(&WordMatch::Adverb(vocab)),
+                    "adverb {vocab:?} did not parse"
+                );
+            }
+        }
+
+        for auxiliary in auxiliary_instances() {
+            if let Some(surface) = vocabulary.render_auxiliary(auxiliary) {
+                assert!(
+                    vocabulary
+                        .matches(surface, LexicalSlot::Auxiliary)
+                        .contains(&WordMatch::Auxiliary(auxiliary)),
+                    "auxiliary {auxiliary:?} rendered as {surface:?} but did not parse"
+                );
+            }
+        }
+    }
+}
