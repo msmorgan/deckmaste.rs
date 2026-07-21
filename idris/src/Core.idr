@@ -59,20 +59,20 @@ public export
 (^) = promote
 
 public export
-implementation Promote Nat ManaSymbol where
+Promote Nat ManaSymbol where
   promote = Simple . Generic
 
 public export
-implementation Promote Integer ManaSymbol where
+Promote Integer ManaSymbol where
   promote = promote . integerToNat
 
 public export
-implementation Promote Color ManaSymbol where
+Promote Color ManaSymbol where
   promote = Simple . Specific . Just
 
 -- `^Colorless` = {C} (and `^(Just c)` = {c}); `Specific Nothing` is the colorless pip.
 public export
-implementation Promote (Maybe Color) ManaSymbol where
+Promote (Maybe Color) ManaSymbol where
   promote = Simple . Specific
 
 -- PRODUCED mana ([CR#106.1]) — actual mana a mana ability adds. A DIFFERENT domain from the printed
@@ -420,13 +420,13 @@ namespace PhaseStep
     | EndingPhase EndingStep
 
 public export
-implementation Promote BeginningStep PhaseStep where
+Promote BeginningStep PhaseStep where
   promote = BeginningPhase
 public export
-implementation Promote CombatStep PhaseStep where
+Promote CombatStep PhaseStep where
   promote = CombatPhase
 public export
-implementation Promote EndingStep PhaseStep where
+Promote EndingStep PhaseStep where
   promote = EndingPhase
 
 -- A history-lookback / timing scope for an `EventQuery`. Rust: Lookback.
@@ -3057,7 +3057,7 @@ public export
 (^:) = fromDefault
 
 public export
-implementation DefaultValue (Characteristics b) where
+DefaultValue (Characteristics b) where
   defaultValue = MkCharacteristics
     { name = Nothing
     , manaCost = []
