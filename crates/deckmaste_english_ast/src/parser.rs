@@ -17,6 +17,7 @@ use crate::Mode;
 use crate::OracleText;
 use crate::Paragraph;
 use crate::Predicate;
+use crate::ReminderText;
 use crate::Sentence;
 use crate::SimpleClause;
 use crate::Span;
@@ -91,9 +92,11 @@ impl Parser<'_, '_> {
                     });
                     line += 1;
                 }
+                let ability_span = Span::new(span.start, end);
                 abilities.push(Ability {
-                    span: Span::new(span.start, end),
+                    span: ability_span,
                     ability_word,
+                    reminder_text: reminder_text(self.source, ability_span),
                     kind: AbilityKind::Modal(ModalAbility {
                         frame,
                         header,
@@ -209,17 +212,22 @@ impl Parser<'_, '_> {
         Ability {
             span,
             ability_word,
+            reminder_text: reminder_text(self.source, span),
             kind,
         }
     }
 
     fn paragraph(&self, span: Span) -> Paragraph {
+        let reminders = reminder_text(self.source, span);
         let sentences = sentence_spans(self.source, span)
             .into_iter()
-            .map(|(sentence_span, content, terminal)| Sentence {
-                span: sentence_span,
-                terminal,
-                clause: self.clause(content),
+            .filter_map(|(sentence_span, content, terminal)| {
+                let content = strip_leading_reminder_text(self.source, content, &reminders);
+                (!content.is_empty()).then(|| Sentence {
+                    span: Span::new(content.start, sentence_span.end),
+                    terminal,
+                    clause: self.clause(content),
+                })
             })
             .collect();
         Paragraph { span, sentences }
@@ -565,7 +573,67 @@ fn keyword_argument(source: &str, span: Span) -> Option<Span> {
             Span::new(argument.start + '—'.len_utf8(), argument.end),
         );
     }
+    let reminders = reminder_text(source, argument);
+    if let Some(start) = trailing_reminder_start(source, argument, &reminders) {
+        argument = trim_span(source, Span::new(argument.start, start));
+    }
     (!argument.is_empty()).then_some(argument)
+}
+
+fn trailing_reminder_start(
+    source: &str,
+    argument: Span,
+    reminders: &[ReminderText],
+) -> Option<usize> {
+    let first = reminders.first()?;
+    let mut cursor = first.span.end;
+    for reminder in &reminders[1..] {
+        if !source[cursor..reminder.span.start].trim().is_empty() {
+            return None;
+        }
+        cursor = reminder.span.end;
+    }
+    source[cursor..argument.end]
+        .trim()
+        .is_empty()
+        .then_some(first.span.start)
+}
+
+fn reminder_text(source: &str, span: Span) -> Vec<ReminderText> {
+    let mut reminders = Vec::new();
+    let mut state = Nesting::default();
+    let mut start = None;
+
+    for (relative, ch) in source[span.start..span.end].char_indices() {
+        let index = span.start + relative;
+        if ch == '(' && state.is_top_level() {
+            start = Some(index);
+        }
+        state.observe(ch);
+        if ch == ')'
+            && state.parentheses == 0
+            && let Some(start) = start.take()
+        {
+            reminders.push(ReminderText {
+                span: Span::new(start, index + ch.len_utf8()),
+            });
+        }
+    }
+
+    reminders
+}
+
+fn strip_leading_reminder_text(source: &str, mut span: Span, reminders: &[ReminderText]) -> Span {
+    loop {
+        span = trim_span(source, span);
+        let Some(reminder) = reminders
+            .iter()
+            .find(|reminder| reminder.span.start == span.start)
+        else {
+            return span;
+        };
+        span = Span::new(reminder.span.end, span.end);
+    }
 }
 
 fn trigger_start(body: Span, text: &str) -> Option<(TriggerWord, Span, Span)> {
@@ -1233,6 +1301,41 @@ mod tests {
         assert_eq!(
             clause.predicate.as_ref().unwrap().verb_kind,
             VerbKind::KeywordAction
+        );
+    }
+
+    #[test]
+    fn reminder_text_is_preserved_whole_and_excluded_from_rules_syntax() {
+        let catalogs = Catalogs::new(["Flying"], ["Scry"], std::iter::empty::<&str>());
+
+        let flying_source =
+            "Flying (This creature can't be blocked except by creatures with flying or reach.)";
+        let flying = parse_with_catalogs(flying_source, &catalogs);
+        assert_eq!(flying.abilities[0].reminder_text.len(), 1);
+        assert_eq!(
+            text(flying_source, flying.abilities[0].reminder_text[0].span),
+            "(This creature can't be blocked except by creatures with flying or reach.)"
+        );
+        let AbilityKind::Keyword(keywords) = &flying.abilities[0].kind else {
+            panic!()
+        };
+        assert!(keywords.abilities[0].argument.is_none());
+
+        let scry_source =
+            "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)";
+        let scry = parse_with_catalogs(scry_source, &catalogs);
+        let AbilityKind::Paragraph(paragraph) = &scry.abilities[0].kind else {
+            panic!()
+        };
+        assert_eq!(paragraph.sentences.len(), 1);
+        assert_eq!(text(scry_source, paragraph.sentences[0].span), "Scry 1.");
+
+        let quoted_source = "Create a token named \"(Definitely Rules Text)\". (A reminder.)";
+        let quoted = parse(quoted_source);
+        assert_eq!(quoted.abilities[0].reminder_text.len(), 1);
+        assert_eq!(
+            text(quoted_source, quoted.abilities[0].reminder_text[0].span),
+            "(A reminder.)"
         );
     }
 }

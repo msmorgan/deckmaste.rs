@@ -51,6 +51,7 @@ pub use ast::Mode;
 pub use ast::OracleText;
 pub use ast::Paragraph;
 pub use ast::Predicate;
+pub use ast::ReminderText;
 pub use ast::Sentence;
 pub use ast::SimpleClause;
 pub use ast::Subordinator;

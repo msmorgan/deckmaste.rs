@@ -35,7 +35,15 @@ pub struct Ability {
     pub span: Span,
     /// An ability-word label such as `Landfall`, without the following dash.
     pub ability_word: Option<Span>,
+    /// Opaque parenthesized reminder text, preserved like source comments.
+    pub reminder_text: Vec<ReminderText>,
     pub kind: AbilityKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ReminderText {
+    /// The complete parenthesized reminder, including `(` and `)`.
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,8 +74,8 @@ pub struct KeywordAbility {
     pub name: String,
     /// The keyword name as printed in the source, including its original case.
     pub printed_name: Span,
-    /// Printed parameters, alternative costs, or reminder text following the
-    /// keyword name. Separating their grammar is left to a later AST pass.
+    /// Printed parameters or alternative costs following the keyword name.
+    /// Reminder text is kept separately on the containing [`Ability`].
     pub argument: Option<Span>,
 }
 

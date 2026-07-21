@@ -16,6 +16,7 @@ use crate::Mode;
 use crate::OracleText;
 use crate::Paragraph;
 use crate::Predicate;
+use crate::ReminderText;
 use crate::Sentence;
 use crate::SimpleClause;
 use crate::Span;
@@ -134,12 +135,25 @@ impl ResolvedDebug for Token {
 
 impl ResolvedDebug for Ability {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("Ability")
+        let mut ability = formatter.debug_struct("Ability");
+        ability
             .field("text", &Resolved::new(source, &self.span))
-            .field("ability_word", &Resolved::new(source, &self.ability_word))
+            .field("ability_word", &Resolved::new(source, &self.ability_word));
+        if !self.reminder_text.is_empty() {
+            ability.field(
+                "reminder_text",
+                &Resolved::new(source, self.reminder_text.as_slice()),
+            );
+        }
+        ability
             .field("kind", &Resolved::new(source, &self.kind))
             .finish()
+    }
+}
+
+impl ResolvedDebug for ReminderText {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.span.fmt_resolved(source, formatter)
     }
 }
 
@@ -387,6 +401,7 @@ mod tests {
         assert!(!output.contains("Span"));
         assert!(!output.contains("start:"));
         assert!(!output.contains("end:"));
+        assert!(!output.contains("reminder_text"));
     }
 
     #[test]
@@ -407,5 +422,16 @@ mod tests {
         assert!(output.contains("name: \"Deathtouch\""));
         assert!(!output.contains("name: \"deathtouch\""));
         assert!(!output.contains("printed_name:"));
+    }
+
+    #[test]
+    fn source_debug_shows_reminder_text_as_an_opaque_comment() {
+        let source = "Draw a card. (Ignore the English in here.)";
+
+        let output = format!("{:#?}", parse(source).source_debug(source));
+
+        assert!(output.contains("reminder_text: ["));
+        assert!(output.contains("\"(Ignore the English in here.)\""));
+        assert!(!output.contains("verb: \"Ignore\""));
     }
 }
