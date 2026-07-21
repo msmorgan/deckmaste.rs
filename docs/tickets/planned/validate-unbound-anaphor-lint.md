@@ -35,7 +35,7 @@ of the resolution rule is a thing to drift, not a thing to have twice.
 
 1. **Reuse the model.** Extend `idris-check` coverage rather than duplicating
    its analysis — close the 10 emitter gaps and run the gate over `wizards`.
-   Slow (idris2 per batch) but single-source-of-truth.
+   Runs idris2 batchwise, but remains the single source of truth.
 2. **A conservative Rust lint.** Flag only the shapes provable without a full
    walk — e.g. an `It`/`They` in a `Targeted` body that contains no binder and
    no producing clause anywhere. Sound (no false positives), incomplete, cheap;

@@ -113,8 +113,8 @@ at resolve.rs:602-621:
 
 Add `UntilEndOfCombat` / `UntilYourNextTurn` to `Duration` (Core.idr:1815).
 NO `ForThisEvent` — the rider is engine-level scheduling, and Idris already
-models no-regen via cants. Idris check is slow: run it foregrounded once, or
-skip and say so.
+models no-regen via cants. Idris check runs idris2 batchwise: run it
+foregrounded once, or state why the change cannot affect Idris emission.
 
 ### 4. Tests
 
