@@ -39,6 +39,10 @@
 
 mod ast;
 mod catalogs;
+#[cfg(test)]
+mod chart;
+#[cfg(test)]
+mod forest;
 mod input;
 mod numeral;
 mod parser;
