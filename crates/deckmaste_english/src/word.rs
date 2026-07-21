@@ -26,11 +26,16 @@ pub enum Tense {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Pronoun {
     You,
-    It,
+    It(Gender),
     They,
-    He,
-    She,
     EachOther,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Gender {
+    Masculine,
+    Feminine,
+    Neuter,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -485,6 +490,7 @@ vocabulary! {
         ));
     Earthbend("earthbend").verb(VerbForm::Regular);
     Effect("effect").noun(NounDeclension::Regular, Countability::Count);
+    Equal("equal").verb(VerbForm::Regular).adjective();
     Enchant("enchant").verb(VerbForm::Regular);
     Endure("endure").verb(VerbForm::Regular);
     Enter("enter").verb(VerbForm::Regular);
@@ -564,6 +570,7 @@ vocabulary! {
             .with_past("left")
             .with_past_participle("left")
     ));
+    Less("less").adjective().adverb();
     Library("library").noun(NounDeclension::Regular, Countability::Count);
     Life("life").noun(NounDeclension::Regular, Countability::Mass);
     Look("look").verb(VerbForm::Regular);
@@ -592,8 +599,10 @@ vocabulary! {
     Open("open").verb(VerbForm::Regular);
     Opponent("opponent").noun(NounDeclension::Regular, Countability::Count);
     Only("only").adverb();
+    Other("other").adjective();
     Own("own").verb(VerbForm::Regular);
     Owner("owner").noun(NounDeclension::Regular, Countability::Count);
+    Pass("pass").verb(VerbForm::Regular);
     Pay("pay").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("paid")
@@ -845,6 +854,34 @@ impl Vocabulary {
     #[must_use]
     pub const fn render_auxiliary(self, auxiliary: AuxiliaryInstance) -> Option<&'static str> {
         render_auxiliary(auxiliary)
+    }
+
+    #[must_use]
+    pub const fn render_pronoun(self, pronoun: PronounInstance) -> Option<&'static str> {
+        match (pronoun.pronoun, pronoun.case) {
+            (Pronoun::You, PronounCase::Subject | PronounCase::Object) => Some("you"),
+            (Pronoun::It(Gender::Masculine), PronounCase::Subject) => Some("he"),
+            (Pronoun::It(Gender::Masculine), PronounCase::Object) => Some("him"),
+            (Pronoun::It(Gender::Feminine), PronounCase::Subject) => Some("she"),
+            (Pronoun::It(Gender::Feminine), PronounCase::Object) => Some("her"),
+            (Pronoun::It(Gender::Neuter), PronounCase::Subject | PronounCase::Object) => Some("it"),
+            (Pronoun::They, PronounCase::Subject) => Some("they"),
+            (Pronoun::They, PronounCase::Object) => Some("them"),
+            (Pronoun::EachOther, PronounCase::Object) => Some("each other"),
+            (Pronoun::EachOther, PronounCase::Subject) => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn render_possessive_pronoun(self, pronoun: Pronoun) -> Option<&'static str> {
+        match pronoun {
+            Pronoun::You => Some("your"),
+            Pronoun::It(Gender::Masculine) => Some("his"),
+            Pronoun::It(Gender::Feminine) => Some("her"),
+            Pronoun::It(Gender::Neuter) => Some("its"),
+            Pronoun::They => Some("their"),
+            Pronoun::EachOther => None,
+        }
     }
 
     fn render_vocab_noun(vocab: Vocab, form: NounSurface) -> Option<String> {
@@ -1106,7 +1143,7 @@ const VERB_SLOTS: [VerbSlot; 12] = [
     VerbSlot::PastParticiple,
 ];
 
-const PRONOUN_FORMS: [(&str, PronounInstance); 9] = [
+const PRONOUN_FORMS: [(&str, PronounInstance); 11] = [
     (
         "you",
         PronounInstance {
@@ -1124,14 +1161,14 @@ const PRONOUN_FORMS: [(&str, PronounInstance); 9] = [
     (
         "it",
         PronounInstance {
-            pronoun: Pronoun::It,
+            pronoun: Pronoun::It(Gender::Neuter),
             case: PronounCase::Subject,
         },
     ),
     (
         "it",
         PronounInstance {
-            pronoun: Pronoun::It,
+            pronoun: Pronoun::It(Gender::Neuter),
             case: PronounCase::Object,
         },
     ),
@@ -1152,15 +1189,29 @@ const PRONOUN_FORMS: [(&str, PronounInstance); 9] = [
     (
         "he",
         PronounInstance {
-            pronoun: Pronoun::He,
+            pronoun: Pronoun::It(Gender::Masculine),
             case: PronounCase::Subject,
+        },
+    ),
+    (
+        "him",
+        PronounInstance {
+            pronoun: Pronoun::It(Gender::Masculine),
+            case: PronounCase::Object,
         },
     ),
     (
         "she",
         PronounInstance {
-            pronoun: Pronoun::She,
+            pronoun: Pronoun::It(Gender::Feminine),
             case: PronounCase::Subject,
+        },
+    ),
+    (
+        "her",
+        PronounInstance {
+            pronoun: Pronoun::It(Gender::Feminine),
+            case: PronounCase::Object,
         },
     ),
     (
@@ -1683,6 +1734,42 @@ mod tests {
                 .matches("I", LexicalSlot::Pronoun(PronounCase::Subject))
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn third_person_singular_pronouns_preserve_gender() {
+        let vocabulary = Vocabulary::new();
+
+        for (gender, subject, object, possessive) in [
+            (Gender::Masculine, "he", "him", "his"),
+            (Gender::Feminine, "she", "her", "her"),
+            (Gender::Neuter, "it", "it", "its"),
+        ] {
+            let pronoun = Pronoun::It(gender);
+            let subject_instance = PronounInstance {
+                pronoun,
+                case: PronounCase::Subject,
+            };
+            let object_instance = PronounInstance {
+                pronoun,
+                case: PronounCase::Object,
+            };
+
+            assert_eq!(
+                vocabulary.matches(subject, LexicalSlot::Pronoun(PronounCase::Subject)),
+                vec![WordMatch::Pronoun(subject_instance)]
+            );
+            assert_eq!(
+                vocabulary.matches(object, LexicalSlot::Pronoun(PronounCase::Object)),
+                vec![WordMatch::Pronoun(object_instance)]
+            );
+            assert_eq!(vocabulary.render_pronoun(subject_instance), Some(subject));
+            assert_eq!(vocabulary.render_pronoun(object_instance), Some(object));
+            assert_eq!(
+                vocabulary.render_possessive_pronoun(pronoun),
+                Some(possessive)
+            );
+        }
     }
 
     #[test]

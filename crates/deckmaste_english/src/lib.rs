@@ -48,10 +48,12 @@ mod input;
 mod numeral;
 mod parser;
 mod render;
+pub mod renderer;
 mod source_debug;
 mod span;
 #[cfg(test)]
 mod surface;
+pub mod syntax;
 pub mod word;
 
 pub use ast::Ability;
