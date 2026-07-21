@@ -10,6 +10,7 @@
 )]
 
 pub mod card;
+pub mod catalogs;
 pub mod cite;
 pub mod coverage;
 pub mod english;

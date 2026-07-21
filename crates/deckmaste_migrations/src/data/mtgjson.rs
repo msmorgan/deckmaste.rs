@@ -48,6 +48,10 @@ pub struct AtomicCard<'a> {
     pub supertypes: Vec<DataStr<'a>>,
     #[serde(borrow)]
     pub subtypes: Vec<DataStr<'a>>,
+    /// MTGJSON's broad keyword annotations. Catalog generation further checks
+    /// these against the Comprehensive Rules before accepting any value.
+    #[serde(borrow, default, deserialize_with = "super::null_to_default")]
+    pub keywords: Vec<DataStr<'a>>,
     /// Oracle rules text, one line per ability.
     #[serde(borrow, default)]
     pub text: Option<DataStr<'a>>,
@@ -93,6 +97,7 @@ mod tests {
             "foreignData": [{"language": "German"}],
             "layout": "some_future_layout",
             "legalities": {"commander": "Legal", "vintage": "Legal"},
+            "keywords": ["Flying"],
             "manaCost": "{1}{W}",
             "name": "Front // Back",
             "defense": "4",
@@ -106,6 +111,7 @@ mod tests {
         assert_eq!(card.layout.as_str(), "some_future_layout");
         assert_eq!(card.legalities.vintage.as_deref(), Some("Legal"));
         assert_eq!(card.defense.as_deref(), Some("4"));
+        assert_eq!(card.keywords[0].as_str(), "Flying");
         assert_eq!(card.power, None);
 
         // Escape-free strings borrow from the input; escaped ones allocate.

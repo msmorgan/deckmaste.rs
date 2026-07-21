@@ -6,6 +6,7 @@
 use clap::Parser;
 use clap::Subcommand;
 use xtask::card::CardArgs;
+use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
 use xtask::english::EnglishArgs;
 use xtask::extract::ExtractArgs;
@@ -29,6 +30,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Cmd {
+    /// Derive the catalogs we consume from the CR and Vintage card data.
+    Catalogs(CatalogArgs),
     /// Validate every finished card in a plugin (defaults to plugins/builtin).
     Validate(ValidateArgs),
     /// Show a card as parsed from a plugin, with its macros expanded.
@@ -61,6 +64,7 @@ enum Cmd {
 
 fn main() -> anyhow::Result<()> {
     match Cli::parse().command {
+        Cmd::Catalogs(args) => xtask::catalogs::run(&args),
         Cmd::Validate(args) => xtask::validate::run(args),
         Cmd::Card(args) => xtask::card::run(args),
         Cmd::Fidelity(args) => xtask::fidelity::run(args),
@@ -73,5 +77,16 @@ fn main() -> anyhow::Result<()> {
         Cmd::English(args) => xtask::english::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalogs_subcommand_parses_with_defaults() {
+        let cli = Cli::try_parse_from(["cargo xtask", "catalogs"]).unwrap();
+        assert!(matches!(cli.command, Cmd::Catalogs(_)));
     }
 }
