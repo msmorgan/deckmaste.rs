@@ -386,6 +386,7 @@ vocabulary! {
     Activate("activate").verb(VerbForm::Regular);
     Adapt("adapt").verb(VerbForm::Regular);
     Add("add").verb(VerbForm::Regular);
+    Additional("additional").adjective();
     Aetherborn("Aetherborn").invariant_catalog_noun();
     Again("again").adverb();
     Airbend("airbend").verb(VerbForm::Regular);
@@ -457,7 +458,7 @@ vocabulary! {
             .with_past("controlled")
             .with_present_participle("controlling")
             .with_past_participle("controlled")
-    ));
+    )).noun(NounDeclension::Regular, Countability::Mass);
     Controller("controller").noun(NounDeclension::Regular, Countability::Count);
     Convert("convert").verb(VerbForm::Regular);
     Copy("copy")
@@ -631,10 +632,12 @@ vocabulary! {
     Moonfolk("Moonfolk").invariant_catalog_noun();
     Mouse("Mouse").irregular_catalog_noun("Mice");
     Move("move").verb(VerbForm::Regular);
+    Name("name").verb(VerbForm::Regular);
     Myr("Myr").invariant_catalog_noun();
     Night("night").noun(NounDeclension::Regular, Countability::Count);
     Nonbasic("nonbasic").adjective();
     Noncreature("noncreature").adjective();
+    Nonland("nonland").adjective();
     Number("number").noun(NounDeclension::Regular, Countability::Count);
     Odd("odd").adjective();
     Open("open").verb(VerbForm::Regular);
@@ -663,7 +666,9 @@ vocabulary! {
             .with_present_participle("plotting")
             .with_past_participle("plotted")
     ));
-    Poison("poison").verb(VerbForm::Regular);
+    Poison("poison")
+        .noun(NounDeclension::Regular, Countability::Count)
+        .verb(VerbForm::Regular);
     Populate("populate").verb(VerbForm::Regular);
     Power("power").noun(NounDeclension::Regular, Countability::Mass);
     Prevent("prevent").verb(VerbForm::Regular);
@@ -757,6 +762,7 @@ vocabulary! {
         .verb(VerbForm::Regular);
     Twice("twice").adverb();
     Type("type").noun(NounDeclension::Regular, Countability::Count);
+    Value("value").noun(NounDeclension::Regular, Countability::Count);
     Untap("untap").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("untapped")

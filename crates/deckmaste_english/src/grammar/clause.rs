@@ -66,6 +66,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         N::VerbPhrase,
         [n(N::VerbPhrase), l(L::PowerToughness)],
     );
+    builder.add(
+        RuleTag::VerbPhraseQuantity,
+        N::VerbPhrase,
+        [n(N::VerbPhrase), n(N::Quantity)],
+    );
 
     builder.add(
         RuleTag::InfinitiveTo,
@@ -124,6 +129,11 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
         [n(N::Clause), l(L::AsLongAs), n(N::Clause)],
     );
     builder.add(
+        RuleTag::ClauseConditionalAfterIf,
+        N::Clause,
+        [n(N::Clause), l(L::If), n(N::Clause)],
+    );
+    builder.add(
         RuleTag::RelativeObject,
         N::RelativeClause,
         [n(N::SimpleClause)],
@@ -140,6 +150,7 @@ pub(super) fn add_rules(builder: &mut RuleBuilder) {
             [n(N::Clause), l(L::Punctuation(punctuation))],
         );
     }
+    builder.add(RuleTag::SentenceNone, N::Sentence, [n(N::Clause)]);
 }
 
 pub(super) fn reduce_clause(
@@ -159,6 +170,7 @@ pub(super) fn reduce_clause(
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo => reduce_predicate(tag, children, shape),
         RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseSubjectless
@@ -170,9 +182,11 @@ pub(super) fn reduce_clause(
         | RuleTag::ClauseConditionalBefore
         | RuleTag::ClauseConditionalAfterElliptical
         | RuleTag::ClauseConditionalAfter
+        | RuleTag::ClauseConditionalAfterIf
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion => reduce_composed_clause(tag, children, shape),
+        | RuleTag::SentenceQuestion
+        | RuleTag::SentenceNone => reduce_composed_clause(tag, children, shape),
         _ => None,
     }
 }
@@ -232,7 +246,8 @@ fn reduce_predicate(
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhrasePowerToughness => extend_predicate(children.first()?, shape, false),
+        | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::VerbPhraseQuantity => extend_predicate(children.first()?, shape, false),
         RuleTag::InfinitiveTo => {
             let Features::VerbPhrase {
                 form: PredicateForm::Infinitive,
@@ -456,10 +471,13 @@ fn reduce_composed_clause(
                 MeaningKey::Clause { shape },
             ))
         }
-        RuleTag::ClauseConditionalAfter => {
+        RuleTag::ClauseConditionalAfter | RuleTag::ClauseConditionalAfterIf => {
             conditional_reduction(children.get(2)?, children.first()?, shape)
         }
-        RuleTag::SentencePeriod | RuleTag::SentenceExclamation | RuleTag::SentenceQuestion => {
+        RuleTag::SentencePeriod
+        | RuleTag::SentenceExclamation
+        | RuleTag::SentenceQuestion
+        | RuleTag::SentenceNone => {
             let Features::Clause {
                 standalone: true, ..
             } = children.first()?.features
@@ -582,6 +600,7 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo => lower_predicate(tag, children),
         RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseSubjectless
@@ -593,9 +612,11 @@ pub(super) fn lower_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Low
         | RuleTag::ClauseConditionalBefore
         | RuleTag::ClauseConditionalAfterElliptical
         | RuleTag::ClauseConditionalAfter
+        | RuleTag::ClauseConditionalAfterIf
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion => lower_composed_clause(tag, children),
+        | RuleTag::SentenceQuestion
+        | RuleTag::SentenceNone => lower_composed_clause(tag, children),
         _ => None,
     }
 }
@@ -631,7 +652,8 @@ fn lower_predicate(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseAdverb
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
-        | RuleTag::VerbPhrasePowerToughness => lower_predicate_dependent(tag, children),
+        | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::VerbPhraseQuantity => lower_predicate_dependent(tag, children),
         RuleTag::InfinitiveTo => {
             let Lowered::VerbPhrase(predicate) = take(children, 1)? else {
                 return None;
@@ -697,6 +719,12 @@ fn lower_predicate_dependent(tag: RuleTag, children: &mut [Lowered]) -> Option<L
                 return None;
             };
             VerbDependent::Statistic(Phrase::PowerToughness(power_toughness))
+        }
+        RuleTag::VerbPhraseQuantity => {
+            let Lowered::Quantity(quantity) = take(children, 1)? else {
+                return None;
+            };
+            VerbDependent::Scalar(Phrase::Quantity(quantity))
         }
         _ => return None,
     };
@@ -793,7 +821,7 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             ))
         }
-        RuleTag::ClauseConditionalAfter => {
+        RuleTag::ClauseConditionalAfter | RuleTag::ClauseConditionalAfterIf => {
             let Lowered::Clause(consequence) = take(children, 0)? else {
                 return None;
             };
@@ -810,7 +838,10 @@ fn lower_composed_clause(tag: RuleTag, children: &mut [Lowered]) -> Option<Lower
                 consequence,
             ))
         }
-        RuleTag::SentencePeriod | RuleTag::SentenceExclamation | RuleTag::SentenceQuestion => {
+        RuleTag::SentencePeriod
+        | RuleTag::SentenceExclamation
+        | RuleTag::SentenceQuestion
+        | RuleTag::SentenceNone => {
             let Lowered::Clause(clause) = take(children, 0)? else {
                 return None;
             };
@@ -875,6 +906,7 @@ const fn sentence_ending(tag: RuleTag) -> Option<SentenceEnding> {
         RuleTag::SentencePeriod => Some(SentenceEnding::Period(1)),
         RuleTag::SentenceExclamation => Some(SentenceEnding::Exclamation(1)),
         RuleTag::SentenceQuestion => Some(SentenceEnding::Question(1)),
+        RuleTag::SentenceNone => Some(SentenceEnding::None),
         _ => None,
     }
 }

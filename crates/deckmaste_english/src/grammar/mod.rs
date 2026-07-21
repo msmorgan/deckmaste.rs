@@ -3,6 +3,7 @@
     reason = "later grammar milestones consume the staged clause and ability categories"
 )]
 
+pub(crate) mod ability;
 mod clause;
 mod nominal;
 
@@ -285,6 +286,7 @@ impl QuantityKey {
 pub(crate) enum DeterminerKey {
     The,
     Each,
+    Another,
     Indefinite(IndefiniteArticleKey),
     Demonstrative(DemonstrativeKey),
     Target(Option<QuantityKey>),
@@ -297,8 +299,11 @@ pub(crate) enum DeterminerKey {
 impl DeterminerKey {
     const fn cardinality(&self) -> Cardinality {
         match self {
-            Self::Each | Self::Indefinite(_) | Self::Target(None) => Cardinality::SingularCount,
-            Self::Demonstrative(DemonstrativeKey::This | DemonstrativeKey::That) => {
+            Self::Each
+            | Self::Another
+            | Self::Indefinite(_)
+            | Self::Target(None)
+            | Self::Demonstrative(DemonstrativeKey::This | DemonstrativeKey::That) => {
                 Cardinality::SingularCount
             }
             Self::Demonstrative(DemonstrativeKey::These | DemonstrativeKey::Those) => {
@@ -316,6 +321,7 @@ impl DeterminerKey {
         Some(match self {
             Self::The => Determiner::The,
             Self::Each => Determiner::Each,
+            Self::Another => Determiner::Another,
             Self::Indefinite(IndefiniteArticleKey::A) => {
                 Determiner::Indefinite(IndefiniteArticle::A)
             }
@@ -456,6 +462,7 @@ enum RuleTag {
     NounPhraseReciprocal,
     NounPhraseThisCard,
     NounPhraseFullThisCard,
+    NounPhraseCoordination,
     PrepositionalPhrase,
     Verb,
     VerbPhraseBase,
@@ -468,6 +475,7 @@ enum RuleTag {
     VerbPhraseAbility,
     VerbPhraseOracleSymbol,
     VerbPhrasePowerToughness,
+    VerbPhraseQuantity,
     InfinitiveTo,
     SimpleClauseSubject,
     SimpleClauseSubjectless,
@@ -478,10 +486,12 @@ enum RuleTag {
     ClauseConditionalBefore,
     ClauseConditionalAfterElliptical,
     ClauseConditionalAfter,
+    ClauseConditionalAfterIf,
     RelativeObject,
     SentencePeriod,
     SentenceExclamation,
     SentenceQuestion,
+    SentenceNone,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -924,6 +934,8 @@ impl EnglishGrammar<'_, '_> {
             DeterminerKey::The
         } else if surface.eq_ignore_ascii_case("each") {
             DeterminerKey::Each
+        } else if surface.eq_ignore_ascii_case("another") {
+            DeterminerKey::Another
         } else if surface.eq_ignore_ascii_case("a") {
             DeterminerKey::Indefinite(IndefiniteArticleKey::A)
         } else if surface.eq_ignore_ascii_case("an") {
@@ -1169,6 +1181,15 @@ impl RuleBuilder {
             N::NounPhrase,
             [l(L::FullThisCard)],
         );
+        self.add_with_cost(
+            RuleTag::NounPhraseCoordination,
+            N::NounPhrase,
+            [n(N::NounPhrase), l(L::Conjunction), n(N::NounPhrase)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
+        );
 
         self.add(
             RuleTag::PrepositionalPhrase,
@@ -1392,6 +1413,7 @@ fn reduce(
         | RuleTag::NounPhraseReciprocal
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
+        | RuleTag::NounPhraseCoordination
         | RuleTag::PrepositionalPhrase => reduce_phrase(tag, children, shape)?,
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
@@ -1404,6 +1426,7 @@ fn reduce(
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
         | RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseSubjectless
@@ -1414,10 +1437,12 @@ fn reduce(
         | RuleTag::ClauseConditionalBefore
         | RuleTag::ClauseConditionalAfterElliptical
         | RuleTag::ClauseConditionalAfter
+        | RuleTag::ClauseConditionalAfterIf
         | RuleTag::RelativeObject
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion => clause::reduce_clause(tag, children, shape)?,
+        | RuleTag::SentenceQuestion
+        | RuleTag::SentenceNone => clause::reduce_clause(tag, children, shape)?,
     };
     Some(Reduction {
         features,
@@ -1721,6 +1746,25 @@ fn reduce_phrase(
                 },
             ))
         }
+        RuleTag::NounPhraseCoordination => {
+            let MeaningKey::Conjunction(conjunction) = children.get(1)?.meaning else {
+                return None;
+            };
+            if *conjunction == crate::syntax::PredicateConjunction::Then {
+                return None;
+            }
+            let agreement = Some(Agreement {
+                person: Person::Third,
+                number: Number::Plural,
+            });
+            Some((
+                Features::NounPhrase {
+                    agreement,
+                    pronoun_case: None,
+                },
+                MeaningKey::NounPhrase { agreement, shape },
+            ))
+        }
         RuleTag::PrepositionalPhrase => {
             let MeaningKey::Preposition(preposition) = children.first()?.meaning else {
                 return None;
@@ -1850,6 +1894,40 @@ impl ParsedNonterminal {
             Lowered::Sentence(sentence) => Some(sentence),
             _ => None,
         }
+    }
+
+    pub(crate) fn simple_clause(&self) -> Option<&SimpleClause> {
+        match &self.syntax {
+            Lowered::SimpleClause(clause) => Some(clause),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn clause(&self) -> Option<&Clause> {
+        match &self.syntax {
+            Lowered::Clause(clause) => Some(clause),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn quantity(&self) -> Option<&Quantity> {
+        match &self.syntax {
+            Lowered::Quantity(quantity) => Some(quantity),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn root_rule(&self) -> Option<usize> {
+        let node = self.chart.forest.node(self.root);
+        let alternative = self.best.alternative(self.root)?;
+        node.alternatives
+            .get(alternative)?
+            .rule
+            .map(crate::chart::RuleId::index)
+    }
+
+    pub(crate) const fn cost(&self) -> ParseCost {
+        self.best.cost
     }
 }
 
@@ -2013,6 +2091,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseReciprocal
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
+        | RuleTag::NounPhraseCoordination
         | RuleTag::PrepositionalPhrase => lower_phrase(tag, children),
         RuleTag::Verb
         | RuleTag::VerbPhraseBase
@@ -2025,6 +2104,7 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::VerbPhraseAbility
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::VerbPhraseQuantity
         | RuleTag::InfinitiveTo
         | RuleTag::SimpleClauseSubject
         | RuleTag::SimpleClauseSubjectless
@@ -2035,10 +2115,12 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::ClauseConditionalBefore
         | RuleTag::ClauseConditionalAfterElliptical
         | RuleTag::ClauseConditionalAfter
+        | RuleTag::ClauseConditionalAfterIf
         | RuleTag::RelativeObject
         | RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
-        | RuleTag::SentenceQuestion => clause::lower_clause(tag, children),
+        | RuleTag::SentenceQuestion
+        | RuleTag::SentenceNone => clause::lower_clause(tag, children),
     }
 }
 
@@ -2218,6 +2300,39 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 return None;
             };
             Some(Lowered::NounPhrase(NounPhrase::ThisCard(form)))
+        }
+        RuleTag::NounPhraseCoordination => {
+            let Lowered::NounPhrase(first) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::Conjunction(conjunction) = take(children, 1)? else {
+                return None;
+            };
+            let conjunction = match conjunction {
+                crate::syntax::PredicateConjunction::And => {
+                    crate::syntax::NounPhraseConjunction::And
+                }
+                crate::syntax::PredicateConjunction::Or => crate::syntax::NounPhraseConjunction::Or,
+                crate::syntax::PredicateConjunction::Then => return None,
+            };
+            let Lowered::NounPhrase(next) = take(children, 2)? else {
+                return None;
+            };
+            let coordination = crate::syntax::NounPhraseCoordination {
+                conjunction,
+                phrase: next,
+            };
+            let coordinated = match first {
+                NounPhrase::Coordinated(mut coordinated) => {
+                    coordinated.rest.push(coordination);
+                    coordinated
+                }
+                first => crate::syntax::CoordinatedNounPhrase {
+                    first: Box::new(first),
+                    rest: vec![coordination],
+                },
+            };
+            Some(Lowered::NounPhrase(NounPhrase::Coordinated(coordinated)))
         }
         RuleTag::PrepositionalPhrase => {
             let Lowered::Preposition(preposition) = take(children, 0)? else {

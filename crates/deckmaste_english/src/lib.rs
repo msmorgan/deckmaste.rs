@@ -48,6 +48,8 @@ mod forest;
 mod grammar;
 mod input;
 mod numeral;
+#[cfg(test)]
+mod parse;
 mod parser;
 mod render;
 pub mod renderer;

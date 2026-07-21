@@ -225,6 +225,7 @@ impl<'syntax> UnknownWalker<'syntax> {
 
     fn phrase(&mut self, phrase: &'syntax Phrase, role: UnknownRole, context: Option<UnknownRole>) {
         match phrase {
+            Phrase::Clause(clause) => self.clause(clause, context),
             Phrase::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase, context),
             Phrase::AdjectivePhrase(adjective) => {
                 self.adjective_phrase(adjective, role, context);
@@ -232,6 +233,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             Phrase::PrepositionalPhrase(preposition) => {
                 self.prepositional_phrase(preposition, role, context);
             }
+            Phrase::EmbeddedAbility(ability) => self.ability(ability, context),
             Phrase::QuotedAbility(quoted) => {
                 self.ability(&quoted.ability, Some(UnknownRole::EmbeddedRules));
             }

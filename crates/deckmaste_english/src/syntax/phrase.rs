@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+use super::ability::Ability;
 use super::ability::QuotedAbility;
+use super::clause::Clause;
 use super::clause::InfinitiveClause;
 use super::clause::RelativeClause;
 use crate::Numeral;
@@ -99,6 +101,7 @@ impl Quantity {
 pub enum Determiner {
     The,
     Each,
+    Another,
     Indefinite(IndefiniteArticle),
     Demonstrative(Demonstrative),
     Target(Option<Quantity>),
@@ -112,6 +115,7 @@ impl Determiner {
     pub const fn noun_cardinality(&self) -> NounCardinality {
         match self {
             Self::Each
+            | Self::Another
             | Self::Indefinite(_)
             | Self::Target(None)
             | Self::Demonstrative(Demonstrative::This | Demonstrative::That) => {
@@ -242,6 +246,7 @@ pub enum Preposition {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Phrase {
+    Clause(Box<Clause>),
     NounPhrase(Box<NounPhrase>),
     AdjectivePhrase(Box<AdjectivePhrase>),
     PrepositionalPhrase(Box<PrepositionalPhrase>),
@@ -255,6 +260,7 @@ pub enum Phrase {
     NumberLiteral(NumberLiteral),
     SignedScalar(SignedScalar),
     PowerToughness(PowerToughness),
+    EmbeddedAbility(Box<Ability>),
     QuotedAbility(Box<QuotedAbility>),
     UnknownPhrase(UnknownPhrase),
 }

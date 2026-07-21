@@ -106,6 +106,7 @@ impl Determiner {
             Self::Possessive(Possessor::NounPhrase(_)) => Err(RenderError::CardIdentityRequired),
             Self::The => Ok("the".to_owned()),
             Self::Each => Ok("each".to_owned()),
+            Self::Another => Ok("another".to_owned()),
             Self::Indefinite(IndefiniteArticle::A) => Ok("a".to_owned()),
             Self::Indefinite(IndefiniteArticle::An) => Ok("an".to_owned()),
             Self::Demonstrative(Demonstrative::This) => Ok("this".to_owned()),
@@ -255,7 +256,7 @@ impl<'identity> Renderer<'identity> {
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
         cost.components
             .iter()
-            .map(|component| self.phrase(component))
+            .map(|component| self.phrase(component).map(capitalize_first))
             .collect::<Result<Vec<_>, _>>()
             .map(|components| components.join(", "))
     }
@@ -543,6 +544,7 @@ impl<'identity> Renderer<'identity> {
 
     fn phrase(&self, phrase: &Phrase) -> Result<String, RenderError> {
         match phrase {
+            Phrase::Clause(clause) => self.clause(clause),
             Phrase::NounPhrase(noun_phrase) => self.noun_phrase(noun_phrase),
             Phrase::AdjectivePhrase(adjective) => self.adjective_phrase(adjective),
             Phrase::PrepositionalPhrase(preposition) => self.prepositional_phrase(preposition),
@@ -567,6 +569,7 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(power_toughness.power),
                 render_signed_scalar(power_toughness.toughness)
             )),
+            Phrase::EmbeddedAbility(ability) => self.ability(ability, true),
             Phrase::QuotedAbility(quoted) => {
                 let mut rendered = format!("\"{}", self.ability(&quoted.ability, true)?);
                 if quoted.closed {
