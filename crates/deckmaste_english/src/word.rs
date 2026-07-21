@@ -285,6 +285,7 @@ pub enum WordMatch {
 struct VocabDefinition {
     spelling: &'static str,
     noun: Option<(NounDeclension, Countability)>,
+    catalog_noun: bool,
     verb: Option<VerbForm>,
     adjective: bool,
     adverb: bool,
@@ -296,6 +297,7 @@ impl VocabDefinition {
         Self {
             spelling,
             noun: None,
+            catalog_noun: false,
             verb: None,
             adjective: false,
             adverb: false,
@@ -305,6 +307,24 @@ impl VocabDefinition {
 
     const fn noun(mut self, declension: NounDeclension, countability: Countability) -> Self {
         self.noun = Some((declension, countability));
+        self
+    }
+
+    const fn irregular_catalog_noun(mut self, plural: &'static str) -> Self {
+        self.noun = Some((
+            NounDeclension::Irregular {
+                singular: self.spelling,
+                plural,
+            },
+            Countability::Count,
+        ));
+        self.catalog_noun = true;
+        self
+    }
+
+    const fn invariant_catalog_noun(mut self) -> Self {
+        self.noun = Some((NounDeclension::Invariant, Countability::Count));
+        self.catalog_noun = true;
         self
     }
 
@@ -366,6 +386,7 @@ vocabulary! {
     Activate("activate").verb(VerbForm::Regular);
     Adapt("adapt").verb(VerbForm::Regular);
     Add("add").verb(VerbForm::Regular);
+    Aetherborn("Aetherborn").invariant_catalog_noun();
     Again("again").adverb();
     Airbend("airbend").verb(VerbForm::Regular);
     Alone("alone").adverb();
@@ -373,8 +394,10 @@ vocabulary! {
     Apply("apply").verb(VerbForm::Regular);
     Ask("ask").verb(VerbForm::Regular);
     Assemble("assemble").verb(VerbForm::Regular);
+    Astartes("Astartes").invariant_catalog_noun();
     Attach("attach").verb(VerbForm::Regular);
     Attack("attack").verb(VerbForm::Regular);
+    Aurochs("Aurochs").invariant_catalog_noun();
     Bargain("bargain").verb(VerbForm::Regular);
     Battlefield("battlefield").noun(NounDeclension::Regular, Countability::Count);
     Be("be").verb(VerbForm::Irregular(
@@ -400,6 +423,7 @@ vocabulary! {
             .with_past("beheld")
             .with_past_participle("beheld")
     ));
+    Bison("Bison").invariant_catalog_noun();
     Blight("blight").verb(VerbForm::Regular);
     Block("block").verb(VerbForm::Regular);
     Bolster("bolster").verb(VerbForm::Regular);
@@ -412,6 +436,7 @@ vocabulary! {
     Cause("cause").verb(VerbForm::Regular);
     Change("change").verb(VerbForm::Regular);
     Chaos("chaos").noun(NounDeclension::Regular, Countability::Mass);
+    Child("Child").irregular_catalog_noun("Children");
     Choose("choose").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("chose")
@@ -450,6 +475,8 @@ vocabulary! {
         .noun(NounDeclension::Regular, Countability::Count)
         .verb(VerbForm::Regular);
     Create("create").verb(VerbForm::Regular);
+    Custodes("Custodes").invariant_catalog_noun();
+    Cyberman("Cyberman").irregular_catalog_noun("Cybermen");
     Damage("damage").noun(NounDeclension::Regular, Countability::Mass);
     Day("day").noun(NounDeclension::Regular, Countability::Count);
     Deal("deal").verb(VerbForm::Irregular(
@@ -488,8 +515,12 @@ vocabulary! {
                 .with_past("drew")
                 .with_past_participle("drawn")
         ));
+    Drix("Drix").invariant_catalog_noun();
+    Dwarf("Dwarf").irregular_catalog_noun("Dwarves");
     Earthbend("earthbend").verb(VerbForm::Regular);
     Effect("effect").noun(NounDeclension::Regular, Countability::Count);
+    Elf("Elf").irregular_catalog_noun("Elves");
+    Elk("Elk").invariant_catalog_noun();
     Equal("equal").verb(VerbForm::Regular).adjective();
     Enchant("enchant").verb(VerbForm::Regular);
     Endure("endure").verb(VerbForm::Regular);
@@ -514,6 +545,7 @@ vocabulary! {
             .with_past("fought")
             .with_past_participle("fought")
     ));
+    Fish("Fish").invariant_catalog_noun();
     Flip("flip").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("flipped")
@@ -528,6 +560,7 @@ vocabulary! {
             .with_past_participle("foretold")
     ));
     Friend("friend").noun(NounDeclension::Regular, Countability::Count);
+    Fungus("Fungus").irregular_catalog_noun("Fungi");
     Gain("gain").verb(VerbForm::Regular);
     Game("game").noun(NounDeclension::Regular, Countability::Count);
     Get("get").verb(VerbForm::Irregular(
@@ -542,6 +575,7 @@ vocabulary! {
             .with_past_participle("gone")
     ));
     Goad("goad").verb(VerbForm::Regular);
+    Graveborn("Graveborn").invariant_catalog_noun();
     Graveyard("graveyard").noun(NounDeclension::Regular, Countability::Count);
     Greater("greater").adjective();
     Hand("hand").noun(NounDeclension::Regular, Countability::Count);
@@ -555,6 +589,7 @@ vocabulary! {
     ));
     Heal("heal").verb(VerbForm::Regular);
     Heist("heist").verb(VerbForm::Regular);
+    Hero("Hero").irregular_catalog_noun("Heroes");
     Hour("hour")
         .noun(NounDeclension::Regular, Countability::Count)
         .initial_sound(InitialSound::Vowel);
@@ -563,7 +598,10 @@ vocabulary! {
     Initiative("initiative").noun(NounDeclension::Regular, Countability::Count);
     Instead("instead").adverb();
     Investigate("investigate").verb(VerbForm::Regular);
+    Jellyfish("Jellyfish").invariant_catalog_noun();
     Kick("kick").verb(VerbForm::Regular);
+    Kithkin("Kithkin").invariant_catalog_noun();
+    Kor("Kor").invariant_catalog_noun();
     Learn("learn").verb(VerbForm::Regular);
     Leave("leave").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
@@ -580,9 +618,8 @@ vocabulary! {
             .with_past_participle("lost")
     ));
     Mana("mana").noun(NounDeclension::Regular, Countability::Mass);
-    Manifest("manifest").verb(VerbForm::Regular);
     Meld("meld").verb(VerbForm::Regular);
-    Merfolk("merfolk").noun(NounDeclension::Invariant, Countability::Count);
+    Merfolk("Merfolk").invariant_catalog_noun();
     Mill("mill").verb(VerbForm::Regular);
     Mode("mode").noun(NounDeclension::Regular, Countability::Count);
     Modify("modify").verb(VerbForm::Regular);
@@ -590,7 +627,10 @@ vocabulary! {
     Monocolored("monocolored").adjective();
     Monstrosity("monstrosity").noun(NounDeclension::Regular, Countability::Count);
     Monstrous("monstrous").adjective();
+    Moonfolk("Moonfolk").invariant_catalog_noun();
+    Mouse("Mouse").irregular_catalog_noun("Mice");
     Move("move").verb(VerbForm::Regular);
+    Myr("Myr").invariant_catalog_noun();
     Night("night").noun(NounDeclension::Regular, Countability::Count);
     Nonbasic("nonbasic").adjective();
     Noncreature("noncreature").adjective();
@@ -602,12 +642,14 @@ vocabulary! {
     Other("other").adjective();
     Own("own").verb(VerbForm::Regular);
     Owner("owner").noun(NounDeclension::Regular, Countability::Count);
+    Ox("Ox").irregular_catalog_noun("Oxen");
     Pass("pass").verb(VerbForm::Regular);
     Pay("pay").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("paid")
             .with_past_participle("paid")
     ));
+    Pegasus("Pegasus").irregular_catalog_noun("Pegasi");
     Permanent("permanent").noun(NounDeclension::Regular, Countability::Count);
     Phase("phase").verb(VerbForm::Regular);
     Pile("pile").noun(NounDeclension::Regular, Countability::Count);
@@ -623,7 +665,6 @@ vocabulary! {
     Poison("poison").verb(VerbForm::Regular);
     Populate("populate").verb(VerbForm::Regular);
     Power("power").noun(NounDeclension::Regular, Countability::Mass);
-    Prepare("prepare").verb(VerbForm::Regular);
     Prevent("prevent").verb(VerbForm::Regular);
     Process("process").noun(NounDeclension::Regular, Countability::Count);
     Produce("produce").verb(VerbForm::Regular);
@@ -651,6 +692,7 @@ vocabulary! {
     Sacrifice("sacrifice").verb(VerbForm::Regular);
     Saddle("saddle").verb(VerbForm::Regular);
     Same("same").adjective();
+    Samurai("Samurai").invariant_catalog_noun();
     Scry("scry").verb(VerbForm::Regular);
     Search("search").verb(VerbForm::Regular);
     Seek("seek").verb(VerbForm::Irregular(
@@ -674,6 +716,8 @@ vocabulary! {
             .with_past_participle("spent")
     ));
     Spell("spell").noun(NounDeclension::Regular, Countability::Count);
+    Squid("Squid").invariant_catalog_noun();
+    Starfish("Starfish").invariant_catalog_noun();
     Support("support")
         .noun(NounDeclension::Regular, Countability::Mass)
         .verb(VerbForm::Regular);
@@ -691,6 +735,7 @@ vocabulary! {
         .verb(VerbForm::Regular)
         .adjective();
     Team("team").noun(NounDeclension::Regular, Countability::Count);
+    Thalakos("Thalakos").invariant_catalog_noun();
     Then("then").adverb();
     Time("time")
         .noun(NounDeclension::Regular, Countability::CountOrMass)
@@ -704,6 +749,7 @@ vocabulary! {
     ));
     Toughness("toughness").noun(NounDeclension::Regular, Countability::Mass);
     Transform("transform").verb(VerbForm::Regular);
+    Treefolk("Treefolk").invariant_catalog_noun();
     Triple("triple").verb(VerbForm::Regular);
     Turn("turn")
         .noun(NounDeclension::Regular, Countability::Count)
@@ -716,17 +762,25 @@ vocabulary! {
             .with_present_participle("untapping")
             .with_past_participle("untapped")
     ));
+    Vedalken("Vedalken").invariant_catalog_noun();
     Venture("venture").verb(VerbForm::Regular);
     Vote("vote").verb(VerbForm::Regular);
-    Waterbend("waterbend").verb(VerbForm::Regular);
+    Waterbend("waterbend").verb(VerbForm::Irregular(
+        IrregularVerbDef::EMPTY
+            .with_past("waterbent")
+            .with_past_participle("waterbent")
+    ));
     Way("way").noun(NounDeclension::Regular, Countability::Count);
+    Werewolf("Werewolf").irregular_catalog_noun("Werewolves");
     Win("win").verb(VerbForm::Irregular(
         IrregularVerbDef::EMPTY
             .with_past("won")
             .with_present_participle("winning")
             .with_past_participle("won")
     ));
+    Wolf("Wolf").irregular_catalog_noun("Wolves");
     Yell("yell").verb(VerbForm::Regular);
+    Zubera("Zubera").invariant_catalog_noun();
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -788,11 +842,19 @@ impl Vocabulary {
     pub(crate) fn exceptional_catalog_noun(canonical: &str) -> Option<Vocab> {
         Vocab::ALL.iter().copied().find(|vocab| {
             let definition = vocab.definition();
-            definition
-                .noun
-                .is_some_and(|(declension, _)| declension != NounDeclension::Regular)
-                && definition.spelling.eq_ignore_ascii_case(canonical)
+            definition.catalog_noun && definition.spelling.eq_ignore_ascii_case(canonical)
         })
+    }
+
+    pub(crate) fn irregular_keyword_action_head(surface: &str) -> Option<Vocab> {
+        Vocab::ALL.iter().copied().find(|vocab| {
+            matches!(vocab.definition().verb, Some(VerbForm::Irregular(_)))
+                && vocab.spelling().eq_ignore_ascii_case(surface)
+        })
+    }
+
+    pub(crate) fn render_regular_verb(lemma: &str, slot: VerbSlot) -> String {
+        render_verb_form(lemma, VerbForm::Regular, slot)
     }
 
     #[must_use]
@@ -1010,7 +1072,9 @@ fn build_reverse_index() -> HashMap<String, Vec<IndexedWord>> {
 
     for &vocab in Vocab::ALL {
         let definition = vocab.definition();
-        if let Some((_, countability)) = definition.noun {
+        if let Some((_, countability)) = definition.noun
+            && !definition.catalog_noun
+        {
             for form in [
                 NounSurface::Singular,
                 NounSurface::Plural,
@@ -1104,7 +1168,7 @@ fn insert_index(
     }
 }
 
-const VERB_SLOTS: [VerbSlot; 12] = [
+pub(crate) const VERB_SLOTS: [VerbSlot; 12] = [
     VerbSlot::Infinitive,
     VerbSlot::Imperative,
     VerbSlot::Present {
@@ -1674,10 +1738,37 @@ mod tests {
             assert_eq!(vocabulary.render_noun(&noun).as_deref(), Some(surface));
         }
 
-        assert_eq!(
-            vocabulary.render_noun(&NounInstance::Plural(Noun::Word(Vocab::Merfolk))),
-            Some("merfolk".to_owned())
-        );
+        for noun in [
+            NounInstance::Singular(Noun::Word(Vocab::Merfolk)),
+            NounInstance::Plural(Noun::Word(Vocab::Merfolk)),
+        ] {
+            assert_eq!(vocabulary.render_noun(&noun), Some("Merfolk".to_owned()));
+        }
+    }
+
+    #[test]
+    fn speculative_waterbend_past_forms_are_irregular() {
+        let vocabulary = Vocabulary::new();
+
+        for slot in [
+            VerbSlot::Past {
+                person: Person::Third,
+                number: Number::Singular,
+            },
+            VerbSlot::PastParticiple,
+        ] {
+            assert_eq!(
+                vocabulary.render_verb(Vocab::Waterbend, slot),
+                Some("waterbent".to_owned())
+            );
+            assert_eq!(
+                vocabulary.matches("waterbent", LexicalSlot::Verb(slot)),
+                vec![WordMatch::Verb(VerbInstance {
+                    verb: Verb::Word(Vocab::Waterbend),
+                    slot,
+                })]
+            );
+        }
     }
 
     #[test]
@@ -1788,7 +1879,9 @@ mod tests {
                 "{vocab:?} has no lexical role"
             );
 
-            if let Some((_, countability)) = definition.noun {
+            if let Some((_, countability)) = definition.noun
+                && !definition.catalog_noun
+            {
                 for form in [
                     NounSurface::Singular,
                     NounSurface::Plural,

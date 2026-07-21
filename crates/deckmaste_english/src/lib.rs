@@ -44,6 +44,8 @@ mod catalogs;
 mod chart;
 #[cfg(test)]
 mod forest;
+#[cfg(test)]
+mod grammar;
 mod input;
 mod numeral;
 mod parser;

@@ -114,6 +114,7 @@ impl Determiner {
             Self::Demonstrative(Demonstrative::Those) => Ok("those".to_owned()),
             Self::Target(None) => Ok("target".to_owned()),
             Self::Target(Some(quantity)) => Ok(format!("{} target", render_quantity(*quantity))),
+            Self::Quantity(quantity) => Ok(render_quantity(*quantity)),
             Self::All => Ok("all".to_owned()),
         }
     }

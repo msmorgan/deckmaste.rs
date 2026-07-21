@@ -13,10 +13,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::word::Adjective;
-use crate::word::LexicalSlot;
 use crate::word::Noun;
 use crate::word::NounInstance;
 use crate::word::NounUsage;
+use crate::word::VERB_SLOTS;
 use crate::word::Verb;
 use crate::word::VerbInstance;
 use crate::word::VerbSlot;
@@ -145,8 +145,14 @@ impl CatalogAtom {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeywordAction {
     canonical: Arc<str>,
-    pub head: Vocab,
+    head: KeywordActionHead,
     tail: Arc<str>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum KeywordActionHead {
+    Regular(Arc<str>),
+    Irregular(Vocab),
 }
 
 impl KeywordAction {
@@ -160,12 +166,35 @@ impl KeywordAction {
         &self.tail
     }
 
+    #[must_use]
+    pub fn head(&self) -> &str {
+        match &self.head {
+            KeywordActionHead::Regular(lemma) => lemma,
+            KeywordActionHead::Irregular(vocab) => vocab.spelling(),
+        }
+    }
+
+    #[must_use]
+    pub fn irregular_head(&self) -> Option<Vocab> {
+        match &self.head {
+            KeywordActionHead::Regular(_) => None,
+            KeywordActionHead::Irregular(vocab) => Some(*vocab),
+        }
+    }
+
     pub(crate) fn render(&self, slot: VerbSlot) -> Option<String> {
-        let head = Vocabulary::new().render_verb(self.head, slot)?;
+        let head = self.render_head(slot)?;
         if self.tail.is_empty() {
             Some(head)
         } else {
             Some(format!("{head} {}", self.tail))
+        }
+    }
+
+    fn render_head(&self, slot: VerbSlot) -> Option<String> {
+        match &self.head {
+            KeywordActionHead::Regular(lemma) => Some(Vocabulary::render_regular_verb(lemma, slot)),
+            KeywordActionHead::Irregular(vocab) => Vocabulary::new().render_verb(*vocab, slot),
         }
     }
 }
@@ -259,7 +288,7 @@ pub struct Catalogs {
     sources: [Vec<Arc<str>>; CatalogKind::COUNT],
     entries: Vec<CatalogAtom>,
     indexes: [CatalogIndex; CatalogKind::COUNT],
-    actions_by_head: HashMap<Vocab, Vec<KeywordAction>>,
+    actions_by_head_surface: HashMap<String, Vec<KeywordAction>>,
 }
 
 impl Default for Catalogs {
@@ -268,7 +297,7 @@ impl Default for Catalogs {
             sources: array::from_fn(|_| Vec::new()),
             entries: Vec::new(),
             indexes: array::from_fn(|_| CatalogIndex::default()),
-            actions_by_head: HashMap::new(),
+            actions_by_head_surface: HashMap::new(),
         }
     }
 }
@@ -360,19 +389,28 @@ impl Catalogs {
             index.finish();
         }
 
-        let mut actions_by_head: HashMap<Vocab, Vec<KeywordAction>> = HashMap::new();
+        let mut actions_by_head_surface: HashMap<String, Vec<KeywordAction>> = HashMap::new();
         for canonical in &self.sources[CatalogKind::KeywordAction.index()] {
-            if let Some(action) = resolve_keyword_action(canonical) {
-                actions_by_head.entry(action.head).or_default().push(action);
+            let action = resolve_keyword_action(canonical);
+            for slot in VERB_SLOTS {
+                let Some(surface) = action.render_head(slot) else {
+                    continue;
+                };
+                let candidates = actions_by_head_surface
+                    .entry(surface.to_ascii_lowercase())
+                    .or_default();
+                if !candidates.contains(&action) {
+                    candidates.push(action.clone());
+                }
             }
         }
-        for actions in actions_by_head.values_mut() {
+        for actions in actions_by_head_surface.values_mut() {
             actions.sort_by_key(|action| action.canonical.len());
         }
 
         self.entries = entries;
         self.indexes = indexes;
-        self.actions_by_head = actions_by_head;
+        self.actions_by_head_surface = actions_by_head_surface;
     }
 
     fn atom_matches(&self, text: &str, kind: CatalogKind) -> Vec<CatalogMatch> {
@@ -445,72 +483,48 @@ impl Catalogs {
         let head_surface = text
             .split_once(|character: char| !is_word_character(character))
             .map_or(text, |(head, _)| head);
-        let vocabulary = Vocabulary::new();
         let mut matches = Vec::new();
 
-        for word_match in vocabulary.matches(head_surface, LexicalSlot::Verb(slot)) {
-            let WordMatch::Verb(VerbInstance {
-                verb: Verb::Word(head),
-                ..
-            }) = word_match
-            else {
-                continue;
-            };
-            let Some(actions) = self.actions_by_head.get(&head) else {
-                continue;
-            };
-            for action in actions {
-                let rendered = action
-                    .render(slot)
-                    .expect("indexed keyword-action head must render");
-                if prefix_equals(text, &rendered, CasePolicy::Insensitive) {
-                    matches.push(CatalogMatch {
-                        length: rendered.len(),
-                        value: CatalogValue::Word(WordMatch::Verb(VerbInstance {
-                            verb: Verb::KeywordAction(action.clone()),
-                            slot,
-                        })),
-                    });
-                }
+        let key = head_surface.to_ascii_lowercase();
+        let Some(actions) = self.actions_by_head_surface.get(&key) else {
+            return matches;
+        };
+        for action in actions {
+            let rendered = action
+                .render(slot)
+                .expect("indexed keyword-action head must render");
+            if prefix_equals(text, &rendered, CasePolicy::Insensitive) {
+                matches.push(CatalogMatch {
+                    length: rendered.len(),
+                    value: CatalogValue::Word(WordMatch::Verb(VerbInstance {
+                        verb: Verb::KeywordAction(action.clone()),
+                        slot,
+                    })),
+                });
             }
         }
         matches
     }
 }
 
-fn resolve_keyword_action(canonical: &Arc<str>) -> Option<KeywordAction> {
+fn resolve_keyword_action(canonical: &Arc<str>) -> KeywordAction {
     let (head_surface, tail) = canonical
         .split_once(' ')
         .map_or((canonical.as_ref(), ""), |(head, tail)| (head, tail));
-    let vocabulary = Vocabulary::new();
-
-    for slot in [
-        VerbSlot::Imperative,
-        VerbSlot::PastParticiple,
-        VerbSlot::Infinitive,
-    ] {
-        let mut heads = vocabulary
-            .matches(head_surface, LexicalSlot::Verb(slot))
-            .into_iter()
-            .filter_map(|word_match| match word_match {
-                WordMatch::Verb(VerbInstance {
-                    verb: Verb::Word(head),
-                    ..
-                }) => Some(head),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        heads.sort_unstable_by_key(|head| head.spelling());
-        heads.dedup();
-        if let [head] = heads.as_slice() {
-            return Some(KeywordAction {
-                canonical: Arc::clone(canonical),
-                head: *head,
-                tail: Arc::from(tail),
-            });
-        }
+    let lemma = if head_surface.eq_ignore_ascii_case("prepared") {
+        "prepare"
+    } else {
+        head_surface
+    };
+    let head = Vocabulary::irregular_keyword_action_head(lemma).map_or_else(
+        || KeywordActionHead::Regular(Arc::from(lemma.to_ascii_lowercase())),
+        KeywordActionHead::Irregular,
+    );
+    KeywordAction {
+        canonical: Arc::clone(canonical),
+        head,
+        tail: Arc::from(tail),
     }
-    None
 }
 
 fn normalize_key(surface: &str, policy: CasePolicy) -> Cow<'_, str> {
@@ -570,6 +584,7 @@ fn apply_initial_case(surface: &str, canonical: &str) -> String {
 mod tests {
     use super::*;
     use crate::word::Adjective;
+    use crate::word::LexicalSlot;
     use crate::word::Noun;
     use crate::word::NounInstance;
     use crate::word::NounUsage;
@@ -707,6 +722,111 @@ mod tests {
     }
 
     #[test]
+    fn creature_subtypes_link_vocab_only_for_exceptional_declensions() {
+        let exceptional = [
+            ("Aetherborn", "Aetherborn"),
+            ("Astartes", "Astartes"),
+            ("Aurochs", "Aurochs"),
+            ("Bison", "Bison"),
+            ("Child", "Children"),
+            ("Custodes", "Custodes"),
+            ("Cyberman", "Cybermen"),
+            ("Drix", "Drix"),
+            ("Dwarf", "Dwarves"),
+            ("Elf", "Elves"),
+            ("Elk", "Elk"),
+            ("Fish", "Fish"),
+            ("Fungus", "Fungi"),
+            ("Graveborn", "Graveborn"),
+            ("Hero", "Heroes"),
+            ("Jellyfish", "Jellyfish"),
+            ("Kithkin", "Kithkin"),
+            ("Kor", "Kor"),
+            ("Merfolk", "Merfolk"),
+            ("Moonfolk", "Moonfolk"),
+            ("Mouse", "Mice"),
+            ("Myr", "Myr"),
+            ("Ox", "Oxen"),
+            ("Pegasus", "Pegasi"),
+            ("Samurai", "Samurai"),
+            ("Squid", "Squid"),
+            ("Starfish", "Starfish"),
+            ("Thalakos", "Thalakos"),
+            ("Treefolk", "Treefolk"),
+            ("Vedalken", "Vedalken"),
+            ("Werewolf", "Werewolves"),
+            ("Wolf", "Wolves"),
+            ("Zubera", "Zubera"),
+        ];
+        let regular = [
+            ("Capybara", "Capybaras"),
+            ("Echidna", "Echidnas"),
+            ("Harpy", "Harpies"),
+            ("Kraken", "Krakens"),
+            ("Lamia", "Lamias"),
+            ("Lammasu", "Lammasus"),
+            ("Leech", "Leeches"),
+            ("Mercenary", "Mercenaries"),
+            ("Naga", "Nagas"),
+            ("Nautilus", "Nautiluses"),
+            ("Ninja", "Ninjas"),
+            ("Octopus", "Octopuses"),
+            ("Orgg", "Orggs"),
+            ("Phoenix", "Phoenixes"),
+            ("Platypus", "Platypuses"),
+            ("Rukh", "Rukhs"),
+            ("Skrull", "Skrulls"),
+            ("Sphinx", "Sphinxes"),
+            ("Spy", "Spies"),
+            ("Synth", "Synths"),
+            ("Teddy", "Teddies"),
+            ("Thrull", "Thrulls"),
+            ("Volver", "Volvers"),
+            ("Walrus", "Walruses"),
+        ];
+        let catalogs = Catalogs::default().with_catalog(
+            CatalogKind::CreatureType,
+            exceptional
+                .iter()
+                .chain(&regular)
+                .map(|(singular, _)| *singular),
+        );
+
+        for (singular, plural) in exceptional {
+            let atom = catalog_atom(&catalogs, singular);
+            assert!(atom.vocab.is_some(), "{singular} must link an exception");
+            assert_eq!(atom.render_noun(false), singular);
+            assert_eq!(atom.render_noun(true), plural);
+            for surface in [singular, plural] {
+                assert!(
+                    Vocabulary::new()
+                        .matches(surface, LexicalSlot::Noun(NounUsage::Count))
+                        .is_empty(),
+                    "{surface} must be recognized through its catalog, not ordinary vocabulary"
+                );
+            }
+            assert!(
+                catalogs
+                    .matches(plural, CatalogSlot::Noun(NounUsage::Count))
+                    .iter()
+                    .any(|catalog_match| matches!(
+                        &catalog_match.value,
+                        CatalogValue::Word(WordMatch::Noun(NounInstance::Plural(
+                            Noun::Catalog(candidate)
+                        ))) if candidate.canonical() == singular
+                    ))
+            );
+        }
+
+        for (singular, plural) in regular {
+            let atom = catalog_atom(&catalogs, singular);
+            assert_eq!(atom.vocab, None, "{singular} is mechanically regular");
+            assert_eq!(atom.render_noun(false), singular);
+            assert_eq!(atom.render_noun(true), plural);
+        }
+    }
+
+    #[test]
     fn keyword_actions_delegate_head_inflection_and_keep_every_length() {
         let catalogs = Catalogs::new(
             std::iter::empty::<&str>(),
@@ -732,7 +852,7 @@ mod tests {
             &catalog_match.value,
             CatalogValue::Word(WordMatch::Verb(instance))
                 if matches!(&instance.verb, Verb::KeywordAction(action)
-                    if action.head == Vocab::Manifest)
+                    if action.head() == "manifest" && action.irregular_head().is_none())
                     && instance.slot == THIRD_SINGULAR_PRESENT
         )));
         let CatalogValue::Word(WordMatch::Verb(long_action)) = &matches[1].value else {
@@ -752,7 +872,8 @@ mod tests {
             collected,
             WordMatch::Verb(instance)
                 if matches!(&instance.verb, Verb::KeywordAction(action)
-                    if action.head == Vocab::Collect
+                    if action.head() == "collect"
+                        && action.irregular_head().is_none()
                         && action.tail() == "evidence")
         ));
 
@@ -765,14 +886,50 @@ mod tests {
             prepared,
             WordMatch::Verb(instance)
                 if matches!(&instance.verb, Verb::KeywordAction(action)
-                    if action.head == Vocab::Prepare)
+                    if action.head() == "prepare" && action.irregular_head().is_none())
         ));
 
-        assert!(
-            catalogs
-                .matches("florbulate", CatalogSlot::Verb(VerbSlot::Imperative))
-                .is_empty()
+        let invented = one_word_match(
+            &catalogs,
+            "florbulate",
+            CatalogSlot::Verb(VerbSlot::Imperative),
         );
+        assert!(matches!(
+            invented,
+            WordMatch::Verb(instance)
+                if matches!(&instance.verb, Verb::KeywordAction(action)
+                    if action.head() == "florbulate"
+                        && action.irregular_head().is_none())
+        ));
+    }
+
+    #[test]
+    fn keyword_actions_use_vocab_only_for_irregular_heads() {
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Airbend", "Waterbend"],
+            std::iter::empty::<&str>(),
+        );
+        let past = VerbSlot::Past {
+            person: Person::Third,
+            number: Number::Singular,
+        };
+
+        let airbent = one_word_match(&catalogs, "airbended", CatalogSlot::Verb(past));
+        assert!(matches!(
+            airbent,
+            WordMatch::Verb(instance)
+                if matches!(&instance.verb, Verb::KeywordAction(action)
+                    if action.head() == "airbend" && action.irregular_head().is_none())
+        ));
+
+        let waterbent = one_word_match(&catalogs, "waterbent", CatalogSlot::Verb(past));
+        assert!(matches!(
+            waterbent,
+            WordMatch::Verb(instance)
+                if matches!(&instance.verb, Verb::KeywordAction(action)
+                    if action.irregular_head() == Some(Vocab::Waterbend))
+        ));
     }
 
     fn one_word_match(catalogs: &Catalogs, surface: &str, slot: CatalogSlot) -> WordMatch {
@@ -782,5 +939,16 @@ mod tests {
             panic!("expected a grammatical word match for {surface:?}");
         };
         word
+    }
+
+    fn catalog_atom<'catalogs>(
+        catalogs: &'catalogs Catalogs,
+        canonical: &str,
+    ) -> &'catalogs CatalogAtom {
+        catalogs
+            .entries
+            .iter()
+            .find(|atom| atom.kind == CatalogKind::CreatureType && atom.canonical() == canonical)
+            .unwrap_or_else(|| panic!("missing creature type {canonical:?}"))
     }
 }

@@ -14,7 +14,7 @@ use crate::word::PronounCase;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnknownPhrase(pub String);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ThisCardForm {
     AbbreviatedName,
     FullName,
@@ -101,6 +101,7 @@ pub enum Determiner {
     Indefinite(IndefiniteArticle),
     Demonstrative(Demonstrative),
     Target(Option<Quantity>),
+    Quantity(Quantity),
     Possessive(Possessor),
     All,
 }
@@ -118,7 +119,7 @@ impl Determiner {
             Self::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
                 NounCardinality::PluralCount
             }
-            Self::Target(Some(quantity)) => quantity.noun_cardinality(),
+            Self::Target(Some(quantity)) | Self::Quantity(quantity) => quantity.noun_cardinality(),
             Self::All => NounCardinality::PluralOrMass,
             Self::The | Self::Possessive(_) => NounCardinality::Unconstrained,
         }
@@ -220,7 +221,7 @@ pub struct PrepositionalPhrase {
     pub object: Box<Phrase>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Preposition {
     At,
     By,

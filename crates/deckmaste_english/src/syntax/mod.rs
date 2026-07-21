@@ -301,6 +301,10 @@ mod tests {
             NounCardinality::PluralCount
         );
         assert_eq!(
+            Determiner::Quantity(Quantity::ThatMuch).noun_cardinality(),
+            NounCardinality::Mass
+        );
+        assert_eq!(
             Determiner::Possessive(Possessor::Pronoun(Pronoun::You)).noun_cardinality(),
             NounCardinality::Unconstrained
         );
