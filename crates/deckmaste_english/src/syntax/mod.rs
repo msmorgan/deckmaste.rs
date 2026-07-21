@@ -100,6 +100,9 @@ impl<'syntax> UnknownWalker<'syntax> {
     fn clause(&mut self, clause: &'syntax Clause, context: Option<UnknownRole>) {
         match clause {
             Clause::Simple(simple) => self.simple_clause(simple, context),
+            Clause::Elliptical(phrase) => {
+                self.phrase(phrase, UnknownRole::Clause, context);
+            }
             Clause::Conditional(conditional) => {
                 self.clause(&conditional.condition, context);
                 self.clause(&conditional.consequence, context);
@@ -234,6 +237,7 @@ impl<'syntax> UnknownWalker<'syntax> {
             }
             Phrase::UnknownPhrase(unknown) => self.push(unknown, role, context),
             Phrase::Quantity(_)
+            | Phrase::Adverb(_)
             | Phrase::CatalogAtom(_)
             | Phrase::ColorWord(_)
             | Phrase::ThisCard(_)

@@ -449,7 +449,7 @@ vocabulary! {
     Color("color").noun(NounDeclension::Regular, Countability::Count);
     Colorless("colorless").adjective();
     Commander("commander").noun(NounDeclension::Regular, Countability::Count);
-    Combat("combat").noun(NounDeclension::Regular, Countability::Mass);
+    Combat("combat").noun(NounDeclension::Regular, Countability::CountOrMass);
     Conjure("conjure").verb(VerbForm::Regular);
     Connive("connive").verb(VerbForm::Regular);
     Control("control").verb(VerbForm::Irregular(
@@ -521,6 +521,7 @@ vocabulary! {
     Effect("effect").noun(NounDeclension::Regular, Countability::Count);
     Elf("Elf").irregular_catalog_noun("Elves");
     Elk("Elk").invariant_catalog_noun();
+    End("end").noun(NounDeclension::Regular, Countability::Count);
     Equal("equal").verb(VerbForm::Regular).adjective();
     Enchant("enchant").verb(VerbForm::Regular);
     Endure("endure").verb(VerbForm::Regular);

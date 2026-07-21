@@ -3,6 +3,7 @@
     reason = "later grammar milestones consume the staged clause and ability categories"
 )]
 
+mod clause;
 mod nominal;
 
 use std::collections::HashMap;
@@ -30,6 +31,7 @@ use crate::forest::ForestSymbol;
 use crate::forest::NodeId;
 use crate::forest::ParseCost;
 use crate::forest::ParseForest;
+use crate::surface::Punctuation;
 use crate::surface::Token;
 use crate::surface::TokenKind;
 use crate::surface::lex;
@@ -38,20 +40,28 @@ use crate::syntax::Clause;
 use crate::syntax::Demonstrative;
 use crate::syntax::Determiner;
 use crate::syntax::IndefiniteArticle;
+use crate::syntax::InfinitiveClause;
 use crate::syntax::NominalComplement;
 use crate::syntax::NominalModifier;
 use crate::syntax::NominalPhrase;
 use crate::syntax::NounPhrase;
+use crate::syntax::OracleSymbol;
+use crate::syntax::Phrase;
 use crate::syntax::Possessor;
+use crate::syntax::PowerToughness;
 use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::Quantity;
 use crate::syntax::RelativeClause;
+use crate::syntax::RelativeGap;
+use crate::syntax::Sentence;
 use crate::syntax::SimpleClause;
 use crate::syntax::Subject;
 use crate::syntax::ThisCardForm;
 use crate::syntax::VerbPhrase;
 use crate::word::Adjective;
+use crate::word::Auxiliary;
+use crate::word::AuxiliaryInflection;
 use crate::word::AuxiliaryInstance;
 use crate::word::InitialSound;
 use crate::word::LexicalSlot;
@@ -78,10 +88,12 @@ pub(crate) enum Nonterminal {
     Noun,
     Nominal,
     NounPhrase,
+    PossessiveNounPhrase,
     PrepositionalPhrase,
     RelativeClause,
     Verb,
     VerbPhrase,
+    InfinitiveClause,
     SimpleClause,
     Clause,
     Sentence,
@@ -101,6 +113,7 @@ pub(crate) enum Nonterminal {
 pub(crate) enum EnglishLexicalSlot {
     Number(NumberNotation),
     Noun(NounUsage),
+    PossessiveNoun,
     Verb(VerbSlot),
     Adjective,
     Adverb,
@@ -118,6 +131,12 @@ pub(crate) enum EnglishLexicalSlot {
     ThisCard,
     FullThisCard,
     Preposition,
+    OracleSymbol,
+    PowerToughness,
+    Punctuation(Punctuation),
+    If,
+    AsLongAs,
+    Conjunction,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -161,6 +180,15 @@ pub(crate) struct Agreement {
     number: Number,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum PredicateForm {
+    Imperative,
+    Infinitive,
+    Finite(Option<Agreement>),
+    PresentParticiple,
+    PastParticiple,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
@@ -183,9 +211,30 @@ pub(crate) enum Features {
         agreement: Option<Agreement>,
         pronoun_case: Option<PronounCase>,
     },
+    PossessiveNounPhrase {
+        form: NounForm,
+        initial_sound: InitialSound,
+        determined: bool,
+    },
     Verb(VerbSlot),
+    VerbPhrase {
+        form: PredicateForm,
+        has_direct_object: bool,
+    },
+    InfinitiveClause,
+    SimpleClause {
+        agreement: Option<Agreement>,
+        has_subject: bool,
+        standalone: bool,
+        has_direct_object: bool,
+    },
+    Clause {
+        agreement: Option<Agreement>,
+        standalone: bool,
+    },
+    Sentence,
     PrepositionalPhrase,
-    RelativeClause,
+    RelativeClause(RelativeGap),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -241,6 +290,7 @@ pub(crate) enum DeterminerKey {
     Target(Option<QuantityKey>),
     Quantity(QuantityKey),
     Possessive(Pronoun),
+    PossessiveNounPhrase { shape: u64 },
     All,
 }
 
@@ -256,12 +306,14 @@ impl DeterminerKey {
             }
             Self::Target(Some(quantity)) | Self::Quantity(quantity) => quantity.cardinality(),
             Self::All => Cardinality::PluralOrMass,
-            Self::The | Self::Possessive(_) => Cardinality::Unconstrained,
+            Self::The | Self::Possessive(_) | Self::PossessiveNounPhrase { .. } => {
+                Cardinality::Unconstrained
+            }
         }
     }
 
-    fn syntax(&self) -> Determiner {
-        match self {
+    fn syntax(&self) -> Option<Determiner> {
+        Some(match self {
             Self::The => Determiner::The,
             Self::Each => Determiner::Each,
             Self::Indefinite(IndefiniteArticleKey::A) => {
@@ -285,8 +337,9 @@ impl DeterminerKey {
             Self::Target(quantity) => Determiner::Target(quantity.map(QuantityKey::syntax)),
             Self::Quantity(quantity) => Determiner::Quantity(quantity.syntax()),
             Self::Possessive(pronoun) => Determiner::Possessive(Possessor::Pronoun(*pronoun)),
+            Self::PossessiveNounPhrase { .. } => return None,
             Self::All => Determiner::All,
-        }
+        })
     }
 }
 
@@ -309,6 +362,8 @@ pub(crate) enum LiteralKey {
     Up,
     To,
     Target,
+    If,
+    AsLongAs,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -328,6 +383,11 @@ pub(crate) enum MeaningKey {
     Auxiliary(AuxiliaryInstance),
     Verb(VerbInstance),
     Catalog(crate::catalog::CatalogAtom),
+    OracleSymbol(OracleSymbol),
+    PowerToughness(PowerToughness),
+    Punctuation(Punctuation),
+    Conjunction(crate::syntax::PredicateConjunction),
+    Subordinator(crate::syntax::Subordinator),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
     Nominal {
@@ -338,11 +398,32 @@ pub(crate) enum MeaningKey {
         agreement: Option<Agreement>,
         shape: u64,
     },
+    PossessiveNounPhrase {
+        head: NounInstance,
+        shape: u64,
+    },
     PrepositionalPhrase {
         preposition: Preposition,
         shape: u64,
     },
     RelativeClause {
+        gap: RelativeGap,
+        shape: u64,
+    },
+    VerbPhrase {
+        form: PredicateForm,
+        shape: u64,
+    },
+    InfinitiveClause {
+        shape: u64,
+    },
+    SimpleClause {
+        shape: u64,
+    },
+    Clause {
+        shape: u64,
+    },
+    Sentence {
         shape: u64,
     },
 }
@@ -357,6 +438,9 @@ enum RuleTag {
     DeterminerTarget,
     DeterminerQuantifiedTarget,
     DeterminerQuantity,
+    PossessiveNounBase,
+    PossessiveNounDetermined,
+    DeterminerPossessiveNoun,
     Adjective,
     AdjectivePhrase,
     Noun,
@@ -373,8 +457,31 @@ enum RuleTag {
     NounPhraseThisCard,
     NounPhraseFullThisCard,
     PrepositionalPhrase,
-    RelativeSecondPresent,
-    VerbSecondPresent,
+    Verb,
+    VerbPhraseBase,
+    VerbPhraseAuxiliary,
+    VerbPhraseDirectObject,
+    VerbPhraseAdjective,
+    VerbPhrasePrepositional,
+    VerbPhraseInfinitive,
+    VerbPhraseAdverb,
+    VerbPhraseAbility,
+    VerbPhraseOracleSymbol,
+    VerbPhrasePowerToughness,
+    InfinitiveTo,
+    SimpleClauseSubject,
+    SimpleClauseSubjectless,
+    ClauseSimple,
+    ClauseElliptical,
+    ClauseCoordination,
+    ClauseCoordinationComma,
+    ClauseConditionalBefore,
+    ClauseConditionalAfterElliptical,
+    ClauseConditionalAfter,
+    RelativeObject,
+    SentencePeriod,
+    SentenceExclamation,
+    SentenceQuestion,
 }
 
 pub(crate) struct EnglishGrammar<'source, 'catalogs> {
@@ -394,6 +501,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
     ) -> Self {
         let mut builder = RuleBuilder::default();
         builder.add_nominal_rules();
+        builder.add_clause_rules();
         Self {
             source,
             catalogs,
@@ -472,8 +580,29 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         let Some(suffix) = self.source.get(token.span.start..) else {
             return Vec::new();
         };
-        self.catalogs
-            .matches(suffix, slot)
+        let mut catalog_matches = self.catalogs.matches(suffix, slot);
+        let sentence_initial = start == 0
+            || tokens.get(start.wrapping_sub(1)).is_some_and(|token| {
+                matches!(
+                    token.kind,
+                    TokenKind::Newline
+                        | TokenKind::Bullet
+                        | TokenKind::Punctuation(
+                            Punctuation::Period | Punctuation::Exclamation | Punctuation::Question
+                        )
+                )
+            });
+        if sentence_initial
+            && suffix
+                .as_bytes()
+                .first()
+                .is_some_and(u8::is_ascii_uppercase)
+        {
+            let mut lowercased = suffix.to_owned();
+            lowercased.make_ascii_lowercase();
+            catalog_matches.extend(self.catalogs.matches(&lowercased, slot));
+        }
+        catalog_matches
             .into_iter()
             .filter_map(|catalog_match| {
                 let end = Self::catalog_end(tokens, start, catalog_match.length)?;
@@ -487,7 +616,12 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                     }),
                 }
             })
-            .collect()
+            .fold(Vec::new(), |mut matches, candidate| {
+                if !matches.contains(&candidate) {
+                    matches.push(candidate);
+                }
+                matches
+            })
     }
 }
 
@@ -611,6 +745,13 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .into_iter()
                 .collect(),
             EnglishLexicalSlot::Preposition => self.scan_preposition(tokens, start),
+            slot @ (EnglishLexicalSlot::PossessiveNoun
+            | EnglishLexicalSlot::OracleSymbol
+            | EnglishLexicalSlot::PowerToughness
+            | EnglishLexicalSlot::Punctuation(_)
+            | EnglishLexicalSlot::If
+            | EnglishLexicalSlot::AsLongAs
+            | EnglishLexicalSlot::Conjunction) => self.scan_clause_lexical(slot, tokens, start),
         }
     }
 
@@ -624,6 +765,153 @@ impl Grammar for EnglishGrammar<'_, '_> {
 }
 
 impl EnglishGrammar<'_, '_> {
+    fn scan_clause_lexical(
+        &self,
+        slot: EnglishLexicalSlot,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        match slot {
+            EnglishLexicalSlot::PossessiveNoun => self.scan_possessive_noun(tokens, start),
+            EnglishLexicalSlot::OracleSymbol => self
+                .magic_match(tokens, start, TokenKind::OracleSymbol)
+                .and_then(|(surface, end)| {
+                    OracleSymbol::new(surface).map(|symbol| LexicalMatch {
+                        end,
+                        features: Features::None,
+                        meaning: MeaningKey::OracleSymbol(symbol),
+                        local_cost: ParseCost::default(),
+                    })
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::PowerToughness => self
+                .magic_match(tokens, start, TokenKind::PowerToughness)
+                .and_then(|(surface, end)| {
+                    parse_power_toughness(surface).map(|power_toughness| LexicalMatch {
+                        end,
+                        features: Features::None,
+                        meaning: MeaningKey::PowerToughness(power_toughness),
+                        local_cost: ParseCost::default(),
+                    })
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::Punctuation(expected) => tokens
+                .get(start)
+                .filter(|token| token.kind == TokenKind::Punctuation(expected))
+                .map(|_| LexicalMatch {
+                    end: start + 1,
+                    features: Features::None,
+                    meaning: MeaningKey::Punctuation(expected),
+                    local_cost: ParseCost::default(),
+                })
+                .into_iter()
+                .collect(),
+            EnglishLexicalSlot::If => {
+                self.scan_subordinator(tokens, start, &["if"], crate::syntax::Subordinator::If)
+            }
+            EnglishLexicalSlot::AsLongAs => self.scan_subordinator(
+                tokens,
+                start,
+                &["as", "long", "as"],
+                crate::syntax::Subordinator::AsLongAs,
+            ),
+            EnglishLexicalSlot::Conjunction => self.scan_conjunction(tokens, start),
+            _ => Vec::new(),
+        }
+    }
+
+    fn scan_subordinator(
+        &self,
+        tokens: &[Token],
+        start: usize,
+        spelling: &[&str],
+        subordinator: crate::syntax::Subordinator,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        self.words_match(tokens, start, spelling)
+            .map(|end| LexicalMatch {
+                end,
+                features: Features::None,
+                meaning: MeaningKey::Subordinator(subordinator),
+                local_cost: ParseCost::default(),
+            })
+            .into_iter()
+            .collect()
+    }
+
+    fn scan_possessive_noun(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        let Some(token) = tokens
+            .get(start)
+            .filter(|token| token.kind == TokenKind::Word)
+        else {
+            return Vec::new();
+        };
+        let Some(surface) = token.span.text(self.source) else {
+            return Vec::new();
+        };
+        let Some(stem) = surface.strip_suffix("'s") else {
+            return Vec::new();
+        };
+        let mut matches = Vocabulary::new()
+            .matches(stem, LexicalSlot::Noun(NounUsage::Either))
+            .into_iter()
+            .filter_map(|word| lexical_word_match(word, start + 1))
+            .collect::<Vec<_>>();
+        matches.extend(
+            self.catalogs
+                .matches(stem, CatalogSlot::Noun(NounUsage::Either))
+                .into_iter()
+                .filter(|catalog_match| catalog_match.length == stem.len())
+                .filter_map(|catalog_match| match catalog_match.value {
+                    CatalogValue::Word(word) => lexical_word_match(word, start + 1),
+                    CatalogValue::Atom(_) => None,
+                }),
+        );
+        matches
+    }
+
+    fn magic_match<'grammar>(
+        &'grammar self,
+        tokens: &[Token],
+        start: usize,
+        kind: TokenKind,
+    ) -> Option<(&'grammar str, usize)> {
+        let token = tokens.get(start).filter(|token| token.kind == kind)?;
+        Some((token.span.text(self.source)?, start + 1))
+    }
+
+    fn scan_conjunction(
+        &self,
+        tokens: &[Token],
+        start: usize,
+    ) -> Vec<LexicalMatch<Features, MeaningKey>> {
+        use crate::syntax::PredicateConjunction;
+
+        let Some(surface) = self.token_text(tokens, start) else {
+            return Vec::new();
+        };
+        let conjunction = if surface.eq_ignore_ascii_case("and") {
+            PredicateConjunction::And
+        } else if surface.eq_ignore_ascii_case("or") {
+            PredicateConjunction::Or
+        } else if surface.eq_ignore_ascii_case("then") {
+            PredicateConjunction::Then
+        } else {
+            return Vec::new();
+        };
+        vec![LexicalMatch {
+            end: start + 1,
+            features: Features::None,
+            meaning: MeaningKey::Conjunction(conjunction),
+            local_cost: ParseCost::default(),
+        }]
+    }
+
     fn scan_determiner(
         &self,
         tokens: &[Token],
@@ -699,6 +987,8 @@ impl EnglishGrammar<'_, '_> {
             Preposition::Onto
         } else if surface.eq_ignore_ascii_case("to") {
             Preposition::To
+        } else if surface.eq_ignore_ascii_case("until") {
+            Preposition::Until
         } else if surface.eq_ignore_ascii_case("under") {
             Preposition::Under
         } else if surface.eq_ignore_ascii_case("with") {
@@ -798,6 +1088,11 @@ impl RuleBuilder {
             [n(N::Quantity), l(L::DeterminerTarget)],
         );
         self.add(RuleTag::DeterminerQuantity, N::Determiner, [n(N::Quantity)]);
+        self.add(
+            RuleTag::DeterminerPossessiveNoun,
+            N::Determiner,
+            [n(N::PossessiveNounPhrase)],
+        );
 
         self.add(RuleTag::Adjective, N::Adjective, [l(L::Adjective)]);
         self.add(
@@ -806,6 +1101,16 @@ impl RuleBuilder {
             [n(N::Adjective)],
         );
         self.add(RuleTag::Noun, N::Noun, [l(L::Noun(NounUsage::Either))]);
+        self.add(
+            RuleTag::PossessiveNounBase,
+            N::PossessiveNounPhrase,
+            [l(L::PossessiveNoun)],
+        );
+        self.add(
+            RuleTag::PossessiveNounDetermined,
+            N::PossessiveNounPhrase,
+            [n(N::Determiner), n(N::PossessiveNounPhrase)],
+        );
 
         self.add(RuleTag::NominalNoun, N::Nominal, [n(N::Noun)]);
         self.add_with_cost(
@@ -817,10 +1122,14 @@ impl RuleBuilder {
                 ..ParseCost::default()
             },
         );
-        self.add(
+        self.add_with_cost(
             RuleTag::NominalNounModifier,
             N::Nominal,
             [n(N::Noun), n(N::Nominal)],
+            ParseCost {
+                precedence: 1,
+                ..ParseCost::default()
+            },
         );
         self.add(
             RuleTag::NominalDeterminer,
@@ -866,19 +1175,10 @@ impl RuleBuilder {
             N::PrepositionalPhrase,
             [l(L::Preposition), n(N::NounPhrase)],
         );
-        self.add(
-            RuleTag::VerbSecondPresent,
-            N::Verb,
-            [l(L::Verb(VerbSlot::Present {
-                person: Person::Second,
-                number: Number::Singular,
-            }))],
-        );
-        self.add(
-            RuleTag::RelativeSecondPresent,
-            N::RelativeClause,
-            [n(N::NounPhrase), n(N::Verb)],
-        );
+    }
+
+    fn add_clause_rules(&mut self) {
+        clause::add_rules(self);
     }
 }
 
@@ -1030,6 +1330,36 @@ fn surface_initial_sound(surface: &str) -> InitialSound {
     }
 }
 
+fn parse_power_toughness(surface: &str) -> Option<PowerToughness> {
+    let (power, toughness) = surface.split_once('/')?;
+    Some(PowerToughness {
+        power: parse_signed_scalar(power)?,
+        toughness: parse_signed_scalar(toughness)?,
+    })
+}
+
+fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::SignedScalar> {
+    use crate::syntax::ScalarSign;
+    use crate::syntax::ScalarValue;
+
+    let (sign, body) = if let Some(body) = surface.strip_prefix('+') {
+        (ScalarSign::Plus, body)
+    } else if let Some(body) = surface
+        .strip_prefix('-')
+        .or_else(|| surface.strip_prefix('−'))
+    {
+        (ScalarSign::Minus, body)
+    } else {
+        (ScalarSign::None, surface)
+    };
+    let value = match body {
+        "X" => ScalarValue::X,
+        "*" => ScalarValue::Star,
+        _ => ScalarValue::Integer(body.parse().ok()?),
+    };
+    Some(crate::syntax::SignedScalar { sign, value })
+}
+
 fn reduce(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
@@ -1044,6 +1374,9 @@ fn reduce(
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity => reduce_quantity_or_determiner(tag, children)?,
+        RuleTag::PossessiveNounBase
+        | RuleTag::PossessiveNounDetermined
+        | RuleTag::DeterminerPossessiveNoun => reduce_possessive_noun_phrase(tag, children, shape)?,
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
         | RuleTag::Noun
@@ -1059,15 +1392,108 @@ fn reduce(
         | RuleTag::NounPhraseReciprocal
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
-        | RuleTag::PrepositionalPhrase
-        | RuleTag::RelativeSecondPresent
-        | RuleTag::VerbSecondPresent => reduce_phrase(tag, children, shape)?,
+        | RuleTag::PrepositionalPhrase => reduce_phrase(tag, children, shape)?,
+        RuleTag::Verb
+        | RuleTag::VerbPhraseBase
+        | RuleTag::VerbPhraseAuxiliary
+        | RuleTag::VerbPhraseDirectObject
+        | RuleTag::VerbPhraseAdjective
+        | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhraseInfinitive
+        | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::InfinitiveTo
+        | RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseSubjectless
+        | RuleTag::ClauseSimple
+        | RuleTag::ClauseElliptical
+        | RuleTag::ClauseCoordination
+        | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseConditionalBefore
+        | RuleTag::ClauseConditionalAfterElliptical
+        | RuleTag::ClauseConditionalAfter
+        | RuleTag::RelativeObject
+        | RuleTag::SentencePeriod
+        | RuleTag::SentenceExclamation
+        | RuleTag::SentenceQuestion => clause::reduce_clause(tag, children, shape)?,
     };
     Some(Reduction {
         features,
         meaning,
         local_cost: ParseCost::default(),
     })
+}
+
+fn reduce_possessive_noun_phrase(
+    tag: RuleTag,
+    children: &[Child<'_, EnglishGrammar<'_, '_>>],
+    shape: u64,
+) -> Option<Reduced> {
+    match tag {
+        RuleTag::PossessiveNounBase => {
+            let Features::Noun {
+                form,
+                initial_sound,
+            } = children.first()?.features
+            else {
+                return None;
+            };
+            let MeaningKey::Noun(head) = children.first()?.meaning else {
+                return None;
+            };
+            Some((
+                Features::PossessiveNounPhrase {
+                    form: *form,
+                    initial_sound: *initial_sound,
+                    determined: false,
+                },
+                MeaningKey::PossessiveNounPhrase {
+                    head: head.clone(),
+                    shape,
+                },
+            ))
+        }
+        RuleTag::PossessiveNounDetermined => {
+            let MeaningKey::Determiner(determiner) = children.first()?.meaning else {
+                return None;
+            };
+            let Features::PossessiveNounPhrase {
+                form,
+                initial_sound,
+                determined,
+            } = children.get(1)?.features
+            else {
+                return None;
+            };
+            if *determined
+                || !cardinality_accepts(determiner.cardinality(), *form)
+                || !article_accepts(determiner, *initial_sound)
+            {
+                return None;
+            }
+            let MeaningKey::PossessiveNounPhrase { head, .. } = children.get(1)?.meaning else {
+                return None;
+            };
+            Some((
+                Features::PossessiveNounPhrase {
+                    form: *form,
+                    initial_sound: *initial_sound,
+                    determined: true,
+                },
+                MeaningKey::PossessiveNounPhrase {
+                    head: head.clone(),
+                    shape,
+                },
+            ))
+        }
+        RuleTag::DeterminerPossessiveNoun => Some((
+            Features::Determiner(Cardinality::Unconstrained),
+            MeaningKey::Determiner(DeterminerKey::PossessiveNounPhrase { shape }),
+        )),
+        _ => None,
+    }
 }
 
 type Reduced = (Features, MeaningKey);
@@ -1307,26 +1733,6 @@ fn reduce_phrase(
                 },
             ))
         }
-        RuleTag::RelativeSecondPresent => {
-            let Features::NounPhrase {
-                agreement: Some(agreement),
-                pronoun_case: Some(PronounCase::Subject),
-            } = children.first()?.features
-            else {
-                return None;
-            };
-            let Features::Verb(slot) = children.get(1)?.features else {
-                return None;
-            };
-            if !slot_agrees(*slot, *agreement) {
-                return None;
-            }
-            Some((
-                Features::RelativeClause,
-                MeaningKey::RelativeClause { shape },
-            ))
-        }
-        RuleTag::VerbSecondPresent => Some(propagate(children.first()?)),
         _ => None,
     }
 }
@@ -1438,6 +1844,13 @@ impl ParsedNonterminal {
             _ => None,
         }
     }
+
+    pub(crate) fn sentence(&self) -> Option<&crate::syntax::Sentence> {
+        match &self.syntax {
+            Lowered::Sentence(sentence) => Some(sentence),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1492,13 +1905,26 @@ enum Lowered {
     AdjectivePhrase(AdjectivePhrase),
     Noun(NounInstance),
     Nominal(NominalPhrase),
+    PossessiveNominal(NominalPhrase),
     NounPhrase(NounPhrase),
+    Catalog(crate::catalog::CatalogAtom),
+    Adverb(Vocab),
+    Auxiliary(AuxiliaryInstance),
+    OracleSymbol(OracleSymbol),
+    PowerToughness(PowerToughness),
     Pronoun(PronounInstance),
     ThisCard(ThisCardForm),
     Preposition(Preposition),
     PrepositionalPhrase(PrepositionalPhrase),
     Verb(VerbInstance),
+    VerbPhrase(VerbPhrase),
+    InfinitiveClause(InfinitiveClause),
+    SimpleClause(SimpleClause),
+    Clause(Clause),
     RelativeClause(RelativeClause),
+    Sentence(Sentence),
+    Conjunction(crate::syntax::PredicateConjunction),
+    Subordinator(crate::syntax::Subordinator),
     Ignored,
 }
 
@@ -1525,27 +1951,37 @@ fn lower(
 
 fn lower_lexical(meaning: &MeaningKey) -> Option<Lowered> {
     Some(match meaning {
-        MeaningKey::Literal(_)
-        | MeaningKey::Catalog(_)
-        | MeaningKey::Adverb(_)
-        | MeaningKey::Auxiliary(_) => Lowered::Ignored,
+        MeaningKey::Literal(_) | MeaningKey::Punctuation(_) => Lowered::Ignored,
         MeaningKey::Number(number) => Lowered::Number(*number),
         MeaningKey::Quantity(quantity) => Lowered::Quantity(quantity.syntax()),
-        MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.syntax()),
+        MeaningKey::Determiner(determiner) => Lowered::Determiner(determiner.syntax()?),
         MeaningKey::Noun(noun) => Lowered::Noun(noun.clone()),
         MeaningKey::Adjective(adjective) => Lowered::Adjective(adjective.clone()),
         MeaningKey::AdjectivePhrase { head, .. } => Lowered::AdjectivePhrase(AdjectivePhrase {
             head: head.clone(),
             complements: Vec::new(),
         }),
+        MeaningKey::Adverb(adverb) => Lowered::Adverb(*adverb),
         MeaningKey::Pronoun(pronoun) => Lowered::Pronoun(*pronoun),
+        MeaningKey::Auxiliary(auxiliary) => Lowered::Auxiliary(*auxiliary),
         MeaningKey::Verb(verb) => Lowered::Verb(verb.clone()),
+        MeaningKey::Catalog(atom) => Lowered::Catalog(atom.clone()),
+        MeaningKey::OracleSymbol(symbol) => Lowered::OracleSymbol(symbol.clone()),
+        MeaningKey::PowerToughness(power_toughness) => Lowered::PowerToughness(*power_toughness),
+        MeaningKey::Conjunction(conjunction) => Lowered::Conjunction(*conjunction),
+        MeaningKey::Subordinator(subordinator) => Lowered::Subordinator(*subordinator),
         MeaningKey::ThisCard(form) => Lowered::ThisCard(*form),
         MeaningKey::Preposition(preposition) => Lowered::Preposition(*preposition),
         MeaningKey::Nominal { .. }
         | MeaningKey::NounPhrase { .. }
+        | MeaningKey::PossessiveNounPhrase { .. }
         | MeaningKey::PrepositionalPhrase { .. }
-        | MeaningKey::RelativeClause { .. } => return None,
+        | MeaningKey::RelativeClause { .. }
+        | MeaningKey::VerbPhrase { .. }
+        | MeaningKey::InfinitiveClause { .. }
+        | MeaningKey::SimpleClause { .. }
+        | MeaningKey::Clause { .. }
+        | MeaningKey::Sentence { .. } => return None,
     })
 }
 
@@ -1559,6 +1995,9 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::DeterminerTarget
         | RuleTag::DeterminerQuantifiedTarget
         | RuleTag::DeterminerQuantity => lower_quantity_or_determiner(tag, children),
+        RuleTag::PossessiveNounBase
+        | RuleTag::PossessiveNounDetermined
+        | RuleTag::DeterminerPossessiveNoun => lower_possessive_noun_phrase(tag, children),
         RuleTag::Adjective
         | RuleTag::AdjectivePhrase
         | RuleTag::Noun
@@ -1574,9 +2013,67 @@ fn lower_rule(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
         | RuleTag::NounPhraseReciprocal
         | RuleTag::NounPhraseThisCard
         | RuleTag::NounPhraseFullThisCard
-        | RuleTag::PrepositionalPhrase
-        | RuleTag::RelativeSecondPresent
-        | RuleTag::VerbSecondPresent => lower_phrase(tag, children),
+        | RuleTag::PrepositionalPhrase => lower_phrase(tag, children),
+        RuleTag::Verb
+        | RuleTag::VerbPhraseBase
+        | RuleTag::VerbPhraseAuxiliary
+        | RuleTag::VerbPhraseDirectObject
+        | RuleTag::VerbPhraseAdjective
+        | RuleTag::VerbPhrasePrepositional
+        | RuleTag::VerbPhraseInfinitive
+        | RuleTag::VerbPhraseAdverb
+        | RuleTag::VerbPhraseAbility
+        | RuleTag::VerbPhraseOracleSymbol
+        | RuleTag::VerbPhrasePowerToughness
+        | RuleTag::InfinitiveTo
+        | RuleTag::SimpleClauseSubject
+        | RuleTag::SimpleClauseSubjectless
+        | RuleTag::ClauseSimple
+        | RuleTag::ClauseElliptical
+        | RuleTag::ClauseCoordination
+        | RuleTag::ClauseCoordinationComma
+        | RuleTag::ClauseConditionalBefore
+        | RuleTag::ClauseConditionalAfterElliptical
+        | RuleTag::ClauseConditionalAfter
+        | RuleTag::RelativeObject
+        | RuleTag::SentencePeriod
+        | RuleTag::SentenceExclamation
+        | RuleTag::SentenceQuestion => clause::lower_clause(tag, children),
+    }
+}
+
+fn lower_possessive_noun_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
+    match tag {
+        RuleTag::PossessiveNounBase => {
+            let Lowered::Noun(head) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::PossessiveNominal(NominalPhrase {
+                determiner: None,
+                modifiers: Vec::new(),
+                head,
+                complements: Vec::new(),
+            }))
+        }
+        RuleTag::PossessiveNounDetermined => {
+            let Lowered::Determiner(determiner) = take(children, 0)? else {
+                return None;
+            };
+            let Lowered::PossessiveNominal(mut nominal) = take(children, 1)? else {
+                return None;
+            };
+            nominal.determiner = Some(determiner);
+            Some(Lowered::PossessiveNominal(nominal))
+        }
+        RuleTag::DeterminerPossessiveNoun => {
+            let Lowered::PossessiveNominal(possessor) = take(children, 0)? else {
+                return None;
+            };
+            Some(Lowered::Determiner(Determiner::Possessive(
+                Possessor::NounPhrase(Box::new(NounPhrase::Nominal(possessor))),
+            )))
+        }
+        _ => None,
     }
 }
 
@@ -1734,26 +2231,6 @@ fn lower_phrase(tag: RuleTag, children: &mut [Lowered]) -> Option<Lowered> {
                 object: Box::new(crate::syntax::Phrase::NounPhrase(Box::new(object))),
             }))
         }
-        RuleTag::RelativeSecondPresent => {
-            let Lowered::NounPhrase(subject) = take(children, 0)? else {
-                return None;
-            };
-            let Lowered::Verb(verb) = take(children, 1)? else {
-                return None;
-            };
-            Some(Lowered::RelativeClause(RelativeClause {
-                clause: Box::new(Clause::Simple(SimpleClause {
-                    subject: Some(Subject::NounPhrase(subject)),
-                    predicate: VerbPhrase {
-                        auxiliaries: Vec::new(),
-                        preverb_modifiers: Vec::new(),
-                        verb,
-                        dependents: Vec::new(),
-                    },
-                })),
-            }))
-        }
-        RuleTag::VerbSecondPresent => take(children, 0),
         _ => None,
     }
 }

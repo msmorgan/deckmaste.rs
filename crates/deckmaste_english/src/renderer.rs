@@ -292,6 +292,7 @@ impl<'identity> Renderer<'identity> {
     fn clause(&self, clause: &Clause) -> Result<String, RenderError> {
         match clause {
             Clause::Simple(simple) => self.simple_clause(simple),
+            Clause::Elliptical(phrase) => self.phrase(phrase),
             Clause::Conditional(conditional) => {
                 let condition = self.clause(&conditional.condition)?;
                 let consequence = self.clause(&conditional.consequence)?;
@@ -546,6 +547,7 @@ impl<'identity> Renderer<'identity> {
             Phrase::AdjectivePhrase(adjective) => self.adjective_phrase(adjective),
             Phrase::PrepositionalPhrase(preposition) => self.prepositional_phrase(preposition),
             Phrase::Quantity(quantity) => Ok(render_quantity(*quantity)),
+            Phrase::Adverb(adverb) => Ok(adverb.spelling().to_owned()),
             Phrase::CatalogAtom(atom) => Ok(match atom.kind {
                 CatalogKind::KeywordAbility
                 | CatalogKind::KeywordAction
@@ -670,6 +672,7 @@ fn render_preposition(preposition: Preposition) -> &'static str {
         Preposition::On => "on",
         Preposition::Onto => "onto",
         Preposition::To => "to",
+        Preposition::Until => "until",
         Preposition::Under => "under",
         Preposition::With => "with",
         Preposition::Without => "without",
@@ -1203,6 +1206,7 @@ mod tests {
             vec![],
             catalog_noun(catalogs, surface, plural),
             vec![NominalComplement::Relative(RelativeClause {
+                gap: RelativeGap::Object,
                 clause: Box::new(simple(
                     Some(Subject::NounPhrase(NounPhrase::Pronoun {
                         pronoun: Pronoun::You,

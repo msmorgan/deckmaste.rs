@@ -10,6 +10,7 @@ use crate::word::ColorWord;
 use crate::word::NounInstance;
 use crate::word::Pronoun;
 use crate::word::PronounCase;
+use crate::word::Vocab;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnknownPhrase(pub String);
@@ -20,7 +21,7 @@ pub enum ThisCardForm {
     FullName,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OracleSymbol(Arc<str>);
 
 impl OracleSymbol {
@@ -47,27 +48,27 @@ pub struct NumberLiteral {
     pub numeral: Numeral,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScalarSign {
     None,
     Plus,
     Minus,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScalarValue {
     Integer(u32),
     X,
     Star,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SignedScalar {
     pub sign: ScalarSign,
     pub value: ScalarValue,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PowerToughness {
     pub power: SignedScalar,
     pub toughness: SignedScalar,
@@ -233,6 +234,7 @@ pub enum Preposition {
     On,
     Onto,
     To,
+    Until,
     Under,
     With,
     Without,
@@ -244,6 +246,7 @@ pub enum Phrase {
     AdjectivePhrase(Box<AdjectivePhrase>),
     PrepositionalPhrase(Box<PrepositionalPhrase>),
     Quantity(Quantity),
+    Adverb(Vocab),
     CatalogAtom(CatalogAtom),
     ColorWord(ColorWord),
     ThisCard(ThisCardForm),

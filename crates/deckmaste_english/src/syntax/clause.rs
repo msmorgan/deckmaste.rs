@@ -8,6 +8,7 @@ use crate::word::VerbInstance;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Clause {
     Simple(SimpleClause),
+    Elliptical(Phrase),
     Conditional(ConditionalClause),
     Coordinated(CoordinatedClause),
     Unknown(UnknownPhrase),
@@ -67,7 +68,14 @@ pub enum InfinitiveMarker {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelativeClause {
+    pub gap: RelativeGap,
     pub clause: Box<Clause>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RelativeGap {
+    Subject,
+    Object,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,7 +92,7 @@ pub enum ConditionalPosition {
     AfterConsequence,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Subordinator {
     When,
     If,
@@ -107,7 +115,7 @@ pub struct ClauseCoordination {
     pub clause: Clause,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PredicateConjunction {
     And,
     Or,
