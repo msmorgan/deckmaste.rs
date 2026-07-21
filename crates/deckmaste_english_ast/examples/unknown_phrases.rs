@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
 use deckmaste_english_ast::Ability;
 use deckmaste_english_ast::AbilityKind;
@@ -39,6 +40,14 @@ struct Args {
     /// Ignore phrases shorter than this many words.
     #[arg(long, default_value_t = 0)]
     min_words: usize,
+
+    /// Ignore phrases longer than this many words.
+    #[arg(long)]
+    max_words: Option<usize>,
+
+    /// Sort by phrase text instead of by descending word count.
+    #[arg(long)]
+    alphabetical: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,6 +75,12 @@ struct Occurrence {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+    if args
+        .max_words
+        .is_some_and(|max_words| max_words < args.min_words)
+    {
+        bail!("--max-words must be greater than or equal to --min-words");
+    }
     let data_path = args.data.unwrap_or_else(default_data_path);
     let catalogs_path = args.catalogs.unwrap_or_else(default_catalogs_path);
     let catalogs = load_catalogs(&catalogs_path)?;
@@ -89,16 +104,13 @@ fn main() -> Result<()> {
         let ast = parse_with_catalogs(&source, &catalogs);
         collect_oracle_text(&mut occurrences, card, &source, &ast);
     }
-    occurrences.sort_unstable_by(|left, right| {
-        right
-            .words
-            .cmp(&left.words)
-            .then_with(|| left.card.cmp(&right.card))
-            .then_with(|| left.role.cmp(right.role))
-            .then_with(|| left.text.cmp(&right.text))
-    });
+    sort_occurrences(&mut occurrences, args.alphabetical);
 
-    let maximum = occurrences.first().map_or(0, |occurrence| occurrence.words);
+    let maximum = occurrences
+        .iter()
+        .map(|occurrence| occurrence.words)
+        .max()
+        .unwrap_or(0);
     let over_three = occurrences
         .iter()
         .filter(|occurrence| occurrence.words > 3)
@@ -132,13 +144,20 @@ fn main() -> Result<()> {
         phrase_lengths[5],
         phrase_lengths[6]
     );
-    println!(
-        "longest UnknownPhrase occurrences with at least {} words:",
-        args.min_words
-    );
+    let order = if args.alphabetical { "alphabetical" } else { "longest-first" };
+    match args.max_words {
+        Some(max_words) => println!(
+            "UnknownPhrase occurrences from {} through {max_words} words ({order}):",
+            args.min_words
+        ),
+        None => println!(
+            "UnknownPhrase occurrences with at least {} words ({order}):",
+            args.min_words
+        ),
+    }
     for (index, occurrence) in occurrences
         .iter()
-        .filter(|occurrence| occurrence.words >= args.min_words)
+        .filter(|occurrence| matches_word_bounds(occurrence.words, args.min_words, args.max_words))
         .take(args.limit)
         .enumerate()
     {
@@ -345,6 +364,31 @@ fn phrase_word_count(text: &str) -> usize {
     text.split_whitespace().count()
 }
 
+fn matches_word_bounds(words: usize, min_words: usize, max_words: Option<usize>) -> bool {
+    words >= min_words && max_words.is_none_or(|maximum| words <= maximum)
+}
+
+fn sort_occurrences(occurrences: &mut [Occurrence], alphabetical: bool) {
+    if alphabetical {
+        occurrences.sort_unstable_by(|left, right| {
+            left.text
+                .cmp(&right.text)
+                .then_with(|| left.card.cmp(&right.card))
+                .then_with(|| left.role.cmp(right.role))
+                .then_with(|| right.words.cmp(&left.words))
+        });
+    } else {
+        occurrences.sort_unstable_by(|left, right| {
+            right
+                .words
+                .cmp(&left.words)
+                .then_with(|| left.card.cmp(&right.card))
+                .then_with(|| left.role.cmp(right.role))
+                .then_with(|| left.text.cmp(&right.text))
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -370,6 +414,43 @@ mod tests {
     fn symbols_separated_from_nothing_else_count_as_one_word() {
         assert_eq!(phrase_word_count("+1/+1"), 1);
         assert_eq!(phrase_word_count("{W}{U}{B}{R}{G}"), 1);
+    }
+
+    #[test]
+    fn word_bounds_are_inclusive() {
+        assert!(matches_word_bounds(3, 3, Some(3)));
+        assert!(matches_word_bounds(4, 3, None));
+        assert!(!matches_word_bounds(2, 3, Some(5)));
+        assert!(!matches_word_bounds(6, 3, Some(5)));
+    }
+
+    #[test]
+    fn alphabetical_sort_uses_phrase_then_card_then_role() {
+        let occurrence = |card: &str, role: &'static str, text: &str| Occurrence {
+            card: card.to_owned(),
+            role,
+            text: text.to_owned(),
+            words: phrase_word_count(text),
+        };
+        let mut occurrences = vec![
+            occurrence("Card B", "subject", "zebra"),
+            occurrence("Card B", "verb", "alpha"),
+            occurrence("Card A", "subject", "alpha"),
+        ];
+
+        sort_occurrences(&mut occurrences, true);
+
+        assert_eq!(
+            occurrences
+                .iter()
+                .map(|occurrence| (occurrence.text.as_str(), occurrence.card.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                ("alpha", "Card A"),
+                ("alpha", "Card B"),
+                ("zebra", "Card B")
+            ]
+        );
     }
 
     #[test]
