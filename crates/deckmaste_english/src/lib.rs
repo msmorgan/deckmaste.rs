@@ -40,6 +40,7 @@
 mod ast;
 mod catalogs;
 mod input;
+mod numeral;
 mod parser;
 mod source_debug;
 mod span;
@@ -84,6 +85,7 @@ pub use ast::TriggeredAbility;
 pub use ast::VerbKind;
 pub use catalogs::Catalogs;
 pub use input::normalize_self_references;
+pub use numeral::Numeral;
 pub use parser::parse;
 pub use parser::parse_with_catalogs;
 pub use source_debug::AbilitiesSourceDebug;
