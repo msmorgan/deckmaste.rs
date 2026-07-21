@@ -286,8 +286,8 @@ fn parse_ordinal_candidate(input: &str) -> Option<i32> {
 
 fn parse_roman_candidate(input: &str) -> Option<i32> {
     match input {
-        "infinitum" => return Some(4_000),
-        "infinitum negativum" => return Some(-4_000),
+        "infinitum" => return Some(i32::MAX),
+        "infinitum negativum" => return Some(i32::MIN),
         "nulla" => return Some(0),
         _ => {}
     }
@@ -432,13 +432,13 @@ mod tests {
         #[test]
         fn roman_positive_infinity_normalizes(value in 4_000i32..=i32::MAX) {
             let formatted = Numeral::Roman.format(value);
-            prop_assert_eq!(Numeral::Roman.parse(&formatted), Ok(4_000));
+            prop_assert_eq!(Numeral::Roman.parse(&formatted), Ok(i32::MAX));
         }
 
         #[test]
         fn roman_negative_infinity_normalizes(value in i32::MIN..=-4_000i32) {
             let formatted = Numeral::Roman.format(value);
-            prop_assert_eq!(Numeral::Roman.parse(&formatted), Ok(-4_000));
+            prop_assert_eq!(Numeral::Roman.parse(&formatted), Ok(i32::MIN));
         }
 
         #[test]
