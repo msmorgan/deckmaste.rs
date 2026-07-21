@@ -195,6 +195,23 @@ pub struct SimpleClause {
     pub span: Span,
     pub subject: Option<Span>,
     pub predicate: Option<Predicate>,
+    /// Further predicates coordinated with `predicate` and sharing its
+    /// subject, such as `and have haste` in `creatures get +1/+1 and have
+    /// haste`.
+    pub coordinated_predicates: Vec<CoordinatedPredicate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinatedPredicate {
+    pub conjunction: PredicateConjunction,
+    pub conjunction_span: Span,
+    pub predicate: Predicate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PredicateConjunction {
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -5,6 +5,7 @@ use crate::Catalogs;
 use crate::Clause;
 use crate::ConditionalClause;
 use crate::ConditionalPosition;
+use crate::CoordinatedPredicate;
 use crate::Cost;
 use crate::Diagnostic;
 use crate::DiagnosticKind;
@@ -17,6 +18,7 @@ use crate::Mode;
 use crate::OracleText;
 use crate::Paragraph;
 use crate::Predicate;
+use crate::PredicateConjunction;
 use crate::ReminderText;
 use crate::Sentence;
 use crate::SimpleClause;
@@ -303,32 +305,79 @@ impl Parser<'_, '_> {
                 span,
                 subject: None,
                 predicate: None,
+                coordinated_predicates: Vec::new(),
             };
         };
         let predicate_start = predicate_match
             .auxiliary
             .map_or(predicate_match.verb.start, |span| span.start);
         let subject = trim_span(self.source, Span::new(span.start, predicate_start));
+        let mut current_match = predicate_match;
+        let mut current_start = predicate_start;
+        let mut coordinated_predicates = Vec::new();
+        let mut predicate = None;
+        let mut pending_coordination = None;
+
+        loop {
+            let coordination = coordinated_predicate(
+                self.source,
+                Span::new(current_match.verb.end, span.end),
+                &self.tokens,
+                self.catalogs,
+            );
+            let predicate_end = coordination.map_or(span.end, |coordination| coordination.left_end);
+            let predicate_span = trim_span(self.source, Span::new(current_start, predicate_end));
+            let parsed = self.predicate(current_match, predicate_span);
+            if let Some((conjunction, conjunction_span)) = pending_coordination.take() {
+                coordinated_predicates.push(CoordinatedPredicate {
+                    conjunction,
+                    conjunction_span,
+                    predicate: parsed,
+                });
+            } else {
+                predicate = Some(parsed);
+            }
+
+            let Some(coordination) = coordination else {
+                break;
+            };
+
+            current_match = coordination.predicate_match;
+            current_start = current_match
+                .auxiliary
+                .map_or(current_match.verb.start, |span| span.start);
+            pending_coordination = Some((coordination.conjunction, coordination.conjunction_span));
+        }
+
+        SimpleClause {
+            span,
+            subject: (!subject.is_empty()).then_some(subject),
+            predicate,
+            coordinated_predicates,
+        }
+    }
+
+    fn predicate(&self, predicate_match: PredicateMatch, span: Span) -> Predicate {
+        let predicate_start = predicate_match
+            .auxiliary
+            .map_or(predicate_match.verb.start, |span| span.start);
         let complement = trim_span(self.source, Span::new(predicate_match.verb.end, span.end));
         let negated = predicate_match
             .auxiliary
             .is_some_and(|auxiliary| is_negative(self.text(auxiliary)))
-            || words.iter().any(|token| {
-                token.span.start >= predicate_start
+            || self.tokens.iter().any(|token| {
+                matches!(token.kind, TokenKind::Word)
+                    && token.span.start >= predicate_start
                     && token.span.start < predicate_match.verb.start
                     && self.text(token.span).eq_ignore_ascii_case("not")
             });
-        SimpleClause {
+        Predicate {
             span,
-            subject: (!subject.is_empty()).then_some(subject),
-            predicate: Some(Predicate {
-                span: Span::new(predicate_start, span.end),
-                auxiliary: predicate_match.auxiliary,
-                verb: predicate_match.verb,
-                verb_kind: predicate_match.verb_kind,
-                complement: (!complement.is_empty()).then_some(complement),
-                negated,
-            }),
+            auxiliary: predicate_match.auxiliary,
+            verb: predicate_match.verb,
+            verb_kind: predicate_match.verb_kind,
+            complement: (!complement.is_empty()).then_some(complement),
+            negated,
         }
     }
 
@@ -799,10 +848,68 @@ impl Nesting {
     }
 }
 
+#[derive(Clone, Copy)]
 struct PredicateMatch {
     verb: Span,
     auxiliary: Option<Span>,
     verb_kind: VerbKind,
+}
+
+#[derive(Clone, Copy)]
+struct PredicateCoordination {
+    conjunction: PredicateConjunction,
+    conjunction_span: Span,
+    left_end: usize,
+    predicate_match: PredicateMatch,
+}
+
+fn coordinated_predicate(
+    source: &str,
+    span: Span,
+    tokens: &[Token],
+    catalogs: Option<&Catalogs>,
+) -> Option<PredicateCoordination> {
+    let text = span.text(source)?;
+    let mut state = Nesting::default();
+    for (relative, ch) in text.char_indices() {
+        if state.is_top_level() {
+            let (word, conjunction) = if text[relative..].starts_with(" and ") {
+                ("and", PredicateConjunction::And)
+            } else if text[relative..].starts_with(" or ") {
+                ("or", PredicateConjunction::Or)
+            } else {
+                state.observe(ch);
+                continue;
+            };
+            let left_end = span.start + relative;
+            let conjunction_start = left_end + 1;
+            let conjunction_span = Span::new(conjunction_start, conjunction_start + word.len());
+            let remainder = trim_span(source, Span::new(conjunction_span.end, span.end));
+            let words = tokens
+                .iter()
+                .filter(|token| {
+                    token.span.start >= remainder.start
+                        && token.span.end <= remainder.end
+                        && matches!(token.kind, TokenKind::Word)
+                })
+                .collect::<Vec<_>>();
+            if let Some(predicate_match) = predicate_word(source, remainder, &words, catalogs) {
+                let predicate_start = predicate_match
+                    .auxiliary
+                    .map_or(predicate_match.verb.start, |span| span.start);
+                if predicate_start == remainder.start {
+                    return Some(PredicateCoordination {
+                        conjunction,
+                        conjunction_span,
+                        left_end,
+                        predicate_match,
+                    });
+                }
+            }
+        }
+        state.observe(ch);
+    }
+    None
 }
 
 fn predicate_word(
@@ -914,6 +1021,7 @@ fn is_finite_verb(word: &str) -> bool {
             | "enters"
             | "exiles"
             | "gains"
+            | "get"
             | "gets"
             | "has"
             | "have"
@@ -1154,6 +1262,49 @@ mod tests {
         assert_eq!(text(source, predicate.auxiliary.unwrap()), "can't");
         assert_eq!(text(source, predicate.verb), "block");
         assert!(predicate.negated);
+    }
+
+    #[test]
+    fn shared_subject_predicates_are_coordinated() {
+        let source = "Other Goblin creatures you control get +1/+1 and have haste.";
+        let ast = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+        let predicate = clause.predicate.as_ref().unwrap();
+        assert_eq!(
+            text(source, clause.subject.unwrap()),
+            "Other Goblin creatures you control"
+        );
+        assert_eq!(text(source, predicate.verb), "get");
+        assert_eq!(text(source, predicate.complement.unwrap()), "+1/+1");
+
+        assert_eq!(clause.coordinated_predicates.len(), 1);
+        let coordinated = &clause.coordinated_predicates[0];
+        assert_eq!(coordinated.conjunction, PredicateConjunction::And);
+        assert_eq!(text(source, coordinated.conjunction_span), "and");
+        assert_eq!(text(source, coordinated.predicate.verb), "have");
+        assert_eq!(
+            text(source, coordinated.predicate.complement.unwrap()),
+            "haste"
+        );
+    }
+
+    #[test]
+    fn conjunction_inside_a_complement_is_not_a_coordinated_predicate() {
+        let source = "Destroy target artifact and enchantment.";
+        let ast = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+        let predicate = clause.predicate.as_ref().unwrap();
+        assert_eq!(
+            text(source, predicate.complement.unwrap()),
+            "target artifact and enchantment"
+        );
+        assert!(clause.coordinated_predicates.is_empty());
     }
 
     #[test]

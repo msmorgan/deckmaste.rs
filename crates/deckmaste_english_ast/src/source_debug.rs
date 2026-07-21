@@ -5,6 +5,7 @@ use crate::AbilityKind;
 use crate::ActivatedAbility;
 use crate::Clause;
 use crate::ConditionalClause;
+use crate::CoordinatedPredicate;
 use crate::Cost;
 use crate::Diagnostic;
 use crate::KeywordAbility;
@@ -348,9 +349,25 @@ impl ResolvedDebug for ConditionalClause {
 
 impl ResolvedDebug for SimpleClause {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("SimpleClause")
+        let mut clause = formatter.debug_struct("SimpleClause");
+        clause
             .field("subject", &Resolved::new(source, &self.subject))
+            .field("predicate", &Resolved::new(source, &self.predicate));
+        if !self.coordinated_predicates.is_empty() {
+            clause.field(
+                "coordinated_predicates",
+                &Resolved::new(source, self.coordinated_predicates.as_slice()),
+            );
+        }
+        clause.finish()
+    }
+}
+
+impl ResolvedDebug for CoordinatedPredicate {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("CoordinatedPredicate")
+            .field("conjunction", &self.conjunction)
             .field("predicate", &Resolved::new(source, &self.predicate))
             .finish()
     }
@@ -433,5 +450,19 @@ mod tests {
         assert!(output.contains("reminder_text: ["));
         assert!(output.contains("\"(Ignore the English in here.)\""));
         assert!(!output.contains("verb: \"Ignore\""));
+    }
+
+    #[test]
+    fn source_debug_shows_coordinated_predicates_without_spans() {
+        let source = "Other Goblin creatures you control get +1/+1 and have haste.";
+
+        let output = format!("{:#?}", parse(source).source_debug(source));
+
+        assert!(output.contains("coordinated_predicates: ["));
+        assert!(output.contains("conjunction: And"));
+        assert!(output.contains("verb: \"get\""));
+        assert!(output.contains("verb: \"have\""));
+        assert!(!output.contains("conjunction_span"));
+        assert!(!output.contains("Span"));
     }
 }
