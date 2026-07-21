@@ -56,6 +56,7 @@ pub use ast::AuxiliaryNegation;
 pub use ast::Capitalization;
 pub use ast::CatalogKind;
 pub use ast::Clause;
+pub use ast::ColorWord;
 pub use ast::CommaSeparatedClause;
 pub use ast::ConditionalClause;
 pub use ast::ConditionalPosition;

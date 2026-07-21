@@ -343,6 +343,7 @@ impl<'identity> Renderer<'identity> {
             ),
             Phrase::UnknownPhrase(text)
             | Phrase::Lexeme { text, .. }
+            | Phrase::ColorWord { text, .. }
             | Phrase::CatalogTerm { text, .. } => self.expand_self_references(text),
             Phrase::EmbeddedRulesPhrase {
                 text,

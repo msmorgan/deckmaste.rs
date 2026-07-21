@@ -357,6 +357,7 @@ impl<'a> UnknownPhraseCollector<'a> {
                 self.phrase(role, &phrase.unit);
             }
             Phrase::Lexeme { .. }
+            | Phrase::ColorWord { .. }
             | Phrase::ThisCard { .. }
             | Phrase::OracleSymbol { .. }
             | Phrase::SymbolSequence { .. }

@@ -9,6 +9,7 @@ use crate::Capitalization;
 use crate::CatalogKind;
 use crate::Catalogs;
 use crate::Clause;
+use crate::ColorWord;
 use crate::CommaSeparatedClause;
 use crate::ConditionalClause;
 use crate::ConditionalPosition;
@@ -1319,6 +1320,8 @@ fn structured_text(text: String, catalogs: Option<&Catalogs>) -> Phrase {
             value,
             spelling,
         }
+    } else if let Some(color) = color_word(&text) {
+        Phrase::ColorWord { text, color }
     } else if let Some((quantity, unit)) = quantity_parts(&text) {
         Phrase::QuantityPhrase(Box::new(QuantityPhrase {
             text,
@@ -1530,9 +1533,21 @@ fn modified_noun(text: &str) -> Option<(String, String)> {
     if head.is_empty() || head.contains(char::is_whitespace) {
         return None;
     }
-    lexical_entry(modifier)
-        .is_some_and(|(_, part_of_speech)| part_of_speech == PartOfSpeech::Adjective)
-        .then(|| (modifier.to_owned(), head.to_owned()))
+    (color_word(modifier).is_some()
+        || lexical_entry(modifier)
+            .is_some_and(|(_, part_of_speech)| part_of_speech == PartOfSpeech::Adjective))
+    .then(|| (modifier.to_owned(), head.to_owned()))
+}
+
+fn color_word(text: &str) -> Option<ColorWord> {
+    match text.to_ascii_lowercase().as_str() {
+        "white" => Some(ColorWord::White),
+        "blue" => Some(ColorWord::Blue),
+        "black" => Some(ColorWord::Black),
+        "red" => Some(ColorWord::Red),
+        "green" => Some(ColorWord::Green),
+        _ => None,
+    }
 }
 
 fn lexical_entry(text: &str) -> Option<(&'static str, PartOfSpeech)> {
@@ -1593,9 +1608,7 @@ fn lexical_entry(text: &str) -> Option<(&'static str, PartOfSpeech)> {
         "able" => ("able", PartOfSpeech::Adjective),
         "attacking" | "attacked" => ("attack", PartOfSpeech::Adjective),
         "bargained" => ("bargain", PartOfSpeech::Adjective),
-        "black" => ("black", PartOfSpeech::Adjective),
         "blocked" | "blocking" => ("block", PartOfSpeech::Adjective),
-        "blue" => ("blue", PartOfSpeech::Adjective),
         "chosen" => ("choose", PartOfSpeech::Adjective),
         "collected" => ("collect", PartOfSpeech::Adjective),
         "colorless" => ("colorless", PartOfSpeech::Adjective),
@@ -1607,7 +1620,6 @@ fn lexical_entry(text: &str) -> Option<(&'static str, PartOfSpeech)> {
         "even" => ("even", PartOfSpeech::Adjective),
         "foretold" => ("foretell", PartOfSpeech::Adjective),
         "greater" => ("great", PartOfSpeech::Adjective),
-        "green" => ("green", PartOfSpeech::Adjective),
         "kicked" => ("kick", PartOfSpeech::Adjective),
         "monstrous" => ("monstrous", PartOfSpeech::Adjective),
         "modified" => ("modify", PartOfSpeech::Adjective),
@@ -1618,14 +1630,12 @@ fn lexical_entry(text: &str) -> Option<(&'static str, PartOfSpeech)> {
         "poisoned" => ("poison", PartOfSpeech::Adjective),
         "prevented" => ("prevent", PartOfSpeech::Adjective),
         "promised" => ("promise", PartOfSpeech::Adjective),
-        "red" => ("red", PartOfSpeech::Adjective),
         "renowned" => ("renowned", PartOfSpeech::Adjective),
         "same" => ("same", PartOfSpeech::Adjective),
         "saddled" => ("saddle", PartOfSpeech::Adjective),
         "suspended" => ("suspend", PartOfSpeech::Adjective),
         "tapped" => ("tap", PartOfSpeech::Adjective),
         "untapped" => ("untap", PartOfSpeech::Adjective),
-        "white" => ("white", PartOfSpeech::Adjective),
         "alone" => ("alone", PartOfSpeech::Adverb),
         "again" => ("again", PartOfSpeech::Adverb),
         "instead" => ("instead", PartOfSpeech::Adverb),
@@ -2250,6 +2260,31 @@ mod tests {
                 part_of_speech: PartOfSpeech::Pronoun,
             }
         );
+        assert_eq!(
+            phrase("black"),
+            Phrase::ColorWord {
+                text: "black".to_owned(),
+                color: ColorWord::Black,
+            }
+        );
+        assert!(matches!(
+            phrase("black creature"),
+            Phrase::ModifiedNounPhrase(phrase)
+                if matches!(
+                    phrase.modifier.as_ref(),
+                    Phrase::ColorWord {
+                        color: ColorWord::Black,
+                        ..
+                    }
+                )
+        ));
+        assert!(matches!(
+            phrase("colorless"),
+            Phrase::Lexeme {
+                part_of_speech: PartOfSpeech::Adjective,
+                ..
+            }
+        ));
         assert_eq!(
             phrase("~"),
             Phrase::ThisCard {

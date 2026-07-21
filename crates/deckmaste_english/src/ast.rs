@@ -408,6 +408,10 @@ pub enum Phrase {
         lemma: String,
         part_of_speech: PartOfSpeech,
     },
+    ColorWord {
+        text: String,
+        color: ColorWord,
+    },
     ThisCard {
         text: String,
         form: ThisCardForm,
@@ -446,6 +450,7 @@ impl Phrase {
         match self {
             Self::UnknownPhrase(text)
             | Self::Lexeme { text, .. }
+            | Self::ColorWord { text, .. }
             | Self::ThisCard { text, .. }
             | Self::OracleSymbol { text, .. }
             | Self::SymbolSequence { text, .. }
@@ -464,6 +469,7 @@ impl Phrase {
         match self {
             Self::UnknownPhrase(_)
             | Self::Lexeme { .. }
+            | Self::ColorWord { .. }
             | Self::ThisCard { .. }
             | Self::OracleSymbol { .. }
             | Self::SymbolSequence { .. }
@@ -530,6 +536,15 @@ pub struct ModifiedNounPhrase {
     pub text: String,
     pub modifier: Box<Phrase>,
     pub head: Box<Phrase>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ColorWord {
+    White,
+    Blue,
+    Black,
+    Red,
+    Green,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
