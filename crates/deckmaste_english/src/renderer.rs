@@ -52,6 +52,7 @@ use crate::syntax::Preposition;
 use crate::syntax::PrepositionalPhrase;
 use crate::syntax::PreverbModifier;
 use crate::syntax::Quantity;
+use crate::syntax::QuotedAbility;
 use crate::syntax::RelativeBody;
 use crate::syntax::RelativeClause;
 use crate::syntax::RelativeMarker;
@@ -168,20 +169,16 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn ability(&self, ability: &Ability, capitalize: bool) -> Result<String, RenderError> {
-        let body = self.ability_kind(&ability.kind)?;
+        let body = self.ability_kind(&ability.kind, capitalize)?;
         let rendered = if let Some(ability_word) = &ability.ability_word {
-            format!(
-                "{} — {}",
-                ability_word.canonical().to_lowercase(),
-                capitalize_first(body)
-            )
+            format!("{} — {}", ability_word.spelling(), capitalize_first(body))
         } else {
             body
         };
         Ok(if capitalize { capitalize_first(rendered) } else { rendered })
     }
 
-    fn ability_kind(&self, kind: &AbilityKind) -> Result<String, RenderError> {
+    fn ability_kind(&self, kind: &AbilityKind, capitalize: bool) -> Result<String, RenderError> {
         match kind {
             AbilityKind::Activated(activated) => Ok(format!(
                 "{}: {}",
@@ -204,7 +201,7 @@ impl<'identity> Renderer<'identity> {
             )),
             AbilityKind::Modal(modal) => self.modal_ability(modal),
             AbilityKind::Keyword(keyword) => self.keyword_ability_list(keyword),
-            AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, true),
+            AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph, capitalize),
         }
     }
 
@@ -280,7 +277,7 @@ impl<'identity> Renderer<'identity> {
                     KeywordListSeparator::Semicolon => "; ",
                 });
             }
-            rendered.push_str(&item.ability.canonical().to_lowercase());
+            rendered.push_str(item.ability.spelling());
             if let Some(argument) = &item.argument {
                 rendered.push_str(match item.argument_separator {
                     Some(KeywordArgumentSeparator::Space) | None => " ",
@@ -318,9 +315,9 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn sentence(&self, sentence: &Sentence, capitalize: bool) -> Result<String, RenderError> {
-        let body = match &sentence.body {
-            SentenceBody::Independent(clause) => self.independent_clause(clause)?,
-            SentenceBody::Unknown(unknown) => self.expand_self_references(&unknown.0),
+        let (body, capitalize) = match &sentence.body {
+            SentenceBody::Independent(clause) => (self.independent_clause(clause)?, capitalize),
+            SentenceBody::Unknown(unknown) => (self.expand_self_references(&unknown.0), false),
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
         let (terminal, count) = match sentence.ending {
@@ -537,13 +534,7 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(value.toughness),
             )),
             PredicateObject::EmbeddedAbility(ability) => self.ability(ability, true),
-            PredicateObject::QuotedAbility(quoted) => {
-                let mut rendered = format!("\"{}", self.ability(&quoted.ability, true)?);
-                if quoted.closed {
-                    rendered.push('"');
-                }
-                Ok(rendered)
-            }
+            PredicateObject::QuotedAbility(quoted) => self.quoted_ability(quoted),
         }
     }
 
@@ -843,15 +834,26 @@ impl<'identity> Renderer<'identity> {
                 render_signed_scalar(power_toughness.toughness)
             )),
             Phrase::EmbeddedAbility(ability) => self.ability(ability, true),
-            Phrase::QuotedAbility(quoted) => {
-                let mut rendered = format!("\"{}", self.ability(&quoted.ability, true)?);
-                if quoted.closed {
-                    rendered.push('"');
-                }
-                Ok(rendered)
-            }
+            Phrase::QuotedAbility(quoted) => self.quoted_ability(quoted),
             Phrase::UnknownPhrase(unknown) => Ok(self.expand_self_references(&unknown.0)),
         }
+    }
+
+    fn quoted_ability(&self, quoted: &QuotedAbility) -> Result<String, RenderError> {
+        let capitalize = quoted.ability.ability_word.is_none()
+            && match &quoted.ability.kind {
+                AbilityKind::Keyword(_) => false,
+                AbilityKind::Paragraph(paragraph) => paragraph
+                    .sentences
+                    .first()
+                    .is_some_and(|sentence| matches!(sentence.body, SentenceBody::Independent(_))),
+                _ => true,
+            };
+        let mut rendered = format!("\"{}", self.ability(&quoted.ability, capitalize)?);
+        if quoted.closed {
+            rendered.push('"');
+        }
+        Ok(rendered)
     }
 
     fn render_noun(&self, noun: &NounInstance) -> Result<String, RenderError> {
@@ -923,7 +925,7 @@ fn render_quantity(quantity: Quantity) -> String {
 fn render_catalog_atom(atom: &crate::catalog::CatalogAtom) -> String {
     match atom.kind {
         CatalogKind::KeywordAbility | CatalogKind::KeywordAction | CatalogKind::AbilityWord => {
-            atom.canonical().to_lowercase()
+            atom.spelling().to_owned()
         }
         _ => atom.render_adjective(),
     }
@@ -1097,6 +1099,32 @@ mod tests {
         };
 
         assert_eq!(source_free(&ast, "Test Card", false), "Flying, deathtouch");
+    }
+
+    #[test]
+    fn catalog_phrases_preserve_their_matched_surface_conventions() {
+        let catalogs = Catalogs::new(
+            [
+                "For Mirrodin!",
+                "Choose a background",
+                "Cumulative upkeep",
+                "Bands with other legendary creatures",
+            ],
+            ["Time Travel"],
+            std::iter::empty::<&str>(),
+        )
+        .with_catalog(CatalogKind::CardType, ["Creature"]);
+
+        for source in [
+            "For Mirrodin!",
+            "Choose a Background",
+            "Time travel.",
+            "Cumulative upkeep—Pay 1 life.",
+            "Creatures you control have \"bands with other legendary creatures.\"",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
     }
 
     #[test]

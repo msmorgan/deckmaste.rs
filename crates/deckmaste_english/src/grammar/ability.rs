@@ -468,7 +468,8 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             let (argument_separator, argument) = if argument_tokens.is_empty() {
                 (None, None)
             } else if argument_tokens[0].kind == TokenKind::Punctuation(Punctuation::EmDash) {
-                let separator = if first.span.end < argument_tokens[0].span.start
+                let ability_end = chunk.get(matched_end.checked_sub(1)?)?.span.end;
+                let separator = if ability_end < argument_tokens[0].span.start
                     || argument_tokens
                         .get(1)
                         .is_some_and(|next| argument_tokens[0].span.end < next.span.start)

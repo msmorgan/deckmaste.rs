@@ -98,6 +98,7 @@ impl CatalogKind {
 pub struct CatalogAtom {
     pub kind: CatalogKind,
     canonical: Arc<str>,
+    spelling: Arc<str>,
     pub vocab: Option<Vocab>,
 }
 
@@ -105,6 +106,11 @@ impl CatalogAtom {
     #[must_use]
     pub fn canonical(&self) -> &str {
         &self.canonical
+    }
+
+    #[must_use]
+    pub fn spelling(&self) -> &str {
+        &self.spelling
     }
 
     #[must_use]
@@ -366,6 +372,7 @@ impl Catalogs {
                 let atom = CatalogAtom {
                     kind,
                     canonical: Arc::clone(canonical),
+                    spelling: Arc::clone(canonical),
                     vocab,
                 };
                 let id = CatalogId(entries.len());
@@ -417,9 +424,13 @@ impl Catalogs {
         self.indexes[kind.index()]
             .prefix_matches(text, kind.case_policy())
             .into_iter()
-            .map(|(length, id)| CatalogMatch {
-                length,
-                value: CatalogValue::Atom(self.entries[id.0].clone()),
+            .map(|(length, id)| {
+                let mut atom = self.entries[id.0].clone();
+                atom.spelling = Arc::from(&text[..length]);
+                CatalogMatch {
+                    length,
+                    value: CatalogValue::Atom(atom),
+                }
             })
             .collect()
     }
@@ -494,10 +505,17 @@ impl Catalogs {
                 .render(slot)
                 .expect("indexed keyword-action head must render");
             if prefix_equals(text, &rendered, CasePolicy::Insensitive) {
+                let mut action = action.clone();
+                let matched = &text[..rendered.len()];
+                action.tail = Arc::from(
+                    matched
+                        .split_once(' ')
+                        .map_or("", |(_, matched_tail)| matched_tail),
+                );
                 matches.push(CatalogMatch {
                     length: rendered.len(),
                     value: CatalogValue::Word(WordMatch::Verb(VerbInstance {
-                        verb: Verb::KeywordAction(action.clone()),
+                        verb: Verb::KeywordAction(action),
                         slot,
                     })),
                 });
