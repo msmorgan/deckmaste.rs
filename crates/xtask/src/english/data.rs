@@ -10,6 +10,7 @@ use clap::Args;
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::normalize_self_references;
+use deckmaste_english::normalize_typographic_quotes;
 use deckmaste_english::strip_reminder_text;
 use serde::Deserialize;
 
@@ -97,9 +98,11 @@ impl From<RawCardFace> for CardFace {
         let printed_name = raw.face.as_deref().unwrap_or(&raw.name);
         let is_legendary = raw.supertypes.iter().any(|kind| kind == "Legendary");
         let source_text = raw.text.unwrap_or_default();
+        let normalized_source = normalize_typographic_quotes(&source_text);
+        let normalized_name = normalize_typographic_quotes(printed_name);
         let oracle_text = strip_reminder_text(&normalize_self_references(
-            &source_text,
-            printed_name,
+            &normalized_source,
+            &normalized_name,
             is_legendary,
         ));
         Self {

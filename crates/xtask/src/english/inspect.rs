@@ -129,6 +129,7 @@ mod tests {
     use std::io::Cursor;
     use std::path::Path;
 
+    use deckmaste_english::normalize_typographic_quotes;
     use deckmaste_english::strip_reminder_text;
 
     use super::*;
@@ -220,6 +221,21 @@ mod tests {
     }
 
     #[test]
+    fn incoming_typographic_quotes_normalize_before_parsing() {
+        let data = concat!(
+            r#"{"name":"A Realm Reborn","face":null,"text":"Other permanents you control have “{T}: Add one mana of any color.”"}"#,
+            "\n",
+        );
+
+        let cards = cards(data);
+
+        assert_eq!(
+            cards[0].oracle_text,
+            "Other permanents you control have \"{T}: Add one mana of any color.\""
+        );
+    }
+
+    #[test]
     fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),
@@ -293,12 +309,13 @@ mod tests {
             let ast = parse_with_catalogs(&card.oracle_text, &data.catalogs);
             match ast.render(card.printed_name(), card.is_legendary) {
                 Ok(rebuilt)
-                    if strip_reminder_text(&rebuilt) == strip_reminder_text(&card.source_text) => {}
+                    if normalized_rules_text(&rebuilt)
+                        == normalized_rules_text(&card.source_text) => {}
                 Ok(rebuilt) => failures.push(format!(
                     "row {} ({}):\n  rendered: {rebuilt:?}\n  expected: {:?}",
                     index + 1,
                     card.printed_name(),
-                    strip_reminder_text(&card.source_text)
+                    normalized_rules_text(&card.source_text)
                 )),
                 Err(error) => failures.push(format!(
                     "row {} ({}): render error: {error}",
@@ -319,5 +336,9 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("\n")
         );
+    }
+
+    fn normalized_rules_text(text: &str) -> String {
+        normalize_typographic_quotes(&strip_reminder_text(text))
     }
 }

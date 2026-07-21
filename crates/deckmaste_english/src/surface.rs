@@ -260,7 +260,7 @@ fn word_end(source: &str, start: usize) -> usize {
 }
 
 const fn is_apostrophe(ch: char) -> bool {
-    matches!(ch, '\'' | '’')
+    ch == '\''
 }
 
 const fn is_word_connector(ch: char) -> bool {
@@ -275,8 +275,8 @@ const fn punctuation(ch: char) -> Punctuation {
         '.' => Punctuation::Period,
         '!' => Punctuation::Exclamation,
         '?' => Punctuation::Question,
-        '\'' | '’' => Punctuation::Apostrophe,
-        '"' | '“' | '”' => Punctuation::DoubleQuote,
+        '\'' => Punctuation::Apostrophe,
+        '"' => Punctuation::DoubleQuote,
         '[' => Punctuation::OpenBracket,
         ']' => Punctuation::CloseBracket,
         '(' => Punctuation::OpenParenthesis,
@@ -323,8 +323,6 @@ fn observe_delimiter(
                 *double_quote = Some(index);
             }
         }
-        '“' => *double_quote = Some(index),
-        '”' => *double_quote = None,
         _ => {}
     }
 }

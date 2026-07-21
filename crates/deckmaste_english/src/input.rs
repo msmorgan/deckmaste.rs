@@ -1,3 +1,19 @@
+/// Normalizes typographic quotation marks before tokenization.
+///
+/// The semantic grammar and renderer use one ASCII representation for quotes
+/// and apostrophes. Round-trip callers apply this function to expected text as
+/// well as parser input.
+#[must_use]
+pub fn normalize_typographic_quotes(text: &str) -> String {
+    text.chars()
+        .map(|character| match character {
+            '’' => '\'',
+            '“' | '”' => '"',
+            _ => character,
+        })
+        .collect()
+}
+
 /// Replaces whole-word references to a card face with self-reference sigils.
 ///
 /// A legendary face with a comma uses `~` for its abbreviated, pre-comma name
@@ -102,6 +118,17 @@ fn is_word_character(character: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typographic_quotes_normalize_to_ascii_at_the_input_boundary() {
+        assert_eq!(
+            normalize_typographic_quotes(
+                "Other permanents you control have “{T}: Add one mana of any color.”"
+            ),
+            "Other permanents you control have \"{T}: Add one mana of any color.\""
+        );
+        assert_eq!(normalize_typographic_quotes("It can’t."), "It can't.");
+    }
 
     #[test]
     fn ordinary_cards_use_one_tilde_for_their_full_name() {

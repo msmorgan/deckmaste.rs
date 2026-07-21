@@ -118,6 +118,7 @@ pub use ast::TriggeredAbility;
 pub use ast::VerbKind;
 pub use catalogs::Catalogs;
 pub use input::normalize_self_references;
+pub use input::normalize_typographic_quotes;
 pub use input::strip_reminder_text;
 pub use numeral::Numeral;
 pub use numeral::ParseNumeralError;
