@@ -19,7 +19,6 @@ use crate::Mode;
 use crate::OracleText;
 use crate::Paragraph;
 use crate::Phrase;
-use crate::PhrasePart;
 use crate::Predicate;
 use crate::ReminderText;
 use crate::Sentence;
@@ -419,25 +418,20 @@ impl ResolvedDebug for Predicate {
 
 impl ResolvedDebug for Phrase {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("Phrase")
-            .field("text", &Resolved::new(source, &self.span))
-            .field("parts", &Resolved::new(source, self.parts.as_slice()))
-            .finish()
-    }
-}
-
-impl ResolvedDebug for PhrasePart {
-    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Token(token) => token.fmt_resolved(source, formatter),
-            Self::Reminder(reminder) => formatter
-                .debug_tuple("Reminder")
-                .field(&Resolved::new(source, reminder))
-                .finish(),
-            Self::EmbeddedRules(rules) => formatter
-                .debug_tuple("EmbeddedRules")
-                .field(&Resolved::new(source, rules))
+            Self::UnknownPhrase(text) => {
+                formatter.debug_tuple("UnknownPhrase").field(text).finish()
+            }
+            Self::EmbeddedRulesPhrase {
+                text,
+                embedded_rules,
+            } => formatter
+                .debug_struct("EmbeddedRulesPhrase")
+                .field("text", text)
+                .field(
+                    "embedded_rules",
+                    &Resolved::new(source, embedded_rules.as_slice()),
+                )
                 .finish(),
         }
     }
@@ -465,12 +459,12 @@ mod tests {
 
         let output = format!("{:#?}", parse(source).source_debug(source));
 
-        assert!(output.contains("text: \"Lightning\""));
         assert!(output.contains("text: \"Lightning Bolt deals 3 damage to any target.\""));
         assert!(output.contains("subject: Some("));
+        assert!(output.contains("UnknownPhrase("));
         assert!(output.contains("\"Lightning Bolt\""));
-        assert!(output.contains("verb: Phrase"));
-        assert!(output.contains("text: \"deals\""));
+        assert!(output.contains("verb: UnknownPhrase("));
+        assert!(output.contains("\"deals\""));
         assert!(output.contains("complement: Some("));
         assert!(output.contains("\"3 damage to any target\""));
         assert!(!output.contains("Span"));
@@ -518,8 +512,12 @@ mod tests {
 
         assert!(output.contains("coordinated_predicates: ["));
         assert!(output.contains("conjunction: And"));
-        assert!(output.contains("text: \"get\""));
-        assert!(output.contains("text: \"have\""));
+        assert!(output.contains("UnknownPhrase("));
+        assert!(output.contains("\"+1/+1\""));
+        assert!(output.contains("\"get\""));
+        assert!(output.contains("\"have\""));
+        assert!(!output.contains("parts:"));
+        assert!(!output.contains("Punctuation"));
         assert!(!output.contains("conjunction_span"));
         assert!(!output.contains("Span"));
     }

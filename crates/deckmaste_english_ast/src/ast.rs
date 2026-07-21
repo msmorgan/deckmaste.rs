@@ -245,20 +245,33 @@ pub struct Predicate {
     pub negated: bool,
 }
 
-/// A lossless phrase whose residual leaves are concrete source tokens. Rules
-/// nested inside the phrase remain structured rather than being flattened
-/// back into tokens.
+/// A phrase that has not yet been assigned a more specific English syntactic
+/// role. Unknown phrases remain whole instead of pretending their lexical
+/// tokens are meaningful phrase structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Phrase {
-    pub span: Span,
-    pub parts: Vec<PhrasePart>,
+pub enum Phrase {
+    UnknownPhrase(String),
+    EmbeddedRulesPhrase {
+        text: String,
+        embedded_rules: Vec<EmbeddedRules>,
+    },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PhrasePart {
-    Token(Token),
-    Reminder(ReminderText),
-    EmbeddedRules(EmbeddedRules),
+impl Phrase {
+    #[must_use]
+    pub fn text(&self) -> &str {
+        match self {
+            Self::UnknownPhrase(text) | Self::EmbeddedRulesPhrase { text, .. } => text,
+        }
+    }
+
+    #[must_use]
+    pub fn embedded_rules(&self) -> &[EmbeddedRules] {
+        match self {
+            Self::UnknownPhrase(_) => &[],
+            Self::EmbeddedRulesPhrase { embedded_rules, .. } => embedded_rules,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -16,7 +16,6 @@ use deckmaste_english_ast::ModalFrame;
 use deckmaste_english_ast::OracleText;
 use deckmaste_english_ast::Paragraph;
 use deckmaste_english_ast::Phrase;
-use deckmaste_english_ast::PhrasePart;
 use deckmaste_english_ast::Predicate;
 use deckmaste_english_ast::SimpleClause;
 use deckmaste_english_ast::Span;
@@ -53,11 +52,10 @@ struct Catalog {
     data: Vec<String>,
 }
 
-struct Leaf<'source> {
+struct Leaf {
     card: String,
     kind: &'static str,
-    span: Span,
-    source: &'source str,
+    text: String,
     words: usize,
 }
 
@@ -124,10 +122,7 @@ fn main() -> Result<()> {
     for leaf in leaves.into_iter().take(args.limit) {
         println!(
             "{:>3} words  {:<18} {:<40} {:?}",
-            leaf.words,
-            leaf.kind,
-            leaf.card,
-            leaf.span.text(leaf.source).unwrap_or_default()
+            leaf.words, leaf.kind, leaf.card, leaf.text
         );
     }
 
@@ -159,21 +154,16 @@ fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
     Ok(catalog.data)
 }
 
-fn collect_oracle_text<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
-    card: &str,
-    source: &'source str,
-    ast: &OracleText,
-) {
+fn collect_oracle_text(leaves: &mut Vec<Leaf>, card: &str, source: &str, ast: &OracleText) {
     for ability in &ast.abilities {
         collect_ability(leaves, card, source, ability, ast);
     }
 }
 
-fn collect_ability<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
+fn collect_ability(
+    leaves: &mut Vec<Leaf>,
     card: &str,
-    source: &'source str,
+    source: &str,
     ability: &Ability,
     ast: &OracleText,
 ) {
@@ -229,10 +219,10 @@ fn collect_ability<'source>(
     }
 }
 
-fn collect_paragraph<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
+fn collect_paragraph(
+    leaves: &mut Vec<Leaf>,
     card: &str,
-    source: &'source str,
+    source: &str,
     paragraph: &Paragraph,
     ast: &OracleText,
 ) {
@@ -247,10 +237,10 @@ fn collect_paragraph<'source>(
     }
 }
 
-fn collect_simple_clause<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
+fn collect_simple_clause(
+    leaves: &mut Vec<Leaf>,
     card: &str,
-    source: &'source str,
+    source: &str,
     clause: &SimpleClause,
     ast: &OracleText,
 ) {
@@ -272,10 +262,10 @@ fn collect_simple_clause<'source>(
     }
 }
 
-fn collect_predicate<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
+fn collect_predicate(
+    leaves: &mut Vec<Leaf>,
     card: &str,
-    source: &'source str,
+    source: &str,
     predicate: &Predicate,
     ast: &OracleText,
 ) {
@@ -288,87 +278,37 @@ fn collect_predicate<'source>(
     }
 }
 
-fn collect_phrase<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
+fn collect_phrase(
+    leaves: &mut Vec<Leaf>,
     card: &str,
-    source: &'source str,
+    source: &str,
     phrase: &Phrase,
     ast: &OracleText,
 ) {
-    if phrase
-        .parts
-        .iter()
-        .all(|part| matches!(part, PhrasePart::Token(_) | PhrasePart::Reminder(_)))
-    {
-        push_leaf(leaves, card, source, "phrase", phrase.span, ast);
-        return;
-    }
-
-    let mut fragment_start = None;
-    let mut fragment_end = None;
-    for part in &phrase.parts {
-        match part {
-            PhrasePart::Token(token) => {
-                fragment_start.get_or_insert(token.span.start);
-                fragment_end = Some(token.span.end);
-            }
-            PhrasePart::Reminder(_) => {
-                push_phrase_fragment(
-                    leaves,
-                    card,
-                    source,
-                    &mut fragment_start,
-                    &mut fragment_end,
-                    ast,
-                );
-            }
-            PhrasePart::EmbeddedRules(rules) => {
-                push_phrase_fragment(
-                    leaves,
-                    card,
-                    source,
-                    &mut fragment_start,
-                    &mut fragment_end,
-                    ast,
-                );
-                collect_ability(leaves, card, source, &rules.ability, ast);
-            }
-        }
-    }
-    push_phrase_fragment(
-        leaves,
-        card,
-        source,
-        &mut fragment_start,
-        &mut fragment_end,
-        ast,
-    );
-}
-
-fn push_phrase_fragment<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
-    card: &str,
-    source: &'source str,
-    start: &mut Option<usize>,
-    end: &mut Option<usize>,
-    ast: &OracleText,
-) {
-    if let (Some(start), Some(end)) = (start.take(), end.take()) {
-        push_leaf(
-            leaves,
-            card,
-            source,
-            "phrase fragment",
-            Span::new(start, end),
-            ast,
-        );
+    let text = phrase.text();
+    leaves.push(Leaf {
+        card: card.to_owned(),
+        kind: "phrase",
+        text: text.to_owned(),
+        words: phrase_word_count(text),
+    });
+    for rules in phrase.embedded_rules() {
+        collect_ability(leaves, card, source, &rules.ability, ast);
     }
 }
 
-fn push_leaf<'source>(
-    leaves: &mut Vec<Leaf<'source>>,
+fn phrase_word_count(text: &str) -> usize {
+    text.split(|character: char| {
+        !character.is_alphanumeric() && !matches!(character, '\'' | '’' | '-')
+    })
+    .filter(|word| word.chars().any(char::is_alphabetic))
+    .count()
+}
+
+fn push_leaf(
+    leaves: &mut Vec<Leaf>,
     card: &str,
-    source: &'source str,
+    source: &str,
     kind: &'static str,
     span: Span,
     ast: &OracleText,
@@ -391,8 +331,7 @@ fn push_leaf<'source>(
     leaves.push(Leaf {
         card: card.to_owned(),
         kind,
-        span,
-        source,
+        text: span.text(source).unwrap_or_default().to_owned(),
         words,
     });
 }
@@ -412,9 +351,6 @@ mod tests {
         let longest = leaves.iter().max_by_key(|leaf| leaf.words).unwrap();
         assert_eq!(longest.kind, "phrase");
         assert_eq!(longest.words, 4);
-        assert_eq!(
-            longest.span.text(source).unwrap(),
-            "target artifact or enchantment"
-        );
+        assert_eq!(longest.text, "target artifact or enchantment");
     }
 }

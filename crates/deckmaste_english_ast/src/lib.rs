@@ -62,7 +62,6 @@ pub use ast::Mode;
 pub use ast::OracleText;
 pub use ast::Paragraph;
 pub use ast::Phrase;
-pub use ast::PhrasePart;
 pub use ast::Predicate;
 pub use ast::PredicateConjunction;
 pub use ast::ReminderText;

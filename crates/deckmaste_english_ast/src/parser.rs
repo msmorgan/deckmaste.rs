@@ -20,7 +20,6 @@ use crate::Mode;
 use crate::OracleText;
 use crate::Paragraph;
 use crate::Phrase;
-use crate::PhrasePart;
 use crate::Predicate;
 use crate::PredicateConjunction;
 use crate::ReminderText;
@@ -167,17 +166,21 @@ impl Parser<'_, '_> {
             })
         } else if let Some(mut keyword) = self
             .catalogs
-            .and_then(|catalogs| keyword_ability_list(self.source, body, catalogs, &self.tokens))
+            .and_then(|catalogs| keyword_ability_list(self.source, body, catalogs))
         {
             for item in &mut keyword.abilities {
-                if let Some(argument) = &item.argument
-                    && self.looks_like_rules(argument.span)
+                let argument_span = keyword_argument(
+                    self.source,
+                    Span::new(item.span.start + item.name.len(), item.span.end),
+                );
+                if let Some(argument_span) = argument_span
+                    && self.looks_like_rules(argument_span)
                 {
                     let embedded = EmbeddedRules {
-                        span: argument.span,
-                        ability: Box::new(self.embedded_ability(argument.span)),
+                        span: argument_span,
+                        ability: Box::new(self.embedded_ability(argument_span)),
                     };
-                    item.argument = Some(self.phrase(argument.span, vec![embedded]));
+                    item.argument = Some(self.phrase(argument_span, vec![embedded]));
                 }
             }
             AbilityKind::Keyword(keyword)
@@ -462,9 +465,9 @@ impl Parser<'_, '_> {
         }
         if find_top_level(self.source, span, ":").is_some()
             || trigger_start(span, self.text(span)).is_some()
-            || self.catalogs.is_some_and(|catalogs| {
-                keyword_ability_list(self.source, span, catalogs, &self.tokens).is_some()
-            })
+            || self
+                .catalogs
+                .is_some_and(|catalogs| keyword_ability_list(self.source, span, catalogs).is_some())
         {
             return true;
         }
@@ -495,7 +498,7 @@ impl Parser<'_, '_> {
     }
 
     fn phrase(&self, span: Span, embedded_rules: Vec<EmbeddedRules>) -> Phrase {
-        structured_phrase(self.source, &self.tokens, span, embedded_rules)
+        structured_phrase(self.source, span, embedded_rules)
     }
 
     fn text(&self, span: Span) -> &str {
@@ -663,7 +666,6 @@ fn keyword_ability_list(
     source: &str,
     span: Span,
     catalogs: &Catalogs,
-    tokens: &[Token],
 ) -> Option<KeywordAbilityList> {
     let first_text = span.text(source)?;
     let first_name = catalogs.keyword_ability_prefix(first_text)?;
@@ -684,11 +686,11 @@ fn keyword_ability_list(
         let end = next.map_or(span.end, |(delimiter, _)| delimiter);
         let item_span = trim_span(source, Span::new(remaining.start, end));
         let argument = keyword_argument(source, Span::new(name_span.end, item_span.end))
-            .map(|argument| structured_phrase(source, tokens, argument, Vec::new()));
+            .map(|argument| structured_phrase(source, argument, Vec::new()));
         abilities.push(KeywordAbility {
             span: item_span,
             name: name.to_owned(),
-            printed_name: structured_phrase(source, tokens, name_span, Vec::new()),
+            printed_name: structured_phrase(source, name_span, Vec::new()),
             argument,
         });
 
@@ -928,69 +930,27 @@ fn split_top_level(source: &str, span: Span, delimiter: &str) -> Vec<Span> {
     parts
 }
 
-fn structured_phrase(
-    source: &str,
-    tokens: &[Token],
-    span: Span,
-    embedded_rules: Vec<EmbeddedRules>,
-) -> Phrase {
-    enum Special {
-        Reminder(ReminderText),
-        EmbeddedRules(EmbeddedRules),
-    }
-
-    impl Special {
-        fn span(&self) -> Span {
-            match self {
-                Self::Reminder(reminder) => reminder.span,
-                Self::EmbeddedRules(embedded) => embedded.span,
-            }
-        }
-    }
-
-    let reminders = reminder_text(source, span)
-        .into_iter()
-        .filter(|reminder| {
-            !embedded_rules.iter().any(|embedded| {
-                reminder.span.start >= embedded.span.start && reminder.span.end <= embedded.span.end
-            })
-        })
-        .collect::<Vec<_>>();
-    let mut specials = embedded_rules
-        .into_iter()
-        .map(Special::EmbeddedRules)
-        .chain(reminders.into_iter().map(Special::Reminder))
-        .collect::<Vec<_>>();
-    specials.sort_unstable_by_key(|special| special.span().start);
-
-    let mut parts = Vec::new();
+fn structured_phrase(source: &str, span: Span, embedded_rules: Vec<EmbeddedRules>) -> Phrase {
+    let reminders = reminder_text(source, span);
+    let mut text = String::new();
     let mut cursor = span.start;
-    for special in specials {
-        let special_span = special.span();
-        if special_span.start < cursor {
-            continue;
+    for reminder in reminders {
+        if reminder.span.start >= cursor {
+            text.push_str(&source[cursor..reminder.span.start]);
+            cursor = reminder.span.end;
         }
-        parts.extend(
-            tokens
-                .iter()
-                .filter(|token| token.span.start >= cursor && token.span.end <= special_span.start)
-                .copied()
-                .map(PhrasePart::Token),
-        );
-        parts.push(match special {
-            Special::Reminder(reminder) => PhrasePart::Reminder(reminder),
-            Special::EmbeddedRules(embedded) => PhrasePart::EmbeddedRules(embedded),
-        });
-        cursor = special_span.end;
     }
-    parts.extend(
-        tokens
-            .iter()
-            .filter(|token| token.span.start >= cursor && token.span.end <= span.end)
-            .copied()
-            .map(PhrasePart::Token),
-    );
-    Phrase { span, parts }
+    text.push_str(&source[cursor..span.end]);
+    let text = text.trim().to_owned();
+
+    if embedded_rules.is_empty() {
+        Phrase::UnknownPhrase(text)
+    } else {
+        Phrase::EmbeddedRulesPhrase {
+            text,
+            embedded_rules,
+        }
+    }
 }
 
 fn find_top_level(source: &str, span: Span, needle: &str) -> Option<usize> {
@@ -1365,8 +1325,8 @@ mod tests {
         span.text(source).unwrap()
     }
 
-    fn phrase_text<'source>(source: &'source str, phrase: &Phrase) -> &'source str {
-        text(source, phrase.span)
+    fn phrase_text<'phrase>(_: &str, phrase: &'phrase Phrase) -> &'phrase str {
+        phrase.text()
     }
 
     #[test]
@@ -1570,6 +1530,10 @@ mod tests {
         );
         assert_eq!(phrase_text(source, &predicate.verb), "get");
         assert_eq!(
+            predicate.complement,
+            Some(Phrase::UnknownPhrase("+1/+1".to_owned()))
+        );
+        assert_eq!(
             phrase_text(source, predicate.complement.as_ref().unwrap()),
             "+1/+1"
         );
@@ -1669,12 +1633,8 @@ mod tests {
             .as_ref()
             .unwrap();
         let embedded = complement
-            .parts
-            .iter()
-            .find_map(|part| match part {
-                PhrasePart::EmbeddedRules(rules) => Some(rules),
-                PhrasePart::Token(_) | PhrasePart::Reminder(_) => None,
-            })
+            .embedded_rules()
+            .first()
             .expect("quoted rules should remain structured");
 
         assert!(matches!(embedded.ability.kind, AbilityKind::Triggered(_)));
@@ -1691,9 +1651,10 @@ mod tests {
         let ast = parse_with_catalogs(source, &catalogs);
         let AbilityKind::Keyword(keywords) = &ast.abilities[0].kind else { panic!() };
         let argument = keywords.abilities[0].argument.as_ref().unwrap();
-        let PhrasePart::EmbeddedRules(rules) = &argument.parts[0] else {
-            panic!("keyword argument should contain nested rules")
-        };
+        let rules = argument
+            .embedded_rules()
+            .first()
+            .expect("keyword argument should contain nested rules");
 
         assert!(matches!(rules.ability.kind, AbilityKind::Activated(_)));
     }
