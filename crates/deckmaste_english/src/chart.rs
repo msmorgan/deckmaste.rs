@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::hash::Hash;
+use std::rc::Rc;
 
 use hashbrown::HashMap;
 use hashbrown::hash_map::Entry;
@@ -142,7 +143,7 @@ struct ItemKey<F> {
     rule: RuleId,
     dot: usize,
     origin: usize,
-    prefix_features: Vec<F>,
+    prefix_features: Rc<[F]>,
 }
 
 #[derive(Debug, Clone)]
@@ -260,7 +261,7 @@ where
                     rule,
                     dot: 0,
                     origin: 0,
-                    prefix_features: Vec::new(),
+                    prefix_features: Rc::default(),
                 },
                 None,
             );
@@ -350,7 +351,7 @@ where
                     rule: predicted_rule,
                     dot: 0,
                     origin: position,
-                    prefix_features: Vec::new(),
+                    prefix_features: Rc::default(),
                 },
                 None,
             );
@@ -399,9 +400,12 @@ where
             return;
         }
 
+        let mut prefix_features = Vec::with_capacity(item.prefix_features.len() + 1);
+        prefix_features.extend(item.prefix_features.iter().cloned());
+        prefix_features.push(child_features);
         let mut advanced = item;
         advanced.dot += 1;
-        advanced.prefix_features.push(child_features);
+        advanced.prefix_features = prefix_features.into();
         let mut children = Vec::with_capacity(2);
         if let Some(previous) = previous {
             children.push(previous);
@@ -413,7 +417,7 @@ where
                 advanced.dot,
                 advanced.origin,
                 position,
-                advanced.prefix_features.clone(),
+                Rc::clone(&advanced.prefix_features),
             ),
             PackedAlternative {
                 rule: None,

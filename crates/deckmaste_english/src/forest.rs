@@ -1,6 +1,7 @@
 use std::hash::Hash;
 use std::ops::Add;
 use std::ops::AddAssign;
+use std::rc::Rc;
 
 use hashbrown::HashMap;
 use hashbrown::hash_map::Entry;
@@ -52,7 +53,7 @@ pub(crate) enum ForestSymbol<N, L> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ForestFeatures<F> {
     Constituent(F),
-    Prefix(Vec<F>),
+    Prefix(Rc<[F]>),
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -120,7 +121,7 @@ impl<N, L, F, M> NodeKey<N, L, F, M> {
         dot: usize,
         start: usize,
         end: usize,
-        prefix_features: Vec<F>,
+        prefix_features: Rc<[F]>,
     ) -> Self {
         Self {
             symbol: ForestSymbol::Intermediate { rule, dot },
