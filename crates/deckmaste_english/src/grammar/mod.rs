@@ -2183,22 +2183,10 @@ fn parse_nonterminal_with_profile(
     if chart_elapsed.as_millis() >= 50 {
         eprintln!("slow chart {recovery_profile:?} {chart_elapsed:?} {nonterminal:?}: {source:?}");
     }
-    let mut candidates = chart
-        .roots
-        .iter()
-        .copied()
-        .map(|root| {
-            chart
-                .forest
-                .best(root)
-                .map(|best| (best.cost, root.index(), root, best))
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(ParseNonterminalError::Forest)?;
-    candidates.sort_by_key(|(cost, index, _, _)| (*cost, *index));
-    let (_, _, root, best) = candidates
-        .into_iter()
-        .next()
+    let (root, best) = chart
+        .forest
+        .best_root(chart.roots.iter().copied())
+        .map_err(ParseNonterminalError::Forest)?
         .ok_or(ParseNonterminalError::NoCompleteParse(nonterminal))?;
     let syntax =
         lower(&grammar, &chart.forest, root, &best).ok_or(ParseNonterminalError::Lowering)?;

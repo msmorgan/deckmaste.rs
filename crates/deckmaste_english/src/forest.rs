@@ -140,23 +140,38 @@ where
         self.nodes.iter()
     }
 
-    pub(crate) fn best(&self, root: NodeId) -> Result<BestParse, ForestError> {
+    pub(crate) fn best_root(
+        &self,
+        roots: impl IntoIterator<Item = NodeId>,
+    ) -> Result<Option<(NodeId, BestParse)>, ForestError> {
         let mut costs = vec![None; self.nodes.len()];
         let mut alternatives = vec![None; self.nodes.len()];
         let mut tied_alternatives = vec![Vec::new(); self.nodes.len()];
         let mut visiting = vec![false; self.nodes.len()];
-        let cost = self.best_cost(
-            root,
-            &mut costs,
-            &mut alternatives,
-            &mut tied_alternatives,
-            &mut visiting,
-        )?;
-        Ok(BestParse {
-            cost,
-            alternatives,
-            tied_alternatives,
-        })
+        let mut selected = None;
+        for root in roots {
+            let cost = self.best_cost(
+                root,
+                &mut costs,
+                &mut alternatives,
+                &mut tied_alternatives,
+                &mut visiting,
+            )?;
+            let candidate = (cost, root.index(), root);
+            if selected.is_none_or(|current| candidate < current) {
+                selected = Some(candidate);
+            }
+        }
+        Ok(selected.map(|(cost, _, root)| {
+            (
+                root,
+                BestParse {
+                    cost,
+                    alternatives,
+                    tied_alternatives,
+                },
+            )
+        }))
     }
 
     fn best_cost(
@@ -285,7 +300,10 @@ mod tests {
         assert!(!second.node_was_new);
         assert_eq!(forest.node(first.node).alternatives.len(), 2);
 
-        let best = forest.best(first.node).expect("the node is acyclic");
+        let (_, best) = forest
+            .best_root([first.node])
+            .expect("the node is acyclic")
+            .expect("there is a root");
         assert_eq!(best.cost.precedence, 1);
         assert_eq!(best.alternative(first.node), Some(1));
     }
@@ -319,8 +337,55 @@ mod tests {
             },
         );
 
-        let best = forest.best(root).expect("the node is acyclic");
+        let (_, best) = forest
+            .best_root([root])
+            .expect("the node is acyclic")
+            .expect("there is a root");
         assert_eq!(best.alternative(root), Some(1));
         assert_eq!(best.tied_alternatives(root), &[0, 1]);
+    }
+
+    #[test]
+    fn best_root_uses_cost_then_stable_node_order() {
+        let mut forest = ParseForest::<&str, (), (), &str>::new();
+        let first = forest
+            .intern_node(
+                NodeKey {
+                    symbol: ForestSymbol::Nonterminal("sentence"),
+                    start: 0,
+                    end: 1,
+                    features: (),
+                    meaning: "first",
+                },
+                PackedAlternative {
+                    rule: Some(RuleId::new(1)),
+                    children: Vec::new(),
+                    local_cost: ParseCost::default(),
+                },
+            )
+            .node;
+        let second = forest
+            .intern_node(
+                NodeKey {
+                    symbol: ForestSymbol::Nonterminal("sentence"),
+                    start: 0,
+                    end: 1,
+                    features: (),
+                    meaning: "second",
+                },
+                PackedAlternative {
+                    rule: Some(RuleId::new(2)),
+                    children: Vec::new(),
+                    local_cost: ParseCost::default(),
+                },
+            )
+            .node;
+
+        let (selected, _) = forest
+            .best_root([second, first])
+            .expect("the nodes are acyclic")
+            .expect("there are roots");
+
+        assert_eq!(selected, first);
     }
 }

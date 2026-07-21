@@ -219,6 +219,7 @@ where
     chart: Vec<ChartColumn>,
     agenda: VecDeque<(usize, ItemKey)>,
     completed: HashMap<(usize, G::Nonterminal), Vec<NodeId>>,
+    waiting: HashMap<(usize, G::Nonterminal), Vec<ItemKey>>,
     partials: PartialDerivations,
     scans: HashMap<(G::LexicalSlot, usize), Vec<LexicalEdge>>,
 }
@@ -235,6 +236,7 @@ where
             chart: vec![ChartColumn::default(); tokens.len() + 1],
             agenda: VecDeque::new(),
             completed: HashMap::new(),
+            waiting: HashMap::new(),
             partials: PartialDerivations::new(),
             scans: HashMap::new(),
         }
@@ -341,18 +343,11 @@ where
             .entry((item.origin, lhs))
             .or_default()
             .push(interned.node);
-        let waiters = self.chart[item.origin]
-            .items
-            .iter()
-            .filter(|waiter| {
-                matches!(
-                    self.grammar.rules()[waiter.rule.index()].rhs.get(waiter.dot),
-                    Some(Expected::Nonterminal(nonterminal)) if *nonterminal == lhs
-                )
-            })
-            .copied()
-            .collect::<Vec<_>>();
-        for mut waiter in waiters {
+        let Some(waiters) = self.waiting.get(&(item.origin, lhs)) else {
+            return;
+        };
+        for &waiter in waiters {
+            let mut waiter = waiter;
             waiter.dot += 1;
             waiter.partial = self.partials.push(waiter.partial, interned.node);
             enqueue(&mut self.chart, &mut self.agenda, position, waiter);
@@ -360,6 +355,10 @@ where
     }
 
     fn predict_and_advance(&mut self, position: usize, item: ItemKey, nonterminal: G::Nonterminal) {
+        self.waiting
+            .entry((position, nonterminal))
+            .or_default()
+            .push(item);
         for &predicted_rule in self.grammar.rules_for(nonterminal) {
             enqueue(
                 &mut self.chart,
@@ -374,17 +373,14 @@ where
             );
         }
 
-        let existing = self
-            .completed
-            .get(&(position, nonterminal))
-            .cloned()
-            .unwrap_or_default();
-        for child in existing {
-            let end = self.forest.node(child).key.end;
-            let mut advanced = item;
-            advanced.dot += 1;
-            advanced.partial = self.partials.push(advanced.partial, child);
-            enqueue(&mut self.chart, &mut self.agenda, end, advanced);
+        if let Some(existing) = self.completed.get(&(position, nonterminal)) {
+            for &child in existing {
+                let end = self.forest.node(child).key.end;
+                let mut advanced = item;
+                advanced.dot += 1;
+                advanced.partial = self.partials.push(advanced.partial, child);
+                enqueue(&mut self.chart, &mut self.agenda, end, advanced);
+            }
         }
     }
 
