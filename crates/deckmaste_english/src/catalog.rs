@@ -504,7 +504,7 @@ impl Catalogs {
             let rendered = action
                 .render(slot)
                 .expect("indexed keyword-action head must render");
-            if prefix_equals(text, &rendered, CasePolicy::Insensitive) {
+            if prefix_equals(text, &rendered, CasePolicy::Exact) {
                 let mut action = action.clone();
                 let matched = &text[..rendered.len()];
                 action.tail = Arc::from(
@@ -947,6 +947,43 @@ mod tests {
             WordMatch::Verb(instance)
                 if matches!(&instance.verb, Verb::KeywordAction(action)
                     if action.irregular_head() == Some(Vocab::Waterbend))
+        ));
+    }
+
+    #[test]
+    fn capitalized_subtypes_do_not_become_mid_sentence_keyword_actions() {
+        let catalogs = Catalogs::new(
+            std::iter::empty::<&str>(),
+            ["Food"],
+            std::iter::empty::<&str>(),
+        )
+        .with_catalog(CatalogKind::ArtifactType, ["Food"]);
+        let finite = VerbSlot::Present {
+            person: Person::Third,
+            number: Number::Plural,
+        };
+
+        assert!(
+            catalogs
+                .matches("Food", CatalogSlot::Verb(finite))
+                .is_empty()
+        );
+        assert!(matches!(
+            one_word_match(&catalogs, "food", CatalogSlot::Verb(finite)),
+            WordMatch::Verb(_)
+        ));
+        assert!(
+            catalogs
+                .matches("Food", CatalogSlot::Verb(VerbSlot::Imperative))
+                .is_empty()
+        );
+        assert!(matches!(
+            one_word_match(&catalogs, "food", CatalogSlot::Verb(VerbSlot::Imperative)),
+            WordMatch::Verb(_)
+        ));
+        assert!(matches!(
+            one_word_match(&catalogs, "Food", CatalogSlot::Noun(NounUsage::Count)),
+            WordMatch::Noun(NounInstance::Singular(Noun::Catalog(_)))
         ));
     }
 

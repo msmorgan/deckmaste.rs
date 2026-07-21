@@ -183,7 +183,7 @@ impl<'identity> Renderer<'identity> {
             AbilityKind::Activated(activated) => Ok(format!(
                 "{}: {}",
                 self.cost(&activated.cost)?,
-                self.paragraph(&activated.effect, true)?
+                self.paragraph(&activated.effect, activated.effect_initial_uppercase,)?
             )),
             AbilityKind::Triggered(triggered) => Ok(format!(
                 "{}, {}",
@@ -303,7 +303,11 @@ impl<'identity> Renderer<'identity> {
             );
             let starts_action = matches!(
                 component,
-                Phrase::Clause(clause) if matches!(clause.as_ref(), Clause::Independent(_))
+                Phrase::Clause(clause)
+                    if matches!(
+                        clause.as_ref(),
+                        Clause::Independent(IndependentClause::Imperative(_))
+                    )
             );
             let capitalize = starts_action || (!saw_lexical_component && !is_symbol);
             let component = self.phrase(component)?;
@@ -861,16 +865,10 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn quoted_ability(&self, quoted: &QuotedAbility) -> Result<String, RenderError> {
-        let capitalize = quoted.ability.ability_word.is_none()
-            && match &quoted.ability.kind {
-                AbilityKind::Keyword(_) => false,
-                AbilityKind::Paragraph(paragraph) => paragraph
-                    .sentences
-                    .first()
-                    .is_some_and(|sentence| matches!(sentence.body, SentenceBody::Independent(_))),
-                _ => true,
-            };
-        let mut rendered = format!("\"{}", self.ability(&quoted.ability, capitalize)?);
+        let mut rendered = format!(
+            "\"{}",
+            self.ability(&quoted.ability, quoted.initial_uppercase)?
+        );
         if quoted.closed {
             rendered.push('"');
         }
@@ -1157,6 +1155,7 @@ mod tests {
             "{1}{B}, Pay 2 life, Sacrifice a creature: Draw a card.",
             "Pay half your life, rounded up: Draw a card.",
             "Sacrifice an artifact, creature, or land: Draw a card.",
+            "Sacrifice a creature named Feral Shadow, a creature named Breathstealer, and this creature: Draw a card.",
         ] {
             let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
             assert_eq!(source_free(&ast, "Test Card", false), source);
@@ -1172,6 +1171,51 @@ mod tests {
 
         let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
         assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn quoted_abilities_preserve_explicit_initial_case() {
+        let catalogs = fixture_catalogs();
+
+        for source in [
+            "It has \"bands with other creatures.\"",
+            "It has \"enchant creature put onto the battlefield.\"",
+            "It has \"Whenever this creature attacks, draw a card.\"",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
+    fn activated_effect_preserves_explicit_initial_case() {
+        let source = "Exile a card: this creature gets +2/+2 until end of turn.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn mid_sentence_proper_nouns_do_not_lose_their_case() {
+        let source = "Exile artifacts named Eye of Vecna and Hand of Vecna: Draw a card.";
+        let ast = crate::parse_with_catalogs(source, &fixture_catalogs()).into_ast();
+
+        assert_eq!(source_free(&ast, "Test Card", false), source);
+    }
+
+    #[test]
+    fn capitalized_subtypes_do_not_start_coordinated_imperatives() {
+        let catalogs = fixture_catalogs()
+            .with_catalog(CatalogKind::KeywordAction, ["Food"])
+            .with_catalog(CatalogKind::ArtifactType, ["Food"]);
+
+        for source in [
+            "Enchant creature or Food",
+            "Return target creature or Food card.",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
     }
 
     #[test]

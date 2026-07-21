@@ -156,6 +156,7 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             return AbilityKind::Activated(ActivatedAbility {
                 cost,
                 effect: self.parse_paragraph(effect_tokens),
+                effect_initial_uppercase: self.tokens_start_uppercase(effect_tokens),
             });
         }
         AbilityKind::Paragraph(self.parse_paragraph(tokens))
@@ -401,7 +402,9 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             return None;
         }
 
-        let quoted = self.parse_ability(&tokens[open + 1..close]);
+        let quoted_tokens = &tokens[open + 1..close];
+        let initial_uppercase = self.tokens_start_uppercase(quoted_tokens);
+        let quoted = self.parse_ability(quoted_tokens);
         let mut prefix = &tokens[..open];
         let preposition = prefix.last().and_then(|token| {
             self.token_text(token)
@@ -418,12 +421,14 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
                 preposition,
                 object: Box::new(Phrase::QuotedAbility(Box::new(QuotedAbility {
                     ability: Box::new(quoted),
+                    initial_uppercase,
                     closed: true,
                 }))),
             })
         } else {
             VerbDependent::PredicateComplement(Phrase::QuotedAbility(Box::new(QuotedAbility {
                 ability: Box::new(quoted),
+                initial_uppercase,
                 closed: true,
             })))
         };
@@ -557,6 +562,13 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
 
     fn tokens_text(&self, tokens: &[Token]) -> &str {
         tokens_span(tokens).text(self.source).unwrap_or_default()
+    }
+
+    fn tokens_start_uppercase(&self, tokens: &[Token]) -> bool {
+        tokens
+            .first()
+            .and_then(|token| self.token_text(token).chars().next())
+            .is_some_and(char::is_uppercase)
     }
 }
 

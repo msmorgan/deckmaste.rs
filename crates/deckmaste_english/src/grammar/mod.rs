@@ -695,6 +695,15 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         let Some(surface) = token.span.text(self.source) else {
             return Vec::new();
         };
+        if matches!(slot, LexicalSlot::Noun(_))
+            && !self.is_sentence_initial(tokens, start)
+            && surface
+                .as_bytes()
+                .first()
+                .is_some_and(u8::is_ascii_uppercase)
+        {
+            return Vec::new();
+        }
         Vocabulary::new()
             .matches(surface, slot)
             .into_iter()
@@ -715,18 +724,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
             return Vec::new();
         };
         let mut catalog_matches = self.catalogs.matches(suffix, slot);
-        let sentence_initial = start == 0
-            || tokens.get(start.wrapping_sub(1)).is_some_and(|token| {
-                matches!(
-                    token.kind,
-                    TokenKind::Newline
-                        | TokenKind::Bullet
-                        | TokenKind::Punctuation(
-                            Punctuation::Period | Punctuation::Exclamation | Punctuation::Question
-                        )
-                )
-            });
-        if sentence_initial
+        if self.is_sentence_initial(tokens, start)
             && suffix
                 .as_bytes()
                 .first()
@@ -755,6 +753,20 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
                     matches.push(candidate);
                 }
                 matches
+            })
+    }
+
+    fn is_sentence_initial(&self, tokens: &[Token], start: usize) -> bool {
+        start == 0
+            || tokens.get(start.wrapping_sub(1)).is_some_and(|token| {
+                matches!(
+                    token.kind,
+                    TokenKind::Newline
+                        | TokenKind::Bullet
+                        | TokenKind::Punctuation(
+                            Punctuation::Period | Punctuation::Exclamation | Punctuation::Question
+                        )
+                )
             })
     }
 }

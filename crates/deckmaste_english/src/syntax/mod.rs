@@ -546,6 +546,7 @@ mod tests {
                             components: vec![Phrase::UnknownPhrase(unknown("cost"))],
                         },
                         effect: Paragraph::default(),
+                        effect_initial_uppercase: true,
                     }),
                 },
                 Ability {
@@ -573,6 +574,7 @@ mod tests {
                         head: predicate_head(Vocab::Draw),
                         object: PredicateObject::QuotedAbility(Box::new(QuotedAbility {
                             ability: Box::new(paragraph_unknown("embedded")),
+                            initial_uppercase: false,
                             closed: true,
                         })),
                         elements: vec![],

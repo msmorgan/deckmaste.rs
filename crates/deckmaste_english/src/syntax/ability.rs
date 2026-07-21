@@ -30,6 +30,7 @@ pub enum AbilityKind {
 pub struct ActivatedAbility {
     pub cost: Cost,
     pub effect: Paragraph,
+    pub effect_initial_uppercase: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -179,5 +180,6 @@ pub enum SentenceEnding {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuotedAbility {
     pub ability: Box<Ability>,
+    pub initial_uppercase: bool,
     pub closed: bool,
 }
