@@ -17,9 +17,12 @@
 //! ```text
 //! cargo run -p deckmaste_english_ast --example inspect -- "Lightning Bolt"
 //! ```
+//!
+//! Pass `--verbose` to that command to include the underlying byte spans.
 
 mod ast;
 mod parser;
+mod source_debug;
 mod span;
 
 pub use ast::Ability;
@@ -46,4 +49,5 @@ pub use ast::TokenKind;
 pub use ast::TriggerWord;
 pub use ast::TriggeredAbility;
 pub use parser::parse;
+pub use source_debug::SourceDebug;
 pub use span::Span;

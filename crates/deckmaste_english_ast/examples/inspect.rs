@@ -22,6 +22,10 @@ struct Args {
     /// Override the derived card-data snapshot.
     #[arg(long, value_name = "PATH")]
     data: Option<PathBuf>,
+
+    /// Include the underlying byte spans instead of resolving them to text.
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,7 +62,7 @@ fn main() -> Result<()> {
         );
     }
 
-    write_cards(io::stdout().lock(), &cards)
+    write_cards(io::stdout().lock(), &cards, args.verbose)
 }
 
 fn default_data_path() -> PathBuf {
@@ -108,7 +112,7 @@ fn find_cards(reader: impl BufRead, query: &str, data_path: &Path) -> Result<Vec
     })
 }
 
-fn write_cards(mut writer: impl Write, cards: &[CardText]) -> Result<()> {
+fn write_cards(mut writer: impl Write, cards: &[CardText], verbose: bool) -> Result<()> {
     for (index, card) in cards.iter().enumerate() {
         if index != 0 {
             writeln!(writer)?;
@@ -119,7 +123,12 @@ fn write_cards(mut writer: impl Write, cards: &[CardText]) -> Result<()> {
             None => writeln!(writer, "{}", card.card_name)?,
         }
         writeln!(writer, "\nOracle text:\n{}", card.oracle_text)?;
-        writeln!(writer, "\nAST:\n{:#?}", parse(&card.oracle_text))?;
+        let ast = parse(&card.oracle_text);
+        if verbose {
+            writeln!(writer, "\nAST:\n{ast:#?}")?;
+        } else {
+            writeln!(writer, "\nAST:\n{:#?}", ast.source_debug(&card.oracle_text))?;
+        }
     }
 
     Ok(())
@@ -183,5 +192,27 @@ mod tests {
 
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].face_name.as_deref(), Some("Ice"));
+    }
+
+    #[test]
+    fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
+        let cards = [CardText {
+            card_name: "Test Card".to_owned(),
+            face_name: None,
+            oracle_text: "Draw a card.".to_owned(),
+        }];
+        let mut normal = Vec::new();
+        let mut verbose = Vec::new();
+
+        write_cards(&mut normal, &cards, false).unwrap();
+        write_cards(&mut verbose, &cards, true).unwrap();
+        let normal = String::from_utf8(normal).unwrap();
+        let verbose = String::from_utf8(verbose).unwrap();
+
+        assert!(normal.contains("text: \"Draw\""));
+        assert!(normal.contains("verb: \"Draw\""));
+        assert!(!normal.contains("Span"));
+        assert!(verbose.contains("Span"));
+        assert!(verbose.contains("start: 0"));
     }
 }
