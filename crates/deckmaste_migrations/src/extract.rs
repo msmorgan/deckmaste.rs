@@ -25,10 +25,11 @@ use crate::todo_card::TodoCard;
 use crate::todo_card::TodoCardFace;
 use crate::todo_card::render;
 
-// We count non-null, non-"Banned" as legal.
 fn is_supported(card: &AtomicCard) -> bool {
-    card.legalities.vintage.as_deref().unwrap_or("Banned") != "Banned"
-        && card.layout.as_str() != "reversible_card"
+    matches!(
+        card.legalities.vintage.as_deref(),
+        Some("Legal" | "Restricted")
+    ) && card.layout.as_str() != "reversible_card"
 }
 
 /// Uppercases the first character (ASCII only, like jq's `ascii_upcase`).

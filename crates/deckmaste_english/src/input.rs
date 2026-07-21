@@ -13,6 +13,51 @@ pub fn normalize_self_references(text: &str, face_name: &str, is_legendary: bool
     replace_whole_word(&full_name_replaced, short_name.trim(), "~")
 }
 
+/// Removes parenthesized reminder text before English parsing.
+///
+/// Parentheses are lexical trivia in Oracle text for this phase. One ordinary
+/// space immediately before a balanced group is removed with it; unmatched
+/// opening parentheses are preserved.
+#[must_use]
+pub fn strip_reminder_text(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    let mut group = String::new();
+    let mut depth = 0_usize;
+
+    for character in text.chars() {
+        if depth == 0 {
+            if character == '(' {
+                depth = 1;
+                group.push(character);
+            } else {
+                output.push(character);
+            }
+        } else {
+            group.push(character);
+            match character {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        group.clear();
+                        if output.ends_with(' ') {
+                            output.pop();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    output.push_str(&group);
+    output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn replace_whole_word(text: &str, name: &str, replacement: &str) -> String {
     if name.is_empty() || !text.contains(name) {
         return text.to_owned();
@@ -112,5 +157,24 @@ mod tests {
             ),
             "~~ enters."
         );
+    }
+
+    #[test]
+    fn reminder_text_is_removed_wherever_it_interrupts_rules_text() {
+        assert_eq!(
+            strip_reminder_text(
+                "You get {E} (an energy counter).\n(Reminder only.)\nThen draw a card."
+            ),
+            "You get {E}.\nThen draw a card."
+        );
+        assert_eq!(
+            strip_reminder_text("Get {E} (an energy counter), then draw."),
+            "Get {E}, then draw."
+        );
+    }
+
+    #[test]
+    fn unmatched_parentheses_are_not_discarded() {
+        assert_eq!(strip_reminder_text("Choose (perhaps"), "Choose (perhaps");
     }
 }

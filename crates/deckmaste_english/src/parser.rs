@@ -1,8 +1,14 @@
 use crate::Ability;
 use crate::AbilityKind;
 use crate::ActivatedAbility;
+use crate::Auxiliary;
+use crate::AuxiliaryInflection;
+use crate::AuxiliaryKind;
+use crate::AuxiliaryNegation;
+use crate::Capitalization;
 use crate::Catalogs;
 use crate::Clause;
+use crate::CommaSeparatedClause;
 use crate::ConditionalClause;
 use crate::ConditionalPosition;
 use crate::CoordinatedClause;
@@ -13,21 +19,39 @@ use crate::DeterminerKind;
 use crate::Diagnostic;
 use crate::DiagnosticKind;
 use crate::EmbeddedRules;
+use crate::EmbeddedRulesFrame;
 use crate::KeywordAbility;
 use crate::KeywordAbilityList;
+use crate::KeywordArgumentSeparator;
+use crate::KeywordListSeparator;
 use crate::LoyaltyAbility;
+use crate::LoyaltyCost;
+use crate::LoyaltyCostSign;
+use crate::LoyaltyCostValue;
 use crate::ModalAbility;
 use crate::ModalFrame;
+use crate::ModalPreambleSeparator;
 use crate::Mode;
+use crate::ModifiedNounPhrase;
 use crate::NounPhrase;
+use crate::NumberSpelling;
 use crate::OracleText;
 use crate::Paragraph;
 use crate::PartOfSpeech;
 use crate::Phrase;
+use crate::PowerToughness;
 use crate::Predicate;
 use crate::PredicateConjunction;
+use crate::PreverbWord;
+use crate::QuantityPhrase;
 use crate::ReminderText;
+use crate::ScalarSign;
+use crate::ScalarValue;
 use crate::Sentence;
+use crate::SentenceTerminal;
+use crate::SentenceTerminalKind;
+use crate::SentenceTerminalSuffix;
+use crate::SignedScalar;
 use crate::SimpleClause;
 use crate::Span;
 use crate::Subordinator;
@@ -158,6 +182,23 @@ impl Parser<'_, '_> {
                 });
             }
         }
+        if body.start < header.start {
+            let before_header = &self.source[body.start..header.start];
+            let (preamble_end, separator) = if before_header.ends_with(", ") {
+                (header.start - 2, ModalPreambleSeparator::CommaSpace)
+            } else if before_header.ends_with(' ') {
+                (header.start - 1, ModalPreambleSeparator::Space)
+            } else {
+                (header.start, ModalPreambleSeparator::None)
+            };
+            let preamble = trim_span(self.source, Span::new(body.start, preamble_end));
+            if !preamble.is_empty() {
+                return ModalFrame::Preamble {
+                    body: self.paragraph(preamble),
+                    separator,
+                };
+            }
+        }
         ModalFrame::Unframed
     }
 
@@ -183,6 +224,7 @@ impl Parser<'_, '_> {
                 {
                     let embedded = EmbeddedRules {
                         span: argument_span,
+                        frame: EmbeddedRulesFrame::Bare,
                         ability: Box::new(self.embedded_ability(argument_span)),
                     };
                     item.argument = Some(self.phrase(argument_span, vec![embedded]));
@@ -265,11 +307,12 @@ impl Parser<'_, '_> {
     }
 
     fn clause(&self, span: Span) -> Clause {
-        const PREFIXES: [(&str, Subordinator); 5] = [
+        const PREFIXES: [(&str, Subordinator); 6] = [
             ("as long as ", Subordinator::AsLongAs),
             ("because ", Subordinator::Because),
             ("unless ", Subordinator::Unless),
             ("until ", Subordinator::Until),
+            ("when ", Subordinator::When),
             ("if ", Subordinator::If),
         ];
         const INFIXES: [(&str, Subordinator); 4] = [
@@ -290,6 +333,7 @@ impl Parser<'_, '_> {
                     return Clause::Conditional(ConditionalClause {
                         span,
                         subordinator,
+                        subordinator_capitalization: capitalization(self.text(subordinator_span)),
                         subordinator_span,
                         position: ConditionalPosition::BeforeConsequence,
                         condition: self
@@ -301,6 +345,19 @@ impl Parser<'_, '_> {
             }
         }
 
+        if let Some(comma) = find_top_level(self.source, span, ", ") {
+            let first = trim_span(self.source, Span::new(span.start, comma));
+            let last_word = self.text(first).split_whitespace().next_back();
+            if last_word.is_some_and(|word| auxiliary_parts(word).is_some()) {
+                let second = trim_span(self.source, Span::new(comma + 2, span.end));
+                return Clause::CommaSeparated(CommaSeparatedClause {
+                    span,
+                    first: self.simple_clause(first),
+                    second: self.simple_clause(second),
+                });
+            }
+        }
+
         for (infix, subordinator) in INFIXES {
             if let Some(start) = find_top_level(self.source, span, infix) {
                 let consequence = trim_span(self.source, Span::new(span.start, start));
@@ -309,6 +366,7 @@ impl Parser<'_, '_> {
                 return Clause::Conditional(ConditionalClause {
                     span,
                     subordinator,
+                    subordinator_capitalization: Capitalization::Lowercase,
                     subordinator_span: Span::new(start + 1, condition_start - 1),
                     position: ConditionalPosition::AfterConsequence,
                     condition: self.simple_clause(condition),
@@ -327,12 +385,13 @@ impl Parser<'_, '_> {
                 token.span.start >= span.start
                     && token.span.end <= span.end
                     && matches!(token.kind, TokenKind::Word)
+                    && token_is_top_level(self.source, span, token.span.start)
             })
             .collect();
         let Some(predicate_match) = predicate_word(self.source, span, &words, self.catalogs) else {
             return SimpleClause {
                 span,
-                unparsed: Some(self.phrase(span, Vec::new())),
+                unparsed: Some(self.phrase(span, self.quoted_rules(span))),
                 subject: None,
                 predicate: None,
                 coordinated_predicates: Vec::new(),
@@ -341,7 +400,7 @@ impl Parser<'_, '_> {
         };
         let predicate_start = predicate_match
             .auxiliary
-            .map_or(predicate_match.verb.start, |span| span.start);
+            .map_or(predicate_match.verb.start, |auxiliary| auxiliary.span.start);
         let subject = trim_span(self.source, Span::new(span.start, predicate_start));
         let mut current_match = predicate_match;
         let mut current_start = predicate_start;
@@ -368,10 +427,11 @@ impl Parser<'_, '_> {
                 coordination.map_or(predicate_bound, |coordination| coordination.left_end);
             let predicate_span = trim_span(self.source, Span::new(current_start, predicate_end));
             let parsed = self.predicate(current_match, predicate_span);
-            if let Some((conjunction, conjunction_span)) = pending_coordination.take() {
+            if let Some((conjunction, conjunction_span, has_comma)) = pending_coordination.take() {
                 coordinated_predicates.push(CoordinatedPredicate {
                     conjunction,
                     conjunction_span,
+                    has_comma,
                     predicate: parsed,
                 });
             } else {
@@ -385,8 +445,12 @@ impl Parser<'_, '_> {
             current_match = coordination.predicate_match;
             current_start = current_match
                 .auxiliary
-                .map_or(current_match.verb.start, |span| span.start);
-            pending_coordination = Some((coordination.conjunction, coordination.conjunction_span));
+                .map_or(current_match.verb.start, |auxiliary| auxiliary.span.start);
+            pending_coordination = Some((
+                coordination.conjunction,
+                coordination.conjunction_span,
+                coordination.has_comma,
+            ));
         }
 
         SimpleClause {
@@ -400,6 +464,7 @@ impl Parser<'_, '_> {
                     vec![CoordinatedClause {
                         conjunction: coordination.conjunction,
                         conjunction_span: coordination.conjunction_span,
+                        has_comma: coordination.has_comma,
                         clause: Box::new(self.simple_clause(coordination.remainder)),
                     }]
                 })
@@ -408,22 +473,33 @@ impl Parser<'_, '_> {
     }
 
     fn predicate(&self, predicate_match: PredicateMatch, span: Span) -> Predicate {
-        let predicate_start = predicate_match
-            .auxiliary
-            .map_or(predicate_match.verb.start, |span| span.start);
         let complement = trim_span(self.source, Span::new(predicate_match.verb.end, span.end));
+        let preverb_words = self
+            .tokens
+            .iter()
+            .filter(|token| {
+                matches!(token.kind, TokenKind::Word)
+                    && predicate_match
+                        .auxiliary
+                        .is_some_and(|auxiliary| token.span.start >= auxiliary.span.end)
+                    && token.span.end <= predicate_match.verb.start
+            })
+            .filter_map(
+                |token| match self.text(token.span).to_ascii_lowercase().as_str() {
+                    "not" => Some(PreverbWord::Not),
+                    "also" => Some(PreverbWord::Also),
+                    _ => None,
+                },
+            )
+            .collect::<Vec<_>>();
         let negated = predicate_match
             .auxiliary
-            .is_some_and(|auxiliary| is_negative(self.text(auxiliary)))
-            || self.tokens.iter().any(|token| {
-                matches!(token.kind, TokenKind::Word)
-                    && token.span.start >= predicate_start
-                    && token.span.start < predicate_match.verb.start
-                    && self.text(token.span).eq_ignore_ascii_case("not")
-            });
+            .is_some_and(|auxiliary| auxiliary.negation != AuxiliaryNegation::None)
+            || preverb_words.contains(&PreverbWord::Not);
         Predicate {
             span,
             auxiliary: predicate_match.auxiliary,
+            preverb_words,
             verb: structured_verb_text(self.text(predicate_match.verb).to_owned(), self.catalogs),
             verb_kind: predicate_match.verb_kind,
             complement: (!complement.is_empty())
@@ -448,6 +524,7 @@ impl Parser<'_, '_> {
                 let body = trim_span(self.source, Span::new(pair[0].span.end, pair[1].span.start));
                 self.looks_like_rules(body).then(|| EmbeddedRules {
                     span: Span::new(pair[0].span.start, pair[1].span.end),
+                    frame: EmbeddedRulesFrame::DoubleQuoted { closed: true },
                     ability: Box::new(self.embedded_ability(body)),
                 })
             })
@@ -457,6 +534,7 @@ impl Parser<'_, '_> {
             if self.looks_like_rules(body) {
                 embedded.push(EmbeddedRules {
                     span: Span::new(open.span.start, span.end),
+                    frame: EmbeddedRulesFrame::DoubleQuoted { closed: false },
                     ability: Box::new(self.embedded_ability(body)),
                 });
             }
@@ -478,7 +556,7 @@ impl Parser<'_, '_> {
         }
         sentence_spans(self.source, span)
             .into_iter()
-            .any(|(_, content, _)| {
+            .any(|(_, content, terminal)| {
                 let words = self
                     .tokens
                     .iter()
@@ -488,7 +566,15 @@ impl Parser<'_, '_> {
                             && matches!(token.kind, TokenKind::Word)
                     })
                     .collect::<Vec<_>>();
-                predicate_word(self.source, content, &words, self.catalogs).is_some()
+                predicate_word(self.source, content, &words, self.catalogs).is_some_and(
+                    |predicate| {
+                        predicate.auxiliary.is_some()
+                            || terminal.is_some()
+                            || self.source[predicate.verb.end..content.end]
+                                .chars()
+                                .any(|character| character.is_alphanumeric() || character == '{')
+                    },
+                )
             })
     }
 
@@ -508,6 +594,14 @@ impl Parser<'_, '_> {
 
     fn text(&self, span: Span) -> &str {
         span.text(self.source).unwrap_or_default()
+    }
+}
+
+fn capitalization(text: &str) -> Capitalization {
+    if text.chars().next().is_some_and(char::is_uppercase) {
+        Capitalization::Capitalized
+    } else {
+        Capitalization::Lowercase
     }
 }
 
@@ -697,25 +791,39 @@ fn keyword_ability_list(
 
     let mut abilities = Vec::new();
     let mut start = span.start;
+    let mut preceding_separator = None;
 
     while start < span.end {
         let remaining = trim_span(source, Span::new(start, span.end));
         let text = remaining.text(source)?;
         let name = catalogs.keyword_ability_prefix(text)?;
         let name_span = Span::new(remaining.start, remaining.start + name.len());
-        let next = next_keyword_ability(source, name_span.end, span.end, catalogs);
-        let end = next.map_or(span.end, |(delimiter, _)| delimiter);
+        let dash_argument = source[name_span.end..span.end]
+            .trim_start()
+            .starts_with('—');
+        let next = (!dash_argument)
+            .then(|| next_keyword_ability(source, name_span.end, span.end, catalogs))
+            .flatten();
+        let end = next.map_or(span.end, |(delimiter, _, _)| delimiter);
         let item_span = trim_span(source, Span::new(remaining.start, end));
-        let argument = keyword_argument(source, Span::new(name_span.end, item_span.end))
+        let argument_span = keyword_argument(source, Span::new(name_span.end, item_span.end));
+        let argument_separator = argument_span
+            .map(|argument| keyword_argument_separator(&source[name_span.end..argument.start]));
+        let argument = argument_span
             .map(|argument| structured_phrase(source, argument, Vec::new(), Some(catalogs)));
         abilities.push(KeywordAbility {
             span: item_span,
+            preceding_separator,
             name: name.to_owned(),
             printed_name: structured_phrase(source, name_span, Vec::new(), Some(catalogs)),
+            argument_separator,
             argument,
         });
 
-        let Some((_, next_start)) = next else { break };
+        let Some((_, next_start, separator)) = next else {
+            break;
+        };
+        preceding_separator = Some(separator);
         start = next_start;
     }
 
@@ -727,7 +835,7 @@ fn next_keyword_ability(
     start: usize,
     end: usize,
     catalogs: &Catalogs,
-) -> Option<(usize, usize)> {
+) -> Option<(usize, usize, KeywordListSeparator)> {
     let mut state = Nesting::default();
     for (relative, ch) in source[start..end].char_indices() {
         let delimiter = start + relative;
@@ -737,12 +845,29 @@ fn next_keyword_ability(
                 .keyword_ability_prefix(next.text(source)?)
                 .is_some()
             {
-                return Some((delimiter, next.start));
+                let separator = match ch {
+                    ',' => KeywordListSeparator::Comma,
+                    ';' => KeywordListSeparator::Semicolon,
+                    _ => return None,
+                };
+                return Some((delimiter, next.start, separator));
             }
         }
         state.observe(ch);
     }
     None
+}
+
+fn keyword_argument_separator(text: &str) -> KeywordArgumentSeparator {
+    if text.contains('—') {
+        if text.chars().any(char::is_whitespace) {
+            KeywordArgumentSeparator::SpacedEmDash
+        } else {
+            KeywordArgumentSeparator::EmDash
+        }
+    } else {
+        KeywordArgumentSeparator::Space
+    }
 }
 
 fn has_top_level_terminal(source: &str, span: Span) -> bool {
@@ -805,9 +930,8 @@ fn reminder_text(source: &str, span: Span) -> Vec<ReminderText> {
             && state.parentheses == 0
             && let Some(start) = start.take()
         {
-            reminders.push(ReminderText {
-                span: Span::new(start, index + ch.len_utf8()),
-            });
+            let span = Span::new(start, index + ch.len_utf8());
+            reminders.push(ReminderText { span });
         }
     }
 
@@ -842,7 +966,7 @@ fn trigger_start(body: Span, text: &str) -> Option<(TriggerWord, Span, Span)> {
     Some((word, introducer, rest))
 }
 
-fn loyalty_parts(source: &str, span: Span) -> Option<(Span, Span)> {
+fn loyalty_parts(source: &str, span: Span) -> Option<(LoyaltyCost, Span)> {
     let text = span.text(source)?;
     if !text.starts_with('[') {
         return None;
@@ -850,8 +974,28 @@ fn loyalty_parts(source: &str, span: Span) -> Option<(Span, Span)> {
     let delimiter = text.find("]: ")?;
     let cost_end = span.start + delimiter + 1;
     let effect_start = span.start + delimiter + 3;
+    let cost_span = Span::new(span.start, cost_end);
+    let printed_cost = &text[1..delimiter];
+    let (sign, printed_value) = if let Some(value) = printed_cost.strip_prefix('+') {
+        (LoyaltyCostSign::Plus, value)
+    } else if let Some(value) = printed_cost.strip_prefix('−') {
+        (LoyaltyCostSign::Minus, value)
+    } else if let Some(value) = printed_cost.strip_prefix('-') {
+        (LoyaltyCostSign::Minus, value)
+    } else {
+        (LoyaltyCostSign::None, printed_cost)
+    };
+    let value = if printed_value == "X" {
+        LoyaltyCostValue::X
+    } else {
+        LoyaltyCostValue::Number(printed_value.parse().ok()?)
+    };
     Some((
-        Span::new(span.start, cost_end),
+        LoyaltyCost {
+            span: cost_span,
+            sign,
+            value,
+        },
         trim_span(source, Span::new(effect_start, span.end)),
     ))
 }
@@ -875,7 +1019,7 @@ fn mode_body(source: &str, span: Span) -> Option<(Span, Span)> {
     (!body.is_empty()).then_some((bullet, body))
 }
 
-fn sentence_spans(source: &str, span: Span) -> Vec<(Span, Span, Option<Span>)> {
+fn sentence_spans(source: &str, span: Span) -> Vec<(Span, Span, Option<SentenceTerminal>)> {
     if span.is_empty() {
         return Vec::new();
     }
@@ -897,23 +1041,69 @@ fn sentence_spans(source: &str, span: Span) -> Vec<(Span, Span, Option<Span>)> {
         {
             let end = index + ch.len_utf8();
             let content = trim_span(source, Span::new(start, index - 1));
-            if !content.is_empty() {
+            let terminal_span = Span::new(index - 1, index);
+            if !content.is_empty()
+                && let Some(kind) = terminal_span
+                    .text(source)
+                    .and_then(|text| text.chars().next())
+                    .and_then(sentence_terminal_kind)
+            {
                 sentences.push((
                     Span::new(content.start, end),
                     content,
-                    Some(Span::new(index - 1, index)),
+                    Some(SentenceTerminal {
+                        span: terminal_span,
+                        kind,
+                        repetitions: 1,
+                        suffix: SentenceTerminalSuffix::DoubleQuote,
+                    }),
                 ));
             }
             start = end;
         }
-        if state.is_top_level() && matches!(ch, '.' | '!' | '?') {
-            let end = index + ch.len_utf8();
+        if state.is_top_level()
+            && matches!(ch, '.' | '!' | '?')
+            && !(ch == '.'
+                && (period_is_abbreviation(source, index, span)
+                    || period_is_spaced_ellipsis(source, index, span)
+                    || period_is_unspaced_ellipsis(source, index, span)
+                    || period_joins_word_characters(source, index, span)))
+        {
+            let terminal_end = index + ch.len_utf8();
+            let repetitions = if ch == '.' {
+                1 + source[terminal_end..span.end]
+                    .chars()
+                    .take_while(|next| *next == '.')
+                    .count() as u8
+            } else {
+                1
+            };
+            let (end, suffix) = if source[terminal_end..span.end].starts_with('\'') {
+                (
+                    terminal_end + '\''.len_utf8(),
+                    SentenceTerminalSuffix::SingleQuote,
+                )
+            } else if source[terminal_end..span.end].starts_with('"') {
+                (
+                    terminal_end + '"'.len_utf8(),
+                    SentenceTerminalSuffix::DoubleQuote,
+                )
+            } else {
+                (terminal_end, SentenceTerminalSuffix::None)
+            };
             let content = trim_span(source, Span::new(start, index));
-            if !content.is_empty() {
+            if !content.is_empty()
+                && let Some(kind) = sentence_terminal_kind(ch)
+            {
                 sentences.push((
                     Span::new(content.start, end),
                     content,
-                    Some(Span::new(index, end)),
+                    Some(SentenceTerminal {
+                        span: Span::new(index, terminal_end),
+                        kind,
+                        repetitions,
+                        suffix,
+                    }),
                 ));
             }
             start = end;
@@ -927,9 +1117,70 @@ fn sentence_spans(source: &str, span: Span) -> Vec<(Span, Span, Option<Span>)> {
     sentences
 }
 
+fn sentence_terminal_kind(terminal: char) -> Option<SentenceTerminalKind> {
+    match terminal {
+        '.' => Some(SentenceTerminalKind::Period),
+        '!' => Some(SentenceTerminalKind::ExclamationMark),
+        '?' => Some(SentenceTerminalKind::QuestionMark),
+        _ => None,
+    }
+}
+
 fn quote_ends_sentence(source: &str, after_quote: usize, paragraph_end: usize) -> bool {
     let rest = source[after_quote..paragraph_end].trim_start();
-    rest.is_empty() || rest.chars().next().is_some_and(char::is_uppercase)
+    rest.is_empty()
+        || rest
+            .chars()
+            .next()
+            .is_some_and(|character| character == '~' || character.is_uppercase())
+}
+
+fn period_is_abbreviation(source: &str, index: usize, span: Span) -> bool {
+    let previous = source[span.start..index].chars().next_back();
+    if !previous.is_some_and(char::is_uppercase) {
+        return false;
+    }
+    let next = source[index + 1..span.end].chars().next();
+    if next.is_some_and(char::is_uppercase) {
+        return true;
+    }
+    let token_start = source[span.start..index]
+        .rfind(char::is_whitespace)
+        .map_or(span.start, |relative| span.start + relative + 1);
+    source[token_start..index].contains('.')
+}
+
+fn period_is_spaced_ellipsis(source: &str, index: usize, span: Span) -> bool {
+    source[span.start..span.end]
+        .match_indices(". . .")
+        .any(|(relative, _)| {
+            let start = span.start + relative;
+            index
+                .checked_sub(start)
+                .is_some_and(|offset| matches!(offset, 0 | 2 | 4))
+        })
+}
+
+fn period_is_unspaced_ellipsis(source: &str, index: usize, span: Span) -> bool {
+    source[span.start..span.end]
+        .match_indices("...")
+        .any(|(relative, _)| {
+            let start = span.start + relative;
+            index
+                .checked_sub(start)
+                .is_some_and(|offset| matches!(offset, 0..=2))
+        })
+}
+
+fn period_joins_word_characters(source: &str, index: usize, span: Span) -> bool {
+    source[span.start..index]
+        .chars()
+        .next_back()
+        .is_some_and(char::is_alphanumeric)
+        && source[index + 1..span.end]
+            .chars()
+            .next()
+            .is_some_and(char::is_alphanumeric)
 }
 
 fn split_top_level(source: &str, span: Span, delimiter: &str) -> Vec<Span> {
@@ -968,7 +1219,6 @@ fn structured_phrase(
     }
     text.push_str(&source[cursor..span.end]);
     let text = text.trim().to_owned();
-
     if embedded_rules.is_empty() {
         structured_text(text, catalogs)
     } else {
@@ -1001,10 +1251,36 @@ fn structured_text(text: String, catalogs: Option<&Catalogs>) -> Phrase {
             symbol: symbol.to_owned(),
             text,
         }
+    } else if let Some(symbols) = oracle_symbol_sequence(&text) {
+        Phrase::SymbolSequence { text, symbols }
+    } else if let Some((power, toughness)) = power_toughness(&text) {
+        Phrase::PowerToughness(Box::new(PowerToughness {
+            text,
+            power,
+            toughness,
+        }))
+    } else if let Some((value, spelling)) = number_literal(&text) {
+        Phrase::NumberLiteral {
+            text,
+            value,
+            spelling,
+        }
+    } else if let Some((quantity, unit)) = quantity_parts(&text) {
+        Phrase::QuantityPhrase(Box::new(QuantityPhrase {
+            text,
+            quantity: Box::new(structured_text(quantity, catalogs)),
+            unit: Box::new(structured_text(unit, catalogs)),
+        }))
     } else if let Some((determiner, head)) = determined_noun(&text) {
         Phrase::NounPhrase(Box::new(NounPhrase {
             text,
             determiner,
+            head: Box::new(structured_text(head, catalogs)),
+        }))
+    } else if let Some((modifier, head)) = modified_noun(&text) {
+        Phrase::ModifiedNounPhrase(Box::new(ModifiedNounPhrase {
+            text,
+            modifier: Box::new(structured_text(modifier, catalogs)),
             head: Box::new(structured_text(head, catalogs)),
         }))
     } else if let Some(lemma) = pronoun_lemma(&text) {
@@ -1013,11 +1289,11 @@ fn structured_text(text: String, catalogs: Option<&Catalogs>) -> Phrase {
             lemma: lemma.to_owned(),
             part_of_speech: PartOfSpeech::Pronoun,
         }
-    } else if text.eq_ignore_ascii_case("card") {
+    } else if let Some((lemma, part_of_speech)) = lexical_entry(&text) {
         Phrase::Lexeme {
             text,
-            lemma: "card".to_owned(),
-            part_of_speech: PartOfSpeech::Noun,
+            lemma: lemma.to_owned(),
+            part_of_speech,
         }
     } else {
         Phrase::UnknownPhrase(text)
@@ -1058,17 +1334,103 @@ fn oracle_symbol(text: &str) -> Option<&str> {
     (!symbol.is_empty() && !symbol.contains(['{', '}'])).then_some(symbol)
 }
 
+fn oracle_symbol_sequence(text: &str) -> Option<Vec<String>> {
+    let mut symbols = Vec::new();
+    let mut rest = text;
+    while let Some(after_open) = rest.strip_prefix('{') {
+        let close = after_open.find('}')?;
+        let symbol = &after_open[..close];
+        if symbol.is_empty() || symbol.contains(['{', '}']) {
+            return None;
+        }
+        symbols.push(symbol.to_owned());
+        rest = &after_open[close + 1..];
+    }
+    (rest.is_empty() && symbols.len() > 1).then_some(symbols)
+}
+
+fn power_toughness(text: &str) -> Option<(SignedScalar, SignedScalar)> {
+    let (power, toughness) = text.split_once('/')?;
+    Some((signed_scalar(power)?, signed_scalar(toughness)?))
+}
+
+fn signed_scalar(text: &str) -> Option<SignedScalar> {
+    let (sign, value) = if let Some(value) = text.strip_prefix('+') {
+        (ScalarSign::Plus, value)
+    } else if let Some(value) = text.strip_prefix('-').or_else(|| text.strip_prefix('−')) {
+        (ScalarSign::Minus, value)
+    } else {
+        (ScalarSign::None, text)
+    };
+    let value = match value {
+        "X" => ScalarValue::X,
+        "*" => ScalarValue::Star,
+        value => ScalarValue::Integer(value.parse().ok()?),
+    };
+    Some(SignedScalar { sign, value })
+}
+
+fn number_literal(text: &str) -> Option<(ScalarValue, NumberSpelling)> {
+    if text == "X" {
+        return Some((
+            ScalarValue::X,
+            NumberSpelling::EnglishWord(Capitalization::Capitalized),
+        ));
+    }
+    if let Ok(value) = text.parse() {
+        return Some((ScalarValue::Integer(value), NumberSpelling::Digits));
+    }
+    let value = match text.to_ascii_lowercase().as_str() {
+        "zero" => 0,
+        "one" => 1,
+        "two" => 2,
+        "three" => 3,
+        "four" => 4,
+        "five" => 5,
+        "six" => 6,
+        "seven" => 7,
+        "eight" => 8,
+        "nine" => 9,
+        "ten" => 10,
+        "eleven" => 11,
+        "twelve" => 12,
+        "thirteen" => 13,
+        "fourteen" => 14,
+        "fifteen" => 15,
+        "sixteen" => 16,
+        "seventeen" => 17,
+        "eighteen" => 18,
+        "nineteen" => 19,
+        "twenty" => 20,
+        "fifty" => 50,
+        _ => return None,
+    };
+    Some((
+        ScalarValue::Integer(value),
+        NumberSpelling::EnglishWord(capitalization(text)),
+    ))
+}
+
+fn quantity_parts(text: &str) -> Option<(String, String)> {
+    let (quantity, unit) = text.split_once(' ')?;
+    (!unit.is_empty() && !unit.contains(char::is_whitespace) && number_literal(quantity).is_some())
+        .then(|| (quantity.to_owned(), unit.to_owned()))
+}
+
 fn determined_noun(text: &str) -> Option<(Determiner, String)> {
     let (article, head) = text.split_once(' ')?;
     if head.is_empty() || head.contains(char::is_whitespace) {
         return None;
     }
-    let kind = if article.eq_ignore_ascii_case("a") || article.eq_ignore_ascii_case("an") {
-        DeterminerKind::IndefiniteArticle
-    } else if article.eq_ignore_ascii_case("this") {
-        DeterminerKind::Demonstrative
-    } else {
-        return None;
+    let kind = match article.to_ascii_lowercase().as_str() {
+        "a" | "an" => DeterminerKind::IndefiniteArticle,
+        "the" => DeterminerKind::DefiniteArticle,
+        "this" | "that" => DeterminerKind::Demonstrative,
+        "each" => DeterminerKind::Distributive,
+        "my" | "your" | "his" | "her" | "its" | "our" | "their" => DeterminerKind::Possessive,
+        "target" => DeterminerKind::Targeting,
+        "all" => DeterminerKind::Universal,
+        _ => return None,
     };
     Some((
         Determiner {
@@ -1077,6 +1439,72 @@ fn determined_noun(text: &str) -> Option<(Determiner, String)> {
         },
         head.to_owned(),
     ))
+}
+
+fn modified_noun(text: &str) -> Option<(String, String)> {
+    let (modifier, head) = text.split_once(' ')?;
+    if head.is_empty() || head.contains(char::is_whitespace) {
+        return None;
+    }
+    lexical_entry(modifier)
+        .is_some_and(|(_, part_of_speech)| part_of_speech == PartOfSpeech::Adjective)
+        .then(|| (modifier.to_owned(), head.to_owned()))
+}
+
+fn lexical_entry(text: &str) -> Option<(&'static str, PartOfSpeech)> {
+    let lower = text.to_ascii_lowercase();
+    let entry = match lower.as_str() {
+        "ability" | "abilities" => ("ability", PartOfSpeech::Noun),
+        "artifact" | "artifacts" => ("artifact", PartOfSpeech::Noun),
+        "battlefield" => ("battlefield", PartOfSpeech::Noun),
+        "card" | "cards" => ("card", PartOfSpeech::Noun),
+        "combat" => ("combat", PartOfSpeech::Noun),
+        "controller" | "controllers" => ("controller", PartOfSpeech::Noun),
+        "creature" | "creatures" => ("creature", PartOfSpeech::Noun),
+        "enchantment" | "enchantments" => ("enchantment", PartOfSpeech::Noun),
+        "hand" | "hands" => ("hand", PartOfSpeech::Noun),
+        "land" | "lands" => ("land", PartOfSpeech::Noun),
+        "life" => ("life", PartOfSpeech::Noun),
+        "opponent" | "opponents" => ("opponent", PartOfSpeech::Noun),
+        "permanent" | "permanents" => ("permanent", PartOfSpeech::Noun),
+        "planeswalker" | "planeswalkers" => ("planeswalker", PartOfSpeech::Noun),
+        "player" | "players" => ("player", PartOfSpeech::Noun),
+        "spell" | "spells" => ("spell", PartOfSpeech::Noun),
+        "turn" | "turns" => ("turn", PartOfSpeech::Noun),
+        "able" => ("able", PartOfSpeech::Adjective),
+        "attacking" => ("attack", PartOfSpeech::Adjective),
+        "blocked" => ("block", PartOfSpeech::Adjective),
+        "chosen" => ("choose", PartOfSpeech::Adjective),
+        "countered" => ("counter", PartOfSpeech::Adjective),
+        "dealt" => ("deal", PartOfSpeech::Adjective),
+        "defending" => ("defend", PartOfSpeech::Adjective),
+        "enchanted" => ("enchant", PartOfSpeech::Adjective),
+        "equipped" => ("equip", PartOfSpeech::Adjective),
+        "kicked" => ("kick", PartOfSpeech::Adjective),
+        "regenerated" => ("regenerate", PartOfSpeech::Adjective),
+        "tapped" => ("tap", PartOfSpeech::Adjective),
+        "untapped" => ("untap", PartOfSpeech::Adjective),
+        "alone" => ("alone", PartOfSpeech::Adverb),
+        "only" => ("only", PartOfSpeech::Adverb),
+        "there" => ("there", PartOfSpeech::Pronoun),
+        _ => {
+            let (kind, _, _) = auxiliary_parts(text)?;
+            let lemma = match kind {
+                AuxiliaryKind::Can => "can",
+                AuxiliaryKind::Could => "could",
+                AuxiliaryKind::Do => "do",
+                AuxiliaryKind::May => "may",
+                AuxiliaryKind::Might => "might",
+                AuxiliaryKind::Must => "must",
+                AuxiliaryKind::Shall => "shall",
+                AuxiliaryKind::Should => "should",
+                AuxiliaryKind::Will => "will",
+                AuxiliaryKind::Would => "would",
+            };
+            return Some((lemma, PartOfSpeech::Verb));
+        }
+    };
+    Some(entry)
 }
 
 fn find_top_level(source: &str, span: Span, needle: &str) -> Option<usize> {
@@ -1118,10 +1546,18 @@ impl Nesting {
     }
 }
 
+fn token_is_top_level(source: &str, span: Span, token_start: usize) -> bool {
+    let mut state = Nesting::default();
+    for character in source[span.start..token_start].chars() {
+        state.observe(character);
+    }
+    state.is_top_level()
+}
+
 #[derive(Clone, Copy)]
 struct PredicateMatch {
     verb: Span,
-    auxiliary: Option<Span>,
+    auxiliary: Option<Auxiliary>,
     verb_kind: VerbKind,
 }
 
@@ -1129,6 +1565,7 @@ struct PredicateMatch {
 struct PredicateCoordination {
     conjunction: PredicateConjunction,
     conjunction_span: Span,
+    has_comma: bool,
     left_end: usize,
     predicate_match: PredicateMatch,
 }
@@ -1137,6 +1574,7 @@ struct PredicateCoordination {
 struct ClauseCoordination {
     conjunction: PredicateConjunction,
     conjunction_span: Span,
+    has_comma: bool,
     left_end: usize,
     remainder: Span,
 }
@@ -1193,12 +1631,13 @@ fn coordinated_clause(
             {
                 let predicate_start = predicate
                     .auxiliary
-                    .map_or(predicate.verb.start, |span| span.start);
+                    .map_or(predicate.verb.start, |auxiliary| auxiliary.span.start);
                 let next_comma = find_top_level(source, remainder, ", ").unwrap_or(remainder.end);
                 if predicate_start > remainder.start && predicate.verb.start < next_comma {
                     return Some(ClauseCoordination {
                         conjunction,
                         conjunction_span,
+                        has_comma: true,
                         left_end,
                         remainder,
                     });
@@ -1237,6 +1676,7 @@ fn coordinated_predicate(
                 continue;
             };
             let left_end = span.start + relative;
+            let has_comma = text[relative..].starts_with(',');
             let conjunction_start = span.start
                 + relative
                 + text[relative..relative + remainder_offset]
@@ -1258,11 +1698,12 @@ fn coordinated_predicate(
             if let Some(predicate_match) = predicate_word(source, remainder, &words, catalogs) {
                 let predicate_start = predicate_match
                     .auxiliary
-                    .map_or(predicate_match.verb.start, |span| span.start);
+                    .map_or(predicate_match.verb.start, |auxiliary| auxiliary.span.start);
                 if predicate_start == remainder.start {
                     return Some(PredicateCoordination {
                         conjunction,
                         conjunction_span,
+                        has_comma,
                         left_end,
                         predicate_match,
                     });
@@ -1304,7 +1745,18 @@ fn predicate_word(
     }
     for (index, token) in words.iter().enumerate() {
         let text = token.span.text(source).unwrap_or_default();
-        if is_auxiliary(text) {
+        if let Some(auxiliary) = auxiliary(text, token.span) {
+            if auxiliary.kind == AuxiliaryKind::Do
+                && source[token.span.end..clause.end]
+                    .trim_start()
+                    .starts_with('~')
+            {
+                return Some(PredicateMatch {
+                    verb: token.span,
+                    auxiliary: None,
+                    verb_kind: VerbKind::Ordinary,
+                });
+            }
             let verb = words
                 .iter()
                 .skip(index + 1)
@@ -1313,7 +1765,7 @@ fn predicate_word(
                 .unwrap_or(token);
             return Some(PredicateMatch {
                 verb: verb.span,
-                auxiliary: (verb.span != token.span).then_some(token.span),
+                auxiliary: (verb.span != token.span).then_some(auxiliary),
                 verb_kind: VerbKind::Ordinary,
             });
         }
@@ -1333,32 +1785,56 @@ fn predicate_word(
 }
 
 fn is_auxiliary(word: &str) -> bool {
-    matches!(
-        word.to_ascii_lowercase().as_str(),
-        "can"
-            | "can't"
-            | "cannot"
-            | "could"
-            | "does"
-            | "doesn't"
-            | "do"
-            | "don't"
-            | "may"
-            | "might"
-            | "must"
-            | "shall"
-            | "should"
-            | "will"
-            | "won't"
-            | "would"
-    )
+    auxiliary_parts(word).is_some()
 }
 
-fn is_negative(word: &str) -> bool {
-    matches!(
-        word.to_ascii_lowercase().as_str(),
-        "can't" | "cannot" | "doesn't" | "don't" | "won't"
-    )
+fn auxiliary(word: &str, span: Span) -> Option<Auxiliary> {
+    let (kind, inflection, negation) = auxiliary_parts(word)?;
+    Some(Auxiliary {
+        span,
+        kind,
+        inflection,
+        negation,
+        capitalization: capitalization(word),
+    })
+}
+
+fn auxiliary_parts(word: &str) -> Option<(AuxiliaryKind, AuxiliaryInflection, AuxiliaryNegation)> {
+    use AuxiliaryInflection::Base;
+    use AuxiliaryInflection::ThirdPersonSingular;
+    use AuxiliaryKind::Can;
+    use AuxiliaryKind::Could;
+    use AuxiliaryKind::Do;
+    use AuxiliaryKind::May;
+    use AuxiliaryKind::Might;
+    use AuxiliaryKind::Must;
+    use AuxiliaryKind::Shall;
+    use AuxiliaryKind::Should;
+    use AuxiliaryKind::Will;
+    use AuxiliaryKind::Would;
+    use AuxiliaryNegation::Contracted;
+    use AuxiliaryNegation::Fused;
+    use AuxiliaryNegation::None as NoNegation;
+
+    Some(match word.to_ascii_lowercase().as_str() {
+        "can" => (Can, Base, NoNegation),
+        "can't" => (Can, Base, Contracted),
+        "cannot" => (Can, Base, Fused),
+        "could" => (Could, Base, NoNegation),
+        "do" => (Do, Base, NoNegation),
+        "don't" => (Do, Base, Contracted),
+        "does" => (Do, ThirdPersonSingular, NoNegation),
+        "doesn't" => (Do, ThirdPersonSingular, Contracted),
+        "may" => (May, Base, NoNegation),
+        "might" => (Might, Base, NoNegation),
+        "must" => (Must, Base, NoNegation),
+        "shall" => (Shall, Base, NoNegation),
+        "should" => (Should, Base, NoNegation),
+        "will" => (Will, Base, NoNegation),
+        "won't" => (Will, Base, Contracted),
+        "would" => (Would, Base, NoNegation),
+        _ => return Option::None,
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -1381,7 +1857,8 @@ fn ordinary_verb(word: &str) -> Option<OrdinaryVerb> {
     Some(match word.as_str() {
         "add" => verb("add", true, false),
         "adds" => verb("add", false, true),
-        "are" | "is" | "was" | "were" => verb("be", false, true),
+        "are" | "is" | "was" | "were" | "it's" => verb("be", false, true),
+        "ask" => verb("ask", true, false),
         "attach" => verb("attach", true, false),
         "attack" => verb("attack", false, false),
         "attacks" => verb("attack", false, true),
@@ -1396,7 +1873,7 @@ fn ordinary_verb(word: &str) -> Option<OrdinaryVerb> {
         "chooses" => verb("choose", false, true),
         "control" => verb("control", false, false),
         "controls" => verb("control", false, true),
-        "cost" => verb("cost", false, false),
+        "cost" => verb("cost", false, true),
         "costs" => verb("cost", false, true),
         "counter" => verb("counter", true, false),
         "count" => verb("count", false, false),
@@ -1434,7 +1911,7 @@ fn ordinary_verb(word: &str) -> Option<OrdinaryVerb> {
         "owns" => verb("own", false, true),
         "pay" => verb("pay", true, false),
         "pays" => verb("pay", false, true),
-        "play" => verb("play", false, false),
+        "play" => verb("play", false, true),
         "plays" => verb("play", false, true),
         "prevent" => verb("prevent", true, false),
         "prevents" => verb("prevent", false, true),
@@ -1730,7 +2207,9 @@ mod tests {
         let AbilityKind::Loyalty(loyalty) = &ast.abilities[0].kind else {
             panic!("expected loyalty ability")
         };
-        assert_eq!(text(source, loyalty.cost), "[−X]");
+        assert_eq!(text(source, loyalty.cost.span), "[−X]");
+        assert_eq!(loyalty.cost.sign, LoyaltyCostSign::Minus);
+        assert_eq!(loyalty.cost.value, LoyaltyCostValue::X);
         assert_eq!(
             text(source, loyalty.effect.span),
             "Exile each nonland permanent with mana value X or less."
@@ -1750,7 +2229,7 @@ mod tests {
             phrase_text(source, clause.subject.as_ref().unwrap()),
             "Target creature"
         );
-        assert_eq!(text(source, predicate.auxiliary.unwrap()), "can't");
+        assert_eq!(text(source, predicate.auxiliary.unwrap().span), "can't");
         assert_eq!(phrase_text(source, &predicate.verb), "block");
         assert!(predicate.negated);
     }
@@ -1771,7 +2250,17 @@ mod tests {
         assert_eq!(phrase_text(source, &predicate.verb), "get");
         assert_eq!(
             predicate.complement,
-            Some(Phrase::UnknownPhrase("+1/+1".to_owned()))
+            Some(Phrase::PowerToughness(Box::new(PowerToughness {
+                text: "+1/+1".to_owned(),
+                power: SignedScalar {
+                    sign: ScalarSign::Plus,
+                    value: ScalarValue::Integer(1),
+                },
+                toughness: SignedScalar {
+                    sign: ScalarSign::Plus,
+                    value: ScalarValue::Integer(1),
+                },
+            })))
         );
         assert_eq!(
             phrase_text(source, predicate.complement.as_ref().unwrap()),

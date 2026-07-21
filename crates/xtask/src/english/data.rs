@@ -10,6 +10,7 @@ use clap::Args;
 use deckmaste_english::CatalogKind;
 use deckmaste_english::Catalogs;
 use deckmaste_english::normalize_self_references;
+use deckmaste_english::strip_reminder_text;
 use serde::Deserialize;
 
 const CATALOG_FILES: [(CatalogKind, &str); 12] = [
@@ -67,6 +68,9 @@ pub(super) struct OracleData {
 pub(super) struct CardFace {
     pub(super) card_name: String,
     pub(super) face_name: Option<String>,
+    pub(super) is_legendary: bool,
+    pub(super) supported: bool,
+    pub(super) source_text: String,
     pub(super) oracle_text: String,
 }
 
@@ -83,6 +87,8 @@ struct RawCardFace {
     face: Option<String>,
     #[serde(default)]
     supertypes: Vec<String>,
+    #[serde(default)]
+    supported: bool,
     text: Option<String>,
 }
 
@@ -90,14 +96,18 @@ impl From<RawCardFace> for CardFace {
     fn from(raw: RawCardFace) -> Self {
         let printed_name = raw.face.as_deref().unwrap_or(&raw.name);
         let is_legendary = raw.supertypes.iter().any(|kind| kind == "Legendary");
-        let oracle_text = normalize_self_references(
-            raw.text.as_deref().unwrap_or_default(),
+        let source_text = raw.text.unwrap_or_default();
+        let oracle_text = strip_reminder_text(&normalize_self_references(
+            &source_text,
             printed_name,
             is_legendary,
-        );
+        ));
         Self {
             card_name: raw.name,
             face_name: raw.face,
+            is_legendary,
+            supported: raw.supported,
+            source_text,
             oracle_text,
         }
     }

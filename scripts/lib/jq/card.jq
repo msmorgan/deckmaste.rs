@@ -5,9 +5,12 @@ def from_all_printings_file: [.data[].cards[]];
 def from_set_file: .data.cards;
 def from_atomic_cards_file: [.data[][]];
 
-# We count non-null, non-"Banned" as legal.
+# The supported corpus is exactly the cards the format permits, including its
+# restricted list. Keep this explicit so a new legality value cannot silently
+# enter the corpus.
 def is_legal($format):
-    (.legalities[$format] // "Banned") != "Banned";
+    (.legalities[$format] // "Banned") as $legality
+    | ($legality == "Legal" or $legality == "Restricted");
 
 def is_supported:
     is_legal("vintage")

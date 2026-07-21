@@ -4,7 +4,8 @@ select(
   map(
     select(
       (.isReprint | not) and
-      ((.legalities.vintage // "Banned") != "Banned")
+      ((.legalities.vintage // "Banned") as $legality |
+        $legality == "Legal" or $legality == "Restricted")
     )
   ) |
   length > 0

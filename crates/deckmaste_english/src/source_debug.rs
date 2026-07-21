@@ -3,6 +3,7 @@ use std::fmt;
 use crate::Ability;
 use crate::AbilityKind;
 use crate::ActivatedAbility;
+use crate::Auxiliary;
 use crate::Clause;
 use crate::ConditionalClause;
 use crate::CoordinatedClause;
@@ -13,6 +14,7 @@ use crate::EmbeddedRules;
 use crate::KeywordAbility;
 use crate::KeywordAbilityList;
 use crate::LoyaltyAbility;
+use crate::LoyaltyCost;
 use crate::ModalAbility;
 use crate::ModalFrame;
 use crate::Mode;
@@ -22,6 +24,7 @@ use crate::Phrase;
 use crate::Predicate;
 use crate::ReminderText;
 use crate::Sentence;
+use crate::SentenceTerminal;
 use crate::SimpleClause;
 use crate::Span;
 use crate::Token;
@@ -306,6 +309,12 @@ impl ResolvedDebug for LoyaltyAbility {
     }
 }
 
+impl ResolvedDebug for LoyaltyCost {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.span.fmt_resolved(source, formatter)
+    }
+}
+
 impl ResolvedDebug for ModalAbility {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -321,6 +330,11 @@ impl ResolvedDebug for ModalFrame {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unframed => formatter.write_str("Unframed"),
+            Self::Preamble { body, separator } => formatter
+                .debug_struct("Preamble")
+                .field("body", &Resolved::new(source, body))
+                .field("separator", separator)
+                .finish(),
             Self::Activated(cost) => formatter
                 .debug_tuple("Activated")
                 .field(&Resolved::new(source, cost))
@@ -372,12 +386,23 @@ impl ResolvedDebug for Sentence {
     }
 }
 
+impl ResolvedDebug for SentenceTerminal {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.span.fmt_resolved(source, formatter)
+    }
+}
+
 impl ResolvedDebug for Clause {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Simple(clause) => formatter
                 .debug_tuple("Simple")
                 .field(&Resolved::new(source, clause))
+                .finish(),
+            Self::CommaSeparated(clause) => formatter
+                .debug_struct("CommaSeparated")
+                .field("first", &Resolved::new(source, &clause.first))
+                .field("second", &Resolved::new(source, &clause.second))
                 .finish(),
             Self::Conditional(clause) => formatter
                 .debug_tuple("Conditional")
@@ -392,6 +417,10 @@ impl ResolvedDebug for ConditionalClause {
         formatter
             .debug_struct("ConditionalClause")
             .field("subordinator", &self.subordinator)
+            .field(
+                "subordinator_capitalization",
+                &self.subordinator_capitalization,
+            )
             .field("position", &self.position)
             .field("condition", &Resolved::new(source, &self.condition))
             .field("consequence", &Resolved::new(source, &self.consequence))
@@ -429,6 +458,7 @@ impl ResolvedDebug for CoordinatedClause {
         formatter
             .debug_struct("CoordinatedClause")
             .field("conjunction", &self.conjunction)
+            .field("has_comma", &self.has_comma)
             .field("clause", &Resolved::new(source, self.clause.as_ref()))
             .finish()
     }
@@ -439,6 +469,7 @@ impl ResolvedDebug for CoordinatedPredicate {
         formatter
             .debug_struct("CoordinatedPredicate")
             .field("conjunction", &self.conjunction)
+            .field("has_comma", &self.has_comma)
             .field("predicate", &Resolved::new(source, &self.predicate))
             .finish()
     }
@@ -452,7 +483,23 @@ impl ResolvedDebug for Predicate {
             .field("verb", &Resolved::new(source, &self.verb))
             .field("verb_kind", &self.verb_kind)
             .field("complement", &Resolved::new(source, &self.complement));
+        if !self.preverb_words.is_empty() {
+            predicate.field("preverb_words", &self.preverb_words);
+        }
         predicate.field("negated", &self.negated).finish()
+    }
+}
+
+impl ResolvedDebug for Auxiliary {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Auxiliary")
+            .field("text", &Resolved::new(source, &self.span))
+            .field("kind", &self.kind)
+            .field("inflection", &self.inflection)
+            .field("negation", &self.negation)
+            .field("capitalization", &self.capitalization)
+            .finish()
     }
 }
 
@@ -482,10 +529,40 @@ impl ResolvedDebug for Phrase {
                 .field("text", text)
                 .field("symbol", symbol)
                 .finish(),
+            Self::SymbolSequence { text, symbols } => formatter
+                .debug_struct("SymbolSequence")
+                .field("text", text)
+                .field("symbols", symbols)
+                .finish(),
+            Self::NumberLiteral {
+                text,
+                value,
+                spelling,
+            } => formatter
+                .debug_struct("NumberLiteral")
+                .field("text", text)
+                .field("value", value)
+                .field("spelling", spelling)
+                .finish(),
+            Self::QuantityPhrase(phrase) => formatter
+                .debug_struct("QuantityPhrase")
+                .field("quantity", &Resolved::new(source, phrase.quantity.as_ref()))
+                .field("unit", &Resolved::new(source, phrase.unit.as_ref()))
+                .finish(),
+            Self::PowerToughness(expression) => formatter
+                .debug_struct("PowerToughness")
+                .field("power", &expression.power)
+                .field("toughness", &expression.toughness)
+                .finish(),
             Self::NounPhrase(phrase) => formatter
                 .debug_struct("NounPhrase")
                 .field("text", &phrase.text)
                 .field("determiner", &phrase.determiner)
+                .field("head", &Resolved::new(source, phrase.head.as_ref()))
+                .finish(),
+            Self::ModifiedNounPhrase(phrase) => formatter
+                .debug_struct("ModifiedNounPhrase")
+                .field("modifier", &Resolved::new(source, phrase.modifier.as_ref()))
                 .field("head", &Resolved::new(source, phrase.head.as_ref()))
                 .finish(),
             Self::CatalogTerm {
@@ -590,8 +667,9 @@ mod tests {
 
         assert!(output.contains("coordinated_predicates: ["));
         assert!(output.contains("conjunction: And"));
-        assert!(output.contains("UnknownPhrase("));
-        assert!(output.contains("\"+1/+1\""));
+        assert!(output.contains("PowerToughness"));
+        assert!(output.contains("sign: Plus"));
+        assert!(output.contains("value: Integer"));
         assert!(output.contains("\"get\""));
         assert!(output.contains("\"have\""));
         assert!(!output.contains("parts:"));

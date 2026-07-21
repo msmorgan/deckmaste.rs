@@ -89,7 +89,9 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
     let data = args.data.load()?;
 
     let mut occurrences = Vec::new();
-    for card in &data.faces {
+    let supported = data.faces.iter().filter(|card| card.supported);
+    let card_count = supported.clone().count();
+    for card in supported {
         let ast = parse_with_catalogs(&card.oracle_text, &data.catalogs);
         UnknownPhraseCollector::new(&mut occurrences, card.printed_name()).oracle_text(&ast);
     }
@@ -118,7 +120,7 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
     let unit = if maximum == 1 { "word" } else { "words" };
     println!(
         "audited {} card faces; found {} UnknownPhrase occurrences; maximum {maximum} {unit}; {over_three} over 3 words",
-        data.faces.len(),
+        card_count,
         occurrences.len()
     );
     println!(
@@ -249,6 +251,7 @@ impl<'a> UnknownPhraseCollector<'a> {
             AbilityKind::Modal(ability) => {
                 match &ability.frame {
                     ModalFrame::Unframed | ModalFrame::Loyalty(_) => {}
+                    ModalFrame::Preamble { body, .. } => self.paragraph(body),
                     ModalFrame::Activated(cost) => {
                         for component in &cost.components {
                             self.phrase("activation cost", component);
@@ -277,6 +280,10 @@ impl<'a> UnknownPhraseCollector<'a> {
         for sentence in &paragraph.sentences {
             match &sentence.clause {
                 Clause::Simple(clause) => self.simple_clause(clause),
+                Clause::CommaSeparated(clause) => {
+                    self.simple_clause(&clause.first);
+                    self.simple_clause(&clause.second);
+                }
                 Clause::Conditional(clause) => {
                     self.simple_clause(&clause.condition);
                     self.simple_clause(&clause.consequence);
@@ -320,9 +327,20 @@ impl<'a> UnknownPhraseCollector<'a> {
                 words: phrase_word_count(text),
             }),
             Phrase::NounPhrase(phrase) => self.phrase(role, &phrase.head),
+            Phrase::ModifiedNounPhrase(phrase) => {
+                self.phrase(role, &phrase.modifier);
+                self.phrase(role, &phrase.head);
+            }
+            Phrase::QuantityPhrase(phrase) => {
+                self.phrase(role, &phrase.quantity);
+                self.phrase(role, &phrase.unit);
+            }
             Phrase::Lexeme { .. }
             | Phrase::ThisCard { .. }
             | Phrase::OracleSymbol { .. }
+            | Phrase::SymbolSequence { .. }
+            | Phrase::NumberLiteral { .. }
+            | Phrase::PowerToughness(_)
             | Phrase::CatalogTerm { .. } => {}
             Phrase::EmbeddedRulesPhrase { embedded_rules, .. } => {
                 for rules in embedded_rules {
@@ -548,7 +566,7 @@ mod tests {
 
     #[test]
     fn embedded_rules_wrapper_is_not_reported_as_unknown() {
-        let source = "Target creature gains \"Whenever this creature attacks, draw a card.\"";
+        let source = "Target creature gains \"Whenever this creature attacks, draw a blorple.\"";
         let ast = parse_with_catalogs(source, &Catalogs::default());
         let mut occurrences = Vec::new();
 
@@ -562,7 +580,7 @@ mod tests {
         assert!(
             occurrences
                 .iter()
-                .any(|occurrence| occurrence.text == "creature")
+                .any(|occurrence| occurrence.text == "blorple")
         );
     }
 

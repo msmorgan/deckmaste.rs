@@ -45,7 +45,8 @@ pub struct Ability {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ReminderText {
-    /// The complete parenthesized reminder, including `(` and `)`.
+    /// The complete parenthesized reminder, including `(` and `)`, in the
+    /// caller-owned source text.
     pub span: Span,
 }
 
@@ -73,13 +74,29 @@ pub struct KeywordAbilityList {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeywordAbility {
     pub span: Span,
+    /// Separator before this item in a list; absent on the first item.
+    pub preceding_separator: Option<KeywordListSeparator>,
     /// The canonical keyword name from the Scryfall catalog.
     pub name: String,
     /// The keyword name as printed in the source, including its original case.
     pub printed_name: Phrase,
+    pub argument_separator: Option<KeywordArgumentSeparator>,
     /// Printed parameters or alternative costs following the keyword name.
     /// Reminder text is kept separately on the containing [`Ability`].
     pub argument: Option<Phrase>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum KeywordListSeparator {
+    Comma,
+    Semicolon,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum KeywordArgumentSeparator {
+    Space,
+    EmDash,
+    SpacedEmDash,
 }
 
 /// Rules text nested inside another syntactic construct. `span` includes the
@@ -88,7 +105,14 @@ pub struct KeywordAbility {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddedRules {
     pub span: Span,
+    pub frame: EmbeddedRulesFrame,
     pub ability: Box<Ability>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EmbeddedRulesFrame {
+    Bare,
+    DoubleQuoted { closed: bool },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,9 +145,28 @@ pub enum TriggerWord {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoyaltyAbility {
-    /// The bracketed loyalty symbol, such as `[+1]` or `[−X]`.
-    pub cost: Span,
+    pub cost: LoyaltyCost,
     pub effect: Paragraph,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LoyaltyCost {
+    pub span: Span,
+    pub sign: LoyaltyCostSign,
+    pub value: LoyaltyCostValue,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LoyaltyCostSign {
+    None,
+    Plus,
+    Minus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LoyaltyCostValue {
+    Number(u32),
+    X,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,13 +182,24 @@ pub struct ModalAbility {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModalFrame {
     Unframed,
+    Preamble {
+        body: Paragraph,
+        separator: ModalPreambleSeparator,
+    },
     Activated(Cost),
     Triggered {
         introducer: TriggerWord,
         introducer_span: Span,
         event: SimpleClause,
     },
-    Loyalty(Span),
+    Loyalty(LoyaltyCost),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ModalPreambleSeparator {
+    None,
+    Space,
+    CommaSpace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -165,24 +219,61 @@ pub struct Paragraph {
 pub struct Sentence {
     pub span: Span,
     /// Final `.`, `!`, or `?`, when present.
-    pub terminal: Option<Span>,
+    pub terminal: Option<SentenceTerminal>,
     pub clause: Clause,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SentenceTerminal {
+    pub span: Span,
+    pub kind: SentenceTerminalKind,
+    pub repetitions: u8,
+    pub suffix: SentenceTerminalSuffix,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SentenceTerminalKind {
+    Period,
+    ExclamationMark,
+    QuestionMark,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SentenceTerminalSuffix {
+    None,
+    SingleQuote,
+    DoubleQuote,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Clause {
     Simple(SimpleClause),
     Conditional(ConditionalClause),
+    CommaSeparated(CommaSeparatedClause),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommaSeparatedClause {
+    pub span: Span,
+    pub first: SimpleClause,
+    pub second: SimpleClause,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConditionalClause {
     pub span: Span,
     pub subordinator: Subordinator,
+    pub subordinator_capitalization: Capitalization,
     pub subordinator_span: Span,
     pub position: ConditionalPosition,
     pub condition: SimpleClause,
     pub consequence: SimpleClause,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Capitalization {
+    Lowercase,
+    Capitalized,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -193,6 +284,7 @@ pub enum ConditionalPosition {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Subordinator {
+    When,
     If,
     Unless,
     AsLongAs,
@@ -221,6 +313,7 @@ pub struct SimpleClause {
 pub struct CoordinatedClause {
     pub conjunction: PredicateConjunction,
     pub conjunction_span: Span,
+    pub has_comma: bool,
     pub clause: Box<SimpleClause>,
 }
 
@@ -228,6 +321,7 @@ pub struct CoordinatedClause {
 pub struct CoordinatedPredicate {
     pub conjunction: PredicateConjunction,
     pub conjunction_span: Span,
+    pub has_comma: bool,
     pub predicate: Predicate,
 }
 
@@ -241,11 +335,54 @@ pub enum PredicateConjunction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Predicate {
     pub span: Span,
-    pub auxiliary: Option<Span>,
+    pub auxiliary: Option<Auxiliary>,
+    pub preverb_words: Vec<PreverbWord>,
     pub verb: Phrase,
     pub verb_kind: VerbKind,
     pub complement: Option<Phrase>,
     pub negated: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Auxiliary {
+    pub span: Span,
+    pub kind: AuxiliaryKind,
+    pub inflection: AuxiliaryInflection,
+    pub negation: AuxiliaryNegation,
+    pub capitalization: Capitalization,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AuxiliaryKind {
+    Can,
+    Could,
+    Do,
+    May,
+    Might,
+    Must,
+    Shall,
+    Should,
+    Will,
+    Would,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AuxiliaryInflection {
+    Base,
+    ThirdPersonSingular,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AuxiliaryNegation {
+    None,
+    Contracted,
+    Fused,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PreverbWord {
+    Not,
+    Also,
 }
 
 /// A leaf phrase in the shallow English syntax tree.
@@ -269,7 +406,19 @@ pub enum Phrase {
         text: String,
         symbol: String,
     },
+    SymbolSequence {
+        text: String,
+        symbols: Vec<String>,
+    },
+    NumberLiteral {
+        text: String,
+        value: ScalarValue,
+        spelling: NumberSpelling,
+    },
+    QuantityPhrase(Box<QuantityPhrase>),
+    PowerToughness(Box<PowerToughness>),
     NounPhrase(Box<NounPhrase>),
+    ModifiedNounPhrase(Box<ModifiedNounPhrase>),
     CatalogTerm {
         text: String,
         canonical: String,
@@ -289,9 +438,14 @@ impl Phrase {
             | Self::Lexeme { text, .. }
             | Self::ThisCard { text, .. }
             | Self::OracleSymbol { text, .. }
+            | Self::SymbolSequence { text, .. }
+            | Self::NumberLiteral { text, .. }
             | Self::CatalogTerm { text, .. }
             | Self::EmbeddedRulesPhrase { text, .. } => text,
+            Self::QuantityPhrase(phrase) => &phrase.text,
+            Self::PowerToughness(expression) => &expression.text,
             Self::NounPhrase(phrase) => &phrase.text,
+            Self::ModifiedNounPhrase(phrase) => &phrase.text,
         }
     }
 
@@ -302,11 +456,56 @@ impl Phrase {
             | Self::Lexeme { .. }
             | Self::ThisCard { .. }
             | Self::OracleSymbol { .. }
+            | Self::SymbolSequence { .. }
+            | Self::NumberLiteral { .. }
+            | Self::QuantityPhrase(_)
+            | Self::PowerToughness(_)
             | Self::NounPhrase(_)
+            | Self::ModifiedNounPhrase(_)
             | Self::CatalogTerm { .. } => &[],
             Self::EmbeddedRulesPhrase { embedded_rules, .. } => embedded_rules,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuantityPhrase {
+    pub text: String,
+    pub quantity: Box<Phrase>,
+    pub unit: Box<Phrase>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PowerToughness {
+    pub text: String,
+    pub power: SignedScalar,
+    pub toughness: SignedScalar,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SignedScalar {
+    pub sign: ScalarSign,
+    pub value: ScalarValue,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ScalarSign {
+    None,
+    Plus,
+    Minus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ScalarValue {
+    Integer(u32),
+    X,
+    Star,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NumberSpelling {
+    Digits,
+    EnglishWord(Capitalization),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -316,8 +515,17 @@ pub struct NounPhrase {
     pub head: Box<Phrase>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModifiedNounPhrase {
+    pub text: String,
+    pub modifier: Box<Phrase>,
+    pub head: Box<Phrase>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PartOfSpeech {
+    Adjective,
+    Adverb,
     Noun,
     Pronoun,
     Verb,
@@ -338,7 +546,12 @@ pub struct Determiner {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DeterminerKind {
     IndefiniteArticle,
+    DefiniteArticle,
     Demonstrative,
+    Distributive,
+    Possessive,
+    Targeting,
+    Universal,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

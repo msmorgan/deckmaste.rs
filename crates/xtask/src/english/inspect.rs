@@ -129,6 +129,8 @@ mod tests {
     use std::io::Cursor;
     use std::path::Path;
 
+    use deckmaste_english::strip_reminder_text;
+
     use super::*;
     use crate::english::data::read_card_faces;
 
@@ -154,6 +156,9 @@ mod tests {
             [CardFace {
                 card_name: "Borrow".to_owned(),
                 face_name: None,
+                is_legendary: false,
+                supported: false,
+                source_text: "Draw a card.".to_owned(),
                 oracle_text: "Draw a card.".to_owned(),
             }]
         );
@@ -219,6 +224,9 @@ mod tests {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),
             face_name: None,
+            is_legendary: false,
+            supported: false,
+            source_text: "Draw a card.".to_owned(),
             oracle_text: "Draw a card.".to_owned(),
         }];
         let mut normal = Vec::new();
@@ -251,6 +259,9 @@ mod tests {
         let cards = [CardFace {
             card_name: "Test Card".to_owned(),
             face_name: None,
+            is_legendary: false,
+            supported: false,
+            source_text: "Draw a card.".to_owned(),
             oracle_text: "Draw a card.".to_owned(),
         }];
         let output = OutputConfig {
@@ -269,27 +280,44 @@ mod tests {
     }
 
     #[test]
-    fn local_card_snapshot_ability_lists_round_trip_when_available() {
+    fn local_card_snapshot_structurally_round_trips_without_source_text() {
         let Ok(data) = OracleDataArgs::default().load() else {
             return;
         };
 
+        let mut failures = Vec::new();
         for (index, card) in data.faces.iter().enumerate() {
+            if !card.supported {
+                continue;
+            }
             let ast = parse_with_catalogs(&card.oracle_text, &data.catalogs);
-            let rebuilt = ast
-                .abilities
-                .iter()
-                .map(|ability| ability.span.text(&card.oracle_text).unwrap())
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            assert_eq!(
-                rebuilt,
-                card.oracle_text,
-                "ability-list round trip failed on data row {} ({})",
-                index + 1,
-                card.printed_name()
-            );
+            match ast.render(card.printed_name(), card.is_legendary) {
+                Ok(rebuilt)
+                    if strip_reminder_text(&rebuilt) == strip_reminder_text(&card.source_text) => {}
+                Ok(rebuilt) => failures.push(format!(
+                    "row {} ({}):\n  rendered: {rebuilt:?}\n  expected: {:?}",
+                    index + 1,
+                    card.printed_name(),
+                    strip_reminder_text(&card.source_text)
+                )),
+                Err(error) => failures.push(format!(
+                    "row {} ({}): render error: {error}",
+                    index + 1,
+                    card.printed_name()
+                )),
+            }
         }
+
+        assert!(
+            failures.is_empty(),
+            "{} structural round-trip failures (first 20):\n{}",
+            failures.len(),
+            failures
+                .iter()
+                .take(20)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
     }
 }
