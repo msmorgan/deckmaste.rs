@@ -27,3 +27,5 @@ requires explicit review rather than an opportunistic refactor.
   One typed template drives both rendering and parsing.
 - [State-based actions are data](state-based-actions-are-data.md) — Ordinary
   state-based actions are swappable rules over explicit scopes.
+- [English clauses are structural](english-clauses-are-structural.md) — Parse
+  dependency, valency, voice, modality, and attachment before Magic lowering.
