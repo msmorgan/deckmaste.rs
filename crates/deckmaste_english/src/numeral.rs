@@ -91,7 +91,7 @@ impl Numeral {
             Self::Arabic(true) => canonical(self, input, input.replace(',', "").parse().ok()),
             Self::Cardinal => canonical(self, input, parse_cardinal_candidate(input)),
             Self::Ordinal => canonical(self, input, parse_ordinal_candidate(input)),
-            Self::Roman => Err(ParseNumeralError),
+            Self::Roman => canonical(self, input, parse_roman_candidate(input)),
         }
     }
 }
@@ -284,6 +284,30 @@ fn parse_ordinal_candidate(input: &str) -> Option<i32> {
     }
 }
 
+fn parse_roman_candidate(input: &str) -> Option<i32> {
+    match input {
+        "infinitum" => return Some(4_000),
+        "infinitum negativum" => return Some(-4_000),
+        "nulla" => return Some(0),
+        _ => {}
+    }
+
+    let (mut symbols, negative) = input
+        .strip_suffix(" negativus")
+        .map_or((input, false), |symbols| (symbols, true));
+    let mut magnitude = 0_u32;
+    for (amount, part) in ROMAN_PARTS {
+        while let Some(remainder) = symbols.strip_prefix(part) {
+            magnitude = magnitude.checked_add(amount)?;
+            symbols = remainder;
+        }
+    }
+    if !symbols.is_empty() || !(1..=3_999).contains(&magnitude) {
+        return None;
+    }
+    signed_magnitude(magnitude, negative)
+}
+
 fn format_ordinal(value: i32) -> String {
     if value == 0 {
         return "never".to_owned();
@@ -398,6 +422,39 @@ mod tests {
             let formatted = Numeral::Ordinal.format(value);
             prop_assert_eq!(Numeral::Ordinal.parse(&formatted), Ok(value));
         }
+
+        #[test]
+        fn roman_finite_round_trips(value in -3_999i32..=3_999) {
+            let formatted = Numeral::Roman.format(value);
+            prop_assert_eq!(Numeral::Roman.parse(&formatted), Ok(value));
+        }
+
+        #[test]
+        fn roman_positive_infinity_normalizes(value in 4_000i32..=i32::MAX) {
+            let formatted = Numeral::Roman.format(value);
+            prop_assert_eq!(Numeral::Roman.parse(&formatted), Ok(4_000));
+        }
+
+        #[test]
+        fn roman_negative_infinity_normalizes(value in i32::MIN..=-4_000i32) {
+            let formatted = Numeral::Roman.format(value);
+            prop_assert_eq!(Numeral::Roman.parse(&formatted), Ok(-4_000));
+        }
+
+        #[test]
+        fn successful_parses_are_stable(
+            numeral in prop_oneof![
+                Just(Numeral::Cardinal),
+                Just(Numeral::Ordinal),
+                any::<bool>().prop_map(Numeral::Arabic),
+                Just(Numeral::Roman),
+            ],
+            input in any::<String>(),
+        ) {
+            if let Ok(value) = numeral.parse(&input) {
+                prop_assert_eq!(numeral.format(value), input);
+            }
+        }
     }
 
     #[test]
@@ -443,6 +500,19 @@ mod tests {
     fn ordinal_parsing_rejects_noncanonical_forms() {
         for input in ["zeroth", "first to last", "negative first", "twenty-oneth"] {
             assert_eq!(Numeral::Ordinal.parse(input), Err(ParseNumeralError));
+        }
+    }
+
+    #[test]
+    fn roman_parsing_rejects_noncanonical_forms() {
+        for input in [
+            "IIII",
+            "iv",
+            "I negative",
+            "infinitum negativus",
+            "nulla negativus",
+        ] {
+            assert_eq!(Numeral::Roman.parse(input), Err(ParseNumeralError));
         }
     }
 
