@@ -86,13 +86,11 @@ mod tests {
         let parsed = parse("Draw a card.");
         assert_eq!(parsed.recovery_mode(), RecoveryMode::Exact);
         assert_eq!(parsed.cost(), ParseCost::default());
-        assert!(
-            !parsed
-                .chart
-                .forest
-                .nodes()
-                .any(|node| matches!(node.key.meaning, MeaningKey::Unknown(_)))
-        );
+        assert!(!parsed.chart.forest.nodes().any(|node| {
+            node.key
+                .lexical_value()
+                .is_some_and(|meaning| matches!(meaning, MeaningKey::Unknown(_)))
+        }));
         assert!(unknowns(parsed.sentence().unwrap()).is_empty());
     }
 

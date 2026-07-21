@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::hash::Hash;
 
-use crate::forest::ForestSymbol;
 use crate::forest::NodeId;
 use crate::forest::NodeKey;
 use crate::forest::PackedAlternative;
@@ -45,9 +44,8 @@ pub(crate) struct LexicalMatch<F, M> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Reduction<F, M> {
+pub(crate) struct Reduction<F> {
     pub(crate) features: F,
-    pub(crate) meaning: M,
     pub(crate) local_cost: ParseCost,
 }
 
@@ -71,13 +69,13 @@ pub(crate) trait Grammar {
         &self,
         rule: RuleId,
         children: &[Child<'_, Self>],
-    ) -> Option<Reduction<Self::Features, Self::Meaning>>;
+    ) -> Option<Reduction<Self::Features>>;
 
     fn accepts_prefix(
         &self,
         _rule: RuleId,
         _completed_children: usize,
-        _latest_child: &Child<'_, Self>,
+        _latest_child: &Self::Features,
     ) -> bool {
         true
     }
@@ -92,11 +90,7 @@ pub(crate) struct Child<'a, G>
 where
     G: Grammar + ?Sized,
 {
-    pub(crate) node: NodeId,
-    #[cfg(test)]
-    pub(crate) symbol: &'a ForestSymbol<G::Nonterminal, G::LexicalSlot>,
     pub(crate) features: &'a G::Features,
-    pub(crate) meaning: &'a G::Meaning,
 }
 
 #[derive(Debug, Clone)]
@@ -122,81 +116,26 @@ pub(crate) enum GrammarError {
     InvalidLexicalMatch { start: usize, end: usize },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ItemKey {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ItemKey<F> {
     rule: RuleId,
     dot: usize,
     origin: usize,
-    partial: PartialDerivationId,
+    prefix_features: Vec<F>,
 }
 
-#[derive(Debug, Clone, Default)]
-struct ChartColumn {
-    seen: HashSet<ItemKey>,
-    items: Vec<ItemKey>,
+#[derive(Debug, Clone)]
+struct ChartColumn<F> {
+    seen: HashMap<ItemKey<F>, Option<NodeId>>,
+    items: Vec<ItemKey<F>>,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-struct PartialDerivationId(usize);
-
-impl PartialDerivationId {
-    const EMPTY: Self = Self(0);
-}
-
-#[derive(Debug, Clone, Copy)]
-struct PartialDerivation {
-    previous: PartialDerivationId,
-    child: NodeId,
-    len: usize,
-}
-
-#[derive(Debug, Clone, Default)]
-struct PartialDerivations {
-    derivations: Vec<PartialDerivation>,
-    ids: HashMap<(PartialDerivationId, NodeId), PartialDerivationId>,
-}
-
-impl PartialDerivations {
-    fn new() -> Self {
-        Self::default()
-    }
-
-    #[cfg(test)]
-    const fn empty() -> PartialDerivationId {
-        PartialDerivationId::EMPTY
-    }
-
-    fn push(&mut self, previous: PartialDerivationId, child: NodeId) -> PartialDerivationId {
-        if let Some(&derivation) = self.ids.get(&(previous, child)) {
-            return derivation;
+impl<F> Default for ChartColumn<F> {
+    fn default() -> Self {
+        Self {
+            seen: HashMap::new(),
+            items: Vec::new(),
         }
-        let len = if previous == PartialDerivationId::EMPTY {
-            1
-        } else {
-            self.derivations[previous.0 - 1].len + 1
-        };
-        let derivation = PartialDerivationId(self.derivations.len() + 1);
-        self.derivations.push(PartialDerivation {
-            previous,
-            child,
-            len,
-        });
-        self.ids.insert((previous, child), derivation);
-        derivation
-    }
-
-    fn materialize(&self, mut derivation: PartialDerivationId) -> Vec<NodeId> {
-        if derivation == PartialDerivationId::EMPTY {
-            return Vec::new();
-        }
-        let mut children = Vec::with_capacity(self.derivations[derivation.0 - 1].len);
-        while derivation != PartialDerivationId::EMPTY {
-            let current = self.derivations[derivation.0 - 1];
-            children.push(current.child);
-            derivation = current.previous;
-        }
-        children.reverse();
-        children
     }
 }
 
@@ -231,11 +170,10 @@ where
     grammar: &'grammar G,
     tokens: &'tokens [G::Token],
     forest: GrammarForest<G>,
-    chart: Vec<ChartColumn>,
-    agenda: VecDeque<(usize, ItemKey)>,
+    chart: Vec<ChartColumn<G::Features>>,
+    agenda: VecDeque<(usize, ItemKey<G::Features>)>,
     completed: HashMap<(usize, G::Nonterminal), Vec<NodeId>>,
-    waiting: HashMap<(usize, G::Nonterminal), Vec<ItemKey>>,
-    partials: PartialDerivations,
+    waiting: HashMap<(usize, G::Nonterminal), Vec<ItemKey<G::Features>>>,
     scans: HashMap<(G::LexicalSlot, usize), Vec<LexicalEdge>>,
 }
 
@@ -252,7 +190,6 @@ where
             agenda: VecDeque::new(),
             completed: HashMap::new(),
             waiting: HashMap::new(),
-            partials: PartialDerivations::new(),
             scans: HashMap::new(),
         }
     }
@@ -294,13 +231,18 @@ where
                     rule,
                     dot: 0,
                     origin: 0,
-                    partial: PartialDerivationId::EMPTY,
+                    prefix_features: Vec::new(),
                 },
+                None,
             );
         }
     }
 
-    fn process_item(&mut self, position: usize, item: ItemKey) -> Result<(), GrammarError> {
+    fn process_item(
+        &mut self,
+        position: usize,
+        item: ItemKey<G::Features>,
+    ) -> Result<(), GrammarError> {
         let rule = &self.grammar.rules()[item.rule.index()];
         let lhs = rule.lhs;
         let local_cost = rule.local_cost;
@@ -320,41 +262,27 @@ where
     fn complete_item(
         &mut self,
         position: usize,
-        item: ItemKey,
+        item: ItemKey<G::Features>,
         lhs: G::Nonterminal,
         rule_cost: ParseCost,
     ) {
-        let child_ids = self.partials.materialize(item.partial);
-        let reduction = {
-            let children = child_ids
-                .iter()
-                .map(|&child| {
-                    let node = self.forest.node(child);
-                    Child {
-                        node: child,
-                        #[cfg(test)]
-                        symbol: &node.key.symbol,
-                        features: &node.key.features,
-                        meaning: &node.key.meaning,
-                    }
-                })
-                .collect::<Vec<_>>();
-            self.grammar.reduce(item.rule, &children)
-        };
+        let children = item
+            .prefix_features
+            .iter()
+            .map(|features| Child { features })
+            .collect::<Vec<_>>();
+        let reduction = self.grammar.reduce(item.rule, &children);
         let Some(reduction) = reduction else {
             return;
         };
+        let Some(intermediate) = self.chart[position].seen.get(&item).copied().flatten() else {
+            return;
+        };
         let interned = self.forest.intern_node(
-            NodeKey {
-                symbol: ForestSymbol::Nonterminal(lhs),
-                start: item.origin,
-                end: position,
-                features: reduction.features,
-                meaning: reduction.meaning,
-            },
+            NodeKey::nonterminal(lhs, item.origin, position, reduction.features),
             PackedAlternative {
                 rule: Some(item.rule),
-                children: child_ids,
+                children: vec![intermediate],
                 local_cost: rule_cost + reduction.local_cost,
             },
         );
@@ -370,15 +298,20 @@ where
             return;
         };
         for waiter in waiters {
-            self.advance_with_child(position, waiter, interned.node);
+            self.advance_with_child(position, item.origin, waiter, interned.node);
         }
     }
 
-    fn predict_and_advance(&mut self, position: usize, item: ItemKey, nonterminal: G::Nonterminal) {
+    fn predict_and_advance(
+        &mut self,
+        position: usize,
+        item: ItemKey<G::Features>,
+        nonterminal: G::Nonterminal,
+    ) {
         self.waiting
             .entry((position, nonterminal))
             .or_default()
-            .push(item);
+            .push(item.clone());
         for &predicted_rule in self.grammar.rules_for(nonterminal) {
             enqueue(
                 &mut self.chart,
@@ -388,15 +321,16 @@ where
                     rule: predicted_rule,
                     dot: 0,
                     origin: position,
-                    partial: PartialDerivationId::EMPTY,
+                    prefix_features: Vec::new(),
                 },
+                None,
             );
         }
 
         if let Some(existing) = self.completed.get(&(position, nonterminal)).cloned() {
             for child in existing {
                 let end = self.forest.node(child).key.end;
-                self.advance_with_child(end, item, child);
+                self.advance_with_child(end, position, item.clone(), child);
             }
         }
     }
@@ -404,38 +338,67 @@ where
     fn scan_and_advance(
         &mut self,
         position: usize,
-        item: ItemKey,
+        item: ItemKey<G::Features>,
         slot: G::LexicalSlot,
     ) -> Result<(), GrammarError> {
         for edge in self.lexical_edges(slot, position)? {
-            self.advance_with_child(edge.end, item, edge.node);
+            self.advance_with_child(edge.end, position, item.clone(), edge.node);
         }
         Ok(())
     }
 
-    fn advance_with_child(&mut self, position: usize, item: ItemKey, child: NodeId) {
-        let accepted = {
-            let node = self.forest.node(child);
-            self.grammar.accepts_prefix(
-                item.rule,
-                item.dot + 1,
-                &Child {
-                    node: child,
-                    #[cfg(test)]
-                    symbol: &node.key.symbol,
-                    features: &node.key.features,
-                    meaning: &node.key.meaning,
-                },
-            )
+    fn advance_with_child(
+        &mut self,
+        position: usize,
+        item_position: usize,
+        item: ItemKey<G::Features>,
+        child: NodeId,
+    ) {
+        let Some(child_features) = self.forest.node(child).key.constituent_features().cloned()
+        else {
+            return;
         };
-        if !accepted {
+        if !self
+            .grammar
+            .accepts_prefix(item.rule, item.dot + 1, &child_features)
+        {
+            return;
+        }
+
+        let previous = self.chart[item_position].seen.get(&item).copied().flatten();
+        if item.dot > 0 && previous.is_none() {
             return;
         }
 
         let mut advanced = item;
         advanced.dot += 1;
-        advanced.partial = self.partials.push(advanced.partial, child);
-        enqueue(&mut self.chart, &mut self.agenda, position, advanced);
+        advanced.prefix_features.push(child_features);
+        let mut children = Vec::with_capacity(2);
+        if let Some(previous) = previous {
+            children.push(previous);
+        }
+        children.push(child);
+        let intermediate = self.forest.intern_node(
+            NodeKey::intermediate(
+                advanced.rule,
+                advanced.dot,
+                advanced.origin,
+                position,
+                advanced.prefix_features.clone(),
+            ),
+            PackedAlternative {
+                rule: None,
+                children,
+                local_cost: ParseCost::default(),
+            },
+        );
+        enqueue(
+            &mut self.chart,
+            &mut self.agenda,
+            position,
+            advanced,
+            Some(intermediate.node),
+        );
     }
 
     fn lexical_edges(
@@ -456,13 +419,13 @@ where
                 });
             }
             let interned = self.forest.intern_node(
-                NodeKey {
-                    symbol: ForestSymbol::Lexical(slot),
-                    start: position,
-                    end: lexical_match.end,
-                    features: lexical_match.features,
-                    meaning: lexical_match.meaning,
-                },
+                NodeKey::lexical(
+                    slot,
+                    position,
+                    lexical_match.end,
+                    lexical_match.features,
+                    lexical_match.meaning,
+                ),
                 PackedAlternative {
                     rule: None,
                     children: Vec::new(),
@@ -479,14 +442,18 @@ where
     }
 }
 
-fn enqueue(
-    chart: &mut [ChartColumn],
-    agenda: &mut VecDeque<(usize, ItemKey)>,
+fn enqueue<F>(
+    chart: &mut [ChartColumn<F>],
+    agenda: &mut VecDeque<(usize, ItemKey<F>)>,
     position: usize,
-    item: ItemKey,
-) {
-    if chart[position].seen.insert(item) {
-        chart[position].items.push(item);
+    item: ItemKey<F>,
+    intermediate: Option<NodeId>,
+) where
+    F: Clone + Eq + Hash,
+{
+    if !chart[position].seen.contains_key(&item) {
+        chart[position].seen.insert(item.clone(), intermediate);
+        chart[position].items.push(item.clone());
         agenda.push_back((position, item));
     }
 }
@@ -569,12 +536,11 @@ mod tests {
     use super::Expected;
     use super::Grammar;
     use super::LexicalMatch;
-    use super::PartialDerivations;
     use super::Reduction;
     use super::Rule;
     use super::RuleId;
     use super::parse_chart;
-    use crate::forest::NodeId;
+    use crate::forest::ForestSymbol;
     use crate::forest::ParseCost;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -595,7 +561,6 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq, Hash)]
     enum Meaning {
         Atom(&'static str),
-        List,
         EachOther,
     }
 
@@ -603,7 +568,7 @@ mod tests {
         rules: Vec<Rule<N, L>>,
         rules_by_lhs: HashMap<N, Vec<RuleId>>,
         scans: RefCell<HashMap<(L, usize), usize>>,
-        reduced_children: RefCell<Vec<NodeId>>,
+        reduced_child_counts: RefCell<Vec<usize>>,
         reject_list_extension_prefix: bool,
         state_limit: Option<usize>,
     }
@@ -643,7 +608,7 @@ mod tests {
                 rules,
                 rules_by_lhs,
                 scans: RefCell::new(HashMap::new()),
-                reduced_children: RefCell::new(Vec::new()),
+                reduced_child_counts: RefCell::new(Vec::new()),
                 reject_list_extension_prefix: false,
                 state_limit: None,
             }
@@ -725,19 +690,10 @@ mod tests {
             &self,
             rule: RuleId,
             children: &[Child<'_, Self>],
-        ) -> Option<Reduction<Self::Features, Self::Meaning>> {
-            if let Some(first) = children.first() {
-                let _ = (first.symbol, first.features);
-                self.reduced_children.borrow_mut().push(first.node);
-            }
-            let meaning = match rule.index() {
-                0..=3 => Meaning::List,
-                4..=6 => children.first()?.meaning.clone(),
-                _ => return None,
-            };
-            Some(Reduction {
+        ) -> Option<Reduction<Self::Features>> {
+            self.reduced_child_counts.borrow_mut().push(children.len());
+            (rule.index() <= 6).then_some(Reduction {
                 features: (),
-                meaning,
                 local_cost: ParseCost::default(),
             })
         }
@@ -746,7 +702,7 @@ mod tests {
             &self,
             rule: RuleId,
             completed_children: usize,
-            _latest_child: &Child<'_, Self>,
+            _latest_child: &Self::Features,
         ) -> bool {
             !(self.reject_list_extension_prefix && rule.index() == 3 && completed_children == 1)
         }
@@ -756,36 +712,113 @@ mod tests {
         }
     }
 
-    #[test]
-    fn partial_derivations_share_prefixes_and_materialize_once() {
-        let mut partials = PartialDerivations::new();
-        let empty = PartialDerivations::empty();
-        let first_child = NodeId::new(7);
-        let second_child = NodeId::new(11);
-        let sibling_child = NodeId::new(13);
+    struct SameSpanAmbiguityGrammar {
+        rules: Vec<Rule<N, L>>,
+        rules_by_lhs: HashMap<N, Vec<RuleId>>,
+    }
 
-        let prefix = partials.push(empty, first_child);
-        let complete = partials.push(prefix, second_child);
-        let sibling = partials.push(prefix, sibling_child);
+    impl SameSpanAmbiguityGrammar {
+        fn new() -> Self {
+            let rules = vec![
+                rule(N::Start, vec![Expected::Nonterminal(N::Atom); 6]),
+                rule(N::Atom, vec![Expected::Lexical(L::A)]),
+            ];
+            let mut rules_by_lhs = HashMap::<N, Vec<RuleId>>::new();
+            for (index, rule) in rules.iter().enumerate() {
+                rules_by_lhs
+                    .entry(rule.lhs)
+                    .or_default()
+                    .push(RuleId::new(index));
+            }
+            Self {
+                rules,
+                rules_by_lhs,
+            }
+        }
+    }
 
-        assert_eq!(partials.push(empty, first_child), prefix);
-        assert_eq!(
-            partials.materialize(complete),
-            vec![first_child, second_child]
-        );
-        assert_eq!(
-            partials.materialize(sibling),
-            vec![first_child, sibling_child]
-        );
+    impl Grammar for SameSpanAmbiguityGrammar {
+        type Features = ();
+        type LexicalSlot = L;
+        type Meaning = Meaning;
+        type Nonterminal = N;
+        type Token = &'static str;
+
+        fn start(&self) -> Self::Nonterminal {
+            N::Start
+        }
+
+        fn rules(&self) -> &[Rule<Self::Nonterminal, Self::LexicalSlot>] {
+            &self.rules
+        }
+
+        fn rules_for(&self, lhs: Self::Nonterminal) -> &[RuleId] {
+            self.rules_by_lhs.get(&lhs).map_or(&[], Vec::as_slice)
+        }
+
+        fn scan(
+            &self,
+            slot: Self::LexicalSlot,
+            tokens: &[Self::Token],
+            start: usize,
+        ) -> Vec<LexicalMatch<Self::Features, Self::Meaning>> {
+            if slot != L::A || tokens.get(start) != Some(&"a") {
+                return Vec::new();
+            }
+            ["first", "second"]
+                .into_iter()
+                .map(|meaning| LexicalMatch {
+                    end: start + 1,
+                    features: (),
+                    meaning: Meaning::Atom(meaning),
+                    local_cost: ParseCost::default(),
+                })
+                .collect()
+        }
+
+        fn reduce(
+            &self,
+            rule: RuleId,
+            _children: &[Child<'_, Self>],
+        ) -> Option<Reduction<Self::Features>> {
+            (rule.index() <= 1).then_some(Reduction {
+                features: (),
+                local_cost: ParseCost::default(),
+            })
+        }
+
+        fn state_limit(&self) -> Option<usize> {
+            Some(40)
+        }
     }
 
     #[test]
-    fn child_node_identity_is_available_to_reducers() {
+    fn reducers_receive_finite_child_features() {
         let grammar = TestGrammar::new();
 
         parse_chart(&grammar, &["a"]).expect("the artificial grammar parses one atom");
 
-        assert!(!grammar.reduced_children.borrow().is_empty());
+        assert!(
+            grammar
+                .reduced_child_counts
+                .borrow()
+                .iter()
+                .any(|&count| count == 1)
+        );
+    }
+
+    #[test]
+    fn same_span_semantic_alternatives_do_not_multiply_parent_chart_items() {
+        let grammar = SameSpanAmbiguityGrammar::new();
+
+        let result = parse_chart(&grammar, &["a"; 6])
+            .expect("same-span alternatives should remain packed below one recognizer state");
+
+        assert_eq!(result.roots.len(), 1);
+        assert!(result.forest.nodes().any(|node| {
+            matches!(node.key.symbol, ForestSymbol::Intermediate { .. })
+                && node.alternatives.len() == 2
+        }));
     }
 
     #[test]
@@ -798,7 +831,7 @@ mod tests {
         assert_eq!(result.roots.len(), 1);
         let root = result.forest.node(result.roots[0]);
         assert_eq!((root.key.start, root.key.end), (0, tokens.len()));
-        assert_eq!(root.key.meaning, Meaning::List);
+        assert_eq!(root.key.constituent_features(), Some(&()));
     }
 
     #[test]
@@ -827,26 +860,25 @@ mod tests {
             .expect("the ambiguous input has complete derivations");
 
         assert!(result.forest.nodes().any(|node| {
-            node.key.symbol == crate::forest::ForestSymbol::Lexical(L::Each)
+            node.key.symbol == ForestSymbol::Lexical(L::Each)
                 && (node.key.start, node.key.end) == (0, 2)
-                && node.key.meaning == Meaning::EachOther
+                && node.key.lexical_value() == Some(&Meaning::EachOther)
         }));
         assert!(result.forest.nodes().any(|node| {
-            node.key.symbol == crate::forest::ForestSymbol::Lexical(L::Each)
+            node.key.symbol == ForestSymbol::Lexical(L::Each)
                 && (node.key.start, node.key.end) == (0, 1)
-                && node.key.meaning == Meaning::Atom("each")
+                && node.key.lexical_value() == Some(&Meaning::Atom("each"))
         }));
         assert!(result.forest.nodes().any(|node| {
-            node.key.symbol == crate::forest::ForestSymbol::Lexical(L::Other)
+            node.key.symbol == ForestSymbol::Lexical(L::Other)
                 && (node.key.start, node.key.end) == (1, 2)
         }));
         let packed_list = result
             .forest
             .nodes()
             .find(|node| {
-                node.key.symbol == crate::forest::ForestSymbol::Nonterminal(N::List)
+                node.key.symbol == ForestSymbol::Nonterminal(N::List)
                     && (node.key.start, node.key.end) == (0, 2)
-                    && node.key.meaning == Meaning::List
             })
             .expect("both analyses lower to the same list node");
         assert_eq!(packed_list.alternatives.len(), 2);

@@ -35,11 +35,6 @@ impl AddAssign for ParseCost {
 pub(crate) struct NodeId(usize);
 
 impl NodeId {
-    #[cfg(test)]
-    pub(crate) const fn new(index: usize) -> Self {
-        Self(index)
-    }
-
     pub(crate) const fn index(self) -> usize {
         self.0
     }
@@ -49,6 +44,13 @@ impl NodeId {
 pub(crate) enum ForestSymbol<N, L> {
     Nonterminal(N),
     Lexical(L),
+    Intermediate { rule: RuleId, dot: usize },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum ForestFeatures<F> {
+    Constituent(F),
+    Prefix(Vec<F>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -56,8 +58,57 @@ pub(crate) struct NodeKey<N, L, F, M> {
     pub(crate) symbol: ForestSymbol<N, L>,
     pub(crate) start: usize,
     pub(crate) end: usize,
-    pub(crate) features: F,
-    pub(crate) meaning: M,
+    features: ForestFeatures<F>,
+    lexical_value: Option<M>,
+}
+
+impl<N, L, F, M> NodeKey<N, L, F, M> {
+    pub(crate) fn nonterminal(symbol: N, start: usize, end: usize, features: F) -> Self {
+        Self {
+            symbol: ForestSymbol::Nonterminal(symbol),
+            start,
+            end,
+            features: ForestFeatures::Constituent(features),
+            lexical_value: None,
+        }
+    }
+
+    pub(crate) fn lexical(slot: L, start: usize, end: usize, features: F, value: M) -> Self {
+        Self {
+            symbol: ForestSymbol::Lexical(slot),
+            start,
+            end,
+            features: ForestFeatures::Constituent(features),
+            lexical_value: Some(value),
+        }
+    }
+
+    pub(crate) fn intermediate(
+        rule: RuleId,
+        dot: usize,
+        start: usize,
+        end: usize,
+        prefix_features: Vec<F>,
+    ) -> Self {
+        Self {
+            symbol: ForestSymbol::Intermediate { rule, dot },
+            start,
+            end,
+            features: ForestFeatures::Prefix(prefix_features),
+            lexical_value: None,
+        }
+    }
+
+    pub(crate) fn constituent_features(&self) -> Option<&F> {
+        match &self.features {
+            ForestFeatures::Constituent(features) => Some(features),
+            ForestFeatures::Prefix(_) => None,
+        }
+    }
+
+    pub(crate) fn lexical_value(&self) -> Option<&M> {
+        self.lexical_value.as_ref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,7 +305,6 @@ pub(crate) enum ForestError {
 
 #[cfg(test)]
 mod tests {
-    use super::ForestSymbol;
     use super::NodeKey;
     use super::PackedAlternative;
     use super::ParseCost;
@@ -264,13 +314,7 @@ mod tests {
     #[test]
     fn equal_nodes_pack_alternatives_and_choose_the_lower_cost() {
         let mut forest = ParseForest::<&str, (), (), &str>::new();
-        let key = NodeKey {
-            symbol: ForestSymbol::Nonterminal("expression"),
-            start: 0,
-            end: 1,
-            features: (),
-            meaning: "same meaning",
-        };
+        let key = NodeKey::nonterminal("expression", 0, 1, ());
 
         let first = forest.intern_node(
             key.clone(),
@@ -311,13 +355,7 @@ mod tests {
     #[test]
     fn equal_cost_uses_stable_rule_order_and_preserves_all_ties() {
         let mut forest = ParseForest::<&str, (), (), &str>::new();
-        let key = NodeKey {
-            symbol: ForestSymbol::Nonterminal("expression"),
-            start: 0,
-            end: 1,
-            features: (),
-            meaning: "same meaning",
-        };
+        let key = NodeKey::nonterminal("expression", 0, 1, ());
         let root = forest
             .intern_node(
                 key.clone(),
@@ -347,16 +385,10 @@ mod tests {
 
     #[test]
     fn best_root_uses_cost_then_stable_node_order() {
-        let mut forest = ParseForest::<&str, (), (), &str>::new();
+        let mut forest = ParseForest::<&str, (), &str, &str>::new();
         let first = forest
             .intern_node(
-                NodeKey {
-                    symbol: ForestSymbol::Nonterminal("sentence"),
-                    start: 0,
-                    end: 1,
-                    features: (),
-                    meaning: "first",
-                },
+                NodeKey::nonterminal("sentence", 0, 1, "first"),
                 PackedAlternative {
                     rule: Some(RuleId::new(1)),
                     children: Vec::new(),
@@ -366,13 +398,7 @@ mod tests {
             .node;
         let second = forest
             .intern_node(
-                NodeKey {
-                    symbol: ForestSymbol::Nonterminal("sentence"),
-                    start: 0,
-                    end: 1,
-                    features: (),
-                    meaning: "second",
-                },
+                NodeKey::nonterminal("sentence", 0, 1, "second"),
                 PackedAlternative {
                     rule: Some(RuleId::new(2)),
                     children: Vec::new(),

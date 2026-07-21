@@ -5,23 +5,10 @@
 
 pub(crate) mod ability;
 mod clause;
-mod meaning;
 mod nominal;
 mod recovery;
 
 use std::collections::HashMap;
-
-use meaning::AdjectivePhraseMeaning;
-use meaning::ClauseMeaning;
-use meaning::InfinitiveClauseMeaning;
-use meaning::NominalMeaning;
-use meaning::NounPhraseMeaning;
-use meaning::PossessiveNounPhraseMeaning;
-use meaning::PrepositionalPhraseMeaning;
-use meaning::RelativeClauseMeaning;
-use meaning::SentenceMeaning;
-use meaning::SimpleClauseMeaning;
-use meaning::VerbPhraseMeaning;
 
 use crate::Numeral;
 use crate::Span;
@@ -300,9 +287,14 @@ impl PredicateObjectState {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Features {
     None,
-    Number,
+    Number {
+        is_one: bool,
+    },
     Quantity(Cardinality),
-    Determiner(Cardinality),
+    Determiner {
+        cardinality: Cardinality,
+        article: Option<IndefiniteArticleKey>,
+    },
     Adjective {
         initial_sound: InitialSound,
     },
@@ -325,11 +317,15 @@ pub(crate) enum Features {
         initial_sound: InitialSound,
         determined: bool,
     },
-    Verb(VerbSlot),
+    Verb {
+        slot: VerbSlot,
+        accepts_direct_object: bool,
+    },
     VerbPhrase {
         form: PredicateForm,
         object: PredicateObjectState,
         phase: PredicateAttachmentPhase,
+        accepts_direct_object: bool,
     },
     InfinitiveClause,
     SimpleClause {
@@ -345,6 +341,13 @@ pub(crate) enum Features {
     Sentence,
     PrepositionalPhrase,
     RelativeClause(RelativeGap),
+    Auxiliary(AuxiliaryInstance),
+    Conjunction(crate::syntax::PredicateConjunction),
+    Existential {
+        number: Number,
+    },
+    Copula(Agreement),
+    SubjectCopula(Agreement),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -401,7 +404,6 @@ pub(crate) enum DeterminerKey {
     Target(Option<QuantityKey>),
     Quantity(QuantityKey),
     Possessive(Pronoun),
-    PossessiveNounPhrase { possessor: crate::forest::NodeId },
     All,
 }
 
@@ -429,9 +431,7 @@ impl DeterminerKey {
             Self::Target(Some(QuantityKey::ThatMuch)) => Cardinality::Mass,
             Self::Quantity(quantity) => quantity.cardinality(),
             Self::All => Cardinality::PluralOrMass,
-            Self::The | Self::Possessive(_) | Self::PossessiveNounPhrase { .. } => {
-                Cardinality::Unconstrained
-            }
+            Self::The | Self::Possessive(_) => Cardinality::Unconstrained,
         }
     }
 
@@ -461,9 +461,15 @@ impl DeterminerKey {
             Self::Target(quantity) => Determiner::Target(quantity.map(QuantityKey::syntax)),
             Self::Quantity(quantity) => Determiner::Quantity(quantity.syntax()),
             Self::Possessive(pronoun) => Determiner::Possessive(Possessor::Pronoun(*pronoun)),
-            Self::PossessiveNounPhrase { .. } => return None,
             Self::All => Determiner::All,
         })
+    }
+
+    const fn article(&self) -> Option<IndefiniteArticleKey> {
+        match self {
+            Self::Indefinite(article) => Some(*article),
+            _ => None,
+        }
     }
 }
 
@@ -498,7 +504,6 @@ pub(crate) enum MeaningKey {
     Determiner(DeterminerKey),
     Noun(NounInstance),
     Adjective(Adjective),
-    AdjectivePhrase(AdjectivePhraseMeaning),
     Adverb(Vocab),
     Pronoun(PronounInstance),
     Auxiliary(AuxiliaryInstance),
@@ -514,16 +519,6 @@ pub(crate) enum MeaningKey {
     ThisCard(ThisCardForm),
     Preposition(Preposition),
     Unknown(UnknownKey),
-    Nominal(NominalMeaning),
-    NounPhrase(NounPhraseMeaning),
-    PossessiveNounPhrase(PossessiveNounPhraseMeaning),
-    PrepositionalPhrase(PrepositionalPhraseMeaning),
-    RelativeClause(RelativeClauseMeaning),
-    VerbPhrase(VerbPhraseMeaning),
-    InfinitiveClause(InfinitiveClauseMeaning),
-    SimpleClause(SimpleClauseMeaning),
-    Clause(ClauseMeaning),
-    Sentence(SentenceMeaning),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -798,7 +793,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
                     .ok()
                     .map(|value| LexicalMatch {
                         end: start + 1,
-                        features: Features::Number,
+                        features: Features::Number { is_one: value == 1 },
                         meaning: MeaningKey::Number(NumberKey { value, notation }),
                         local_cost: ParseCost::default(),
                     })
@@ -830,13 +825,14 @@ impl Grammar for EnglishGrammar<'_, '_> {
             EnglishLexicalSlot::Copula => self
                 .word_matches(tokens, start, LexicalSlot::Auxiliary)
                 .into_iter()
-                .filter(|candidate| {
-                    matches!(
-                        &candidate.meaning,
-                        MeaningKey::Auxiliary(auxiliary)
-                            if auxiliary.auxiliary == Auxiliary::Be
-                                && copula_agreement(*auxiliary).is_some()
-                    )
+                .filter_map(|mut candidate| {
+                    let MeaningKey::Auxiliary(auxiliary) = candidate.meaning else {
+                        return None;
+                    };
+                    let agreement = copula_agreement(auxiliary)?;
+                    candidate.meaning = MeaningKey::Auxiliary(auxiliary);
+                    candidate.features = Features::Copula(agreement);
+                    Some(candidate)
                 })
                 .collect(),
             EnglishLexicalSlot::SubjectCopula => self.scan_subject_copula(tokens, start),
@@ -851,7 +847,10 @@ impl Grammar for EnglishGrammar<'_, '_> {
                 .one_token_match(tokens, start, "target")
                 .map(|end| LexicalMatch {
                     end,
-                    features: Features::Determiner(Cardinality::SingularCount),
+                    features: Features::Determiner {
+                        cardinality: Cardinality::SingularCount,
+                        article: None,
+                    },
                     meaning: MeaningKey::Literal(LiteralKey::Target),
                     local_cost: ParseCost::default(),
                 })
@@ -926,7 +925,7 @@ impl Grammar for EnglishGrammar<'_, '_> {
         &self,
         rule: RuleId,
         children: &[Child<'_, Self>],
-    ) -> Option<Reduction<Self::Features, Self::Meaning>> {
+    ) -> Option<Reduction<Self::Features>> {
         reduce(self.tags.get(rule.index()).copied()?, children)
     }
 
@@ -934,10 +933,10 @@ impl Grammar for EnglishGrammar<'_, '_> {
         &self,
         rule: RuleId,
         completed_children: usize,
-        latest_child: &Child<'_, Self>,
+        latest_child: &Self::Features,
     ) -> bool {
         self.tags.get(rule.index()).copied().is_some_and(|tag| {
-            clause::accepts_predicate_prefix(tag, completed_children, latest_child.features)
+            clause::accepts_predicate_prefix(tag, completed_children, latest_child)
         })
     }
 
@@ -1081,7 +1080,14 @@ impl EnglishGrammar<'_, '_> {
             self.words_match(tokens, start, words)
                 .map(|end| LexicalMatch {
                     end,
-                    features: Features::None,
+                    features: Features::Existential {
+                        number: match form {
+                            ExistentialForm::Is
+                            | ExistentialForm::ContractedIs
+                            | ExistentialForm::Was => Number::Singular,
+                            ExistentialForm::Are | ExistentialForm::Were => Number::Plural,
+                        },
+                    },
                     meaning: MeaningKey::Existential(form),
                     local_cost: ParseCost::default(),
                 })
@@ -1126,7 +1132,7 @@ impl EnglishGrammar<'_, '_> {
                 };
                 LexicalMatch {
                     end,
-                    features: Features::None,
+                    features: Features::SubjectCopula(Agreement { person, number }),
                     meaning: MeaningKey::SubjectCopula(SubjectCopulaKey { pronoun, auxiliary }),
                     local_cost: ParseCost::default(),
                 }
@@ -1201,7 +1207,7 @@ impl EnglishGrammar<'_, '_> {
         };
         vec![LexicalMatch {
             end: start + 1,
-            features: Features::None,
+            features: Features::Conjunction(conjunction),
             meaning: MeaningKey::Conjunction(conjunction),
             local_cost: ParseCost::default(),
         }]
@@ -1250,7 +1256,10 @@ impl EnglishGrammar<'_, '_> {
         };
         vec![LexicalMatch {
             end: start + 1,
-            features: Features::Determiner(key.cardinality()),
+            features: Features::Determiner {
+                cardinality: key.cardinality(),
+                article: key.article(),
+            },
             meaning: MeaningKey::Determiner(key),
             local_cost: ParseCost::default(),
         }]
@@ -1510,7 +1519,16 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
                 MeaningKey::Noun(noun),
             )
         }
-        WordMatch::Verb(verb) => (Features::Verb(verb.slot), MeaningKey::Verb(verb)),
+        WordMatch::Verb(verb) => {
+            let accepts_direct_object = !matches!(verb.verb, crate::word::Verb::Word(Vocab::Be));
+            (
+                Features::Verb {
+                    slot: verb.slot,
+                    accepts_direct_object,
+                },
+                MeaningKey::Verb(verb),
+            )
+        }
         WordMatch::Adjective(adjective) => (
             Features::Adjective {
                 initial_sound: adjective_initial_sound(&adjective)?,
@@ -1522,7 +1540,10 @@ fn lexical_word_match(word: WordMatch, end: usize) -> Option<LexicalMatch<Featur
             noun_phrase_features(pronoun.pronoun, Some(pronoun.case)),
             MeaningKey::Pronoun(pronoun),
         ),
-        WordMatch::Auxiliary(auxiliary) => (Features::None, MeaningKey::Auxiliary(auxiliary)),
+        WordMatch::Auxiliary(auxiliary) => (
+            Features::Auxiliary(auxiliary),
+            MeaningKey::Auxiliary(auxiliary),
+        ),
     };
     Some(LexicalMatch {
         end,
@@ -1692,8 +1713,8 @@ fn parse_signed_scalar(surface: &str) -> Option<crate::syntax::SignedScalar> {
 fn reduce(
     tag: RuleTag,
     children: &[Child<'_, EnglishGrammar<'_, '_>>],
-) -> Option<Reduction<Features, MeaningKey>> {
-    let (features, meaning) = match tag {
+) -> Option<Reduction<Features>> {
+    let features = match tag {
         RuleTag::QuantityExact
         | RuleTag::QuantityUpTo
         | RuleTag::QuantityThatMany
@@ -1762,7 +1783,6 @@ fn reduce(
     };
     Some(Reduction {
         features,
-        meaning,
         local_cost: ParseCost::default(),
     })
 }
@@ -1780,22 +1800,18 @@ fn reduce_possessive_noun_phrase(
             else {
                 return None;
             };
-            if !matches!(children.first()?.meaning, MeaningKey::Noun(_)) {
-                return None;
-            }
-            Some((
-                Features::PossessiveNounPhrase {
-                    form: *form,
-                    initial_sound: *initial_sound,
-                    determined: false,
-                },
-                MeaningKey::PossessiveNounPhrase(PossessiveNounPhraseMeaning::Head {
-                    noun: children.first()?.node,
-                }),
-            ))
+            Some(Features::PossessiveNounPhrase {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: false,
+            })
         }
         RuleTag::PossessiveNounDetermined => {
-            let MeaningKey::Determiner(determiner) = children.first()?.meaning else {
+            let Features::Determiner {
+                cardinality,
+                article,
+            } = children.first()?.features
+            else {
                 return None;
             };
             let Features::PossessiveNounPhrase {
@@ -1807,40 +1823,26 @@ fn reduce_possessive_noun_phrase(
                 return None;
             };
             if *determined
-                || !cardinality_accepts(determiner.cardinality(), *form)
-                || !article_accepts(determiner, *initial_sound)
+                || !cardinality_accepts(*cardinality, *form)
+                || !article_accepts(*article, *initial_sound)
             {
                 return None;
             }
-            if !matches!(
-                children.get(1)?.meaning,
-                MeaningKey::PossessiveNounPhrase(_)
-            ) {
-                return None;
-            }
-            Some((
-                Features::PossessiveNounPhrase {
-                    form: *form,
-                    initial_sound: *initial_sound,
-                    determined: true,
-                },
-                MeaningKey::PossessiveNounPhrase(PossessiveNounPhraseMeaning::Determined {
-                    determiner: children.first()?.node,
-                    possessor: children.get(1)?.node,
-                }),
-            ))
+            Some(Features::PossessiveNounPhrase {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: true,
+            })
         }
-        RuleTag::DeterminerPossessiveNoun => Some((
-            Features::Determiner(Cardinality::Unconstrained),
-            MeaningKey::Determiner(DeterminerKey::PossessiveNounPhrase {
-                possessor: children.first()?.node,
-            }),
-        )),
+        RuleTag::DeterminerPossessiveNoun => Some(Features::Determiner {
+            cardinality: Cardinality::Unconstrained,
+            article: None,
+        }),
         _ => None,
     }
 }
 
-type Reduced = (Features, MeaningKey);
+type Reduced = Features;
 
 fn reduce_quantity_or_determiner(
     tag: RuleTag,
@@ -1848,73 +1850,81 @@ fn reduce_quantity_or_determiner(
 ) -> Option<Reduced> {
     match tag {
         RuleTag::QuantityExact => {
-            let MeaningKey::Number(number) = children.first()?.meaning else {
+            let Features::Number { is_one } = children.first()?.features else {
                 return None;
             };
-            Some(quantity_reduction(QuantityKey::Exact(*number)))
+            Some(Features::Quantity(number_cardinality(*is_one)))
         }
         RuleTag::QuantityUpTo => {
-            let MeaningKey::Number(number) = children.get(2)?.meaning else {
+            let Features::Number { is_one } = children.get(2)?.features else {
                 return None;
             };
-            Some(quantity_reduction(QuantityKey::UpTo(*number)))
+            Some(Features::Quantity(number_cardinality(*is_one)))
         }
         RuleTag::QuantityThatMany | RuleTag::QuantityThatMuch => {
-            let MeaningKey::Quantity(quantity) = children.first()?.meaning else {
+            let Features::Quantity(cardinality) = children.first()?.features else {
                 return None;
             };
-            Some(quantity_reduction(*quantity))
+            Some(Features::Quantity(*cardinality))
         }
         RuleTag::DeterminerClosed => {
-            let MeaningKey::Determiner(determiner) = children.first()?.meaning else {
+            let Features::Determiner {
+                cardinality,
+                article,
+            } = children.first()?.features
+            else {
                 return None;
             };
-            Some(determiner_reduction(determiner.clone()))
+            Some(Features::Determiner {
+                cardinality: *cardinality,
+                article: *article,
+            })
         }
-        RuleTag::DeterminerTarget => Some(determiner_reduction(DeterminerKey::Target(None))),
+        RuleTag::DeterminerTarget => Some(Features::Determiner {
+            cardinality: Cardinality::SingularCount,
+            article: None,
+        }),
         RuleTag::DeterminerQuantifiedTarget => {
-            let MeaningKey::Quantity(quantity) = children.first()?.meaning else {
+            let Features::Quantity(cardinality) = children.first()?.features else {
                 return None;
             };
-            Some(determiner_reduction(DeterminerKey::Target(Some(*quantity))))
+            Some(Features::Determiner {
+                cardinality: target_cardinality(*cardinality),
+                article: None,
+            })
         }
         RuleTag::DeterminerQuantity => {
-            let MeaningKey::Quantity(quantity) = children.first()?.meaning else {
+            let Features::Quantity(cardinality) = children.first()?.features else {
                 return None;
             };
-            Some(determiner_reduction(DeterminerKey::Quantity(*quantity)))
+            Some(Features::Determiner {
+                cardinality: *cardinality,
+                article: None,
+            })
         }
         _ => None,
     }
 }
 
-fn quantity_reduction(quantity: QuantityKey) -> Reduced {
-    (
-        Features::Quantity(quantity.cardinality()),
-        MeaningKey::Quantity(quantity),
-    )
+const fn number_cardinality(is_one: bool) -> Cardinality {
+    if is_one { Cardinality::SingularOrMass } else { Cardinality::PluralCount }
 }
 
-fn determiner_reduction(determiner: DeterminerKey) -> Reduced {
-    (
-        Features::Determiner(determiner.cardinality()),
-        MeaningKey::Determiner(determiner),
-    )
+const fn target_cardinality(cardinality: Cardinality) -> Cardinality {
+    match cardinality {
+        Cardinality::SingularOrMass => Cardinality::SingularCount,
+        other => other,
+    }
 }
 
 fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -> Option<Reduced> {
     match tag {
         RuleTag::Adjective | RuleTag::Noun => Some(propagate(children.first()?)),
         RuleTag::AdjectivePhrase => {
-            if !matches!(children.first()?.meaning, MeaningKey::Adjective(_)) {
+            let Features::Adjective { .. } = children.first()?.features else {
                 return None;
-            }
-            Some((
-                children.first()?.features.clone(),
-                MeaningKey::AdjectivePhrase(AdjectivePhraseMeaning::Head {
-                    adjective: children.first()?.node,
-                }),
-            ))
+            };
+            Some(children.first()?.features.clone())
         }
         RuleTag::NominalNoun => {
             let child = children.first()?;
@@ -1925,65 +1935,34 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             else {
                 return None;
             };
-            if !matches!(
-                child.meaning,
-                MeaningKey::Noun(_)
-                    | MeaningKey::Unknown(UnknownKey {
-                        slot: RecoverySlot::Noun(_),
-                        ..
-                    })
-            ) {
-                return None;
-            }
-            Some((
-                Features::Nominal {
-                    form: *form,
-                    initial_sound: *initial_sound,
-                    determined: false,
-                    leading_recovery: false,
-                },
-                MeaningKey::Nominal(NominalMeaning::Head { noun: child.node }),
-            ))
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: false,
+                leading_recovery: false,
+            })
         }
         RuleTag::NominalAdjective => {
             let Features::Adjective { initial_sound } = children.first()?.features else {
                 return None;
             };
-            nominal_with_prefix(
-                children.get(1)?,
-                *initial_sound,
-                false,
-                NominalMeaning::Adjective {
-                    adjective: children.first()?.node,
-                    nominal: children.get(1)?.node,
-                },
-            )
+            nominal_with_prefix(children.get(1)?, *initial_sound, false)
         }
         RuleTag::NominalNounModifier => {
             let Features::Noun { initial_sound, .. } = children.first()?.features else {
                 return None;
             };
-            nominal_with_prefix(
-                children.get(1)?,
-                *initial_sound,
-                false,
-                NominalMeaning::NounModifier {
-                    noun: children.first()?.node,
-                    nominal: children.get(1)?.node,
-                },
-            )
+            nominal_with_prefix(children.get(1)?, *initial_sound, false)
         }
-        RuleTag::NominalPowerToughnessModifier => nominal_with_prefix(
-            children.get(1)?,
-            InitialSound::Consonant,
-            false,
-            NominalMeaning::PowerToughnessModifier {
-                modifier: children.first()?.node,
-                nominal: children.get(1)?.node,
-            },
-        ),
+        RuleTag::NominalPowerToughnessModifier => {
+            nominal_with_prefix(children.get(1)?, InitialSound::Consonant, false)
+        }
         RuleTag::NominalDeterminer => {
-            let MeaningKey::Determiner(determiner) = children.first()?.meaning else {
+            let Features::Determiner {
+                cardinality,
+                article,
+            } = children.first()?.features
+            else {
                 return None;
             };
             let Features::Nominal {
@@ -1996,26 +1975,17 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
                 return None;
             };
             if *determined
-                || !cardinality_accepts(determiner.cardinality(), *form)
-                || !article_accepts(determiner, *initial_sound)
+                || !cardinality_accepts(*cardinality, *form)
+                || !article_accepts(*article, *initial_sound)
             {
                 return None;
             }
-            if !matches!(children.get(1)?.meaning, MeaningKey::Nominal(_)) {
-                return None;
-            }
-            Some((
-                Features::Nominal {
-                    form: *form,
-                    initial_sound: *initial_sound,
-                    determined: true,
-                    leading_recovery: false,
-                },
-                MeaningKey::Nominal(NominalMeaning::Determined {
-                    determiner: children.first()?.node,
-                    nominal: children.get(1)?.node,
-                }),
-            ))
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: true,
+                leading_recovery: false,
+            })
         }
         RuleTag::NominalPrepositional | RuleTag::NominalRelative => {
             let Features::Nominal {
@@ -2027,29 +1997,12 @@ fn reduce_nominal(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) 
             else {
                 return None;
             };
-            if !matches!(children.first()?.meaning, MeaningKey::Nominal(_)) {
-                return None;
-            }
-            let meaning = match tag {
-                RuleTag::NominalPrepositional => NominalMeaning::Prepositional {
-                    nominal: children.first()?.node,
-                    phrase: children.get(1)?.node,
-                },
-                RuleTag::NominalRelative => NominalMeaning::Relative {
-                    nominal: children.first()?.node,
-                    clause: children.get(1)?.node,
-                },
-                _ => return None,
-            };
-            Some((
-                Features::Nominal {
-                    form: *form,
-                    initial_sound: *initial_sound,
-                    determined: *determined,
-                    leading_recovery: *leading_recovery,
-                },
-                MeaningKey::Nominal(meaning),
-            ))
+            Some(Features::Nominal {
+                form: *form,
+                initial_sound: *initial_sound,
+                determined: *determined,
+                leading_recovery: *leading_recovery,
+            })
         }
         _ => None,
     }
@@ -2068,30 +2021,15 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                     NounForm::Singular | NounForm::Mass => Number::Singular,
                 },
             });
-            Some((
-                Features::NounPhrase {
-                    agreement,
-                    pronoun_case: None,
-                },
-                MeaningKey::NounPhrase(NounPhraseMeaning::Nominal {
-                    nominal: children.first()?.node,
-                }),
-            ))
+            Some(Features::NounPhrase {
+                agreement,
+                pronoun_case: None,
+            })
         }
         RuleTag::NounPhraseSubjectPronoun | RuleTag::NounPhraseObjectPronoun => {
-            noun_phrase_from_pronoun(
-                children.first()?,
-                NounPhraseMeaning::Pronoun {
-                    pronoun: children.first()?.node,
-                },
-            )
+            noun_phrase_from_pronoun(children.first()?)
         }
-        RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(
-            children.first()?,
-            NounPhraseMeaning::Reciprocal {
-                pronoun: children.first()?.node,
-            },
-        ),
+        RuleTag::NounPhraseReciprocal => noun_phrase_from_pronoun(children.first()?),
         RuleTag::NounPhraseThisCard | RuleTag::NounPhraseFullThisCard => {
             let Features::NounPhrase {
                 agreement,
@@ -2100,18 +2038,13 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
             else {
                 return None;
             };
-            Some((
-                Features::NounPhrase {
-                    agreement: *agreement,
-                    pronoun_case: *pronoun_case,
-                },
-                MeaningKey::NounPhrase(NounPhraseMeaning::ThisCard {
-                    reference: children.first()?.node,
-                }),
-            ))
+            Some(Features::NounPhrase {
+                agreement: *agreement,
+                pronoun_case: *pronoun_case,
+            })
         }
         RuleTag::NounPhraseCoordination => {
-            let MeaningKey::Conjunction(conjunction) = children.get(1)?.meaning else {
+            let Features::Conjunction(conjunction) = children.get(1)?.features else {
                 return None;
             };
             if *conjunction == crate::syntax::PredicateConjunction::Then {
@@ -2130,43 +2063,24 @@ fn reduce_phrase(tag: RuleTag, children: &[Child<'_, EnglishGrammar<'_, '_>>]) -
                 }
                 crate::syntax::PredicateConjunction::Then => return None,
             };
-            Some((
-                Features::NounPhrase {
-                    agreement,
-                    pronoun_case: None,
-                },
-                MeaningKey::NounPhrase(NounPhraseMeaning::Coordinated {
-                    first: children.first()?.node,
-                    conjunction: children.get(1)?.node,
-                    next: children.get(2)?.node,
-                }),
-            ))
+            Some(Features::NounPhrase {
+                agreement,
+                pronoun_case: None,
+            })
         }
-        RuleTag::PrepositionalPhrase => {
-            if !matches!(children.first()?.meaning, MeaningKey::Preposition(_)) {
-                return None;
-            }
-            Some((
-                Features::PrepositionalPhrase,
-                MeaningKey::PrepositionalPhrase(PrepositionalPhraseMeaning::NounObject {
-                    preposition: children.first()?.node,
-                    object: children.get(1)?.node,
-                }),
-            ))
-        }
+        RuleTag::PrepositionalPhrase => Some(Features::PrepositionalPhrase),
         _ => None,
     }
 }
 
 fn propagate(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Reduced {
-    (child.features.clone(), child.meaning.clone())
+    child.features.clone()
 }
 
 fn nominal_with_prefix(
     nominal: &Child<'_, EnglishGrammar<'_, '_>>,
     initial_sound: InitialSound,
     leading_recovery: bool,
-    meaning: NominalMeaning,
 ) -> Option<Reduced> {
     let Features::Nominal {
         form, determined, ..
@@ -2174,27 +2088,18 @@ fn nominal_with_prefix(
     else {
         return None;
     };
-    if !matches!(nominal.meaning, MeaningKey::Nominal(_)) {
-        return None;
-    }
     if *determined {
         return None;
     }
-    Some((
-        Features::Nominal {
-            form: *form,
-            initial_sound,
-            determined: *determined,
-            leading_recovery,
-        },
-        MeaningKey::Nominal(meaning),
-    ))
+    Some(Features::Nominal {
+        form: *form,
+        initial_sound,
+        determined: *determined,
+        leading_recovery,
+    })
 }
 
-fn noun_phrase_from_pronoun(
-    child: &Child<'_, EnglishGrammar<'_, '_>>,
-    meaning: NounPhraseMeaning,
-) -> Option<Reduced> {
+fn noun_phrase_from_pronoun(child: &Child<'_, EnglishGrammar<'_, '_>>) -> Option<Reduced> {
     let Features::NounPhrase {
         agreement,
         pronoun_case,
@@ -2202,13 +2107,10 @@ fn noun_phrase_from_pronoun(
     else {
         return None;
     };
-    Some((
-        Features::NounPhrase {
-            agreement: *agreement,
-            pronoun_case: *pronoun_case,
-        },
-        MeaningKey::NounPhrase(meaning),
-    ))
+    Some(Features::NounPhrase {
+        agreement: *agreement,
+        pronoun_case: *pronoun_case,
+    })
 }
 
 fn cardinality_accepts(cardinality: Cardinality, form: NounForm) -> bool {
@@ -2222,11 +2124,11 @@ fn cardinality_accepts(cardinality: Cardinality, form: NounForm) -> bool {
     }
 }
 
-fn article_accepts(determiner: &DeterminerKey, sound: InitialSound) -> bool {
-    match determiner {
-        DeterminerKey::Indefinite(IndefiniteArticleKey::A) => sound == InitialSound::Consonant,
-        DeterminerKey::Indefinite(IndefiniteArticleKey::An) => sound == InitialSound::Vowel,
-        _ => true,
+fn article_accepts(article: Option<IndefiniteArticleKey>, sound: InitialSound) -> bool {
+    match article {
+        Some(IndefiniteArticleKey::A) => sound == InitialSound::Consonant,
+        Some(IndefiniteArticleKey::An) => sound == InitialSound::Vowel,
+        None => true,
     }
 }
 
@@ -2410,18 +2312,48 @@ fn lower(
     best: &BestParse,
 ) -> Option<Lowered> {
     let forest_node = forest.node(node);
-    if matches!(forest_node.key.symbol, ForestSymbol::Lexical(_)) {
-        return lower_lexical(grammar, &forest_node.key.meaning);
+    match forest_node.key.symbol {
+        ForestSymbol::Lexical(_) => {
+            return lower_lexical(grammar, forest_node.key.lexical_value()?);
+        }
+        ForestSymbol::Intermediate { .. } => return None,
+        ForestSymbol::Nonterminal(_) => {}
     }
     let alternative = forest_node.alternatives.get(best.alternative(node)?)?;
     let rule = alternative.rule?;
     let tag = *grammar.tags.get(rule.index())?;
-    let mut children = alternative
-        .children
+    let [intermediate] = alternative.children.as_slice() else {
+        return None;
+    };
+    let mut child_nodes = Vec::new();
+    selected_rule_children(forest, *intermediate, best, &mut child_nodes)?;
+    let mut children = child_nodes
         .iter()
         .map(|&child| lower(grammar, forest, child, best))
         .collect::<Option<Vec<_>>>()?;
     lower_rule(tag, &mut children)
+}
+
+fn selected_rule_children(
+    forest: &EnglishForest,
+    intermediate: NodeId,
+    best: &BestParse,
+    children: &mut Vec<NodeId>,
+) -> Option<()> {
+    let node = forest.node(intermediate);
+    if !matches!(node.key.symbol, ForestSymbol::Intermediate { .. }) {
+        return None;
+    }
+    let alternative = node.alternatives.get(best.alternative(intermediate)?)?;
+    match alternative.children.as_slice() {
+        [child] => children.push(*child),
+        [previous, child] => {
+            selected_rule_children(forest, *previous, best, children)?;
+            children.push(*child);
+        }
+        _ => return None,
+    }
+    Some(())
 }
 
 fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Option<Lowered> {
@@ -2469,17 +2401,6 @@ fn lower_lexical(grammar: &EnglishGrammar<'_, '_>, meaning: &MeaningKey) -> Opti
                 }
             }
         }
-        MeaningKey::AdjectivePhrase(_)
-        | MeaningKey::Nominal(_)
-        | MeaningKey::NounPhrase(_)
-        | MeaningKey::PossessiveNounPhrase(_)
-        | MeaningKey::PrepositionalPhrase(_)
-        | MeaningKey::RelativeClause(_)
-        | MeaningKey::VerbPhrase(_)
-        | MeaningKey::InfinitiveClause(_)
-        | MeaningKey::SimpleClause(_)
-        | MeaningKey::Clause(_)
-        | MeaningKey::Sentence(_) => return None,
     })
 }
 

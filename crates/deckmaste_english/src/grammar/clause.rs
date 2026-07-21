@@ -304,7 +304,13 @@ pub(super) fn accepts_predicate_prefix(
     if !object_rule && !quantity_rule {
         return true;
     }
-    let Features::VerbPhrase { object, phase, .. } = features else {
+    let Features::VerbPhrase {
+        object,
+        phase,
+        accepts_direct_object,
+        ..
+    } = features
+    else {
         return false;
     };
     if *phase != PredicateAttachmentPhase::Object {
@@ -316,7 +322,7 @@ pub(super) fn accepts_predicate_prefix(
             PredicateObjectState::None | PredicateObjectState::Ability
         )
     } else {
-        *object == PredicateObjectState::None
+        *accepts_direct_object && *object == PredicateObjectState::None
     }
 }
 
@@ -327,45 +333,41 @@ fn reduce_predicate(
     match tag {
         RuleTag::Verb => Some(propagate(children.first()?)),
         RuleTag::VerbPhraseBase => {
-            let Features::Verb(slot) = children.first()?.features else {
+            let Features::Verb {
+                slot,
+                accepts_direct_object,
+            } = children.first()?.features
+            else {
                 return None;
             };
             let form = predicate_form(*slot);
-            Some((
-                Features::VerbPhrase {
-                    form,
-                    object: PredicateObjectState::None,
-                    phase: PredicateAttachmentPhase::Object,
-                },
-                MeaningKey::VerbPhrase(VerbPhraseMeaning::Head {
-                    verb: children.first()?.node,
-                }),
-            ))
+            Some(Features::VerbPhrase {
+                form,
+                object: PredicateObjectState::None,
+                phase: PredicateAttachmentPhase::Object,
+                accepts_direct_object: *accepts_direct_object,
+            })
         }
         RuleTag::VerbPhraseAuxiliary => {
-            let MeaningKey::Auxiliary(auxiliary) = children.first()?.meaning else {
+            let Features::Auxiliary(auxiliary) = children.first()?.features else {
                 return None;
             };
             let Features::VerbPhrase {
                 form: child_form,
                 object,
                 phase,
+                accepts_direct_object,
             } = children.get(1)?.features
             else {
                 return None;
             };
             let form = auxiliary_form(*auxiliary, *child_form)?;
-            Some((
-                Features::VerbPhrase {
-                    form,
-                    object: *object,
-                    phase: *phase,
-                },
-                MeaningKey::VerbPhrase(VerbPhraseMeaning::Auxiliary {
-                    auxiliary: children.first()?.node,
-                    predicate: children.get(1)?.node,
-                }),
-            ))
+            Some(Features::VerbPhrase {
+                form,
+                object: *object,
+                phase: *phase,
+                accepts_direct_object: *accepts_direct_object,
+            })
         }
         RuleTag::VerbPhraseDirectObject => {
             let Features::NounPhrase { pronoun_case, .. } = children.get(1)?.features else {
@@ -374,14 +376,7 @@ fn reduce_predicate(
             if *pronoun_case == Some(PronounCase::Subject) {
                 return None;
             }
-            extend_predicate(
-                children.first()?,
-                ObjectAttachment::Direct,
-                VerbPhraseMeaning::DirectObject {
-                    predicate: children.first()?.node,
-                    object: children.get(1)?.node,
-                },
-            )
+            extend_predicate(children.first()?, ObjectAttachment::Direct)
         }
         RuleTag::VerbPhraseAdjective
         | RuleTag::VerbPhrasePrepositional
@@ -391,41 +386,6 @@ fn reduce_predicate(
         | RuleTag::VerbPhraseOracleSymbol
         | RuleTag::VerbPhrasePowerToughness
         | RuleTag::VerbPhraseQuantity => {
-            let meaning = match tag {
-                RuleTag::VerbPhraseAdjective => VerbPhraseMeaning::Adjective {
-                    predicate: children.first()?.node,
-                    adjective: children.get(1)?.node,
-                },
-                RuleTag::VerbPhrasePrepositional => VerbPhraseMeaning::Prepositional {
-                    predicate: children.first()?.node,
-                    phrase: children.get(1)?.node,
-                },
-                RuleTag::VerbPhraseInfinitive => VerbPhraseMeaning::Infinitive {
-                    predicate: children.first()?.node,
-                    clause: children.get(1)?.node,
-                },
-                RuleTag::VerbPhraseAdverb => VerbPhraseMeaning::Adverb {
-                    predicate: children.first()?.node,
-                    adverb: children.get(1)?.node,
-                },
-                RuleTag::VerbPhraseAbility => VerbPhraseMeaning::Ability {
-                    predicate: children.first()?.node,
-                    ability: children.get(1)?.node,
-                },
-                RuleTag::VerbPhraseOracleSymbol => VerbPhraseMeaning::OracleSymbol {
-                    predicate: children.first()?.node,
-                    symbol: children.get(1)?.node,
-                },
-                RuleTag::VerbPhrasePowerToughness => VerbPhraseMeaning::PowerToughness {
-                    predicate: children.first()?.node,
-                    value: children.get(1)?.node,
-                },
-                RuleTag::VerbPhraseQuantity => VerbPhraseMeaning::Quantity {
-                    predicate: children.first()?.node,
-                    quantity: children.get(1)?.node,
-                },
-                _ => return None,
-            };
             let attachment = match tag {
                 RuleTag::VerbPhraseAbility => ObjectAttachment::Ability,
                 RuleTag::VerbPhraseOracleSymbol | RuleTag::VerbPhrasePowerToughness => {
@@ -434,7 +394,7 @@ fn reduce_predicate(
                 RuleTag::VerbPhraseQuantity => ObjectAttachment::DirectOrAbilityArgument,
                 _ => ObjectAttachment::None,
             };
-            extend_predicate(children.first()?, attachment, meaning)
+            extend_predicate(children.first()?, attachment)
         }
         RuleTag::InfinitiveTo => {
             let Features::VerbPhrase {
@@ -444,13 +404,7 @@ fn reduce_predicate(
             else {
                 return None;
             };
-            Some((
-                Features::InfinitiveClause,
-                MeaningKey::InfinitiveClause(InfinitiveClauseMeaning::To {
-                    marker: children.first()?.node,
-                    predicate: children.get(1)?.node,
-                }),
-            ))
+            Some(Features::InfinitiveClause)
         }
         _ => None,
     }
@@ -459,12 +413,12 @@ fn reduce_predicate(
 fn extend_predicate(
     predicate: &Child<'_, EnglishGrammar<'_, '_>>,
     attachment: ObjectAttachment,
-    meaning: VerbPhraseMeaning,
 ) -> Option<Reduced> {
     let Features::VerbPhrase {
         form,
         object,
         phase,
+        accepts_direct_object,
     } = predicate.features
     else {
         return None;
@@ -474,6 +428,9 @@ fn extend_predicate(
         (_, PredicateAttachmentPhase::Object) => PredicateAttachmentPhase::Object,
         (_, PredicateAttachmentPhase::Tail) => return None,
     };
+    if !*accepts_direct_object && !matches!(attachment, ObjectAttachment::None) {
+        return None;
+    }
     let object = match (attachment, *object) {
         (ObjectAttachment::None, object) => object,
         (ObjectAttachment::Direct, PredicateObjectState::None) => PredicateObjectState::Direct,
@@ -486,14 +443,12 @@ fn extend_predicate(
         }
         _ => return None,
     };
-    Some((
-        Features::VerbPhrase {
-            form: *form,
-            object,
-            phase: next_phase,
-        },
-        MeaningKey::VerbPhrase(meaning),
-    ))
+    Some(Features::VerbPhrase {
+        form: *form,
+        object,
+        phase: next_phase,
+        accepts_direct_object: *accepts_direct_object,
+    })
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -536,10 +491,6 @@ fn reduce_simple_clause(
                 true,
                 true,
                 object.has_direct_object(),
-                SimpleClauseMeaning::Subject {
-                    subject: children.first()?.node,
-                    predicate: children.get(1)?.node,
-                },
             ))
         }
         RuleTag::SimpleClauseSubjectless => {
@@ -552,18 +503,12 @@ fn reduce_simple_clause(
                     false,
                     true,
                     object.has_direct_object(),
-                    SimpleClauseMeaning::Subjectless {
-                        predicate: children.first()?.node,
-                    },
                 )),
                 PredicateForm::Finite(agreement) => Some(simple_clause_reduction(
                     *agreement,
                     false,
                     false,
                     object.has_direct_object(),
-                    SimpleClauseMeaning::Subjectless {
-                        predicate: children.first()?.node,
-                    },
                 )),
                 PredicateForm::Infinitive
                 | PredicateForm::PresentParticiple
@@ -579,27 +524,20 @@ fn reduce_simple_clause(
             else {
                 return None;
             };
-            Some((
-                Features::Clause {
-                    agreement: *agreement,
-                    standalone: *standalone,
-                },
-                MeaningKey::Clause(ClauseMeaning::Simple {
-                    clause: children.first()?.node,
-                }),
-            ))
+            Some(Features::Clause {
+                agreement: *agreement,
+                standalone: *standalone,
+            })
         }
-        RuleTag::ClauseElliptical => Some((
-            Features::Clause {
-                agreement: None,
-                standalone: false,
-            },
-            MeaningKey::Clause(ClauseMeaning::Elliptical {
-                phrase: children.first()?.node,
-            }),
-        )),
+        RuleTag::ClauseElliptical => Some(Features::Clause {
+            agreement: None,
+            standalone: false,
+        }),
         RuleTag::ClauseExistential => {
-            let MeaningKey::Existential(form) = children.first()?.meaning else {
+            let Features::Existential {
+                number: expected_number,
+            } = children.first()?.features
+            else {
                 return None;
             };
             let Features::NounPhrase {
@@ -609,25 +547,13 @@ fn reduce_simple_clause(
             else {
                 return None;
             };
-            let expected_number = match form {
-                ExistentialForm::Is | ExistentialForm::ContractedIs | ExistentialForm::Was => {
-                    Number::Singular
-                }
-                ExistentialForm::Are | ExistentialForm::Were => Number::Plural,
-            };
-            if agreement.number != expected_number {
+            if agreement.number != *expected_number {
                 return None;
             }
-            Some((
-                Features::Clause {
-                    agreement: None,
-                    standalone: true,
-                },
-                MeaningKey::Clause(ClauseMeaning::Existential {
-                    form: children.first()?.node,
-                    pivot: children.get(1)?.node,
-                }),
-            ))
+            Some(Features::Clause {
+                agreement: None,
+                standalone: true,
+            })
         }
         tag @ (RuleTag::ClauseCopularNoun
         | RuleTag::ClauseCopularAdjective
@@ -657,13 +583,7 @@ fn reduce_simple_clause(
             if predicate_agreement.is_some_and(|agreement| agreement != *subject_agreement) {
                 return None;
             }
-            Some((
-                Features::RelativeClause(RelativeGap::Object),
-                MeaningKey::RelativeClause(RelativeClauseMeaning::ObjectGap {
-                    subject: children.first()?.node,
-                    predicate: children.get(1)?.node,
-                }),
-            ))
+            Some(Features::RelativeClause(RelativeGap::Object))
         }
         _ => None,
     }
@@ -679,16 +599,11 @@ fn reduce_copular_clause(
             | RuleTag::ClauseContractedCopularAdjective
             | RuleTag::ClauseContractedCopularPrepositional
     );
-    let (subject, copula, complement, agreement) = if contracted {
-        let MeaningKey::SubjectCopula(subject_copula) = children.first()?.meaning else {
+    let agreement = if contracted {
+        let Features::SubjectCopula(agreement) = children.first()?.features else {
             return None;
         };
-        (
-            children.first()?.node,
-            None,
-            children.get(1)?.node,
-            copula_agreement(subject_copula.auxiliary)?,
-        )
+        *agreement
     } else {
         let Features::NounPhrase {
             agreement: Some(subject_agreement),
@@ -700,51 +615,18 @@ fn reduce_copular_clause(
         if *pronoun_case == Some(PronounCase::Object) {
             return None;
         }
-        let MeaningKey::Auxiliary(auxiliary) = children.get(1)?.meaning else {
+        let Features::Copula(copula_agreement) = children.get(1)?.features else {
             return None;
         };
-        let copula_agreement = copula_agreement(*auxiliary)?;
-        if *subject_agreement != copula_agreement {
+        if *subject_agreement != *copula_agreement {
             return None;
         }
-        (
-            children.first()?.node,
-            Some(children.get(1)?.node),
-            children.get(2)?.node,
-            *subject_agreement,
-        )
+        *subject_agreement
     };
-    let meaning = match tag {
-        RuleTag::ClauseCopularNoun | RuleTag::ClauseContractedCopularNoun => {
-            ClauseMeaning::CopularNoun {
-                subject,
-                copula,
-                complement,
-            }
-        }
-        RuleTag::ClauseCopularAdjective | RuleTag::ClauseContractedCopularAdjective => {
-            ClauseMeaning::CopularAdjective {
-                subject,
-                copula,
-                complement,
-            }
-        }
-        RuleTag::ClauseCopularPrepositional | RuleTag::ClauseContractedCopularPrepositional => {
-            ClauseMeaning::CopularPrepositional {
-                subject,
-                copula,
-                complement,
-            }
-        }
-        _ => return None,
-    };
-    Some((
-        Features::Clause {
-            agreement: Some(agreement),
-            standalone: true,
-        },
-        MeaningKey::Clause(meaning),
-    ))
+    Some(Features::Clause {
+        agreement: Some(agreement),
+        standalone: true,
+    })
 }
 
 fn simple_clause_reduction(
@@ -752,17 +634,13 @@ fn simple_clause_reduction(
     has_subject: bool,
     standalone: bool,
     has_direct_object: bool,
-    meaning: SimpleClauseMeaning,
 ) -> Reduced {
-    (
-        Features::SimpleClause {
-            agreement,
-            has_subject,
-            standalone,
-            has_direct_object,
-        },
-        MeaningKey::SimpleClause(meaning),
-    )
+    Features::SimpleClause {
+        agreement,
+        has_subject,
+        standalone,
+        has_direct_object,
+    }
 }
 
 fn reduce_composed_clause(
@@ -791,33 +669,14 @@ fn reduce_composed_clause(
             if !coordination_agrees(*first_agreement, *next_agreement, *has_subject, *standalone) {
                 return None;
             }
-            Some((
-                Features::Clause {
-                    agreement: *first_agreement,
-                    standalone: true,
-                },
-                MeaningKey::Clause(ClauseMeaning::Coordinated {
-                    first: children.first()?.node,
-                    comma: (tag == RuleTag::ClauseCoordinationComma)
-                        .then(|| children.get(1).map(|child| child.node))
-                        .flatten(),
-                    conjunction: children
-                        .get(if tag == RuleTag::ClauseCoordination { 1 } else { 2 })?
-                        .node,
-                    next: children.last()?.node,
-                }),
-            ))
+            Some(Features::Clause {
+                agreement: *first_agreement,
+                standalone: true,
+            })
         }
-        RuleTag::ClauseConditionalBefore => conditional_reduction(
-            children.get(1)?,
-            children.get(3)?,
-            ClauseMeaning::ConditionalBefore {
-                subordinator: children.first()?.node,
-                condition: children.get(1)?.node,
-                comma: children.get(2)?.node,
-                consequence: children.get(3)?.node,
-            },
-        ),
+        RuleTag::ClauseConditionalBefore => {
+            conditional_reduction(children.get(1)?, children.get(3)?)
+        }
         RuleTag::ClauseConditionalAfterElliptical => {
             let consequence = children.first()?;
             let Features::Clause {
@@ -827,28 +686,13 @@ fn reduce_composed_clause(
             else {
                 return None;
             };
-            Some((
-                Features::Clause {
-                    agreement: *agreement,
-                    standalone: true,
-                },
-                MeaningKey::Clause(ClauseMeaning::ConditionalAfterElliptical {
-                    consequence: children.first()?.node,
-                    subordinator: children.get(1)?.node,
-                    condition: children.get(2)?.node,
-                }),
-            ))
+            Some(Features::Clause {
+                agreement: *agreement,
+                standalone: true,
+            })
         }
         RuleTag::ClauseConditionalAfter | RuleTag::ClauseConditionalAfterIf => {
-            conditional_reduction(
-                children.get(2)?,
-                children.first()?,
-                ClauseMeaning::ConditionalAfter {
-                    consequence: children.first()?.node,
-                    subordinator: children.get(1)?.node,
-                    condition: children.get(2)?.node,
-                },
-            )
+            conditional_reduction(children.get(2)?, children.first()?)
         }
         RuleTag::SentencePeriod
         | RuleTag::SentenceExclamation
@@ -860,25 +704,7 @@ fn reduce_composed_clause(
             else {
                 return None;
             };
-            let meaning = match tag {
-                RuleTag::SentencePeriod => SentenceMeaning::Period {
-                    clause: children.first()?.node,
-                    punctuation: children.get(1)?.node,
-                },
-                RuleTag::SentenceExclamation => SentenceMeaning::Exclamation {
-                    clause: children.first()?.node,
-                    punctuation: children.get(1)?.node,
-                },
-                RuleTag::SentenceQuestion => SentenceMeaning::Question {
-                    clause: children.first()?.node,
-                    punctuation: children.get(1)?.node,
-                },
-                RuleTag::SentenceNone => SentenceMeaning::Unpunctuated {
-                    clause: children.first()?.node,
-                },
-                _ => return None,
-            };
-            Some((Features::Sentence, MeaningKey::Sentence(meaning)))
+            Some(Features::Sentence)
         }
         _ => None,
     }
@@ -887,7 +713,6 @@ fn reduce_composed_clause(
 fn conditional_reduction(
     condition: &Child<'_, EnglishGrammar<'_, '_>>,
     consequence: &Child<'_, EnglishGrammar<'_, '_>>,
-    meaning: ClauseMeaning,
 ) -> Option<Reduced> {
     let Features::Clause {
         standalone: true, ..
@@ -902,13 +727,10 @@ fn conditional_reduction(
     else {
         return None;
     };
-    Some((
-        Features::Clause {
-            agreement: *agreement,
-            standalone: true,
-        },
-        MeaningKey::Clause(meaning),
-    ))
+    Some(Features::Clause {
+        agreement: *agreement,
+        standalone: true,
+    })
 }
 
 fn coordination_agrees(
@@ -1845,21 +1667,25 @@ mod tests {
             form: PredicateForm::Imperative,
             object: PredicateObjectState::None,
             phase: PredicateAttachmentPhase::Object,
+            accepts_direct_object: true,
         };
         let occupied = Features::VerbPhrase {
             form: PredicateForm::Imperative,
             object: PredicateObjectState::Direct,
             phase: PredicateAttachmentPhase::Object,
+            accepts_direct_object: true,
         };
         let ability = Features::VerbPhrase {
             form: PredicateForm::Imperative,
             object: PredicateObjectState::Ability,
             phase: PredicateAttachmentPhase::Object,
+            accepts_direct_object: true,
         };
         let tail = Features::VerbPhrase {
             form: PredicateForm::Imperative,
             object: PredicateObjectState::None,
             phase: PredicateAttachmentPhase::Tail,
+            accepts_direct_object: true,
         };
 
         assert!(accepts_predicate_prefix(
