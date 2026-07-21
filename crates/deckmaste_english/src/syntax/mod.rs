@@ -10,6 +10,7 @@ pub use phrase::*;
 pub enum UnknownRole {
     Clause,
     Subject,
+    Verb,
     VerbDependent,
     NominalComplement,
     ActivationCost,
@@ -128,6 +129,9 @@ impl<'syntax> UnknownWalker<'syntax> {
     }
 
     fn verb_phrase(&mut self, phrase: &'syntax VerbPhrase, context: Option<UnknownRole>) {
+        if let crate::word::Verb::Unknown(unknown) = &phrase.verb.verb {
+            self.push(unknown, UnknownRole::Verb, context);
+        }
         for dependent in &phrase.dependents {
             match dependent {
                 VerbDependent::DirectObject(noun_phrase)
@@ -440,6 +444,16 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn unknown_walker_includes_unknown_verbs() {
+        let ast = crate::parse("You frobnitz a card.").into_ast();
+
+        assert!(ast.unknown_phrases().contains(&UnknownPhraseRef {
+            role: UnknownRole::Verb,
+            text: "frobnitz",
+        }));
     }
 
     fn unknown(text: &str) -> UnknownPhrase {

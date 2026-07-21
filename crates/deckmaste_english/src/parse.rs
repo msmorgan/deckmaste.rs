@@ -7,7 +7,7 @@ use crate::surface::lex;
 use crate::syntax::OracleText;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DiagnosticKind {
+pub enum DiagnosticKind {
     Surface(SurfaceDiagnosticKind),
     OrphanMode,
     EmptyActivationEffect,
@@ -15,18 +15,18 @@ pub(crate) enum DiagnosticKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Diagnostic {
+pub struct Diagnostic {
     pub(crate) kind: DiagnosticKind,
     pub(crate) span: Span,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct ParseProvenance {
+pub struct ParseProvenance {
     pub(crate) selections: Vec<ParseSelection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ParseSelection {
+pub struct ParseSelection {
     pub(crate) span: Span,
     pub(crate) rule: Option<usize>,
     pub(crate) tied_alternatives: Vec<usize>,
@@ -34,23 +34,77 @@ pub(crate) struct ParseSelection {
 }
 
 #[derive(Debug)]
-pub(crate) struct ParseReport {
+pub struct ParseReport {
     pub(crate) ast: OracleText,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) provenance: ParseProvenance,
 }
 
 impl ParseReport {
-    pub(crate) fn into_ast(self) -> OracleText {
+    #[must_use]
+    pub const fn ast(&self) -> &OracleText {
+        &self.ast
+    }
+
+    #[must_use]
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
+    }
+
+    #[must_use]
+    pub const fn provenance(&self) -> &ParseProvenance {
+        &self.provenance
+    }
+
+    #[must_use]
+    pub fn into_ast(self) -> OracleText {
         self.ast
     }
 }
 
-pub(crate) fn parse(source: &str) -> ParseReport {
+impl Diagnostic {
+    #[must_use]
+    pub const fn kind(self) -> DiagnosticKind {
+        self.kind
+    }
+
+    #[must_use]
+    pub const fn span(self) -> Span {
+        self.span
+    }
+}
+
+impl ParseProvenance {
+    #[must_use]
+    pub fn selections(&self) -> &[ParseSelection] {
+        &self.selections
+    }
+}
+
+impl ParseSelection {
+    #[must_use]
+    pub const fn span(&self) -> Span {
+        self.span
+    }
+
+    #[must_use]
+    pub const fn rule(&self) -> Option<usize> {
+        self.rule
+    }
+
+    #[must_use]
+    pub fn tied_alternatives(&self) -> &[usize] {
+        &self.tied_alternatives
+    }
+}
+
+#[must_use]
+pub fn parse(source: &str) -> ParseReport {
     parse_with_catalogs(source, &Catalogs::default())
 }
 
-pub(crate) fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> ParseReport {
+#[must_use]
+pub fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> ParseReport {
     let surface = lex(source);
     let parsed = parse_oracle_text(source, catalogs, &surface.tokens);
     let mut diagnostics = surface

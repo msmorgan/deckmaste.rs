@@ -5,6 +5,7 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
 use deckmaste_english::Catalogs;
+use deckmaste_english::ParseReport;
 use deckmaste_english::parse_with_catalogs;
 
 use super::data::CardFace;
@@ -24,7 +25,7 @@ pub(super) struct InspectArgs {
 
 #[derive(Debug, Args)]
 struct OutputConfig {
-    /// Include the underlying byte spans instead of resolving them to text.
+    /// Include diagnostics and parse provenance with their byte spans.
     #[arg(short, long)]
     verbose: bool,
 
@@ -92,35 +93,49 @@ fn write_cards(
             None => writeln!(writer, "{}", card.card_name)?,
         }
         writeln!(writer, "\nOracle text:\n{}", card.oracle_text)?;
-        let ast = parse_with_catalogs(&card.oracle_text, catalogs);
+        let report = parse_with_catalogs(&card.oracle_text, catalogs);
+        let ast = report.ast();
         if output_config.abilities_only {
-            if output_config.verbose {
-                writeln!(writer, "\nAbilities:\n{:#?}", ast.abilities)?;
-            } else {
-                writeln!(
-                    writer,
-                    "\nAbilities:\n{:#?}",
-                    ast.abilities_source_debug(&card.oracle_text)
-                )?;
-            }
-            if !ast.diagnostics.is_empty() {
-                if output_config.verbose {
-                    writeln!(writer, "\nDiagnostics:\n{:#?}", ast.diagnostics)?;
-                } else {
-                    writeln!(
-                        writer,
-                        "\nDiagnostics:\n{:#?}",
-                        ast.diagnostics_source_debug(&card.oracle_text)
-                    )?;
-                }
-            }
-        } else if output_config.verbose {
-            writeln!(writer, "\nAST:\n{ast:#?}")?;
+            writeln!(writer, "\nAbilities:\n{:#?}", ast.abilities)?;
         } else {
-            writeln!(writer, "\nAST:\n{:#?}", ast.source_debug(&card.oracle_text))?;
+            writeln!(writer, "\nAST:\n{ast:#?}")?;
+        }
+        write_diagnostics(
+            &mut writer,
+            &report,
+            &card.oracle_text,
+            output_config.verbose,
+        )?;
+        if output_config.verbose && !report.provenance().selections().is_empty() {
+            writeln!(writer, "\nProvenance:\n{:#?}", report.provenance())?;
         }
     }
 
+    Ok(())
+}
+
+fn write_diagnostics(
+    mut writer: impl Write,
+    report: &ParseReport,
+    source: &str,
+    verbose: bool,
+) -> Result<()> {
+    if report.diagnostics().is_empty() {
+        return Ok(());
+    }
+    if verbose {
+        writeln!(writer, "\nDiagnostics:\n{:#?}", report.diagnostics())?;
+        return Ok(());
+    }
+
+    writeln!(writer, "\nDiagnostics:")?;
+    for diagnostic in report.diagnostics() {
+        let text = diagnostic
+            .span()
+            .text(source)
+            .unwrap_or("<invalid source span>");
+        writeln!(writer, "  {:?} at {text:?}", diagnostic.kind())?;
+    }
     Ok(())
 }
 
@@ -262,9 +277,9 @@ mod tests {
         let normal = String::from_utf8(normal).unwrap();
         let verbose = String::from_utf8(verbose).unwrap();
 
-        assert!(normal.contains("verb: Lexeme {"));
-        assert!(normal.contains("lemma: \"draw\""));
-        assert!(normal.contains("\"Draw\""));
+        assert!(normal.contains("verb: VerbInstance {"));
+        assert!(normal.contains("Word(\n"));
+        assert!(normal.contains("Draw,"));
         assert!(!normal.contains("Span"));
         assert!(verbose.contains("Span"));
         assert!(verbose.contains("start: 0"));
@@ -297,6 +312,8 @@ mod tests {
 
     #[test]
     fn local_card_snapshot_structurally_round_trips_without_source_text() {
+        use std::time::Instant;
+
         let Ok(data) = OracleDataArgs::default().load() else {
             return;
         };
@@ -306,8 +323,23 @@ mod tests {
             if !card.supported {
                 continue;
             }
-            let ast = parse_with_catalogs(&card.oracle_text, &data.catalogs);
-            match ast.render(card.printed_name(), card.is_legendary) {
+            let started = Instant::now();
+            let report = parse_with_catalogs(&card.oracle_text, &data.catalogs);
+            let elapsed = started.elapsed();
+            if elapsed.as_millis() >= 100 {
+                eprintln!(
+                    "slow row {} ({}) {elapsed:?}",
+                    index + 1,
+                    card.printed_name()
+                );
+            }
+            if index % 1_000 == 0 {
+                eprintln!("reached row {} ({})", index + 1, card.printed_name());
+            }
+            match report
+                .into_ast()
+                .render(card.printed_name(), card.is_legendary)
+            {
                 Ok(rebuilt)
                     if normalized_rules_text(&rebuilt)
                         == normalized_rules_text(&card.source_text) => {}

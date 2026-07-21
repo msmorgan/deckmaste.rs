@@ -2175,9 +2175,14 @@ fn parse_nonterminal_with_profile(
     tokens: &[Token],
     recovery_profile: RecoveryProfile,
 ) -> Result<ParsedNonterminal, ParseNonterminalError> {
+    let started = std::time::Instant::now();
     let grammar =
         EnglishGrammar::with_recovery_profile(source, catalogs, nonterminal, recovery_profile);
     let chart = parse_chart(&grammar, tokens).map_err(ParseNonterminalError::Grammar)?;
+    let chart_elapsed = started.elapsed();
+    if chart_elapsed.as_millis() >= 50 {
+        eprintln!("slow chart {recovery_profile:?} {chart_elapsed:?} {nonterminal:?}: {source:?}");
+    }
     let mut candidates = chart
         .roots
         .iter()

@@ -43,7 +43,7 @@ pub(crate) struct Token {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum SurfaceDiagnosticKind {
+pub enum SurfaceDiagnosticKind {
     UnclosedOracleSymbol,
     UnexpectedClosingOracleSymbol,
     UnclosedBracket,

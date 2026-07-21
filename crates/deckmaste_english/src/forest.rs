@@ -35,6 +35,7 @@ impl AddAssign for ParseCost {
 pub(crate) struct NodeId(usize);
 
 impl NodeId {
+    #[cfg(test)]
     pub(crate) const fn new(index: usize) -> Self {
         Self(index)
     }
@@ -134,6 +135,7 @@ where
         &self.nodes[node.index()]
     }
 
+    #[cfg(test)]
     pub(crate) fn nodes(&self) -> impl Iterator<Item = &ForestNode<N, L, F, M>> {
         self.nodes.iter()
     }

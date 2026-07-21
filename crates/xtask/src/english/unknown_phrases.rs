@@ -3,16 +3,9 @@ use std::collections::HashMap;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Args;
-use deckmaste_english::Ability;
-use deckmaste_english::AbilityKind;
-use deckmaste_english::Clause;
-use deckmaste_english::ModalFrame;
-use deckmaste_english::OracleText;
-use deckmaste_english::Paragraph;
-use deckmaste_english::Phrase;
-use deckmaste_english::Predicate;
-use deckmaste_english::SimpleClause;
 use deckmaste_english::parse_with_catalogs;
+use deckmaste_english::syntax::OracleText;
+use deckmaste_english::syntax::UnknownRole;
 
 use super::data::OracleDataArgs;
 
@@ -101,8 +94,8 @@ pub(super) fn run(args: &UnknownPhrasesArgs) -> Result<()> {
     let supported = data.faces.iter().filter(|card| card.supported);
     let card_count = supported.clone().count();
     for card in supported {
-        let ast = parse_with_catalogs(&card.oracle_text, &data.catalogs);
-        UnknownPhraseCollector::new(&mut occurrences, card.printed_name()).oracle_text(&ast);
+        let report = parse_with_catalogs(&card.oracle_text, &data.catalogs);
+        occurrences.extend(unknown_occurrences(report.ast(), card.printed_name()));
     }
     let maximum = occurrences
         .iter()
@@ -237,139 +230,29 @@ fn print_result_header(kind: &str, args: &UnknownPhrasesArgs, order: &str) {
     println!("UnknownPhrase {kind} {word_range}{count_range} ({order}):");
 }
 
-struct UnknownPhraseCollector<'a> {
-    occurrences: &'a mut Vec<Occurrence>,
-    card: &'a str,
+fn unknown_occurrences(ast: &OracleText, card: &str) -> Vec<Occurrence> {
+    ast.unknown_phrases()
+        .into_iter()
+        .map(|unknown| Occurrence {
+            card: card.to_owned(),
+            role: role_name(unknown.role),
+            text: unknown.text.to_owned(),
+            words: phrase_word_count(unknown.text),
+        })
+        .collect()
 }
 
-impl<'a> UnknownPhraseCollector<'a> {
-    fn new(occurrences: &'a mut Vec<Occurrence>, card: &'a str) -> Self {
-        Self { occurrences, card }
-    }
-
-    fn oracle_text(&mut self, ast: &OracleText) {
-        for ability in &ast.abilities {
-            self.ability(ability);
-        }
-    }
-
-    fn ability(&mut self, ability: &Ability) {
-        if let Some(word) = &ability.ability_word {
-            self.phrase("ability word", word);
-        }
-        match &ability.kind {
-            AbilityKind::Activated(ability) => {
-                for component in &ability.cost.components {
-                    self.phrase("activation cost", component);
-                }
-                self.paragraph(&ability.effect);
-            }
-            AbilityKind::Triggered(ability) => {
-                self.simple_clause(&ability.event);
-                self.paragraph(&ability.effect);
-            }
-            AbilityKind::Loyalty(ability) => self.paragraph(&ability.effect),
-            AbilityKind::Modal(ability) => {
-                match &ability.frame {
-                    ModalFrame::Unframed | ModalFrame::Loyalty(_) => {}
-                    ModalFrame::Preamble { body, .. } => self.paragraph(body),
-                    ModalFrame::Activated(cost) => {
-                        for component in &cost.components {
-                            self.phrase("activation cost", component);
-                        }
-                    }
-                    ModalFrame::Triggered { event, .. } => self.simple_clause(event),
-                }
-                self.paragraph(&ability.header);
-                for mode in &ability.modes {
-                    self.paragraph(&mode.body);
-                }
-            }
-            AbilityKind::Keyword(list) => {
-                for keyword in &list.abilities {
-                    self.phrase("keyword name", &keyword.printed_name);
-                    if let Some(argument) = &keyword.argument {
-                        self.phrase("keyword argument", argument);
-                    }
-                }
-            }
-            AbilityKind::Paragraph(paragraph) => self.paragraph(paragraph),
-        }
-    }
-
-    fn paragraph(&mut self, paragraph: &Paragraph) {
-        for sentence in &paragraph.sentences {
-            match &sentence.clause {
-                Clause::Simple(clause) => self.simple_clause(clause),
-                Clause::CommaSeparated(clause) => {
-                    self.simple_clause(&clause.first);
-                    self.simple_clause(&clause.second);
-                }
-                Clause::Conditional(clause) => {
-                    self.simple_clause(&clause.condition);
-                    self.simple_clause(&clause.consequence);
-                }
-            }
-        }
-    }
-
-    fn simple_clause(&mut self, clause: &SimpleClause) {
-        let Some(predicate) = &clause.predicate else {
-            if let Some(unparsed) = &clause.unparsed {
-                self.phrase("unparsed clause", unparsed);
-            }
-            return;
-        };
-        if let Some(subject) = &clause.subject {
-            self.phrase("subject", subject);
-        }
-        self.predicate(predicate);
-        for coordinated in &clause.coordinated_predicates {
-            self.predicate(&coordinated.predicate);
-        }
-        for coordinated in &clause.coordinated_clauses {
-            self.simple_clause(&coordinated.clause);
-        }
-    }
-
-    fn predicate(&mut self, predicate: &Predicate) {
-        self.phrase("verb", &predicate.verb);
-        if let Some(complement) = &predicate.complement {
-            self.phrase("complement", complement);
-        }
-    }
-
-    fn phrase(&mut self, role: &'static str, phrase: &Phrase) {
-        match phrase {
-            Phrase::UnknownPhrase(text) => self.occurrences.push(Occurrence {
-                card: self.card.to_owned(),
-                role,
-                text: text.to_owned(),
-                words: phrase_word_count(text),
-            }),
-            Phrase::NounPhrase(phrase) => self.phrase(role, &phrase.head),
-            Phrase::ModifiedNounPhrase(phrase) => {
-                self.phrase(role, &phrase.modifier);
-                self.phrase(role, &phrase.head);
-            }
-            Phrase::QuantityPhrase(phrase) => {
-                self.phrase(role, &phrase.quantity);
-                self.phrase(role, &phrase.unit);
-            }
-            Phrase::Lexeme { .. }
-            | Phrase::ColorWord { .. }
-            | Phrase::ThisCard { .. }
-            | Phrase::OracleSymbol { .. }
-            | Phrase::SymbolSequence { .. }
-            | Phrase::NumberLiteral { .. }
-            | Phrase::PowerToughness(_)
-            | Phrase::CatalogTerm { .. } => {}
-            Phrase::EmbeddedRulesPhrase { embedded_rules, .. } => {
-                for rules in embedded_rules {
-                    self.ability(&rules.ability);
-                }
-            }
-        }
+const fn role_name(role: UnknownRole) -> &'static str {
+    match role {
+        UnknownRole::Clause => "clause",
+        UnknownRole::Subject => "subject",
+        UnknownRole::Verb => "verb",
+        UnknownRole::VerbDependent => "verb dependent",
+        UnknownRole::NominalComplement => "nominal",
+        UnknownRole::ActivationCost => "activation cost",
+        UnknownRole::KeywordArgument => "keyword argument",
+        UnknownRole::ModalHeader => "modal header",
+        UnknownRole::EmbeddedRules => "embedded rules",
     }
 }
 
@@ -472,24 +355,16 @@ mod tests {
 
     #[test]
     fn unknown_phrase_occurrences_include_their_syntactic_role() {
-        let source = "Destroy target artifact or enchantment.";
-        let catalogs = Catalogs::new(
-            std::iter::empty::<&str>(),
-            ["Destroy"],
-            std::iter::empty::<&str>(),
-        );
-        let ast = parse_with_catalogs(source, &catalogs);
-        let mut occurrences = Vec::new();
+        let source = "You frobnitz a card.";
+        let report = parse_with_catalogs(source, &Catalogs::default());
+        let occurrences = unknown_occurrences(report.ast(), "Test Card");
 
-        UnknownPhraseCollector::new(&mut occurrences, "Test Card").oracle_text(&ast);
-
-        let longest = occurrences
-            .iter()
-            .max_by_key(|occurrence| occurrence.words)
-            .unwrap();
-        assert_eq!(longest.role, "complement");
-        assert_eq!(longest.words, 4);
-        assert_eq!(longest.text, "target artifact or enchantment");
+        assert!(occurrences.contains(&Occurrence {
+            card: "Test Card".to_owned(),
+            role: "verb",
+            text: "frobnitz".to_owned(),
+            words: 1,
+        }));
     }
 
     #[test]
@@ -610,10 +485,8 @@ mod tests {
     #[test]
     fn embedded_rules_wrapper_is_not_reported_as_unknown() {
         let source = "Target creature gains \"Whenever this creature attacks, draw a blorple.\"";
-        let ast = parse_with_catalogs(source, &Catalogs::default());
-        let mut occurrences = Vec::new();
-
-        UnknownPhraseCollector::new(&mut occurrences, "Test Card").oracle_text(&ast);
+        let report = parse_with_catalogs(source, &Catalogs::default());
+        let occurrences = unknown_occurrences(report.ast(), "Test Card");
 
         assert!(
             occurrences
@@ -635,10 +508,8 @@ mod tests {
             std::iter::empty::<&str>(),
             std::iter::empty::<&str>(),
         );
-        let ast = parse_with_catalogs(source, &catalogs);
-        let mut occurrences = Vec::new();
-
-        UnknownPhraseCollector::new(&mut occurrences, "Test Card").oracle_text(&ast);
+        let report = parse_with_catalogs(source, &catalogs);
+        let occurrences = unknown_occurrences(report.ast(), "Test Card");
 
         assert!(
             occurrences

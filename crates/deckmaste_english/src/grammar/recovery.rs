@@ -1,6 +1,8 @@
 use super::*;
 use crate::syntax::VerbDependent;
 
+const MAX_UNKNOWN_PHRASE_WORDS: u32 = 3;
+
 pub(super) fn add_rules(builder: &mut RuleBuilder) {
     use EnglishLexicalSlot as L;
     use Expected::Lexical as l;
@@ -80,6 +82,9 @@ pub(super) fn scan_unknown(
             break;
         }
         words = words.saturating_add(u32::from(is_word_like(token.kind)));
+        if words > MAX_UNKNOWN_PHRASE_WORDS {
+            break;
+        }
         nesting.observe(token.kind);
         let end = start + offset + 1;
         if words == 0 || !nesting.is_top_level() && end != tokens.len() {
@@ -477,8 +482,8 @@ mod tests {
     }
 
     #[test]
-    fn phrase_recovery_offers_each_contiguous_boundary() {
-        let source = "blargly a card.";
+    fn phrase_recovery_offers_each_boundary_through_three_words() {
+        let source = "blargly a shiny card.";
         let surface = lex(source);
         for slot in [
             RecoverySlot::NominalModifier,

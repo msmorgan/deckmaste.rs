@@ -79,6 +79,7 @@ pub(crate) struct Child<'a, G>
 where
     G: Grammar + ?Sized,
 {
+    #[cfg(test)]
     pub(crate) symbol: &'a ForestSymbol<G::Nonterminal, G::LexicalSlot>,
     pub(crate) features: &'a G::Features,
     pub(crate) meaning: &'a G::Meaning,
@@ -145,6 +146,7 @@ impl PartialDerivations {
         Self::default()
     }
 
+    #[cfg(test)]
     const fn empty() -> PartialDerivationId {
         PartialDerivationId::EMPTY
     }
@@ -305,6 +307,7 @@ where
                 .map(|&child| {
                     let node = self.forest.node(child);
                     Child {
+                        #[cfg(test)]
                         symbol: &node.key.symbol,
                         features: &node.key.features,
                         meaning: &node.key.meaning,
