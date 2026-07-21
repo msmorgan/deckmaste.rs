@@ -11,6 +11,12 @@
 //! passes instead of being flattened or discarded. [`parse`] is intentionally
 //! total: malformed structure produces [`Diagnostic`] values and the most
 //! conservative AST the parser can construct.
+//!
+//! To inspect a card from the repository's local data snapshot, run:
+//!
+//! ```text
+//! cargo run -p deckmaste_english_ast --example inspect -- "Lightning Bolt"
+//! ```
 
 mod ast;
 mod parser;
