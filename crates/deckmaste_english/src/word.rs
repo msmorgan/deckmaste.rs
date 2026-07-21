@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::OnceLock;
 
 use crate::catalog::CatalogAtom;
@@ -349,6 +350,109 @@ impl VocabDefinition {
         self.initial_sound = Some(sound);
         self
     }
+
+    fn merge_regular(mut self, regular: Self) -> Self {
+        if self.noun.is_none() && !self.catalog_noun {
+            self.noun = regular.noun;
+        }
+        if self.verb.is_none() {
+            self.verb = regular.verb;
+        }
+        self.adjective |= regular.adjective;
+        self.adverb |= regular.adverb;
+        self
+    }
+
+    fn add_regular_part_of_speech(&mut self, part_of_speech: &str) {
+        match part_of_speech {
+            "noun_count" => self.add_regular_noun(Countability::Count),
+            "noun_mass" => self.add_regular_noun(Countability::Mass),
+            "noun_count_or_mass" => self.add_regular_noun(Countability::CountOrMass),
+            "verb" => self.verb = Some(VerbForm::Regular),
+            "adjective" => self.adjective = true,
+            "adverb" => self.adverb = true,
+            _ => panic!("unknown regular-vocabulary part of speech: {part_of_speech:?}"),
+        }
+    }
+
+    fn add_regular_noun(&mut self, countability: Countability) {
+        let countability = match self.noun {
+            None => countability,
+            Some((NounDeclension::Regular, existing)) => match (existing, countability) {
+                (Countability::Count, Countability::Mass)
+                | (Countability::Mass, Countability::Count) => Countability::CountOrMass,
+                (Countability::CountOrMass, _) | (_, Countability::CountOrMass) => {
+                    Countability::CountOrMass
+                }
+                (Countability::Count, Countability::Count)
+                | (Countability::Mass, Countability::Mass) => existing,
+            },
+            Some((declension, _)) => {
+                panic!("regular vocabulary unexpectedly used {declension:?}")
+            }
+        };
+        self.noun = Some((NounDeclension::Regular, countability));
+    }
+}
+
+const REGULAR_VOCABULARY_TSV: &str = include_str!("regular-vocabulary.tsv");
+
+fn regular_vocabulary() -> &'static [VocabDefinition] {
+    static VOCABULARY: OnceLock<Vec<VocabDefinition>> = OnceLock::new();
+    VOCABULARY.get_or_init(|| {
+        let mut definitions: Vec<VocabDefinition> = Vec::new();
+        let mut previous = None;
+
+        for line in REGULAR_VOCABULARY_TSV.lines() {
+            if let Some(previous) = previous {
+                assert!(
+                    previous < line,
+                    "regular-vocabulary table must be sorted and deduplicated"
+                );
+            }
+            previous = Some(line);
+
+            let (lemma, part_of_speech) = line
+                .split_once('\t')
+                .unwrap_or_else(|| panic!("malformed regular-vocabulary row: {line:?}"));
+            assert!(
+                !lemma.is_empty()
+                    && lemma
+                        .bytes()
+                        .all(|byte| { byte.is_ascii_lowercase() || matches!(byte, b'-' | b'\'') }),
+                "invalid regular-vocabulary lemma: {lemma:?}"
+            );
+
+            if definitions
+                .last()
+                .is_none_or(|entry| entry.spelling != lemma)
+            {
+                definitions.push(VocabDefinition::new(lemma));
+            }
+            definitions
+                .last_mut()
+                .expect("a regular-vocabulary definition was just inserted")
+                .add_regular_part_of_speech(part_of_speech);
+        }
+
+        definitions
+    })
+}
+
+fn regular_definition(spelling: &str) -> Option<VocabDefinition> {
+    regular_vocabulary()
+        .binary_search_by_key(&spelling, |definition| definition.spelling)
+        .ok()
+        .map(|index| regular_vocabulary()[index])
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RegularVocab(&'static str);
+
+impl fmt::Debug for RegularVocab {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
 }
 
 macro_rules! vocabulary {
@@ -359,6 +463,7 @@ macro_rules! vocabulary {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum Vocab {
             $($variant,)+
+            Regular(RegularVocab),
         }
 
         impl Vocab {
@@ -368,14 +473,19 @@ macro_rules! vocabulary {
             pub const fn spelling(self) -> &'static str {
                 match self {
                     $(Self::$variant => $spelling,)+
+                    Self::Regular(regular) => regular.0,
                 }
             }
 
-            const fn definition(self) -> VocabDefinition {
-                match self {
+            fn definition(self) -> VocabDefinition {
+                let definition = match self {
                     $(Self::$variant => VocabDefinition::new($spelling)
                         $(.$method($($argument),*))*,)+
-                }
+                    Self::Regular(regular) => return regular_definition(regular.0)
+                        .expect("regular Vocab identity must come from the checked-in table"),
+                };
+                regular_definition(definition.spelling)
+                    .map_or(definition, |regular| definition.merge_regular(regular))
             }
         }
     };
@@ -1082,66 +1192,19 @@ fn build_reverse_index() -> HashMap<String, Vec<IndexedWord>> {
 
     for &vocab in Vocab::ALL {
         let definition = vocab.definition();
-        if let Some((_, countability)) = definition.noun
-            && !definition.catalog_noun
+        index_vocab(&mut index, vocabulary, vocab, definition);
+    }
+
+    for definition in regular_vocabulary() {
+        if Vocab::ALL
+            .iter()
+            .copied()
+            .any(|vocab| vocab.spelling() == definition.spelling)
         {
-            for form in [
-                NounSurface::Singular,
-                NounSurface::Plural,
-                NounSurface::Mass,
-            ] {
-                if countability.accepts(form) {
-                    let surface = Vocabulary::render_vocab_noun(vocab, form)
-                        .expect("declared noun form must render");
-                    insert_index(&mut index, &surface, IndexedWord::Noun { vocab, form });
-                }
-            }
+            continue;
         }
-
-        if definition.verb.is_some() {
-            for slot in VERB_SLOTS {
-                let surface = vocabulary
-                    .render_verb(vocab, slot)
-                    .expect("declared verb form must render");
-                insert_index(&mut index, &surface, IndexedWord::Verb { vocab, slot });
-            }
-
-            let present_participle = vocabulary
-                .render_verb(vocab, VerbSlot::PresentParticiple)
-                .expect("declared verb present participle must render");
-            insert_index(
-                &mut index,
-                &present_participle,
-                IndexedWord::Participle {
-                    vocab,
-                    tense: Tense::Present,
-                },
-            );
-            insert_index(&mut index, &present_participle, IndexedWord::Gerund(vocab));
-
-            let past_participle = vocabulary
-                .render_verb(vocab, VerbSlot::PastParticiple)
-                .expect("declared verb past participle must render");
-            insert_index(
-                &mut index,
-                &past_participle,
-                IndexedWord::Participle {
-                    vocab,
-                    tense: Tense::Past,
-                },
-            );
-        }
-
-        if definition.adjective {
-            insert_index(
-                &mut index,
-                definition.spelling,
-                IndexedWord::Adjective(vocab),
-            );
-        }
-        if definition.adverb {
-            insert_index(&mut index, definition.spelling, IndexedWord::Adverb(vocab));
-        }
+        let vocab = Vocab::Regular(RegularVocab(definition.spelling));
+        index_vocab(&mut index, vocabulary, vocab, *definition);
     }
 
     for color in [
@@ -1165,6 +1228,76 @@ fn build_reverse_index() -> HashMap<String, Vec<IndexedWord>> {
     }
 
     index
+}
+
+fn index_vocab(
+    index: &mut HashMap<String, Vec<IndexedWord>>,
+    vocabulary: Vocabulary,
+    vocab: Vocab,
+    definition: VocabDefinition,
+) {
+    if let Some((_, countability)) = definition.noun
+        && !definition.catalog_noun
+    {
+        for form in [
+            NounSurface::Singular,
+            NounSurface::Plural,
+            NounSurface::Mass,
+        ] {
+            if countability.accepts(form) {
+                let surface = Vocabulary::render_vocab_noun(vocab, form)
+                    .expect("declared noun form must render");
+                insert_index(index, &surface, IndexedWord::Noun { vocab, form });
+            }
+        }
+    }
+
+    if definition.verb.is_some() {
+        for slot in VERB_SLOTS {
+            let surface = vocabulary
+                .render_verb(vocab, slot)
+                .expect("declared verb form must render");
+            insert_index(index, &surface, IndexedWord::Verb { vocab, slot });
+        }
+
+        let present_participle = vocabulary
+            .render_verb(vocab, VerbSlot::PresentParticiple)
+            .expect("declared verb present participle must render");
+        insert_index(
+            index,
+            &present_participle,
+            IndexedWord::Participle {
+                vocab,
+                tense: Tense::Present,
+            },
+        );
+        insert_index(index, &present_participle, IndexedWord::Gerund(vocab));
+
+        let past_participle = vocabulary
+            .render_verb(vocab, VerbSlot::PastParticiple)
+            .expect("declared verb past participle must render");
+        insert_index(
+            index,
+            &past_participle,
+            IndexedWord::Participle {
+                vocab,
+                tense: Tense::Past,
+            },
+        );
+    }
+
+    if definition.adjective
+        && !index.get(definition.spelling).is_some_and(|candidates| {
+            candidates
+                .iter()
+                .any(|candidate| matches!(candidate, IndexedWord::Participle { .. }))
+        })
+    {
+        insert_index(index, definition.spelling, IndexedWord::Adjective(vocab));
+    }
+    if definition.adverb {
+        insert_index(index, definition.spelling, IndexedWord::Adverb(vocab));
+    }
 }
 
 fn insert_index(
@@ -1664,6 +1797,190 @@ mod tests {
                 verb: Verb::Word(Vocab::Target),
                 slot: THIRD_SINGULAR_PRESENT,
             })]
+        );
+    }
+
+    #[test]
+    fn regular_count_nouns_lookup_and_render_without_source_text() {
+        let vocabulary = Vocabulary::new();
+        let matches = vocabulary.matches("upkeep", LexicalSlot::Noun(NounUsage::Count));
+        let [WordMatch::Noun(NounInstance::Singular(Noun::Word(upkeep)))] = matches.as_slice()
+        else {
+            panic!("upkeep must have one singular count-noun analysis");
+        };
+
+        assert_eq!(upkeep.spelling(), "upkeep");
+        assert_eq!(
+            vocabulary.render_noun(&NounInstance::Singular(Noun::Word(*upkeep))),
+            Some("upkeep".to_owned())
+        );
+        assert_eq!(
+            vocabulary.render_noun(&NounInstance::Plural(Noun::Word(*upkeep))),
+            Some("upkeeps".to_owned())
+        );
+        assert_eq!(
+            vocabulary.matches("upkeeps", LexicalSlot::Noun(NounUsage::Count)),
+            vec![WordMatch::Noun(NounInstance::Plural(Noun::Word(*upkeep)))]
+        );
+    }
+
+    #[test]
+    fn regular_mass_nouns_stay_out_of_count_noun_slots() {
+        let vocabulary = Vocabulary::new();
+        let matches = vocabulary.matches("absorption", LexicalSlot::Noun(NounUsage::Mass));
+        let [WordMatch::Noun(NounInstance::Mass(Noun::Word(absorption)))] = matches.as_slice()
+        else {
+            panic!("absorption must have one mass-noun analysis");
+        };
+
+        assert_eq!(absorption.spelling(), "absorption");
+        assert_eq!(
+            vocabulary.render_noun(&NounInstance::Mass(Noun::Word(*absorption))),
+            Some("absorption".to_owned())
+        );
+        assert!(
+            vocabulary
+                .matches("absorption", LexicalSlot::Noun(NounUsage::Count))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn regular_verbs_generate_and_lookup_every_inflection() {
+        let vocabulary = Vocabulary::new();
+        let matches = vocabulary.matches("assign", LexicalSlot::Verb(VerbSlot::Infinitive));
+        let [
+            WordMatch::Verb(VerbInstance {
+                verb: Verb::Word(assign),
+                slot: VerbSlot::Infinitive,
+            }),
+        ] = matches.as_slice()
+        else {
+            panic!("assign must have one infinitive analysis");
+        };
+
+        for (slot, surface) in [
+            (THIRD_SINGULAR_PRESENT, "assigns"),
+            (
+                VerbSlot::Past {
+                    person: Person::Third,
+                    number: Number::Singular,
+                },
+                "assigned",
+            ),
+            (VerbSlot::PresentParticiple, "assigning"),
+            (VerbSlot::PastParticiple, "assigned"),
+        ] {
+            assert_eq!(
+                vocabulary.render_verb(*assign, slot).as_deref(),
+                Some(surface)
+            );
+            assert_eq!(
+                vocabulary.matches(surface, LexicalSlot::Verb(slot)),
+                vec![WordMatch::Verb(VerbInstance {
+                    verb: Verb::Word(*assign),
+                    slot,
+                })]
+            );
+        }
+    }
+
+    #[test]
+    fn regular_adjectives_and_adverbs_fill_only_their_declared_slots() {
+        let vocabulary = Vocabulary::new();
+        let adjective_matches = vocabulary.matches("aberrant", LexicalSlot::Adjective);
+        let [WordMatch::Adjective(Adjective::Word(aberrant))] = adjective_matches.as_slice() else {
+            panic!("aberrant must have one adjective analysis");
+        };
+        let adverb_matches = vocabulary.matches("already", LexicalSlot::Adverb);
+        let [WordMatch::Adverb(already)] = adverb_matches.as_slice() else {
+            panic!("already must have one adverb analysis");
+        };
+
+        assert_eq!(aberrant.spelling(), "aberrant");
+        assert_eq!(already.spelling(), "already");
+        assert!(
+            vocabulary
+                .matches("aberrant", LexicalSlot::Adverb)
+                .is_empty()
+        );
+        assert!(
+            vocabulary
+                .matches("already", LexicalSlot::Adjective)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn named_vocab_identity_wins_when_the_regular_table_adds_a_part_of_speech() {
+        let vocabulary = Vocabulary::new();
+
+        assert_eq!(
+            vocabulary.matches("attack", LexicalSlot::Noun(NounUsage::Count)),
+            vec![WordMatch::Noun(NounInstance::Singular(Noun::Word(
+                Vocab::Attack,
+            )))]
+        );
+        assert_eq!(
+            vocabulary.matches("attack", LexicalSlot::Verb(VerbSlot::Infinitive)),
+            vec![WordMatch::Verb(VerbInstance {
+                verb: Verb::Word(Vocab::Attack),
+                slot: VerbSlot::Infinitive,
+            })]
+        );
+    }
+
+    #[test]
+    fn regular_vocabulary_table_is_sorted_deduplicated_and_well_formed() {
+        const TABLE: &str = include_str!("regular-vocabulary.tsv");
+        let mut previous = None;
+        let mut rows = 0;
+
+        for line in TABLE.lines() {
+            let (lemma, part_of_speech) = line
+                .split_once('\t')
+                .unwrap_or_else(|| panic!("malformed regular-vocabulary row: {line:?}"));
+            assert!(
+                !lemma.is_empty()
+                    && lemma
+                        .bytes()
+                        .all(|byte| { byte.is_ascii_lowercase() || matches!(byte, b'-' | b'\'') }),
+                "invalid regular-vocabulary lemma: {lemma:?}"
+            );
+            assert!(
+                matches!(
+                    part_of_speech,
+                    "adjective"
+                        | "adverb"
+                        | "noun_count"
+                        | "noun_count_or_mass"
+                        | "noun_mass"
+                        | "verb"
+                ),
+                "unknown part of speech in regular-vocabulary row: {line:?}"
+            );
+            if let Some(previous) = previous {
+                assert!(previous < line, "table is not sorted and deduplicated");
+            }
+            previous = Some(line);
+            rows += 1;
+        }
+
+        assert!(
+            rows > 1_000,
+            "regular-vocabulary table is unexpectedly small"
+        );
+    }
+
+    #[test]
+    fn explicit_count_or_mass_row_dominates_a_narrower_noun_row() {
+        let mut definition = VocabDefinition::new("example");
+        definition.add_regular_noun(Countability::Count);
+        definition.add_regular_noun(Countability::CountOrMass);
+
+        assert_eq!(
+            definition.noun,
+            Some((NounDeclension::Regular, Countability::CountOrMass))
         );
     }
 

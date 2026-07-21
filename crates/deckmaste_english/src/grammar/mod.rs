@@ -695,7 +695,7 @@ impl<'source, 'catalogs> EnglishGrammar<'source, 'catalogs> {
         let Some(surface) = token.span.text(self.source) else {
             return Vec::new();
         };
-        if matches!(slot, LexicalSlot::Noun(_))
+        if matches!(slot, LexicalSlot::Noun(_) | LexicalSlot::Adjective)
             && !self.is_sentence_initial(tokens, start)
             && surface
                 .as_bytes()
