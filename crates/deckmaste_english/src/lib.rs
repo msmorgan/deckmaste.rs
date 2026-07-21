@@ -49,6 +49,8 @@ mod parser;
 mod render;
 mod source_debug;
 mod span;
+#[cfg(test)]
+mod surface;
 
 pub use ast::Ability;
 pub use ast::AbilityKind;
