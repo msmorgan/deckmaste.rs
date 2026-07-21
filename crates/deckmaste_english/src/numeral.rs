@@ -89,7 +89,8 @@ impl Numeral {
         match self {
             Self::Arabic(false) => canonical(self, input, input.parse().ok()),
             Self::Arabic(true) => canonical(self, input, input.replace(',', "").parse().ok()),
-            Self::Cardinal | Self::Ordinal | Self::Roman => Err(ParseNumeralError),
+            Self::Cardinal => canonical(self, input, parse_cardinal_candidate(input)),
+            Self::Ordinal | Self::Roman => Err(ParseNumeralError),
         }
     }
 }
@@ -156,6 +157,91 @@ fn cardinal_below_hundred(value: u32) -> String {
     } else {
         format!("{tens}-{}", SMALL_CARDINALS[units as usize])
     }
+}
+
+fn parse_cardinal_below_hundred(input: &str) -> Option<u32> {
+    if let Some(value) = SMALL_CARDINALS.iter().position(|&word| word == input) {
+        return u32::try_from(value).ok();
+    }
+    if let Some(tens) = TENS
+        .iter()
+        .position(|&word| word == input)
+        .filter(|&value| value >= 2)
+    {
+        return u32::try_from(tens).ok()?.checked_mul(10);
+    }
+
+    let (tens, units) = input.split_once('-')?;
+    let tens = u32::try_from(
+        TENS.iter()
+            .position(|&word| word == tens)
+            .filter(|&value| value >= 2)?,
+    )
+    .ok()?;
+    let units = u32::try_from(
+        SMALL_CARDINALS[1..10]
+            .iter()
+            .position(|&word| word == units)?
+            + 1,
+    )
+    .ok()?;
+    tens.checked_mul(10)?.checked_add(units)
+}
+
+fn parse_cardinal_below_thousand(input: &str) -> Option<u32> {
+    if let Some(value) = parse_cardinal_below_hundred(input) {
+        return Some(value);
+    }
+
+    let (hundreds, remainder) = input.split_once(" hundred")?;
+    let hundreds = u32::try_from(
+        SMALL_CARDINALS[1..10]
+            .iter()
+            .position(|&word| word == hundreds)?
+            + 1,
+    )
+    .ok()?;
+    let remainder = if remainder.is_empty() {
+        0
+    } else {
+        parse_cardinal_below_hundred(remainder.strip_prefix(' ')?)?
+    };
+    hundreds.checked_mul(100)?.checked_add(remainder)
+}
+
+fn parse_cardinal_magnitude(input: &str) -> Option<u32> {
+    let mut total = 0_u32;
+    let mut groups = input.split(", ").peekable();
+    while let Some(group) = groups.next() {
+        let (coefficient, scale) = SCALES
+            .iter()
+            .find_map(|&(scale, name)| {
+                group
+                    .strip_suffix(name)?
+                    .strip_suffix(' ')
+                    .map(|coefficient| (coefficient, scale))
+            })
+            .unwrap_or((group, 1));
+        if scale == 1 && groups.peek().is_some() {
+            return None;
+        }
+        let coefficient = parse_cardinal_below_thousand(coefficient)?;
+        total = total.checked_add(coefficient.checked_mul(scale)?)?;
+    }
+    Some(total)
+}
+
+fn signed_magnitude(magnitude: u32, negative: bool) -> Option<i32> {
+    let magnitude = i64::from(magnitude);
+    let signed = if negative { -magnitude } else { magnitude };
+    signed.try_into().ok()
+}
+
+fn parse_cardinal_candidate(input: &str) -> Option<i32> {
+    let (magnitude, negative) = input
+        .strip_prefix("negative ")
+        .map_or((input, false), |magnitude| (magnitude, true));
+    signed_magnitude(parse_cardinal_magnitude(magnitude)?, negative)
 }
 
 fn format_ordinal(value: i32) -> String {
@@ -260,6 +346,12 @@ mod tests {
             let formatted = numeral.format(value);
             prop_assert_eq!(numeral.parse(&formatted), Ok(value));
         }
+
+        #[test]
+        fn cardinal_round_trips(value in any::<i32>()) {
+            let formatted = Numeral::Cardinal.format(value);
+            prop_assert_eq!(Numeral::Cardinal.parse(&formatted), Ok(value));
+        }
     }
 
     #[test]
@@ -272,6 +364,32 @@ mod tests {
             (Numeral::Arabic(false), "1,000"),
         ] {
             assert_eq!(numeral.parse(input), Err(ParseNumeralError));
+        }
+    }
+
+    #[test]
+    fn cardinal_parsing_rejects_noncanonical_forms() {
+        for input in [
+            "eleven hundred",
+            "forty and five",
+            "one hundred and five",
+            "One",
+            " one",
+            "",
+        ] {
+            assert_eq!(Numeral::Cardinal.parse(input), Err(ParseNumeralError));
+        }
+    }
+
+    #[test]
+    fn cardinal_parsing_covers_compact_spellings() {
+        for (value, input) in [
+            (18_017_016, "eighteen million, seventeen thousand, sixteen"),
+            (15_014_013, "fifteen million, fourteen thousand, thirteen"),
+            (12_011_019, "twelve million, eleven thousand, nineteen"),
+        ] {
+            assert_eq!(Numeral::Cardinal.format(value), input);
+            assert_eq!(Numeral::Cardinal.parse(input), Ok(value));
         }
     }
 
