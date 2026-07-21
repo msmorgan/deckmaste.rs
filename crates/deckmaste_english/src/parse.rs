@@ -1,5 +1,7 @@
 use crate::Span;
 use crate::catalog::Catalogs;
+use crate::chart::ChartStats;
+use crate::forest::ForestStats;
 use crate::grammar::ability::AbilityDiagnosticKind;
 use crate::grammar::ability::parse_oracle_text;
 use crate::surface::SurfaceDiagnosticKind;
@@ -31,6 +33,8 @@ pub struct ParseSelection {
     pub(crate) rule: Option<usize>,
     pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: crate::forest::ParseCost,
+    pub(crate) chart_stats: ChartStats,
+    pub(crate) forest_stats: ForestStats,
 }
 
 #[derive(Debug)]
@@ -96,6 +100,16 @@ impl ParseSelection {
     pub fn tied_alternatives(&self) -> &[usize] {
         &self.tied_alternatives
     }
+
+    #[must_use]
+    pub const fn chart_stats(&self) -> ChartStats {
+        self.chart_stats
+    }
+
+    #[must_use]
+    pub const fn forest_stats(&self) -> ForestStats {
+        self.forest_stats
+    }
 }
 
 #[must_use]
@@ -135,6 +149,8 @@ pub fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> ParseReport {
                     rule: selection.rule,
                     tied_alternatives: selection.tied_alternatives,
                     cost: selection.cost,
+                    chart_stats: selection.chart_stats,
+                    forest_stats: selection.forest_stats,
                 })
                 .collect(),
         },

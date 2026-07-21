@@ -16,6 +16,7 @@ use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
 use crate::chart::ChartResult;
+use crate::chart::ChartStats;
 use crate::chart::Child;
 use crate::chart::Expected;
 use crate::chart::Grammar;
@@ -27,6 +28,7 @@ use crate::chart::RuleId;
 use crate::chart::parse_chart;
 use crate::forest::BestParse;
 use crate::forest::ForestError;
+use crate::forest::ForestStats;
 use crate::forest::ForestSymbol;
 use crate::forest::NodeId;
 use crate::forest::ParseCost;
@@ -2203,6 +2205,14 @@ impl ParsedNonterminal {
 
     pub(crate) const fn cost(&self) -> ParseCost {
         self.best.cost
+    }
+
+    pub(crate) const fn chart_stats(&self) -> ChartStats {
+        self.chart.stats
+    }
+
+    pub(crate) fn forest_stats(&self) -> ForestStats {
+        self.chart.forest.stats()
     }
 
     pub(crate) const fn recovery_mode(&self) -> RecoveryMode {

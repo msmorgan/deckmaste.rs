@@ -7,6 +7,8 @@ use crate::Span;
 use crate::catalog::CatalogSlot;
 use crate::catalog::CatalogValue;
 use crate::catalog::Catalogs;
+use crate::chart::ChartStats;
+use crate::forest::ForestStats;
 use crate::forest::ParseCost;
 use crate::surface::Punctuation;
 use crate::surface::Token;
@@ -33,6 +35,8 @@ pub(crate) struct AbilitySelection {
     pub(crate) rule: Option<usize>,
     pub(crate) tied_alternatives: Vec<usize>,
     pub(crate) cost: ParseCost,
+    pub(crate) chart_stats: ChartStats,
+    pub(crate) forest_stats: ForestStats,
 }
 
 #[derive(Debug, Default)]
@@ -532,6 +536,8 @@ impl<'source, 'catalogs> Parser<'source, 'catalogs> {
             rule: parsed.root_rule(),
             tied_alternatives: parsed.root_tied_alternatives().to_vec(),
             cost: parsed.cost(),
+            chart_stats: parsed.chart_stats(),
+            forest_stats: parsed.forest_stats(),
         });
         Some(parsed)
     }

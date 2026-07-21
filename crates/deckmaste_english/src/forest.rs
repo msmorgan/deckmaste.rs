@@ -53,6 +53,36 @@ pub(crate) enum ForestFeatures<F> {
     Prefix(Vec<F>),
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ForestStats {
+    constituent_nodes: usize,
+    intermediate_nodes: usize,
+    packed_alternatives: usize,
+    max_alternatives: usize,
+}
+
+impl ForestStats {
+    #[must_use]
+    pub const fn constituent_nodes(self) -> usize {
+        self.constituent_nodes
+    }
+
+    #[must_use]
+    pub const fn intermediate_nodes(self) -> usize {
+        self.intermediate_nodes
+    }
+
+    #[must_use]
+    pub const fn packed_alternatives(self) -> usize {
+        self.packed_alternatives
+    }
+
+    #[must_use]
+    pub const fn max_alternatives(self) -> usize {
+        self.max_alternatives
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct NodeKey<N, L, F, M> {
     pub(crate) symbol: ForestSymbol<N, L>,
@@ -189,6 +219,21 @@ where
     #[cfg(test)]
     pub(crate) fn nodes(&self) -> impl Iterator<Item = &ForestNode<N, L, F, M>> {
         self.nodes.iter()
+    }
+
+    pub(crate) fn stats(&self) -> ForestStats {
+        let mut stats = ForestStats::default();
+        for node in &self.nodes {
+            match node.key.symbol {
+                ForestSymbol::Nonterminal(_) | ForestSymbol::Lexical(_) => {
+                    stats.constituent_nodes += 1;
+                }
+                ForestSymbol::Intermediate { .. } => stats.intermediate_nodes += 1,
+            }
+            stats.packed_alternatives += node.alternatives.len();
+            stats.max_alternatives = stats.max_alternatives.max(node.alternatives.len());
+        }
+        stats
     }
 
     pub(crate) fn best_root(

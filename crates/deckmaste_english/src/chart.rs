@@ -49,6 +49,24 @@ pub(crate) struct Reduction<F> {
     pub(crate) local_cost: ParseCost,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ChartStats {
+    unique_items: usize,
+    max_column_width: usize,
+}
+
+impl ChartStats {
+    #[must_use]
+    pub const fn unique_items(self) -> usize {
+        self.unique_items
+    }
+
+    #[must_use]
+    pub const fn max_column_width(self) -> usize {
+        self.max_column_width
+    }
+}
+
 pub(crate) trait Grammar {
     type Nonterminal: Clone + Copy + Eq + Hash;
     type LexicalSlot: Clone + Copy + Eq + Hash;
@@ -97,6 +115,7 @@ where
 pub(crate) struct ChartResult<N, L, F, M> {
     pub(crate) forest: ParseForest<N, L, F, M>,
     pub(crate) roots: Vec<NodeId>,
+    pub(crate) stats: ChartStats,
 }
 
 type GrammarChartResult<G> = ChartResult<
@@ -215,9 +234,19 @@ where
             .copied()
             .filter(|&root| self.forest.node(root).key.end == self.tokens.len())
             .collect();
+        let stats = ChartStats {
+            unique_items: self.chart.iter().map(|column| column.seen.len()).sum(),
+            max_column_width: self
+                .chart
+                .iter()
+                .map(|column| column.seen.len())
+                .max()
+                .unwrap_or_default(),
+        };
         Ok(ChartResult {
             forest: self.forest,
             roots,
+            stats,
         })
     }
 
@@ -717,6 +746,69 @@ mod tests {
         rules_by_lhs: HashMap<N, Vec<RuleId>>,
     }
 
+    struct SingleRuleGrammar {
+        rules: Vec<Rule<N, L>>,
+        start_rules: Vec<RuleId>,
+    }
+
+    impl SingleRuleGrammar {
+        fn new() -> Self {
+            Self {
+                rules: vec![rule(N::Start, vec![Expected::Lexical(L::A)])],
+                start_rules: vec![RuleId::new(0)],
+            }
+        }
+    }
+
+    impl Grammar for SingleRuleGrammar {
+        type Features = ();
+        type LexicalSlot = L;
+        type Meaning = Meaning;
+        type Nonterminal = N;
+        type Token = &'static str;
+
+        fn start(&self) -> Self::Nonterminal {
+            N::Start
+        }
+
+        fn rules(&self) -> &[Rule<Self::Nonterminal, Self::LexicalSlot>] {
+            &self.rules
+        }
+
+        fn rules_for(&self, lhs: Self::Nonterminal) -> &[RuleId] {
+            if lhs == N::Start { &self.start_rules } else { &[] }
+        }
+
+        fn scan(
+            &self,
+            slot: Self::LexicalSlot,
+            tokens: &[Self::Token],
+            start: usize,
+        ) -> Vec<LexicalMatch<Self::Features, Self::Meaning>> {
+            if slot == L::A && tokens.get(start) == Some(&"a") {
+                vec![LexicalMatch {
+                    end: start + 1,
+                    features: (),
+                    meaning: Meaning::Atom("a"),
+                    local_cost: ParseCost::default(),
+                }]
+            } else {
+                Vec::new()
+            }
+        }
+
+        fn reduce(
+            &self,
+            rule: RuleId,
+            children: &[Child<'_, Self>],
+        ) -> Option<Reduction<Self::Features>> {
+            (rule == RuleId::new(0) && children.len() == 1).then_some(Reduction {
+                features: (),
+                local_cost: ParseCost::default(),
+            })
+        }
+    }
+
     impl SameSpanAmbiguityGrammar {
         fn new() -> Self {
             let rules = vec![
@@ -819,6 +911,25 @@ mod tests {
             matches!(node.key.symbol, ForestSymbol::Intermediate { .. })
                 && node.alternatives.len() == 2
         }));
+    }
+
+    #[test]
+    fn packed_chart_statistics_are_derived_from_final_structures() {
+        let result = parse_chart(&SingleRuleGrammar::new(), &["a"])
+            .expect("the single-rule grammar parses one token");
+
+        assert_eq!(result.stats.unique_items(), 2);
+        assert_eq!(result.stats.max_column_width(), 1);
+        assert_eq!(result.forest.stats().constituent_nodes(), 2);
+        assert_eq!(result.forest.stats().intermediate_nodes(), 1);
+        assert_eq!(result.forest.stats().packed_alternatives(), 3);
+        assert_eq!(result.forest.stats().max_alternatives(), 1);
+
+        let ambiguous = parse_chart(&SameSpanAmbiguityGrammar::new(), &["a"; 6])
+            .expect("same-span ambiguity remains packed");
+        assert!(ambiguous.stats.unique_items() <= 20);
+        assert!(ambiguous.stats.max_column_width() <= 3);
+        assert!(ambiguous.forest.stats().max_alternatives() <= 2);
     }
 
     #[test]

@@ -358,9 +358,9 @@ mod tests {
 
         assert!(occurrences.contains(&Occurrence {
             card: "Test Card".to_owned(),
-            role: "verb",
-            text: "frobnitz".to_owned(),
-            words: 1,
+            role: "clause",
+            text: "You frobnitz a card".to_owned(),
+            words: 4,
         }));
     }
 

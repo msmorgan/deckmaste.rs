@@ -281,8 +281,12 @@ mod tests {
         assert!(normal.contains("Word(\n"));
         assert!(normal.contains("Draw,"));
         assert!(!normal.contains("Span"));
+        assert!(!normal.contains("ChartStats"));
+        assert!(!normal.contains("ForestStats"));
         assert!(verbose.contains("Span"));
         assert!(verbose.contains("start: 0"));
+        assert!(verbose.contains("ChartStats"));
+        assert!(verbose.contains("ForestStats"));
     }
 
     #[test]
