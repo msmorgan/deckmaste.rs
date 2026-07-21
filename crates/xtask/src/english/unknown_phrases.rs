@@ -319,7 +319,11 @@ impl<'a> UnknownPhraseCollector<'a> {
                 text: text.to_owned(),
                 words: phrase_word_count(text),
             }),
-            Phrase::CatalogTerm { .. } => {}
+            Phrase::NounPhrase(phrase) => self.phrase(role, &phrase.head),
+            Phrase::Lexeme { .. }
+            | Phrase::ThisCard { .. }
+            | Phrase::OracleSymbol { .. }
+            | Phrase::CatalogTerm { .. } => {}
             Phrase::EmbeddedRulesPhrase { embedded_rules, .. } => {
                 for rules in embedded_rules {
                     self.ability(&rules.ability);
@@ -558,7 +562,7 @@ mod tests {
         assert!(
             occurrences
                 .iter()
-                .any(|occurrence| occurrence.text == "this creature")
+                .any(|occurrence| occurrence.text == "creature")
         );
     }
 

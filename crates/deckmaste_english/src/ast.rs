@@ -251,11 +251,25 @@ pub struct Predicate {
 /// A leaf phrase in the shallow English syntax tree.
 ///
 /// Exact Scryfall catalog matches carry their canonical spelling and catalog
-/// kind. Other phrases remain whole instead of pretending their lexical tokens
-/// are meaningful phrase structure.
+/// kind. Small closed-class English forms and determined noun phrases are
+/// structured directly; unresolved phrases remain whole.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Phrase {
     UnknownPhrase(String),
+    Lexeme {
+        text: String,
+        lemma: String,
+        part_of_speech: PartOfSpeech,
+    },
+    ThisCard {
+        text: String,
+        form: ThisCardForm,
+    },
+    OracleSymbol {
+        text: String,
+        symbol: String,
+    },
+    NounPhrase(Box<NounPhrase>),
     CatalogTerm {
         text: String,
         canonical: String,
@@ -272,18 +286,59 @@ impl Phrase {
     pub fn text(&self) -> &str {
         match self {
             Self::UnknownPhrase(text)
+            | Self::Lexeme { text, .. }
+            | Self::ThisCard { text, .. }
+            | Self::OracleSymbol { text, .. }
             | Self::CatalogTerm { text, .. }
             | Self::EmbeddedRulesPhrase { text, .. } => text,
+            Self::NounPhrase(phrase) => &phrase.text,
         }
     }
 
     #[must_use]
     pub fn embedded_rules(&self) -> &[EmbeddedRules] {
         match self {
-            Self::UnknownPhrase(_) | Self::CatalogTerm { .. } => &[],
+            Self::UnknownPhrase(_)
+            | Self::Lexeme { .. }
+            | Self::ThisCard { .. }
+            | Self::OracleSymbol { .. }
+            | Self::NounPhrase(_)
+            | Self::CatalogTerm { .. } => &[],
             Self::EmbeddedRulesPhrase { embedded_rules, .. } => embedded_rules,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NounPhrase {
+    pub text: String,
+    pub determiner: Determiner,
+    pub head: Box<Phrase>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PartOfSpeech {
+    Noun,
+    Pronoun,
+    Verb,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ThisCardForm {
+    AbbreviatedName,
+    FullName,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Determiner {
+    pub text: String,
+    pub kind: DeterminerKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DeterminerKind {
+    IndefiniteArticle,
+    Demonstrative,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

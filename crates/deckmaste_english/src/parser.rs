@@ -8,6 +8,8 @@ use crate::ConditionalPosition;
 use crate::CoordinatedClause;
 use crate::CoordinatedPredicate;
 use crate::Cost;
+use crate::Determiner;
+use crate::DeterminerKind;
 use crate::Diagnostic;
 use crate::DiagnosticKind;
 use crate::EmbeddedRules;
@@ -17,8 +19,10 @@ use crate::LoyaltyAbility;
 use crate::ModalAbility;
 use crate::ModalFrame;
 use crate::Mode;
+use crate::NounPhrase;
 use crate::OracleText;
 use crate::Paragraph;
+use crate::PartOfSpeech;
 use crate::Phrase;
 use crate::Predicate;
 use crate::PredicateConjunction;
@@ -27,6 +31,7 @@ use crate::Sentence;
 use crate::SimpleClause;
 use crate::Span;
 use crate::Subordinator;
+use crate::ThisCardForm;
 use crate::Token;
 use crate::TokenKind;
 use crate::TriggerWord;
@@ -419,7 +424,7 @@ impl Parser<'_, '_> {
         Predicate {
             span,
             auxiliary: predicate_match.auxiliary,
-            verb: self.phrase(predicate_match.verb, Vec::new()),
+            verb: structured_verb_text(self.text(predicate_match.verb).to_owned(), self.catalogs),
             verb_kind: predicate_match.verb_kind,
             complement: (!complement.is_empty())
                 .then(|| self.phrase(complement, self.quoted_rules(complement))),
@@ -964,21 +969,114 @@ fn structured_phrase(
     text.push_str(&source[cursor..span.end]);
     let text = text.trim().to_owned();
 
-    if !embedded_rules.is_empty() {
+    if embedded_rules.is_empty() {
+        structured_text(text, catalogs)
+    } else {
         Phrase::EmbeddedRulesPhrase {
             text,
             embedded_rules,
         }
-    } else if let Some((kind, canonical)) = catalogs.and_then(|catalogs| catalogs.exact_term(&text))
-    {
+    }
+}
+
+fn structured_text(text: String, catalogs: Option<&Catalogs>) -> Phrase {
+    if let Some((kind, canonical)) = catalogs.and_then(|catalogs| catalogs.exact_term(&text)) {
         Phrase::CatalogTerm {
             text,
             canonical: canonical.to_owned(),
             kind,
         }
+    } else if text == "~" {
+        Phrase::ThisCard {
+            text,
+            form: ThisCardForm::AbbreviatedName,
+        }
+    } else if text == "~~" {
+        Phrase::ThisCard {
+            text,
+            form: ThisCardForm::FullName,
+        }
+    } else if let Some(symbol) = oracle_symbol(&text) {
+        Phrase::OracleSymbol {
+            symbol: symbol.to_owned(),
+            text,
+        }
+    } else if let Some((determiner, head)) = determined_noun(&text) {
+        Phrase::NounPhrase(Box::new(NounPhrase {
+            text,
+            determiner,
+            head: Box::new(structured_text(head, catalogs)),
+        }))
+    } else if let Some(lemma) = pronoun_lemma(&text) {
+        Phrase::Lexeme {
+            text,
+            lemma: lemma.to_owned(),
+            part_of_speech: PartOfSpeech::Pronoun,
+        }
+    } else if text.eq_ignore_ascii_case("card") {
+        Phrase::Lexeme {
+            text,
+            lemma: "card".to_owned(),
+            part_of_speech: PartOfSpeech::Noun,
+        }
     } else {
         Phrase::UnknownPhrase(text)
     }
+}
+
+fn pronoun_lemma(text: &str) -> Option<&'static str> {
+    match text.to_ascii_lowercase().as_str() {
+        "he" | "him" => Some("he"),
+        "it" => Some("it"),
+        "she" | "her" => Some("she"),
+        "they" | "them" => Some("they"),
+        "we" | "us" => Some("we"),
+        "you" => Some("you"),
+        _ => None,
+    }
+}
+
+fn structured_verb_text(text: String, catalogs: Option<&Catalogs>) -> Phrase {
+    match structured_text(text, catalogs) {
+        Phrase::UnknownPhrase(text) => {
+            if let Some(verb) = ordinary_verb(&text) {
+                Phrase::Lexeme {
+                    text,
+                    lemma: verb.lemma.to_owned(),
+                    part_of_speech: PartOfSpeech::Verb,
+                }
+            } else {
+                Phrase::UnknownPhrase(text)
+            }
+        }
+        phrase => phrase,
+    }
+}
+
+fn oracle_symbol(text: &str) -> Option<&str> {
+    let symbol = text.strip_prefix('{')?.strip_suffix('}')?;
+    (!symbol.is_empty() && !symbol.contains(['{', '}'])).then_some(symbol)
+}
+
+fn determined_noun(text: &str) -> Option<(Determiner, String)> {
+    let (article, head) = text.split_once(' ')?;
+    if head.is_empty() || head.contains(char::is_whitespace) {
+        return None;
+    }
+    let kind = if article.eq_ignore_ascii_case("a") || article.eq_ignore_ascii_case("an") {
+        DeterminerKind::IndefiniteArticle
+    } else if article.eq_ignore_ascii_case("this") {
+        DeterminerKind::Demonstrative
+    } else {
+        return None;
+    };
+    Some((
+        Determiner {
+            text: article.to_owned(),
+            kind,
+        },
+        head.to_owned(),
+    ))
 }
 
 fn find_top_level(source: &str, span: Span, needle: &str) -> Option<usize> {
@@ -1263,86 +1361,114 @@ fn is_negative(word: &str) -> bool {
     )
 }
 
+#[derive(Clone, Copy)]
+struct OrdinaryVerb {
+    lemma: &'static str,
+    imperative: bool,
+    finite: bool,
+}
+
+const fn verb(lemma: &'static str, imperative: bool, finite: bool) -> OrdinaryVerb {
+    OrdinaryVerb {
+        lemma,
+        imperative,
+        finite,
+    }
+}
+
+fn ordinary_verb(word: &str) -> Option<OrdinaryVerb> {
+    let word = word.to_ascii_lowercase();
+    Some(match word.as_str() {
+        "add" => verb("add", true, false),
+        "adds" => verb("add", false, true),
+        "are" | "is" | "was" | "were" => verb("be", false, true),
+        "attach" => verb("attach", true, false),
+        "attack" => verb("attack", false, false),
+        "attacks" => verb("attack", false, true),
+        "be" => verb("be", false, false),
+        "become" => verb("become", false, false),
+        "becomes" => verb("become", false, true),
+        "block" => verb("block", false, false),
+        "blocks" => verb("block", false, true),
+        "cast" => verb("cast", false, false),
+        "casts" => verb("cast", false, true),
+        "choose" => verb("choose", true, false),
+        "chooses" => verb("choose", false, true),
+        "control" => verb("control", false, false),
+        "controls" => verb("control", false, true),
+        "cost" => verb("cost", false, false),
+        "costs" => verb("cost", false, true),
+        "counter" => verb("counter", true, false),
+        "count" => verb("count", false, false),
+        "counts" => verb("count", false, true),
+        "create" => verb("create", true, false),
+        "creates" => verb("create", false, true),
+        "deal" => verb("deal", true, false),
+        "deals" => verb("deal", false, true),
+        "destroy" => verb("destroy", true, false),
+        "destroys" => verb("destroy", false, true),
+        "die" => verb("die", false, false),
+        "dies" => verb("die", false, true),
+        "do" => verb("do", false, false),
+        "discard" => verb("discard", true, false),
+        "discards" => verb("discard", false, true),
+        "draw" => verb("draw", true, false),
+        "draws" => verb("draw", false, true),
+        "enter" => verb("enter", false, false),
+        "enters" => verb("enter", false, true),
+        "exchange" => verb("exchange", true, false),
+        "exile" => verb("exile", true, false),
+        "exiles" => verb("exile", false, true),
+        "gain" => verb("gain", true, false),
+        "gains" => verb("gain", false, true),
+        "get" | "gets" => verb("get", false, true),
+        "has" | "have" => verb("have", false, true),
+        "investigate" => verb("investigate", true, false),
+        "leave" => verb("leave", false, false),
+        "leaves" => verb("leave", false, true),
+        "look" => verb("look", true, false),
+        "lose" => verb("lose", true, false),
+        "loses" => verb("lose", false, true),
+        "mill" => verb("mill", true, false),
+        "own" => verb("own", false, false),
+        "owns" => verb("own", false, true),
+        "pay" => verb("pay", true, false),
+        "pays" => verb("pay", false, true),
+        "play" => verb("play", false, false),
+        "plays" => verb("play", false, true),
+        "prevent" => verb("prevent", true, false),
+        "prevents" => verb("prevent", false, true),
+        "put" => verb("put", true, false),
+        "puts" => verb("put", false, true),
+        "removes" => verb("remove", false, true),
+        "return" => verb("return", true, false),
+        "returns" => verb("return", false, true),
+        "reveal" => verb("reveal", true, false),
+        "reveals" => verb("reveal", false, true),
+        "sacrifice" => verb("sacrifice", true, false),
+        "sacrifices" => verb("sacrifice", false, true),
+        "scry" => verb("scry", true, false),
+        "search" => verb("search", true, false),
+        "searches" => verb("search", false, true),
+        "shuffle" => verb("shuffle", true, false),
+        "surveil" => verb("surveil", true, false),
+        "tap" => verb("tap", true, false),
+        "taps" => verb("tap", false, true),
+        "target" => verb("target", false, false),
+        "targets" => verb("target", false, true),
+        "untap" => verb("untap", true, false),
+        "untaps" => verb("untap", false, true),
+        "yell" => verb("yell", true, false),
+        _ => return None,
+    })
+}
+
 fn is_finite_verb(word: &str) -> bool {
-    matches!(
-        word.to_ascii_lowercase().as_str(),
-        "adds"
-            | "are"
-            | "attacks"
-            | "becomes"
-            | "blocks"
-            | "casts"
-            | "chooses"
-            | "controls"
-            | "costs"
-            | "counts"
-            | "creates"
-            | "deals"
-            | "destroys"
-            | "dies"
-            | "discards"
-            | "draws"
-            | "enters"
-            | "exiles"
-            | "gains"
-            | "get"
-            | "gets"
-            | "has"
-            | "have"
-            | "is"
-            | "leaves"
-            | "loses"
-            | "owns"
-            | "pays"
-            | "plays"
-            | "prevents"
-            | "puts"
-            | "removes"
-            | "returns"
-            | "reveals"
-            | "sacrifices"
-            | "searches"
-            | "taps"
-            | "targets"
-            | "untaps"
-            | "was"
-            | "were"
-    )
+    ordinary_verb(word).is_some_and(|verb| verb.finite)
 }
 
 fn is_imperative(word: &str) -> bool {
-    matches!(
-        word,
-        "add"
-            | "attach"
-            | "choose"
-            | "counter"
-            | "create"
-            | "deal"
-            | "destroy"
-            | "discard"
-            | "draw"
-            | "exchange"
-            | "exile"
-            | "gain"
-            | "investigate"
-            | "look"
-            | "lose"
-            | "mill"
-            | "pay"
-            | "prevent"
-            | "put"
-            | "return"
-            | "reveal"
-            | "sacrifice"
-            | "scry"
-            | "search"
-            | "shuffle"
-            | "surveil"
-            | "tap"
-            | "untap"
-            | "yell"
-    )
+    ordinary_verb(word).is_some_and(|verb| verb.imperative)
 }
 
 #[cfg(test)]
@@ -1410,6 +1536,91 @@ mod tests {
             "enters"
         );
         assert_eq!(text(source, trigger.effect.span), "draw a card.");
+    }
+
+    #[test]
+    fn frequent_closed_class_phrases_have_structured_leaves() {
+        let catalogs = Catalogs::default().with_catalog(CatalogKind::CardType, ["Creature"]);
+
+        let phrase = |text: &str| structured_text(text.to_owned(), Some(&catalogs));
+        let verb = |text: &str| structured_verb_text(text.to_owned(), Some(&catalogs));
+
+        for (printed, lemma) in [
+            ("enters", "enter"),
+            ("deals", "deal"),
+            ("gets", "get"),
+            ("put", "put"),
+            ("is", "be"),
+        ] {
+            assert_eq!(
+                verb(printed),
+                Phrase::Lexeme {
+                    text: printed.to_owned(),
+                    lemma: lemma.to_owned(),
+                    part_of_speech: PartOfSpeech::Verb,
+                }
+            );
+        }
+        assert_eq!(
+            phrase("you"),
+            Phrase::Lexeme {
+                text: "you".to_owned(),
+                lemma: "you".to_owned(),
+                part_of_speech: PartOfSpeech::Pronoun,
+            }
+        );
+        assert_eq!(
+            phrase("It"),
+            Phrase::Lexeme {
+                text: "It".to_owned(),
+                lemma: "it".to_owned(),
+                part_of_speech: PartOfSpeech::Pronoun,
+            }
+        );
+        assert_eq!(
+            phrase("~"),
+            Phrase::ThisCard {
+                text: "~".to_owned(),
+                form: ThisCardForm::AbbreviatedName,
+            }
+        );
+        assert_eq!(
+            phrase("{T}"),
+            Phrase::OracleSymbol {
+                text: "{T}".to_owned(),
+                symbol: "T".to_owned(),
+            }
+        );
+        assert!(matches!(
+            phrase("this creature"),
+            Phrase::NounPhrase(phrase)
+                if matches!(
+                    phrase.as_ref(),
+                    NounPhrase {
+                        determiner: Determiner {
+                            kind: DeterminerKind::Demonstrative,
+                            ..
+                        },
+                        head,
+                        ..
+                    } if matches!(head.as_ref(), Phrase::CatalogTerm { kind: CatalogKind::CardType, .. })
+                )
+        ));
+        assert!(matches!(
+            phrase("a card"),
+            Phrase::NounPhrase(phrase)
+                if matches!(
+                    phrase.as_ref(),
+                    NounPhrase {
+                        determiner: Determiner {
+                            kind: DeterminerKind::IndefiniteArticle,
+                            ..
+                        },
+                        head,
+                        ..
+                    } if matches!(head.as_ref(), Phrase::Lexeme { part_of_speech: PartOfSpeech::Noun, .. })
+                )
+        ));
     }
 
     #[test]

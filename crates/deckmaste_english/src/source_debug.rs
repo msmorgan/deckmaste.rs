@@ -37,6 +37,18 @@ pub struct SourceDebug<'ast, 'source> {
     source: &'source str,
 }
 
+/// A human-readable view of only an Oracle text's parsed abilities.
+pub struct AbilitiesSourceDebug<'ast, 'source> {
+    ast: &'ast OracleText,
+    source: &'source str,
+}
+
+/// A human-readable view of only an Oracle text's diagnostics.
+pub struct DiagnosticsSourceDebug<'ast, 'source> {
+    ast: &'ast OracleText,
+    source: &'source str,
+}
+
 impl OracleText {
     /// Returns a debug view that resolves this AST's spans to `source` slices.
     ///
@@ -48,11 +60,39 @@ impl OracleText {
     ) -> SourceDebug<'ast, 'source> {
         SourceDebug { ast: self, source }
     }
+
+    #[must_use]
+    pub const fn abilities_source_debug<'ast, 'source>(
+        &'ast self,
+        source: &'source str,
+    ) -> AbilitiesSourceDebug<'ast, 'source> {
+        AbilitiesSourceDebug { ast: self, source }
+    }
+
+    #[must_use]
+    pub const fn diagnostics_source_debug<'ast, 'source>(
+        &'ast self,
+        source: &'source str,
+    ) -> DiagnosticsSourceDebug<'ast, 'source> {
+        DiagnosticsSourceDebug { ast: self, source }
+    }
 }
 
 impl fmt::Debug for SourceDebug<'_, '_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         Resolved::new(self.source, self.ast).fmt(formatter)
+    }
+}
+
+impl fmt::Debug for AbilitiesSourceDebug<'_, '_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Resolved::new(self.source, self.ast.abilities.as_slice()).fmt(formatter)
+    }
+}
+
+impl fmt::Debug for DiagnosticsSourceDebug<'_, '_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Resolved::new(self.source, self.ast.diagnostics.as_slice()).fmt(formatter)
     }
 }
 
@@ -422,6 +462,32 @@ impl ResolvedDebug for Phrase {
             Self::UnknownPhrase(text) => {
                 formatter.debug_tuple("UnknownPhrase").field(text).finish()
             }
+            Self::Lexeme {
+                text,
+                lemma,
+                part_of_speech,
+            } => formatter
+                .debug_struct("Lexeme")
+                .field("text", text)
+                .field("lemma", lemma)
+                .field("part_of_speech", part_of_speech)
+                .finish(),
+            Self::ThisCard { text, form } => formatter
+                .debug_struct("ThisCard")
+                .field("text", text)
+                .field("form", form)
+                .finish(),
+            Self::OracleSymbol { text, symbol } => formatter
+                .debug_struct("OracleSymbol")
+                .field("text", text)
+                .field("symbol", symbol)
+                .finish(),
+            Self::NounPhrase(phrase) => formatter
+                .debug_struct("NounPhrase")
+                .field("text", &phrase.text)
+                .field("determiner", &phrase.determiner)
+                .field("head", &Resolved::new(source, phrase.head.as_ref()))
+                .finish(),
             Self::CatalogTerm {
                 text,
                 canonical,
@@ -473,7 +539,9 @@ mod tests {
         assert!(output.contains("subject: Some("));
         assert!(output.contains("UnknownPhrase("));
         assert!(output.contains("\"Lightning Bolt\""));
-        assert!(output.contains("verb: UnknownPhrase("));
+        assert!(output.contains("verb: Lexeme {"));
+        assert!(output.contains("lemma: \"deal\""));
+        assert!(output.contains("part_of_speech: Verb"));
         assert!(output.contains("\"deals\""));
         assert!(output.contains("complement: Some("));
         assert!(output.contains("\"3 damage to any target\""));

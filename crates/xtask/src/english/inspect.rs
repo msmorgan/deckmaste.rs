@@ -94,9 +94,25 @@ fn write_cards(
         writeln!(writer, "\nOracle text:\n{}", card.oracle_text)?;
         let ast = parse_with_catalogs(&card.oracle_text, catalogs);
         if output_config.abilities_only {
-            writeln!(writer, "\nAbilities:\n{:#?}", ast.abilities)?;
+            if output_config.verbose {
+                writeln!(writer, "\nAbilities:\n{:#?}", ast.abilities)?;
+            } else {
+                writeln!(
+                    writer,
+                    "\nAbilities:\n{:#?}",
+                    ast.abilities_source_debug(&card.oracle_text)
+                )?;
+            }
             if !ast.diagnostics.is_empty() {
-                writeln!(writer, "\nDiagnostics:\n{:#?}", ast.diagnostics)?;
+                if output_config.verbose {
+                    writeln!(writer, "\nDiagnostics:\n{:#?}", ast.diagnostics)?;
+                } else {
+                    writeln!(
+                        writer,
+                        "\nDiagnostics:\n{:#?}",
+                        ast.diagnostics_source_debug(&card.oracle_text)
+                    )?;
+                }
             }
         } else if output_config.verbose {
             writeln!(writer, "\nAST:\n{ast:#?}")?;
@@ -222,7 +238,8 @@ mod tests {
         let normal = String::from_utf8(normal).unwrap();
         let verbose = String::from_utf8(verbose).unwrap();
 
-        assert!(normal.contains("verb: UnknownPhrase("));
+        assert!(normal.contains("verb: Lexeme {"));
+        assert!(normal.contains("lemma: \"draw\""));
         assert!(normal.contains("\"Draw\""));
         assert!(!normal.contains("Span"));
         assert!(verbose.contains("Span"));
@@ -248,6 +265,7 @@ mod tests {
         assert!(rendered.contains("Abilities:"));
         assert!(!rendered.contains("AST:"));
         assert!(!rendered.contains("OracleText {"));
+        assert!(!rendered.contains("Span"));
     }
 
     #[test]
