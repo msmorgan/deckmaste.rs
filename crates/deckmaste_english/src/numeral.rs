@@ -85,6 +85,10 @@ impl Numeral {
     }
 
     /// Parses an integer written using this notation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseNumeralError`] when `input` is invalid or noncanonical.
     pub fn parse(self, input: &str) -> Result<i32, ParseNumeralError> {
         match self {
             Self::Arabic(false) => canonical(self, input, input.parse().ok()),
