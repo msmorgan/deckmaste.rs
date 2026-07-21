@@ -291,11 +291,26 @@ impl<'identity> Renderer<'identity> {
     }
 
     fn cost(&self, cost: &Cost) -> Result<String, RenderError> {
-        cost.components
-            .iter()
-            .map(|component| self.phrase(component).map(capitalize_first))
-            .collect::<Result<Vec<_>, _>>()
-            .map(|components| components.join(", "))
+        let mut rendered = String::new();
+        let mut saw_lexical_component = false;
+        for (index, component) in cost.components.iter().enumerate() {
+            if index > 0 {
+                rendered.push_str(", ");
+            }
+            let is_symbol = matches!(
+                component,
+                Phrase::OracleSymbol(_) | Phrase::SymbolSequence(_)
+            );
+            let starts_action = matches!(
+                component,
+                Phrase::Clause(clause) if matches!(clause.as_ref(), Clause::Independent(_))
+            );
+            let capitalize = starts_action || (!saw_lexical_component && !is_symbol);
+            let component = self.phrase(component)?;
+            rendered.push_str(&if capitalize { capitalize_first(component) } else { component });
+            saw_lexical_component |= !is_symbol;
+        }
+        Ok(rendered)
     }
 
     fn paragraph(
@@ -303,15 +318,21 @@ impl<'identity> Renderer<'identity> {
         paragraph: &Paragraph,
         capitalize_first_sentence: bool,
     ) -> Result<String, RenderError> {
-        paragraph
-            .sentences
-            .iter()
-            .enumerate()
-            .map(|(index, sentence)| {
-                self.sentence(sentence, capitalize_first_sentence || index > 0)
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map(|sentences| sentences.join(" "))
+        let mut rendered = String::new();
+        for (index, sentence) in paragraph.sentences.iter().enumerate() {
+            let sentence = self.sentence(sentence, capitalize_first_sentence || index > 0)?;
+            let is_closing_punctuation = sentence.chars().next().is_some_and(|character| {
+                matches!(
+                    character,
+                    '\'' | '"' | ')' | ']' | ',' | ';' | ':' | '.' | '!' | '?'
+                )
+            });
+            if !rendered.is_empty() && !is_closing_punctuation {
+                rendered.push(' ');
+            }
+            rendered.push_str(&sentence);
+        }
+        Ok(rendered)
     }
 
     fn sentence(&self, sentence: &Sentence, capitalize: bool) -> Result<String, RenderError> {
@@ -1125,6 +1146,32 @@ mod tests {
             let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
             assert_eq!(source_free(&ast, "Test Card", false), source);
         }
+    }
+
+    #[test]
+    fn cost_components_capitalize_only_independent_actions() {
+        let catalogs = fixture_catalogs();
+
+        for source in [
+            "{2}{W}, {T}, Sacrifice a green creature, a white creature, and a blue creature: Draw a card.",
+            "{1}{B}, Pay 2 life, Sacrifice a creature: Draw a card.",
+            "Pay half your life, rounded up: Draw a card.",
+            "Sacrifice an artifact, creature, or land: Draw a card.",
+        ] {
+            let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+            assert_eq!(source_free(&ast, "Test Card", false), source);
+        }
+    }
+
+    #[test]
+    fn opaque_closing_quote_does_not_gain_sentence_spacing() {
+        let catalogs = fixture_catalogs()
+            .with_catalog(CatalogKind::CardType, ["Emblem", "Land"])
+            .with_catalog(CatalogKind::LandType, ["Mountain"]);
+        let source = "You get an emblem with \"Mountains you control have '{T}: This land deals 1 damage to any target.'\"";
+
+        let ast = crate::parse_with_catalogs(source, &catalogs).into_ast();
+        assert_eq!(source_free(&ast, "Test Card", false), source);
     }
 
     #[test]
