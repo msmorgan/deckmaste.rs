@@ -8,3 +8,9 @@
 # integration tests and in the `sba` test module): an end-to-end scenario is one
 # cohesive narrative and reads better whole than split into helpers.
 too-many-lines-threshold = 150
+
+# Grammar enums intentionally stay unboxed. The English AST's conditional
+# clause carries two lossless simple clauses, so calibrate this gap-based lint
+# to that concrete-syntax representation rather than adding allocation solely
+# to equalize variant sizes.
+enum-variant-size-threshold = 384

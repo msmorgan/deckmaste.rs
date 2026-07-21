@@ -253,7 +253,8 @@ mod tests {
         let verbose = String::from_utf8(verbose).unwrap();
 
         assert!(normal.contains("text: \"Draw\""));
-        assert!(normal.contains("verb: \"Draw\""));
+        assert!(normal.contains("verb: Phrase"));
+        assert!(normal.contains("text: \"Draw\""));
         assert!(!normal.contains("Span"));
         assert!(verbose.contains("Span"));
         assert!(verbose.contains("start: 0"));

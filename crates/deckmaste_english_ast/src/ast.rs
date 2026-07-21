@@ -34,7 +34,7 @@ pub enum TokenKind {
 pub struct Ability {
     pub span: Span,
     /// An ability-word label such as `Landfall`, without the following dash.
-    pub ability_word: Option<Span>,
+    pub ability_word: Option<Phrase>,
     /// Opaque parenthesized reminder text, preserved like source comments.
     pub reminder_text: Vec<ReminderText>,
     pub kind: AbilityKind,
@@ -73,10 +73,19 @@ pub struct KeywordAbility {
     /// The canonical keyword name from the Scryfall catalog.
     pub name: String,
     /// The keyword name as printed in the source, including its original case.
-    pub printed_name: Span,
+    pub printed_name: Phrase,
     /// Printed parameters or alternative costs following the keyword name.
     /// Reminder text is kept separately on the containing [`Ability`].
-    pub argument: Option<Span>,
+    pub argument: Option<Phrase>,
+}
+
+/// Rules text nested inside another syntactic construct. `span` includes the
+/// delimiters when the rules were quoted; the child ability's span covers only
+/// its parseable body.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddedRules {
+    pub span: Span,
+    pub ability: Box<Ability>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,7 +98,7 @@ pub struct ActivatedAbility {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cost {
     pub span: Span,
-    pub components: Vec<Span>,
+    pub components: Vec<Phrase>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -193,12 +202,23 @@ pub enum Subordinator {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimpleClause {
     pub span: Span,
-    pub subject: Option<Span>,
+    /// Concrete syntax retained when no predicate can yet be identified.
+    pub unparsed: Option<Phrase>,
+    pub subject: Option<Phrase>,
     pub predicate: Option<Predicate>,
     /// Further predicates coordinated with `predicate` and sharing its
     /// subject, such as `and have haste` in `creatures get +1/+1 and have
     /// haste`.
     pub coordinated_predicates: Vec<CoordinatedPredicate>,
+    /// Further clauses joined to this one but carrying their own subject.
+    pub coordinated_clauses: Vec<CoordinatedClause>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoordinatedClause {
+    pub conjunction: PredicateConjunction,
+    pub conjunction_span: Span,
+    pub clause: Box<SimpleClause>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -212,16 +232,33 @@ pub struct CoordinatedPredicate {
 pub enum PredicateConjunction {
     And,
     Or,
+    Then,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Predicate {
     pub span: Span,
     pub auxiliary: Option<Span>,
-    pub verb: Span,
+    pub verb: Phrase,
     pub verb_kind: VerbKind,
-    pub complement: Option<Span>,
+    pub complement: Option<Phrase>,
     pub negated: bool,
+}
+
+/// A lossless phrase whose residual leaves are concrete source tokens. Rules
+/// nested inside the phrase remain structured rather than being flattened
+/// back into tokens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Phrase {
+    pub span: Span,
+    pub parts: Vec<PhrasePart>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PhrasePart {
+    Token(Token),
+    Reminder(ReminderText),
+    EmbeddedRules(EmbeddedRules),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

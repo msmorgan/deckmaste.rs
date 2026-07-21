@@ -26,6 +26,14 @@
 //!
 //! The inspector loads the repository's local Scryfall catalogs automatically.
 //! Pass `--verbose` to include the underlying byte spans.
+//!
+//! To rank semantic leaf spans across the complete local snapshot, run:
+//!
+//! ```text
+//! cargo run -p deckmaste_english_ast --example audit_leaves
+//! ```
+//!
+//! The audit excludes opaque reminder-text comments.
 
 mod ast;
 mod catalogs;
@@ -39,10 +47,12 @@ pub use ast::ActivatedAbility;
 pub use ast::Clause;
 pub use ast::ConditionalClause;
 pub use ast::ConditionalPosition;
+pub use ast::CoordinatedClause;
 pub use ast::CoordinatedPredicate;
 pub use ast::Cost;
 pub use ast::Diagnostic;
 pub use ast::DiagnosticKind;
+pub use ast::EmbeddedRules;
 pub use ast::KeywordAbility;
 pub use ast::KeywordAbilityList;
 pub use ast::LoyaltyAbility;
@@ -51,6 +61,8 @@ pub use ast::ModalFrame;
 pub use ast::Mode;
 pub use ast::OracleText;
 pub use ast::Paragraph;
+pub use ast::Phrase;
+pub use ast::PhrasePart;
 pub use ast::Predicate;
 pub use ast::PredicateConjunction;
 pub use ast::ReminderText;

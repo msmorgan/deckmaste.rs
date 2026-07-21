@@ -5,9 +5,11 @@ use crate::AbilityKind;
 use crate::ActivatedAbility;
 use crate::Clause;
 use crate::ConditionalClause;
+use crate::CoordinatedClause;
 use crate::CoordinatedPredicate;
 use crate::Cost;
 use crate::Diagnostic;
+use crate::EmbeddedRules;
 use crate::KeywordAbility;
 use crate::KeywordAbilityList;
 use crate::LoyaltyAbility;
@@ -16,6 +18,8 @@ use crate::ModalFrame;
 use crate::Mode;
 use crate::OracleText;
 use crate::Paragraph;
+use crate::Phrase;
+use crate::PhrasePart;
 use crate::Predicate;
 use crate::ReminderText;
 use crate::Sentence;
@@ -111,7 +115,6 @@ impl ResolvedDebug for OracleText {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("OracleText")
-            .field("tokens", &Resolved::new(source, self.tokens.as_slice()))
             .field(
                 "abilities",
                 &Resolved::new(source, self.abilities.as_slice()),
@@ -203,10 +206,20 @@ impl ResolvedDebug for KeywordAbilityList {
 
 impl ResolvedDebug for KeywordAbility {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("KeywordAbility")
+        let mut keyword = formatter.debug_struct("KeywordAbility");
+        keyword
             .field("name", &self.name)
-            .field("argument", &Resolved::new(source, &self.argument))
+            .field("argument", &Resolved::new(source, &self.argument));
+        keyword.finish()
+    }
+}
+
+impl ResolvedDebug for EmbeddedRules {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("EmbeddedRules")
+            .field("text", &Resolved::new(source, &self.span))
+            .field("ability", &Resolved::new(source, self.ability.as_ref()))
             .finish()
     }
 }
@@ -350,6 +363,9 @@ impl ResolvedDebug for ConditionalClause {
 impl ResolvedDebug for SimpleClause {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut clause = formatter.debug_struct("SimpleClause");
+        if let Some(unparsed) = &self.unparsed {
+            clause.field("unparsed", &Resolved::new(source, unparsed));
+        }
         clause
             .field("subject", &Resolved::new(source, &self.subject))
             .field("predicate", &Resolved::new(source, &self.predicate));
@@ -359,7 +375,23 @@ impl ResolvedDebug for SimpleClause {
                 &Resolved::new(source, self.coordinated_predicates.as_slice()),
             );
         }
+        if !self.coordinated_clauses.is_empty() {
+            clause.field(
+                "coordinated_clauses",
+                &Resolved::new(source, self.coordinated_clauses.as_slice()),
+            );
+        }
         clause.finish()
+    }
+}
+
+impl ResolvedDebug for CoordinatedClause {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("CoordinatedClause")
+            .field("conjunction", &self.conjunction)
+            .field("clause", &Resolved::new(source, self.clause.as_ref()))
+            .finish()
     }
 }
 
@@ -375,14 +407,39 @@ impl ResolvedDebug for CoordinatedPredicate {
 
 impl ResolvedDebug for Predicate {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("Predicate")
+        let mut predicate = formatter.debug_struct("Predicate");
+        predicate
             .field("auxiliary", &Resolved::new(source, &self.auxiliary))
             .field("verb", &Resolved::new(source, &self.verb))
             .field("verb_kind", &self.verb_kind)
-            .field("complement", &Resolved::new(source, &self.complement))
-            .field("negated", &self.negated)
+            .field("complement", &Resolved::new(source, &self.complement));
+        predicate.field("negated", &self.negated).finish()
+    }
+}
+
+impl ResolvedDebug for Phrase {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Phrase")
+            .field("text", &Resolved::new(source, &self.span))
+            .field("parts", &Resolved::new(source, self.parts.as_slice()))
             .finish()
+    }
+}
+
+impl ResolvedDebug for PhrasePart {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Token(token) => token.fmt_resolved(source, formatter),
+            Self::Reminder(reminder) => formatter
+                .debug_tuple("Reminder")
+                .field(&Resolved::new(source, reminder))
+                .finish(),
+            Self::EmbeddedRules(rules) => formatter
+                .debug_tuple("EmbeddedRules")
+                .field(&Resolved::new(source, rules))
+                .finish(),
+        }
     }
 }
 
@@ -412,7 +469,8 @@ mod tests {
         assert!(output.contains("text: \"Lightning Bolt deals 3 damage to any target.\""));
         assert!(output.contains("subject: Some("));
         assert!(output.contains("\"Lightning Bolt\""));
-        assert!(output.contains("verb: \"deals\""));
+        assert!(output.contains("verb: Phrase"));
+        assert!(output.contains("text: \"deals\""));
         assert!(output.contains("complement: Some("));
         assert!(output.contains("\"3 damage to any target\""));
         assert!(!output.contains("Span"));
@@ -460,8 +518,8 @@ mod tests {
 
         assert!(output.contains("coordinated_predicates: ["));
         assert!(output.contains("conjunction: And"));
-        assert!(output.contains("verb: \"get\""));
-        assert!(output.contains("verb: \"have\""));
+        assert!(output.contains("text: \"get\""));
+        assert!(output.contains("text: \"have\""));
         assert!(!output.contains("conjunction_span"));
         assert!(!output.contains("Span"));
     }

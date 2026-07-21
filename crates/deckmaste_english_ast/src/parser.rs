@@ -5,10 +5,12 @@ use crate::Catalogs;
 use crate::Clause;
 use crate::ConditionalClause;
 use crate::ConditionalPosition;
+use crate::CoordinatedClause;
 use crate::CoordinatedPredicate;
 use crate::Cost;
 use crate::Diagnostic;
 use crate::DiagnosticKind;
+use crate::EmbeddedRules;
 use crate::KeywordAbility;
 use crate::KeywordAbilityList;
 use crate::LoyaltyAbility;
@@ -17,6 +19,8 @@ use crate::ModalFrame;
 use crate::Mode;
 use crate::OracleText;
 use crate::Paragraph;
+use crate::Phrase;
+use crate::PhrasePart;
 use crate::Predicate;
 use crate::PredicateConjunction;
 use crate::ReminderText;
@@ -97,7 +101,7 @@ impl Parser<'_, '_> {
                 let ability_span = Span::new(span.start, end);
                 abilities.push(Ability {
                     span: ability_span,
-                    ability_word,
+                    ability_word: ability_word.map(|word| self.phrase(word, Vec::new())),
                     reminder_text: reminder_text(self.source, ability_span),
                     kind: AbilityKind::Modal(ModalAbility {
                         frame,
@@ -143,7 +147,10 @@ impl Parser<'_, '_> {
             if effect_span == header {
                 return ModalFrame::Activated(Cost {
                     span: cost_span,
-                    components: split_top_level(self.source, cost_span, ", "),
+                    components: split_top_level(self.source, cost_span, ", ")
+                        .into_iter()
+                        .map(|component| self.phrase(component, Vec::new()))
+                        .collect(),
                 });
             }
         }
@@ -158,10 +165,21 @@ impl Parser<'_, '_> {
                 cost,
                 effect: self.paragraph(effect),
             })
-        } else if let Some(keyword) = self
+        } else if let Some(mut keyword) = self
             .catalogs
-            .and_then(|catalogs| keyword_ability_list(self.source, body, catalogs))
+            .and_then(|catalogs| keyword_ability_list(self.source, body, catalogs, &self.tokens))
         {
+            for item in &mut keyword.abilities {
+                if let Some(argument) = &item.argument
+                    && self.looks_like_rules(argument.span)
+                {
+                    let embedded = EmbeddedRules {
+                        span: argument.span,
+                        ability: Box::new(self.embedded_ability(argument.span)),
+                    };
+                    item.argument = Some(self.phrase(argument.span, vec![embedded]));
+                }
+            }
             AbilityKind::Keyword(keyword)
         } else if let Some((introducer, introducer_span, rest)) = trigger_start(body, text) {
             if let Some(comma) = find_top_level(self.source, rest, ", ") {
@@ -198,7 +216,10 @@ impl Parser<'_, '_> {
             AbilityKind::Activated(ActivatedAbility {
                 cost: Cost {
                     span: cost_span,
-                    components: split_top_level(self.source, cost_span, ", "),
+                    components: split_top_level(self.source, cost_span, ", ")
+                        .into_iter()
+                        .map(|component| self.phrase(component, Vec::new()))
+                        .collect(),
                 },
                 effect: self.paragraph(effect_span),
             })
@@ -213,7 +234,7 @@ impl Parser<'_, '_> {
         };
         Ability {
             span,
-            ability_word,
+            ability_word: ability_word.map(|word| self.phrase(word, Vec::new())),
             reminder_text: reminder_text(self.source, span),
             kind,
         }
@@ -303,9 +324,11 @@ impl Parser<'_, '_> {
         let Some(predicate_match) = predicate_word(self.source, span, &words, self.catalogs) else {
             return SimpleClause {
                 span,
+                unparsed: Some(self.phrase(span, Vec::new())),
                 subject: None,
                 predicate: None,
                 coordinated_predicates: Vec::new(),
+                coordinated_clauses: Vec::new(),
             };
         };
         let predicate_start = predicate_match
@@ -317,15 +340,24 @@ impl Parser<'_, '_> {
         let mut coordinated_predicates = Vec::new();
         let mut predicate = None;
         let mut pending_coordination = None;
+        let clause_coordination = coordinated_clause(
+            self.source,
+            Span::new(predicate_match.verb.end, span.end),
+            &self.tokens,
+            self.catalogs,
+        );
+        let predicate_bound =
+            clause_coordination.map_or(span.end, |coordination| coordination.left_end);
 
         loop {
             let coordination = coordinated_predicate(
                 self.source,
-                Span::new(current_match.verb.end, span.end),
+                Span::new(current_match.verb.end, predicate_bound),
                 &self.tokens,
                 self.catalogs,
             );
-            let predicate_end = coordination.map_or(span.end, |coordination| coordination.left_end);
+            let predicate_end =
+                coordination.map_or(predicate_bound, |coordination| coordination.left_end);
             let predicate_span = trim_span(self.source, Span::new(current_start, predicate_end));
             let parsed = self.predicate(current_match, predicate_span);
             if let Some((conjunction, conjunction_span)) = pending_coordination.take() {
@@ -351,9 +383,19 @@ impl Parser<'_, '_> {
 
         SimpleClause {
             span,
-            subject: (!subject.is_empty()).then_some(subject),
+            unparsed: None,
+            subject: (!subject.is_empty()).then(|| self.phrase(subject, Vec::new())),
             predicate,
             coordinated_predicates,
+            coordinated_clauses: clause_coordination
+                .map(|coordination| {
+                    vec![CoordinatedClause {
+                        conjunction: coordination.conjunction,
+                        conjunction_span: coordination.conjunction_span,
+                        clause: Box::new(self.simple_clause(coordination.remainder)),
+                    }]
+                })
+                .unwrap_or_default(),
         }
     }
 
@@ -374,11 +416,86 @@ impl Parser<'_, '_> {
         Predicate {
             span,
             auxiliary: predicate_match.auxiliary,
-            verb: predicate_match.verb,
+            verb: self.phrase(predicate_match.verb, Vec::new()),
             verb_kind: predicate_match.verb_kind,
-            complement: (!complement.is_empty()).then_some(complement),
+            complement: (!complement.is_empty())
+                .then(|| self.phrase(complement, self.quoted_rules(complement))),
             negated,
         }
+    }
+
+    fn quoted_rules(&self, span: Span) -> Vec<EmbeddedRules> {
+        let quotes = self
+            .tokens
+            .iter()
+            .filter(|token| {
+                token.span.start >= span.start
+                    && token.span.end <= span.end
+                    && matches!(token.kind, TokenKind::Punctuation('"'))
+            })
+            .collect::<Vec<_>>();
+        let mut embedded = quotes
+            .chunks_exact(2)
+            .filter_map(|pair| {
+                let body = trim_span(self.source, Span::new(pair[0].span.end, pair[1].span.start));
+                self.looks_like_rules(body).then(|| EmbeddedRules {
+                    span: Span::new(pair[0].span.start, pair[1].span.end),
+                    ability: Box::new(self.embedded_ability(body)),
+                })
+            })
+            .collect::<Vec<_>>();
+        if let Some(open) = quotes.chunks_exact(2).remainder().first() {
+            let body = trim_span(self.source, Span::new(open.span.end, span.end));
+            if self.looks_like_rules(body) {
+                embedded.push(EmbeddedRules {
+                    span: Span::new(open.span.start, span.end),
+                    ability: Box::new(self.embedded_ability(body)),
+                });
+            }
+        }
+        embedded
+    }
+
+    fn looks_like_rules(&self, span: Span) -> bool {
+        if span.is_empty() {
+            return false;
+        }
+        if find_top_level(self.source, span, ":").is_some()
+            || trigger_start(span, self.text(span)).is_some()
+            || self.catalogs.is_some_and(|catalogs| {
+                keyword_ability_list(self.source, span, catalogs, &self.tokens).is_some()
+            })
+        {
+            return true;
+        }
+        sentence_spans(self.source, span)
+            .into_iter()
+            .any(|(_, content, _)| {
+                let words = self
+                    .tokens
+                    .iter()
+                    .filter(|token| {
+                        token.span.start >= content.start
+                            && token.span.end <= content.end
+                            && matches!(token.kind, TokenKind::Word)
+                    })
+                    .collect::<Vec<_>>();
+                predicate_word(self.source, content, &words, self.catalogs).is_some()
+            })
+    }
+
+    fn embedded_ability(&self, span: Span) -> Ability {
+        Parser {
+            source: self.source,
+            catalogs: self.catalogs,
+            tokens: self.tokens.clone(),
+            diagnostics: Vec::new(),
+        }
+        .ability(span)
+    }
+
+    fn phrase(&self, span: Span, embedded_rules: Vec<EmbeddedRules>) -> Phrase {
+        structured_phrase(self.source, &self.tokens, span, embedded_rules)
     }
 
     fn text(&self, span: Span) -> &str {
@@ -546,6 +663,7 @@ fn keyword_ability_list(
     source: &str,
     span: Span,
     catalogs: &Catalogs,
+    tokens: &[Token],
 ) -> Option<KeywordAbilityList> {
     let first_text = span.text(source)?;
     let first_name = catalogs.keyword_ability_prefix(first_text)?;
@@ -565,11 +683,12 @@ fn keyword_ability_list(
         let next = next_keyword_ability(source, name_span.end, span.end, catalogs);
         let end = next.map_or(span.end, |(delimiter, _)| delimiter);
         let item_span = trim_span(source, Span::new(remaining.start, end));
-        let argument = keyword_argument(source, Span::new(name_span.end, item_span.end));
+        let argument = keyword_argument(source, Span::new(name_span.end, item_span.end))
+            .map(|argument| structured_phrase(source, tokens, argument, Vec::new()));
         abilities.push(KeywordAbility {
             span: item_span,
             name: name.to_owned(),
-            printed_name: name_span,
+            printed_name: structured_phrase(source, tokens, name_span, Vec::new()),
             argument,
         });
 
@@ -809,6 +928,71 @@ fn split_top_level(source: &str, span: Span, delimiter: &str) -> Vec<Span> {
     parts
 }
 
+fn structured_phrase(
+    source: &str,
+    tokens: &[Token],
+    span: Span,
+    embedded_rules: Vec<EmbeddedRules>,
+) -> Phrase {
+    enum Special {
+        Reminder(ReminderText),
+        EmbeddedRules(EmbeddedRules),
+    }
+
+    impl Special {
+        fn span(&self) -> Span {
+            match self {
+                Self::Reminder(reminder) => reminder.span,
+                Self::EmbeddedRules(embedded) => embedded.span,
+            }
+        }
+    }
+
+    let reminders = reminder_text(source, span)
+        .into_iter()
+        .filter(|reminder| {
+            !embedded_rules.iter().any(|embedded| {
+                reminder.span.start >= embedded.span.start && reminder.span.end <= embedded.span.end
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut specials = embedded_rules
+        .into_iter()
+        .map(Special::EmbeddedRules)
+        .chain(reminders.into_iter().map(Special::Reminder))
+        .collect::<Vec<_>>();
+    specials.sort_unstable_by_key(|special| special.span().start);
+
+    let mut parts = Vec::new();
+    let mut cursor = span.start;
+    for special in specials {
+        let special_span = special.span();
+        if special_span.start < cursor {
+            continue;
+        }
+        parts.extend(
+            tokens
+                .iter()
+                .filter(|token| token.span.start >= cursor && token.span.end <= special_span.start)
+                .copied()
+                .map(PhrasePart::Token),
+        );
+        parts.push(match special {
+            Special::Reminder(reminder) => PhrasePart::Reminder(reminder),
+            Special::EmbeddedRules(embedded) => PhrasePart::EmbeddedRules(embedded),
+        });
+        cursor = special_span.end;
+    }
+    parts.extend(
+        tokens
+            .iter()
+            .filter(|token| token.span.start >= cursor && token.span.end <= span.end)
+            .copied()
+            .map(PhrasePart::Token),
+    );
+    Phrase { span, parts }
+}
+
 fn find_top_level(source: &str, span: Span, needle: &str) -> Option<usize> {
     let text = span.text(source)?;
     let mut state = Nesting::default();
@@ -863,6 +1047,83 @@ struct PredicateCoordination {
     predicate_match: PredicateMatch,
 }
 
+#[derive(Clone, Copy)]
+struct ClauseCoordination {
+    conjunction: PredicateConjunction,
+    conjunction_span: Span,
+    left_end: usize,
+    remainder: Span,
+}
+
+fn coordinated_clause(
+    source: &str,
+    span: Span,
+    tokens: &[Token],
+    catalogs: Option<&Catalogs>,
+) -> Option<ClauseCoordination> {
+    let text = span.text(source)?;
+    let mut state = Nesting::default();
+    for (relative, ch) in text.char_indices() {
+        if state.is_top_level() {
+            let (word, conjunction, remainder_offset) = if text[relative..].starts_with(", then ") {
+                ("then", PredicateConjunction::Then, 7)
+            } else if text[relative..].starts_with(", and ") {
+                ("and", PredicateConjunction::And, 6)
+            } else if text[relative..].starts_with(", or ") {
+                ("or", PredicateConjunction::Or, 5)
+            } else {
+                state.observe(ch);
+                continue;
+            };
+            let left_end = span.start + relative;
+            let conjunction_start = span.start
+                + relative
+                + text[relative..relative + remainder_offset]
+                    .find(word)
+                    .expect("connector pattern contains its word");
+            let conjunction_span = Span::new(conjunction_start, conjunction_start + word.len());
+            let remainder = trim_span(
+                source,
+                Span::new(span.start + relative + remainder_offset, span.end),
+            );
+            let words = tokens
+                .iter()
+                .filter(|token| {
+                    token.span.start >= remainder.start
+                        && token.span.end <= remainder.end
+                        && matches!(token.kind, TokenKind::Word)
+                })
+                .collect::<Vec<_>>();
+            let first = words
+                .first()
+                .and_then(|token| token.span.text(source))
+                .unwrap_or_default();
+            let plausible_subject = matches!(
+                first.to_ascii_lowercase().as_str(),
+                "each" | "he" | "it" | "she" | "that" | "the" | "they" | "this" | "you"
+            );
+            if plausible_subject
+                && let Some(predicate) = predicate_word(source, remainder, &words, catalogs)
+            {
+                let predicate_start = predicate
+                    .auxiliary
+                    .map_or(predicate.verb.start, |span| span.start);
+                let next_comma = find_top_level(source, remainder, ", ").unwrap_or(remainder.end);
+                if predicate_start > remainder.start && predicate.verb.start < next_comma {
+                    return Some(ClauseCoordination {
+                        conjunction,
+                        conjunction_span,
+                        left_end,
+                        remainder,
+                    });
+                }
+            }
+        }
+        state.observe(ch);
+    }
+    None
+}
+
 fn coordinated_predicate(
     source: &str,
     span: Span,
@@ -873,18 +1134,33 @@ fn coordinated_predicate(
     let mut state = Nesting::default();
     for (relative, ch) in text.char_indices() {
         if state.is_top_level() {
-            let (word, conjunction) = if text[relative..].starts_with(" and ") {
-                ("and", PredicateConjunction::And)
+            let (word, conjunction, remainder_offset) = if text[relative..].starts_with(", then ") {
+                ("then", PredicateConjunction::Then, 7)
+            } else if text[relative..].starts_with(", and ") {
+                ("and", PredicateConjunction::And, 6)
+            } else if text[relative..].starts_with(", or ") {
+                ("or", PredicateConjunction::Or, 5)
+            } else if text[relative..].starts_with(" then ") {
+                ("then", PredicateConjunction::Then, 6)
+            } else if text[relative..].starts_with(" and ") {
+                ("and", PredicateConjunction::And, 5)
             } else if text[relative..].starts_with(" or ") {
-                ("or", PredicateConjunction::Or)
+                ("or", PredicateConjunction::Or, 4)
             } else {
                 state.observe(ch);
                 continue;
             };
             let left_end = span.start + relative;
-            let conjunction_start = left_end + 1;
+            let conjunction_start = span.start
+                + relative
+                + text[relative..relative + remainder_offset]
+                    .find(word)
+                    .expect("connector pattern contains its word");
             let conjunction_span = Span::new(conjunction_start, conjunction_start + word.len());
-            let remainder = trim_span(source, Span::new(conjunction_span.end, span.end));
+            let remainder = trim_span(
+                source,
+                Span::new(span.start + relative + remainder_offset, span.end),
+            );
             let words = tokens
                 .iter()
                 .filter(|token| {
@@ -1033,6 +1309,7 @@ fn is_finite_verb(word: &str) -> bool {
             | "plays"
             | "prevents"
             | "puts"
+            | "removes"
             | "returns"
             | "reveals"
             | "sacrifices"
@@ -1076,6 +1353,7 @@ fn is_imperative(word: &str) -> bool {
             | "surveil"
             | "tap"
             | "untap"
+            | "yell"
     )
 }
 
@@ -1085,6 +1363,10 @@ mod tests {
 
     fn text(source: &str, span: Span) -> &str {
         span.text(source).unwrap()
+    }
+
+    fn phrase_text<'source>(source: &'source str, phrase: &Phrase) -> &'source str {
+        text(source, phrase.span)
     }
 
     #[test]
@@ -1100,7 +1382,7 @@ mod tests {
                 .cost
                 .components
                 .iter()
-                .map(|span| text(source, *span))
+                .map(|phrase| phrase_text(source, phrase))
                 .collect::<Vec<_>>(),
             ["{1}{R}", "{T}", "Sacrifice ~"]
         );
@@ -1118,7 +1400,10 @@ mod tests {
         let source = "Landfall — Whenever a land enters under your control, draw a card.";
         let ast = parse(source);
         let ability = &ast.abilities[0];
-        assert_eq!(text(source, ability.ability_word.unwrap()), "Landfall");
+        assert_eq!(
+            phrase_text(source, ability.ability_word.as_ref().unwrap()),
+            "Landfall"
+        );
         let AbilityKind::Triggered(trigger) = &ability.kind else {
             panic!("expected triggered ability")
         };
@@ -1127,9 +1412,12 @@ mod tests {
             text(source, trigger.event.span),
             "a land enters under your control"
         );
-        assert_eq!(text(source, trigger.event.subject.unwrap()), "a land");
         assert_eq!(
-            text(source, trigger.event.predicate.as_ref().unwrap().verb),
+            phrase_text(source, trigger.event.subject.as_ref().unwrap()),
+            "a land"
+        );
+        assert_eq!(
+            phrase_text(source, &trigger.event.predicate.as_ref().unwrap().verb),
             "enters"
         );
         assert_eq!(text(source, trigger.effect.span), "draw a card.");
@@ -1182,7 +1470,7 @@ mod tests {
         assert_eq!(
             cost.components
                 .iter()
-                .map(|span| text(activated_source, *span))
+                .map(|phrase| phrase_text(activated_source, phrase))
                 .collect::<Vec<_>>(),
             ["{2}", "{T}"]
         );
@@ -1258,9 +1546,12 @@ mod tests {
         };
         let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
         let predicate = clause.predicate.as_ref().unwrap();
-        assert_eq!(text(source, clause.subject.unwrap()), "Target creature");
+        assert_eq!(
+            phrase_text(source, clause.subject.as_ref().unwrap()),
+            "Target creature"
+        );
         assert_eq!(text(source, predicate.auxiliary.unwrap()), "can't");
-        assert_eq!(text(source, predicate.verb), "block");
+        assert_eq!(phrase_text(source, &predicate.verb), "block");
         assert!(predicate.negated);
     }
 
@@ -1274,19 +1565,22 @@ mod tests {
         let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
         let predicate = clause.predicate.as_ref().unwrap();
         assert_eq!(
-            text(source, clause.subject.unwrap()),
+            phrase_text(source, clause.subject.as_ref().unwrap()),
             "Other Goblin creatures you control"
         );
-        assert_eq!(text(source, predicate.verb), "get");
-        assert_eq!(text(source, predicate.complement.unwrap()), "+1/+1");
+        assert_eq!(phrase_text(source, &predicate.verb), "get");
+        assert_eq!(
+            phrase_text(source, predicate.complement.as_ref().unwrap()),
+            "+1/+1"
+        );
 
         assert_eq!(clause.coordinated_predicates.len(), 1);
         let coordinated = &clause.coordinated_predicates[0];
         assert_eq!(coordinated.conjunction, PredicateConjunction::And);
         assert_eq!(text(source, coordinated.conjunction_span), "and");
-        assert_eq!(text(source, coordinated.predicate.verb), "have");
+        assert_eq!(phrase_text(source, &coordinated.predicate.verb), "have");
         assert_eq!(
-            text(source, coordinated.predicate.complement.unwrap()),
+            phrase_text(source, coordinated.predicate.complement.as_ref().unwrap()),
             "haste"
         );
     }
@@ -1301,10 +1595,107 @@ mod tests {
         let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
         let predicate = clause.predicate.as_ref().unwrap();
         assert_eq!(
-            text(source, predicate.complement.unwrap()),
+            phrase_text(source, predicate.complement.as_ref().unwrap()),
             "target artifact and enchantment"
         );
         assert!(clause.coordinated_predicates.is_empty());
+    }
+
+    #[test]
+    fn then_chains_form_sequential_predicates() {
+        let source = "Each player discards a card, then loses 1 life, then removes a counter, then gets a poison counter.";
+        let ast = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+
+        assert_eq!(
+            phrase_text(source, &clause.predicate.as_ref().unwrap().verb),
+            "discards"
+        );
+        assert_eq!(clause.coordinated_predicates.len(), 3);
+        assert!(
+            clause
+                .coordinated_predicates
+                .iter()
+                .all(|predicate| predicate.conjunction == PredicateConjunction::Then)
+        );
+        assert_eq!(
+            phrase_text(source, &clause.coordinated_predicates[0].predicate.verb),
+            "loses"
+        );
+        assert_eq!(
+            phrase_text(source, &clause.coordinated_predicates[2].predicate.verb),
+            "gets"
+        );
+    }
+
+    #[test]
+    fn coordination_preserves_a_new_clause_subject() {
+        let source = "It becomes a Vehicle, and it gains crew 2.";
+        let ast = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+
+        assert_eq!(clause.coordinated_clauses.len(), 1);
+        let coordinated = &clause.coordinated_clauses[0];
+        assert_eq!(coordinated.conjunction, PredicateConjunction::And);
+        assert_eq!(
+            phrase_text(source, coordinated.clause.subject.as_ref().unwrap()),
+            "it"
+        );
+        assert_eq!(
+            phrase_text(source, &coordinated.clause.predicate.as_ref().unwrap().verb),
+            "gains"
+        );
+    }
+
+    #[test]
+    fn quoted_granted_rules_are_nested_as_an_ability() {
+        let source = "Target creature gains \"Whenever this creature attacks, draw a card.\"";
+        let ast = parse(source);
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+        let complement = clause
+            .predicate
+            .as_ref()
+            .unwrap()
+            .complement
+            .as_ref()
+            .unwrap();
+        let embedded = complement
+            .parts
+            .iter()
+            .find_map(|part| match part {
+                PhrasePart::EmbeddedRules(rules) => Some(rules),
+                PhrasePart::Token(_) | PhrasePart::Reminder(_) => None,
+            })
+            .expect("quoted rules should remain structured");
+
+        assert!(matches!(embedded.ability.kind, AbilityKind::Triggered(_)));
+    }
+
+    #[test]
+    fn keyword_argument_can_contain_an_embedded_activated_ability() {
+        let source = "Power-up — {W}{U}{B}{R}{G}: Put a +1/+1 counter on this creature.";
+        let catalogs = Catalogs::new(
+            ["Power-up"],
+            std::iter::empty::<&str>(),
+            std::iter::empty::<&str>(),
+        );
+        let ast = parse_with_catalogs(source, &catalogs);
+        let AbilityKind::Keyword(keywords) = &ast.abilities[0].kind else { panic!() };
+        let argument = keywords.abilities[0].argument.as_ref().unwrap();
+        let PhrasePart::EmbeddedRules(rules) = &argument.parts[0] else {
+            panic!("keyword argument should contain nested rules")
+        };
+
+        assert!(matches!(rules.ability.kind, AbilityKind::Activated(_)));
     }
 
     #[test]
@@ -1393,11 +1784,14 @@ mod tests {
         assert_eq!(keyword_list.abilities[0].name, "Flying");
         assert_eq!(keyword_list.abilities[1].name, "First strike");
         assert_eq!(
-            text(keyword_source, keyword_list.abilities[1].printed_name),
+            phrase_text(keyword_source, &keyword_list.abilities[1].printed_name),
             "first strike"
         );
         assert_eq!(
-            text(keyword_source, keyword_list.abilities[2].argument.unwrap()),
+            phrase_text(
+                keyword_source,
+                keyword_list.abilities[2].argument.as_ref().unwrap()
+            ),
             "from red"
         );
 
@@ -1408,15 +1802,18 @@ mod tests {
         };
         let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
         let predicate = clause.predicate.as_ref().unwrap();
-        assert_eq!(text(action_source, predicate.verb), "Manifest dread");
+        assert_eq!(
+            phrase_text(action_source, &predicate.verb),
+            "Manifest dread"
+        );
         assert_eq!(predicate.verb_kind, VerbKind::KeywordAction);
 
         let ability_word_source = "Void — Whenever ~ attacks, draw a card.";
         let ability_word = parse_with_catalogs(ability_word_source, &catalogs);
         assert_eq!(
-            text(
+            phrase_text(
                 ability_word_source,
-                ability_word.abilities[0].ability_word.unwrap()
+                ability_word.abilities[0].ability_word.as_ref().unwrap()
             ),
             "Void"
         );
