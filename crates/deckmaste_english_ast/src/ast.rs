@@ -23,7 +23,10 @@ pub enum TokenKind {
     Number,
     /// A braced Oracle symbol such as `{G}`, `{T}`, `{E}`, or `{CHAOS}`.
     Symbol,
+    /// The card's abbreviated self-reference, or an ordinary card's full name.
     SelfReference,
+    /// A comma-legend's exact full-name self-reference.
+    FullSelfReference,
     Bullet,
     Punctuation(char),
     Newline,

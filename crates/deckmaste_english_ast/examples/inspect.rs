@@ -11,6 +11,7 @@ use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
 use deckmaste_english_ast::Catalogs;
+use deckmaste_english_ast::normalize_self_references;
 use deckmaste_english_ast::parse_with_catalogs;
 use serde::Deserialize;
 
@@ -38,6 +39,8 @@ struct Args {
 struct Row {
     name: String,
     face: Option<String>,
+    #[serde(default)]
+    supertypes: Vec<String>,
     text: Option<String>,
 }
 
@@ -126,10 +129,17 @@ fn find_cards(reader: impl BufRead, query: &str, data_path: &Path) -> Result<Vec
             )
         })?;
 
+        let face_name = row.face.as_deref().unwrap_or(&row.name);
+        let is_legendary = row.supertypes.iter().any(|kind| kind == "Legendary");
+        let oracle_text = normalize_self_references(
+            row.text.as_deref().unwrap_or_default(),
+            face_name,
+            is_legendary,
+        );
         let card = CardText {
             card_name: row.name.clone(),
             face_name: row.face.clone(),
-            oracle_text: row.text.unwrap_or_default(),
+            oracle_text,
         };
 
         match row.face {
@@ -237,6 +247,40 @@ mod tests {
     }
 
     #[test]
+    fn incoming_legendary_names_use_distinct_self_reference_sigils() {
+        let data = concat!(
+            r#"{"name":"Aang, A Lot to Learn","face":null,"supertypes":["Legendary"],"text":"Aang attacks. Aang, A Lot to Learn's power is 3."}"#,
+            "\n",
+        );
+
+        let cards = find_cards(
+            Cursor::new(data),
+            "Aang, A Lot to Learn",
+            Path::new(DATA_PATH),
+        )
+        .unwrap();
+
+        assert_eq!(cards[0].oracle_text, "~ attacks. ~~'s power is 3.");
+    }
+
+    #[test]
+    fn incoming_double_faced_cards_normalize_against_the_face_name() {
+        let data = concat!(
+            r#"{"name":"Aang, Swift Savior // Aang and La, Ocean's Fury","face":"Aang, Swift Savior","supertypes":["Legendary"],"text":"Aang transforms. Aang, Swift Savior has flying."}"#,
+            "\n",
+        );
+
+        let cards = find_cards(
+            Cursor::new(data),
+            "Aang, Swift Savior",
+            Path::new(DATA_PATH),
+        )
+        .unwrap();
+
+        assert_eq!(cards[0].oracle_text, "~ transforms. ~~ has flying.");
+    }
+
+    #[test]
     fn normal_output_resolves_spans_while_verbose_output_keeps_them() {
         let cards = [CardText {
             card_name: "Test Card".to_owned(),
@@ -271,7 +315,13 @@ mod tests {
 
         for (index, line) in BufReader::new(file).lines().enumerate() {
             let row: Row = serde_json::from_str(&line.unwrap()).unwrap();
-            let source = row.text.unwrap_or_default();
+            let face_name = row.face.as_deref().unwrap_or(&row.name);
+            let is_legendary = row.supertypes.iter().any(|kind| kind == "Legendary");
+            let source = normalize_self_references(
+                row.text.as_deref().unwrap_or_default(),
+                face_name,
+                is_legendary,
+            );
             let ast = parse_with_catalogs(&source, &catalogs);
             let rebuilt = ast
                 .abilities

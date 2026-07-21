@@ -547,6 +547,23 @@ fn lex(source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
             index = end;
             continue;
         }
+        if ch == '~' {
+            let end = if source[index + width..].starts_with('~') {
+                index + 2 * width
+            } else {
+                index + width
+            };
+            tokens.push(Token {
+                kind: if end == index + width {
+                    TokenKind::SelfReference
+                } else {
+                    TokenKind::FullSelfReference
+                },
+                span: Span::new(index, end),
+            });
+            index = end;
+            continue;
+        }
         if ch.is_alphanumeric() || matches!(ch, '\'' | '’') {
             let start = index;
             index += width;
@@ -570,7 +587,6 @@ fn lex(source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
             continue;
         }
         let kind = match ch {
-            '~' => TokenKind::SelfReference,
             '•' => TokenKind::Bullet,
             _ => TokenKind::Punctuation(ch),
         };
@@ -1697,7 +1713,7 @@ mod tests {
 
     #[test]
     fn lexer_keeps_symbols_self_references_and_newlines() {
-        let source = "{T}: ~ adds {G}.\nDraw 2 cards.";
+        let source = "{T}: ~ adds {G}.\n~~ draws 2 cards.";
         let ast = parse(source);
         assert!(
             ast.tokens
@@ -1708,6 +1724,11 @@ mod tests {
             ast.tokens
                 .iter()
                 .any(|token| token.kind == TokenKind::SelfReference)
+        );
+        assert!(
+            ast.tokens
+                .iter()
+                .any(|token| token.kind == TokenKind::FullSelfReference)
         );
         assert!(
             ast.tokens

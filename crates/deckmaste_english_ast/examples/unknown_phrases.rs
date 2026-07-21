@@ -17,6 +17,7 @@ use deckmaste_english_ast::Paragraph;
 use deckmaste_english_ast::Phrase;
 use deckmaste_english_ast::Predicate;
 use deckmaste_english_ast::SimpleClause;
+use deckmaste_english_ast::normalize_self_references;
 use deckmaste_english_ast::parse_with_catalogs;
 use serde::Deserialize;
 
@@ -45,6 +46,8 @@ struct Args {
 struct Row {
     name: String,
     face: Option<String>,
+    #[serde(default)]
+    supertypes: Vec<String>,
     text: Option<String>,
 }
 
@@ -79,10 +82,12 @@ fn main() -> Result<()> {
 
     let mut occurrences = Vec::new();
     for row in &rows {
-        let source = row.text.as_deref().unwrap_or_default();
         let card = row.face.as_deref().unwrap_or(&row.name);
-        let ast = parse_with_catalogs(source, &catalogs);
-        collect_oracle_text(&mut occurrences, card, source, &ast);
+        let is_legendary = row.supertypes.iter().any(|kind| kind == "Legendary");
+        let source =
+            normalize_self_references(row.text.as_deref().unwrap_or_default(), card, is_legendary);
+        let ast = parse_with_catalogs(&source, &catalogs);
+        collect_oracle_text(&mut occurrences, card, &source, &ast);
     }
     occurrences.sort_unstable_by(|left, right| {
         right

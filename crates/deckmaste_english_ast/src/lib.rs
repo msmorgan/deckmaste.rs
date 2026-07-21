@@ -27,16 +27,18 @@
 //! The inspector loads the repository's local Scryfall catalogs automatically.
 //! Pass `--verbose` to include the underlying byte spans.
 //!
-//! To rank semantic leaf spans across the complete local snapshot, run:
+//! To rank unknown phrases across the complete local snapshot, run:
 //!
 //! ```text
-//! cargo run -p deckmaste_english_ast --example audit_leaves
+//! cargo run -p deckmaste_english_ast --example unknown_phrases
 //! ```
 //!
-//! The audit excludes opaque reminder-text comments.
+//! Card-data examples normalize self-references before parsing: `~` denotes a
+//! comma-legend's abbreviated name and `~~` its full name.
 
 mod ast;
 mod catalogs;
+mod input;
 mod parser;
 mod source_debug;
 mod span;
@@ -74,6 +76,7 @@ pub use ast::TriggerWord;
 pub use ast::TriggeredAbility;
 pub use ast::VerbKind;
 pub use catalogs::Catalogs;
+pub use input::normalize_self_references;
 pub use parser::parse;
 pub use parser::parse_with_catalogs;
 pub use source_debug::SourceDebug;
