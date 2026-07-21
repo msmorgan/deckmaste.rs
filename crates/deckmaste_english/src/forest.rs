@@ -1,7 +1,9 @@
-use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::Add;
 use std::ops::AddAssign;
+
+use hashbrown::HashMap;
+use hashbrown::hash_map::Entry;
 
 use crate::chart::RuleId;
 
@@ -186,29 +188,34 @@ where
         key: NodeKey<N, L, F, M>,
         alternative: PackedAlternative,
     ) -> InternResult {
-        if let Some(&node) = self.node_ids.get(&key) {
-            let alternatives = &mut self.nodes[node.index()].alternatives;
-            let alternative_was_new = !alternatives.contains(&alternative);
-            if alternative_was_new {
-                alternatives.push(alternative);
+        match self.node_ids.entry(key) {
+            Entry::Occupied(entry) => {
+                let node = *entry.get();
+                let alternatives = &mut self.nodes[node.index()].alternatives;
+                let alternative_was_new = !alternatives.contains(&alternative);
+                if alternative_was_new {
+                    alternatives.push(alternative);
+                }
+                InternResult {
+                    node,
+                    node_was_new: false,
+                    alternative_was_new,
+                }
             }
-            return InternResult {
-                node,
-                node_was_new: false,
-                alternative_was_new,
-            };
-        }
-
-        let node = NodeId(self.nodes.len());
-        self.node_ids.insert(key.clone(), node);
-        self.nodes.push(ForestNode {
-            key,
-            alternatives: vec![alternative],
-        });
-        InternResult {
-            node,
-            node_was_new: true,
-            alternative_was_new: true,
+            Entry::Vacant(entry) => {
+                let key = entry.key().clone();
+                let node = NodeId(self.nodes.len());
+                entry.insert(node);
+                self.nodes.push(ForestNode {
+                    key,
+                    alternatives: vec![alternative],
+                });
+                InternResult {
+                    node,
+                    node_was_new: true,
+                    alternative_was_new: true,
+                }
+            }
         }
     }
 

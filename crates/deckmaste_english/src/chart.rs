@@ -1,7 +1,9 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::hash::Hash;
+
+use hashbrown::HashMap;
+use hashbrown::hash_map::Entry;
 
 use crate::forest::NodeId;
 use crate::forest::NodeKey;
@@ -146,14 +148,12 @@ struct ItemKey<F> {
 #[derive(Debug, Clone)]
 struct ChartColumn<F> {
     seen: HashMap<ItemKey<F>, Option<NodeId>>,
-    items: Vec<ItemKey<F>>,
 }
 
 impl<F> Default for ChartColumn<F> {
     fn default() -> Self {
         Self {
             seen: HashMap::new(),
-            items: Vec::new(),
         }
     }
 }
@@ -480,9 +480,8 @@ fn enqueue<F>(
 ) where
     F: Clone + Eq + Hash,
 {
-    if !chart[position].seen.contains_key(&item) {
-        chart[position].seen.insert(item.clone(), intermediate);
-        chart[position].items.push(item.clone());
+    if let Entry::Vacant(entry) = chart[position].seen.entry(item.clone()) {
+        entry.insert(intermediate);
         agenda.push_back((position, item));
     }
 }
