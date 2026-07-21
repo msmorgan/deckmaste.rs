@@ -79,6 +79,11 @@ pub(crate) struct Child<'a, G>
 where
     G: Grammar + ?Sized,
 {
+    #[allow(
+        dead_code,
+        reason = "typed English meaning reducers consume child identity during migration"
+    )]
+    pub(crate) node: NodeId,
     #[cfg(test)]
     pub(crate) symbol: &'a ForestSymbol<G::Nonterminal, G::LexicalSlot>,
     pub(crate) features: &'a G::Features,
@@ -309,6 +314,7 @@ where
                 .map(|&child| {
                     let node = self.forest.node(child);
                     Child {
+                        node: child,
                         #[cfg(test)]
                         symbol: &node.key.symbol,
                         features: &node.key.features,
@@ -564,6 +570,7 @@ mod tests {
         rules: Vec<Rule<N, L>>,
         rules_by_lhs: HashMap<N, Vec<RuleId>>,
         scans: RefCell<HashMap<(L, usize), usize>>,
+        reduced_children: RefCell<Vec<NodeId>>,
     }
 
     impl TestGrammar {
@@ -601,6 +608,7 @@ mod tests {
                 rules,
                 rules_by_lhs,
                 scans: RefCell::new(HashMap::new()),
+                reduced_children: RefCell::new(Vec::new()),
             }
         }
     }
@@ -673,6 +681,7 @@ mod tests {
         ) -> Option<Reduction<Self::Features, Self::Meaning>> {
             if let Some(first) = children.first() {
                 let _ = (first.symbol, first.features);
+                self.reduced_children.borrow_mut().push(first.node);
             }
             let meaning = match rule.index() {
                 0..=3 => Meaning::List,
@@ -708,6 +717,15 @@ mod tests {
             partials.materialize(sibling),
             vec![first_child, sibling_child]
         );
+    }
+
+    #[test]
+    fn child_node_identity_is_available_to_reducers() {
+        let grammar = TestGrammar::new();
+
+        parse_chart(&grammar, &["a"]).expect("the artificial grammar parses one atom");
+
+        assert!(!grammar.reduced_children.borrow().is_empty());
     }
 
     #[test]
