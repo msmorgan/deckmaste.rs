@@ -38,6 +38,7 @@
 //! comma-legend's abbreviated name and `~~` its full name.
 
 mod ast;
+pub mod catalog;
 mod catalogs;
 #[cfg(test)]
 mod chart;

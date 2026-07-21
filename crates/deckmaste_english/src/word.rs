@@ -2,6 +2,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use crate::catalog::CatalogAtom;
+use crate::catalog::KeywordAction;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Person {
     Second,
@@ -45,6 +48,7 @@ pub struct PronounInstance {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Noun {
     Word(Vocab),
+    Catalog(CatalogAtom),
     Gerund(Verb),
 }
 
@@ -82,6 +86,7 @@ pub struct NounDefinition {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Verb {
     Word(Vocab),
+    KeywordAction(KeywordAction),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -203,6 +208,7 @@ pub enum Adjective {
     Word(Vocab),
     Color(ColorWord),
     Participle(Tense, Verb),
+    Catalog(CatalogAtom),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -770,6 +776,16 @@ impl Vocabulary {
         })
     }
 
+    pub(crate) fn exceptional_catalog_noun(canonical: &str) -> Option<Vocab> {
+        Vocab::ALL.iter().copied().find(|vocab| {
+            let definition = vocab.definition();
+            definition
+                .noun
+                .is_some_and(|(declension, _)| declension != NounDeclension::Regular)
+                && definition.spelling.eq_ignore_ascii_case(canonical)
+        })
+    }
+
     #[must_use]
     pub fn render_noun(self, noun: &NounInstance) -> Option<String> {
         let (noun, form) = match noun {
@@ -780,6 +796,11 @@ impl Vocabulary {
 
         match noun {
             Noun::Word(vocab) => Self::render_vocab_noun(*vocab, form),
+            Noun::Catalog(atom) => match form {
+                NounSurface::Singular => Some(atom.render_noun(false)),
+                NounSurface::Plural => Some(atom.render_noun(true)),
+                NounSurface::Mass => None,
+            },
             Noun::Gerund(verb) => {
                 let present_participle =
                     self.render_verb_identity(verb, VerbSlot::PresentParticiple)?;
@@ -799,6 +820,11 @@ impl Vocabulary {
     }
 
     #[must_use]
+    pub fn render_verb_instance(self, verb: &VerbInstance) -> Option<String> {
+        self.render_verb_identity(&verb.verb, verb.slot)
+    }
+
+    #[must_use]
     pub fn render_adjective(self, adjective: &Adjective) -> Option<String> {
         match adjective {
             Adjective::Word(vocab) => vocab
@@ -812,6 +838,7 @@ impl Vocabulary {
             Adjective::Participle(Tense::Past, verb) => {
                 self.render_verb_identity(verb, VerbSlot::PastParticiple)
             }
+            Adjective::Catalog(atom) => Some(atom.render_adjective()),
         }
     }
 
@@ -832,6 +859,7 @@ impl Vocabulary {
     fn render_verb_identity(self, verb: &Verb, slot: VerbSlot) -> Option<String> {
         match verb {
             Verb::Word(vocab) => self.render_verb(*vocab, slot),
+            Verb::KeywordAction(action) => action.render(slot),
         }
     }
 }
@@ -1401,7 +1429,7 @@ fn render_noun_form(lemma: &str, declension: NounDeclension, form: NounSurface) 
     }
 }
 
-fn regular_plural(word: &str) -> String {
+pub(crate) fn regular_plural(word: &str) -> String {
     if let Some(stem) = consonant_y_stem(word) {
         format!("{stem}ies")
     } else if has_sibilant_ending(word) {
