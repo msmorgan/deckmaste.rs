@@ -10,6 +10,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
+use deckmaste_english_ast::CatalogKind;
 use deckmaste_english_ast::Catalogs;
 use deckmaste_english_ast::normalize_self_references;
 use deckmaste_english_ast::parse_with_catalogs;
@@ -93,7 +94,28 @@ fn load_catalogs(path: &Path) -> Result<Catalogs> {
         load_catalog(path, "keyword-abilities")?,
         load_catalog(path, "keyword-actions")?,
         load_catalog(path, "ability-words")?,
-    ))
+    )
+    .with_catalog(
+        CatalogKind::ArtifactType,
+        load_catalog(path, "artifact-types")?,
+    )
+    .with_catalog(CatalogKind::BattleType, load_catalog(path, "battle-types")?)
+    .with_catalog(
+        CatalogKind::CreatureType,
+        load_catalog(path, "creature-types")?,
+    )
+    .with_catalog(
+        CatalogKind::EnchantmentType,
+        load_catalog(path, "enchantment-types")?,
+    )
+    .with_catalog(CatalogKind::LandType, load_catalog(path, "land-types")?)
+    .with_catalog(
+        CatalogKind::PlaneswalkerType,
+        load_catalog(path, "planeswalker-types")?,
+    )
+    .with_catalog(CatalogKind::SpellType, load_catalog(path, "spell-types")?)
+    .with_catalog(CatalogKind::Supertype, load_catalog(path, "supertypes")?)
+    .with_catalog(CatalogKind::CardType, load_catalog(path, "card-types")?))
 }
 
 fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {

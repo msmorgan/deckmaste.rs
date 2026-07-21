@@ -14,9 +14,10 @@
 //!
 //! [`parse_with_catalogs`] accepts current Scryfall catalog values without
 //! coupling this crate to a particular data directory or downloader. It uses
-//! them to recognize keyword-ability lines, keyword-action predicates, and
-//! ability-word labels. The simpler [`parse`] entry point remains available
-//! when catalog data is not present.
+//! them to recognize keyword-ability lines, keyword-action predicates,
+//! ability-word labels, card types, supertypes, and category-specific
+//! subtypes. The simpler [`parse`] entry point remains available when catalog
+//! data is not present.
 //!
 //! To inspect a card from the repository's local data snapshot, run:
 //!
@@ -46,6 +47,7 @@ mod span;
 pub use ast::Ability;
 pub use ast::AbilityKind;
 pub use ast::ActivatedAbility;
+pub use ast::CatalogKind;
 pub use ast::Clause;
 pub use ast::ConditionalClause;
 pub use ast::ConditionalPosition;

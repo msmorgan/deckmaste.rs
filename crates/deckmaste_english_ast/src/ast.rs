@@ -248,12 +248,19 @@ pub struct Predicate {
     pub negated: bool,
 }
 
-/// A phrase that has not yet been assigned a more specific English syntactic
-/// role. Unknown phrases remain whole instead of pretending their lexical
-/// tokens are meaningful phrase structure.
+/// A leaf phrase in the shallow English syntax tree.
+///
+/// Exact Scryfall catalog matches carry their canonical spelling and catalog
+/// kind. Other phrases remain whole instead of pretending their lexical tokens
+/// are meaningful phrase structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Phrase {
     UnknownPhrase(String),
+    CatalogTerm {
+        text: String,
+        canonical: String,
+        kind: CatalogKind,
+    },
     EmbeddedRulesPhrase {
         text: String,
         embedded_rules: Vec<EmbeddedRules>,
@@ -264,17 +271,37 @@ impl Phrase {
     #[must_use]
     pub fn text(&self) -> &str {
         match self {
-            Self::UnknownPhrase(text) | Self::EmbeddedRulesPhrase { text, .. } => text,
+            Self::UnknownPhrase(text)
+            | Self::CatalogTerm { text, .. }
+            | Self::EmbeddedRulesPhrase { text, .. } => text,
         }
     }
 
     #[must_use]
     pub fn embedded_rules(&self) -> &[EmbeddedRules] {
         match self {
-            Self::UnknownPhrase(_) => &[],
+            Self::UnknownPhrase(_) | Self::CatalogTerm { .. } => &[],
             Self::EmbeddedRulesPhrase { embedded_rules, .. } => embedded_rules,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CatalogKind {
+    KeywordAbility,
+    KeywordAction,
+    AbilityWord,
+    ArtifactType,
+    BattleType,
+    CreatureType,
+    EnchantmentType,
+    LandType,
+    PlaneswalkerType,
+    SpellType,
+    /// A lowercase adjective in Oracle text, such as `legendary` or `snow`.
+    Supertype,
+    /// A lowercase noun in Oracle text, such as `creature` or `instant`.
+    CardType,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

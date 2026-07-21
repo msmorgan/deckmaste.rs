@@ -498,7 +498,7 @@ impl Parser<'_, '_> {
     }
 
     fn phrase(&self, span: Span, embedded_rules: Vec<EmbeddedRules>) -> Phrase {
-        structured_phrase(self.source, span, embedded_rules)
+        structured_phrase(self.source, span, embedded_rules, self.catalogs)
     }
 
     fn text(&self, span: Span) -> &str {
@@ -702,11 +702,11 @@ fn keyword_ability_list(
         let end = next.map_or(span.end, |(delimiter, _)| delimiter);
         let item_span = trim_span(source, Span::new(remaining.start, end));
         let argument = keyword_argument(source, Span::new(name_span.end, item_span.end))
-            .map(|argument| structured_phrase(source, argument, Vec::new()));
+            .map(|argument| structured_phrase(source, argument, Vec::new(), Some(catalogs)));
         abilities.push(KeywordAbility {
             span: item_span,
             name: name.to_owned(),
-            printed_name: structured_phrase(source, name_span, Vec::new()),
+            printed_name: structured_phrase(source, name_span, Vec::new(), Some(catalogs)),
             argument,
         });
 
@@ -946,7 +946,12 @@ fn split_top_level(source: &str, span: Span, delimiter: &str) -> Vec<Span> {
     parts
 }
 
-fn structured_phrase(source: &str, span: Span, embedded_rules: Vec<EmbeddedRules>) -> Phrase {
+fn structured_phrase(
+    source: &str,
+    span: Span,
+    embedded_rules: Vec<EmbeddedRules>,
+    catalogs: Option<&Catalogs>,
+) -> Phrase {
     let reminders = reminder_text(source, span);
     let mut text = String::new();
     let mut cursor = span.start;
@@ -959,13 +964,20 @@ fn structured_phrase(source: &str, span: Span, embedded_rules: Vec<EmbeddedRules
     text.push_str(&source[cursor..span.end]);
     let text = text.trim().to_owned();
 
-    if embedded_rules.is_empty() {
-        Phrase::UnknownPhrase(text)
-    } else {
+    if !embedded_rules.is_empty() {
         Phrase::EmbeddedRulesPhrase {
             text,
             embedded_rules,
         }
+    } else if let Some((kind, canonical)) = catalogs.and_then(|catalogs| catalogs.exact_term(&text))
+    {
+        Phrase::CatalogTerm {
+            text,
+            canonical: canonical.to_owned(),
+            kind,
+        }
+    } else {
+        Phrase::UnknownPhrase(text)
     }
 }
 
@@ -1336,6 +1348,7 @@ fn is_imperative(word: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::CatalogKind;
 
     fn text(source: &str, span: Span) -> &str {
         span.text(source).unwrap()
@@ -1562,6 +1575,38 @@ mod tests {
         assert_eq!(
             phrase_text(source, coordinated.predicate.complement.as_ref().unwrap()),
             "haste"
+        );
+    }
+
+    #[test]
+    fn exact_catalog_terms_are_recognized_outside_ability_position() {
+        let source = "Other Goblin creatures you control get +1/+1 and have haste.";
+        let catalogs = Catalogs::new(
+            ["Haste"],
+            std::iter::empty::<&str>(),
+            std::iter::empty::<&str>(),
+        )
+        .with_catalog(CatalogKind::CreatureType, ["Goblin"])
+        .with_catalog(CatalogKind::CardType, ["Creature"]);
+        let ast = parse_with_catalogs(source, &catalogs);
+        let AbilityKind::Paragraph(paragraph) = &ast.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+
+        assert_eq!(
+            clause.coordinated_predicates[0].predicate.complement,
+            Some(Phrase::CatalogTerm {
+                text: "haste".to_owned(),
+                canonical: "Haste".to_owned(),
+                kind: CatalogKind::KeywordAbility,
+            })
+        );
+        assert_eq!(
+            clause.subject,
+            Some(Phrase::UnknownPhrase(
+                "Other Goblin creatures you control".to_owned()
+            ))
         );
     }
 

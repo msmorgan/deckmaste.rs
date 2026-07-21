@@ -1,3 +1,5 @@
+use crate::CatalogKind;
+
 /// The English-language Scryfall catalogs used as lexical knowledge by the
 /// parser.
 ///
@@ -10,6 +12,15 @@ pub struct Catalogs {
     keyword_abilities: Vec<String>,
     keyword_actions: Vec<String>,
     ability_words: Vec<String>,
+    artifact_types: Vec<String>,
+    battle_types: Vec<String>,
+    creature_types: Vec<String>,
+    enchantment_types: Vec<String>,
+    land_types: Vec<String>,
+    planeswalker_types: Vec<String>,
+    spell_types: Vec<String>,
+    supertypes: Vec<String>,
+    card_types: Vec<String>,
 }
 
 impl Catalogs {
@@ -24,7 +35,33 @@ impl Catalogs {
             keyword_abilities: sorted_longest_first(keyword_abilities),
             keyword_actions: sorted_longest_first(keyword_actions),
             ability_words: sorted_longest_first(ability_words),
+            ..Self::default()
         }
+    }
+
+    /// Replaces one lexical catalog and returns the updated collection.
+    #[must_use]
+    pub fn with_catalog(
+        mut self,
+        kind: CatalogKind,
+        values: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        let catalog = match kind {
+            CatalogKind::KeywordAbility => &mut self.keyword_abilities,
+            CatalogKind::KeywordAction => &mut self.keyword_actions,
+            CatalogKind::AbilityWord => &mut self.ability_words,
+            CatalogKind::ArtifactType => &mut self.artifact_types,
+            CatalogKind::BattleType => &mut self.battle_types,
+            CatalogKind::CreatureType => &mut self.creature_types,
+            CatalogKind::EnchantmentType => &mut self.enchantment_types,
+            CatalogKind::LandType => &mut self.land_types,
+            CatalogKind::PlaneswalkerType => &mut self.planeswalker_types,
+            CatalogKind::SpellType => &mut self.spell_types,
+            CatalogKind::Supertype => &mut self.supertypes,
+            CatalogKind::CardType => &mut self.card_types,
+        };
+        *catalog = sorted_longest_first(values);
+        self
     }
 
     pub(crate) fn keyword_ability_prefix<'catalog>(
@@ -46,6 +83,64 @@ impl Catalogs {
             .iter()
             .any(|entry| entry.eq_ignore_ascii_case(text))
     }
+
+    pub(crate) fn exact_term(&self, text: &str) -> Option<(CatalogKind, &str)> {
+        exact(&self.keyword_abilities, text)
+            .map(|canonical| (CatalogKind::KeywordAbility, canonical))
+            .or_else(|| {
+                exact(&self.keyword_actions, text)
+                    .map(|canonical| (CatalogKind::KeywordAction, canonical))
+            })
+            .or_else(|| {
+                exact(&self.ability_words, text)
+                    .map(|canonical| (CatalogKind::AbilityWord, canonical))
+            })
+            .or_else(|| exact_subtype(&self.artifact_types, text, CatalogKind::ArtifactType))
+            .or_else(|| exact_subtype(&self.battle_types, text, CatalogKind::BattleType))
+            .or_else(|| exact_subtype(&self.creature_types, text, CatalogKind::CreatureType))
+            .or_else(|| exact_subtype(&self.enchantment_types, text, CatalogKind::EnchantmentType))
+            .or_else(|| exact_subtype(&self.land_types, text, CatalogKind::LandType))
+            .or_else(|| {
+                exact_subtype(
+                    &self.planeswalker_types,
+                    text,
+                    CatalogKind::PlaneswalkerType,
+                )
+            })
+            .or_else(|| exact_subtype(&self.spell_types, text, CatalogKind::SpellType))
+            .or_else(|| exact_lowercase(&self.supertypes, text, CatalogKind::Supertype))
+            .or_else(|| exact_lowercase(&self.card_types, text, CatalogKind::CardType))
+    }
+}
+
+fn exact_subtype<'catalog>(
+    catalog: &'catalog [String],
+    text: &str,
+    kind: CatalogKind,
+) -> Option<(CatalogKind, &'catalog str)> {
+    catalog
+        .iter()
+        .find(|entry| entry.as_str() == text)
+        .map(|canonical| (kind, canonical.as_str()))
+}
+
+fn exact_lowercase<'catalog>(
+    catalog: &'catalog [String],
+    text: &str,
+    kind: CatalogKind,
+) -> Option<(CatalogKind, &'catalog str)> {
+    text.chars()
+        .all(|character| !character.is_uppercase())
+        .then(|| exact(catalog, text))
+        .flatten()
+        .map(|canonical| (kind, canonical))
+}
+
+fn exact<'catalog>(catalog: &'catalog [String], text: &str) -> Option<&'catalog str> {
+    catalog
+        .iter()
+        .find(|entry| entry.eq_ignore_ascii_case(text))
+        .map(String::as_str)
 }
 
 fn sorted_longest_first(values: impl IntoIterator<Item = impl Into<String>>) -> Vec<String> {
@@ -88,5 +183,38 @@ mod tests {
         );
         assert_eq!(catalogs.keyword_action_prefix("Manifestation"), None);
         assert!(catalogs.is_ability_word("LANDFALL"));
+        assert_eq!(
+            catalogs.exact_term("manifest DREAD"),
+            Some((CatalogKind::KeywordAction, "Manifest dread"))
+        );
+    }
+
+    #[test]
+    fn specific_subtype_catalogs_take_precedence_over_broad_type_catalogs() {
+        let catalogs = Catalogs::default()
+            .with_catalog(CatalogKind::ArtifactType, ["Clue"])
+            .with_catalog(CatalogKind::CreatureType, ["Hero"])
+            .with_catalog(CatalogKind::LandType, ["Forest"])
+            .with_catalog(CatalogKind::Supertype, ["Legendary"])
+            .with_catalog(CatalogKind::CardType, ["Hero", "Creature"]);
+
+        assert_eq!(
+            catalogs.exact_term("Hero"),
+            Some((CatalogKind::CreatureType, "Hero"))
+        );
+        assert_eq!(
+            catalogs.exact_term("legendary"),
+            Some((CatalogKind::Supertype, "Legendary"))
+        );
+        assert_eq!(
+            catalogs.exact_term("hero"),
+            Some((CatalogKind::CardType, "Hero"))
+        );
+        assert_eq!(
+            catalogs.exact_term("creature"),
+            Some((CatalogKind::CardType, "Creature"))
+        );
+        assert_eq!(catalogs.exact_term("LEGENDARY"), None);
+        assert_eq!(catalogs.exact_term("Creature"), None);
     }
 }

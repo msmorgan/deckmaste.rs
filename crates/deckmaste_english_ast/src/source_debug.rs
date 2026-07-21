@@ -422,6 +422,16 @@ impl ResolvedDebug for Phrase {
             Self::UnknownPhrase(text) => {
                 formatter.debug_tuple("UnknownPhrase").field(text).finish()
             }
+            Self::CatalogTerm {
+                text,
+                canonical,
+                kind,
+            } => formatter
+                .debug_struct("CatalogTerm")
+                .field("text", text)
+                .field("canonical", canonical)
+                .field("kind", kind)
+                .finish(),
             Self::EmbeddedRulesPhrase {
                 text,
                 embedded_rules,
@@ -520,5 +530,25 @@ mod tests {
         assert!(!output.contains("Punctuation"));
         assert!(!output.contains("conjunction_span"));
         assert!(!output.contains("Span"));
+    }
+
+    #[test]
+    fn source_debug_shows_catalog_kind_and_canonical_spelling() {
+        let source = "Creatures you control have haste.";
+        let catalogs = Catalogs::new(
+            ["Haste"],
+            std::iter::empty::<&str>(),
+            std::iter::empty::<&str>(),
+        );
+
+        let output = format!(
+            "{:#?}",
+            parse_with_catalogs(source, &catalogs).source_debug(source)
+        );
+
+        assert!(output.contains("CatalogTerm"));
+        assert!(output.contains("text: \"haste\""));
+        assert!(output.contains("canonical: \"Haste\""));
+        assert!(output.contains("kind: KeywordAbility"));
     }
 }
