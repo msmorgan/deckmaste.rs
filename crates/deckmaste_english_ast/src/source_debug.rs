@@ -190,8 +190,7 @@ impl ResolvedDebug for KeywordAbility {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("KeywordAbility")
-            .field("text", &Resolved::new(source, &self.span))
-            .field("name", &Resolved::new(source, &self.name))
+            .field("name", &self.name)
             .field("argument", &Resolved::new(source, &self.argument))
             .finish()
     }
@@ -368,7 +367,9 @@ impl ResolvedDebug for Diagnostic {
 
 #[cfg(test)]
 mod tests {
+    use crate::Catalogs;
     use crate::parse;
+    use crate::parse_with_catalogs;
 
     #[test]
     fn source_debug_resolves_syntactic_spans_to_their_text() {
@@ -386,5 +387,25 @@ mod tests {
         assert!(!output.contains("Span"));
         assert!(!output.contains("start:"));
         assert!(!output.contains("end:"));
+    }
+
+    #[test]
+    fn source_debug_uses_canonical_keyword_names_without_repeating_item_text() {
+        let source = "Flying, deathtouch";
+        let catalogs = Catalogs::new(
+            ["Flying", "Deathtouch"],
+            std::iter::empty::<&str>(),
+            std::iter::empty::<&str>(),
+        );
+
+        let output = format!(
+            "{:#?}",
+            parse_with_catalogs(source, &catalogs).source_debug(source)
+        );
+
+        assert!(output.contains("name: \"Flying\""));
+        assert!(output.contains("name: \"Deathtouch\""));
+        assert!(!output.contains("name: \"deathtouch\""));
+        assert!(!output.contains("printed_name:"));
     }
 }

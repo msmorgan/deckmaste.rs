@@ -62,8 +62,10 @@ pub struct KeywordAbilityList {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeywordAbility {
     pub span: Span,
-    /// The catalog-recognized keyword name, preserving its printed casing.
-    pub name: Span,
+    /// The canonical keyword name from the Scryfall catalog.
+    pub name: String,
+    /// The keyword name as printed in the source, including its original case.
+    pub printed_name: Span,
     /// Printed parameters, alternative costs, or reminder text following the
     /// keyword name. Separating their grammar is left to a later AST pass.
     pub argument: Option<Span>,

@@ -511,7 +511,8 @@ fn keyword_ability_list(
         let argument = keyword_argument(source, Span::new(name_span.end, item_span.end));
         abilities.push(KeywordAbility {
             span: item_span,
-            name: name_span,
+            name: name.to_owned(),
+            printed_name: name_span,
             argument,
         });
 
@@ -1170,9 +1171,11 @@ mod tests {
             panic!("expected a keyword-ability list")
         };
         assert_eq!(keyword_list.abilities.len(), 3);
+        assert_eq!(keyword_list.abilities[0].name, "Flying");
+        assert_eq!(keyword_list.abilities[1].name, "First strike");
         assert_eq!(
-            text(keyword_source, keyword_list.abilities[0].name),
-            "Flying"
+            text(keyword_source, keyword_list.abilities[1].printed_name),
+            "first strike"
         );
         assert_eq!(
             text(keyword_source, keyword_list.abilities[2].argument.unwrap()),
