@@ -39,24 +39,24 @@ use crate::ui::board::Zone;
 /// A human-readable name for a turn phase/step (the header otherwise shows the
 /// `Debug` form, e.g. `Beginning(Upkeep)`).
 fn phase_name(phase: deckmaste_core::PhaseStep) -> &'static str {
-    use deckmaste_core::BeginningStep as B;
-    use deckmaste_core::CombatStep as C;
-    use deckmaste_core::EndingStep as E;
-    use deckmaste_core::PhaseStep as P;
+    use deckmaste_core::BeginningStep as Bs;
+    use deckmaste_core::CombatStep as Cs;
+    use deckmaste_core::EndingStep as Es;
+    use deckmaste_core::PhaseStep as Ps;
     match phase {
-        P::Beginning(B::Untap) => "Untap",
-        P::Beginning(B::Upkeep) => "Upkeep",
-        P::Beginning(B::Draw) => "Draw",
-        P::PrecombatMain => "Main 1",
-        P::Combat(C::BeginningOfCombat) => "Begin Combat",
-        P::Combat(C::DeclareAttackers) => "Declare Attackers",
-        P::Combat(C::DeclareBlockers) => "Declare Blockers",
-        P::Combat(C::FirstCombatDamage) => "First-Strike Damage",
-        P::Combat(C::CombatDamage) => "Combat Damage",
-        P::Combat(C::EndOfCombat) => "End Combat",
-        P::PostcombatMain => "Main 2",
-        P::Ending(E::End) => "End Step",
-        P::Ending(E::Cleanup) => "Cleanup",
+        Ps::Beginning(Bs::Untap) => "Untap",
+        Ps::Beginning(Bs::Upkeep) => "Upkeep",
+        Ps::Beginning(Bs::Draw) => "Draw",
+        Ps::PrecombatMain => "Main 1",
+        Ps::Combat(Cs::BeginningOfCombat) => "Begin Combat",
+        Ps::Combat(Cs::DeclareAttackers) => "Declare Attackers",
+        Ps::Combat(Cs::DeclareBlockers) => "Declare Blockers",
+        Ps::Combat(Cs::FirstCombatDamage) => "First-Strike Damage",
+        Ps::Combat(Cs::CombatDamage) => "Combat Damage",
+        Ps::Combat(Cs::EndOfCombat) => "End Combat",
+        Ps::PostcombatMain => "Main 2",
+        Ps::Ending(Es::End) => "End Step",
+        Ps::Ending(Es::Cleanup) => "Cleanup",
     }
 }
 

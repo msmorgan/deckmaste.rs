@@ -629,17 +629,17 @@ fn reference_as_predicate(r: &Reference) -> R {
 fn emit_filter(f: &Predicate) -> R {
     Ok(match f {
         Predicate::Kind(k) => {
-            use deckmaste_core::ObjectKind as K;
+            use deckmaste_core::ObjectKind as Ok;
             match k {
-                K::Ability => "(IsKind Ability)".to_string(),
-                K::Card => "(IsKind Card)".to_string(),
-                K::Emblem => "(IsKind Emblem)".to_string(),
-                K::Spell => "(IsKind Spell)".to_string(),
-                K::Token => "(IsKind Token)".to_string(),
+                Ok::Ability => "(IsKind Ability)".to_string(),
+                Ok::Card => "(IsKind Card)".to_string(),
+                Ok::Emblem => "(IsKind Emblem)".to_string(),
+                Ok::Spell => "(IsKind Spell)".to_string(),
+                Ok::Token => "(IsKind Token)".to_string(),
                 // Idris `ObjectKind` has no `Player` member (a player test is
                 // the top player-predicate, not an object kind).
-                K::Player => "Anyone".to_string(),
-                K::CardCopy => {
+                Ok::Player => "Anyone".to_string(),
+                Ok::CardCopy => {
                     return Err(gap(
                         "ObjectKind::CardCopy has no Idris ObjectKind counterpart",
                     ));
@@ -938,17 +938,17 @@ fn emit_condition(c: &Condition) -> R {
 }
 
 fn emit_phase_step(p: PhaseStep) -> R {
-    use deckmaste_core::BeginningStep as B;
-    use deckmaste_core::CombatStep as C;
-    use deckmaste_core::EndingStep as E;
+    use deckmaste_core::BeginningStep as Bs;
+    use deckmaste_core::CombatStep as Cs;
+    use deckmaste_core::EndingStep as Es;
     Ok(match p {
         PhaseStep::Beginning(b) => app(
             "BeginningPhase",
             vec![
                 match b {
-                    B::Untap => "UntapStep",
-                    B::Upkeep => "UpkeepStep",
-                    B::Draw => "DrawStep",
+                    Bs::Untap => "UntapStep",
+                    Bs::Upkeep => "UpkeepStep",
+                    Bs::Draw => "DrawStep",
                 }
                 .to_string(),
             ]
@@ -960,12 +960,12 @@ fn emit_phase_step(p: PhaseStep) -> R {
             "CombatPhase",
             vec![
                 match c {
-                    C::BeginningOfCombat => "BeginningOfCombatStep",
-                    C::DeclareAttackers => "DeclareAttackersStep",
-                    C::DeclareBlockers => "DeclareBlockersStep",
-                    C::FirstCombatDamage => "FirstCombatDamageStep",
-                    C::CombatDamage => "CombatDamageStep",
-                    C::EndOfCombat => "EndOfCombatStep",
+                    Cs::BeginningOfCombat => "BeginningOfCombatStep",
+                    Cs::DeclareAttackers => "DeclareAttackersStep",
+                    Cs::DeclareBlockers => "DeclareBlockersStep",
+                    Cs::FirstCombatDamage => "FirstCombatDamageStep",
+                    Cs::CombatDamage => "CombatDamageStep",
+                    Cs::EndOfCombat => "EndOfCombatStep",
                 }
                 .to_string(),
             ]
@@ -975,8 +975,8 @@ fn emit_phase_step(p: PhaseStep) -> R {
             "EndingPhase",
             vec![
                 match e {
-                    E::End => "EndStep",
-                    E::Cleanup => "CleanupStep",
+                    Es::End => "EndStep",
+                    Es::Cleanup => "CleanupStep",
                 }
                 .to_string(),
             ]

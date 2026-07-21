@@ -692,10 +692,10 @@ fn hand_owner_ref(filter: &crate::Predicate) -> Option<&Reference> {
 /// discard is.
 #[must_use]
 pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
-    use crate::OneShotEffect as E;
+    use crate::OneShotEffect as Ose;
     match body {
-        E::Expanded(e) => discard_body_what(&e.value),
-        E::Act(Action::Move(what, Destination::Zone(_), _, _)) => Some(what),
+        Ose::Expanded(e) => discard_body_what(&e.value),
+        Ose::Act(Action::Move(what, Destination::Zone(_), _, _)) => Some(what),
         _ => None,
     }
 }
@@ -707,10 +707,10 @@ pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
 /// [`discard_body_what`].
 #[must_use]
 pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
-    use crate::OneShotEffect as E;
+    use crate::OneShotEffect as Ose;
     match body {
-        E::Expanded(e) => discard_body_random(&e.value),
-        E::With(with) => {
+        Ose::Expanded(e) => discard_body_random(&e.value),
+        Ose::With(with) => {
             matches!(&with.binder, crate::Binder::Existing(Selection::Random(..)))
         }
         _ => false,
@@ -726,10 +726,10 @@ pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
 /// atom.
 #[must_use]
 pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
-    use crate::OneShotEffect as E;
+    use crate::OneShotEffect as Ose;
     match body {
-        E::Expanded(e) => discard_body_count(&e.value),
-        E::With(with) => match &with.binder {
+        Ose::Expanded(e) => discard_body_count(&e.value),
+        Ose::With(with) => match &with.binder {
             crate::Binder::Choose { quantity, .. }
             | crate::Binder::Existing(Selection::Random(quantity, _)) => quantity.bounds().1,
             _ => None,
@@ -748,10 +748,10 @@ pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
 /// engine's resolve lane, the renderer, and the Idris emitter.
 #[must_use]
 pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
-    use crate::OneShotEffect as E;
+    use crate::OneShotEffect as Ose;
     match body {
-        E::Expanded(e) => discard_body_whose(&e.value),
-        E::With(with) => match &with.binder {
+        Ose::Expanded(e) => discard_body_whose(&e.value),
+        Ose::With(with) => match &with.binder {
             crate::Binder::Choose { by, .. } => Some(by),
             crate::Binder::Existing(Selection::Random(_, filter)) => hand_owner_ref(filter),
             _ => None,
@@ -768,14 +768,14 @@ pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
 #[must_use]
 pub fn fight_body_fighters(body: &crate::OneShotEffect) -> Option<(&Reference, &Reference)> {
     use crate::Action as A;
-    use crate::OneShotEffect as E;
+    use crate::OneShotEffect as Ose;
     match body {
-        E::Expanded(e) => fight_body_fighters(&e.value),
-        E::If(iff) => fight_body_fighters(&iff.then),
-        E::Simultaneously(parts) => match parts.as_ref() {
+        Ose::Expanded(e) => fight_body_fighters(&e.value),
+        Ose::If(iff) => fight_body_fighters(&iff.then),
+        Ose::Simultaneously(parts) => match parts.as_ref() {
             [
-                E::Act(A::DealDamage(a, _, _)),
-                E::Act(A::DealDamage(b, _, _)),
+                Ose::Act(A::DealDamage(a, _, _)),
+                Ose::Act(A::DealDamage(b, _, _)),
                 ..,
             ] => Some((a, b)),
             _ => None,

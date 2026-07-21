@@ -279,15 +279,15 @@ impl Predicate {
 impl Normalize for RelationPredicate {
     /// Recurse into the related-object filter each relation carries.
     fn normalize(self) -> Self {
-        use RelationPredicate as R;
+        use RelationPredicate as Rp;
         match self {
-            R::ControlledBy(f) => R::ControlledBy(f.normalize()),
-            R::Controls(f) => R::Controls(f.normalize()),
-            R::Owner(f) => R::Owner(f.normalize()),
-            R::OpponentOf(f) => R::OpponentOf(f.normalize()),
-            R::TeammateOf(f) => R::TeammateOf(f.normalize()),
-            R::AttachedTo(f) => R::AttachedTo(f.normalize()),
-            R::Attachment(f) => R::Attachment(f.normalize()),
+            Rp::ControlledBy(f) => Rp::ControlledBy(f.normalize()),
+            Rp::Controls(f) => Rp::Controls(f.normalize()),
+            Rp::Owner(f) => Rp::Owner(f.normalize()),
+            Rp::OpponentOf(f) => Rp::OpponentOf(f.normalize()),
+            Rp::TeammateOf(f) => Rp::TeammateOf(f.normalize()),
+            Rp::AttachedTo(f) => Rp::AttachedTo(f.normalize()),
+            Rp::Attachment(f) => Rp::Attachment(f.normalize()),
         }
     }
 }
@@ -296,10 +296,10 @@ impl Normalize for StatePredicate {
     /// Recurse into the inner filter the relation/target state atoms carry;
     /// every other state atom is a leaf for normalization.
     fn normalize(self) -> Self {
-        use StatePredicate as S;
+        use StatePredicate as Sp;
         match self {
-            S::RelatedBy(rel, f) => S::RelatedBy(rel, f.normalize()),
-            S::Targets(f) => S::Targets(f.normalize()),
+            Sp::RelatedBy(rel, f) => Sp::RelatedBy(rel, f.normalize()),
+            Sp::Targets(f) => Sp::Targets(f.normalize()),
             other => other,
         }
     }
