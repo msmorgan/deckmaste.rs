@@ -90,7 +90,8 @@ impl Numeral {
             Self::Arabic(false) => canonical(self, input, input.parse().ok()),
             Self::Arabic(true) => canonical(self, input, input.replace(',', "").parse().ok()),
             Self::Cardinal => canonical(self, input, parse_cardinal_candidate(input)),
-            Self::Ordinal | Self::Roman => Err(ParseNumeralError),
+            Self::Ordinal => canonical(self, input, parse_ordinal_candidate(input)),
+            Self::Roman => Err(ParseNumeralError),
         }
     }
 }
@@ -244,6 +245,45 @@ fn parse_cardinal_candidate(input: &str) -> Option<i32> {
     signed_magnitude(parse_cardinal_magnitude(magnitude)?, negative)
 }
 
+fn cardinalize_ordinal(input: &str) -> Option<String> {
+    let last_start = input.rfind([' ', '-']).map_or(0, |delimiter| delimiter + 1);
+    let (prefix, last) = input.split_at(last_start);
+    let cardinal = match last {
+        "first" => "one".to_owned(),
+        "second" => "two".to_owned(),
+        "third" => "three".to_owned(),
+        "fifth" => "five".to_owned(),
+        "eighth" => "eight".to_owned(),
+        "ninth" => "nine".to_owned(),
+        "twelfth" => "twelve".to_owned(),
+        _ => {
+            let (stem, ending) = last
+                .strip_suffix("ieth")
+                .map(|stem| (stem, "y"))
+                .or_else(|| last.strip_suffix("th").map(|stem| (stem, "")))?;
+            if stem.is_empty() {
+                return None;
+            }
+            format!("{stem}{ending}")
+        }
+    };
+    Some(format!("{prefix}{cardinal}"))
+}
+
+fn parse_ordinal_candidate(input: &str) -> Option<i32> {
+    match input {
+        "never" => Some(0),
+        "last" => Some(-1),
+        _ => {
+            let (ordinal, negative) = input
+                .strip_suffix(" to last")
+                .map_or((input, false), |ordinal| (ordinal, true));
+            let cardinal = cardinalize_ordinal(ordinal)?;
+            signed_magnitude(parse_cardinal_magnitude(&cardinal)?, negative)
+        }
+    }
+}
+
 fn format_ordinal(value: i32) -> String {
     if value == 0 {
         return "never".to_owned();
@@ -352,6 +392,12 @@ mod tests {
             let formatted = Numeral::Cardinal.format(value);
             prop_assert_eq!(Numeral::Cardinal.parse(&formatted), Ok(value));
         }
+
+        #[test]
+        fn ordinal_round_trips(value in any::<i32>()) {
+            let formatted = Numeral::Ordinal.format(value);
+            prop_assert_eq!(Numeral::Ordinal.parse(&formatted), Ok(value));
+        }
     }
 
     #[test]
@@ -390,6 +436,13 @@ mod tests {
         ] {
             assert_eq!(Numeral::Cardinal.format(value), input);
             assert_eq!(Numeral::Cardinal.parse(input), Ok(value));
+        }
+    }
+
+    #[test]
+    fn ordinal_parsing_rejects_noncanonical_forms() {
+        for input in ["zeroth", "first to last", "negative first", "twenty-oneth"] {
+            assert_eq!(Numeral::Ordinal.parse(input), Err(ParseNumeralError));
         }
     }
 
