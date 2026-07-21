@@ -60,6 +60,18 @@ pub enum Numeral {
     Roman,
 }
 
+/// An error returned when numeral text is invalid or noncanonical.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseNumeralError;
+
+impl std::fmt::Display for ParseNumeralError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("invalid or noncanonical numeral")
+    }
+}
+
+impl std::error::Error for ParseNumeralError {}
+
 impl Numeral {
     /// Formats `value` using this notation.
     #[must_use]
@@ -71,6 +83,25 @@ impl Numeral {
             Self::Roman => format_roman(value),
         }
     }
+
+    /// Parses an integer written using this notation.
+    pub fn parse(self, input: &str) -> Result<i32, ParseNumeralError> {
+        match self {
+            Self::Arabic(false) => canonical(self, input, input.parse().ok()),
+            Self::Arabic(true) => canonical(self, input, input.replace(',', "").parse().ok()),
+            Self::Cardinal | Self::Ordinal | Self::Roman => Err(ParseNumeralError),
+        }
+    }
+}
+
+fn canonical(
+    numeral: Numeral,
+    input: &str,
+    candidate: Option<i32>,
+) -> Result<i32, ParseNumeralError> {
+    candidate
+        .filter(|&value| numeral.format(value) == input)
+        .ok_or(ParseNumeralError)
 }
 
 fn format_cardinal(value: i32) -> String {
@@ -218,7 +249,31 @@ fn roman_magnitude(mut value: u32) -> String {
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
+
+    proptest! {
+        #[test]
+        fn arabic_round_trips(value in any::<i32>(), commas in any::<bool>()) {
+            let numeral = Numeral::Arabic(commas);
+            let formatted = numeral.format(value);
+            prop_assert_eq!(numeral.parse(&formatted), Ok(value));
+        }
+    }
+
+    #[test]
+    fn arabic_parsing_rejects_noncanonical_forms() {
+        for (numeral, input) in [
+            (Numeral::Arabic(true), "1000"),
+            (Numeral::Arabic(true), "1,00"),
+            (Numeral::Arabic(true), "01"),
+            (Numeral::Arabic(true), "+1"),
+            (Numeral::Arabic(false), "1,000"),
+        ] {
+            assert_eq!(numeral.parse(input), Err(ParseNumeralError));
+        }
+    }
 
     fn assert_formats(numeral: Numeral, cases: &[(i32, &str)]) {
         for &(value, expected) in cases {
