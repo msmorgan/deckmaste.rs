@@ -1,12 +1,15 @@
 use crate::Ability;
 use crate::AbilityKind;
 use crate::ActivatedAbility;
+use crate::Catalogs;
 use crate::Clause;
 use crate::ConditionalClause;
 use crate::ConditionalPosition;
 use crate::Cost;
 use crate::Diagnostic;
 use crate::DiagnosticKind;
+use crate::KeywordAbility;
+use crate::KeywordAbilityList;
 use crate::LoyaltyAbility;
 use crate::ModalAbility;
 use crate::ModalFrame;
@@ -22,6 +25,7 @@ use crate::Token;
 use crate::TokenKind;
 use crate::TriggerWord;
 use crate::TriggeredAbility;
+use crate::VerbKind;
 
 /// Parses one face's Oracle text without performing rules-semantic lowering.
 #[must_use]
@@ -29,19 +33,35 @@ pub fn parse(source: &str) -> OracleText {
     let (tokens, diagnostics) = lex(source);
     Parser {
         source,
+        catalogs: None,
         tokens,
         diagnostics,
     }
     .oracle_text()
 }
 
-struct Parser<'source> {
+/// Parses one face's Oracle text using the supplied Scryfall English catalogs
+/// to recognize keyword abilities, keyword actions, and ability words.
+#[must_use]
+pub fn parse_with_catalogs(source: &str, catalogs: &Catalogs) -> OracleText {
+    let (tokens, diagnostics) = lex(source);
+    Parser {
+        source,
+        catalogs: Some(catalogs),
+        tokens,
+        diagnostics,
+    }
+    .oracle_text()
+}
+
+struct Parser<'source, 'catalog> {
     source: &'source str,
+    catalogs: Option<&'catalog Catalogs>,
     tokens: Vec<Token>,
     diagnostics: Vec<Diagnostic>,
 }
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     fn oracle_text(mut self) -> OracleText {
         let lines = line_spans(self.source);
         let mut abilities = Vec::new();
@@ -53,7 +73,7 @@ impl Parser<'_> {
                     .get(line + 1)
                     .is_some_and(|next| mode_body(self.source, *next).is_some())
             {
-                let (ability_word, body) = split_ability_word(self.source, span);
+                let (ability_word, body) = split_ability_word(self.source, span, self.catalogs);
                 let frame = self.modal_frame(body, header_span);
                 let header = self.paragraph(header_span);
                 let mut modes = Vec::new();
@@ -126,13 +146,18 @@ impl Parser<'_> {
     }
 
     fn ability(&mut self, span: Span) -> Ability {
-        let (ability_word, body) = split_ability_word(self.source, span);
+        let (ability_word, body) = split_ability_word(self.source, span, self.catalogs);
         let text = self.text(body);
         let kind = if let Some((cost, effect)) = loyalty_parts(self.source, body) {
             AbilityKind::Loyalty(LoyaltyAbility {
                 cost,
                 effect: self.paragraph(effect),
             })
+        } else if let Some(keyword) = self
+            .catalogs
+            .and_then(|catalogs| keyword_ability_list(self.source, body, catalogs))
+        {
+            AbilityKind::Keyword(keyword)
         } else if let Some((introducer, introducer_span, rest)) = trigger_start(body, text) {
             if let Some(comma) = find_top_level(self.source, rest, ", ") {
                 let event = trim_span(self.source, Span::new(rest.start, comma));
@@ -265,21 +290,24 @@ impl Parser<'_> {
                     && matches!(token.kind, TokenKind::Word)
             })
             .collect();
-        let Some((predicate_word, auxiliary)) = predicate_word(self.source, &words) else {
+        let Some(predicate_match) = predicate_word(self.source, span, &words, self.catalogs) else {
             return SimpleClause {
                 span,
                 subject: None,
                 predicate: None,
             };
         };
-        let predicate_start = auxiliary.map_or(predicate_word.span.start, |token| token.span.start);
+        let predicate_start = predicate_match
+            .auxiliary
+            .map_or(predicate_match.verb.start, |span| span.start);
         let subject = trim_span(self.source, Span::new(span.start, predicate_start));
-        let complement = trim_span(self.source, Span::new(predicate_word.span.end, span.end));
-        let auxiliary_span = auxiliary.map(|token| token.span);
-        let negated = auxiliary.is_some_and(|token| is_negative(self.text(token.span)))
+        let complement = trim_span(self.source, Span::new(predicate_match.verb.end, span.end));
+        let negated = predicate_match
+            .auxiliary
+            .is_some_and(|auxiliary| is_negative(self.text(auxiliary)))
             || words.iter().any(|token| {
                 token.span.start >= predicate_start
-                    && token.span.start < predicate_word.span.start
+                    && token.span.start < predicate_match.verb.start
                     && self.text(token.span).eq_ignore_ascii_case("not")
             });
         SimpleClause {
@@ -287,8 +315,9 @@ impl Parser<'_> {
             subject: (!subject.is_empty()).then_some(subject),
             predicate: Some(Predicate {
                 span: Span::new(predicate_start, span.end),
-                auxiliary: auxiliary_span,
-                verb: predicate_word.span,
+                auxiliary: predicate_match.auxiliary,
+                verb: predicate_match.verb,
+                verb_kind: predicate_match.verb_kind,
                 complement: (!complement.is_empty()).then_some(complement),
                 negated,
             }),
@@ -432,19 +461,110 @@ fn trim_span(source: &str, span: Span) -> Span {
     Span::new(span.start + start_trim, span.end.saturating_sub(end_trim))
 }
 
-fn split_ability_word(source: &str, span: Span) -> (Option<Span>, Span) {
+fn split_ability_word(
+    source: &str,
+    span: Span,
+    catalogs: Option<&Catalogs>,
+) -> (Option<Span>, Span) {
     let Some(dash) = find_top_level(source, span, " — ") else {
         return (None, span);
     };
     let label = trim_span(source, Span::new(span.start, dash));
     let body = trim_span(source, Span::new(dash + " — ".len(), span.end));
     let label_text = label.text(source).unwrap_or_default();
-    let plausible = !label.is_empty()
-        && label.len() <= 40
-        && !label_text.contains([',', '.', ':', ';', '"'])
-        && label_text.chars().next().is_some_and(char::is_uppercase)
-        && !body.is_empty();
+    let plausible = catalogs.map_or_else(
+        || {
+            !label.is_empty()
+                && label.len() <= 40
+                && !label_text.contains([',', '.', ':', ';', '"'])
+                && label_text.chars().next().is_some_and(char::is_uppercase)
+                && !body.is_empty()
+        },
+        |catalogs| catalogs.is_ability_word(label_text) && !body.is_empty(),
+    );
     if plausible { (Some(label), body) } else { (None, span) }
+}
+
+fn keyword_ability_list(
+    source: &str,
+    span: Span,
+    catalogs: &Catalogs,
+) -> Option<KeywordAbilityList> {
+    let first_text = span.text(source)?;
+    let first_name = catalogs.keyword_ability_prefix(first_text)?;
+    let first_remainder = first_text[first_name.len()..].trim_start();
+    if !first_remainder.starts_with('—') && has_top_level_terminal(source, span) {
+        return None;
+    }
+
+    let mut abilities = Vec::new();
+    let mut start = span.start;
+
+    while start < span.end {
+        let remaining = trim_span(source, Span::new(start, span.end));
+        let text = remaining.text(source)?;
+        let name = catalogs.keyword_ability_prefix(text)?;
+        let name_span = Span::new(remaining.start, remaining.start + name.len());
+        let next = next_keyword_ability(source, name_span.end, span.end, catalogs);
+        let end = next.map_or(span.end, |(delimiter, _)| delimiter);
+        let item_span = trim_span(source, Span::new(remaining.start, end));
+        let argument = keyword_argument(source, Span::new(name_span.end, item_span.end));
+        abilities.push(KeywordAbility {
+            span: item_span,
+            name: name_span,
+            argument,
+        });
+
+        let Some((_, next_start)) = next else { break };
+        start = next_start;
+    }
+
+    (!abilities.is_empty()).then_some(KeywordAbilityList { span, abilities })
+}
+
+fn next_keyword_ability(
+    source: &str,
+    start: usize,
+    end: usize,
+    catalogs: &Catalogs,
+) -> Option<(usize, usize)> {
+    let mut state = Nesting::default();
+    for (relative, ch) in source[start..end].char_indices() {
+        let delimiter = start + relative;
+        if state.is_top_level() && matches!(ch, ',' | ';') {
+            let next = trim_span(source, Span::new(delimiter + ch.len_utf8(), end));
+            if catalogs
+                .keyword_ability_prefix(next.text(source)?)
+                .is_some()
+            {
+                return Some((delimiter, next.start));
+            }
+        }
+        state.observe(ch);
+    }
+    None
+}
+
+fn has_top_level_terminal(source: &str, span: Span) -> bool {
+    let mut state = Nesting::default();
+    span.text(source).is_some_and(|text| {
+        text.chars().any(|ch| {
+            let terminal = state.is_top_level() && matches!(ch, '.' | '!' | '?');
+            state.observe(ch);
+            terminal
+        })
+    })
+}
+
+fn keyword_argument(source: &str, span: Span) -> Option<Span> {
+    let mut argument = trim_span(source, span);
+    if argument.text(source)?.starts_with('—') {
+        argument = trim_span(
+            source,
+            Span::new(argument.start + '—'.len_utf8(), argument.end),
+        );
+    }
+    (!argument.is_empty()).then_some(argument)
 }
 
 fn trigger_start(body: Span, text: &str) -> Option<(TriggerWord, Span, Span)> {
@@ -610,18 +730,39 @@ impl Nesting {
     }
 }
 
-fn predicate_word<'tokens>(
+struct PredicateMatch {
+    verb: Span,
+    auxiliary: Option<Span>,
+    verb_kind: VerbKind,
+}
+
+fn predicate_word(
     source: &str,
-    words: &'tokens [&Token],
-) -> Option<(&'tokens Token, Option<&'tokens Token>)> {
+    clause: Span,
+    words: &[&Token],
+    catalogs: Option<&Catalogs>,
+) -> Option<PredicateMatch> {
     let first = *words.first()?;
     let first_text = first.span.text(source)?.to_ascii_lowercase();
     let later_predicate = words.iter().skip(1).find(|token| {
         let word = token.span.text(source).unwrap_or_default();
         is_finite_verb(word) || is_auxiliary(word)
     });
+    if let Some(action) =
+        catalogs.and_then(|catalogs| catalogs.keyword_action_prefix(clause.text(source)?))
+    {
+        return Some(PredicateMatch {
+            verb: Span::new(clause.start, clause.start + action.len()),
+            auxiliary: None,
+            verb_kind: VerbKind::KeywordAction,
+        });
+    }
     if is_imperative(&first_text) && later_predicate.is_none() {
-        return Some((first, None));
+        return Some(PredicateMatch {
+            verb: first.span,
+            auxiliary: None,
+            verb_kind: VerbKind::Ordinary,
+        });
     }
     for (index, token) in words.iter().enumerate() {
         let text = token.span.text(source).unwrap_or_default();
@@ -632,13 +773,25 @@ fn predicate_word<'tokens>(
                 .find(|next| !matches!(next.span.text(source), Some("not" | "also")))
                 .copied()
                 .unwrap_or(token);
-            return Some((verb, (verb.span != token.span).then_some(*token)));
+            return Some(PredicateMatch {
+                verb: verb.span,
+                auxiliary: (verb.span != token.span).then_some(token.span),
+                verb_kind: VerbKind::Ordinary,
+            });
         }
         if is_finite_verb(text) {
-            return Some((token, None));
+            return Some(PredicateMatch {
+                verb: token.span,
+                auxiliary: None,
+                verb_kind: VerbKind::Ordinary,
+            });
         }
     }
-    if is_imperative(&first_text) { Some((first, None)) } else { None }
+    is_imperative(&first_text).then_some(PredicateMatch {
+        verb: first.span,
+        auxiliary: None,
+        verb_kind: VerbKind::Ordinary,
+    })
 }
 
 fn is_auxiliary(word: &str) -> bool {
@@ -993,6 +1146,90 @@ mod tests {
             ast.tokens
                 .iter()
                 .any(|token| token.kind == TokenKind::Number)
+        );
+    }
+
+    #[test]
+    fn scryfall_catalogs_recognize_keyword_lists_actions_and_ability_words() {
+        let catalogs = Catalogs::new(
+            [
+                "Flying",
+                "First strike",
+                "Protection",
+                "Max speed",
+                "Forecast",
+                "Power-up",
+            ],
+            ["Scry", "Manifest dread", "Fight"],
+            ["Landfall", "Void"],
+        );
+
+        let keyword_source = "Flying, first strike, protection from red";
+        let keywords = parse_with_catalogs(keyword_source, &catalogs);
+        let AbilityKind::Keyword(keyword_list) = &keywords.abilities[0].kind else {
+            panic!("expected a keyword-ability list")
+        };
+        assert_eq!(keyword_list.abilities.len(), 3);
+        assert_eq!(
+            text(keyword_source, keyword_list.abilities[0].name),
+            "Flying"
+        );
+        assert_eq!(
+            text(keyword_source, keyword_list.abilities[2].argument.unwrap()),
+            "from red"
+        );
+
+        let action_source = "Manifest dread 2.";
+        let action = parse_with_catalogs(action_source, &catalogs);
+        let AbilityKind::Paragraph(paragraph) = &action.abilities[0].kind else {
+            panic!("expected an ordinary spell paragraph")
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+        let predicate = clause.predicate.as_ref().unwrap();
+        assert_eq!(text(action_source, predicate.verb), "Manifest dread");
+        assert_eq!(predicate.verb_kind, VerbKind::KeywordAction);
+
+        let ability_word_source = "Void — Whenever ~ attacks, draw a card.";
+        let ability_word = parse_with_catalogs(ability_word_source, &catalogs);
+        assert_eq!(
+            text(
+                ability_word_source,
+                ability_word.abilities[0].ability_word.unwrap()
+            ),
+            "Void"
+        );
+
+        let max_speed_source = "Max speed — Draw an additional card.";
+        let max_speed = parse_with_catalogs(max_speed_source, &catalogs);
+        assert!(max_speed.abilities[0].ability_word.is_none());
+        assert!(matches!(
+            max_speed.abilities[0].kind,
+            AbilityKind::Keyword(_)
+        ));
+
+        let forecast_source = "Forecast — {1}{U}, Reveal this card: Draw a card.";
+        let forecast = parse_with_catalogs(forecast_source, &catalogs);
+        assert!(matches!(
+            forecast.abilities[0].kind,
+            AbilityKind::Keyword(_)
+        ));
+
+        let static_source = "Power-up abilities you activate cost {1} less to activate.";
+        let static_ability = parse_with_catalogs(static_source, &catalogs);
+        assert!(matches!(
+            static_ability.abilities[0].kind,
+            AbilityKind::Paragraph(_)
+        ));
+
+        let fight_source = "Fight target creature you don't control.";
+        let fight = parse_with_catalogs(fight_source, &catalogs);
+        let AbilityKind::Paragraph(paragraph) = &fight.abilities[0].kind else {
+            panic!()
+        };
+        let Clause::Simple(clause) = &paragraph.sentences[0].clause else { panic!() };
+        assert_eq!(
+            clause.predicate.as_ref().unwrap().verb_kind,
+            VerbKind::KeywordAction
         );
     }
 }

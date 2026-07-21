@@ -44,10 +44,29 @@ pub enum AbilityKind {
     Triggered(TriggeredAbility),
     Loyalty(LoyaltyAbility),
     Modal(ModalAbility),
+    /// One or more comma-separated keyword abilities recognized through the
+    /// supplied Scryfall catalog.
+    Keyword(KeywordAbilityList),
     /// Syntactically ordinary text. Card type and the later lowering pass
     /// decide whether it denotes a spell, static ability, keyword, or other
     /// rules construct.
     Paragraph(Paragraph),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeywordAbilityList {
+    pub span: Span,
+    pub abilities: Vec<KeywordAbility>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeywordAbility {
+    pub span: Span,
+    /// The catalog-recognized keyword name, preserving its printed casing.
+    pub name: Span,
+    /// Printed parameters, alternative costs, or reminder text following the
+    /// keyword name. Separating their grammar is left to a later AST pass.
+    pub argument: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -173,8 +192,16 @@ pub struct Predicate {
     pub span: Span,
     pub auxiliary: Option<Span>,
     pub verb: Span,
+    pub verb_kind: VerbKind,
     pub complement: Option<Span>,
     pub negated: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VerbKind {
+    Ordinary,
+    /// A verb phrase recognized through Scryfall's keyword-actions catalog.
+    KeywordAction,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

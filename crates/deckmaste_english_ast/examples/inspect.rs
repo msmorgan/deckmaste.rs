@@ -10,7 +10,8 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use deckmaste_english_ast::parse;
+use deckmaste_english_ast::Catalogs;
+use deckmaste_english_ast::parse_with_catalogs;
 use serde::Deserialize;
 
 #[derive(Debug, Parser)]
@@ -22,6 +23,10 @@ struct Args {
     /// Override the derived card-data snapshot.
     #[arg(long, value_name = "PATH")]
     data: Option<PathBuf>,
+
+    /// Override the directory containing Scryfall's English catalogs.
+    #[arg(long, value_name = "DIR")]
+    catalogs: Option<PathBuf>,
 
     /// Include the underlying byte spans instead of resolving them to text.
     #[arg(short, long)]
@@ -36,6 +41,11 @@ struct Row {
     text: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct Catalog {
+    data: Vec<String>,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 struct CardText {
     card_name: String,
@@ -46,6 +56,8 @@ struct CardText {
 fn main() -> Result<()> {
     let args = Args::parse();
     let data_path = args.data.unwrap_or_else(default_data_path);
+    let catalogs_path = args.catalogs.unwrap_or_else(default_catalogs_path);
+    let catalogs = load_catalogs(&catalogs_path)?;
     let file = File::open(&data_path).with_context(|| {
         format!(
             "could not open {}; generate the repository's derived card data first",
@@ -62,11 +74,36 @@ fn main() -> Result<()> {
         );
     }
 
-    write_cards(io::stdout().lock(), &cards, args.verbose)
+    write_cards(io::stdout().lock(), &cards, &catalogs, args.verbose)
 }
 
 fn default_data_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/derived/cards.jsonl")
+}
+
+fn default_catalogs_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/catalogs")
+}
+
+fn load_catalogs(path: &Path) -> Result<Catalogs> {
+    Ok(Catalogs::new(
+        load_catalog(path, "keyword-abilities")?,
+        load_catalog(path, "keyword-actions")?,
+        load_catalog(path, "ability-words")?,
+    ))
+}
+
+fn load_catalog(path: &Path, name: &str) -> Result<Vec<String>> {
+    let path = path.join(format!("{name}.json"));
+    let file = File::open(&path).with_context(|| {
+        format!(
+            "could not open Scryfall catalog {}; fetch the repository data first",
+            path.display()
+        )
+    })?;
+    let catalog: Catalog = serde_json::from_reader(BufReader::new(file))
+        .with_context(|| format!("invalid Scryfall catalog {}", path.display()))?;
+    Ok(catalog.data)
 }
 
 fn find_cards(reader: impl BufRead, query: &str, data_path: &Path) -> Result<Vec<CardText>> {
@@ -112,7 +149,12 @@ fn find_cards(reader: impl BufRead, query: &str, data_path: &Path) -> Result<Vec
     })
 }
 
-fn write_cards(mut writer: impl Write, cards: &[CardText], verbose: bool) -> Result<()> {
+fn write_cards(
+    mut writer: impl Write,
+    cards: &[CardText],
+    catalogs: &Catalogs,
+    verbose: bool,
+) -> Result<()> {
     for (index, card) in cards.iter().enumerate() {
         if index != 0 {
             writeln!(writer)?;
@@ -123,7 +165,7 @@ fn write_cards(mut writer: impl Write, cards: &[CardText], verbose: bool) -> Res
             None => writeln!(writer, "{}", card.card_name)?,
         }
         writeln!(writer, "\nOracle text:\n{}", card.oracle_text)?;
-        let ast = parse(&card.oracle_text);
+        let ast = parse_with_catalogs(&card.oracle_text, catalogs);
         if verbose {
             writeln!(writer, "\nAST:\n{ast:#?}")?;
         } else {
@@ -203,9 +245,10 @@ mod tests {
         }];
         let mut normal = Vec::new();
         let mut verbose = Vec::new();
+        let catalogs = Catalogs::default();
 
-        write_cards(&mut normal, &cards, false).unwrap();
-        write_cards(&mut verbose, &cards, true).unwrap();
+        write_cards(&mut normal, &cards, &catalogs, false).unwrap();
+        write_cards(&mut verbose, &cards, &catalogs, true).unwrap();
         let normal = String::from_utf8(normal).unwrap();
         let verbose = String::from_utf8(verbose).unwrap();
 
@@ -214,5 +257,36 @@ mod tests {
         assert!(!normal.contains("Span"));
         assert!(verbose.contains("Span"));
         assert!(verbose.contains("start: 0"));
+    }
+
+    #[test]
+    fn local_card_snapshot_ability_lists_round_trip_when_available() {
+        let data_path = default_data_path();
+        let catalogs_path = default_catalogs_path();
+        if !data_path.is_file() || !catalogs_path.is_dir() {
+            return;
+        }
+        let catalogs = load_catalogs(&catalogs_path).unwrap();
+        let file = File::open(&data_path).unwrap();
+
+        for (index, line) in BufReader::new(file).lines().enumerate() {
+            let row: Row = serde_json::from_str(&line.unwrap()).unwrap();
+            let source = row.text.unwrap_or_default();
+            let ast = parse_with_catalogs(&source, &catalogs);
+            let rebuilt = ast
+                .abilities
+                .iter()
+                .map(|ability| ability.span.text(&source).unwrap())
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            assert_eq!(
+                rebuilt,
+                source,
+                "ability-list round trip failed on data row {} ({})",
+                index + 1,
+                row.face.as_deref().unwrap_or(&row.name)
+            );
+        }
     }
 }

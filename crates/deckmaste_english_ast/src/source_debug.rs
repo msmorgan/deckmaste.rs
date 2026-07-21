@@ -7,6 +7,8 @@ use crate::Clause;
 use crate::ConditionalClause;
 use crate::Cost;
 use crate::Diagnostic;
+use crate::KeywordAbility;
+use crate::KeywordAbilityList;
 use crate::LoyaltyAbility;
 use crate::ModalAbility;
 use crate::ModalFrame;
@@ -23,7 +25,8 @@ use crate::TriggeredAbility;
 /// A human-readable AST view whose spans are resolved against its source text.
 ///
 /// Container spans are omitted. Spans that carry syntactic meaning are shown
-/// as the text they cover, such as a token's text or a predicate's verb.
+/// as the text they cover, such as a complete printed ability, a token's text,
+/// or a predicate's verb.
 pub struct SourceDebug<'ast, 'source> {
     ast: &'ast OracleText,
     source: &'source str,
@@ -133,6 +136,7 @@ impl ResolvedDebug for Ability {
     fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Ability")
+            .field("text", &Resolved::new(source, &self.span))
             .field("ability_word", &Resolved::new(source, &self.ability_word))
             .field("kind", &Resolved::new(source, &self.kind))
             .finish()
@@ -158,11 +162,38 @@ impl ResolvedDebug for AbilityKind {
                 .debug_tuple("Modal")
                 .field(&Resolved::new(source, ability))
                 .finish(),
+            Self::Keyword(ability) => formatter
+                .debug_tuple("Keyword")
+                .field(&Resolved::new(source, ability))
+                .finish(),
             Self::Paragraph(paragraph) => formatter
                 .debug_tuple("Paragraph")
                 .field(&Resolved::new(source, paragraph))
                 .finish(),
         }
+    }
+}
+
+impl ResolvedDebug for KeywordAbilityList {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("KeywordAbilityList")
+            .field(
+                "abilities",
+                &Resolved::new(source, self.abilities.as_slice()),
+            )
+            .finish()
+    }
+}
+
+impl ResolvedDebug for KeywordAbility {
+    fn fmt_resolved(&self, source: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("KeywordAbility")
+            .field("text", &Resolved::new(source, &self.span))
+            .field("name", &Resolved::new(source, &self.name))
+            .field("argument", &Resolved::new(source, &self.argument))
+            .finish()
     }
 }
 
@@ -318,6 +349,7 @@ impl ResolvedDebug for Predicate {
             .debug_struct("Predicate")
             .field("auxiliary", &Resolved::new(source, &self.auxiliary))
             .field("verb", &Resolved::new(source, &self.verb))
+            .field("verb_kind", &self.verb_kind)
             .field("complement", &Resolved::new(source, &self.complement))
             .field("negated", &self.negated)
             .finish()
@@ -345,6 +377,7 @@ mod tests {
         let output = format!("{:#?}", parse(source).source_debug(source));
 
         assert!(output.contains("text: \"Lightning\""));
+        assert!(output.contains("text: \"Lightning Bolt deals 3 damage to any target.\""));
         assert!(output.contains("subject: Some("));
         assert!(output.contains("\"Lightning Bolt\""));
         assert!(output.contains("verb: \"deals\""));
