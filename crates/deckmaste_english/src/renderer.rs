@@ -320,7 +320,7 @@ impl<'identity> Renderer<'identity> {
     fn sentence(&self, sentence: &Sentence, capitalize: bool) -> Result<String, RenderError> {
         let body = match &sentence.body {
             SentenceBody::Independent(clause) => self.independent_clause(clause)?,
-            SentenceBody::Unknown(unknown) => unknown.0.clone(),
+            SentenceBody::Unknown(unknown) => self.expand_self_references(&unknown.0),
         };
         let mut rendered = if capitalize { capitalize_first(body) } else { body };
         let (terminal, count) = match sentence.ending {
@@ -712,7 +712,7 @@ impl<'identity> Renderer<'identity> {
                     render_signed_scalar(value.power),
                     render_signed_scalar(value.toughness),
                 ),
-                NominalModifier::Unknown(unknown) => unknown.0.clone(),
+                NominalModifier::Unknown(unknown) => self.expand_self_references(&unknown.0),
             });
         }
         parts.push(self.render_noun(&phrase.head)?);
@@ -722,7 +722,7 @@ impl<'identity> Renderer<'identity> {
                     self.prepositional_phrase(preposition)?
                 }
                 NominalComplement::Relative(relative) => self.relative_clause(relative)?,
-                NominalComplement::Unknown(unknown) => unknown.0.clone(),
+                NominalComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
             });
         }
         Ok(join_words(parts))
@@ -736,7 +736,9 @@ impl<'identity> Renderer<'identity> {
                 }
                 NominalModifier::Noun(noun) => self.noun_initial_sound(noun),
                 NominalModifier::PowerToughness(_) => Ok(InitialSound::Consonant),
-                NominalModifier::Unknown(unknown) => Ok(spelling_initial_sound(&unknown.0)),
+                NominalModifier::Unknown(unknown) => Ok(spelling_initial_sound(
+                    &self.expand_self_references(&unknown.0),
+                )),
             };
         }
         self.noun_initial_sound(&phrase.head)
@@ -759,7 +761,9 @@ impl<'identity> Renderer<'identity> {
                 })
                 .map(|surface| spelling_initial_sound(&surface))
                 .ok_or(RenderError::MissingLexicalForm("gerund")),
-            Noun::Unknown(unknown) => Ok(spelling_initial_sound(&unknown.0)),
+            Noun::Unknown(unknown) => Ok(spelling_initial_sound(
+                &self.expand_self_references(&unknown.0),
+            )),
         }
     }
 
@@ -802,7 +806,7 @@ impl<'identity> Renderer<'identity> {
                 AdjectiveComplement::Infinitive(infinitive) => {
                     self.infinitive_clause(infinitive)?
                 }
-                AdjectiveComplement::Unknown(unknown) => unknown.0.clone(),
+                AdjectiveComplement::Unknown(unknown) => self.expand_self_references(&unknown.0),
             });
         }
         Ok(join_words(parts))
@@ -846,7 +850,7 @@ impl<'identity> Renderer<'identity> {
                 }
                 Ok(rendered)
             }
-            Phrase::UnknownPhrase(unknown) => Ok(unknown.0.clone()),
+            Phrase::UnknownPhrase(unknown) => Ok(self.expand_self_references(&unknown.0)),
         }
     }
 
@@ -866,6 +870,23 @@ impl<'identity> Renderer<'identity> {
         } else {
             Ok(rendered.to_owned())
         }
+    }
+
+    fn expand_self_references(&self, text: &str) -> String {
+        let mut rendered = String::with_capacity(text.len());
+        let mut rest = text;
+        while let Some(index) = rest.find('~') {
+            rendered.push_str(&rest[..index]);
+            rest = &rest[index + 1..];
+            if let Some(after_second) = rest.strip_prefix('~') {
+                rendered.push_str(self.name);
+                rest = after_second;
+            } else {
+                rendered.push_str(self.short_name);
+            }
+        }
+        rendered.push_str(rest);
+        rendered
     }
 }
 
@@ -1354,6 +1375,16 @@ mod tests {
         assert_eq!(
             source_free(&full_name, "Aang, A Lot to Learn", true),
             "Aang, A Lot to Learn's power is equal to the number of cards in your hand."
+        );
+    }
+
+    #[test]
+    fn opaque_fallbacks_expand_self_reference_sigils() {
+        let ast = crate::parse("~ frobnitzes ~~.").into_ast();
+
+        assert_eq!(
+            source_free(&ast, "Aang, A Lot to Learn", true),
+            "Aang frobnitzes Aang, A Lot to Learn."
         );
     }
 
