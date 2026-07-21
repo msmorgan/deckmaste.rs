@@ -88,13 +88,39 @@ fn main() -> Result<()> {
 
     let maximum = leaves.first().map_or(0, |leaf| leaf.words);
     let over_three = leaves.iter().filter(|leaf| leaf.words > 3).count();
+    let mut phrase_lengths = [0; 7];
+    for leaf in leaves
+        .iter()
+        .filter(|leaf| leaf.kind == "phrase" || leaf.kind == "phrase fragment")
+    {
+        let bucket = match leaf.words {
+            0..=1 => 0,
+            2 => 1,
+            3 => 2,
+            4..=5 => 3,
+            6..=10 => 4,
+            11..=20 => 5,
+            _ => 6,
+        };
+        phrase_lengths[bucket] += 1;
+    }
     let unit = if maximum == 1 { "word" } else { "words" };
     println!(
         "audited {} card faces and {} semantic leaves; maximum {maximum} {unit}; {over_three} over 3 words",
         rows.len(),
         leaves.len()
     );
-    println!("longest semantic leaves (reminder text excluded):");
+    println!(
+        "unresolved phrase lengths: 0–1={}  2={}  3={}  4–5={}  6–10={}  11–20={}  21+={}",
+        phrase_lengths[0],
+        phrase_lengths[1],
+        phrase_lengths[2],
+        phrase_lengths[3],
+        phrase_lengths[4],
+        phrase_lengths[5],
+        phrase_lengths[6]
+    );
+    println!("longest unresolved leaves (reminder text excluded):");
     for leaf in leaves.into_iter().take(args.limit) {
         println!(
             "{:>3} words  {:<18} {:<40} {:?}",
@@ -269,16 +295,73 @@ fn collect_phrase<'source>(
     phrase: &Phrase,
     ast: &OracleText,
 ) {
+    if phrase
+        .parts
+        .iter()
+        .all(|part| matches!(part, PhrasePart::Token(_) | PhrasePart::Reminder(_)))
+    {
+        push_leaf(leaves, card, source, "phrase", phrase.span, ast);
+        return;
+    }
+
+    let mut fragment_start = None;
+    let mut fragment_end = None;
     for part in &phrase.parts {
         match part {
             PhrasePart::Token(token) => {
-                push_leaf(leaves, card, source, "phrase token", token.span, ast);
+                fragment_start.get_or_insert(token.span.start);
+                fragment_end = Some(token.span.end);
             }
-            PhrasePart::Reminder(_) => {}
+            PhrasePart::Reminder(_) => {
+                push_phrase_fragment(
+                    leaves,
+                    card,
+                    source,
+                    &mut fragment_start,
+                    &mut fragment_end,
+                    ast,
+                );
+            }
             PhrasePart::EmbeddedRules(rules) => {
+                push_phrase_fragment(
+                    leaves,
+                    card,
+                    source,
+                    &mut fragment_start,
+                    &mut fragment_end,
+                    ast,
+                );
                 collect_ability(leaves, card, source, &rules.ability, ast);
             }
         }
+    }
+    push_phrase_fragment(
+        leaves,
+        card,
+        source,
+        &mut fragment_start,
+        &mut fragment_end,
+        ast,
+    );
+}
+
+fn push_phrase_fragment<'source>(
+    leaves: &mut Vec<Leaf<'source>>,
+    card: &str,
+    source: &'source str,
+    start: &mut Option<usize>,
+    end: &mut Option<usize>,
+    ast: &OracleText,
+) {
+    if let (Some(start), Some(end)) = (start.take(), end.take()) {
+        push_leaf(
+            leaves,
+            card,
+            source,
+            "phrase fragment",
+            Span::new(start, end),
+            ast,
+        );
     }
 }
 
@@ -319,35 +402,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn local_snapshot_has_no_semantic_leaf_over_three_words_when_available() {
-        let data_path = default_data_path();
-        let catalogs_path = default_catalogs_path();
-        if !data_path.is_file() || !catalogs_path.is_dir() {
-            return;
-        }
-        let catalogs = load_catalogs(&catalogs_path).unwrap();
-        let file = File::open(data_path).unwrap();
-        let rows = BufReader::new(file)
-            .lines()
-            .map(|line| serde_json::from_str::<Row>(&line.unwrap()).unwrap())
-            .collect::<Vec<_>>();
+    fn token_only_phrase_counts_as_one_unresolved_leaf() {
+        let source = "Destroy target artifact or enchantment.";
+        let ast = parse_with_catalogs(source, &Catalogs::default());
         let mut leaves = Vec::new();
 
-        for row in &rows {
-            let source = row.text.as_deref().unwrap_or_default();
-            let card = row.face.as_deref().unwrap_or(&row.name);
-            let ast = parse_with_catalogs(source, &catalogs);
-            collect_oracle_text(&mut leaves, card, source, &ast);
-        }
+        collect_oracle_text(&mut leaves, "Test Card", source, &ast);
 
         let longest = leaves.iter().max_by_key(|leaf| leaf.words).unwrap();
-        assert!(
-            longest.words <= 3,
-            "{}-word {} leaf on {}: {:?}",
-            longest.words,
-            longest.kind,
-            longest.card,
-            longest.span.text(longest.source).unwrap()
+        assert_eq!(longest.kind, "phrase");
+        assert_eq!(longest.words, 4);
+        assert_eq!(
+            longest.span.text(source).unwrap(),
+            "target artifact or enchantment"
         );
     }
 }
